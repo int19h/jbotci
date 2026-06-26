@@ -873,7 +873,11 @@ fn legacy_as_generated_paragraph_statement_tree_value(
         && statement.free_modifiers.is_empty()
         && let Some(inner) = &statement.statement
     {
-        return legacy_as_generated_statement_tree_value(inner.as_ref(), source, options);
+        return legacy_as_generated_statement_or_fragment_tree_value(
+            inner.as_ref(),
+            source,
+            options,
+        );
     }
 
     let mut entries = Vec::new();
@@ -904,7 +908,11 @@ fn legacy_as_generated_paragraph_statement_tree_value(
     if let Some(inner) = &statement.statement {
         entries.push(TreeEntry {
             label: None,
-            value: legacy_as_generated_statement_tree_value(inner.as_ref(), source, options),
+            value: legacy_as_generated_statement_or_fragment_tree_value(
+                inner.as_ref(),
+                source,
+                options,
+            ),
         });
     }
     TreeValue::Node(TreeNode {
@@ -947,7 +955,11 @@ fn legacy_as_generated_following_paragraph_statement_tree_value(
     if let Some(inner) = &statement.statement {
         entries.push(TreeEntry {
             label: None,
-            value: legacy_as_generated_statement_tree_value(inner.as_ref(), source, options),
+            value: legacy_as_generated_statement_or_fragment_tree_value(
+                inner.as_ref(),
+                source,
+                options,
+            ),
         });
     }
     TreeValue::Node(TreeNode {
@@ -996,12 +1008,197 @@ fn legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_statement_or_fragment_tree_value(
+    statement: &jbotci_syntax::ast::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match statement.as_data() {
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Fragment(fragment)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "FragmentStatement",
+                entries: vec![TreeEntry {
+                    label: Some("fragment_statement"),
+                    value: legacy_as_generated_fragment_statement_tree_value(
+                        fragment.as_ref(),
+                        source,
+                        options,
+                    ),
+                }],
+            })
+        }
+        _ => TreeValue::Node(TreeNode {
+            constructor: "StatementOrFragmentStatement",
+            entries: vec![TreeEntry {
+                label: Some("statement_or_fragment_statement"),
+                value: legacy_as_generated_statement_tree_value(statement, source, options),
+            }],
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_statement_tree_value(
     statement: &jbotci_syntax::ast::StatementSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
     match statement.as_data() {
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::TextGroup { .. })
+        | bityzba::data!(jbotci_syntax::ast::StatementSyntax::Bridi(_))
+        | bityzba::data!(jbotci_syntax::ast::StatementSyntax::Prenex { .. })
+        | bityzba::data!(
+            jbotci_syntax::ast::StatementSyntax::ExperimentalBridiContinuation { .. }
+        ) => legacy_as_generated_statement_base_tree_value(statement, source, options),
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Fragment(fragment)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "FragmentStatement",
+                entries: vec![TreeEntry {
+                    label: Some("fragment_statement"),
+                    value: legacy_as_generated_fragment_statement_tree_value(
+                        fragment.as_ref(),
+                        source,
+                        options,
+                    ),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::StatementConnection {
+            leading_statement,
+            i,
+            connective,
+            trailing_statement,
+        }) => legacy_as_generated_statement_connection_tree_value(
+            leading_statement.as_ref(),
+            i,
+            connective,
+            trailing_statement.as_ref(),
+            false,
+            source,
+            options,
+        ),
+        bityzba::data!(
+            jbotci_syntax::ast::StatementSyntax::PreposedIStatementConnection {
+                leading_statement,
+                connective,
+                i,
+                trailing_statement,
+            }
+        ) => TreeValue::Node(TreeNode {
+            constructor: "PreposedIStatementConnection",
+            entries: vec![TreeEntry {
+                label: Some("preposed_i_statement_connection"),
+                value: TreeValue::Node(TreeNode {
+                    constructor: "PreposedIStatementConnection",
+                    entries: vec![
+                        TreeEntry {
+                            label: Some("leading_statement"),
+                            value: legacy_as_generated_statement_connection_operand_tree_value(
+                                leading_statement.as_ref(),
+                                source,
+                                options,
+                            ),
+                        },
+                        TreeEntry {
+                            label: Some("connective"),
+                            value: required_legacy_syntax_subtree_value(
+                                connective, source, options,
+                            ),
+                        },
+                        TreeEntry {
+                            label: Some("i"),
+                            value: generated_token_tree_value(i, source, options),
+                        },
+                        TreeEntry {
+                            label: Some("trailing_statement"),
+                            value: legacy_as_generated_statement_after_i_connective_tree_value(
+                                trailing_statement.as_ref(),
+                                source,
+                                options,
+                            ),
+                        },
+                    ],
+                }),
+            }],
+        }),
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Iau { .. }) => {
+            required_legacy_syntax_subtree_value(statement, source, options)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_statement_connection_operand_tree_value(
+    statement: &jbotci_syntax::ast::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    statement_base_payload_value(legacy_as_generated_statement_tree_value(
+        statement, source, options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_statement_connection_tree_value(
+    leading_statement: &jbotci_syntax::ast::StatementSyntax,
+    i: &Token,
+    connective: &jbotci_syntax::ast::ConnectiveSyntax,
+    trailing_statement: &jbotci_syntax::ast::StatementSyntax,
+    leading_from_after_i: bool,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let leading_statement_value = if leading_from_after_i {
+        legacy_as_generated_statement_after_i_connective_tree_value(
+            leading_statement,
+            source,
+            options,
+        )
+    } else {
+        legacy_as_generated_statement_connection_operand_tree_value(
+            leading_statement,
+            source,
+            options,
+        )
+    };
+    TreeValue::Node(TreeNode {
+        constructor: "StatementConnection",
+        entries: vec![
+            TreeEntry {
+                label: Some("leading_statement"),
+                value: leading_statement_value,
+            },
+            TreeEntry {
+                label: Some("i"),
+                value: generated_token_tree_value(i, source, options),
+            },
+            TreeEntry {
+                label: Some("connective"),
+                value: required_legacy_syntax_subtree_value(connective, source, options),
+            },
+            TreeEntry {
+                label: Some("trailing_statement"),
+                value: legacy_as_generated_statement_after_i_connective_tree_value(
+                    trailing_statement,
+                    source,
+                    options,
+                ),
+            },
+        ],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_statement_base_tree_value(
+    statement: &jbotci_syntax::ast::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let value = match statement.as_data() {
         bityzba::data!(jbotci_syntax::ast::StatementSyntax::TextGroup {
             tense_modal,
             tuhe,
@@ -1027,9 +1224,16 @@ fn legacy_as_generated_statement_tree_value(
             if let Some(tuhu) = tuhu {
                 entries.extend(legacy_token_field_entries("tuhu", tuhu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "TextGroup",
+            let value = TreeValue::Node(TreeNode {
+                constructor: "TextGroupStatement",
                 entries,
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "TextGroupStatement",
+                entries: vec![TreeEntry {
+                    label: Some("text_group_statement"),
+                    value,
+                }],
             })
         }
         bityzba::data!(jbotci_syntax::ast::StatementSyntax::Bridi(bridi)) => {
@@ -1059,84 +1263,18 @@ fn legacy_as_generated_statement_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "Prenex",
+            let value = TreeValue::Node(TreeNode {
+                constructor: "PrenexStatement",
                 entries,
+            });
+            TreeValue::Node(TreeNode {
+                constructor: "PrenexStatement",
+                entries: vec![TreeEntry {
+                    label: Some("prenex_statement"),
+                    value,
+                }],
             })
         }
-        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Fragment(fragment)) => {
-            legacy_as_generated_fragment_tree_value(fragment.as_ref(), source, options)
-        }
-        bityzba::data!(jbotci_syntax::ast::StatementSyntax::StatementConnection {
-            leading_statement,
-            i,
-            connective,
-            trailing_statement,
-        }) => TreeValue::Node(TreeNode {
-            constructor: "StatementConnection",
-            entries: vec![
-                TreeEntry {
-                    label: Some("leading_statement"),
-                    value: legacy_as_generated_statement_tree_value(
-                        leading_statement.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-                TreeEntry {
-                    label: Some("i"),
-                    value: generated_token_tree_value(i, source, options),
-                },
-                TreeEntry {
-                    label: Some("connective"),
-                    value: required_legacy_syntax_subtree_value(connective, source, options),
-                },
-                TreeEntry {
-                    label: Some("trailing_statement"),
-                    value: legacy_as_generated_statement_tree_value(
-                        trailing_statement.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ],
-        }),
-        bityzba::data!(
-            jbotci_syntax::ast::StatementSyntax::PreposedIStatementConnection {
-                leading_statement,
-                connective,
-                i,
-                trailing_statement,
-            }
-        ) => TreeValue::Node(TreeNode {
-            constructor: "PreposedIStatementConnection",
-            entries: vec![
-                TreeEntry {
-                    label: Some("leading_statement"),
-                    value: legacy_as_generated_statement_tree_value(
-                        leading_statement.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-                TreeEntry {
-                    label: Some("connective"),
-                    value: required_legacy_syntax_subtree_value(connective, source, options),
-                },
-                TreeEntry {
-                    label: Some("i"),
-                    value: generated_token_tree_value(i, source, options),
-                },
-                TreeEntry {
-                    label: Some("trailing_statement"),
-                    value: legacy_as_generated_statement_tree_value(
-                        trailing_statement.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ],
-        }),
         bityzba::data!(
             jbotci_syntax::ast::StatementSyntax::ExperimentalBridiContinuation {
                 leading_statement,
@@ -1164,6 +1302,67 @@ fn legacy_as_generated_statement_tree_value(
             ],
         }),
         _ => required_legacy_syntax_subtree_value(statement, source, options),
+    };
+    TreeValue::Node(TreeNode {
+        constructor: "StatementBase",
+        entries: vec![TreeEntry {
+            label: Some("statement_base"),
+            value,
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_statement_after_i_connective_tree_value(
+    statement: &jbotci_syntax::ast::StatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match statement.as_data() {
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::StatementConnection {
+            leading_statement,
+            i,
+            connective,
+            trailing_statement,
+        }) => legacy_as_generated_statement_connection_tree_value(
+            leading_statement.as_ref(),
+            i,
+            connective,
+            trailing_statement.as_ref(),
+            true,
+            source,
+            options,
+        ),
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::Bridi(bridi)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "BridiStatement",
+                entries: vec![TreeEntry {
+                    label: Some("bridi_statement"),
+                    value: legacy_as_generated_bridi_tree_value(bridi.as_ref(), source, options),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::StatementSyntax::TextGroup { .. })
+        | bityzba::data!(
+            jbotci_syntax::ast::StatementSyntax::ExperimentalBridiContinuation { .. }
+        ) => statement_base_payload_value(legacy_as_generated_statement_base_tree_value(
+            statement, source, options,
+        )),
+        _ => required_legacy_syntax_subtree_value(statement, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn statement_base_payload_value(value: TreeValue) -> TreeValue {
+    match value {
+        TreeValue::Node(mut node)
+            if node.constructor == "StatementBase" && node.entries.len() == 1 =>
+        {
+            node.entries.remove(0).value
+        }
+        value => value,
     }
 }
 
@@ -1243,6 +1442,84 @@ fn legacy_as_generated_bridi_statement_continuation_marker_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_fragment_statement_tree_value(
+    fragment: &jbotci_syntax::ast::FragmentSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match fragment.as_data() {
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Ek(connective)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "EkFragment",
+                entries: vec![TreeEntry {
+                    label: Some("ek_fragment"),
+                    value: legacy_as_generated_connective_tree_value(connective, source, options),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::BridiTailConnective(
+            connective
+        )) => TreeValue::Node(TreeNode {
+            constructor: "GihekFragment",
+            entries: vec![TreeEntry {
+                label: Some("gihek_fragment"),
+                value: legacy_as_generated_connective_tree_value(connective, source, options),
+            }],
+        }),
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Other(_))
+        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumti { .. })
+        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumtiContinuation(
+            _
+        )) => legacy_as_generated_fragment_tree_value(fragment, source, options),
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Terms { .. }) => {
+            TreeValue::Node(TreeNode {
+                constructor: "TermsFragment",
+                entries: vec![TreeEntry {
+                    label: Some("terms_fragment"),
+                    value: legacy_as_generated_fragment_tree_value(fragment, source, options),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::RelativeClauses(_)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "RelativeClauseFragment",
+                entries: vec![TreeEntry {
+                    label: Some("relative_clause_fragment"),
+                    value: legacy_as_generated_fragment_tree_value(fragment, source, options),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Prenex { .. }) => {
+            TreeValue::Node(TreeNode {
+                constructor: "PrenexFragment",
+                entries: vec![TreeEntry {
+                    label: Some("prenex_fragment"),
+                    value: legacy_as_generated_fragment_tree_value(fragment, source, options),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Mekso(mekso)) => {
+            TreeValue::Node(TreeNode {
+                constructor: "MeksoFragment",
+                entries: vec![TreeEntry {
+                    label: Some("mekso_fragment"),
+                    value: legacy_as_generated_mekso_fragment_tree_value(
+                        mekso.as_ref(),
+                        source,
+                        options,
+                    ),
+                }],
+            })
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::BridiConnective { .. })
+        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Selbri(_)) => {
+            legacy_as_generated_fragment_tree_value(fragment, source, options)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_fragment_tree_value(
     fragment: &jbotci_syntax::ast::FragmentSyntax,
     source: &str,
@@ -1301,7 +1578,7 @@ fn legacy_as_generated_fragment_tree_value(
                 });
             }
             TreeValue::Node(TreeNode {
-                constructor: "Terms",
+                constructor: "TermsFragment",
                 entries,
             })
         }
@@ -11863,16 +12140,16 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => {
                 generated_regular_text_tree_value(text, source, options)
             }
-            GeneratedSyntaxNodeRef::StatementSyntaxMultipleNaFragment(statement) => Some(
+            GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
                 generated_multiple_na_fragment_tree_value(statement, source, options),
             ),
-            GeneratedSyntaxNodeRef::StatementSyntaxSingleNaFragment(statement) => Some(
+            GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(statement) => Some(
                 generated_single_na_fragment_tree_value(statement, source, options),
             ),
-            GeneratedSyntaxNodeRef::StatementSyntaxLinkedSumtiFragment(statement) => Some(
+            GeneratedSyntaxNodeRef::FragmentStatementSyntaxLinkedSumtiFragment(statement) => Some(
                 generated_linked_sumti_fragment_tree_value(statement, source, options),
             ),
-            GeneratedSyntaxNodeRef::StatementSyntaxBridiStatement(statement) => Some(
+            GeneratedSyntaxNodeRef::StatementBaseSyntaxBridiStatement(statement) => Some(
                 generated_bridi_statement_tree_value(statement, source, options),
             ),
             GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement) => Some(
@@ -12547,14 +12824,12 @@ fn generated_leading_i_statement_entries(
 #[requires(true)]
 #[ensures(true)]
 fn generated_multiple_na_fragment_tree_value(
-    statement: &generated_model::StatementSyntax,
+    statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let generated_model::StatementSyntax::MultipleNaFragment {
-        first_na,
-        second_na,
-        additional_na,
+    let generated_model::FragmentStatementSyntax::MultipleNaFragment {
+        multiple_na_fragment: statement,
     } = statement
     else {
         return required_generated_syntax_subtree_value(statement, source, options);
@@ -12562,14 +12837,14 @@ fn generated_multiple_na_fragment_tree_value(
     let mut entries = vec![
         TreeEntry {
             label: None,
-            value: generated_token_tree_value(first_na, source, options),
+            value: generated_token_tree_value(&statement.first_na, source, options),
         },
         TreeEntry {
             label: None,
-            value: generated_token_tree_value(second_na, source, options),
+            value: generated_token_tree_value(&statement.second_na, source, options),
         },
     ];
-    entries.extend(additional_na.iter().map(|token| TreeEntry {
+    entries.extend(statement.additional_na.iter().map(|token| TreeEntry {
         label: None,
         value: generated_token_tree_value(token, source, options),
     }));
@@ -12582,20 +12857,23 @@ fn generated_multiple_na_fragment_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn generated_single_na_fragment_tree_value(
-    statement: &generated_model::StatementSyntax,
+    statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let generated_model::StatementSyntax::SingleNaFragment { na } = statement else {
+    let generated_model::FragmentStatementSyntax::SingleNaFragment {
+        single_na_fragment: statement,
+    } = statement
+    else {
         return required_generated_syntax_subtree_value(statement, source, options);
     };
     let mut entries = vec![TreeEntry {
         label: None,
-        value: generated_token_tree_value(&na.value, source, options),
+        value: generated_token_tree_value(&statement.na.value, source, options),
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
-        generated_free_modifier_tree_values(&na.free_modifiers, source, options),
+        generated_free_modifier_tree_values(&statement.na.free_modifiers, source, options),
     ) {
         entries.push(entry);
     }
@@ -12608,15 +12886,18 @@ fn generated_single_na_fragment_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn generated_linked_sumti_fragment_tree_value(
-    statement: &generated_model::StatementSyntax,
+    statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let generated_model::StatementSyntax::LinkedSumtiFragment { linkargs } = statement else {
+    let generated_model::FragmentStatementSyntax::LinkedSumtiFragment {
+        linked_sumti_fragment: statement,
+    } = statement
+    else {
         return required_generated_syntax_subtree_value(statement, source, options);
     };
     rename_tree_constructor(
-        required_generated_syntax_subtree_value(linkargs, source, options),
+        required_generated_syntax_subtree_value(&statement.linkargs, source, options),
         "Linkargs",
         "LinkedSumti",
     )
@@ -12640,19 +12921,19 @@ fn rename_tree_constructor(value: TreeValue, from: &'static str, to: &'static st
 #[requires(true)]
 #[ensures(true)]
 fn generated_bridi_statement_tree_value(
-    statement: &generated_model::StatementSyntax,
+    statement: &generated_model::StatementBaseSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let generated_model::StatementSyntax::BridiStatement {
-        bridi,
-        continuations,
+    let generated_model::StatementBaseSyntax::BridiStatement {
+        bridi_statement: statement,
     } = statement
     else {
         return required_generated_syntax_subtree_value(statement, source, options);
     };
-    let mut value = required_generated_syntax_subtree_value(bridi.as_ref(), source, options);
-    for continuation in continuations {
+    let mut value =
+        required_generated_syntax_subtree_value(statement.bridi.as_ref(), source, options);
+    for continuation in &statement.continuations {
         value = TreeValue::Node(TreeNode {
             constructor: "ExperimentalBridiContinuation",
             entries: vec![
@@ -12801,20 +13082,20 @@ fn generated_i_statement_connection_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     let generated_model::StatementSyntax::IStatementConnection {
-        leading_statement,
-        continuations,
+        i_statement_connection,
     } = statement
     else {
         return required_generated_syntax_subtree_value(statement, source, options);
     };
+    let statement = i_statement_connection;
 
     let mut statements = vec![required_generated_syntax_subtree_value(
-        leading_statement.as_ref(),
+        statement.leading_statement.as_ref(),
         source,
         options,
     )];
     let mut connectors = Vec::new();
-    for continuation in continuations {
+    for continuation in &statement.continuations {
         let part = generated_statement_connection_part(continuation, source, options);
         statements.push(part.trailing_statement.clone());
         connectors.push(part);

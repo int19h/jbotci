@@ -23,7 +23,7 @@ macro_rules! declare_generated_syntax_grammar {
         text: TextSyntax;
         paragraph: ParagraphSyntax;
         paragraph_statement: ParagraphStatementSyntax;
-        statement_or_fragment: StatementSyntax;
+        statement_or_fragment: StatementOrFragmentSyntax;
         statement: StatementSyntax;
         bridi: BridiSyntax;
         bridi_tail: BridiTailSyntax;
@@ -173,90 +173,70 @@ macro_rules! declare_generated_syntax_grammar {
         field connective <- statement_connective;
     }
 
-    alias "statement" statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) =
-        choice((
-            i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
-            preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens),
-            statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens),
-        ));
-
-    alias "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) =
-        choice((
-            prenex_statement(statement, term),
-            bridi_statement(bridi, subbridi, tense_modal),
-            text_group_statement(text, tense_modal),
-        ));
-
-    alias "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) =
-        choice((
-            statement,
-            fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens),
-        ));
-
-    alias "fragment" fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) =
-        choice((
-            prenex_fragment(term),
-            selbri_fragment(selbri),
-            ek_fragment(),
-            gihek_fragment(),
-            multiple_na_fragment(),
-            single_na_fragment(),
-            terms_fragment(term),
-            mekso_fragment(mekso, letter_tokens),
-            relative_clause_fragment(sumti, subbridi, tense_modal),
-            linked_sumti_continuation_fragment(sumti, tense_modal),
-            linked_sumti_fragment(sumti, tense_modal),
-        ));
-
-    alias "statement" statement_after_i_connective(bridi, subbridi, tense_modal, text) =
-        choice((
-            bridi_statement(bridi, subbridi, tense_modal),
-            text_group_statement(text, tense_modal),
-        ));
-
-    node multiple_na_fragment -> StatementSyntax {
-        context "fragment";
-        construct variant MultipleNaFragment;
-        fields {
-            field first_na = selmaho(Na);
-            field second_na = selmaho(Na);
-            field additional_na = many(selmaho(Na));
-        }
+    rule "statement" statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> enum {
+        i_statement_connection,
+        preposed_i_statement_connection,
+        statement_base,
     }
 
-    node single_na_fragment -> StatementSyntax {
-        context "fragment";
-        construct variant SingleNaFragment;
-        fields {
-            field na = selmaho(Na).not_next_selmaho(Ku).wf();
-        }
+    rule "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> enum {
+        prenex_statement,
+        bridi_statement,
+        text_group_statement,
     }
 
-    node ek_fragment -> StatementSyntax {
-        context "fragment";
-        construct variant EkFragment;
-        fields {
-            #[tree_child(primary)]
-            field connective = ek_connective();
-        }
+    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> enum {
+        statement_or_fragment_statement,
+        fragment_statement,
     }
 
-    node gihek_fragment -> StatementSyntax {
-        context "fragment";
-        construct variant GihekFragment;
-        fields {
-            #[tree_child(primary)]
-            field connective = gihek_connective();
-        }
+    rule "paragraph statement" statement_or_fragment_statement(statement) -> struct {
+        #[tree_child(primary)]
+        field statement <- statement;
     }
 
-    node i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> StatementSyntax {
-        context "statement connection";
-        construct variant IStatementConnection;
-        fields {
-            field leading_statement = boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-            field continuations = many1(i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens));
-        }
+    rule "fragment" fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> enum {
+        prenex_fragment,
+        selbri_fragment,
+        ek_fragment,
+        gihek_fragment,
+        multiple_na_fragment,
+        single_na_fragment,
+        terms_fragment,
+        mekso_fragment,
+        relative_clause_fragment,
+        linked_sumti_continuation_fragment,
+        linked_sumti_fragment,
+    }
+
+    rule "statement" statement_after_i_connective(bridi, subbridi, tense_modal, text) -> enum {
+        bridi_statement,
+        text_group_statement,
+    }
+
+    rule "fragment" multiple_na_fragment -> struct {
+        field first_na <- selmaho(Na);
+        field second_na <- selmaho(Na);
+        field additional_na <- many(selmaho(Na));
+    }
+
+    rule "fragment" single_na_fragment -> struct {
+        field na <- selmaho(Na).not_next_selmaho(Ku).wf();
+    }
+
+    rule "fragment" ek_fragment -> struct {
+        #[tree_child(primary)]
+        field connective <- ek_connective();
+    }
+
+    rule "fragment" gihek_fragment -> struct {
+        #[tree_child(primary)]
+        field connective <- gihek_connective();
+    }
+
+    rule "statement connection" i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
+        field leading_statement <- boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
+        field continuations <- many1(i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens));
     }
 
     rule "statement connective" pending_i_connective -> struct {
@@ -283,57 +263,37 @@ macro_rules! declare_generated_syntax_grammar {
         field trailing_statement <- boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
     }
 
-    node preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> StatementSyntax {
-        context "statement connection";
-        construct variant PreposedIStatementConnection;
-        fields {
-            field leading_statement = boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-            field connective = statement_connective;
-            field i = cmavo(I);
-            field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
-        }
+    rule "statement connection" preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> struct {
+        field leading_statement <- boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
+        field connective <- statement_connective;
+        field i <- cmavo(I);
+        field trailing_statement <- boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
     }
 
-    node text_group_statement(text, tense_modal) -> StatementSyntax {
-        context "text group";
-        construct variant TextGroup;
-        fields {
-            field tense_modal = opt(boxed(tense_modal));
-            field tuhe = cmavo(Tuhe).wf();
-            #[tree_child(primary)]
-            field text = boxed(text);
-            field tuhu = opt(cmavo(Tuhu).wf());
-        }
+    rule "text group" text_group_statement(text, tense_modal) -> struct {
+        field tense_modal <- opt(boxed(tense_modal));
+        field tuhe <- cmavo(Tuhe).wf();
+        #[tree_child(primary)]
+        field text <- boxed(text);
+        field tuhu <- opt(cmavo(Tuhu).wf());
     }
 
-    node prenex_fragment(term) -> StatementSyntax {
-        context "prenex";
-        construct variant PrenexFragment;
-        fields {
-            field terms = many(term);
-            field zohu = cmavo(Zohu).wf();
-        }
+    rule "prenex" prenex_fragment(term) -> struct {
+        field terms <- many(term);
+        field zohu <- cmavo(Zohu).wf();
     }
 
-    node prenex_statement(statement, term) -> StatementSyntax {
-        context "prenex";
-        construct variant Prenex;
-        fields {
-            field prenex_terms = many(term);
-            field zohu = cmavo(Zohu).wf();
-            #[tree_child(primary)]
-            field inner_statement = boxed(statement);
-        }
+    rule "prenex" prenex_statement(statement, term) -> struct {
+        field prenex_terms <- many(term);
+        field zohu <- cmavo(Zohu).wf();
+        #[tree_child(primary)]
+        field inner_statement <- boxed(statement);
     }
 
-    node bridi_statement(bridi, subbridi, tense_modal) -> StatementSyntax {
-        context "statement";
-        construct variant BridiStatement;
-        fields {
-            #[tree_child(primary)]
-            field bridi = boxed(bridi);
-            field continuations = many(bridi_statement_continuation(subbridi, tense_modal));
-        }
+    rule "statement" bridi_statement(bridi, subbridi, tense_modal) -> struct {
+        #[tree_child(primary)]
+        field bridi <- boxed(bridi);
+        field continuations <- many(bridi_statement_continuation(subbridi, tense_modal));
     }
 
     rule "bridi continuation" bridi_statement_continuation(subbridi, tense_modal) -> enum {
@@ -356,33 +316,20 @@ macro_rules! declare_generated_syntax_grammar {
         field kehe <- opt(cmavo(Kehe).wf());
     }
 
-    node selbri_fragment(selbri) -> StatementSyntax {
-        context "selbri";
-        construct variant SelbriFragment;
-        fields {
-            #[tree_child(primary)]
-            field selbri = boxed(selbri);
-        }
+    rule "selbri" selbri_fragment(selbri) -> struct {
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
     }
 
-    node terms_fragment(term) -> StatementSyntax {
-        context "terms";
-        construct variant TermsFragment;
-        model_variant Terms;
-        fields {
-            #[tree_child(primary)]
-            field terms = many1(term);
-            field vau = opt(cmavo(Vau).wf());
-        }
+    rule "terms" terms_fragment(term) -> struct {
+        #[tree_child(primary)]
+        field terms <- many1(term);
+        field vau <- opt(cmavo(Vau).wf());
     }
 
-    node mekso_fragment(mekso, letter_tokens) -> StatementSyntax {
-        context "mex";
-        construct variant MeksoFragment;
-        fields {
-            #[tree_child(primary)]
-            field quantifier = boxed(quantifier(mekso, letter_tokens));
-        }
+    rule "mex" mekso_fragment(mekso, letter_tokens) -> struct {
+        #[tree_child(primary)]
+        field quantifier <- boxed(quantifier(mekso, letter_tokens));
     }
 
     rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal) -> struct {
@@ -390,31 +337,19 @@ macro_rules! declare_generated_syntax_grammar {
         field additional <- many(relative_clause_tail(sumti, subbridi, tense_modal));
     }
 
-    node relative_clause_fragment(sumti, subbridi, tense_modal) -> StatementSyntax {
-        context "relative clauses";
-        construct variant RelativeClauseFragment;
-        fields {
-            #[tree_child(primary)]
-            field relative_clauses = relative_clause_list(sumti, subbridi, tense_modal);
-        }
+    rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal) -> struct {
+        #[tree_child(primary)]
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
     }
 
-    node linked_sumti_continuation_fragment(sumti, tense_modal) -> StatementSyntax {
-        context "linked arguments";
-        construct variant LinkedSumtiContinuationFragment;
-        fields {
-            #[tree_child(primary)]
-            field bei_links = many1(bei_link(sumti, tense_modal));
-        }
+    rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal) -> struct {
+        #[tree_child(primary)]
+        field bei_links <- many1(bei_link(sumti, tense_modal));
     }
 
-    node linked_sumti_fragment(sumti, tense_modal) -> StatementSyntax {
-        context "linked arguments";
-        construct variant LinkedSumtiFragment;
-        fields {
-            #[tree_child(primary)]
-            field linkargs = linkargs(sumti, tense_modal);
-        }
+    rule "linked arguments" linked_sumti_fragment(sumti, tense_modal) -> struct {
+        #[tree_child(primary)]
+        field linkargs <- linkargs(sumti, tense_modal);
     }
 
     alias "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) =
