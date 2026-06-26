@@ -58,12 +58,9 @@ macro_rules! declare_generated_syntax_grammar {
         free_modifier: FreeModifierSyntax;
     }
 
-    product leading_indicator -> LeadingIndicatorSyntax {
-        context "leading indicator";
-        fields {
-            field indicator = choice((selmaho(Ui), selmaho(Cai)));
-            field nai = opt(cmavo(Nai));
-        }
+    rule "leading indicator" leading_indicator -> struct {
+        field indicator <- choice((selmaho(Ui), selmaho(Cai)));
+        field nai <- opt(cmavo(Nai));
     }
 
     alias text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
@@ -131,13 +128,10 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product leading_i_statement(free_modifier, tense_modal) -> LeadingIStatementSyntax {
-        context "paragraph statement";
-        fields {
-            field i = cmavo(I);
-            field connective = opt(boxed(i_paragraph_statement_connective(tense_modal)));
-            field free_modifiers = many(free_modifier);
-        }
+    rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
+        field i <- cmavo(I);
+        field connective <- opt(boxed(i_paragraph_statement_connective(tense_modal)));
+        field free_modifiers <- many(free_modifier);
     }
 
     alias paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
@@ -1964,12 +1958,9 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
-    product reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> ReversePolishPartsSyntax {
-        context "reverse Polish mex";
-        fields {
-            field first_operand = boxed(mekso_operand);
-            field tails = many((boxed(reverse_polish_parts), mekso_operator));
-        }
+    rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
+        field first_operand <- boxed(mekso_operand);
+        field tails <- many((boxed(reverse_polish_parts), mekso_operator));
     }
 
     node reverse_polish_mekso(reverse_polish_parts) -> MeksoSyntax {
@@ -2156,24 +2147,18 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> DescriptionTailSyntax {
-        context "description tail";
-        fields {
-            field leading_tail_elements = leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal);
-            field tail = boxed(choice((
-                quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
-                quantifier_sumti_description_tail(sumti, mekso, letter_tokens),
-                relation_description_tail(sumti, subbridi, selbri, tense_modal),
-            )));
-        }
+    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal);
+        field tail <- boxed(choice((
+            quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
+            quantifier_sumti_description_tail(sumti, mekso, letter_tokens),
+            relation_description_tail(sumti, subbridi, selbri, tense_modal),
+        )));
     }
 
-    product leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> LeadingDescriptionTailElementsSyntax {
-        context "description tail";
-        fields {
-            field tail_sumti = opt(description_tail_sumti(sumti_base));
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> struct {
+        field tail_sumti <- opt(description_tail_sumti(sumti_base));
+        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
     product description_tail_sumti(sumti_base) -> DescriptionTailSumtiSyntax {
