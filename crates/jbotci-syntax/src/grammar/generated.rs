@@ -1917,11 +1917,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
         field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal);
-        field tail <- boxed(choice((
-            quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
-            quantifier_sumti_description_tail(sumti, mekso, letter_tokens),
-            relation_description_tail(sumti, subbridi, selbri, tense_modal),
-        )));
+        field tail <- boxed(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens));
+    }
+
+    rule "description tail" description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> enum {
+        quantifier_relation_description_tail,
+        quantifier_sumti_description_tail,
+        relation_description_tail,
     }
 
     rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> struct {
@@ -1934,30 +1936,21 @@ macro_rules! declare_generated_syntax_grammar {
         field sumti <- boxed(sumti_base);
     }
 
-    product relation_description_tail(sumti, subbridi, selbri, tense_modal) -> DescriptionTailSyntax {
-        context "description tail";
-        fields {
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "description tail" relation_description_tail(sumti, subbridi, selbri, tense_modal) -> struct {
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
-    product quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> DescriptionTailSyntax {
-        context "description tail";
-        fields {
-            field quantifier = quantifier(mekso, letter_tokens);
-            require selmaho(Roi).not();
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field quantifier <- quantifier(mekso, letter_tokens);
+        assert !selmaho(Roi);
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
-    product quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> DescriptionTailSyntax {
-        context "description tail";
-        fields {
-            field quantifier = quantifier(mekso, letter_tokens);
-            field sumti = boxed(sumti);
-        }
+    rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> struct {
+        field quantifier <- quantifier(mekso, letter_tokens);
+        field sumti <- boxed(sumti);
     }
 
     node relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {

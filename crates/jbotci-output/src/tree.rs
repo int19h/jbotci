@@ -4797,9 +4797,10 @@ fn legacy_as_generated_description_tail_tree_value(
                     },
                     TreeEntry {
                         label: Some("tail"),
-                        value: TreeValue::Node(TreeNode {
-                            constructor: "QuantifierSumtiDescriptionTail",
-                            entries: vec![
+                        value: legacy_as_generated_description_tail_variant_tree_value(
+                            "QuantifierSumtiDescriptionTail",
+                            "quantifier_sumti_description_tail",
+                            vec![
                                 TreeEntry {
                                     label: Some("quantifier"),
                                     value: legacy_as_generated_quantifier_tree_value(
@@ -4813,7 +4814,7 @@ fn legacy_as_generated_description_tail_tree_value(
                                     ),
                                 },
                             ],
-                        }),
+                        ),
                     },
                 ],
             });
@@ -4849,10 +4850,11 @@ fn legacy_as_generated_description_tail_tree_value(
                     },
                     TreeEntry {
                         label: Some("tail"),
-                        value: TreeValue::Node(TreeNode {
-                            constructor: "QuantifierRelationDescriptionTail",
-                            entries: tail_entries,
-                        }),
+                        value: legacy_as_generated_description_tail_variant_tree_value(
+                            "QuantifierRelationDescriptionTail",
+                            "quantifier_relation_description_tail",
+                            tail_entries,
+                        ),
                     },
                 ],
             });
@@ -4892,15 +4894,40 @@ fn legacy_as_generated_description_tail_tree_value(
         }
         entries.push(TreeEntry {
             label: Some("tail"),
-            value: TreeValue::Node(TreeNode {
-                constructor: tail_constructor,
-                entries: tail_entries,
-            }),
+            value: legacy_as_generated_description_tail_variant_tree_value(
+                tail_constructor,
+                if tail_constructor == "QuantifierRelationDescriptionTail" {
+                    "quantifier_relation_description_tail"
+                } else {
+                    "relation_description_tail"
+                },
+                tail_entries,
+            ),
         });
     }
     TreeValue::Node(TreeNode {
         constructor: "DescriptionTail",
         entries,
+    })
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_description_tail_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
     })
 }
 
