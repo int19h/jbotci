@@ -7782,9 +7782,10 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
 
             assert!(output.starts_with("Bridi {\n"));
-            assert!(output.contains("\n  leading_terms: [\n    Cmavo \"mi\""));
+            assert!(output.contains("\n  leading_terms: ["));
+            assert!(output.contains("base_sumti: Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("Gismu \"kláma\""));
+            assert!(output.contains("base: Gismu \"kláma\""));
             assert!(!output.contains("Text {"));
         });
     }
@@ -7804,9 +7805,9 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
 
-            let leading = output.find("leading_selbri").expect("leading selbri");
-            let connective = output.find("connective").expect("connective");
-            let trailing = output.find("trailing_selbri").expect("trailing selbri");
+            let leading = output.find("Gismu \"gléki\"").expect("leading selbri");
+            let connective = output.find("Cmavo \"je\"").expect("connective");
+            let trailing = output.find("Gismu \"kláma\"").expect("trailing selbri");
             assert!(leading < connective);
             assert!(connective < trailing);
         });
@@ -7827,9 +7828,9 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
 
-            let left = output.find("left_expression").expect("left expression");
-            let operator = output.find("operator").expect("operator");
-            let right = output.find("right_expression").expect("right expression");
+            let left = output.find("Cmavo \"pa\"").expect("left expression");
+            let operator = output.find("Cmavo \"su'i\"").expect("operator");
+            let right = output.find("Cmavo \"re\"").expect("right expression");
             assert!(left < operator);
             assert!(operator < right);
         });
@@ -7851,7 +7852,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"Bridi{leading_terms:[Cmavo "mi"],Gismu "kláma"}"#
+                r#"Bridi{leading_terms:[ConnectedTerm{leading_term:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{base_sumti:Cmavo "mi"}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:ConnectedTanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}"#
             );
         });
     }
