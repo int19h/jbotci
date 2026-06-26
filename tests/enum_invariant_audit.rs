@@ -96,6 +96,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "all i64 values are valid math integer literal payloads",
     ),
     (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Referent",
+        "referent ID prefixes carry a strongly typed semantic sort; graph validation checks sort/object agreement",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Structural",
+        "structural ID prefixes carry a strongly typed object kind; constructors choose the allowed structural kind",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
+        "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:SemanticOperator::Formula",
         "formula operators are closed enum values with no additional payload constraint",
     ),

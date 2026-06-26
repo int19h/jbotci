@@ -47,6 +47,15 @@ KIND id : attr=val, attr=val, …
 | `MEX` | a mathematical expression (mekso operand language) | `op`(VUhU), `operands`=[…]; or a literal number / special number |
 | `REL` | relation-level metadata (for lujvo) | `veljvo`, `r`(place-identifications), `places`, `expansion` — **documentation of a `rel`, never part of any `FRM`** |
 
+The notation above is conceptual.  The public JSON shape in
+[`semantic-model-spec.md`](semantic-model-spec.md) emits every denotable value
+as `type:"referent"`: events and states are referents with sort paths such as
+`eventuality`, `eventuality/process`, or `eventuality/locution`; signs are
+`sort:"sign"` referents; `ka`/`du'u`/`ni`/`su'u` outputs are referents whose
+sorts are `relation`, `proposition`, `amount`, `abstractNature`, etc.  The JSON
+ID prefix is derived from that sort path, and its numeric suffix is globally
+unique across the graph.
+
 A note on what is *not* a kind: there is **no anaphora node**, **no identity-binder node**, and **no scope node for referent identity**. Coreference is *shared id*. The only binders in the model are the **logical quantifier FRM-nodes** of 0.E, which bind variables over a *formula*, and the **`RFY` abstraction** binders, which bind `PAR`/`EV` over a *body*. These are truth-conditional and irreducible (0.E); identity/anaphora scope is not represented because it is not needed once anaphora is resolved.
 
 ## 0.B Notation conventions
@@ -72,7 +81,13 @@ REF a1 : kind=const, sort=Obj          -- the speaker (an ordinary unspecified c
 REF a2 : kind=const, sort=Obj          -- the audience
 EV  e0 : tense=now, caha=ca'a          -- the locutionary act, anchored to speech time (the deictic now)
 ```
-`e0` is the deictic now; tense origins and the `di'u`-series resolve against it. Speaker and audience exist *because the utterance does* — they are role-arguments of an asserted locution and so carry existential import by 0.K/C-13 (Part 0.P).
+In JSON, the top-level frame is emitted as ordinary globally numbered
+indexical referents: `entity:1` speaker, `entity:2` audience,
+`eventuality:3` now, and `entity:4` here.  Sibling top-level `.i` utterances
+share that full frame; parsed quotations allocate a fresh speaker, audience,
+now, and here for the quoted utterance.  Speaker and audience exist *because
+the utterance does* — they are role-arguments of an asserted locution and so
+carry existential import by 0.K/C-13 (Part 0.P).
 
 ## 0.C Referents are plural constants (guskant basis)
 

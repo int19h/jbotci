@@ -1961,7 +1961,8 @@ mod tests {
         let tersmu_parsed: serde_json::Value =
             serde_json::from_str(tersmu_text).expect("tersmu json content parses");
         assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
-        assert_eq!(tersmu_parsed["root"], "utterance:u1");
+        assert_eq!(tersmu_parsed["root"], "utterance:5");
+        assert_eq!(tersmu_parsed["objects"]["entity:1"]["indexical"], "speaker");
 
         let unknown = post_json(
             app.clone(),

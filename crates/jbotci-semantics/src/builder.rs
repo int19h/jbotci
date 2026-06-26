@@ -33,20 +33,20 @@ use crate::model::{
     ArgumentValue, ArgumentValueKind, Aspect, AssignedName, AssignedNameData, CommandTarget,
     Composition, Connector, Descriptor, DescriptorDefiniteness, DisplayedContentAssertionEffect,
     DisplayedContentFamily, DisplayedContentModifier, DisplayedContentPolarity,
-    DisplayedContentTargetFocus, EndpointInclusion, EventualityClass, FormulaOperator,
-    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathLiteral, MixedRadixComponent, ModalArgument, ModalNegation,
-    ModalNegationKind, NonlogicalConnection, OrdinalLabel, OrdinalLabelLevel, PlaceQuestionBinding,
-    PredicationMode, QuantifierBinding, QuantityForm, QuantityScale, QuantityValue, QuestionKind,
-    QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange,
-    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SelectionSource, SemanticDiagnostic, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticObjectKind, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TanruLink,
-    TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
-    is_numbered_argument_place, source_from_spans,
+    DisplayedContentTargetFocus, EndpointInclusion, EventualityClass, EventualitySort,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, MixedRadixComponent,
+    ModalArgument, ModalNegation, ModalNegationKind, NonlogicalConnection, OrdinalLabel,
+    OrdinalLabelLevel, PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
+    Quotation, RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection,
+    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause,
+    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
+    SemanticDiagnostic, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
+    SemanticSort, SequenceRelation, SignKind, SpaceInterval, SpatialMotion, SpatialMotionKind,
+    Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
+    displayed_content_target_kind_is_allowed, is_numbered_argument_place, source_from_spans,
 };
 use crate::references::{
     AssignmentSource, BridiNodeId, PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis,
@@ -464,20 +464,7 @@ fn definition_place_id(letter: &str, digits: &str) -> Option<DefinitionPlaceId> 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct IdCounters {
-    utterance: usize,
-    sequence: usize,
-    eventuality: usize,
-    referent: usize,
-    parameter: usize,
-    predication: usize,
-    formula: usize,
-    abstraction: usize,
-    sign: usize,
-    display: usize,
-    math: usize,
-    quantity: usize,
-    relation: usize,
-    question: usize,
+    next: usize,
 }
 
 #[invariant(!letter.is_empty())]
@@ -583,10 +570,14 @@ struct EventTenseModifier<'tree> {
 
 #[invariant(temporal.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
 #[invariant(spatial.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
+#[invariant(default_temporal.is_none_or(|anchor| semantic_id_is_eventuality(anchor)))]
+#[invariant(default_spatial.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
 #[derive(Debug, Clone, Copy, Default)]
 struct EventModifierAnchors {
     temporal: Option<SemanticObjectId>,
     spatial: Option<SemanticObjectId>,
+    default_temporal: Option<SemanticObjectId>,
+    default_spatial: Option<SemanticObjectId>,
 }
 
 impl EventModifierAnchors {
@@ -596,6 +587,8 @@ impl EventModifierAnchors {
         Self::from_data(data!(EventModifierAnchors {
             temporal: anchor,
             spatial: anchor,
+            default_temporal: None,
+            default_spatial: None,
         }))
     }
 
@@ -605,7 +598,21 @@ impl EventModifierAnchors {
         Self::from_data(data!(EventModifierAnchors {
             temporal: anchor,
             spatial: None,
+            default_temporal: None,
+            default_spatial: None,
         }))
+    }
+
+    #[requires(temporal.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(temporal.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(spatial.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.default_temporal == Some(temporal))]
+    #[ensures(ret.default_spatial == Some(spatial))]
+    fn with_defaults(self, temporal: SemanticObjectId, spatial: SemanticObjectId) -> Self {
+        self.with_data(data! {
+            default_temporal: Some(temporal),
+            default_spatial: Some(spatial),
+        })
     }
 
     #[requires(true)]
@@ -614,6 +621,8 @@ impl EventModifierAnchors {
         Self::from_data(data!(EventModifierAnchors {
             temporal: self.temporal.filter(|_| temporal),
             spatial: self.spatial.filter(|_| spatial),
+            default_temporal: self.default_temporal,
+            default_spatial: self.default_spatial,
         }))
     }
 }
@@ -836,45 +845,47 @@ struct IndicatorBaseSpec {
 
 #[invariant(speaker.object_kind() == crate::model::SemanticObjectKind::Referent)]
 #[invariant(audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(now.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(now.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[invariant(here.object_kind() == crate::model::SemanticObjectKind::Referent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct UtteranceRoles {
     speaker: SemanticObjectId,
     audience: SemanticObjectId,
+    now: SemanticObjectId,
+    here: SemanticObjectId,
 }
 
 impl UtteranceRoles {
     #[requires(true)]
     #[ensures(ret.speaker == SemanticObjectId::speaker())]
     #[ensures(ret.audience == SemanticObjectId::addressee())]
+    #[ensures(ret.now == SemanticObjectId::now())]
+    #[ensures(ret.here == SemanticObjectId::here())]
     fn first_utterance_defaults() -> Self {
         Self::from_data(data!(UtteranceRoles {
             speaker: SemanticObjectId::speaker(),
             audience: SemanticObjectId::addressee(),
+            now: SemanticObjectId::now(),
+            here: SemanticObjectId::here(),
         }))
     }
 }
 
 impl IdCounters {
     #[requires(true)]
-    #[ensures(ret.utterance == 1)]
-    #[ensures(ret.eventuality == 0)]
+    #[ensures(ret.next == 5)]
     fn new() -> Self {
-        Self {
-            utterance: 1,
-            sequence: 1,
-            eventuality: 0,
-            referent: 1,
-            parameter: 1,
-            predication: 1,
-            formula: 1,
-            abstraction: 1,
-            sign: 1,
-            display: 1,
-            math: 1,
-            quantity: 1,
-            relation: 1,
-            question: 1,
-        }
+        Self { next: 5 }
+    }
+
+    #[requires(true)]
+    #[ensures(ret >= 5)]
+    #[ensures(self.next == old(self.next) + 1)]
+    fn allocate(&mut self) -> usize {
+        let id = self.next;
+        self.next += 1;
+        id
     }
 }
 
@@ -992,11 +1003,11 @@ where
             ),
         );
         self.insert_known(
-            SemanticObjectId::speech_time(),
+            SemanticObjectId::now(),
             SemanticObject::referent(
                 ReferentCategory::Indexical,
-                SemanticSort::Eventuality,
-                Some(IndexicalKind::SpeechTime),
+                SemanticSort::eventuality(),
+                Some(IndexicalKind::Now),
                 None,
                 None,
                 None,
@@ -1030,7 +1041,7 @@ where
         id: SemanticObjectId,
         mut object: SemanticObject,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if object.object_kind() == crate::model::SemanticObjectKind::Eventuality {
+        if semantic_object_is_eventuality(&object) {
             self.normalize_eventuality_before_insert(&mut object)?;
         }
         if object.object_kind() == crate::model::SemanticObjectKind::Predication
@@ -1046,7 +1057,7 @@ where
         Ok(id)
     }
 
-    #[requires(object.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[requires(semantic_object_is_eventuality(object))]
     #[ensures(true)]
     fn normalize_eventuality_before_insert(
         &mut self,
@@ -1133,7 +1144,7 @@ where
     }
 
     #[requires(utterance.object_kind() == crate::model::SemanticObjectKind::Utterance)]
-    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent && roles.now.object_kind() == crate::model::SemanticObjectKind::Referent && roles.here.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn ensure_utterance_roles(
         &mut self,
         utterance: SemanticObjectId,
@@ -1148,14 +1159,25 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent && roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent && roles.now.object_kind() == crate::model::SemanticObjectKind::Referent && roles.here.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_fresh_utterance_roles(
         &mut self,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<UtteranceRoles, SemanticsError> {
         Ok(UtteranceRoles::from_data(data!(UtteranceRoles {
             speaker: self.build_utterance_role_referent(IndexicalKind::Speaker, source.clone(),)?,
-            audience: self.build_utterance_role_referent(IndexicalKind::Audience, source)?,
+            audience: self
+                .build_utterance_role_referent(IndexicalKind::Audience, source.clone())?,
+            now: self.build_utterance_role_referent_with_sort(
+                IndexicalKind::Now,
+                SemanticSort::eventuality(),
+                source.clone(),
+            )?,
+            here: self.build_utterance_role_referent_with_sort(
+                IndexicalKind::Here,
+                SemanticSort::Entity,
+                source,
+            )?,
         })))
     }
 
@@ -1166,12 +1188,23 @@ where
         indexical: IndexicalKind,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        self.build_utterance_role_referent_with_sort(indexical, SemanticSort::Entity, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(sort)) || ret.is_err())]
+    fn build_utterance_role_referent_with_sort(
+        &mut self,
+        indexical: IndexicalKind,
+        sort: SemanticSort,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent_with_sort(sort);
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Indexical,
-                SemanticSort::Entity,
+                sort,
                 Some(indexical),
                 None,
                 None,
@@ -1193,7 +1226,20 @@ where
         self.current_utterance_roles.audience
     }
 
-    #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_now(&self) -> SemanticObjectId {
+        self.current_utterance_roles.now
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_here(&self) -> SemanticObjectId {
+        self.current_utterance_roles.here
+    }
+
+    #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(anchor.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[ensures(self.temporal_context_stack.len() == old(self.temporal_context_stack.len()))]
     fn with_temporal_context<T>(
         &mut self,
@@ -1207,7 +1253,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))]
     fn current_temporal_context(&self) -> Option<SemanticObjectId> {
         self.temporal_context_stack.last().copied()
     }
@@ -1215,113 +1261,101 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn next_utterance(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::utterance(self.counters.utterance);
-        self.counters.utterance += 1;
-        id
+        SemanticObjectId::utterance(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_sequence(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::sequence(self.counters.sequence);
-        self.counters.sequence += 1;
-        id
+        SemanticObjectId::sequence(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_eventuality(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::eventuality(self.counters.eventuality);
-        self.counters.eventuality += 1;
-        id
+        self.next_eventuality_with_sort(EventualitySort::General)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn next_eventuality_with_sort(&mut self, sort: EventualitySort) -> SemanticObjectId {
+        SemanticObjectId::referent_with_sort(
+            SemanticSort::Eventuality(sort),
+            self.counters.allocate(),
+        )
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_referent(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::referent(self.counters.referent);
-        self.counters.referent += 1;
-        id
+        self.next_referent_with_sort(SemanticSort::Entity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(sort))]
+    fn next_referent_with_sort(&mut self, sort: SemanticSort) -> SemanticObjectId {
+        SemanticObjectId::referent_with_sort(sort, self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_parameter(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::parameter(self.counters.parameter);
-        self.counters.parameter += 1;
-        id
+        SemanticObjectId::parameter(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_predication(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::predication(self.counters.predication);
-        self.counters.predication += 1;
-        id
+        SemanticObjectId::predication(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_formula(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::formula(self.counters.formula);
-        self.counters.formula += 1;
-        id
+        SemanticObjectId::formula(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_abstraction(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::abstraction(self.counters.abstraction);
-        self.counters.abstraction += 1;
-        id
+        SemanticObjectId::abstraction(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_sign(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::sign(self.counters.sign);
-        self.counters.sign += 1;
-        id
+        SemanticObjectId::sign(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_display(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::displayed_content(self.counters.display);
-        self.counters.display += 1;
-        id
+        SemanticObjectId::displayed_content(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_math(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::math_expression(self.counters.math);
-        self.counters.math += 1;
-        id
+        SemanticObjectId::math_expression(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_quantity(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::quantity(self.counters.quantity);
-        self.counters.quantity += 1;
-        id
+        SemanticObjectId::quantity(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::RelationMetadata)]
     fn next_relation_metadata(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::relation_metadata(self.counters.relation);
-        self.counters.relation += 1;
-        id
+        SemanticObjectId::relation_metadata(self.counters.allocate())
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_question(&mut self) -> SemanticObjectId {
-        let id = SemanticObjectId::question(self.counters.question);
-        self.counters.question += 1;
-        id
+        SemanticObjectId::question(self.counters.allocate())
     }
 
     #[requires(true)]
@@ -1863,7 +1897,7 @@ where
     }
 
     #[requires(!source_construct.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Sign)) || ret.is_err())]
     fn build_connective_sign(
         &mut self,
         prefix: Option<&Token>,
@@ -2404,8 +2438,7 @@ where
             .syntax_index
             .statement_node_id(statement)
             .and_then(|node| self.source_for_node(node.0, "fragment"));
-        let anchor = reserved_utterance
-            .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance));
+        let anchor = reserved_utterance.unwrap_or_else(|| self.next_utterance());
         let roles = self.ensure_utterance_roles(anchor, source.clone())?;
         let previous_anchor = self.current_utterance_anchor.replace(anchor);
         let previous_roles = std::mem::replace(&mut self.current_utterance_roles, roles);
@@ -2487,7 +2520,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| semantic_id_is_eventuality(*id)) || ret.is_err())]
     fn build_tense_modal_fragment_content(
         &mut self,
         tense_modal: &'tree TenseModalSyntax,
@@ -2505,7 +2538,13 @@ where
             } else {
                 Some(self.build_sumti_referent(sumti)?)
             };
-            apply_tense_modal_event_modifiers_to_event_with_anchor(tense_modal, &mut event, anchor);
+            apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
+                tense_modal,
+                &mut event,
+                EventModifierAnchors::shared(anchor)
+                    .with_defaults(self.current_now(), self.current_here()),
+                true,
+            );
             if let Some(parameter) =
                 self.build_tense_question_parameter_for_tense_modal(tense_modal)?
             {
@@ -2656,8 +2695,7 @@ where
     ) -> Result<SemanticObjectId, SemanticsError> {
         let reserved_utterance =
             reserved_utterance.or_else(|| self.reserve_utterance_for_bridi(bridi));
-        let anchor = reserved_utterance
-            .unwrap_or_else(|| SemanticObjectId::utterance(self.counters.utterance));
+        let anchor = reserved_utterance.unwrap_or_else(|| self.next_utterance());
         let source = self
             .analysis
             .syntax_index
@@ -2904,7 +2942,7 @@ where
         Ok(())
     }
 
-    #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Question || content.object_kind() == crate::model::SemanticObjectKind::Referent || content.object_kind() == crate::model::SemanticObjectKind::Sign || content.object_kind() == crate::model::SemanticObjectKind::DisplayedContent || content.object_kind() == crate::model::SemanticObjectKind::Sequence || content.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Question || content.object_kind() == crate::model::SemanticObjectKind::Referent || content.object_kind() == crate::model::SemanticObjectKind::DisplayedContent || content.object_kind() == crate::model::SemanticObjectKind::Sequence || content.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == content.object_kind()) || ret.is_err())]
     fn wrap_content_with_prenex_terms(
         &mut self,
@@ -3164,6 +3202,56 @@ where
         }
         if let Some(eventuality) = self.content_eventualities.remove(&old_id) {
             self.content_eventualities.insert(new_id, eventuality);
+        }
+    }
+
+    #[requires(semantic_id_is_eventuality(old_id))]
+    #[requires(semantic_id_is_eventuality(new_id))]
+    #[ensures(true)]
+    fn replace_eventuality_reference_everywhere(
+        &mut self,
+        old_id: SemanticObjectId,
+        new_id: SemanticObjectId,
+    ) {
+        if old_id == new_id {
+            return;
+        }
+        for object in self.objects.values_mut() {
+            if object.eventuality == Some(old_id) {
+                object.eventuality = Some(new_id);
+            }
+            if object
+                .deictic_ground
+                .as_ref()
+                .is_some_and(|ground| ground.time == old_id)
+            {
+                object.deictic_ground = object.deictic_ground.map(|mut ground| {
+                    ground.time = new_id;
+                    ground
+                });
+            }
+            if let Some(time) = object.time.as_mut()
+                && time.anchor == old_id
+            {
+                let updated = time.clone().with_data(data! { anchor: new_id });
+                object.time = Some(updated);
+            }
+            if object.anchor == Some(old_id) {
+                object.anchor = Some(new_id);
+            }
+        }
+        for event in self.content_eventualities.values_mut() {
+            if *event == old_id {
+                *event = new_id;
+            }
+        }
+        for event in &mut self.temporal_context_stack {
+            if *event == old_id {
+                *event = new_id;
+            }
+        }
+        if self.story_time_anchor == Some(old_id) {
+            self.story_time_anchor = Some(new_id);
         }
     }
 
@@ -4302,7 +4390,7 @@ where
         diagnostics: Vec<SemanticDiagnostic>,
         reserved_id: Option<SemanticObjectId>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let eventuality = self.next_eventuality();
+        let eventuality = self.next_eventuality_with_sort(EventualitySort::Locution);
         self.insert(
             eventuality,
             SemanticObject::eventuality(
@@ -4323,6 +4411,8 @@ where
                 content,
                 roles.speaker,
                 roles.audience,
+                roles.now,
+                roles.here,
                 source,
                 diagnostics,
             ),
@@ -4650,7 +4740,7 @@ where
                 if let Some(relation) = time_relation {
                     event.time = Some(new!(AnchorRelation {
                         relation: relation.relation,
-                        anchor: SemanticObjectId::speech_time(),
+                        anchor: self.current_now(),
                         sticky: false,
                         inherited: None,
                         distance: relation.distance,
@@ -4662,7 +4752,7 @@ where
                 if let Some(relation) = space_relation {
                     event.space = Some(new!(AnchorRelation {
                         relation: relation.relation,
-                        anchor: SemanticObjectId::here(),
+                        anchor: self.current_here(),
                         sticky: false,
                         inherited: None,
                         distance: relation.distance,
@@ -6684,13 +6774,20 @@ where
             })?;
         let tense_question_parameter =
             self.build_tense_question_parameter_for_tense_modal(tense_modal)?;
+        let default_now = self.current_now();
+        let default_here = self.current_here();
         let event = self.objects.get_mut(&eventuality).ok_or_else(|| {
             SemanticsError::invalid_graph(format!(
                 "predication {predication} points to missing event {eventuality}"
             ))
         })?;
         clear_event_modifiers(event);
-        apply_tense_modal_event_modifiers_to_event(tense_modal, event);
+        apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
+            tense_modal,
+            event,
+            EventModifierAnchors::default().with_defaults(default_now, default_here),
+            true,
+        );
         if let Some(parameter) = tense_question_parameter {
             event.tense_modal = Some(parameter);
         }
@@ -8252,7 +8349,7 @@ where
         parameters: Vec<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::Relation);
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
             SemanticSort::Relation,
@@ -8330,7 +8427,7 @@ where
             self.build_property_abstraction_for_tanru_unit(trailing_unit, source.clone())?;
         let operator = nonlogical_composition_operator(connective);
         let collective = (operator == "mass").then_some(true);
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::Concept);
         self.insert(
             id,
             SemanticObject::referent(
@@ -10081,7 +10178,7 @@ where
         )
     }
 
-    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(displayed_content_target_kind_is_allowed(target.object_kind()))]
     #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[requires(!source_construct.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -10102,7 +10199,7 @@ where
         )
     }
 
-    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(displayed_content_target_kind_is_allowed(target.object_kind()))]
     #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[requires(!source_construct.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -10128,7 +10225,7 @@ where
         Ok(())
     }
 
-    #[requires(target.object_kind() == crate::model::SemanticObjectKind::Utterance || crate::model::argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(displayed_content_target_kind_is_allowed(target.object_kind()))]
     #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[requires(!source_construct.is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -10200,7 +10297,7 @@ where
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    #[ensures(ret.is_none_or(semantic_id_is_eventuality))]
     fn primary_eventuality_for_formula(
         &self,
         formula: SemanticObjectId,
@@ -10235,7 +10332,7 @@ where
         content.object_kind(),
         crate::model::SemanticObjectKind::Formula | crate::model::SemanticObjectKind::Sequence
     ))]
-    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| semantic_id_is_eventuality(*eventuality)) || ret.is_err())]
     fn reified_eventuality_for_content(
         &mut self,
         content: SemanticObjectId,
@@ -10253,7 +10350,7 @@ where
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| semantic_id_is_eventuality(*eventuality)) || ret.is_err())]
     fn modal_eventuality_argument_for_formula(
         &mut self,
         formula: SemanticObjectId,
@@ -10266,7 +10363,7 @@ where
         self.reified_eventuality_for_content(formula, source)
     }
 
-    #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[requires(semantic_id_is_eventuality(eventuality))]
     #[requires(content.object_kind() == crate::model::SemanticObjectKind::Formula || content.object_kind() == crate::model::SemanticObjectKind::Sequence)]
     #[ensures(true)]
     fn set_eventuality_content_if_absent(
@@ -10282,7 +10379,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(semantic_id_is_eventuality)) || ret.is_err())]
     fn modal_eventuality_argument_for_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -10403,8 +10500,8 @@ where
         )
     }
 
-    #[requires(visible_argument.object_kind() == crate::model::SemanticObjectKind::Eventuality || visible_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(other_argument.object_kind() == crate::model::SemanticObjectKind::Eventuality || other_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(semantic_id_is_eventuality(visible_argument) || visible_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(semantic_id_is_eventuality(other_argument) || other_argument.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(spec.visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|claim| claim.is_none_or(|claim| claim.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     fn build_modal_connection_claim_from_arguments(
@@ -11465,7 +11562,7 @@ where
                 clear_event_time_path(event);
                 event.time = Some(new!(AnchorRelation {
                     relation: "at".to_owned(),
-                    anchor: SemanticObjectId::speech_time(),
+                    anchor: self.current_now(),
                     sticky: false,
                     inherited: None,
                     distance: None,
@@ -11498,7 +11595,10 @@ where
             let anchors = EventModifierAnchors::from_data(data!(EventModifierAnchors {
                 temporal: explicit_anchor.or(inherited_temporal_anchor),
                 spatial: explicit_anchor,
-            }));
+                default_temporal: None,
+                default_spatial: None,
+            }))
+            .with_defaults(self.current_now(), self.current_here());
             apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
                 modifier.tense_modal,
                 event,
@@ -11531,7 +11631,7 @@ where
         Ok(application)
     }
 
-    #[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+    #[requires(semantic_id_is_eventuality(eventuality))]
     #[ensures(true)]
     fn apply_story_time_to_event(
         &mut self,
@@ -12716,7 +12816,12 @@ where
         let eventuality = self.next_eventuality();
         let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source.clone());
         if let Some(selbri) = selbri {
-            apply_selbri_event_modifiers_to_event(selbri, &mut event);
+            apply_selbri_event_modifiers_to_event_with_anchors(
+                selbri,
+                &mut event,
+                EventModifierAnchors::default()
+                    .with_defaults(self.current_now(), self.current_here()),
+            );
         }
         self.insert(eventuality, event)?;
         let id = self.next_predication();
@@ -12735,7 +12840,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(|eventuality| eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.is_none_or(semantic_id_is_eventuality)) || ret.is_err())]
     fn build_tagged_eventuality_for_selbri(
         &mut self,
         selbri: &SelbriSyntax,
@@ -12750,6 +12855,8 @@ where
             selbri,
             &mut event,
             self.current_temporal_context(),
+            self.current_now(),
+            self.current_here(),
         );
         self.insert(eventuality, event).map(Some)
     }
@@ -12819,12 +12926,13 @@ where
         if let Some(id) = self.scoped_argument_variables.get(&raw) {
             return Ok(*id);
         }
-        let id = self.next_referent();
+        let sort = sumti_quantified_variable_sort(sumti);
+        let id = self.next_referent_with_sort(sort);
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Variable,
-                sumti_quantified_variable_sort(sumti),
+                sort,
                 None,
                 None,
                 None,
@@ -14209,7 +14317,7 @@ where
         quantity: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::Number);
         let id = self.insert(
             id,
             SemanticObject::referent(
@@ -14300,7 +14408,7 @@ where
     }
 
     #[requires(lerfu_string_sumti_letters(sumti).is_some())]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Sign)) || ret.is_err())]
     fn build_letteral_sign_for_sumti(
         &mut self,
         sumti: &'tree SumtiSyntax,
@@ -14321,7 +14429,7 @@ where
     }
 
     #[requires(!letters.is_empty())]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Sign)) || ret.is_err())]
     fn build_letteral_sign(
         &mut self,
         letters: &WordRun,
@@ -15071,7 +15179,7 @@ where
                 "utterance pro-sumti did not resolve to a concrete discourse item",
             ));
         }
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::Sign);
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
             SemanticSort::Sign,
@@ -15559,7 +15667,7 @@ where
         label: String,
         sort: SemanticSort,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(sort);
         self.insert(
             id,
             SemanticObject::referent(
@@ -15643,7 +15751,7 @@ where
         let sort = abstraction
             .map(|abstraction| abstraction.output_sort)
             .unwrap_or(SemanticSort::Entity);
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(sort);
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
             sort,
@@ -15759,7 +15867,7 @@ where
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let spec = aggregate_description_spec(cmavo).expect("precondition guarantees aggregate");
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(spec.sort);
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
             spec.sort,
@@ -15996,7 +16104,7 @@ where
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sign) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Sign)) || ret.is_err())]
     fn build_selbri_name_sign(
         &mut self,
         selbri: &'tree SelbriSyntax,
@@ -16299,7 +16407,7 @@ where
             SemanticSort::Set => "setName",
             _ => "name",
         };
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(sort);
         self.insert(
             id,
             SemanticObject::referent(
@@ -16412,12 +16520,12 @@ where
         operand: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::eventuality());
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                SemanticSort::Eventuality,
+                SemanticSort::eventuality(),
                 None,
                 Some(Descriptor {
                     kind: "abstractionAbout".to_owned(),
@@ -16502,7 +16610,7 @@ where
         definition: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(SemanticSort::Scale);
         self.insert(
             id,
             SemanticObject::referent(
@@ -16600,7 +16708,7 @@ where
         descriptor: Descriptor,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let id = self.next_referent();
+        let id = self.next_referent_with_sort(sort);
         self.insert(
             id,
             SemanticObject::referent(
@@ -17306,6 +17414,8 @@ where
             tense_modal,
             &mut event,
             Some(referent),
+            self.current_now(),
+            self.current_here(),
         );
         self.insert(eventuality, event)?;
         let relation_metadata =
@@ -17587,15 +17697,22 @@ where
 
         let source = self.source_for_abstraction(abstraction, "abstraction");
         if let Some(class) = abstraction_eventuality_class(kind) {
-            let id = self
-                .single_formula_eventuality(body)
-                .unwrap_or_else(|| self.next_eventuality());
-            let mut object = if let Some(object) = self.objects.remove(&id) {
-                object
-            } else {
-                SemanticObject::eventuality(class, None, source.clone())
+            let desired_sort = abstraction_output_sort(kind);
+            let existing_id = self.single_formula_eventuality(body);
+            let mut object = existing_id
+                .and_then(|id| self.objects.remove(&id))
+                .unwrap_or_else(|| SemanticObject::eventuality(class, None, source.clone()));
+            let id = match existing_id {
+                Some(id) if id.referent_sort() == Some(desired_sort) => id,
+                Some(id) => {
+                    let specialized_id = self.next_referent_with_sort(desired_sort);
+                    self.replace_eventuality_reference_everywhere(id, specialized_id);
+                    specialized_id
+                }
+                None => self.next_referent_with_sort(desired_sort),
             };
             object.class = Some(class);
+            object.sort = Some(desired_sort);
             object.content = Some(body);
             object.abstraction_kind = Some(kind);
             object.parameters = parameters;
@@ -17605,10 +17722,11 @@ where
             return Ok(id);
         }
 
-        let id = self.next_referent();
+        let sort = abstraction_output_sort(kind);
+        let id = self.next_referent_with_sort(sort);
         let mut object = SemanticObject::referent(
             ReferentCategory::Constant,
-            abstraction_output_sort(kind),
+            sort,
             None,
             None,
             None,
@@ -17627,7 +17745,7 @@ where
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Eventuality))]
+    #[ensures(ret.is_none_or(semantic_id_is_eventuality))]
     fn single_formula_eventuality(&self, formula: SemanticObjectId) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
         let predication = object.predication?;
@@ -18154,7 +18272,6 @@ where
         object.object_kind(),
         crate::model::SemanticObjectKind::Referent
             | crate::model::SemanticObjectKind::Parameter
-            | crate::model::SemanticObjectKind::Sign
             | crate::model::SemanticObjectKind::MathExpression
     ))]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -20150,11 +20267,14 @@ fn apply_selbri_event_modifiers_to_event_with_temporal_anchor(
     selbri: &SelbriSyntax,
     event: &mut SemanticObject,
     anchor: Option<SemanticObjectId>,
+    default_temporal_anchor: SemanticObjectId,
+    default_spatial_anchor: SemanticObjectId,
 ) {
     apply_selbri_event_modifiers_to_event_with_anchors(
         selbri,
         event,
-        EventModifierAnchors::temporal_only(anchor),
+        EventModifierAnchors::temporal_only(anchor)
+            .with_defaults(default_temporal_anchor, default_spatial_anchor),
     );
 }
 
@@ -20227,11 +20347,14 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchor(
     tense_modal: &TenseModalSyntax,
     event: &mut SemanticObject,
     anchor: Option<SemanticObjectId>,
+    default_temporal_anchor: SemanticObjectId,
+    default_spatial_anchor: SemanticObjectId,
 ) {
     apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
         tense_modal,
         event,
-        EventModifierAnchors::shared(anchor),
+        EventModifierAnchors::shared(anchor)
+            .with_defaults(default_temporal_anchor, default_spatial_anchor),
         true,
     );
 }
@@ -20249,12 +20372,16 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
     }
     let temporal_anchor = anchors.temporal;
     let spatial_anchor = anchors.spatial;
-    let time_span = time_span_for_tense_modal_with_anchor(tense_modal, temporal_anchor);
+    let time_span = time_span_for_tense_modal_with_anchor(
+        tense_modal,
+        temporal_anchor.or(anchors.default_temporal),
+    );
     if time_span.is_none() {
         append_temporal_path_relations_to_event(
             event,
             temporal_path_relations_for_tense_modal(tense_modal),
             temporal_anchor,
+            anchors.default_temporal,
         );
     }
     if let Some(time_interval) =
@@ -20269,6 +20396,7 @@ fn apply_tense_modal_event_modifiers_to_event_with_anchors_and_normalization(
         event,
         space_path_relations_for_tense_modal(tense_modal),
         spatial_anchor,
+        anchors.default_spatial,
     );
     if let Some(space_interval) =
         space_interval_for_tense_modal_with_anchor(tense_modal, spatial_anchor)
@@ -20353,6 +20481,7 @@ fn append_temporal_path_relations_to_event(
     event: &mut SemanticObject,
     relations: Vec<TemporalPathRelation>,
     anchor: Option<SemanticObjectId>,
+    default_anchor: Option<SemanticObjectId>,
 ) {
     if relations.is_empty() {
         return;
@@ -20387,7 +20516,7 @@ fn append_temporal_path_relations_to_event(
         let path_anchor = if first_relation && let Some(anchor) = anchor {
             TemporalPathAnchor::object(anchor)
         } else if event.time_path.is_empty() {
-            TemporalPathAnchor::object(SemanticObjectId::speech_time())
+            TemporalPathAnchor::object(default_anchor.unwrap_or_else(SemanticObjectId::now))
         } else {
             TemporalPathAnchor::previous()
         };
@@ -20489,7 +20618,7 @@ fn mark_temporal_path_step_sticky(
     })
 }
 
-#[requires(event.object_type == SemanticObjectKind::Eventuality)]
+#[requires(semantic_object_is_eventuality(event))]
 #[ensures(true)]
 fn mark_event_time_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
     if let Some(time) = event.time.take() {
@@ -20502,7 +20631,7 @@ fn mark_event_time_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
         .collect();
 }
 
-#[requires(event.object_type == SemanticObjectKind::Eventuality)]
+#[requires(semantic_object_is_eventuality(event))]
 #[ensures(true)]
 fn mark_event_space_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
     if let Some(space) = event.space.take() {
@@ -20549,6 +20678,7 @@ fn append_space_path_relations_to_event(
     event: &mut SemanticObject,
     relations: Vec<TemporalPathRelation>,
     anchor: Option<SemanticObjectId>,
+    default_anchor: Option<SemanticObjectId>,
 ) {
     if relations.is_empty() {
         return;
@@ -20583,7 +20713,7 @@ fn append_space_path_relations_to_event(
         let path_anchor = if first_relation && let Some(anchor) = anchor {
             TemporalPathAnchor::object(anchor)
         } else if event.space_path.is_empty() {
-            TemporalPathAnchor::object(SemanticObjectId::here())
+            TemporalPathAnchor::object(default_anchor.unwrap_or_else(SemanticObjectId::here))
         } else {
             TemporalPathAnchor::previous()
         };
@@ -20652,7 +20782,7 @@ fn clear_event_space_path(event: &mut SemanticObject) {
     event.space_path.clear();
 }
 
-#[requires(event.object_type == crate::model::SemanticObjectKind::Eventuality)]
+#[requires(semantic_object_is_eventuality(event))]
 #[ensures(true)]
 fn clear_event_modifiers(event: &mut SemanticObject) {
     event.actuality = None;
@@ -21750,7 +21880,7 @@ fn time_span_for_tense_modal_with_anchor(
     if start_tokens.is_empty() || end_tokens.is_empty() {
         return None;
     }
-    let anchor = anchor.or(Some(SemanticObjectId::speech_time()));
+    let anchor = anchor.or(Some(SemanticObjectId::now()));
     Some(TimeSpan::new(
         time_span_endpoint_from_tokens(start_tokens, anchor)?,
         time_span_endpoint_from_tokens(end_tokens, anchor)?,
@@ -24468,6 +24598,24 @@ fn abstraction_body_mode(kind: AbstractionKind) -> PredicationMode {
 }
 
 #[requires(true)]
+#[ensures(ret == (id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+fn semantic_id_is_eventuality(id: SemanticObjectId) -> bool {
+    id.object_kind() == crate::model::SemanticObjectKind::Referent
+        && id
+            .referent_sort()
+            .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
+}
+
+#[requires(true)]
+#[ensures(ret == (object.object_kind() == crate::model::SemanticObjectKind::Referent && object.sort.is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+fn semantic_object_is_eventuality(object: &SemanticObject) -> bool {
+    object.object_kind() == crate::model::SemanticObjectKind::Referent
+        && object
+            .sort
+            .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
+}
+
+#[requires(true)]
 #[ensures(ret.is_none() || matches!(kind, AbstractionKind::Event | AbstractionKind::Achievement | AbstractionKind::Process | AbstractionKind::Activity | AbstractionKind::State | AbstractionKind::Experience))]
 fn abstraction_eventuality_class(kind: AbstractionKind) -> Option<EventualityClass> {
     match kind {
@@ -24483,21 +24631,7 @@ fn abstraction_eventuality_class(kind: AbstractionKind) -> Option<EventualityCla
 #[requires(true)]
 #[ensures(true)]
 fn abstraction_output_sort(kind: AbstractionKind) -> SemanticSort {
-    match kind {
-        AbstractionKind::Event
-        | AbstractionKind::Achievement
-        | AbstractionKind::Process
-        | AbstractionKind::Activity
-        | AbstractionKind::State => SemanticSort::Eventuality,
-        AbstractionKind::Property => SemanticSort::Relation,
-        AbstractionKind::Amount => SemanticSort::Amount,
-        AbstractionKind::TruthValue => SemanticSort::TruthValue,
-        AbstractionKind::Proposition => SemanticSort::Proposition,
-        AbstractionKind::Concept => SemanticSort::Concept,
-        AbstractionKind::Experience => SemanticSort::Eventuality,
-        AbstractionKind::SentenceSign => SemanticSort::Sign,
-        AbstractionKind::Unspecified => SemanticSort::Entity,
-    }
+    kind.output_sort()
 }
 
 #[requires(true)]
@@ -25995,7 +26129,7 @@ fn recurrence_quantity_cache_key(recurrence: &Recurrence) -> String {
     )
 }
 
-#[requires(eventuality.object_kind() == crate::model::SemanticObjectKind::Eventuality)]
+#[requires(semantic_id_is_eventuality(eventuality))]
 #[ensures(true)]
 fn bind_modal_argument_to_host_event(
     modal_argument: &mut ModalArgument,
@@ -26134,7 +26268,7 @@ fn referent_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
 fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
     match cmavo {
         Some(Cmavo::Luhe) => SemanticSort::Sign,
-        Some(Cmavo::Tuha) => SemanticSort::Eventuality,
+        Some(Cmavo::Tuha) => SemanticSort::eventuality(),
         Some(Cmavo::Luhi) => SemanticSort::Set,
         Some(Cmavo::Luho) => SemanticSort::Mass,
         Some(Cmavo::Vuhi) => SemanticSort::Sequence,
@@ -26760,7 +26894,7 @@ mod tests {
     use jbotci_source::SourceId;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_source_and_options};
     use serde_json::Value;
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     #[requires(!source.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|value| value.get("objects").is_some()) || ret.is_err())]
@@ -26789,7 +26923,223 @@ mod tests {
             },
             jbotci_dictionary_data::english(),
         )?;
+        let json = serde_json::from_str(&graph.to_json_string(0)?)?;
+        Ok(legacy_compatible_test_json(json))
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|value| value.get("objects").is_some()) || ret.is_err())]
+    fn public_semantic_json_for(source: &str) -> Result<Value, Box<dyn std::error::Error>> {
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &MorphologyOptions::default(),
+            Some(SourceId("<test>".to_owned())),
+        )?;
+        let parsed =
+            parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())?;
+        let graph = build_semantic_graph_with_dictionary_and_options(
+            &parsed.parse_tree,
+            SemanticBuildOptions {
+                source_text: Some(source),
+                story_time: false,
+            },
+            jbotci_dictionary_data::english(),
+        )?;
         Ok(serde_json::from_str(&graph.to_json_string(0)?)?)
+    }
+
+    #[requires(json.get("objects").is_some())]
+    #[ensures(ret.get("objects").is_some())]
+    fn legacy_compatible_test_json(mut json: Value) -> Value {
+        let objects = json["objects"].as_object().expect("semantic objects");
+        let mut entries = objects
+            .iter()
+            .map(|(id, object)| (id.clone(), object.clone()))
+            .collect::<Vec<_>>();
+        entries.sort_by_key(|(id, _)| semantic_id_numeric_suffix(id));
+
+        let mut mapping = BTreeMap::new();
+        let mut counters = LegacyIdCounters::default();
+        for (id, object) in &entries {
+            mapping.insert(id.clone(), counters.next_id_for(id, object));
+        }
+
+        if let Some(root) = json["root"].as_str()
+            && let Some(legacy_root) = mapping.get(root)
+        {
+            json["root"] = Value::String(legacy_root.clone());
+        }
+
+        let raw_objects =
+            std::mem::take(json["objects"].as_object_mut().expect("semantic objects"));
+        let mut legacy_objects = serde_json::Map::new();
+        for (id, mut object) in raw_objects {
+            add_legacy_fields_for_test_view(&id, &mut object);
+            rewrite_semantic_ids_for_test_view(&mut object, &mapping);
+            let key = mapping.get(&id).cloned().unwrap_or(id);
+            legacy_objects.insert(key, object);
+        }
+        json["objects"] = Value::Object(legacy_objects);
+        json
+    }
+
+    #[invariant(true)]
+    #[derive(Default)]
+    struct LegacyIdCounters {
+        utterance: usize,
+        sequence: usize,
+        predication: usize,
+        formula: usize,
+        parameter: usize,
+        quantity: usize,
+        math: usize,
+        question: usize,
+        display: usize,
+        relation_metadata: usize,
+        referent: usize,
+        sign: usize,
+        eventuality: usize,
+    }
+
+    impl LegacyIdCounters {
+        #[requires(!id.is_empty())]
+        #[ensures(!ret.is_empty())]
+        fn next_id_for(&mut self, id: &str, object: &Value) -> String {
+            if id == "entity:1" && object["indexical"] == "speaker" {
+                return "referent:speaker".to_owned();
+            }
+            if id == "entity:2" && object["indexical"] == "audience" {
+                return "referent:addressee".to_owned();
+            }
+            if id == "eventuality:3" && object["indexical"] == "now" {
+                return "referent:speech-time".to_owned();
+            }
+            if id == "entity:4" && object["indexical"] == "here" {
+                return "referent:here".to_owned();
+            }
+
+            match object["type"].as_str().unwrap_or_default() {
+                "utterance" => next_numbered_id(&mut self.utterance, "utterance:u"),
+                "sequence" => next_numbered_id(&mut self.sequence, "sequence:s"),
+                "predication" => next_numbered_id(&mut self.predication, "predication:p"),
+                "formula" => next_numbered_id(&mut self.formula, "formula:f"),
+                "parameter" => next_numbered_id(&mut self.parameter, "parameter:p"),
+                "quantity" => next_numbered_id(&mut self.quantity, "quantity:q"),
+                "mathExpression" => next_numbered_id(&mut self.math, "math:m"),
+                "question" => next_numbered_id(&mut self.question, "question:q"),
+                "displayedContent" => next_numbered_id(&mut self.display, "display:d"),
+                "relationMetadata" => next_numbered_id(&mut self.relation_metadata, "relation:r"),
+                "referent" if object["sort"] == "sign" => {
+                    next_numbered_id(&mut self.sign, "sign:s")
+                }
+                "referent"
+                    if object["sort"]
+                        .as_str()
+                        .is_some_and(|sort| sort.starts_with("eventuality")) =>
+                {
+                    let legacy_id = format!("eventuality:e{}", self.eventuality);
+                    self.eventuality += 1;
+                    legacy_id
+                }
+                "referent" => next_numbered_id(&mut self.referent, "referent:r"),
+                _ => id.to_owned(),
+            }
+        }
+    }
+
+    #[requires(!prefix.is_empty())]
+    #[ensures(ret.starts_with(prefix))]
+    fn next_numbered_id(counter: &mut usize, prefix: &str) -> String {
+        *counter += 1;
+        format!("{prefix}{counter}")
+    }
+
+    #[requires(!id.is_empty())]
+    #[ensures(ret > 0)]
+    fn semantic_id_numeric_suffix(id: &str) -> usize {
+        id.rsplit_once(':')
+            .and_then(|(_, suffix)| suffix.parse().ok())
+            .unwrap_or(usize::MAX)
+    }
+
+    #[requires(!id.is_empty())]
+    #[ensures(true)]
+    fn add_legacy_fields_for_test_view(id: &str, object: &mut Value) {
+        let Some(fields) = object.as_object_mut() else {
+            return;
+        };
+        let sort = fields
+            .get("sort")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned);
+        if id != "eventuality:3"
+            && sort
+                .as_deref()
+                .is_some_and(|sort| sort.starts_with("eventuality"))
+        {
+            if !fields.contains_key("class") {
+                fields.insert(
+                    "class".to_owned(),
+                    Value::String(legacy_eventuality_class(sort.as_deref().unwrap())),
+                );
+            }
+        }
+        if (fields.contains_key("body") || fields.contains_key("content"))
+            && !fields.contains_key("abstractionKind")
+            && let Some(sort) = sort.as_deref().and_then(legacy_abstraction_kind)
+        {
+            fields.insert("abstractionKind".to_owned(), Value::String(sort.to_owned()));
+        }
+    }
+
+    #[requires(sort.starts_with("eventuality"))]
+    #[ensures(!ret.is_empty())]
+    fn legacy_eventuality_class(sort: &str) -> String {
+        sort.split('/').nth(1).unwrap_or("event").to_owned()
+    }
+
+    #[requires(!sort.is_empty())]
+    #[ensures(true)]
+    fn legacy_abstraction_kind(sort: &str) -> Option<&'static str> {
+        match sort {
+            "eventuality" => Some("event"),
+            "eventuality/state" => Some("state"),
+            "eventuality/process" => Some("process"),
+            "eventuality/activity" => Some("activity"),
+            "eventuality/achievement" => Some("achievement"),
+            "eventuality/experience" => Some("experience"),
+            "relation" => Some("property"),
+            "amount" => Some("amount"),
+            "truthValue" => Some("truthValue"),
+            "proposition" => Some("proposition"),
+            "concept" => Some("concept"),
+            "abstractNature" => Some("unspecified"),
+            "sign" => Some("sentenceSign"),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rewrite_semantic_ids_for_test_view(value: &mut Value, mapping: &BTreeMap<String, String>) {
+        match value {
+            Value::String(text) => {
+                if let Some(replacement) = mapping.get(text.as_str()) {
+                    *text = replacement.clone();
+                }
+            }
+            Value::Array(items) => {
+                for item in items {
+                    rewrite_semantic_ids_for_test_view(item, mapping);
+                }
+            }
+            Value::Object(entries) => {
+                for value in entries.values_mut() {
+                    rewrite_semantic_ids_for_test_view(value, mapping);
+                }
+            }
+            _ => {}
+        }
     }
 
     #[requires(true)]
@@ -27176,6 +27526,136 @@ mod tests {
             "referent:r4"
         );
         assert_eq!(object(&json, "referent:r4")["descriptor"]["word"], "zo'e");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_ids_use_global_numeric_suffixes_and_sort_prefixes() {
+        let json = public_semantic_json_for("mi klama").expect("semantic JSON");
+        assert_eq!(json["root"], "utterance:5");
+        let objects = json["objects"].as_object().expect("semantic objects");
+        for fixed in ["entity:1", "entity:2", "eventuality:3", "entity:4"] {
+            assert!(objects.contains_key(fixed), "missing {fixed}");
+        }
+
+        let mut seen = BTreeSet::new();
+        for (id, object) in objects {
+            let (_, suffix) = id.rsplit_once(':').expect("semantic ID separator");
+            assert!(
+                seen.insert(suffix.to_owned()),
+                "duplicate numeric suffix {suffix}"
+            );
+            if object["type"] == "referent" {
+                assert_eq!(
+                    id.rsplit_once(':').expect("semantic ID separator").0,
+                    object["sort"].as_str().expect("referent sort")
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_event_abstractions_are_eventuality_referents() {
+        let json = public_semantic_json_for("mi nelci lo pu'u do klama").expect("semantic JSON");
+        let objects = json["objects"].as_object().expect("semantic objects");
+        assert!(
+            objects
+                .values()
+                .all(|object| object["type"] != "eventuality"
+                    && object.get("abstractionKind").is_none()
+                    && object.get("class").is_none())
+        );
+        let (process_id, process) = objects
+            .iter()
+            .find(|(_, object)| {
+                object["type"] == "referent"
+                    && object["sort"] == "eventuality/process"
+                    && object.get("content").is_some()
+            })
+            .expect("process abstraction");
+        let klama = predication_with_relation_and_mode(&json, "klama", "inert");
+        assert_eq!(klama["eventuality"], process_id.as_str());
+        let nelci = predication_with_relation_and_mode(&json, "nelci", "asserted");
+        assert_eq!(nelci["arguments"]["x2"]["value"], process_id.as_str());
+        assert_eq!(process["descriptor"]["kind"], "veridicalDescription");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_suhu_outputs_abstract_nature_without_abstraction_kind() {
+        let json = public_semantic_json_for("le su'u mi klama").expect("semantic JSON");
+        let output = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "referent" && object["sort"] == "abstractNature")
+            .expect("su'u output");
+        assert!(output.get("abstractionKind").is_none());
+        assert!(output.get("body").is_some());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_top_level_statement_sequence_shares_full_deictic_frame() {
+        let json = public_semantic_json_for("mi klama .i mi cliva").expect("semantic JSON");
+        let sequence = root_object(&json);
+        let first = object(
+            &json,
+            sequence["items"][0].as_str().expect("first utterance"),
+        );
+        let second = object(
+            &json,
+            sequence["items"][1].as_str().expect("second utterance"),
+        );
+        for role in ["speaker", "audience"] {
+            assert_eq!(first[role], second[role], "{role}");
+        }
+        for role in ["time", "place"] {
+            assert_eq!(
+                first["deicticGround"][role], second["deicticGround"][role],
+                "{role}"
+            );
+        }
+        assert_eq!(first["speaker"], "entity:1");
+        assert_eq!(first["audience"], "entity:2");
+        assert_eq!(first["deicticGround"]["time"], "eventuality:3");
+        assert_eq!(first["deicticGround"]["place"], "entity:4");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn public_parsed_quotation_allocates_fresh_deictic_frame() {
+        let json = public_semantic_json_for("mi cusku lu mi pu klama li'u").expect("semantic JSON");
+        let outer = root_object(&json);
+        let quoted_id = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "referent" && object["sort"] == "sign")
+            .and_then(|sign| sign["quotation"]["utterance"].as_str())
+            .expect("quoted utterance");
+        let quoted = object(&json, quoted_id);
+        assert_ne!(outer["speaker"], quoted["speaker"]);
+        assert_ne!(outer["audience"], quoted["audience"]);
+        assert_ne!(
+            outer["deicticGround"]["time"],
+            quoted["deicticGround"]["time"]
+        );
+        assert_ne!(
+            outer["deicticGround"]["place"],
+            quoted["deicticGround"]["place"]
+        );
+
+        let klama = predication_with_relation_and_mode(&json, "klama", "asserted");
+        assert_eq!(klama["arguments"]["x1"]["value"], quoted["speaker"]);
+        let event = object(&json, klama["eventuality"].as_str().expect("klama event"));
+        assert_eq!(event["time"]["anchor"], quoted["deicticGround"]["time"]);
     }
 
     #[test]
@@ -28214,7 +28694,7 @@ mod tests {
         let objects = json["objects"].as_object().expect("semantic objects");
         let (sign_id, sign) = objects
             .iter()
-            .find(|(_id, object)| object["type"] == "sign")
+            .find(|(_id, object)| object["type"] == "referent" && object["sort"] == "sign")
             .expect("quotation sign");
         assert_eq!(sign["kind"], "quotation");
         assert_eq!(sign["quotation"]["mode"], "parsed");
@@ -28272,7 +28752,7 @@ mod tests {
             .as_object()
             .expect("semantic objects")
             .values()
-            .find(|object| object["type"] == "sign")
+            .find(|object| object["type"] == "referent" && object["sort"] == "sign")
             .expect("quotation sign");
         assert_eq!(sign["kind"], "quotation");
         assert_eq!(sign["quotation"]["mode"], "parsed");
@@ -29140,15 +29620,15 @@ mod tests {
         let first = object(&sticky, "predication:p1");
         let second = object(&sticky, "predication:p2");
         assert_eq!(first["modalArguments"][0]["relation"], "bapli");
-        assert_eq!(
-            first["modalArguments"][0]["arguments"]["x1"]["value"],
-            "referent:r2"
-        );
+        let sticky_force = first["modalArguments"][0]["arguments"]["x1"]["value"]
+            .as_str()
+            .expect("sticky modal argument")
+            .to_owned();
         assert_eq!(second["modalArguments"][0]["relation"], "bangu");
         assert_eq!(second["modalArguments"][1]["relation"], "bapli");
         assert_eq!(
             second["modalArguments"][1]["arguments"]["x1"]["value"],
-            "referent:r2"
+            sticky_force
         );
 
         let reset = semantic_json_for("mi tavla bai ki tu'a la .frank. .i mi ki tavla")
@@ -30640,7 +31120,8 @@ mod tests {
     fn process_abstraction_exposes_stage_place() {
         let json = semantic_json_for("le pu'u mi klama").expect("semantic JSON");
         let (process, process_object) = abstraction_output_with_kind(&json, "process");
-        assert_eq!(process_object["type"], "eventuality");
+        assert_eq!(process_object["type"], "referent");
+        assert_eq!(process_object["sort"], "eventuality/process");
         assert_eq!(process_object["class"], "process");
         let klama = predication_with_relation_and_mode(&json, "klama", "inert");
         assert_eq!(klama["eventuality"], process);
@@ -30734,7 +31215,7 @@ mod tests {
     fn suhu_description_does_not_fabricate_abstraction_type_place() {
         let json = semantic_json_for("le su'u mi klama kei be lo fasnu").expect("semantic JSON");
         let (_id, output) = abstraction_output_with_kind(&json, "unspecified");
-        assert_eq!(output["sort"], "entity");
+        assert_eq!(output["sort"], "abstractNature");
         assert_eq!(output["descriptor"]["kind"], "speakerDescription");
         assert!(output["descriptor"].get("relativeClauses").is_none());
         assert!(
@@ -32239,7 +32720,16 @@ mod tests {
     #[ensures(true)]
     fn utterance_pro_sumti_cover_current_and_unspecified_utterances() {
         let json = semantic_json_for("dei jetnu jufra").expect("semantic JSON");
-        let dei = object(&json, "referent:r1");
+        let dei = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "referent"
+                    && object["sort"] == "sign"
+                    && object["descriptor"]["word"] == "dei"
+            })
+            .expect("dei referent");
         assert_eq!(dei["descriptor"]["kind"], "utteranceReference");
         assert_eq!(dei["descriptor"]["word"], "dei");
         assert_eq!(dei["sort"], "sign");
@@ -32247,7 +32737,16 @@ mod tests {
         assert!(dei.get("diagnostics").is_none());
 
         let json = semantic_json_for("do'i jetnu jufra").expect("semantic JSON");
-        let dohi = object(&json, "referent:r1");
+        let dohi = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| {
+                object["type"] == "referent"
+                    && object["sort"] == "sign"
+                    && object["descriptor"]["word"] == "do'i"
+            })
+            .expect("do'i referent");
         assert_eq!(dohi["descriptor"]["kind"], "utteranceReference");
         assert_eq!(dohi["descriptor"]["word"], "do'i");
         assert_eq!(dohi["sort"], "sign");
@@ -34063,7 +34562,11 @@ mod tests {
             .expect("objects")
             .values()
             .filter(|object| {
-                object["type"] == "eventuality" && object["tenseModal"] == tense_parameter
+                object["type"] == "referent"
+                    && object["sort"]
+                        .as_str()
+                        .is_some_and(|sort| sort.starts_with("eventuality"))
+                    && object["tenseModal"] == tense_parameter
             })
             .count();
         assert_eq!(tense_slot_events, 1);
@@ -34251,7 +34754,11 @@ mod tests {
         let member = object(&json, restriction["predication"].as_str().unwrap());
         assert_eq!(member["relation"], "memberOf");
         assert_eq!(member["arguments"]["x1"]["value"], scope["variable"]);
-        assert_eq!(member["arguments"]["x2"]["value"], "sign:s1");
+        let quotation_sign = member["arguments"]["x2"]["value"]
+            .as_str()
+            .expect("quotation sign");
+        assert_eq!(object(&json, quotation_sign)["sort"], "sign");
+        assert_eq!(object(&json, quotation_sign)["kind"], "quotation");
     }
 
     #[test]

@@ -47,39 +47,86 @@ temporaries and abandoned helper objects must be pruned before serialization.
 ```json
 {
   "version": "lojban-semantics-json-1",
-  "root": "utterance:u1",
+  "root": "utterance:5",
   "objects": {
-    "utterance:u1": {
+    "entity:1": {
+      "type": "referent",
+      "sort": "entity",
+      "category": "indexical",
+      "indexical": "speaker"
+    },
+    "entity:2": {
+      "type": "referent",
+      "sort": "entity",
+      "category": "indexical",
+      "indexical": "audience"
+    },
+    "eventuality:3": {
+      "type": "referent",
+      "sort": "eventuality",
+      "category": "indexical",
+      "indexical": "now"
+    },
+    "entity:4": {
+      "type": "referent",
+      "sort": "entity",
+      "category": "indexical",
+      "indexical": "here"
+    },
+    "utterance:5": {
       "type": "utterance",
       "force": "assert",
-      "speaker": "referent:speaker",
-      "audience": "referent:addressee",
-      "eventuality": "eventuality:e0",
-      "content": "formula:f1"
+      "speaker": "entity:1",
+      "audience": "entity:2",
+      "eventuality": "eventuality/locution:6",
+      "content": "formula:7",
+      "deicticGround": {
+        "time": "eventuality:3",
+        "place": "entity:4"
+      }
     }
   }
 }
 ```
 
 IDs should be stable within one output but need not be stable across different
-parser versions.  Recommended prefixes are descriptive, not normative:
+parser versions.  Public IDs are opaque but intentionally readable.  The
+numeric suffix is globally unique across the entire graph; `entity:1` and
+`predication:1` must not both appear.  For referents, the prefix is the
+serialized semantic sort path.  For structural objects, the prefix is the
+object kind.
 
-| Prefix | Object type |
+Referent prefixes include:
+
+| Prefix | Referent sort |
 | --- | --- |
-| `utterance:` | utterance |
-| `sequence:` | sequence |
-| `eventuality:` | eventuality |
-| `referent:` | referent |
-| `parameter:` | parameter |
-| `predication:` | predication |
-| `formula:` | formula |
-| `abstraction:` | abstraction |
+| `entity:` | `entity` |
+| `eventuality:` | broad `eventuality` (`nu` and bare bridi events) |
+| `eventuality/state:` | `za'i` state |
+| `eventuality/process:` | `pu'u` process |
+| `eventuality/activity:` | `zu'o` activity |
+| `eventuality/achievement:` | `mu'e` achievement |
+| `eventuality/experience:` | `li'i` experience |
+| `eventuality/locution:` | speech/text act event |
+| `relation:` | relation/property |
+| `proposition:` | proposition |
+| `truthValue:` | truth value |
+| `amount:` | amount |
+| `number:` | number |
+| `scale:` | scale |
 | `sign:` | sign |
-| `display:` | displayedContent |
-| `math:` | mathExpression |
-| `quantity:` | quantity |
-| `relation:` | relationMetadata |
-| `question:` | question |
+| `abstractNature:` | `su'u` abstract nature |
+| `concept:` | concept |
+
+Structural prefixes include `utterance:`, `sequence:`, `predication:`,
+`formula:`, `quantity:`, `math:`, `parameter:`, `question:`, `display:`, and
+`relationMetadata:`.
+
+Top-level text starts with one shared deictic frame: `entity:1` is the speaker,
+`entity:2` is the audience, `eventuality:3` is now, and `entity:4` is here.
+Sibling top-level `.i` utterances share that full frame.  Parsed quotations
+allocate a fresh speaker, audience, now, and here; inner `mi`/`do`, tense
+anchors, spatial anchors, and demonstratives use the quoted frame.
 
 ## Common Fields
 
@@ -118,15 +165,15 @@ locution eventuality, and content.
 {
   "type": "utterance",
   "force": "assert",
-  "speaker": "referent:speaker",
-  "audience": "referent:addressee",
-  "eventuality": "eventuality:e0",
-  "content": "formula:f-main",
+  "speaker": "entity:1",
+  "audience": "entity:2",
+  "eventuality": "eventuality/locution:6",
+  "content": "formula:1000",
   "deicticGround": {
-    "time": "referent:now",
-    "place": "referent:here"
+    "time": "eventuality:3",
+    "place": "entity:4"
   },
-  "asides": ["utterance:u-parenthetical", "display:d-attitude"]
+  "asides": ["utterance:1001", "display:1002"]
 }
 ```
 
@@ -159,9 +206,9 @@ For vocatives, use `vocativeKind` when known:
   "type": "utterance",
   "force": "vocative",
   "vocativeKind": "greeting",
-  "speaker": "referent:speaker",
-  "audience": "referent:djan",
-  "eventuality": "eventuality:e-voc",
+  "speaker": "entity:1",
+  "audience": "entity:1003",
+  "eventuality": "eventuality/locution:12",
   "content": null
 }
 ```
@@ -170,7 +217,8 @@ When a vocative appears inside another utterance, preserve it as a vocative
 utterance in the enclosing utterance's `asides`.  Its `audience` is the named or
 described addressee when the vocative supplies one.  Self-identification
 vocatives such as `mi'e .djan.` use the introduced name referent as their
-`content` and set that referent's `target` to `referent:speaker`.  Bare-selbri
+`content` and set that referent's `target` to the current speaker referent.
+Bare-selbri
 vocatives such as `coi xunre pastu nixli` target an implicit speaker
 description, equivalent in force to `coi le xunre pastu nixli`.  The vocative
 selbri is still a full selbri: tanru, linkargs, conversion, scalar negation, and
@@ -190,14 +238,14 @@ truth-functional formula.
 ```json
 {
   "type": "sequence",
-  "items": ["utterance:u1", "utterance:u2"],
-  "content": "formula:f-statement-connection",
-  "connectionClaims": ["formula:f-causal-link"],
+  "items": ["utterance:1004", "utterance:1005"],
+  "content": "formula:1006",
+  "connectionClaims": ["formula:1007"],
   "ordinalLabels": [
     {
-      "target": "utterance:u1",
+      "target": "utterance:1004",
       "level": "item",
-      "value": "math:m-ordinal",
+      "value": "math:1008",
       "introducedBy": "mai"
     }
   ],
@@ -259,27 +307,30 @@ content itself sequence-shaped:
 {
   "type": "utterance",
   "force": "parenthetical",
-  "content": "sequence:s-group"
+  "content": "sequence:1009"
 }
 ```
 
-### eventuality
+### eventuality referents
 
 An eventuality is the event, state, process, activity, achievement, or locution
-that a predication, utterance, or abstraction is about.
+that a predication, utterance, or abstraction is about.  Eventualities are not
+a separate public object type; they are `type:"referent"` objects whose `sort`
+is `eventuality` or one of its hierarchical subsorts.
 
 ```json
 {
-  "type": "eventuality",
-  "class": "event",
+  "type": "referent",
+  "sort": "eventuality",
+  "category": "constant",
   "actuality": { "kind": "actual" },
-  "tenseModal": "parameter:p-cuhe",
+  "tenseModal": "parameter:1010",
   "timePath": [
     {
       "relation": "before",
       "anchor": {
         "kind": "object",
-        "value": "referent:speech-time"
+        "value": "eventuality:3"
       },
       "introducedBy": "pu"
     },
@@ -292,18 +343,18 @@ that a predication, utterance, or abstraction is about.
   ],
   "timeInterval": {
     "extent": "whole",
-    "anchor": "referent:r1"
+    "anchor": "entity:1011"
   },
   "timeSpan": {
     "start": {
       "relation": "before",
-      "anchor": "referent:speech-time",
+      "anchor": "eventuality:3",
       "introducedBy": "pu",
       "distance": "medium"
     },
     "end": {
       "relation": "after",
-      "anchor": "referent:speech-time",
+      "anchor": "eventuality:3",
       "introducedBy": "ba",
       "distance": "long"
     },
@@ -311,14 +362,14 @@ that a predication, utterance, or abstraction is about.
   },
   "aspect": {
     "contour": "completive",
-    "anchor": "referent:r1"
+    "anchor": "entity:1011"
   },
   "recurrence": [
     {
       "kind": "ordinalOccurrence",
       "introducedBy": "re'u",
-      "quantity": "quantity:q1",
-      "interval": "referent:r1"
+      "quantity": "quantity:1012",
+      "interval": "entity:1011"
     },
     {
       "kind": "occurrenceCount",
@@ -328,9 +379,9 @@ that a predication, utterance, or abstraction is about.
   ],
   "space": {
     "relation": "leftOf",
-    "anchor": "referent:george",
+    "anchor": "entity:1013",
     "magnitude": {
-      "value": "referent:five-meters",
+      "value": "entity:1014",
       "introducedBy": "la'u"
     }
   },
@@ -339,7 +390,7 @@ that a predication, utterance, or abstraction is about.
       "relation": "inFrontOf",
       "anchor": {
         "kind": "object",
-        "value": "referent:here"
+        "value": "entity:4"
       },
       "introducedBy": "ca'u",
       "distance": "short"
@@ -355,17 +406,17 @@ that a predication, utterance, or abstraction is about.
     "extent": "medium",
     "directions": ["north"],
     "dimensions": ["line"],
-    "anchor": "referent:r1"
+    "anchor": "entity:1011"
   },
   "spatialAspect": {
     "contour": "initiative",
-    "anchor": "referent:r1"
+    "anchor": "entity:1011"
   },
   "spatialRecurrence": [
     {
       "kind": "regular",
       "introducedBy": "di'i",
-      "interval": "referent:r1"
+      "interval": "entity:1011"
     }
   ]
 }
@@ -395,7 +446,7 @@ should preserve that shape without copying the Lean API.
 
 For a single temporal direction, use `time`.  For multiple cumulative temporal
 directions, use `timePath` and omit `time`.  The first path step normally
-anchors to an object such as `referent:speech-time`; later unanchored steps use
+anchors to an object such as `eventuality:3`; later unanchored steps use
 `{"kind":"previous"}` to show that they are interpreted relative to the
 previous step of the imaginary journey.  For example, `puba` is a two-step path
 `before` then `after`, while `bapu` is `after` then `before`.  This order is
@@ -445,7 +496,7 @@ event relation or aspect.  `time`, `timePath[]`, `space`, `spacePath[]`,
 {
   "time": {
     "relation": "before",
-    "anchor": "referent:speech-time",
+    "anchor": "eventuality:3",
     "scalarNegation": {
       "kind": "otherThan",
       "introducedBy": "na'e"
@@ -453,7 +504,7 @@ event relation or aspect.  `time`, `timePath[]`, `space`, `spacePath[]`,
   },
   "space": {
     "relation": "within",
-    "anchor": "referent:r1",
+    "anchor": "entity:1011",
     "scalarNegation": {
       "kind": "opposite",
       "introducedBy": "to'e"
@@ -461,7 +512,7 @@ event relation or aspect.  `time`, `timePath[]`, `space`, `spacePath[]`,
   },
   "aspect": {
     "contour": "continuative",
-    "anchor": "referent:r2",
+    "anchor": "entity:1015",
     "scalarNegation": {
       "kind": "otherThan",
       "introducedBy": "na'e"
@@ -477,7 +528,7 @@ relation introduced under `mo'i` carries `motion`:
 {
   "space": {
     "relation": "rightOf",
-    "anchor": "referent:here",
+    "anchor": "entity:4",
     "motion": {
       "kind": "toward",
       "introducedBy": "mo'i"
@@ -510,7 +561,7 @@ serialized as tagged wrappers such as:
       "value": {
         "kind": "occurrenceCount",
         "introducedBy": "roi",
-        "quantity": "quantity:q1"
+        "quantity": "quantity:1012"
       }
     },
     {
@@ -590,7 +641,7 @@ Tense sumtcita anchor these same event attributes to the following sumti
 instead of to the default speaker-relative deictic ground.  In
 `mi klama le zarci ca le nu do klama le zdani`, the main predication's
 eventuality has `time.relation = "at"` and `time.anchor` pointing to the
-`le nu ...` referent, not to `referent:speech-time`.  Likewise,
+`le nu ...` referent, not to `eventuality:3`.  Likewise,
 `ba'o le nu ...` records `aspect.anchor`, `reroi le ca djedi` records
 `recurrence[].interval`, and `ze'u le ca dunra` records `timeInterval.anchor`.
 Bare moved tense terms with elided `ku`, such as `puku`, still use the deictic
@@ -605,7 +656,7 @@ tense is itself compound, the first `timePath` step uses an object anchor for
 the containing eventuality and subsequent unanchored steps use `previous`.
 `nau` overrides this inherited temporal context for the current event only:
 the event records `time.relation = "at"` and
-`time.anchor = "referent:speech-time"`.  It does not clear sticky tense state.
+`time.anchor = "eventuality:3"`.  It does not clear sticky tense state.
 
 Story time is a contextual convention, not a syntactic feature.  The default
 context-free lowering keeps ordinary sticky-tense behavior from CLL 10.13.  If
@@ -628,14 +679,14 @@ Spatial distance tags such as `vi`, `va`, and `vu` on a selbri attach a
 spatial anchor to the eventuality of that predication.  For example, in
 `le vi bloti`, the boat description's restrictive predication has an
 eventuality with `space.relation = "distanceFrom"`,
-`space.distance = "short"`, and `space.anchor = "referent:here"`, rather than
+`space.distance = "short"`, and `space.anchor = "entity:4"`, rather than
 treating `vi` as an extra place or dropping it after parsing.
 
 Spatial direction tags such as `ne'i`, `zu'a`, and `ri'u` likewise attach a
 spatial anchor.  For a single direction, use `space`; for multiple cumulative
 spatial directions, use `spacePath` and omit `space`.  `spacePath` uses the
 same step shape as `timePath`: the first step normally anchors to
-`referent:here` or to a following tagged sumti, and later unanchored steps use
+`entity:4` or to a following tagged sumti, and later unanchored steps use
 `{"kind":"previous"}`.  VA distance markers after a FAhA direction become
 `distance = "short"`, `"medium"`, or `"long"` on that direction step.  VA by
 itself uses the direction-neutral relation `distanceFrom` with the same
@@ -672,30 +723,31 @@ use their tertau/eventuality as their primary event.
 
 ```json
 {
-  "eventuality:e-effect": {
-    "type": "eventuality",
-    "class": "event",
+  "eventuality:22": {
+    "type": "referent",
+    "sort": "eventuality",
+    "category": "constant",
     "actuality": { "kind": "actual" },
-    "content": "formula:f-dog-or-cat"
+    "content": "formula:1016"
   },
-  "formula:f-dog-or-cat": {
+  "formula:1016": {
     "type": "formula",
     "operator": "or",
     "connector": { "source": "a du'i bo", "locus": "sumti" },
     "children": [
-      "formula:f-carry-dog",
-      "formula:f-carry-cat",
-      "formula:f-equal"
+      "formula:1017",
+      "formula:1018",
+      "formula:1019"
     ]
   },
-  "predication:p-result": {
+  "predication:1020": {
     "type": "predication",
     "relation": "rinka",
     "introducedBy": "se ri'a",
     "arguments": {
-      "x1": { "kind": "filled", "value": "eventuality:e-carry-sack" },
-      "x2": { "kind": "filled", "value": "eventuality:e-effect" },
-      "x3": { "kind": "elided", "value": "referent:zohe-condition", "introducedBy": "zo'e" }
+      "x1": { "kind": "filled", "value": "eventuality:18" },
+      "x2": { "kind": "filled", "value": "eventuality:22" },
+      "x3": { "kind": "elided", "value": "entity:1021", "introducedBy": "zo'e" }
     }
   }
 }
@@ -714,8 +766,8 @@ named, be quantified over, or be used as a discourse participant.
   "descriptor": {
     "kind": "described",
     "word": "le",
-    "speaker": "referent:speaker",
-    "body": "formula:f-zarci"
+    "speaker": "entity:1",
+    "body": "formula:1022"
   }
 }
 ```
@@ -762,7 +814,7 @@ Descriptor examples:
 {
   "kind": "veridicalDescription",
   "word": "lo",
-  "body": "formula:f-botpi"
+  "body": "formula:1023"
 }
 ```
 
@@ -775,8 +827,8 @@ descriptor carries `"veridical": false`. The schema deliberately omits
 {
   "kind": "speakerDescription",
   "word": "le",
-  "speaker": "referent:speaker",
-  "body": "formula:f-zarci"
+  "speaker": "entity:1",
+  "body": "formula:1022"
 }
 ```
 
@@ -789,12 +841,12 @@ on a later occurrence of that referent:
 {
   "kind": "veridicalDescription",
   "word": "lo",
-  "speaker": "referent:speaker",
-  "body": "formula:f-prenu",
+  "speaker": "entity:1",
+  "body": "formula:1024",
   "relativeClauses": [
     {
       "kind": "incidental",
-      "body": "formula:f-blabi"
+      "body": "formula:1025"
     }
   ]
 }
@@ -814,8 +866,8 @@ with `assignedNames` on the described referent:
   "descriptor": {
     "kind": "speakerDescription",
     "word": "le",
-    "speaker": "referent:speaker",
-    "body": "formula:f-ninmu"
+    "speaker": "entity:1",
+    "body": "formula:1026"
   },
   "assignedNames": [
     {
@@ -855,7 +907,7 @@ nu'a su'i nabmi` is a mass description:
   "descriptor": {
     "kind": "veridicalMassDescription",
     "word": "loi",
-    "body": "formula:f-addition-problem"
+    "body": "formula:1027"
   }
 }
 ```
@@ -871,7 +923,7 @@ a `quantity` object.  Simple numeric values can be represented directly:
   "descriptor": {
     "kind": "number",
     "word": "li",
-    "quantity": "quantity:q4",
+    "quantity": "quantity:1028",
     "name": "vo"
   }
 }
@@ -888,7 +940,7 @@ rather than collapsing to opaque text:
   "descriptor": {
     "kind": "number",
     "word": "li",
-    "quantity": "quantity:q-plus",
+    "quantity": "quantity:1029",
     "name": "re su'i re"
   }
 }
@@ -899,7 +951,7 @@ rather than collapsing to opaque text:
   "type": "quantity",
   "form": "exact",
   "value": {
-    "mathExpression": "math:m-plus"
+    "mathExpression": "math:1030"
   },
   "scale": "count"
 }
@@ -928,7 +980,7 @@ numeric value.  Its sumti therefore emits a `sign` object:
   "type": "sign",
   "kind": "mathExpression",
   "text": "re su'i re",
-  "denotes": "math:m-plus"
+  "denotes": "math:1030"
 }
 ```
 
@@ -953,8 +1005,8 @@ the result is the thing referred to by a sign or symbol:
   "descriptor": {
     "kind": "referentOfSymbol",
     "word": "la'e",
-    "speaker": "referent:speaker",
-    "operand": "referent:what-you-said"
+    "speaker": "entity:1",
+    "operand": "entity:1031"
   }
 }
 ```
@@ -976,9 +1028,9 @@ referent carries `descriptor.kind = "utteranceReference"` and a top-level
   "descriptor": {
     "kind": "utteranceReference",
     "word": "di'u",
-    "speaker": "referent:speaker"
+    "speaker": "entity:1"
   },
-  "target": "utterance:u1"
+  "target": "utterance:1004"
 }
 ```
 
@@ -997,7 +1049,7 @@ warning:
   "descriptor": {
     "kind": "utteranceReference",
     "word": "do'i",
-    "speaker": "referent:speaker"
+    "speaker": "entity:1"
   }
 }
 ```
@@ -1033,10 +1085,10 @@ the contextual scale is.
   "descriptor": {
     "kind": "otherThan",
     "word": "na'e bo",
-    "speaker": "referent:speaker",
-    "scale": "referent:scale1",
+    "speaker": "entity:1",
+    "scale": "scale:1032",
     "definiteness": "indefiniteAlternative",
-    "operand": "referent:the-dog"
+    "operand": "entity:1033"
   }
 }
 ```
@@ -1049,7 +1101,7 @@ the contextual scale is.
   "descriptor": {
     "kind": "scale",
     "word": "implicit scalar scale",
-    "speaker": "referent:speaker",
+    "speaker": "entity:1",
     "name": "na'e bo"
   }
 }
@@ -1068,9 +1120,9 @@ referents of `do`.  The inner quantifier remains descriptor `quantity`, while
   "descriptor": {
     "kind": "speakerDescription",
     "word": "le",
-    "speaker": "referent:speaker",
-    "quantity": "quantity:q-two",
-    "operand": "referent:addressee"
+    "speaker": "entity:1",
+    "quantity": "quantity:1034",
+    "operand": "entity:2"
   }
 }
 ```
@@ -1089,15 +1141,15 @@ clause so the weak-association semantics are explicit:
 {
   "kind": "speakerDescription",
   "word": "le",
-  "speaker": "referent:speaker",
-  "body": "formula:f-karce",
+  "speaker": "entity:1",
+  "body": "formula:1035",
   "relativeClauses": [
     {
       "kind": "restrictive",
-      "body": "formula:f-associated"
+      "body": "formula:1036"
     }
   ],
-  "operand": "referent:speaker"
+  "operand": "entity:1"
 }
 ```
 
@@ -1119,7 +1171,7 @@ referent, and that referent has an incidental relative clause:
   "relativeClauses": [
     {
       "kind": "incidental",
-      "body": "formula:f-is-a-boat"
+      "body": "formula:1037"
     }
   ]
 }
@@ -1137,7 +1189,7 @@ specific argument occurrence that contained `ko` carries `commandTarget`:
 ```json
 {
   "kind": "filled",
-  "value": "referent:addressee",
+  "value": "entity:2",
   "commandTarget": { "introducedBy": "ko" }
 }
 ```
@@ -1155,7 +1207,7 @@ composition:
   "sort": "mass",
   "composition": {
     "operator": "massOf",
-    "members": ["referent:people-described-by-speaker"],
+    "members": ["entity:1038"],
     "excludedMembers": [],
     "collective": true
   }
@@ -1169,7 +1221,7 @@ composition:
   "sort": "set",
   "composition": {
     "operator": "setOf",
-    "members": ["referent:rats"]
+    "members": ["entity:1039"]
   }
 }
 ```
@@ -1185,8 +1237,8 @@ member and the addressee as an excluded member:
   "sort": "entity",
   "composition": {
     "operator": "joint",
-    "members": ["referent:speaker"],
-    "excludedMembers": ["referent:addressee"]
+    "members": ["entity:1"],
+    "excludedMembers": ["entity:2"]
   }
 }
 ```
@@ -1203,7 +1255,7 @@ do`, keep both members and set `scalarNegated`:
   "sort": "entity",
   "composition": {
     "operator": "joint",
-    "members": ["referent:speaker", "referent:addressee"],
+    "members": ["entity:1", "entity:2"],
     "scalarNegated": true
   }
 }
@@ -1220,8 +1272,8 @@ When the connective itself is questioned inside a sumti connection, use
   "sort": "entity",
   "composition": {
     "operator": "connectiveQuestion",
-    "operatorParameter": "parameter:p-connective",
-    "members": ["referent:coffee", "referent:tea"]
+    "operatorParameter": "parameter:1040",
+    "members": ["entity:1041", "entity:1042"]
   }
 }
 ```
@@ -1238,7 +1290,7 @@ composition:
   "sort": "entity",
   "composition": {
     "operator": "unorderedInterval",
-    "members": ["referent:dresden", "referent:frankfurt"],
+    "members": ["entity:1043", "entity:1044"],
     "endpointInclusion": {
       "left": "inclusive",
       "right": "exclusive"
@@ -1256,7 +1308,7 @@ For `bi'i nai` or `bi'o nai`, use `complement: true`:
   "sort": "entity",
   "composition": {
     "operator": "unorderedInterval",
-    "members": ["referent:dresden", "referent:frankfurt"],
+    "members": ["entity:1043", "entity:1044"],
     "complement": true
   }
 }
@@ -1275,7 +1327,7 @@ relation.
   "sort": "concept",
   "composition": {
     "operator": "mass",
-    "members": ["referent:r-blue-property", "referent:r-red-property"],
+    "members": ["relation:1045", "relation:1046"],
     "collective": true
   }
 }
@@ -1363,26 +1415,26 @@ its `variable`:
 
 ```json
 {
-  "parameter:p-buha": {
+  "parameter:1047": {
     "type": "parameter",
     "sort": "relation",
     "role": "relationVariable",
     "introducedBy": "bu'a"
   },
-  "predication:p1": {
+  "predication:1048": {
     "type": "predication",
-    "relationParameter": "parameter:p-buha",
+    "relationParameter": "parameter:1047",
     "arguments": {
-      "x1": { "kind": "filled", "value": "referent:jim" },
-      "x2": { "kind": "filled", "value": "referent:john" }
+      "x1": { "kind": "filled", "value": "entity:1049" },
+      "x2": { "kind": "filled", "value": "entity:1050" }
     },
     "mode": "asserted"
   },
-  "formula:f-scope": {
+  "formula:1051": {
     "type": "formula",
     "operator": "exists",
-    "variable": "parameter:p-buha",
-    "body": "formula:f-atom"
+    "variable": "parameter:1047",
+    "body": "formula:1052"
   }
 }
 ```
@@ -1414,7 +1466,7 @@ target place contains the parameter:
 {
   "type": "utterance",
   "force": "vocative",
-  "content": "question:q-vocative"
+  "content": "question:1053"
 }
 ```
 
@@ -1423,7 +1475,7 @@ target place contains the parameter:
   "type": "predication",
   "relation": "vocativeTarget",
   "arguments": {
-    "x1": { "kind": "filled", "value": "parameter:p-addressee" }
+    "x1": { "kind": "filled", "value": "parameter:1054" }
   },
   "mode": "performative"
 }
@@ -1488,13 +1540,13 @@ A predication applies a relation to arguments under an eventuality.
 {
   "type": "predication",
   "relation": "klama",
-  "eventuality": "eventuality:e1",
+  "eventuality": "eventuality:18",
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:speaker" },
-    "x2": { "kind": "filled", "value": "referent:zarci" },
+    "x1": { "kind": "filled", "value": "entity:1" },
+    "x2": { "kind": "filled", "value": "entity:1055" },
     "x3": {
       "kind": "elided",
-      "value": "referent:zohe1",
+      "value": "entity:1056",
       "introducedBy": "zo'e"
     },
     "x4": {
@@ -1503,7 +1555,7 @@ A predication applies a relation to arguments under an eventuality.
     },
     "x5": {
       "kind": "elided",
-      "value": "referent:zohe2",
+      "value": "entity:1057",
       "introducedBy": "zo'e"
     }
   },
@@ -1514,21 +1566,21 @@ A predication applies a relation to arguments under an eventuality.
       "arguments": {
         "x1": {
           "kind": "filled",
-          "value": "referent:speaker"
+          "value": "entity:1"
         },
         "x2": {
           "kind": "elided",
-          "value": "referent:zohe3",
+          "value": "entity:1058",
           "introducedBy": "zo'e"
         },
         "x3": {
           "kind": "elided",
-          "value": "referent:zohe4",
+          "value": "entity:1059",
           "introducedBy": "zo'e"
         },
         "x4": {
           "kind": "elided",
-          "value": "referent:zohe5",
+          "value": "entity:1060",
           "introducedBy": "zo'e"
         }
       }
@@ -1536,8 +1588,8 @@ A predication applies a relation to arguments under an eventuality.
   ],
   "reciprocity": [
     {
-      "left": { "kind": "filled", "value": "referent:speaker" },
-      "right": { "kind": "filled", "value": "referent:addressee" },
+      "left": { "kind": "filled", "value": "entity:1" },
+      "right": { "kind": "filled", "value": "entity:2" },
       "introducedBy": "soi"
     }
   ],
@@ -1556,9 +1608,9 @@ instead of `relation`:
 ```json
 {
   "type": "predication",
-  "relationParameter": "parameter:p-mo",
+  "relationParameter": "parameter:1061",
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:addressee" }
+    "x1": { "kind": "filled", "value": "entity:2" }
   },
   "mode": "asserted"
 }
@@ -1592,20 +1644,20 @@ numbered assignments have been applied:
   "arguments": {
     "x1": {
       "kind": "elided",
-      "value": "referent:zohe1",
+      "value": "entity:1056",
       "introducedBy": "zo'e"
     },
-    "x2": { "kind": "filled", "value": "referent:rose" },
+    "x2": { "kind": "filled", "value": "entity:1062" },
     "x3": {
       "kind": "elided",
-      "value": "referent:zohe2",
+      "value": "entity:1057",
       "introducedBy": "zo'e"
     }
   },
   "placeQuestions": [
     {
-      "parameter": "parameter:p-fiha",
-      "argument": { "kind": "filled", "value": "referent:addressee" },
+      "parameter": "parameter:1063",
+      "argument": { "kind": "filled", "value": "entity:2" },
       "candidatePlaces": ["x1", "x3"]
     }
   ],
@@ -1653,7 +1705,7 @@ IDs rather than with event IDs.
 Outer quantifiers do not live on `ArgumentValue`.  They introduce formula-level
 restricted-variable scopes, even when the quantified source appears in a single
 argument position.  For example, `re do cadzu le bisli` introduces a variable
-selected from the addressee group with `quantity:q-two`, and the walking
+selected from the addressee group with `quantity:1034`, and the walking
 predication uses that variable as x1.  Likewise, `ci lo gerku cu bajra` keeps
 the `lo gerku` description as a constant referent and quantifies a variable
 restricted by membership in that description.  This keeps quantifier scope,
@@ -1671,9 +1723,9 @@ instead.  For `le ci gerku`, the descriptor carries the `ci` quantity:
   "descriptor": {
     "kind": "description",
     "word": "le",
-    "speaker": "referent:speaker",
-    "body": "formula:f-gerku",
-    "quantity": "quantity:q-three"
+    "speaker": "entity:1",
+    "body": "formula:1064",
+    "quantity": "quantity:1065"
   }
 }
 ```
@@ -1791,7 +1843,7 @@ attitudinal modifiers.  This is needed for CLL 15.10 `go'i ji'una'iku`, where
       "arguments": {
         "x1": {
           "kind": "elided",
-          "value": "referent:r1",
+          "value": "entity:1011",
           "introducedBy": "zo'e"
         }
       },
@@ -1839,8 +1891,8 @@ argument filler shape as predication places, but they must not be `deleted`.
 When `soi` has only one explicit participant, the missing participant is the
 immediately preceding sumti and should resolve to that sumti's existing
 predication-place filler.  In `mi prami do soi vo'a`, for example, `left`
-resolves to the current x1 (`referent:speaker`) and `right` resolves to the x2
-host sumti (`referent:addressee`).  In `mi bajykla ti ta soi vo'e`, the x2
+resolves to the current x1 (`entity:1`) and `right` resolves to the x2
+host sumti (`entity:2`).  In `mi bajykla ti ta soi vo'e`, the x2
 and x3 argument fillers are reused rather than constructing duplicate `ti` or
 `ta` referents.
 
@@ -1863,7 +1915,7 @@ overt scale, the scale referent is opaque (`word:"implicit scalar scale"`).
   "scalarNegation": {
     "kind": "otherThan",
     "introducedBy": "na'e",
-    "scale": "referent:scale1"
+    "scale": "scale:1032"
   }
 }
 ```
@@ -1876,9 +1928,9 @@ overt scale, the scale referent is opaque (`word:"implicit scalar scale"`).
   "descriptor": {
     "kind": "scale",
     "word": "ci'u",
-    "speaker": "referent:speaker",
+    "speaker": "entity:1",
     "name": "na'e",
-    "operand": "referent:color-property"
+    "operand": "relation:1066"
   }
 }
 ```
@@ -1895,7 +1947,7 @@ the scalar-negated unit:
   "scalarNegation": {
     "kind": "otherThan",
     "introducedBy": "na'e",
-    "scale": "referent:scale1",
+    "scale": "scale:1032",
     "argumentScope": ["x1", "x2"]
   }
 }
@@ -1907,11 +1959,11 @@ filler:
 ```json
 {
   "kind": "filled",
-  "value": "referent:addressee",
+  "value": "entity:2",
   "relativeClauses": [
     {
       "kind": "incidental",
-      "body": "formula:f-barda"
+      "body": "formula:1067"
     }
   ]
 }
@@ -1951,11 +2003,11 @@ points at a restrictive clause introduced by `pe`, and that clause body is
 ```json
 {
   "kind": "filled",
-  "value": "referent:chair",
+  "value": "entity:1068",
   "relativeClauses": [
     {
       "kind": "restrictive",
-      "body": "formula:f-associated",
+      "body": "formula:1036",
       "introducedBy": "pe"
     }
   ]
@@ -1969,11 +2021,11 @@ recovers the CLL 9.10 source relation `cusku(Arthur, Appassionata, zo'e, zo'e)`:
 ```json
 {
   "kind": "filled",
-  "value": "referent:appassionata",
+  "value": "entity:1069",
   "relativeClauses": [
     {
       "kind": "restrictive",
-      "body": "formula:f-cusku",
+      "body": "formula:1070",
       "introducedBy": "pe"
     }
   ]
@@ -1986,10 +2038,10 @@ recovers the CLL 9.10 source relation `cusku(Arthur, Appassionata, zo'e, zo'e)`:
   "introducedBy": "cu'u",
   "relation": "cusku",
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:arthur" },
-    "x2": { "kind": "filled", "value": "referent:appassionata" },
-    "x3": { "kind": "elided", "value": "referent:r1", "introducedBy": "zo'e" },
-    "x4": { "kind": "elided", "value": "referent:r2", "introducedBy": "zo'e" }
+    "x1": { "kind": "filled", "value": "entity:1071" },
+    "x2": { "kind": "filled", "value": "entity:1069" },
+    "x3": { "kind": "elided", "value": "entity:1011", "introducedBy": "zo'e" },
+    "x4": { "kind": "elided", "value": "entity:1015", "introducedBy": "zo'e" }
   },
   "mode": "restrictive"
 }
@@ -2004,11 +2056,11 @@ preserves the surface marker and marks the non-veridicality explicitly:
 ```json
 {
   "kind": "filled",
-  "value": "referent:thing",
+  "value": "entity:1072",
   "relativeClauses": [
     {
       "kind": "restrictive",
-      "body": "formula:f-speaker-describes-as-cat",
+      "body": "formula:1073",
       "introducedBy": "voi",
       "veridical": false
     }
@@ -2027,7 +2079,7 @@ Atomic:
 {
   "type": "formula",
   "operator": "atom",
-  "predication": "predication:p1"
+  "predication": "predication:1048"
 }
 ```
 
@@ -2040,7 +2092,7 @@ on a predication or related scalar carrier.
 {
   "type": "formula",
   "operator": "affirmed",
-  "children": ["formula:f-atom"],
+  "children": ["formula:1052"],
   "source": { "text": "ja'a", "construct": "bridi-affirmation" }
 }
 ```
@@ -2051,7 +2103,7 @@ Connective:
 {
   "type": "formula",
   "operator": "and",
-  "children": ["formula:f1", "formula:f2"],
+  "children": ["formula:1074", "formula:1075"],
   "connector": {
     "source": "je",
     "locus": "selbri",
@@ -2066,8 +2118,8 @@ Scoped tense or modal:
 {
   "type": "formula",
   "operator": "scoped",
-  "eventuality": "eventuality:e-tense",
-  "children": ["formula:f-inner"]
+  "eventuality": "eventuality:18",
+  "children": ["formula:1076"]
 }
 ```
 
@@ -2077,10 +2129,10 @@ Quantifier:
 {
   "type": "formula",
   "operator": "exists",
-  "variable": "referent:x1",
-  "restriction": "formula:f-restrict",
-  "body": "formula:f-body",
-  "quantity": "quantity:q-at-least-one"
+  "variable": "entity:1077",
+  "restriction": "formula:1078",
+  "body": "formula:1079",
+  "quantity": "quantity:1080"
 }
 ```
 
@@ -2101,25 +2153,25 @@ referent and do not introduce additional wrapper formulas.
 If an overt quantifier is applied to an already-bound da-series variable, the
 new occurrence binds a fresh selected variable and records the source witness
 set explicitly.  For example, in `ci da poi prenu cu se ralju pa da`, the
-`pa da` formula is a cardinality quantifier over a new `referent:r-selected`;
+`pa da` formula is a cardinality quantifier over a new `entity:1081`;
 `sourceVariable` and `selectionSource.variable` both point at the earlier
-`referent:r-source`, and inherited restrictions such as `poi prenu` are copied
+`entity:1082`, and inherited restrictions such as `poi prenu` are copied
 as restrictions on the selected variable:
 
 ```json
 {
-  "formula:f-selected": {
+  "formula:1083": {
     "type": "formula",
     "operator": "cardinality",
-    "variable": "referent:r-selected",
-    "sourceVariable": "referent:r-source",
+    "variable": "entity:1081",
+    "sourceVariable": "entity:1082",
     "selectionSource": {
       "kind": "witnessSet",
-      "variable": "referent:r-source"
+      "variable": "entity:1082"
     },
-    "restriction": "formula:f-selected-is-prenu",
-    "body": "formula:f-body",
-    "quantity": "quantity:q-one"
+    "restriction": "formula:1084",
+    "body": "formula:1079",
+    "quantity": "quantity:1085"
   }
 }
 ```
@@ -2132,25 +2184,25 @@ quantified formula would have.
 
 ```json
 {
-  "formula:f-bundle": {
+  "formula:1086": {
     "type": "formula",
     "operator": "quantifierBundle",
     "bindings": [
       {
         "operator": "cardinality",
-        "variable": "referent:r-dog",
-        "restriction": "formula:f-dog",
-        "quantity": "quantity:q-three"
+        "variable": "entity:1087",
+        "restriction": "formula:1088",
+        "quantity": "quantity:1065"
       },
       {
         "operator": "cardinality",
-        "variable": "referent:r-man",
-        "restriction": "formula:f-man",
-        "quantity": "quantity:q-two"
+        "variable": "entity:1089",
+        "restriction": "formula:1090",
+        "quantity": "quantity:1034"
       }
     ],
     "coequalScope": true,
-    "body": "formula:f-bite"
+    "body": "formula:1091"
   }
 }
 ```
@@ -2201,17 +2253,17 @@ is partitioned into distinct witnesses.
 {
   "type": "formula",
   "operator": "respectivelyDistribution",
-  "body": "formula:f-template",
+  "body": "formula:1092",
   "streams": [
     {
-      "slot": "parameter:p-lover",
-      "items": ["referent:james", "referent:george"]
+      "slot": "parameter:1093",
+      "items": ["entity:1094", "entity:1013"]
     },
     {
-      "slot": "parameter:p-loved",
-      "items": ["referent:sister-1", "referent:sister-2"],
-      "restriction": "formula:f-sister-slot",
-      "quantity": "quantity:q-two"
+      "slot": "parameter:1095",
+      "items": ["entity:1096", "entity:1097"],
+      "restriction": "formula:1098",
+      "quantity": "quantity:1034"
     }
   ],
   "distinctPartition": true
@@ -2289,7 +2341,7 @@ formula connectives.  They stay on the `sequence` as:
 ```json
 {
   "type": "sequence",
-  "items": ["utterance:u1", "utterance:u2"],
+  "items": ["utterance:1004", "utterance:1005"],
   "nonlogicalConnection": {
     "operator": "mass",
     "connector": {
@@ -2313,7 +2365,7 @@ For `ta cinfo kerfa`:
 {
   "type": "formula",
   "operator": "and",
-  "children": ["formula:f-kerfa", "formula:f-tanru-link"],
+  "children": ["formula:1099", "formula:1100"],
   "connector": { "source": "tanru", "locus": "selbri" }
 }
 ```
@@ -2322,17 +2374,17 @@ For `ta cinfo kerfa`:
 {
   "type": "predication",
   "relation": "kerfa",
-  "eventuality": "eventuality:e-kerfa",
+  "eventuality": "eventuality:18",
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:that" },
+    "x1": { "kind": "filled", "value": "entity:1101" },
     "x2": {
       "kind": "elided",
-      "value": "referent:zohe1",
+      "value": "entity:1056",
       "introducedBy": "zo'e"
     },
     "x3": {
       "kind": "elided",
-      "value": "referent:zohe2",
+      "value": "entity:1057",
       "introducedBy": "zo'e"
     }
   },
@@ -2342,13 +2394,12 @@ For `ta cinfo kerfa`:
 
 ```json
 {
-  "referent:r-cinfo-property": {
+  "relation:24": {
     "type": "referent",
     "sort": "relation",
-    "abstractionKind": "property",
-    "parameters": ["parameter:ceu1"],
+    "parameters": ["parameter:1102"],
     "arity": 1,
-    "body": "formula:f-cinfo-property"
+    "body": "formula:1103"
   }
 }
 ```
@@ -2358,20 +2409,20 @@ For `ta cinfo kerfa`:
   "type": "predication",
   "relation": "tanru",
   "tanruLink": {
-    "head": "predication:p-kerfa",
-    "modifier": "referent:r-cinfo-property",
+    "head": "predication:1104",
+    "modifier": "relation:1105",
     "relationLabel": "cinfo-kerfa"
   },
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:that" },
-    "x2": { "kind": "filled", "value": "referent:r-cinfo-property" }
+    "x1": { "kind": "filled", "value": "entity:1101" },
+    "x2": { "kind": "filled", "value": "relation:1105" }
   },
   "mode": "asserted"
 }
 ```
 
 This asserts that the referent is a mane and stands in some tanru relation to
-the property of being a lion.  It does not assert `cinfo(referent:that)`, and
+the property of being a lion.  It does not assert `cinfo(entity:1101)`, and
 it does not create a separate concrete lion referent.  Intersective readings
 resolve the vague relation to instantiation; asymmetric readings resolve it
 to possession, material, resemblance, purpose, source, or another contextual
@@ -2423,13 +2474,13 @@ and the tanru link points to a composite concept:
   "type": "predication",
   "relation": "tanru",
   "tanruLink": {
-    "head": "predication:p-bolci",
-    "modifier": "referent:blue-red-mass-concept",
+    "head": "predication:1106",
+    "modifier": "entity:1107",
     "relationLabel": "blanu joi xunre-bolci"
   },
   "arguments": {
-    "x1": { "kind": "filled", "value": "referent:that" },
-    "x2": { "kind": "filled", "value": "referent:blue-red-mass-concept" }
+    "x1": { "kind": "filled", "value": "entity:1101" },
+    "x2": { "kind": "filled", "value": "entity:1107" }
   },
   "mode": "asserted"
 }
@@ -2496,35 +2547,36 @@ not the outer `cusku` bridi.
 An abstractor reifies the embedded bridi as an object of the abstractor's
 output sort.  The public JSON does **not** wrap that output in a separate
 `abstraction` object.  The output object itself carries the embedded formula,
-the abstractor kind, any bound parameters, and any real extra abstractor
-places.
+the output sort, any bound parameters, and any real extra abstractor places.
 
 This avoids the older indirection:
 
 ```text
-referent:r1 --eventOf--> abstraction:a1 --body--> formula:f1
+entity:1011 --eventOf--> removed abstraction wrapper --body--> formula:1074
 ```
 
-where `abstraction:a1` only repeated the output kind and pointed at the body
+where the removed wrapper only repeated the output kind and pointed at the body
 formula.  That shape also produced two unconnected event-like objects for
 `lo nu brode`: the inner predication's eventuality and the described
-`referent:r1`.  In the direct shape, `nu` and the aktionsart abstractors
+`entity:1011`.  In the direct shape, `nu` and the aktionsart abstractors
 produce the eventuality object that the embedded predication is about.
 
-For event abstractors, the output is an `eventuality` object.  Its `class`
-records the CLL 11.13 event type:
+For event abstractors, the output is a `type:"referent"` object whose `sort`
+is an eventuality sort path:
 
-- `event` for broad `nu`, in the CLL sense that includes states, processes,
-  activities, and point-events;
-- `achievement` for `mu'e`;
-- `process` for `pu'u`;
-- `activity` for `zu'o`;
-- `state` for `za'i`.
+- `eventuality` for broad `nu`, in the CLL sense that includes states,
+  processes, activities, and point-events;
+- `eventuality/achievement` for `mu'e`;
+- `eventuality/process` for `pu'u`;
+- `eventuality/activity` for `zu'o`;
+- `eventuality/state` for `za'i`;
+- `eventuality/experience` for `li'i`;
+- `eventuality/locution` for utterance/vocative/fragment locution events.
 
 Every full predication still has an eventuality slot.  A bare bridi uses the
-broad `event` class unless a more specific construction reifies that bridi
+broad `eventuality` sort unless a more specific construction reifies that bridi
 through `za'i`, `pu'u`, `zu'o`, or `mu'e`.  The distinction between a bare bridi
-and `nu broda` is therefore not the existence or broad class of the eventuality;
+and `nu broda` is therefore not the existence or broad sort of the eventuality;
 it is that `nu broda` makes that eventuality available as a sumti value.
 
 For example, `lo nu do klama` can denote the same eventuality that fills the
@@ -2532,22 +2584,23 @@ embedded `klama` predication's event slot:
 
 ```json
 {
-  "eventuality:e-going": {
-    "type": "eventuality",
-    "class": "event",
-    "content": "formula:f-going",
+  "eventuality:14": {
+    "type": "referent",
+    "sort": "eventuality",
+    "category": "constant",
+    "content": "formula:1109",
     "descriptor": {
       "kind": "veridicalDescription",
       "word": "lo"
     },
     "source": { "text": "lo nu do klama", "construct": "description" }
   },
-  "predication:p-going": {
+  "predication:1110": {
     "type": "predication",
-    "eventuality": "eventuality:e-going",
+    "eventuality": "eventuality:14",
     "relation": "klama",
     "arguments": {
-      "x1": { "kind": "filled", "value": "referent:addressee" }
+      "x1": { "kind": "filled", "value": "entity:2" }
     },
     "mode": "inert"
   }
@@ -2559,36 +2612,31 @@ abstractor branch may have its own inert body formula and eventuality object,
 because `pu'u broda` and `za'i broda` are different views of the bridi.  Do not
 force one eventuality object to carry mutually exclusive event-type classes.
 
-For non-event abstractors, the output is an object of the appropriate sort with
-the body formula directly attached:
+For non-event abstractors, the output is also a `type:"referent"` object of the
+appropriate sort with the body formula directly attached.  Public JSON does not
+emit `abstractionKind`; the sort path plus `body`/`content`, parameters, and
+extra fields carry the semantics.
 
 | abstractor | output sort | required fields |
 | --- | --- | --- |
-| `ka` | `relation` | `abstractionKind:"property"`, `body`, `parameters`, `arity` |
-| `ni` | `quantity` | `abstractionKind:"amount"`, `body`, optional `scale` |
-| `jei` | `truthValue` | `abstractionKind:"truthValue"`, `body`, optional `epistemology` |
-| `du'u` | `proposition` | `abstractionKind:"proposition"`, `body`, optional `expressedBy` |
-| `si'o` | `concept` | `abstractionKind:"concept"`, `body`, optional `mind` |
-| `li'i` | `eventuality` | `abstractionKind:"experience"`, `body`, optional `experiencer` |
-| `su'u` | `unspecified` abstraction output | `abstractionKind:"unspecified"`, `body` |
-
-The implementation may initially represent proposition, truth-value, relation,
-concept, experience, and unspecified abstraction outputs as `referent` objects
-with the listed `sort`.  What is normative is that the body and extra places
-live on that output object, not on a separate `abstraction` wrapper reached
-through a constructed link predication.
+| `ka` | `relation` | `body`, `parameters`, `arity` |
+| `ni` | `amount` | `body`, optional `scale` |
+| `jei` | `truthValue` | `body`, optional `epistemology` |
+| `du'u` | `proposition` | `body`, optional `expressedBy` |
+| `si'o` | `concept` | `body`, optional `mind` |
+| `li'i` | `eventuality/experience` | `content` or `body`, optional `experiencer` |
+| `su'u` | `abstractNature` | `body` |
 
 Property outputs use `parameters`:
 
 ```json
 {
-  "referent:r-property": {
+  "relation:21": {
     "type": "referent",
     "sort": "relation",
-    "abstractionKind": "property",
-    "parameters": ["parameter:ceu1"],
+    "parameters": ["parameter:22"],
     "arity": 1,
-    "body": "formula:f-property"
+    "body": "formula:1111"
   }
 }
 ```
@@ -2605,32 +2653,31 @@ Surface place order matters after conversion: `ka se risna` fills the raw
 
 ```json
 {
-  "parameter:p1": {
+  "parameter:1112": {
     "type": "parameter",
     "sort": "entity",
     "role": "propertySlot",
     "introducedBy": "implicit ce'u"
   },
-  "predication:p1": {
+  "predication:1048": {
     "type": "predication",
     "relation": "risna",
     "arguments": {
       "x1": {
         "kind": "elided",
-        "value": "referent:r1",
+        "value": "entity:1011",
         "introducedBy": "zo'e"
       },
-      "x2": { "kind": "filled", "value": "parameter:p1" }
+      "x2": { "kind": "filled", "value": "parameter:1112" }
     },
     "mode": "restrictive"
   },
-  "referent:r-property": {
+  "relation:24": {
     "type": "referent",
     "sort": "relation",
-    "abstractionKind": "property",
-    "parameters": ["parameter:p1"],
+    "parameters": ["parameter:1112"],
     "arity": 1,
-    "body": "formula:f1"
+    "body": "formula:1074"
   }
 }
 ```
@@ -2671,14 +2718,13 @@ whose body is the inert expanded `klama` formula:
 
 ```json
 {
-  "referent:r-concept": {
+  "concept:24": {
     "type": "referent",
     "sort": "concept",
-    "abstractionKind": "concept",
-    "body": "formula:f-going",
+    "body": "formula:1109",
     "mind": {
       "kind": "elided",
-      "value": "referent:r-mind",
+      "value": "entity:1113",
       "introducedBy": "zo'e"
     },
     "descriptor": {
@@ -2696,10 +2742,11 @@ than to a wrapper:
 
 ```json
 {
-  "eventuality:e-going": {
-    "type": "eventuality",
-    "class": "event",
-    "content": "formula:f-going",
+  "eventuality:14": {
+    "type": "referent",
+    "sort": "eventuality",
+    "category": "constant",
+    "content": "formula:1109",
     "source": { "text": "nu mi klama le zarci", "construct": "abstraction" }
   }
 }
@@ -2717,17 +2764,18 @@ or equivalent argument on the process eventuality:
 
 ```json
 {
-  "eventuality:e-process": {
-    "type": "eventuality",
-    "class": "process",
-    "content": "formula:f-body",
+  "eventuality/process:14": {
+    "type": "referent",
+    "sort": "eventuality/process",
+    "category": "constant",
+    "content": "formula:1079",
     "stages": {
       "kind": "elided",
-      "value": "referent:r-stages",
+      "value": "entity:1114",
       "introducedBy": "zo'e"
     }
   },
-  "formula:f-body": { "type": "formula", "operator": "atom" }
+  "formula:1079": { "type": "formula", "operator": "atom" }
 }
 ```
 
@@ -2751,9 +2799,8 @@ itself records the focus parameter and any presupposed answer:
 {
   "type": "referent",
   "sort": "proposition",
-  "abstractionKind": "proposition",
-  "body": "formula:f-known",
-  "embeddedQuestions": ["question:q-who"]
+  "body": "formula:1115",
+  "embeddedQuestions": ["question:1116"]
 }
 ```
 
@@ -2777,7 +2824,7 @@ it look entity-like, because a quote fills places as a text/sign value.
   "kind": "quotation",
   "quotation": {
     "mode": "parsed",
-    "utterance": "utterance:u-quote"
+    "utterance": "utterance:1117"
   }
 }
 ```
@@ -2816,7 +2863,7 @@ point at that content.  Math-expression signs use the same `text` payload plus
   "type": "sign",
   "kind": "mathExpression",
   "text": "re su'i re",
-  "denotes": "math:m-plus"
+  "denotes": "math:1030"
 }
 ```
 
@@ -2911,9 +2958,9 @@ emphasis, and metalinguistic operators live here.
   "type": "displayedContent",
   "family": "emotion",
   "relation": "happy",
-  "experiencer": "referent:speaker",
-  "target": "eventuality:e1",
-  "anchor": "utterance:u1",
+  "experiencer": "entity:1",
+  "target": "eventuality:18",
+  "anchor": "utterance:1004",
   "intensity": null,
   "polarity": "positive",
   "phase": null,
@@ -2951,15 +2998,15 @@ that utterance's `asides` so the graph remains reachable from `root`.
 
 ```json
 {
-  "display:d1": {
+  "display:1118": {
     "type": "displayedContent",
     "relation": "hope",
     "family": "propositionalAttitude",
     "polarity": "positive",
     "assertionEffect": "hostSubordinated",
-    "experiencer": "referent:speaker",
-    "target": "formula:f13",
-    "anchor": "utterance:u1",
+    "experiencer": "entity:1",
+    "target": "formula:1119",
+    "anchor": "utterance:1004",
     "source": {
       "span": { "byteStart": 1, "byteEnd": 4 },
       "text": "a'o",
@@ -2982,9 +3029,9 @@ surface focus: leading `na'i go'i` has `targetFocus:"bridi"`, while post-selbri
   "type": "displayedContent",
   "relation": "metalinguisticNegation",
   "family": "metalinguistic",
-  "target": "formula:f-goi",
+  "target": "formula:1120",
   "targetFocus": "selbri",
-  "anchor": "utterance:u1",
+  "anchor": "utterance:1004",
   "assertionEffect": "metalinguisticallyVoided"
 }
 ```
@@ -2997,7 +3044,7 @@ independent attitudes.  Each modifier has a `relation`, and may also carry
 
 ```json
 {
-  "display:d1": {
+  "display:1118": {
     "type": "displayedContent",
     "relation": "desire",
     "family": "propositionalAttitude",
@@ -3009,9 +3056,9 @@ independent attitudes.  Each modifier has a `relation`, and may also carry
       }
     ],
     "assertionEffect": "hostSubordinated",
-    "experiencer": "referent:speaker",
-    "target": "formula:f1",
-    "anchor": "utterance:u1",
+    "experiencer": "entity:1",
+    "target": "formula:1074",
+    "anchor": "utterance:1004",
     "source": {
       "text": "ause'inai",
       "construct": "indicator"
@@ -3052,7 +3099,7 @@ Math expressions preserve operator and operand structure.
 {
   "type": "mathExpression",
   "operator": "add",
-  "operands": ["math:m4", "math:m2"]
+  "operands": ["math:1121", "math:1122"]
 }
 ```
 
@@ -3074,11 +3121,11 @@ numeric value:
 
 ```json
 {
-  "math:m1": {
+  "math:1123": {
     "type": "mathExpression",
     "literal": { "kind": "integer", "value": 87 }
   },
-  "math:m2": {
+  "math:1122": {
     "type": "mathExpression",
     "literal": { "kind": "decimal", "value": "0.5" }
   }
@@ -3093,7 +3140,7 @@ integer value when the component is exactly understood as a simple PA integer.
 
 ```json
 {
-  "math:m3": {
+  "math:1124": {
     "type": "mathExpression",
     "literal": {
       "kind": "mixedRadix",
@@ -3117,16 +3164,16 @@ When the mekso operator itself is questioned, the math expression carries an
 
 ```json
 {
-  "parameter:p-op": {
+  "parameter:1125": {
     "type": "parameter",
     "sort": "mathOperator",
     "role": "mathOperatorQuestion",
     "introducedBy": "mo"
   },
-  "math:m3": {
+  "math:1124": {
     "type": "mathExpression",
-    "operatorParameter": "parameter:p-op",
-    "operands": ["math:m1", "math:m2"]
+    "operatorParameter": "parameter:1125",
+    "operands": ["math:1123", "math:1122"]
   }
 }
 ```
@@ -3138,17 +3185,16 @@ the question case and uses `operatorParameter`.
 
 ```json
 {
-  "math:m3": {
+  "math:1124": {
     "type": "mathExpression",
     "operator": "tanjo",
-    "operatorDenotes": "referent:r-tangent-relation",
-    "operands": ["math:m1", "math:m2"]
+    "operatorDenotes": "relation:31",
+    "operands": ["math:1123", "math:1122"]
   },
-  "referent:r-tangent-relation": {
+  "relation:31": {
     "type": "referent",
     "sort": "relation",
-    "abstractionKind": "property",
-    "body": "formula:f-tanjo"
+    "body": "formula:1126"
   }
 }
 ```
@@ -3161,7 +3207,7 @@ sumti interval compositions:
   "type": "mathExpression",
   "operator": "orderedInterval",
   "endpointInclusion": { "left": "inclusive", "right": "exclusive" },
-  "operands": ["math:m-left", "math:m-right"]
+  "operands": ["math:1127", "math:1128"]
 }
 ```
 
@@ -3170,13 +3216,13 @@ math expression:
 
 ```json
 {
-  "math:m3": {
+  "math:1124": {
     "type": "mathExpression",
     "operator": "add",
     "scalarNegation": { "kind": "otherThan", "introducedBy": "na'e" },
-    "operands": ["math:m1", "math:m2"]
+    "operands": ["math:1123", "math:1122"]
   },
-  "math:m4": {
+  "math:1121": {
     "type": "mathExpression",
     "literal": { "kind": "integer", "value": 5 },
     "scalarNegation": { "kind": "otherThan", "introducedBy": "na'e" }
@@ -3192,15 +3238,15 @@ subscripted handle distinct from its bare form before anaphora resolution.
 
 ```json
 {
-  "math:m1": {
+  "math:1123": {
     "type": "mathExpression",
     "literal": { "kind": "variable", "value": "x" },
     "subscript": {
-      "value": "math:m2",
+      "value": "math:1122",
       "introducedBy": "xi"
     }
   },
-  "math:m2": {
+  "math:1122": {
     "type": "mathExpression",
     "literal": { "kind": "integer", "value": 2 }
   }
@@ -3214,15 +3260,15 @@ without losing the semantic object that supplies the operand value.
 
 ```json
 {
-  "math:m2": {
+  "math:1122": {
     "type": "mathExpression",
     "literal": { "kind": "sumtiOperand", "value": "mo'e" },
-    "denotes": "referent:r-amount"
+    "denotes": "entity:1129"
   },
-  "math:m3": {
+  "math:1124": {
     "type": "mathExpression",
     "operator": "subtract",
-    "operands": ["math:m1", "math:m2"]
+    "operands": ["math:1123", "math:1122"]
   }
 }
 ```
@@ -3237,15 +3283,15 @@ collapsing to opaque text.
 
 ```json
 {
-  "quantity:q-length": {
-    "type": "quantity",
-    "abstractionKind": "amount",
-    "body": "formula:f-clani"
+  "amount:41": {
+    "type": "referent",
+    "sort": "amount",
+    "body": "formula:1130"
   },
-  "math:m1": {
+  "math:1123": {
     "type": "mathExpression",
     "literal": { "kind": "selbriOperand", "value": "ni'e" },
-    "denotes": "quantity:q-length"
+    "denotes": "quantity:1131"
   }
 }
 ```
@@ -3309,10 +3355,10 @@ connective questions, tense questions, `pei`) and embedded `kau` questions.
   "type": "question",
   "kind": "truth",
   "mode": "direct",
-  "asker": "referent:speaker",
-  "respondent": "referent:addressee",
+  "asker": "entity:1",
+  "respondent": "entity:2",
   "domain": "truthValue",
-  "body": "formula:f-questioned"
+  "body": "formula:1132"
 }
 ```
 
@@ -3323,17 +3369,17 @@ Argument question:
   "type": "question",
   "kind": "argument",
   "mode": "direct",
-  "asker": "referent:speaker",
-  "respondent": "referent:addressee",
+  "asker": "entity:1",
+  "respondent": "entity:2",
   "domain": "entity",
-  "body": "formula:f-questioned",
+  "body": "formula:1132",
   "slots": [
-    { "parameter": "parameter:ma1", "role": "answer" }
+    { "parameter": "parameter:1133", "role": "answer" }
   ]
 }
 ```
 
-The body formula contains `parameter:ma1` where the answer should be inserted.
+The body formula contains `parameter:1133` where the answer should be inserted.
 
 Indirect question with a concrete marked focus:
 
@@ -3343,9 +3389,9 @@ Indirect question with a concrete marked focus:
   "kind": "argument",
   "mode": "indirect",
   "domain": "entity",
-  "body": "formula:f-kau-body",
-  "focus": "referent:djan",
-  "presupposedAnswer": "referent:djan"
+  "body": "formula:1134",
+  "focus": "entity:1003",
+  "presupposedAnswer": "entity:1003"
 }
 ```
 
@@ -3417,7 +3463,7 @@ such as a pro-sumti rafsi, preserve that resolution inside
       {
         "rafsi": "fo'ar",
         "sourceWord": "fo'a",
-        "referent": "referent:r1"
+        "referent": "entity:1011"
       }
     ]
   }
@@ -3439,85 +3485,87 @@ structured filler shape.
 ```json
 {
   "version": "lojban-semantics-json-1",
-  "root": "utterance:u1",
+  "root": "utterance:5",
   "objects": {
-    "utterance:u1": {
+    "utterance:5": {
       "type": "utterance",
       "force": "assert",
-      "speaker": "referent:speaker",
-      "audience": "referent:addressee",
-      "eventuality": "eventuality:e0",
-      "content": "formula:f-xunre"
+      "speaker": "entity:1",
+      "audience": "entity:2",
+      "eventuality": "eventuality/locution:6",
+      "content": "formula:1135"
     },
-    "referent:speaker": {
+    "entity:1": {
       "type": "referent",
       "category": "indexical",
       "sort": "entity",
       "indexical": "speaker"
     },
-    "referent:addressee": {
+    "entity:2": {
       "type": "referent",
       "category": "indexical",
       "sort": "entity",
       "indexical": "audience"
     },
-    "referent:botpi": {
+    "entity:1136": {
       "type": "referent",
       "category": "constant",
       "sort": "entity",
       "descriptor": {
         "kind": "veridicalDescription",
         "word": "lo",
-        "body": "formula:f-botpi"
+        "body": "formula:1023"
       }
     },
-    "formula:f-botpi": {
+    "formula:1023": {
       "type": "formula",
       "operator": "atom",
-      "predication": "predication:p-botpi"
+      "predication": "predication:1137"
     },
-    "predication:p-botpi": {
+    "predication:1137": {
       "type": "predication",
       "relation": "botpi",
       "arguments": {
-        "x1": { "kind": "filled", "value": "referent:botpi" },
+        "x1": { "kind": "filled", "value": "entity:1136" },
         "x2": {
           "kind": "elided",
-          "value": "referent:zohe-contents",
+          "value": "entity:1138",
           "introducedBy": "zo'e"
         },
         "x3": {
           "kind": "elided",
-          "value": "referent:zohe-material",
+          "value": "entity:1139",
           "introducedBy": "zo'e"
         },
         "x4": {
           "kind": "elided",
-          "value": "referent:zohe-lid",
+          "value": "entity:1140",
           "introducedBy": "zo'e"
         }
       },
       "mode": "restrictive"
     },
-    "formula:f-xunre": {
+    "formula:1135": {
       "type": "formula",
       "operator": "atom",
-      "predication": "predication:p-xunre"
+      "predication": "predication:1141"
     },
-    "predication:p-xunre": {
+    "predication:1141": {
       "type": "predication",
       "relation": "xunre",
-      "eventuality": "eventuality:e1",
-      "arguments": { "x1": { "kind": "filled", "value": "referent:botpi" } },
+      "eventuality": "eventuality/state:18",
+      "arguments": { "x1": { "kind": "filled", "value": "entity:1136" } },
       "mode": "asserted"
     },
-    "eventuality:e0": {
-      "type": "eventuality",
-      "class": "locution"
+    "eventuality/locution:6": {
+      "type": "referent",
+      "sort": "eventuality/locution",
+      "category": "constant"
     },
-    "eventuality:e1": {
-      "type": "eventuality",
-      "class": "state",
+    "eventuality/state:18": {
+      "type": "referent",
+      "sort": "eventuality/state",
+      "category": "constant",
       "actuality": { "kind": "actual" }
     }
   }
@@ -3529,29 +3577,29 @@ structured filler shape.
 ```json
 {
   "version": "lojban-semantics-json-1",
-  "root": "sequence:s1",
+  "root": "sequence:1142",
   "objects": {
-    "sequence:s1": {
+    "sequence:1142": {
       "type": "sequence",
       "relation": "same-topic-continuation",
-      "items": ["utterance:u1", "utterance:u2"]
+      "items": ["utterance:1004", "utterance:1005"]
     },
-    "utterance:u1": {
+    "utterance:1004": {
       "type": "utterance",
       "force": "assert",
-      "content": "formula:f-klama"
+      "content": "formula:1143"
     },
-    "utterance:u2": {
+    "utterance:1005": {
       "type": "utterance",
       "force": "assert",
-      "content": "formula:f-cadzu"
+      "content": "formula:1144"
     }
   }
 }
 ```
 
 The two utterances can both be true, false, questioned, or modified
-independently.  The sequence is not the same as `formula:and`.
+independently.  The sequence is not the same as `formula:1145`.
 
 ### Direct and Indirect Questions
 
@@ -3562,7 +3610,7 @@ question:
 {
   "type": "utterance",
   "force": "ask",
-  "content": "question:q1"
+  "content": "question:1146"
 }
 ```
 
@@ -3571,10 +3619,10 @@ question:
   "type": "question",
   "kind": "truth",
   "mode": "direct",
-  "asker": "referent:speaker",
-  "respondent": "referent:addressee",
+  "asker": "entity:1",
+  "respondent": "entity:2",
   "domain": "truthValue",
-  "body": "formula:f-do-nelci"
+  "body": "formula:1147"
 }
 ```
 
@@ -3585,12 +3633,12 @@ For `ma tavla do mi`, the `ma` parameter fills the x1 place inside the formula:
   "type": "question",
   "kind": "argument",
   "mode": "direct",
-  "asker": "referent:speaker",
-  "respondent": "referent:addressee",
+  "asker": "entity:1",
+  "respondent": "entity:2",
   "domain": "entity",
-  "body": "formula:f-ma-tavla-do-mi",
+  "body": "formula:1148",
   "slots": [
-    { "parameter": "parameter:ma1", "role": "answer" }
+    { "parameter": "parameter:1133", "role": "answer" }
   ]
 }
 ```
@@ -3599,7 +3647,7 @@ For `ma tavla do mi`, the `ma` parameter fills the x1 place inside the formula:
 {
   "type": "formula",
   "operator": "atom",
-  "predication": "predication:p-tavla"
+  "predication": "predication:1149"
 }
 ```
 
@@ -3607,14 +3655,14 @@ For `ma tavla do mi`, the `ma` parameter fills the x1 place inside the formula:
 {
   "type": "predication",
   "relation": "tavla",
-  "eventuality": "eventuality:e-tavla",
+  "eventuality": "eventuality:18",
   "arguments": {
-    "x1": { "kind": "filled", "value": "parameter:ma1" },
-    "x2": { "kind": "filled", "value": "referent:addressee" },
-    "x3": { "kind": "filled", "value": "referent:speaker" },
+    "x1": { "kind": "filled", "value": "parameter:1133" },
+    "x2": { "kind": "filled", "value": "entity:2" },
+    "x3": { "kind": "filled", "value": "entity:1" },
     "x4": {
       "kind": "elided",
-      "value": "referent:zohe-language",
+      "value": "entity:1150",
       "introducedBy": "zo'e"
     }
   },
@@ -3631,9 +3679,9 @@ presupposed focus value:
   "kind": "argument",
   "mode": "indirect",
   "domain": "entity",
-  "body": "formula:f-went",
-  "focus": "referent:djan",
-  "presupposedAnswer": "referent:djan"
+  "body": "formula:1151",
+  "focus": "entity:1003",
+  "presupposedAnswer": "entity:1003"
 }
 ```
 
@@ -3801,7 +3849,7 @@ These are the semantic object-model changes relative to
 27. Resolved `ko` as command force plus addressee argument.
    CLL 6.1 uses `ko` as a pro-sumti in an imperative sentence.  Treating it as
    an opaque `proSumti` constant loses the command semantics.  JSON now resolves
-   `ko` directly to `referent:addressee` in argument position and marks the
+   `ko` directly to `entity:2` in argument position and marks the
    enclosing utterance with `force = "command"`.
 
 28. Allowed mention utterances to carry non-formula content.
@@ -3914,14 +3962,14 @@ These are the semantic object-model changes relative to
    CLL 7.2 says `mi'e` assigns `mi`, while other vocatives such as `doi`
    assign `do`.  A plain vocative utterance with only an `audience` field did
    not record which indexical the named referent resolved to.  Named referents
-   introduced by vocatives now use `target = "referent:speaker"` for `mi'e`
-   and `target = "referent:addressee"` for address vocatives.
+   introduced by vocatives now use `target = "entity:1"` for `mi'e`
+   and `target = "entity:2"` for address vocatives.
 
 44. Added spatial anchors for selbri distance tags.
    CLL 7.3's `le vi bloti` distinguishes a nearby boat from `le ti bloti`.
    Dropping `vi` after syntax would erase that distinction.  Restrictive and
    asserted predications with `vi`, `va`, or `vu` now get an eventuality whose
-   `space` relation is anchored at `referent:here`.
+   `space` relation is anchored at `entity:4`.
 
 45. Added referent-level relative clauses for standalone sumti mentions.
    CLL 7.3's `ti noi bloti` is a mention of the demonstrative referent with an
@@ -4294,7 +4342,7 @@ These are the semantic object-model changes relative to
     single `time` relation loses that contrast, and duplicating contradictory
     before/after claims does not say which one is interpreted from which
     reference point.  Multi-step temporal journeys now use `timePath`, whose
-    first step has an object anchor such as `referent:speech-time` and whose
+    first step has an object anchor such as `eventuality:3` and whose
     later unanchored steps use `{"kind":"previous"}`.  Single-step temporal
     direction still uses the existing compact `time` field.
 
@@ -4501,9 +4549,10 @@ These are the semantic object-model changes relative to
      x2 for the embedded abstraction object and shifted additional surface
      places after it, so the elided stages/actions place appeared as x3 on
      `processOf` and `activityOf`.
-     Current normative form: the output eventuality carries the specific class
-     (`achievement`, `process`, `activity`, or `state`) and any real extra
-     surface place directly.
+     Current normative form: the output eventuality referent carries the
+     specific sort (`eventuality/achievement`, `eventuality/process`,
+     `eventuality/activity`, or `eventuality/state`) and any real extra surface
+     place directly.
 
 106. Added implicit `ka` property slots.
      CLL 11.4 states that a property abstraction without explicit `ce'u` places
@@ -4672,12 +4721,12 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "predication:p1": {
+       "predication:1048": {
          "type": "predication",
          "relation": "bu'a",
          "arguments": {
-           "x1": { "kind": "filled", "value": "referent:jim" },
-           "x2": { "kind": "filled", "value": "referent:john" }
+           "x1": { "kind": "filled", "value": "entity:1049" },
+           "x2": { "kind": "filled", "value": "entity:1050" }
          }
        }
      }
@@ -4690,26 +4739,26 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "parameter:p-buha": {
+       "parameter:1047": {
          "type": "parameter",
          "sort": "relation",
          "role": "relationVariable",
          "introducedBy": "bu'a"
        },
-       "predication:p1": {
+       "predication:1048": {
          "type": "predication",
-         "relationParameter": "parameter:p-buha",
+         "relationParameter": "parameter:1047",
          "arguments": {
-           "x1": { "kind": "filled", "value": "referent:jim" },
-           "x2": { "kind": "filled", "value": "referent:john" }
+           "x1": { "kind": "filled", "value": "entity:1049" },
+           "x2": { "kind": "filled", "value": "entity:1050" }
          }
        },
-       "formula:f-scope": {
+       "formula:1051": {
          "type": "formula",
          "operator": "forall",
-         "variable": "parameter:p-buha",
-         "body": "formula:f-atom",
-         "quantity": "quantity:q-all"
+         "variable": "parameter:1047",
+         "body": "formula:1052",
+         "quantity": "quantity:1152"
        }
      }
      ```
@@ -4737,7 +4786,7 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "referent:r1": {
+       "entity:1011": {
          "type": "referent",
          "descriptor": { "kind": "unloweredSumti", "word": "sumti" },
          "diagnostics": [
@@ -4751,7 +4800,7 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "sign:s1": {
+       "sign:1153": {
          "type": "sign",
          "kind": "letteral",
          "text": "tanru",
@@ -4774,10 +4823,10 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "math:m3": {
+       "math:1124": {
          "type": "mathExpression",
          "operator": "mo",
-         "operands": ["math:m1", "math:m2"]
+         "operands": ["math:1123", "math:1122"]
        }
      }
      ```
@@ -4788,23 +4837,23 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "parameter:p-op": {
+       "parameter:1125": {
          "type": "parameter",
          "sort": "mathOperator",
          "role": "mathOperatorQuestion",
          "introducedBy": "mo"
        },
-       "math:m3": {
+       "math:1124": {
          "type": "mathExpression",
-         "operatorParameter": "parameter:p-op",
-         "operands": ["math:m1", "math:m2"]
+         "operatorParameter": "parameter:1125",
+         "operands": ["math:1123", "math:1122"]
        },
-       "question:q1": {
+       "question:1146": {
          "type": "question",
          "kind": "mathOperator",
          "domain": "mathOperator",
-         "body": "formula:f1",
-         "slots": [{ "parameter": "parameter:p-op", "role": "answer" }]
+         "body": "formula:1074",
+         "slots": [{ "parameter": "parameter:1125", "role": "answer" }]
        }
      }
      ```
@@ -4820,11 +4869,11 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "math:m3": {
+       "math:1124": {
          "type": "mathExpression",
          "operator": "orderedInterval",
          "endpointInclusion": { "left": "inclusive", "right": "exclusive" },
-         "operands": ["math:m1", "math:m2"]
+         "operands": ["math:1123", "math:1122"]
        }
      }
      ```
@@ -4838,13 +4887,13 @@ These are the semantic object-model changes relative to
 
      ```json
      {
-       "math:m3": {
+       "math:1124": {
          "type": "mathExpression",
          "operator": "add",
          "scalarNegation": { "kind": "otherThan", "introducedBy": "na'e" },
-         "operands": ["math:m1", "math:m2"]
+         "operands": ["math:1123", "math:1122"]
        },
-       "math:m4": {
+       "math:1121": {
          "type": "mathExpression",
          "literal": { "kind": "integer", "value": 5 },
          "scalarNegation": { "kind": "otherThan", "introducedBy": "na'e" }
@@ -5168,15 +5217,19 @@ implementation gaps are listed separately in “Known Implementation Divergences
 
 27. **Direct abstraction outputs; no semantic-empty `abstraction` wrapper (#84
     and abstraction follow-up) — extend.** Public JSON no longer uses
-    `abstraction:aN` as a wrapper whose only payload is `{ kind, body }`.
-    Instead, the abstractor's output object carries the body, kind, binders, and
-    real extra places directly.  For `nu`/`za'i`/`pu'u`/`zu'o`/`mu'e`, the output
-    is the embedded predication's eventuality object; `nu` uses broad
-    `class:"event"` in the CLL 11.2/11.3 sense, while the aktionsart abstractors
-    refine the class.  For `ka`, the output relation carries `parameters` and
-    `arity`; for `ni`, `jei`, `li'i`, `si'o`, and `du'u`, the CLL 11.13 extra
-    places are fields on the output (`scale`, `epistemology`, `experiencer`,
-    `mind`, `expressedBy`).  `su'u` has no CLL 11.13 x2; do not fabricate one.
+    a separate abstraction wrapper whose only payload is `{ kind, body }`.
+    Instead, the abstractor's output referent carries the body/content, binders,
+    and real extra places directly.  For `nu`/`za'i`/`pu'u`/`zu'o`/`mu'e`, the
+    output is the embedded predication's eventuality referent; `nu` uses broad
+    `sort:"eventuality"` in the CLL 11.2/11.3 sense, while the aktionsart
+    abstractors refine the sort to `eventuality/state`,
+    `eventuality/process`, `eventuality/activity`, or
+    `eventuality/achievement`.  For `ka`, the output relation carries
+    `parameters` and `arity`; for `ni`, `jei`, `li'i`, `si'o`, and `du'u`, the
+    CLL 11.13 extra places are fields on the output (`scale`, `epistemology`,
+    `experiencer`, `mind`, `expressedBy`).  `su'u` is
+    `sort:"abstractNature"` and has no CLL 11.13 x2; do not fabricate one.
+    Public JSON does not emit `abstractionKind` or eventuality `class`.
     Connected event abstractors may still duplicate inert body formulas so each
     branch can have its own event-type view.
 

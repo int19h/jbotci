@@ -6694,15 +6694,16 @@ mod tests {
         assert!(run.stderr.is_empty());
         let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
         assert_eq!(json["version"], "lojban-semantics-json-1");
-        assert_eq!(json["root"], "utterance:u1");
-        assert_eq!(
-            json["objects"]["predication:p1"]["arguments"]["x1"]["kind"],
-            "filled"
-        );
-        assert_eq!(
-            json["objects"]["predication:p1"]["arguments"]["x1"]["value"],
-            "referent:speaker"
-        );
+        assert_eq!(json["root"], "utterance:5");
+        assert_eq!(json["objects"]["entity:1"]["indexical"], "speaker");
+        let klama = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "predication" && object["relation"] == "klama")
+            .expect("klama predication");
+        assert_eq!(klama["arguments"]["x1"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x1"]["value"], "entity:1");
     }
 
     #[test]
@@ -6716,10 +6717,17 @@ mod tests {
         assert_eq!(run.status, CliStatus::Success);
         assert!(run.stderr.is_empty());
         let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
-        assert_eq!(json["objects"]["question:q1"]["kind"], "argument");
-        assert_eq!(
-            json["objects"]["question:q1"]["slots"][0]["parameter"],
-            "parameter:p1"
+        let question = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "question")
+            .expect("question");
+        assert_eq!(question["kind"], "argument");
+        assert!(
+            question["slots"][0]["parameter"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("parameter:"))
         );
     }
 

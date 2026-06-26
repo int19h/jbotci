@@ -14,144 +14,192 @@ pub const SEMANTIC_JSON_VERSION: &str = "lojban-semantics-json-1";
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticObjectId {
-    kind: SemanticObjectKind,
+    prefix: SemanticIdPrefix,
     index: usize,
-    referent_special: Option<SemanticReferentSpecial>,
 }
 
 impl SemanticObjectId {
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Utterance)]
     pub fn utterance(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Utterance, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Utterance),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Sequence)]
     pub fn sequence(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Sequence, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Sequence),
+            index,
+        )
     }
 
     #[requires(true)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Eventuality)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::eventuality()))]
     pub fn eventuality(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Eventuality, index)
+        Self::referent_with_sort(SemanticSort::eventuality(), index)
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     pub fn referent(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Referent, index)
+        Self::referent_with_sort(SemanticSort::Entity, index)
+    }
+
+    #[requires(index > 0)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(sort))]
+    pub fn referent_with_sort(sort: SemanticSort, index: usize) -> Self {
+        Self::numbered(SemanticIdPrefix::Referent(sort), index)
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Parameter)]
     pub fn parameter(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Parameter, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Parameter),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
     pub fn predication(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Predication, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Predication),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
     pub fn formula(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Formula, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Formula),
+            index,
+        )
     }
 
     #[requires(index > 0)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Abstraction)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::AbstractNature))]
     pub fn abstraction(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Abstraction, index)
+        Self::referent_with_sort(SemanticSort::AbstractNature, index)
     }
 
     #[requires(index > 0)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::Sign))]
     pub fn sign(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Sign, index)
+        Self::referent_with_sort(SemanticSort::Sign, index)
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::DisplayedContent)]
     pub fn displayed_content(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::DisplayedContent, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::DisplayedContent),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_expression(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::MathExpression, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::MathExpression),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Quantity)]
     pub fn quantity(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Quantity, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Quantity),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::RelationMetadata)]
     pub fn relation_metadata(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::RelationMetadata, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::RelationMetadata),
+            index,
+        )
     }
 
     #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Question)]
     pub fn question(index: usize) -> Self {
-        Self::numbered(SemanticObjectKind::Question, index)
+        Self::numbered(
+            SemanticIdPrefix::Structural(SemanticObjectKind::Question),
+            index,
+        )
     }
 
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     pub fn speaker() -> Self {
-        Self::special_referent(SemanticReferentSpecial::Speaker)
+        Self::referent_with_sort(SemanticSort::Entity, 1)
     }
 
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     pub fn addressee() -> Self {
-        Self::special_referent(SemanticReferentSpecial::Addressee)
+        Self::referent_with_sort(SemanticSort::Entity, 2)
     }
 
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::eventuality()))]
+    pub fn now() -> Self {
+        Self::referent_with_sort(SemanticSort::eventuality(), 3)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::eventuality()))]
     pub fn speech_time() -> Self {
-        Self::special_referent(SemanticReferentSpecial::SpeechTime)
+        Self::now()
     }
 
     #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     pub fn here() -> Self {
-        Self::special_referent(SemanticReferentSpecial::Here)
+        Self::referent_with_sort(SemanticSort::Entity, 4)
     }
 
-    #[requires(index > 0 || kind == SemanticObjectKind::Eventuality)]
-    #[ensures(ret.object_kind() == kind)]
-    fn numbered(kind: SemanticObjectKind, index: usize) -> Self {
-        Self {
-            kind,
-            index,
-            referent_special: None,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
-    fn special_referent(referent_special: SemanticReferentSpecial) -> Self {
-        Self {
-            kind: SemanticObjectKind::Referent,
-            index: 0,
-            referent_special: Some(referent_special),
-        }
+    #[requires(index > 0)]
+    #[ensures(ret.prefix == prefix)]
+    fn numbered(prefix: SemanticIdPrefix, index: usize) -> Self {
+        Self { prefix, index }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn object_kind(self) -> SemanticObjectKind {
-        self.kind
+        self.prefix.object_kind()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == (self.object_kind() == SemanticObjectKind::Referent))]
+    pub fn referent_sort(self) -> Option<SemanticSort> {
+        match self.prefix {
+            SemanticIdPrefix::Referent(sort) => Some(sort),
+            SemanticIdPrefix::Structural(_) => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn index(self) -> usize {
+        self.index
     }
 }
 
@@ -159,25 +207,7 @@ impl fmt::Display for SemanticObjectId {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(referent) = self.referent_special {
-            return write!(formatter, "referent:{referent}");
-        }
-        match self.kind {
-            SemanticObjectKind::Utterance => write!(formatter, "utterance:u{}", self.index),
-            SemanticObjectKind::Sequence => write!(formatter, "sequence:s{}", self.index),
-            SemanticObjectKind::Eventuality => write!(formatter, "eventuality:e{}", self.index),
-            SemanticObjectKind::Referent => write!(formatter, "referent:r{}", self.index),
-            SemanticObjectKind::Parameter => write!(formatter, "parameter:p{}", self.index),
-            SemanticObjectKind::Predication => write!(formatter, "predication:p{}", self.index),
-            SemanticObjectKind::Formula => write!(formatter, "formula:f{}", self.index),
-            SemanticObjectKind::Abstraction => write!(formatter, "abstraction:a{}", self.index),
-            SemanticObjectKind::Sign => write!(formatter, "sign:s{}", self.index),
-            SemanticObjectKind::DisplayedContent => write!(formatter, "display:d{}", self.index),
-            SemanticObjectKind::MathExpression => write!(formatter, "math:m{}", self.index),
-            SemanticObjectKind::Quantity => write!(formatter, "quantity:q{}", self.index),
-            SemanticObjectKind::RelationMetadata => write!(formatter, "relation:r{}", self.index),
-            SemanticObjectKind::Question => write!(formatter, "question:q{}", self.index),
-        }
+        write!(formatter, "{}:{}", self.prefix, self.index)
     }
 }
 
@@ -192,27 +222,35 @@ impl Serialize for SemanticObjectId {
     }
 }
 
-#[invariant(true)]
+#[invariant(::Structural(_) => true)]
+#[invariant(::Referent(_) => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SemanticReferentSpecial {
-    Speaker,
-    Addressee,
-    SpeechTime,
-    Here,
+#[serde(rename_all = "camelCase")]
+pub enum SemanticIdPrefix {
+    Structural(SemanticObjectKind),
+    Referent(SemanticSort),
 }
 
-pub type SemanticReferentId = SemanticReferentSpecial;
+pub type SemanticReferentId = SemanticObjectId;
 
-impl fmt::Display for SemanticReferentSpecial {
+impl SemanticIdPrefix {
+    #[requires(true)]
+    #[ensures(true)]
+    fn object_kind(self) -> SemanticObjectKind {
+        match self {
+            Self::Structural(kind) => kind,
+            Self::Referent(_) => SemanticObjectKind::Referent,
+        }
+    }
+}
+
+impl fmt::Display for SemanticIdPrefix {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Speaker => formatter.write_str("speaker"),
-            Self::Addressee => formatter.write_str("addressee"),
-            Self::SpeechTime => formatter.write_str("speech-time"),
-            Self::Here => formatter.write_str("here"),
+            Self::Structural(kind) => formatter.write_str(kind.id_prefix_label()),
+            Self::Referent(sort) => formatter.write_str(sort.label()),
         }
     }
 }
@@ -237,6 +275,29 @@ pub enum SemanticObjectKind {
     Question,
 }
 
+impl SemanticObjectKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn id_prefix_label(self) -> &'static str {
+        match self {
+            Self::Utterance => "utterance",
+            Self::Sequence => "sequence",
+            Self::Eventuality => "eventuality",
+            Self::Referent => "referent",
+            Self::Parameter => "parameter",
+            Self::Predication => "predication",
+            Self::Formula => "formula",
+            Self::Abstraction => "abstraction",
+            Self::Sign => "sign",
+            Self::DisplayedContent => "display",
+            Self::MathExpression => "math",
+            Self::Quantity => "quantity",
+            Self::RelationMetadata => "relationMetadata",
+            Self::Question => "question",
+        }
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -254,8 +315,10 @@ impl SemanticGraph {
         root: SemanticObjectId,
         objects: BTreeMap<SemanticObjectId, SemanticObject>,
     ) -> Result<Self, String> {
-        if !semantic_object_ids_match_types(&objects) {
-            return Err("semantic object ID prefixes must match object types".to_owned());
+        if let Some(mismatch) = first_semantic_object_id_type_mismatch(&objects) {
+            return Err(format!(
+                "semantic object ID prefixes must match object types: {mismatch}"
+            ));
         }
         if let Some((source, missing)) = first_undefined_semantic_reference(&objects) {
             return Err(format!(
@@ -354,7 +417,7 @@ pub struct SemanticObject {
     pub sequence_relation: Option<SequenceRelation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nonlogical_connection: Option<NonlogicalConnection>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub class: Option<EventualityClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actuality: Option<Actuality>,
@@ -462,7 +525,7 @@ pub struct SemanticObject {
     pub streams: Vec<RespectivelyStream>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub distinct_partition: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub abstraction_kind: Option<AbstractionKind>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub abstracted: Option<SemanticObjectId>,
@@ -663,9 +726,13 @@ impl SemanticObject {
         }
     }
 
-    #[requires(eventuality.object_kind() == SemanticObjectKind::Eventuality)]
+    #[requires(eventuality.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(speaker.object_kind() == SemanticObjectKind::Referent)]
     #[requires(audience.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(now.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(now.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    #[requires(here.object_kind() == SemanticObjectKind::Referent)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Utterance)]
     pub fn utterance(
         force: UtteranceForce,
@@ -673,6 +740,8 @@ impl SemanticObject {
         content: Option<SemanticObjectId>,
         speaker: SemanticObjectId,
         audience: SemanticObjectId,
+        now: SemanticObjectId,
+        here: SemanticObjectId,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
@@ -683,8 +752,8 @@ impl SemanticObject {
         object.eventuality = Some(eventuality);
         object.content = content;
         object.deictic_ground = Some(DeicticGround {
-            time: SemanticObjectId::speech_time(),
-            place: SemanticObjectId::here(),
+            time: now,
+            place: here,
         });
         object.source = source;
         object.diagnostics = diagnostics;
@@ -736,13 +805,16 @@ impl SemanticObject {
     }
 
     #[requires(true)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Eventuality)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.sort.is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     pub fn eventuality(
         class: EventualityClass,
         actuality: Option<Actuality>,
         source: Option<SemanticSource>,
     ) -> Self {
-        let mut object = Self::empty(SemanticObjectKind::Eventuality);
+        let mut object = Self::empty(SemanticObjectKind::Referent);
+        object.category = Some(ReferentCategory::Constant);
+        object.sort = Some(class.sort());
         object.class = Some(class);
         object.actuality = actuality;
         object.source = source;
@@ -951,7 +1023,7 @@ impl SemanticObject {
     #[requires(parameters
         .iter()
         .all(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Abstraction)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     pub fn abstraction(
         kind: AbstractionKind,
         body: SemanticObjectId,
@@ -959,7 +1031,9 @@ impl SemanticObject {
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
-        let mut object = Self::empty(SemanticObjectKind::Abstraction);
+        let mut object = Self::empty(SemanticObjectKind::Referent);
+        object.category = Some(ReferentCategory::Constant);
+        object.sort = Some(kind.output_sort());
         object.abstraction_kind = Some(kind);
         object.body = Some(body);
         if kind == AbstractionKind::Property {
@@ -999,14 +1073,17 @@ impl SemanticObject {
     }
 
     #[requires(true)]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.sort == Some(SemanticSort::Sign))]
     pub fn sign(
         sign_kind: SignKind,
         quotation: Option<Quotation>,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
-        let mut object = Self::empty(SemanticObjectKind::Sign);
+        let mut object = Self::empty(SemanticObjectKind::Referent);
+        object.category = Some(ReferentCategory::Constant);
+        object.sort = Some(SemanticSort::Sign);
         object.sign_kind = Some(sign_kind);
         object.quotation = quotation;
         object.source = source;
@@ -1016,7 +1093,8 @@ impl SemanticObject {
 
     #[requires(sign_kind != SignKind::Quotation)]
     #[requires(!text.is_empty())]
-    #[ensures(ret.object_kind() == SemanticObjectKind::Sign)]
+    #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
+    #[ensures(ret.sort == Some(SemanticSort::Sign))]
     pub fn text_sign(
         sign_kind: SignKind,
         text: String,
@@ -1030,7 +1108,7 @@ impl SemanticObject {
 
     #[requires(!relation.is_empty())]
     #[requires(experiencer.object_kind() == SemanticObjectKind::Referent)]
-    #[requires(target.object_kind() == SemanticObjectKind::Utterance || argument_object_kind_can_fill(target.object_kind()))]
+    #[requires(displayed_content_target_kind_is_allowed(target.object_kind()))]
     #[requires(anchor.object_kind() == SemanticObjectKind::Utterance)]
     #[ensures(ret.object_kind() == SemanticObjectKind::DisplayedContent)]
     pub fn displayed_content(
@@ -1517,7 +1595,6 @@ impl NonlogicalConnection {
             | SemanticObjectKind::Sequence
             | SemanticObjectKind::Formula
             | SemanticObjectKind::Referent
-            | SemanticObjectKind::Sign
             | SemanticObjectKind::DisplayedContent
     )
 }), "ordinal labels target discourse-visible objects")]
@@ -1580,6 +1657,21 @@ pub enum EventualityClass {
     Process,
     Activity,
     Achievement,
+}
+
+impl EventualityClass {
+    #[requires(true)]
+    #[ensures(ret.is_subsort_of(SemanticSort::eventuality()))]
+    pub fn sort(self) -> SemanticSort {
+        SemanticSort::Eventuality(match self {
+            Self::Locution => EventualitySort::Locution,
+            Self::Event => EventualitySort::General,
+            Self::State => EventualitySort::State,
+            Self::Process => EventualitySort::Process,
+            Self::Activity => EventualitySort::Activity,
+            Self::Achievement => EventualitySort::Achievement,
+        })
+    }
 }
 
 #[invariant(true)]
@@ -2153,16 +2245,15 @@ pub enum ReferentCategory {
     Composite,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[invariant(::Eventuality(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SemanticSort {
     Entity,
     Mass,
     Set,
     Sequence,
     Time,
-    Eventuality,
+    Eventuality(EventualitySort),
     Predication,
     TruthValue,
     Proposition,
@@ -2179,7 +2270,105 @@ pub enum SemanticSort {
     TenseModal,
     MathOperator,
     ArgumentBundle,
-    Unspecified,
+    AbstractNature,
+}
+
+impl SemanticSort {
+    #[requires(true)]
+    #[ensures(ret == SemanticSort::Eventuality(EventualitySort::General))]
+    pub fn eventuality() -> Self {
+        Self::Eventuality(EventualitySort::General)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Entity => "entity",
+            Self::Mass => "mass",
+            Self::Set => "set",
+            Self::Sequence => "sequence",
+            Self::Time => "time",
+            Self::Eventuality(sort) => sort.label(),
+            Self::Predication => "predication",
+            Self::TruthValue => "truthValue",
+            Self::Proposition => "proposition",
+            Self::Concept => "concept",
+            Self::Amount => "amount",
+            Self::Quantity => "quantity",
+            Self::Number => "number",
+            Self::Scale => "scale",
+            Self::Text => "text",
+            Self::Sign => "sign",
+            Self::Relation => "relation",
+            Self::Place => "place",
+            Self::Connective => "connective",
+            Self::TenseModal => "tenseModal",
+            Self::MathOperator => "mathOperator",
+            Self::ArgumentBundle => "argumentBundle",
+            Self::AbstractNature => "abstractNature",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret || self != required)]
+    pub fn is_subsort_of(self, required: Self) -> bool {
+        self == required
+            || matches!(
+                (self, required),
+                (
+                    Self::Eventuality(_),
+                    Self::Eventuality(EventualitySort::General)
+                )
+            )
+    }
+}
+
+impl Serialize for SemanticSort {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.label())
+    }
+}
+
+impl fmt::Display for SemanticSort {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.label())
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EventualitySort {
+    General,
+    State,
+    Process,
+    Activity,
+    Achievement,
+    Experience,
+    Locution,
+}
+
+impl EventualitySort {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::General => "eventuality",
+            Self::State => "eventuality/state",
+            Self::Process => "eventuality/process",
+            Self::Activity => "eventuality/activity",
+            Self::Achievement => "eventuality/achievement",
+            Self::Experience => "eventuality/experience",
+            Self::Locution => "eventuality/locution",
+        }
+    }
 }
 
 #[invariant(true)]
@@ -2188,7 +2377,7 @@ pub enum SemanticSort {
 pub enum IndexicalKind {
     Speaker,
     Audience,
-    SpeechTime,
+    Now,
     Here,
     ProximalDemonstrative,
     MedialDemonstrative,
@@ -2794,15 +2983,22 @@ pub enum ArgumentValueKind {
 pub fn argument_object_kind_can_fill(kind: SemanticObjectKind) -> bool {
     matches!(
         kind,
-        SemanticObjectKind::Referent
-            | SemanticObjectKind::Parameter
-            | SemanticObjectKind::Eventuality
+        SemanticObjectKind::Referent | SemanticObjectKind::Parameter | SemanticObjectKind::Formula
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn displayed_content_target_kind_is_allowed(kind: SemanticObjectKind) -> bool {
+    matches!(
+        kind,
+        SemanticObjectKind::Utterance
+            | SemanticObjectKind::Sequence
             | SemanticObjectKind::Formula
-            | SemanticObjectKind::Abstraction
-            | SemanticObjectKind::Sign
+            | SemanticObjectKind::Question
+            | SemanticObjectKind::Parameter
+            | SemanticObjectKind::Referent
             | SemanticObjectKind::DisplayedContent
-            | SemanticObjectKind::MathExpression
-            | SemanticObjectKind::Quantity
     )
 }
 
@@ -3092,6 +3288,28 @@ pub enum AbstractionKind {
     Concept,
     Experience,
     Unspecified,
+}
+
+impl AbstractionKind {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn output_sort(self) -> SemanticSort {
+        match self {
+            Self::Event => SemanticSort::eventuality(),
+            Self::Achievement => SemanticSort::Eventuality(EventualitySort::Achievement),
+            Self::Process => SemanticSort::Eventuality(EventualitySort::Process),
+            Self::Activity => SemanticSort::Eventuality(EventualitySort::Activity),
+            Self::State => SemanticSort::Eventuality(EventualitySort::State),
+            Self::Experience => SemanticSort::Eventuality(EventualitySort::Experience),
+            Self::Property => SemanticSort::Relation,
+            Self::Amount => SemanticSort::Amount,
+            Self::TruthValue => SemanticSort::TruthValue,
+            Self::Proposition => SemanticSort::Proposition,
+            Self::SentenceSign => SemanticSort::Sign,
+            Self::Concept => SemanticSort::Concept,
+            Self::Unspecified => SemanticSort::AbstractNature,
+        }
+    }
 }
 
 #[invariant(true)]
@@ -3620,9 +3838,37 @@ impl RespectivelyStream {
 pub fn semantic_object_ids_match_types(
     objects: &BTreeMap<SemanticObjectId, SemanticObject>,
 ) -> bool {
-    objects
-        .iter()
-        .all(|(id, object)| id.object_kind() == object.object_kind())
+    first_semantic_object_id_type_mismatch(objects).is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn first_semantic_object_id_type_mismatch(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> Option<String> {
+    let mut seen_indices = BTreeMap::new();
+    for (id, object) in objects {
+        if let Some(previous) = seen_indices.insert(id.index(), *id) {
+            return Some(format!("{id} reuses numeric ID already used by {previous}"));
+        }
+        if id.object_kind() != object.object_kind() {
+            return Some(format!(
+                "{id} has ID kind {:?}, but object type is {:?}",
+                id.object_kind(),
+                object.object_kind()
+            ));
+        }
+        if id.object_kind() == SemanticObjectKind::Referent {
+            if id.referent_sort() != object.sort {
+                return Some(format!(
+                    "{id} has ID sort {:?}, but object sort is {:?}",
+                    id.referent_sort(),
+                    object.sort
+                ));
+            }
+        }
+    }
+    None
 }
 
 #[requires(true)]
@@ -3668,8 +3914,8 @@ pub fn semantic_object_references_match_roles(
 fn semantic_object_references_match_roles_for_object(object: &SemanticObject) -> bool {
     optional_reference_has_kind(object.speaker, SemanticObjectKind::Referent)
         && optional_reference_has_kind(object.audience, SemanticObjectKind::Referent)
-        && optional_reference_has_kind(object.eventuality, SemanticObjectKind::Eventuality)
-        && content_reference_matches_role(object.object_kind(), object.force, object.content)
+        && optional_eventuality_reference(object.eventuality)
+        && content_reference_matches_role(object, object.content)
         && object.deictic_ground.is_none_or(|ground| {
             ground.time.object_kind() == SemanticObjectKind::Referent
                 && ground.place.object_kind() == SemanticObjectKind::Referent
@@ -3810,7 +4056,6 @@ fn optional_ordinal_label_target_matches_role(target: Option<SemanticObjectId>) 
                 | SemanticObjectKind::Sequence
                 | SemanticObjectKind::Formula
                 | SemanticObjectKind::Referent
-                | SemanticObjectKind::Sign
                 | SemanticObjectKind::DisplayedContent
         )
     })
@@ -3839,10 +4084,9 @@ fn displayed_content_shape_matches_role(object: &SemanticObject) -> bool {
         && object.polarity.is_some()
         && object.assertion_effect.is_some()
         && optional_reference_has_kind(object.experiencer, SemanticObjectKind::Referent)
-        && object.target.is_some_and(|target| {
-            target.object_kind() == SemanticObjectKind::Utterance
-                || argument_object_kind_can_fill(target.object_kind())
-        })
+        && object
+            .target
+            .is_some_and(|target| displayed_content_target_kind_is_allowed(target.object_kind()))
         && optional_reference_has_kind(object.anchor, SemanticObjectKind::Utterance)
 }
 
@@ -4113,7 +4357,6 @@ fn target_reference_matches_role(
                 | SemanticObjectKind::Sequence
                 | SemanticObjectKind::Formula
                 | SemanticObjectKind::Referent
-                | SemanticObjectKind::Sign
         ),
         _ => true,
     }
@@ -4129,10 +4372,6 @@ fn denotes_reference_matches_role(
         return true;
     };
     match object_kind {
-        SemanticObjectKind::Sign => matches!(
-            denotes.object_kind(),
-            SemanticObjectKind::Referent | SemanticObjectKind::MathExpression
-        ),
         SemanticObjectKind::MathExpression => argument_object_kind_can_fill(denotes.object_kind()),
         _ => true,
     }
@@ -4149,24 +4388,40 @@ fn quantity_value_references_match_roles(value: &QuantityValue) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn content_reference_matches_role(
-    object_kind: SemanticObjectKind,
-    utterance_force: Option<UtteranceForce>,
+    object: &SemanticObject,
     content: Option<SemanticObjectId>,
 ) -> bool {
     let Some(content) = content else {
         return true;
     };
-    match object_kind {
+    match object.object_kind() {
         SemanticObjectKind::Utterance => {
-            utterance_content_reference_matches_force(utterance_force, content)
+            utterance_content_reference_matches_force(object.force, content)
         }
         SemanticObjectKind::Sequence => content.object_kind() == SemanticObjectKind::Formula,
-        SemanticObjectKind::Eventuality => matches!(
-            content.object_kind(),
-            SemanticObjectKind::Formula | SemanticObjectKind::Sequence
-        ),
+        SemanticObjectKind::Referent
+            if object
+                .sort
+                .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())) =>
+        {
+            matches!(
+                content.object_kind(),
+                SemanticObjectKind::Formula | SemanticObjectKind::Sequence
+            )
+        }
         _ => false,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn optional_eventuality_reference(reference: Option<SemanticObjectId>) -> bool {
+    reference.is_none_or(|reference| {
+        reference.object_kind() == SemanticObjectKind::Referent
+            && reference
+                .referent_sort()
+                .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
+    })
 }
 
 #[requires(true)]
@@ -4177,7 +4432,10 @@ fn utterance_content_reference_matches_force(
 ) -> bool {
     let ordinary_content = matches!(
         content.object_kind(),
-        SemanticObjectKind::Formula | SemanticObjectKind::Sequence | SemanticObjectKind::Question
+        SemanticObjectKind::Formula
+            | SemanticObjectKind::Sequence
+            | SemanticObjectKind::Question
+            | SemanticObjectKind::DisplayedContent
     );
     if ordinary_content {
         return true;
@@ -4338,12 +4596,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn eventuality_subsorts_satisfy_general_eventuality() {
+        let general = SemanticSort::eventuality();
+        let process = SemanticSort::Eventuality(EventualitySort::Process);
+        assert!(process.is_subsort_of(general));
+        assert!(general.is_subsort_of(general));
+        assert!(!process.is_subsort_of(SemanticSort::Entity));
+        assert!(!SemanticSort::Entity.is_subsort_of(general));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn semantic_graph_rejects_dangling_object_references() {
         let root = SemanticObjectId::formula(1);
         let mut objects = BTreeMap::new();
         objects.insert(
             root,
-            SemanticObject::atom_formula(SemanticObjectId::predication(1), None, Vec::new()),
+            SemanticObject::atom_formula(SemanticObjectId::predication(2), None, Vec::new()),
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
@@ -4355,7 +4625,7 @@ mod tests {
     #[ensures(true)]
     fn semantic_graph_rejects_dangling_scalar_negation_scale() {
         let root = SemanticObjectId::formula(1);
-        let predication = SemanticObjectId::predication(1);
+        let predication = SemanticObjectId::predication(2);
         let mut object = SemanticObject::predication(
             "klama".to_owned(),
             None,
@@ -4366,7 +4636,7 @@ mod tests {
         );
         object.scalar_negation = Some(
             ScalarNegation::new(ScalarNegationKind::OtherThan, "na'e".to_owned())
-                .with_scale(SemanticObjectId::referent(1)),
+                .with_scale(SemanticObjectId::referent(3)),
         );
 
         let mut objects = BTreeMap::new();
@@ -4385,7 +4655,7 @@ mod tests {
     #[ensures(true)]
     fn semantic_graph_rejects_wrong_kind_role_references() {
         let root = SemanticObjectId::formula(1);
-        let referent = SemanticObjectId::referent(1);
+        let referent = SemanticObjectId::referent(2);
         let mut objects = BTreeMap::new();
         objects.insert(
             root,
@@ -4436,8 +4706,8 @@ mod tests {
     #[ensures(true)]
     fn semantic_graph_rejects_malformed_argument_places() {
         let root = SemanticObjectId::formula(1);
-        let predication = SemanticObjectId::predication(1);
-        let referent = SemanticObjectId::referent(1);
+        let predication = SemanticObjectId::predication(2);
+        let referent = SemanticObjectId::referent(3);
         let mut arguments = BTreeMap::new();
         arguments.insert("01".to_owned(), ArgumentValue::filled(referent, None));
 
@@ -4479,7 +4749,7 @@ mod tests {
     #[ensures(true)]
     fn semantic_graph_rejects_incoherent_parameter_sort() {
         let root = SemanticObjectId::eventuality(1);
-        let parameter = SemanticObjectId::parameter(1);
+        let parameter = SemanticObjectId::parameter(2);
         let mut eventuality = SemanticObject::eventuality(EventualityClass::Event, None, None);
         eventuality.tense_modal = Some(parameter);
 
@@ -4505,8 +4775,8 @@ mod tests {
     fn semantic_graph_rejects_impossible_connector_question() {
         let root = SemanticObjectId::formula(1);
         let child = SemanticObjectId::formula(2);
-        let predication = SemanticObjectId::predication(1);
-        let parameter = SemanticObjectId::parameter(1);
+        let predication = SemanticObjectId::predication(3);
+        let parameter = SemanticObjectId::parameter(4);
 
         let mut objects = BTreeMap::new();
         objects.insert(
