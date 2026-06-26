@@ -703,10 +703,11 @@ mod tests {
             let mut visitor = GeneratedModelNoopVisitor;
             generated::generated_model::TreeNode::visit_in_order(&parsed, &mut visitor);
 
-            let generated::generated_model::TextSyntax::Regular { paragraphs, .. } = parsed else {
+            let generated::generated_model::TextSyntax::RegularText { regular_text } = parsed
+            else {
                 panic!("basic text should parse as regular generated-model text");
             };
-            assert_eq!(paragraphs.len(), 1);
+            assert_eq!(regular_text.paragraphs.len(), 1);
         });
     }
 

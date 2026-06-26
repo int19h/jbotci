@@ -63,11 +63,10 @@ macro_rules! declare_generated_syntax_grammar {
         field nai <- opt(cmavo(Nai));
     }
 
-    alias "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) =
-        choice((
-            explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier),
-            regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal),
-        ));
+    rule "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> enum {
+        explicit_xauha_lohoi_text,
+        regular_text,
+    }
 
     alias "text" explicit_xauha_lohoi_lookahead =
         sequence(
@@ -76,28 +75,20 @@ macro_rules! declare_generated_syntax_grammar {
             cmavo(Kuhau).ignored(),
         ).ignored();
 
-    product explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> TextSyntax {
-        context "text";
-        construct variant ExplicitXauhaLohoi;
-        fields {
-            require explicit_xauha_lohoi_lookahead().lookahead();
-            field paragraphs = text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
-        }
+    rule "text" explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> struct {
+        assert explicit_xauha_lohoi_lookahead();
+        field paragraphs <- text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
     }
 
-    product regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
-        context "text";
-        construct variant Regular;
-        fields {
-            field leading_nai = many(cmavo(Nai));
-            field leading_cmevla = many(text_leading_cmevla_word());
-            field leading_indicators = many(leading_indicator());
-            field leading_free_modifiers = many(free_modifier);
-            field leading_connective = opt(text_leading_connective(tense_modal));
-            field leading_i_statements = many(leading_i_statement(free_modifier, tense_modal));
-            #[tree_child(primary)]
-            field paragraphs = text_paragraphs(paragraph, statement_or_fragment, free_modifier);
-        }
+    rule "text" regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> struct {
+        field leading_nai <- many(cmavo(Nai));
+        field leading_cmevla <- many(text_leading_cmevla_word());
+        field leading_indicators <- many(leading_indicator());
+        field leading_free_modifiers <- many(free_modifier);
+        field leading_connective <- opt(text_leading_connective(tense_modal));
+        field leading_i_statements <- many(leading_i_statement(free_modifier, tense_modal));
+        #[tree_child(primary)]
+        field paragraphs <- text_paragraphs(paragraph, statement_or_fragment, free_modifier);
     }
 
     alias "paragraphs" text_paragraphs(paragraph, statement_or_fragment, free_modifier) =
