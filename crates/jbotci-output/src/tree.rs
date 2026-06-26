@@ -89,38 +89,58 @@ pub(crate) enum TreeValue {
     },
 }
 
-#[invariant(::Operand(..) => true)]
-#[invariant(::Operation { .. } => true)]
+#[invariant(::Operand(operand) => legacy_first_token_byte_start(operand).is_some())]
+#[invariant(::Operation { left, right, operator } => legacy_reverse_polish_expr_is_positioned(left.as_ref()) && legacy_reverse_polish_expr_is_positioned(right.as_ref()) && legacy_first_token_byte_start(operator).is_some())]
 #[derive(Debug)]
-enum LegacyReversePolishExpr<'tree> {
-    Operand(&'tree jbotci_syntax::ast::MeksoSyntax),
+enum LegacyReversePolishExpr {
+    Operand(jbotci_syntax::ast::MeksoSyntax),
     Operation {
-        left: Box<LegacyReversePolishExpr<'tree>>,
-        right: Box<LegacyReversePolishExpr<'tree>>,
-        operator: &'tree jbotci_syntax::ast::MeksoOperatorSyntax,
+        left: Box<LegacyReversePolishExpr>,
+        right: Box<LegacyReversePolishExpr>,
+        operator: jbotci_syntax::ast::MeksoOperatorSyntax,
     },
 }
 
-#[invariant(::Operand { .. } => true)]
-#[invariant(::Operator { .. } => true)]
+#[invariant(::Operand { start, operand } => legacy_first_token_byte_start(operand).is_some_and(|operand_start| operand_start == *start))]
+#[invariant(::Operator { start, operator } => legacy_first_token_byte_start(operator).is_some_and(|operator_start| operator_start == *start))]
 #[derive(Debug)]
-enum LegacyReversePolishItem<'tree> {
+enum LegacyReversePolishItem {
     Operand {
         start: usize,
-        operand: &'tree jbotci_syntax::ast::MeksoSyntax,
+        operand: jbotci_syntax::ast::MeksoSyntax,
     },
     Operator {
         start: usize,
-        operator: &'tree jbotci_syntax::ast::MeksoOperatorSyntax,
+        operator: jbotci_syntax::ast::MeksoOperatorSyntax,
     },
 }
 
-impl LegacyReversePolishItem<'_> {
+#[requires(true)]
+#[ensures(true)]
+fn legacy_reverse_polish_expr_is_positioned(expression: &LegacyReversePolishExpr) -> bool {
+    match expression.as_data() {
+        bityzba::data!(LegacyReversePolishExpr::Operand(operand)) => {
+            legacy_first_token_byte_start(operand).is_some()
+        }
+        bityzba::data!(LegacyReversePolishExpr::Operation {
+            left,
+            right,
+            operator,
+        }) => {
+            legacy_reverse_polish_expr_is_positioned(left.as_ref())
+                && legacy_reverse_polish_expr_is_positioned(right.as_ref())
+                && legacy_first_token_byte_start(operator).is_some()
+        }
+    }
+}
+
+impl LegacyReversePolishItem {
     #[requires(true)]
     #[ensures(true)]
     fn start(&self) -> usize {
-        match self {
-            Self::Operand { start, .. } | Self::Operator { start, .. } => *start,
+        match self.as_data() {
+            bityzba::data!(LegacyReversePolishItem::Operand { start, .. })
+            | bityzba::data!(LegacyReversePolishItem::Operator { start, .. }) => *start,
         }
     }
 }
@@ -5152,7 +5172,7 @@ fn legacy_as_generated_reverse_polish_parts_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn legacy_as_generated_reverse_polish_expression_parts_tree_value(
-    expression: &LegacyReversePolishExpr<'_>,
+    expression: &LegacyReversePolishExpr,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
@@ -5175,20 +5195,20 @@ fn legacy_as_generated_reverse_polish_expression_parts_tree_value(
 #[requires(true)]
 #[ensures(true)]
 fn legacy_reverse_polish_expression_parts(
-    expression: &LegacyReversePolishExpr<'_>,
+    expression: &LegacyReversePolishExpr,
     source: &str,
     options: TreeRenderOptions,
 ) -> (TreeValue, Vec<TreeValue>) {
-    match expression {
-        LegacyReversePolishExpr::Operand(operand) => (
+    match expression.as_data() {
+        bityzba::data!(LegacyReversePolishExpr::Operand(operand)) => (
             legacy_as_generated_mekso_operand_tree_value(operand, source, options),
             Vec::new(),
         ),
-        LegacyReversePolishExpr::Operation {
+        bityzba::data!(LegacyReversePolishExpr::Operation {
             left,
             right,
             operator,
-        } => {
+        }) => {
             let (first_operand, mut tails) =
                 legacy_reverse_polish_expression_parts(left, source, options);
             tails.push(TreeValue::Collection(vec![
@@ -5207,37 +5227,45 @@ fn legacy_reverse_polish_expression_parts(
 fn legacy_reverse_polish_expression_tree<'tree>(
     operands: &'tree [jbotci_syntax::ast::MeksoSyntax],
     operators: &'tree [jbotci_syntax::ast::MeksoOperatorSyntax],
-) -> Option<LegacyReversePolishExpr<'tree>> {
+) -> Option<LegacyReversePolishExpr> {
     if operands.len() != operators.len() + 1 {
         return None;
     }
     let mut items = operands
         .iter()
         .map(|operand| {
-            legacy_first_token_byte_start(operand)
-                .map(|start| LegacyReversePolishItem::Operand { start, operand })
+            legacy_first_token_byte_start(operand).map(|start| {
+                bityzba::new!(LegacyReversePolishItem::Operand {
+                    start: start,
+                    operand: operand.clone(),
+                })
+            })
         })
         .chain(operators.iter().map(|operator| {
-            legacy_first_token_byte_start(operator)
-                .map(|start| LegacyReversePolishItem::Operator { start, operator })
+            legacy_first_token_byte_start(operator).map(|start| {
+                bityzba::new!(LegacyReversePolishItem::Operator {
+                    start: start,
+                    operator: operator.clone(),
+                })
+            })
         }))
         .collect::<Option<Vec<_>>>()?;
     items.sort_by_key(LegacyReversePolishItem::start);
 
     let mut stack = Vec::new();
     for item in items {
-        match item {
-            LegacyReversePolishItem::Operand { operand, .. } => {
-                stack.push(LegacyReversePolishExpr::Operand(operand));
+        match item.into_data() {
+            bityzba::data!(LegacyReversePolishItem::Operand { operand, .. }) => {
+                stack.push(bityzba::new!(LegacyReversePolishExpr::Operand(operand)));
             }
-            LegacyReversePolishItem::Operator { operator, .. } => {
+            bityzba::data!(LegacyReversePolishItem::Operator { operator, .. }) => {
                 let right = stack.pop()?;
                 let left = stack.pop()?;
-                stack.push(LegacyReversePolishExpr::Operation {
+                stack.push(bityzba::new!(LegacyReversePolishExpr::Operation {
                     left: Box::new(left),
                     right: Box::new(right),
-                    operator,
-                });
+                    operator: operator,
+                }));
             }
         }
     }
