@@ -352,71 +352,43 @@ macro_rules! declare_generated_syntax_grammar {
         field linkargs <- linkargs(sumti, tense_modal);
     }
 
-    alias "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) =
-        choice((
-            bridi_with_leading_terms(term, bridi_tail),
-            bridi_with_post_cu_terms(term, bridi_tail),
-            bare_cu_bridi(bridi_tail),
-            bare_cu_terms_bridi(term, bridi_tail),
-            relation_only_bridi(bridi_tail),
-        ));
-
-    node bridi_with_leading_terms(term, bridi_tail) -> BridiSyntax {
-        context "bridi";
-        fields {
-            field leading_terms = many1(term);
-            field cu = opt(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bridi_tail);
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> enum {
+        bridi_with_leading_terms,
+        bridi_with_post_cu_terms,
+        bare_cu_bridi,
+        bare_cu_terms_bridi,
+        relation_only_bridi,
     }
 
-    node bridi_with_post_cu_terms(term, bridi_tail) -> BridiSyntax {
-        context "bridi";
-        fields {
-            field leading_terms = many1(term);
-            field cu = some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
-            field bridi_tail = boxed(cu_terms_bridi_tail(term, bridi_tail));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi" bridi_with_leading_terms(term, bridi_tail) -> struct {
+        field leading_terms <- many1(term);
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bridi_tail);
     }
 
-    node bare_cu_bridi(bridi_tail) -> BridiSyntax {
-        context "bridi";
-        fields {
-            default leading_terms: Vec<TermSyntax> = Vec::new();
-            field cu = some(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bridi_tail);
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi" bridi_with_post_cu_terms(term, bridi_tail) -> struct {
+        field leading_terms <- many1(term);
+        field cu <- some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
+        field bridi_tail <- boxed(cu_terms_bridi_tail(term, bridi_tail));
     }
 
-    node bare_cu_terms_bridi(term, bridi_tail) -> BridiSyntax {
-        context "bridi";
-        fields {
-            default leading_terms: Vec<TermSyntax> = Vec::new();
-            field cu = some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
-            field bridi_tail = boxed(cu_terms_bridi_tail(term, bridi_tail));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
+        field cu <- some(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bridi_tail);
     }
 
-    node relation_only_bridi(bridi_tail) -> BridiSyntax {
-        context "bridi";
-        fields {
-            default leading_terms: Vec<TermSyntax> = Vec::new();
-            default cu: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
-            field bridi_tail = boxed(bridi_tail);
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi" bare_cu_terms_bridi(term, bridi_tail) -> struct {
+        field cu <- some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
+        field bridi_tail <- boxed(cu_terms_bridi_tail(term, bridi_tail));
     }
 
-    node cu_terms_bridi_tail(term, bridi_tail) -> BridiTailSyntax {
-        context "bridi tail";
-        fields {
-            field terms = many1(term);
-            field bridi_tail = boxed(bridi_tail);
-        }
+    rule "bridi" relation_only_bridi(bridi_tail) -> struct {
+        field bridi_tail <- boxed(bridi_tail);
+    }
+
+    rule "bridi tail" cu_terms_bridi_tail(term, bridi_tail) -> struct {
+        field terms <- many1(term);
+        field bridi_tail <- boxed(bridi_tail);
     }
 
     alias "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) =

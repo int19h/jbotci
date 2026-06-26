@@ -1699,6 +1699,19 @@ fn legacy_as_generated_bridi_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    assert!(
+        bridi.free_modifiers.is_empty(),
+        "legacy bridi has free modifiers that are not represented in generated bridi variants"
+    );
+    let post_cu_tail = bridi.cu.as_ref().and_then(|_| {
+        legacy_as_generated_post_cu_bridi_tail_tree_value(
+            bridi.bridi_tail.as_ref(),
+            source,
+            options,
+        )
+    });
+    let post_cu_tail_is_some = post_cu_tail.is_some();
+
     let mut entries = Vec::new();
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "leading_terms",
@@ -1716,37 +1729,51 @@ fn legacy_as_generated_bridi_tree_value(
             value: required_legacy_syntax_subtree_value(cu.as_ref(), source, options),
         });
     }
-    let bridi_tail = if bridi.cu.is_some() {
-        legacy_as_generated_post_cu_bridi_tail_tree_value(
-            bridi.bridi_tail.as_ref(),
-            source,
-            options,
-        )
-        .unwrap_or_else(|| {
-            legacy_as_generated_bridi_tail_tree_value(bridi.bridi_tail.as_ref(), source, options)
-        })
-    } else {
-        legacy_as_generated_bridi_tail_tree_value(bridi.bridi_tail.as_ref(), source, options)
-    };
     entries.push(TreeEntry {
         label: Some("bridi_tail"),
-        value: bridi_tail,
+        value: post_cu_tail.unwrap_or_else(|| {
+            legacy_as_generated_bridi_tail_tree_value(bridi.bridi_tail.as_ref(), source, options)
+        }),
     });
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        bridi
-            .free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
+    let constructor = match (
+        bridi.leading_terms.is_empty(),
+        bridi.cu.is_some(),
+        post_cu_tail_is_some,
     ) {
-        entries.push(entry);
-    }
-    TreeValue::Node(TreeNode {
-        constructor: "Bridi",
+        (false, true, true) => "BridiWithPostCuTerms",
+        (false, _, _) => "BridiWithLeadingTerms",
+        (true, true, true) => "BareCuTermsBridi",
+        (true, true, false) => "BareCuBridi",
+        (true, false, _) => "RelationOnlyBridi",
+    };
+    let label = match constructor {
+        "BridiWithPostCuTerms" => "bridi_with_post_cu_terms",
+        "BridiWithLeadingTerms" => "bridi_with_leading_terms",
+        "BareCuTermsBridi" => "bare_cu_terms_bridi",
+        "BareCuBridi" => "bare_cu_bridi",
+        "RelationOnlyBridi" => "relation_only_bridi",
+        _ => unreachable!("constructor selected above"),
+    };
+    legacy_as_generated_bridi_variant_tree_value(constructor, label, entries)
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_bridi_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
         entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
     })
 }
 
@@ -1823,7 +1850,7 @@ fn legacy_as_generated_bridi_tail_tree_value(
         });
     }
     TreeValue::Node(TreeNode {
-        constructor: "BridiTailWithPossibleTailTerms",
+        constructor: "BridiTail",
         entries,
     })
 }
