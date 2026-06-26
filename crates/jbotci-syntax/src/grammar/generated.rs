@@ -319,13 +319,10 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product pending_i_connective -> PendingIConnectiveSyntax {
-        context "statement connective";
-        fields {
-            field i = cmavo(I);
-            field connective = statement_connective;
-            require cmavo(I).lookahead();
-        }
+    rule "statement connective" pending_i_connective -> struct {
+        field i <- cmavo(I);
+        field connective <- statement_connective;
+        assert cmavo(I);
     }
 
     product chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
@@ -596,13 +593,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> AfterthoughtBridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(bo_grouped_bridi_tail);
-            field continuations = many(bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal));
-        }
+    rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(bo_grouped_bridi_tail);
+        field continuations <- many(bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal));
     }
 
     node bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> BoGroupedBridiTailSyntax {
@@ -614,13 +607,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> BoGroupedBridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
-            field bo_continuation = opt(boxed(bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal)));
-        }
+    rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
+        field bo_continuation <- opt(boxed(bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal)));
     }
 
     alias "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) =
@@ -1244,12 +1233,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node sumti(sumti, sumti_grouped, subbridi, tense_modal) -> SumtiSyntax {
-        context "sumti";
-        fields {
-            field base_sumti = boxed(sumti_grouped);
-            field vuho_attachment = opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal));
-        }
+    rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal) -> struct {
+        field base_sumti <- boxed(sumti_grouped);
+        field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal));
     }
 
     node sumti_grouped(sumti, sumti_afterthought, tense_modal) -> SumtiSyntax {
@@ -1294,15 +1280,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product bound_sumti_tail(sumti_bound, tense_modal) -> BoundSumtiTailSyntax {
-        context "sumti connection";
-        construct direct;
-        fields {
-            field connective = boxed(argument_connective);
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field trailing_sumti = boxed(sumti_bound);
-        }
+    rule "sumti connection" bound_sumti_tail(sumti_bound, tense_modal) -> struct {
+        field connective <- boxed(argument_connective);
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field trailing_sumti <- boxed(sumti_bound);
     }
 
     product sumti_afterthought_tail(sumti_bound) -> SumtiConnectionSyntax {
@@ -1314,16 +1296,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product grouped_sumti_tail(sumti, tense_modal) -> GroupedSumtiTailSyntax {
-        context "sumti connection";
-        construct direct;
-        fields {
-            field connective = argument_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field inner_sumti = boxed(sumti);
-            field kehe = opt(cmavo(Kehe).wf());
-        }
+    rule "sumti connection" grouped_sumti_tail(sumti, tense_modal) -> struct {
+        field connective <- argument_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field inner_sumti <- boxed(sumti);
+        field kehe <- opt(cmavo(Kehe).wf());
     }
 
     alias "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) =
@@ -1939,11 +1917,8 @@ macro_rules! declare_generated_syntax_grammar {
             descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
         ));
 
-    node description_head -> DescriptionHeadSyntax {
-        context "descriptor";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-        }
+    rule "descriptor" description_head -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
     }
 
     node description_head_connective -> ConnectiveSyntax {
@@ -2008,12 +1983,9 @@ macro_rules! declare_generated_syntax_grammar {
         field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
-    product description_tail_sumti(sumti_base) -> DescriptionTailSumtiSyntax {
-        context "description tail";
-        fields {
-            require pa_word().not();
-            field sumti = boxed(sumti_base);
-        }
+    rule "description tail" description_tail_sumti(sumti_base) -> struct {
+        assert !pa_word();
+        field sumti <- boxed(sumti_base);
     }
 
     product relation_description_tail(sumti, subbridi, selbri, tense_modal) -> DescriptionTailSyntax {
@@ -3934,13 +3906,10 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node abstractor_connection -> AbstractorConnectionSyntax {
-        context "abstractor connection";
-        fields {
-            field connective = standard_statement_connective;
-            field nu = selmaho(Nu).wf();
-            field nai = opt(cmavo(Nai).wf());
-        }
+    rule "abstractor connection" abstractor_connection -> struct {
+        field connective <- standard_statement_connective;
+        field nu <- selmaho(Nu).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
         }
     };
