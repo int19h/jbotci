@@ -69,13 +69,12 @@ macro_rules! declare_generated_syntax_grammar {
             regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal),
         ));
 
-    product explicit_xauha_lohoi_lookahead -> () {
-        fields {
-            field xauha = cmavo(Xauha).ignored();
-            field body = raw_words_until(Kuhau).ignored();
-            field kuhau = cmavo(Kuhau).ignored();
-        }
-    }
+    alias "text" explicit_xauha_lohoi_lookahead =
+        sequence(
+            cmavo(Xauha).ignored(),
+            raw_words_until(Kuhau).ignored(),
+            cmavo(Kuhau).ignored(),
+        ).ignored();
 
     product explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> TextSyntax {
         context "text";
@@ -921,30 +920,20 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product term_hierarchy_post_bo_argument_gate(sumti) -> () {
-        context "term connection";
-        fields {
-            require choice((
-                term_hierarchy_enabled_empty_gate(),
-                term_hierarchy_disabled_sumti_guard(sumti),
-            ));
-        }
-    }
+    alias "term connection" term_hierarchy_post_bo_argument_gate(sumti) =
+        choice((
+            term_hierarchy_enabled_empty_gate(),
+            term_hierarchy_disabled_sumti_guard(sumti),
+        ));
 
-    product term_hierarchy_enabled_empty_gate -> () {
-        context "term connection";
-        fields {
-            require feature(TermHierarchy, empty());
-        }
-    }
+    alias "term connection" term_hierarchy_enabled_empty_gate =
+        feature(TermHierarchy, empty());
 
-    product term_hierarchy_disabled_sumti_guard(sumti) -> () {
-        context "term connection";
-        fields {
-            require feature(TermHierarchy, empty()).not();
-            require sumti.not();
-        }
-    }
+    alias "term connection" term_hierarchy_disabled_sumti_guard(sumti) =
+        sequence(
+            feature(TermHierarchy, empty()).not(),
+            sumti.not(),
+        ).ignored();
 
     node connected_term(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
         context "term connection";
@@ -1093,42 +1082,26 @@ macro_rules! declare_generated_syntax_grammar {
             bare_na_giha_follow(),
         ));
 
-    product bare_na_selbri_follow(selbri) -> () {
-        context "NA term";
-        fields {
-            require selbri;
-        }
-    }
+    alias "NA term" bare_na_selbri_follow(selbri) =
+        selbri.ignored();
 
-    product bare_na_modal_forethought_follow(tense_modal) -> () {
-        context "NA term";
-        fields {
-            require modal_forethought_connective(tense_modal);
-        }
-    }
+    alias "NA term" bare_na_modal_forethought_follow(tense_modal) =
+        modal_forethought_connective(tense_modal).ignored();
 
-    product bare_na_ja_follow -> () {
-        context "NA term";
-        fields {
-            require selmaho(Ja);
-        }
-    }
+    alias "NA term" bare_na_ja_follow =
+        selmaho(Ja).ignored();
 
-    product bare_na_a_follow -> () {
-        context "NA term";
-        fields {
-            require opt(selmaho(Se));
-            require selmaho(A);
-        }
-    }
+    alias "NA term" bare_na_a_follow =
+        sequence(
+            opt(selmaho(Se)),
+            selmaho(A),
+        ).ignored();
 
-    product bare_na_giha_follow -> () {
-        context "NA term";
-        fields {
-            require opt(selmaho(Se));
-            require selmaho(Giha);
-        }
-    }
+    alias "NA term" bare_na_giha_follow =
+        sequence(
+            opt(selmaho(Se)),
+            selmaho(Giha),
+        ).ignored();
 
     node tagged_sumti_before_tag_term(tense_modal, selbri) -> TermSyntax {
         context "tag";
@@ -1231,48 +1204,26 @@ macro_rules! declare_generated_syntax_grammar {
             fiho_leading_interval_property_follower(selbri),
         ));
 
-    product pu_leading_interval_property_follower -> () {
-        context "tag";
-        fields {
-            require selmaho(Pu);
-        }
-    }
+    alias "tag" pu_leading_interval_property_follower =
+        selmaho(Pu).ignored();
 
-    product zi_leading_interval_property_follower -> () {
-        context "tag";
-        fields {
-            require selmaho(Zi);
-        }
-    }
+    alias "tag" zi_leading_interval_property_follower =
+        selmaho(Zi).ignored();
 
-    product zeha_leading_interval_property_follower -> () {
-        context "tag";
-        fields {
-            require selmaho(Zeha);
-        }
-    }
+    alias "tag" zeha_leading_interval_property_follower =
+        selmaho(Zeha).ignored();
 
-    product nahe_caha_leading_interval_property_follower -> () {
-        context "tag";
-        fields {
-            require selmaho(Nahe);
-            require selmaho(Caha);
-        }
-    }
+    alias "tag" nahe_caha_leading_interval_property_follower =
+        sequence(
+            selmaho(Nahe),
+            selmaho(Caha),
+        ).ignored();
 
-    product modal_leading_interval_property_follower -> () {
-        context "modal tag";
-        fields {
-            require modal_tense();
-        }
-    }
+    alias "modal tag" modal_leading_interval_property_follower =
+        modal_tense().ignored();
 
-    product fiho_leading_interval_property_follower(selbri) -> () {
-        context "FIhO modal";
-        fields {
-            require fiho_tense(selbri);
-        }
-    }
+    alias "FIhO modal" fiho_leading_interval_property_follower(selbri) =
+        fiho_tense(selbri).ignored();
 
     node tagged_elided_sumti -> SumtiSyntax {
         context "elided sumti";
