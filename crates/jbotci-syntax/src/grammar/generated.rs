@@ -1706,9 +1706,25 @@ macro_rules! declare_generated_syntax_grammar {
         field sehu <- opt(cmavo(Sehu).prohibited_wf());
     }
 
-    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> struct {
+    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> enum {
+        xi_number_free_modifier,
+        xi_lerfu_string_free_modifier,
+        xi_parenthesized_free_modifier,
+    }
+
+    rule "subscript" xi_number_free_modifier(letter_tokens) -> struct {
         field xi <- selmaho(Xi).wf();
-        field expression <- boxed(mekso);
+        field expression <- boxed(number_mekso(letter_tokens));
+    }
+
+    rule "subscript" xi_lerfu_string_free_modifier(letter_string, free_modifier) -> struct {
+        field xi <- selmaho(Xi).wf();
+        field expression <- boxed(lerfu_string_mekso(letter_string, free_modifier));
+    }
+
+    rule "subscript" xi_parenthesized_free_modifier(mekso) -> struct {
+        field xi <- selmaho(Xi).wf();
+        field expression <- boxed(parenthesized_mekso_operand(mekso));
     }
 
     rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {

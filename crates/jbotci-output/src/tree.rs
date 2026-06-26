@@ -89,6 +89,32 @@ pub(crate) enum TreeValue {
     },
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct LegacyLeadingIStatementRenderPart<'tree> {
+    i: &'tree Token,
+    connective: Option<&'tree jbotci_syntax::ast::ConnectiveSyntax>,
+    free_modifiers: &'tree [jbotci_syntax::ast::FreeModifierSyntax],
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct LegacyParagraphStatementRenderPart<'tree> {
+    i: Option<&'tree Token>,
+    connective: Option<&'tree jbotci_syntax::ast::ConnectiveSyntax>,
+    free_modifiers: &'tree [jbotci_syntax::ast::FreeModifierSyntax],
+    statement: Option<&'tree jbotci_syntax::ast::StatementSyntax>,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct LegacyParagraphRenderPart<'tree> {
+    i: Option<&'tree Token>,
+    niho: &'tree [Token],
+    free_modifiers: &'tree [jbotci_syntax::ast::FreeModifierSyntax],
+    statements: Vec<LegacyParagraphStatementRenderPart<'tree>>,
+}
+
 #[invariant(::Operand(operand) => legacy_first_token_byte_start(operand).is_some())]
 #[invariant(::Operation { left, right, operator } => legacy_reverse_polish_expr_is_positioned(left.as_ref()) && legacy_reverse_polish_expr_is_positioned(right.as_ref()) && legacy_first_token_byte_start(operator).is_some())]
 #[derive(Debug)]
@@ -519,9 +545,11 @@ fn legacy_as_generated_text_tree_value(
             value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
         });
     }
-    if let Some(value) =
-        legacy_as_generated_text_paragraphs_tree_value(&tree.paragraphs, source, options)
-    {
+    if let Some(value) = legacy_as_generated_text_paragraphs_with_leading_i_projection_tree_value(
+        &tree.paragraphs,
+        source,
+        options,
+    ) {
         entries.push(TreeEntry { label: None, value });
     }
     TreeValue::Node(TreeNode {
@@ -544,8 +572,12 @@ fn legacy_as_generated_text_child_tree_value(
         && tree.leading_connective.is_none()
         && !tree.paragraphs.is_empty()
     {
-        return legacy_as_generated_text_paragraphs_tree_value(&tree.paragraphs, source, options)
-            .expect("paragraphs checked non-empty");
+        return legacy_as_generated_text_paragraphs_with_leading_i_projection_tree_value(
+            &tree.paragraphs,
+            source,
+            options,
+        )
+        .expect("paragraphs checked non-empty");
     }
 
     legacy_as_generated_text_tree_value(tree, source, options)
@@ -553,15 +585,135 @@ fn legacy_as_generated_text_child_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_text_paragraphs_tree_value(
+fn legacy_as_generated_text_paragraphs_with_leading_i_projection_tree_value(
     paragraphs: &[jbotci_syntax::ast::ParagraphSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let mut paragraphs = legacy_paragraph_render_parts(paragraphs);
+    let leading_markers = legacy_take_leading_i_statement_render_parts(&mut paragraphs);
+    let mut paragraph_values =
+        legacy_as_generated_text_paragraph_render_parts_tree_value(&paragraphs, source, options)
+            .into_iter()
+            .collect::<Vec<_>>();
+    for marker in leading_markers.iter().rev() {
+        prepend_legacy_leading_i_statement_value(marker, &mut paragraph_values, source, options);
+    }
+
+    match paragraph_values.len() {
+        0 => None,
+        1 => paragraph_values.pop(),
+        _ => Some(TreeValue::Collection(paragraph_values)),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_paragraph_render_parts(
+    paragraphs: &[jbotci_syntax::ast::ParagraphSyntax],
+) -> Vec<LegacyParagraphRenderPart<'_>> {
+    paragraphs
+        .iter()
+        .map(|paragraph| LegacyParagraphRenderPart {
+            i: paragraph.i.as_ref(),
+            niho: &paragraph.niho,
+            free_modifiers: &paragraph.free_modifiers,
+            statements: paragraph
+                .statements
+                .iter()
+                .map(|statement| LegacyParagraphStatementRenderPart {
+                    i: statement.i.as_ref(),
+                    connective: statement.connective.as_deref(),
+                    free_modifiers: &statement.free_modifiers,
+                    statement: statement.statement.as_deref(),
+                })
+                .filter(|statement| !legacy_paragraph_statement_part_is_empty(statement))
+                .collect(),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_paragraph_statement_part_is_empty(
+    statement: &LegacyParagraphStatementRenderPart<'_>,
+) -> bool {
+    statement.i.is_none()
+        && statement.connective.is_none()
+        && statement.free_modifiers.is_empty()
+        && statement.statement.is_none()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_take_leading_i_statement_render_parts<'tree>(
+    paragraphs: &mut Vec<LegacyParagraphRenderPart<'tree>>,
+) -> Vec<LegacyLeadingIStatementRenderPart<'tree>> {
+    let mut markers = Vec::new();
+    loop {
+        let Some(first_paragraph) = paragraphs.first_mut() else {
+            break;
+        };
+        if let Some(i) = first_paragraph.i.take() {
+            markers.push(LegacyLeadingIStatementRenderPart {
+                i,
+                connective: None,
+                free_modifiers: &[],
+            });
+            if first_paragraph.niho.is_empty()
+                && first_paragraph.free_modifiers.is_empty()
+                && first_paragraph.statements.is_empty()
+            {
+                paragraphs.remove(0);
+                continue;
+            }
+            break;
+        }
+
+        if !first_paragraph.niho.is_empty() || !first_paragraph.free_modifiers.is_empty() {
+            break;
+        }
+
+        let Some(first_statement) = first_paragraph.statements.first_mut() else {
+            paragraphs.remove(0);
+            continue;
+        };
+        let Some(i) = first_statement.i.take() else {
+            break;
+        };
+        markers.push(LegacyLeadingIStatementRenderPart {
+            i,
+            connective: first_statement.connective.take(),
+            free_modifiers: first_statement.free_modifiers,
+        });
+        first_statement.free_modifiers = &[];
+
+        if first_statement.connective.is_none()
+            && first_statement.free_modifiers.is_empty()
+            && first_statement.statement.is_none()
+        {
+            first_paragraph.statements.remove(0);
+            if first_paragraph.statements.is_empty() {
+                paragraphs.remove(0);
+            }
+            continue;
+        }
+        break;
+    }
+    markers
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_text_paragraph_render_parts_tree_value(
+    paragraphs: &[LegacyParagraphRenderPart<'_>],
     source: &str,
     options: TreeRenderOptions,
 ) -> Option<TreeValue> {
     let first = paragraphs.first()?;
     if first.i.is_some() || first.niho.is_empty() {
         return Some(
-            legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
+            legacy_as_generated_text_paragraph_with_additional_niho_render_parts_tree_value(
                 first,
                 &paragraphs[1..],
                 source,
@@ -570,27 +722,29 @@ fn legacy_as_generated_text_paragraphs_tree_value(
         );
     }
 
-    Some(legacy_as_generated_text_niho_paragraphs_tree_value(
-        paragraphs, source, options,
-    ))
+    Some(
+        legacy_as_generated_text_niho_paragraph_render_parts_tree_value(
+            paragraphs, source, options,
+        ),
+    )
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
-    first: &jbotci_syntax::ast::ParagraphSyntax,
-    additional_niho: &[jbotci_syntax::ast::ParagraphSyntax],
+fn legacy_as_generated_text_paragraph_with_additional_niho_render_parts_tree_value(
+    first: &LegacyParagraphRenderPart<'_>,
+    additional_niho: &[LegacyParagraphRenderPart<'_>],
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
     let inner = if additional_niho.is_empty() {
-        legacy_as_generated_paragraph_tree_value(first, source, options)
+        legacy_as_generated_paragraph_render_part_tree_value(first, source, options)
     } else {
         TreeValue::Node(TreeNode {
             constructor: "TextParagraphWithAdditionalNiho",
             entries: std::iter::once(TreeEntry {
                 label: None,
-                value: legacy_as_generated_paragraph_tree_value(first, source, options),
+                value: legacy_as_generated_paragraph_render_part_tree_value(first, source, options),
             })
             .chain(std::iter::once(TreeEntry {
                 label: Some("additional_niho"),
@@ -598,7 +752,9 @@ fn legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
                     additional_niho
                         .iter()
                         .map(|paragraph| {
-                            legacy_as_generated_paragraph_tree_value(paragraph, source, options)
+                            legacy_as_generated_niho_paragraph_render_part_tree_value(
+                                paragraph, source, options,
+                            )
                         })
                         .collect(),
                 ),
@@ -617,8 +773,8 @@ fn legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_text_niho_paragraphs_tree_value(
-    paragraphs: &[jbotci_syntax::ast::ParagraphSyntax],
+fn legacy_as_generated_text_niho_paragraph_render_parts_tree_value(
+    paragraphs: &[LegacyParagraphRenderPart<'_>],
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
@@ -634,7 +790,9 @@ fn legacy_as_generated_text_niho_paragraphs_tree_value(
                         paragraphs
                             .iter()
                             .map(|paragraph| {
-                                legacy_as_generated_paragraph_tree_value(paragraph, source, options)
+                                legacy_as_generated_niho_paragraph_render_part_tree_value(
+                                    paragraph, source, options,
+                                )
                             })
                             .collect(),
                     ),
@@ -642,6 +800,399 @@ fn legacy_as_generated_text_niho_paragraphs_tree_value(
             }),
         }],
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_legacy_leading_i_statement_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    paragraph_values: &mut Vec<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    if paragraph_values.is_empty() {
+        paragraph_values.push(legacy_paragraph_with_marker_value(
+            marker, None, source, options,
+        ));
+        return;
+    }
+
+    let first_paragraph =
+        std::mem::replace(&mut paragraph_values[0], TreeValue::Collection(Vec::new()));
+    paragraph_values[0] =
+        legacy_prepend_marker_to_paragraph_value(marker, first_paragraph, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_prepend_marker_to_paragraph_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    paragraph: TreeValue,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match paragraph {
+        TreeValue::Node(mut node)
+            if node.constructor == "TextParagraphWithAdditionalNiho"
+                || node.constructor == "TextNihoParagraphs" =>
+        {
+            if let Some(position) = node.entries.iter().position(|entry| {
+                entry.label == Some("text_paragraph_with_additional_niho")
+                    || entry.label == Some("text_niho_paragraphs")
+                    || entry.label == Some("paragraphs")
+                    || entry.label.is_none()
+            }) {
+                let value = std::mem::replace(
+                    &mut node.entries[position].value,
+                    TreeValue::Collection(Vec::new()),
+                );
+                node.entries[position].value =
+                    legacy_prepend_marker_to_paragraph_value(marker, value, source, options);
+            }
+            TreeValue::Node(node)
+        }
+        TreeValue::Node(mut node) if node.constructor == "Paragraph" => {
+            if generated_paragraph_has_niho(&node) {
+                prepend_legacy_marker_to_paragraph_node(marker, &mut node, source, options);
+                return TreeValue::Node(node);
+            }
+            let statement_position = node
+                .entries
+                .iter()
+                .position(|entry| entry.label.is_none() || entry.label == Some("simple_paragraph"));
+            let statement_already_marked = statement_position
+                .and_then(|position| node.entries.get(position))
+                .is_some_and(|entry| generated_paragraph_statement_value_has_i(&entry.value));
+            if statement_already_marked {
+                node.entries.insert(
+                    statement_position.expect("checked above"),
+                    TreeEntry {
+                        label: None,
+                        value: legacy_paragraph_statement_with_marker_value(
+                            marker, None, source, options,
+                        ),
+                    },
+                );
+                return TreeValue::Node(node);
+            }
+            let statement_value = statement_position.map(|position| node.entries.remove(position));
+            let replacement = legacy_paragraph_statement_with_marker_value(
+                marker,
+                statement_value.as_ref().map(|entry| entry.value.clone()),
+                source,
+                options,
+            );
+            match statement_position {
+                Some(position) => node.entries.insert(
+                    position,
+                    TreeEntry {
+                        label: statement_value.and_then(|entry| entry.label),
+                        value: replacement,
+                    },
+                ),
+                None => node.entries.insert(
+                    0,
+                    TreeEntry {
+                        label: None,
+                        value: replacement,
+                    },
+                ),
+            }
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            legacy_prepend_marker_to_paragraph_value(marker, *value, source, options),
+        ),
+        TreeValue::Collection(mut items) => {
+            if items.is_empty() {
+                items.push(legacy_paragraph_with_marker_value(
+                    marker, None, source, options,
+                ));
+            } else {
+                let first_item = items.remove(0);
+                items.insert(
+                    0,
+                    legacy_prepend_marker_to_paragraph_value(marker, first_item, source, options),
+                );
+            }
+            TreeValue::Collection(items)
+        }
+        value => legacy_paragraph_with_marker_value(marker, Some(value), source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_legacy_marker_to_paragraph_node(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    node.entries.insert(
+        0,
+        TreeEntry {
+            label: Some("i"),
+            value: generated_token_tree_value(marker.i, source, options),
+        },
+    );
+    attach_legacy_marker_to_niho_paragraph_statement(marker, node, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_legacy_marker_to_niho_paragraph_statement(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    let Some(statement_position) = node.entries.iter().position(|entry| entry.label.is_none())
+    else {
+        node.entries.push(TreeEntry {
+            label: None,
+            value: legacy_niho_marker_paragraph_statement_value(marker, source, options),
+        });
+        return;
+    };
+    let statement = std::mem::replace(
+        &mut node.entries[statement_position].value,
+        TreeValue::Collection(Vec::new()),
+    );
+    node.entries[statement_position].value =
+        attach_legacy_marker_to_paragraph_statement_value(marker, statement, source, options);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_niho_marker_paragraph_statement_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "ParagraphStatement",
+        entries: legacy_niho_marker_paragraph_statement_entries(marker, source, options),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_niho_marker_paragraph_statement_entries(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    let mut entries = Vec::new();
+    if let Some(connective) = marker.connective {
+        entries.push(TreeEntry {
+            label: Some("connective"),
+            value: legacy_as_generated_connective_tree_value(connective, source, options),
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        marker
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    entries
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_legacy_marker_to_paragraph_statement_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    statement: TreeValue,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match statement {
+        TreeValue::Node(mut node) if node.constructor == "ParagraphStatement" => {
+            set_legacy_paragraph_statement_connective(marker, &mut node, source, options);
+            prepend_legacy_paragraph_statement_free_modifiers(marker, &mut node, source, options);
+            TreeValue::Node(node)
+        }
+        TreeValue::Syntax { syntax_ids, value } => syntax_value(
+            syntax_ids,
+            attach_legacy_marker_to_paragraph_statement_value(marker, *value, source, options),
+        ),
+        value => {
+            let mut entries =
+                legacy_niho_marker_paragraph_statement_entries(marker, source, options);
+            entries.push(TreeEntry { label: None, value });
+            TreeValue::Node(TreeNode {
+                constructor: "ParagraphStatement",
+                entries,
+            })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_legacy_paragraph_statement_connective(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    if let Some(position) = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("connective"))
+    {
+        node.entries.remove(position);
+    }
+    let Some(connective) = marker.connective else {
+        return;
+    };
+    let insertion_index = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("free_modifiers") || entry.label.is_none())
+        .unwrap_or(node.entries.len());
+    node.entries.insert(
+        insertion_index,
+        TreeEntry {
+            label: Some("connective"),
+            value: legacy_as_generated_connective_tree_value(connective, source, options),
+        },
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_legacy_paragraph_statement_free_modifiers(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    node: &mut TreeNode,
+    source: &str,
+    options: TreeRenderOptions,
+) {
+    let mut marker_free_modifiers = marker
+        .free_modifiers
+        .iter()
+        .map(|free_modifier| {
+            legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+        })
+        .collect::<Vec<_>>();
+    if marker_free_modifiers.is_empty() {
+        return;
+    }
+
+    if let Some(position) = node
+        .entries
+        .iter()
+        .position(|entry| entry.label == Some("free_modifiers"))
+    {
+        let existing = node.entries.remove(position).value;
+        marker_free_modifiers.extend(tree_value_collection_items(existing));
+        node.entries.insert(
+            position,
+            TreeEntry {
+                label: Some("free_modifiers"),
+                value: TreeValue::Collection(marker_free_modifiers),
+            },
+        );
+        return;
+    }
+
+    let insertion_index = node
+        .entries
+        .iter()
+        .position(|entry| entry.label.is_none())
+        .unwrap_or(node.entries.len());
+    node.entries.insert(
+        insertion_index,
+        TreeEntry {
+            label: Some("free_modifiers"),
+            value: TreeValue::Collection(marker_free_modifiers),
+        },
+    );
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_paragraph_with_marker_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    statement: Option<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "Paragraph",
+        entries: vec![TreeEntry {
+            label: None,
+            value: legacy_paragraph_statement_with_marker_value(marker, statement, source, options),
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_paragraph_statement_with_marker_value(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    statement: Option<TreeValue>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = legacy_leading_i_statement_entries(marker, source, options);
+    match statement {
+        Some(TreeValue::Node(node)) if node.constructor == "ParagraphStatement" => {
+            entries.extend(node.entries);
+        }
+        Some(TreeValue::Syntax { syntax_ids, value }) => {
+            entries.push(TreeEntry {
+                label: None,
+                value: syntax_value(syntax_ids, *value),
+            });
+        }
+        Some(value) => entries.push(TreeEntry { label: None, value }),
+        None => {}
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "ParagraphStatement",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_leading_i_statement_entries(
+    marker: &LegacyLeadingIStatementRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    let mut entries = vec![TreeEntry {
+        label: Some("i"),
+        value: generated_token_tree_value(marker.i, source, options),
+    }];
+    if let Some(connective) = marker.connective {
+        entries.push(TreeEntry {
+            label: Some("connective"),
+            value: legacy_as_generated_connective_tree_value(connective, source, options),
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        marker
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    entries
 }
 
 #[requires(true)]
@@ -719,16 +1270,48 @@ fn legacy_as_generated_paragraph_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    if paragraph.i.is_none() && paragraph.niho.is_empty() && paragraph.free_modifiers.is_empty() {
-        return TreeValue::Node(TreeNode {
-            constructor: "Paragraph",
-            entries: vec![TreeEntry {
-                label: Some("simple_paragraph"),
-                value: legacy_as_generated_simple_paragraph_tree_value(paragraph, source, options),
-            }],
-        });
-    }
+    let mut paragraphs = legacy_paragraph_render_parts(std::slice::from_ref(paragraph));
+    let paragraph = paragraphs
+        .pop()
+        .expect("slice::from_ref produces one render part");
+    legacy_as_generated_paragraph_render_part_tree_value(&paragraph, source, options)
+}
 
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_paragraph_render_part_tree_value(
+    paragraph: &LegacyParagraphRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if paragraph.i.is_some() {
+        return legacy_as_generated_i_niho_paragraph_render_part_tree_value(
+            paragraph, source, options,
+        );
+    }
+    if !paragraph.niho.is_empty() {
+        return legacy_as_generated_niho_paragraph_render_part_tree_value(
+            paragraph, source, options,
+        );
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "Paragraph",
+        entries: vec![TreeEntry {
+            label: Some("simple_paragraph"),
+            value: legacy_as_generated_simple_paragraph_render_part_tree_value(
+                paragraph, source, options,
+            ),
+        }],
+    })
+}
+
+#[requires(paragraph.i.is_some())]
+#[ensures(true)]
+fn legacy_as_generated_i_niho_paragraph_render_part_tree_value(
+    paragraph: &LegacyParagraphRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
     let mut entries = Vec::new();
     if let Some(i) = &paragraph.i {
         entries.push(TreeEntry {
@@ -761,7 +1344,7 @@ fn legacy_as_generated_paragraph_tree_value(
     if !paragraph.statements.is_empty() {
         entries.push(TreeEntry {
             label: None,
-            value: legacy_as_generated_paragraph_statement_sequence_tree_value(
+            value: legacy_as_generated_paragraph_statement_sequence_render_part_tree_value(
                 &paragraph.statements,
                 source,
                 options,
@@ -769,19 +1352,69 @@ fn legacy_as_generated_paragraph_tree_value(
         });
     }
     TreeValue::Node(TreeNode {
-        constructor: "Paragraph",
+        constructor: "INihoParagraph",
         entries,
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_simple_paragraph_tree_value(
-    paragraph: &jbotci_syntax::ast::ParagraphSyntax,
+fn legacy_as_generated_niho_paragraph_render_part_tree_value(
+    paragraph: &LegacyParagraphRenderPart<'_>,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    legacy_as_generated_paragraph_statement_sequence_tree_value(
+    assert!(
+        paragraph.i.is_none(),
+        "legacy niho paragraph render part unexpectedly retained an .i marker"
+    );
+    let mut entries = Vec::new();
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "niho",
+        paragraph
+            .niho
+            .iter()
+            .map(|token| generated_token_tree_value(token, source, options))
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        paragraph
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if !paragraph.statements.is_empty() {
+        entries.push(TreeEntry {
+            label: None,
+            value: legacy_as_generated_paragraph_statement_sequence_render_part_tree_value(
+                &paragraph.statements,
+                source,
+                options,
+            ),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "NihoParagraph",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_simple_paragraph_render_part_tree_value(
+    paragraph: &LegacyParagraphRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    legacy_as_generated_paragraph_statement_sequence_render_part_tree_value(
         &paragraph.statements,
         source,
         options,
@@ -795,16 +1428,36 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    let statements = statements
+        .iter()
+        .map(|statement| LegacyParagraphStatementRenderPart {
+            i: statement.i.as_ref(),
+            connective: statement.connective.as_deref(),
+            free_modifiers: &statement.free_modifiers,
+            statement: statement.statement.as_deref(),
+        })
+        .collect::<Vec<_>>();
+    legacy_as_generated_paragraph_statement_sequence_render_part_tree_value(
+        &statements,
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_paragraph_statement_sequence_render_part_tree_value(
+    statements: &[LegacyParagraphStatementRenderPart<'_>],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
     let first = statements
         .first()
         .expect("paragraph statement sequence is non-empty");
-    if statements.len() == 1 {
-        return legacy_as_generated_paragraph_statement_tree_value(first, source, options);
-    }
 
     let trailing_start = statements[1..]
         .iter()
-        .position(legacy_paragraph_statement_is_trailing_ijek)
+        .position(legacy_paragraph_statement_part_is_trailing_ijek)
         .map(|position| position + 1)
         .unwrap_or(statements.len());
     let following = &statements[1..trailing_start];
@@ -812,7 +1465,9 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
 
     let mut entries = vec![TreeEntry {
         label: None,
-        value: legacy_as_generated_paragraph_statement_tree_value(first, source, options),
+        value: legacy_as_generated_paragraph_statement_render_part_tree_value(
+            first, source, options,
+        ),
     }];
     if !following.is_empty() {
         entries.push(TreeEntry {
@@ -821,7 +1476,7 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
                 following
                     .iter()
                     .map(|statement| {
-                        legacy_as_generated_following_paragraph_statement_tree_value(
+                        legacy_as_generated_following_paragraph_statement_render_part_tree_value(
                             statement, source, options,
                         )
                     })
@@ -836,7 +1491,7 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
                 trailing
                     .iter()
                     .map(|statement| {
-                        legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
+                        legacy_as_generated_trailing_ijek_paragraph_statement_render_part_tree_value(
                             statement, source, options,
                         )
                     })
@@ -863,8 +1518,66 @@ fn legacy_paragraph_statement_is_trailing_ijek(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_paragraph_statement_part_is_trailing_ijek(
+    statement: &LegacyParagraphStatementRenderPart<'_>,
+) -> bool {
+    (statement.i.is_some()
+        && statement.connective.is_some()
+        && statement.free_modifiers.is_empty()
+        && statement.statement.is_none())
+        || legacy_trailing_ijek_fragment_statement_parts(statement).is_some()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_trailing_ijek_fragment_statement_parts<'tree>(
+    statement: &LegacyParagraphStatementRenderPart<'tree>,
+) -> Option<(&'tree Token, &'tree jbotci_syntax::ast::ConnectiveSyntax)> {
+    if statement.i.is_some()
+        || statement.connective.is_some()
+        || !statement.free_modifiers.is_empty()
+    {
+        return None;
+    }
+    let Some(inner_statement) = statement.statement else {
+        return None;
+    };
+    let bityzba::data!(jbotci_syntax::ast::StatementSyntax::Fragment(fragment)) =
+        inner_statement.as_data()
+    else {
+        return None;
+    };
+    let bityzba::data!(jbotci_syntax::ast::FragmentSyntax::BridiConnective { i, connective }) =
+        fragment.as_data()
+    else {
+        return None;
+    };
+    Some((i, connective))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_paragraph_statement_tree_value(
     statement: &jbotci_syntax::ast::ParagraphStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    legacy_as_generated_paragraph_statement_render_part_tree_value(
+        &LegacyParagraphStatementRenderPart {
+            i: statement.i.as_ref(),
+            connective: statement.connective.as_deref(),
+            free_modifiers: &statement.free_modifiers,
+            statement: statement.statement.as_deref(),
+        },
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_paragraph_statement_render_part_tree_value(
+    statement: &LegacyParagraphStatementRenderPart<'_>,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
@@ -873,11 +1586,7 @@ fn legacy_as_generated_paragraph_statement_tree_value(
         && statement.free_modifiers.is_empty()
         && let Some(inner) = &statement.statement
     {
-        return legacy_as_generated_statement_or_fragment_tree_value(
-            inner.as_ref(),
-            source,
-            options,
-        );
+        return legacy_as_generated_statement_or_fragment_tree_value(inner, source, options);
     }
 
     let mut entries = Vec::new();
@@ -890,7 +1599,7 @@ fn legacy_as_generated_paragraph_statement_tree_value(
     if let Some(connective) = &statement.connective {
         entries.push(TreeEntry {
             label: Some("connective"),
-            value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
+            value: required_legacy_syntax_subtree_value(*connective, source, options),
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -908,11 +1617,7 @@ fn legacy_as_generated_paragraph_statement_tree_value(
     if let Some(inner) = &statement.statement {
         entries.push(TreeEntry {
             label: None,
-            value: legacy_as_generated_statement_or_fragment_tree_value(
-                inner.as_ref(),
-                source,
-                options,
-            ),
+            value: legacy_as_generated_statement_or_fragment_tree_value(inner, source, options),
         });
     }
     TreeValue::Node(TreeNode {
@@ -928,10 +1633,30 @@ fn legacy_as_generated_following_paragraph_statement_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let i = statement
-        .i
-        .as_ref()
-        .expect("legacy following paragraph statement must have an .i marker");
+    legacy_as_generated_following_paragraph_statement_render_part_tree_value(
+        &LegacyParagraphStatementRenderPart {
+            i: statement.i.as_ref(),
+            connective: statement.connective.as_deref(),
+            free_modifiers: &statement.free_modifiers,
+            statement: statement.statement.as_deref(),
+        },
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_following_paragraph_statement_render_part_tree_value(
+    statement: &LegacyParagraphStatementRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let Some(i) = statement.i else {
+        return legacy_as_generated_paragraph_statement_render_part_tree_value(
+            statement, source, options,
+        );
+    };
     assert!(
         statement.connective.is_none(),
         "legacy following paragraph statement has an unexpected connective"
@@ -955,11 +1680,7 @@ fn legacy_as_generated_following_paragraph_statement_tree_value(
     if let Some(inner) = &statement.statement {
         entries.push(TreeEntry {
             label: None,
-            value: legacy_as_generated_statement_or_fragment_tree_value(
-                inner.as_ref(),
-                source,
-                options,
-            ),
+            value: legacy_as_generated_statement_or_fragment_tree_value(inner, source, options),
         });
     }
     TreeValue::Node(TreeNode {
@@ -975,22 +1696,45 @@ fn legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let i = statement
-        .i
-        .as_ref()
-        .expect("legacy trailing paragraph statement must have an .i marker");
-    let connective = statement
-        .connective
-        .as_ref()
-        .expect("legacy trailing paragraph statement must have a connective");
-    assert!(
-        statement.free_modifiers.is_empty(),
-        "legacy trailing paragraph statement has unexpected free modifiers"
-    );
-    assert!(
-        statement.statement.is_none(),
-        "legacy trailing paragraph statement has an unexpected statement"
-    );
+    legacy_as_generated_trailing_ijek_paragraph_statement_render_part_tree_value(
+        &LegacyParagraphStatementRenderPart {
+            i: statement.i.as_ref(),
+            connective: statement.connective.as_deref(),
+            free_modifiers: &statement.free_modifiers,
+            statement: statement.statement.as_deref(),
+        },
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_trailing_ijek_paragraph_statement_render_part_tree_value(
+    statement: &LegacyParagraphStatementRenderPart<'_>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (i, connective) =
+        if let Some(parts) = legacy_trailing_ijek_fragment_statement_parts(statement) {
+            parts
+        } else {
+            let i = statement
+                .i
+                .expect("legacy trailing paragraph statement must have an .i marker");
+            let connective = statement
+                .connective
+                .expect("legacy trailing paragraph statement must have a connective");
+            assert!(
+                statement.free_modifiers.is_empty(),
+                "legacy trailing paragraph statement has unexpected free modifiers"
+            );
+            assert!(
+                statement.statement.is_none(),
+                "legacy trailing paragraph statement has an unexpected statement"
+            );
+            (i, connective)
+        };
     TreeValue::Node(TreeNode {
         constructor: "TrailingIjekParagraphStatement",
         entries: vec![
@@ -1000,7 +1744,7 @@ fn legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
             },
             TreeEntry {
                 label: Some("connective"),
-                value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
+                value: required_legacy_syntax_subtree_value(connective, source, options),
             },
         ],
     })
@@ -1285,7 +2029,7 @@ fn legacy_as_generated_statement_base_tree_value(
             entries: vec![
                 TreeEntry {
                     label: Some("leading_statement"),
-                    value: legacy_as_generated_statement_tree_value(
+                    value: legacy_as_generated_statement_connection_operand_tree_value(
                         leading_statement.as_ref(),
                         source,
                         options,
@@ -1467,10 +2211,18 @@ fn legacy_as_generated_fragment_statement_tree_value(
             }],
         }),
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Other(_))
-        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumti { .. })
-        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumtiContinuation(
+        | bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumti { .. }) => {
+            legacy_as_generated_fragment_tree_value(fragment, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumtiContinuation(
             _
-        )) => legacy_as_generated_fragment_tree_value(fragment, source, options),
+        )) => TreeValue::Node(TreeNode {
+            constructor: "LinkedSumtiContinuationFragment",
+            entries: vec![TreeEntry {
+                label: Some("linked_sumti_continuation_fragment"),
+                value: legacy_as_generated_fragment_tree_value(fragment, source, options),
+            }],
+        }),
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Terms { .. }) => {
             TreeValue::Node(TreeNode {
                 constructor: "TermsFragment",
@@ -1491,7 +2243,7 @@ fn legacy_as_generated_fragment_statement_tree_value(
         }
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Prenex { .. }) => {
             TreeValue::Node(TreeNode {
-                constructor: "PrenexFragment",
+                constructor: "Prenex",
                 entries: vec![TreeEntry {
                     label: Some("prenex_fragment"),
                     value: legacy_as_generated_fragment_tree_value(fragment, source, options),
@@ -1585,17 +2337,7 @@ fn legacy_as_generated_fragment_tree_value(
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::RelativeClauses(
             relative_clauses
         )) => {
-            let values = relative_clauses
-                .iter()
-                .map(|relative_clause| {
-                    legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
-                })
-                .collect::<Vec<_>>();
-            if values.len() == 1 {
-                values.into_iter().next().expect("length checked")
-            } else {
-                TreeValue::Collection(values)
-            }
+            legacy_as_generated_relative_clause_list_tree_value(relative_clauses, source, options)
         }
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::Prenex { terms, zohu }) => {
             let mut entries = Vec::new();
@@ -1610,7 +2352,7 @@ fn legacy_as_generated_fragment_tree_value(
             }
             entries.extend(legacy_token_field_entries("zohu", zohu, source, options));
             TreeValue::Node(TreeNode {
-                constructor: "Prenex",
+                constructor: "PrenexFragment",
                 entries,
             })
         }
@@ -2048,7 +2790,7 @@ fn legacy_as_generated_bridi_tail_ke_continuation_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -2119,7 +2861,7 @@ fn legacy_as_generated_gihek_bridi_tail_ke_continuation_tree_value(
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -2190,7 +2932,7 @@ fn legacy_as_generated_bridi_tail_connection_tree_value(
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(cu) = &continuation.cu {
         entries.push(TreeEntry {
@@ -2250,7 +2992,7 @@ fn legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(cu) = &continuation.cu {
         entries.push(TreeEntry {
@@ -2281,7 +3023,7 @@ fn legacy_as_generated_bound_bridi_tail_connection_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -2354,7 +3096,7 @@ fn legacy_as_generated_bound_bridi_tail_connection_without_tail_terms_tree_value
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -2868,15 +3610,52 @@ fn legacy_as_generated_connective_tree_value(
         }
     }
 
-    if let bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Afterthought {
-        se: None,
-        nahe: None,
-        na: None,
-        cmavo,
-        nai: None,
-    }) = connective.as_data()
-        && !cmavo.free_modifiers.is_empty()
-    {
+    let simple_connective_with_free_modifiers = match connective.as_data() {
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Afterthought {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("Afterthought", cmavo)),
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Selbri {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("Selbri", cmavo)),
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::BridiTail {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("BridiTail", cmavo)),
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Forethought {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("Forethought", cmavo)),
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::NonLogical {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("NonLogical", cmavo)),
+        bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Interval {
+            se: None,
+            nahe: None,
+            na: None,
+            cmavo,
+            nai: None,
+        }) if !cmavo.free_modifiers.is_empty() => Some(("Interval", cmavo)),
+        _ => None,
+    };
+    if let Some((constructor, cmavo)) = simple_connective_with_free_modifiers {
         let mut entries = cmavo
             .value
             .iter()
@@ -2898,7 +3677,7 @@ fn legacy_as_generated_connective_tree_value(
             entries.push(entry);
         }
         return TreeValue::Node(TreeNode {
-            constructor: "Afterthought",
+            constructor,
             entries,
         });
     }
@@ -4090,19 +4869,11 @@ fn legacy_as_generated_free_modifier_tree_value(
             )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::Subscript { xi, expression }) => {
-            let mut entries = legacy_token_field_entries("xi", xi, source, options);
-            entries.push(TreeEntry {
-                label: Some("expression"),
-                value: legacy_as_generated_subscript_expression_tree_value(
-                    expression.as_ref(),
-                    source,
-                    options,
-                ),
-            });
-            legacy_as_generated_free_modifier_variant_tree_value(
-                "XiFreeModifier",
-                "xi_free_modifier",
-                entries,
+            legacy_as_generated_xi_free_modifier_tree_value(
+                xi,
+                expression.as_ref(),
+                source,
+                options,
             )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::UtteranceOrdinal {
@@ -4169,6 +4940,114 @@ fn legacy_as_generated_free_modifier_variant_tree_value(
         constructor,
         entries: vec![TreeEntry {
             label: Some(label),
+            value: inner,
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_xi_free_modifier_tree_value(
+    xi: &WithFreeModifiers<Token>,
+    expression: &jbotci_syntax::ast::MeksoSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (constructor, label, mut entries) = match expression.as_data() {
+        bityzba::data!(jbotci_syntax::ast::MeksoSyntax::NumberMekso(quantifier)) => {
+            if let bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::NumberQuantifier {
+                number,
+                boi,
+            }) = quantifier.as_data()
+                && number
+                    .value
+                    .iter()
+                    .next()
+                    .is_some_and(legacy_token_is_letter_word)
+            {
+                (
+                    "XiLerfuStringFreeModifier",
+                    "xi_lerfu_string_free_modifier",
+                    vec![TreeEntry {
+                        label: Some("expression"),
+                        value: legacy_as_generated_lerfu_string_mekso_tree_value(
+                            number,
+                            boi.as_ref(),
+                            source,
+                            options,
+                        ),
+                    }],
+                )
+            } else {
+                (
+                    "XiNumberFreeModifier",
+                    "xi_number_free_modifier",
+                    vec![TreeEntry {
+                        label: Some("expression"),
+                        value: legacy_as_generated_number_mekso_tree_value(
+                            quantifier.as_ref(),
+                            source,
+                            options,
+                        ),
+                    }],
+                )
+            }
+        }
+        bityzba::data!(jbotci_syntax::ast::MeksoSyntax::LerfuStringMekso { letter, boi }) => (
+            "XiLerfuStringFreeModifier",
+            "xi_lerfu_string_free_modifier",
+            vec![TreeEntry {
+                label: Some("expression"),
+                value: legacy_as_generated_lerfu_string_mekso_tree_value(
+                    letter,
+                    boi.as_ref(),
+                    source,
+                    options,
+                ),
+            }],
+        ),
+        bityzba::data!(jbotci_syntax::ast::MeksoSyntax::ParenthesizedMekso {
+            vei,
+            inner_expression,
+            veho,
+        }) => {
+            let mut expression_entries = legacy_token_field_entries("vei", vei, source, options);
+            expression_entries.push(TreeEntry {
+                label: Some("inner_expression"),
+                value: legacy_as_generated_mekso_tree_value(
+                    inner_expression.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            if let Some(veho) = veho {
+                expression_entries
+                    .extend(legacy_token_field_entries("veho", veho, source, options));
+            }
+            (
+                "XiParenthesizedFreeModifier",
+                "xi_parenthesized_free_modifier",
+                vec![TreeEntry {
+                    label: Some("expression"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "ParenthesizedMeksoOperand",
+                        entries: expression_entries,
+                    }),
+                }],
+            )
+        }
+        _ => {
+            panic!(
+                "legacy subscript expression is not a bare number, lerfu string, or parenthesized mex"
+            )
+        }
+    };
+    entries.splice(0..0, legacy_token_field_entries("xi", xi, source, options));
+    let inner = legacy_as_generated_free_modifier_variant_tree_value(constructor, label, entries);
+    TreeValue::Node(TreeNode {
+        constructor: "XiFreeModifier",
+        entries: vec![TreeEntry {
+            label: Some("xi_free_modifier"),
             value: inner,
         }],
     })
@@ -4783,7 +5662,9 @@ fn legacy_sumti_afterthought_parts<'tree>(
                 entries: vec![
                     TreeEntry {
                         label: Some("connective"),
-                        value: required_legacy_syntax_subtree_value(connective, source, options),
+                        value: legacy_as_generated_connective_tree_value(
+                            connective, source, options,
+                        ),
                     },
                     TreeEntry {
                         label: Some("sumti"),
@@ -4820,7 +5701,11 @@ fn legacy_as_generated_sumti_bound_tree_value(
         if let Some(connective) = bo_connective {
             tail_entries.push(TreeEntry {
                 label: Some("connective"),
-                value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
+                value: legacy_as_generated_connective_tree_value(
+                    connective.as_ref(),
+                    source,
+                    options,
+                ),
             });
         }
         if let Some(tense_modal) = bo_tense_modal {
@@ -4971,12 +5856,7 @@ fn legacy_as_generated_simple_sumti_tree_value(
         }
         if let Some(entry) = labelled_tree_collection_entry_from_values(
             "relative_clauses",
-            relative_clauses
-                .iter()
-                .map(|relative_clause| {
-                    legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
-                })
-                .collect(),
+            legacy_as_generated_relative_clause_list_tree_values(relative_clauses, source, options),
         ) {
             entries.push(entry);
         }
@@ -5789,13 +6669,11 @@ fn legacy_as_generated_gadri_elided_description_sumti_tree_value(
         ];
         if let Some(entry) = labelled_tree_collection_entry_from_values(
             "relative_clauses",
-            description
-                .relative_clauses
-                .iter()
-                .map(|relative_clause| {
-                    legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
-                })
-                .collect(),
+            legacy_as_generated_relative_clause_list_tree_values(
+                &description.relative_clauses,
+                source,
+                options,
+            ),
         ) {
             entries.push(entry);
         }
@@ -6993,6 +7871,9 @@ fn legacy_mekso_connection_parts<'tree>(
         &'tree jbotci_syntax::ast::MeksoSyntax,
     )>,
 )> {
+    if legacy_bound_mekso_operand_parts(mekso).is_some() {
+        return None;
+    }
     match mekso.as_data() {
         bityzba::data!(jbotci_syntax::ast::MeksoSyntax::MeksoConnection {
             left_expression,
@@ -7043,37 +7924,14 @@ fn legacy_as_generated_bound_mekso_operand_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> Option<TreeValue> {
-    let bityzba::data!(jbotci_syntax::ast::MeksoSyntax::MeksoConnection {
-        left_expression,
-        connective,
-        right_expression,
-    }) = mekso.as_data()
-    else {
-        return None;
-    };
-    let bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Afterthought {
-        se: None,
-        nahe: None,
-        na: None,
-        cmavo,
-        nai: None,
-    }) = connective.as_data()
-    else {
-        return None;
-    };
-    let words = cmavo.value.as_slice();
-    let [operand_connective, tense_words @ .., bo] = words else {
-        return None;
-    };
-    if !bo.is_cmavo(Cmavo::Bo) {
-        return None;
-    }
+    let (left_expression, operand_connective, tense_words, bo, right_expression) =
+        legacy_bound_mekso_operand_parts(mekso)?;
 
     let mut entries = vec![
         TreeEntry {
             label: Some("left_expression"),
             value: legacy_as_generated_simple_mekso_operand_tree_value(
-                left_expression.as_ref(),
+                left_expression,
                 source,
                 options,
             ),
@@ -7095,17 +7953,57 @@ fn legacy_as_generated_bound_mekso_operand_tree_value(
     });
     entries.push(TreeEntry {
         label: Some("right_expression"),
-        value: legacy_as_generated_mekso_operand_tree_value(
-            right_expression.as_ref(),
-            source,
-            options,
-        ),
+        value: legacy_as_generated_mekso_operand_tree_value(right_expression, source, options),
     });
 
     Some(legacy_as_generated_wrapped_variant_tree_value(
         "BoundMeksoOperand",
         "bound_mekso_operand",
         entries,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_bound_mekso_operand_parts<'tree>(
+    mekso: &'tree jbotci_syntax::ast::MeksoSyntax,
+) -> Option<(
+    &'tree jbotci_syntax::ast::MeksoSyntax,
+    &'tree Token,
+    &'tree [Token],
+    &'tree Token,
+    &'tree jbotci_syntax::ast::MeksoSyntax,
+)> {
+    let bityzba::data!(jbotci_syntax::ast::MeksoSyntax::MeksoConnection {
+        left_expression,
+        connective,
+        right_expression,
+    }) = mekso.as_data()
+    else {
+        return None;
+    };
+    let bityzba::data!(jbotci_syntax::ast::ConnectiveSyntax::Afterthought {
+        se: None,
+        nahe: None,
+        na: None,
+        cmavo,
+        nai: None,
+    }) = connective.as_data()
+    else {
+        return None;
+    };
+    let [operand_connective, tense_words @ .., bo] = cmavo.value.as_slice() else {
+        return None;
+    };
+    if !bo.is_cmavo(Cmavo::Bo) {
+        return None;
+    }
+    Some((
+        left_expression.as_ref(),
+        operand_connective,
+        tense_words,
+        bo,
+        right_expression.as_ref(),
     ))
 }
 
@@ -7136,43 +8034,35 @@ fn legacy_as_generated_simple_mekso_operand_tree_value(
 ) -> TreeValue {
     match mekso.as_data() {
         bityzba::data!(jbotci_syntax::ast::MeksoSyntax::NumberMekso(quantifier)) => {
+            if let bityzba::data!(jbotci_syntax::ast::QuantifierSyntax::NumberQuantifier {
+                number,
+                boi,
+            }) = quantifier.as_data()
+                && number
+                    .value
+                    .iter()
+                    .next()
+                    .is_some_and(legacy_token_is_letter_word)
+            {
+                return legacy_as_generated_lerfu_string_mekso_variant_tree_value(
+                    number,
+                    boi.as_ref(),
+                    source,
+                    options,
+                );
+            }
             legacy_as_generated_wrapped_variant_tree_value(
                 "NumberMekso",
                 "number_mekso",
-                vec![TreeEntry {
-                    label: Some("quantifier"),
-                    value: legacy_as_generated_quantifier_tree_value(
-                        quantifier.as_ref(),
-                        source,
-                        options,
-                    ),
-                }],
+                legacy_as_generated_number_mekso_entries(quantifier.as_ref(), source, options),
             )
         }
         bityzba::data!(jbotci_syntax::ast::MeksoSyntax::LerfuStringMekso { letter, boi }) => {
-            let mut entries = vec![TreeEntry {
-                label: Some("letters"),
-                value: legacy_word_run_tree_value(&letter.value, source, options),
-            }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                letter
-                    .free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            if let Some(boi) = boi {
-                entries.extend(legacy_token_field_entries("boi", boi, source, options));
-            }
-            legacy_as_generated_wrapped_variant_tree_value(
-                "LerfuStringMekso",
-                "lerfu_string_mekso",
-                entries,
+            legacy_as_generated_lerfu_string_mekso_variant_tree_value(
+                letter,
+                boi.as_ref(),
+                source,
+                options,
             )
         }
         bityzba::data!(jbotci_syntax::ast::MeksoSyntax::ParenthesizedMekso {
@@ -7337,6 +8227,85 @@ fn legacy_as_generated_simple_mekso_operand_tree_value(
         }
         _ => required_legacy_syntax_subtree_value(mekso, source, options),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_number_mekso_tree_value(
+    quantifier: &jbotci_syntax::ast::QuantifierSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "NumberMekso",
+        entries: legacy_as_generated_number_mekso_entries(quantifier, source, options),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_number_mekso_entries(
+    quantifier: &jbotci_syntax::ast::QuantifierSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    vec![TreeEntry {
+        label: Some("quantifier"),
+        value: legacy_as_generated_quantifier_tree_value(quantifier, source, options),
+    }]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_lerfu_string_mekso_variant_tree_value(
+    letters: &WithFreeModifiers<jbotci_syntax::ast::WordRun>,
+    boi: Option<&WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let TreeValue::Node(node) =
+        legacy_as_generated_lerfu_string_mekso_tree_value(letters, boi, source, options)
+    else {
+        unreachable!("lerfu string mekso renderer always returns a node")
+    };
+    legacy_as_generated_wrapped_variant_tree_value(
+        "LerfuStringMekso",
+        "lerfu_string_mekso",
+        node.entries,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_lerfu_string_mekso_tree_value(
+    letters: &WithFreeModifiers<jbotci_syntax::ast::WordRun>,
+    boi: Option<&WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("letters"),
+        value: legacy_word_run_tree_value(&letters.value, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        letters
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(boi) = boi {
+        entries.extend(legacy_token_field_entries("boi", boi, source, options));
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "LerfuStringMekso",
+        entries,
+    })
 }
 
 #[requires(true)]
