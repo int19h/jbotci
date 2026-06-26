@@ -2561,6 +2561,10 @@ fn legacy_as_generated_simple_term_tree_value(
                 tail_elements.is_empty(),
                 "legacy RelativeAdverbialTerm tail elements are not represented in generated adverbial term shape"
             );
+            assert!(
+                relative_clauses.is_empty(),
+                "legacy RelativeAdverbialTerm relative clauses are not represented in generated adverbial term shape"
+            );
             let mut entries = vec![TreeEntry {
                 label: Some("noiha"),
                 value: required_legacy_syntax_subtree_value(noiha, source, options),
@@ -2570,21 +2574,6 @@ fn legacy_as_generated_simple_term_tree_value(
                     label: Some("selbri"),
                     value: legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
                 });
-            }
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "relative_clauses",
-                relative_clauses
-                    .iter()
-                    .map(|relative_clause| {
-                        legacy_as_generated_relative_clause_tree_value(
-                            relative_clause,
-                            source,
-                            options,
-                        )
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
             }
             if let Some(fehu) = fehu {
                 entries.push(TreeEntry {
@@ -2608,6 +2597,10 @@ fn legacy_as_generated_simple_term_tree_value(
                 tail_elements.is_empty(),
                 "legacy BridiVariableAdverbialTerm tail elements are not represented in generated adverbial term shape"
             );
+            assert!(
+                relative_clauses.is_empty(),
+                "legacy BridiVariableAdverbialTerm relative clauses are not represented in generated adverbial term shape"
+            );
             let mut entries = vec![TreeEntry {
                 label: Some("poiha"),
                 value: required_legacy_syntax_subtree_value(poiha, source, options),
@@ -2617,21 +2610,6 @@ fn legacy_as_generated_simple_term_tree_value(
                     label: Some("selbri"),
                     value: legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
                 });
-            }
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "relative_clauses",
-                relative_clauses
-                    .iter()
-                    .map(|relative_clause| {
-                        legacy_as_generated_relative_clause_tree_value(
-                            relative_clause,
-                            source,
-                            options,
-                        )
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
             }
             entries.push(TreeEntry {
                 label: Some("brigahi_ku"),
@@ -5142,10 +5120,14 @@ fn legacy_as_generated_relative_clause_tree_value(
                     value: required_legacy_syntax_subtree_value(gehu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "SumtiAssociationPhrase",
-                entries,
-            })
+            legacy_as_generated_relative_clause_variant_tree_value(
+                "SumtiAssociationRelativeClause",
+                "sumti_association_relative_clause",
+                TreeValue::Node(TreeNode {
+                    constructor: "SumtiAssociationRelativeClause",
+                    entries,
+                }),
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::RelativeClauseSyntax::IncidentalRelativeBridi {
@@ -5174,10 +5156,18 @@ fn legacy_as_generated_relative_clause_tree_value(
                     value: required_legacy_syntax_subtree_value(kuho, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "IncidentalRelativeBridi",
-                entries,
-            })
+            legacy_as_generated_relative_clause_variant_tree_value(
+                "BridiRelativeClause",
+                "bridi_relative_clause",
+                legacy_as_generated_relative_clause_variant_tree_value(
+                    "IncidentalBridiRelativeClause",
+                    "incidental_bridi_relative_clause",
+                    TreeValue::Node(TreeNode {
+                        constructor: "IncidentalBridiRelativeClause",
+                        entries,
+                    }),
+                ),
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::RelativeClauseSyntax::RestrictiveRelativeBridi {
@@ -5206,10 +5196,18 @@ fn legacy_as_generated_relative_clause_tree_value(
                     value: required_legacy_syntax_subtree_value(kuho, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "RestrictiveRelativeBridi",
-                entries,
-            })
+            legacy_as_generated_relative_clause_variant_tree_value(
+                "BridiRelativeClause",
+                "bridi_relative_clause",
+                legacy_as_generated_relative_clause_variant_tree_value(
+                    "RestrictiveBridiRelativeClause",
+                    "restrictive_bridi_relative_clause",
+                    TreeValue::Node(TreeNode {
+                        constructor: "RestrictiveBridiRelativeClause",
+                        entries,
+                    }),
+                ),
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::RelativeClauseSyntax::JoinedRelativeClauses { zihe, inner }
@@ -5253,6 +5251,22 @@ fn legacy_as_generated_relative_clause_tree_value(
             ],
         })]),
     }
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_relative_clause_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    value: TreeValue,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value,
+        }],
+    })
 }
 
 #[requires(true)]

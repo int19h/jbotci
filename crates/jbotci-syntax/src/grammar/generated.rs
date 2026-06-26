@@ -951,7 +951,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field poiha = selmaho(Noiha).wf();
             field selbri = some(boxed(selbri));
-            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field brigahi_ku = cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
         }
     }
@@ -962,7 +961,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field noiha = selmaho(Noiha).wf();
             field selbri = some(boxed(selbri));
-            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field fehu = opt(cmavo(Fehu).wf());
         }
     }
@@ -2227,24 +2225,19 @@ macro_rules! declare_generated_syntax_grammar {
         field inner <- boxed(relative_clause_atom(sumti, subbridi, tense_modal));
     }
 
-    alias "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) =
-        choice((
-            sumti_association_relative_clause(sumti, tense_modal),
-            bridi_relative_clause(subbridi),
-        ));
+    rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) -> enum {
+        sumti_association_relative_clause,
+        bridi_relative_clause,
+    }
 
-    node sumti_association_relative_clause(sumti, tense_modal) -> RelativeClauseSyntax {
-        context "sumti association phrase";
-        construct variant SumtiAssociationPhrase;
-        fields {
-            field association_marker = selmaho(Goi).wf();
-            field sumti = boxed(choice((
-                tense_tagged_relative_sumti(tense_modal, sumti),
-                na_ku_relative_sumti(),
-                sumti,
-            )));
-            field gehu = opt(cmavo(Gehu).wf());
-        }
+    rule "sumti association phrase" sumti_association_relative_clause(sumti, tense_modal) -> struct {
+        field association_marker <- selmaho(Goi).wf();
+        field sumti <- boxed(choice((
+            tense_tagged_relative_sumti(tense_modal, sumti),
+            na_ku_relative_sumti(),
+            sumti,
+        )));
+        field gehu <- opt(cmavo(Gehu).wf());
     }
 
     node na_ku_relative_sumti -> SumtiSyntax {
@@ -2267,38 +2260,29 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "relative clause" bridi_relative_clause(subbridi) =
-        choice((
-            restrictive_bridi_relative_clause(subbridi),
-            incidental_bridi_relative_clause(subbridi),
-        ));
-
-    node restrictive_bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
-        context "relative clause";
-        construct variant RestrictiveRelativeBridi;
-        fields {
-            field poi = choice((
-                cmavo(Poi),
-                cmavo(Pohoi),
-            )).wf();
-            field subbridi = boxed(subbridi);
-            field kuho = opt(cmavo(Kuho).wf());
-        }
+    rule "relative clause" bridi_relative_clause(subbridi) -> enum {
+        restrictive_bridi_relative_clause,
+        incidental_bridi_relative_clause,
     }
 
-    node incidental_bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
-        context "relative clause";
-        construct variant IncidentalRelativeBridi;
-        fields {
-            field noi = choice((
-                cmavo(Noi),
-                cmavo(Nohoi),
-                cmavo(Voi),
-                cmavo(Voihi),
-            )).wf();
-            field subbridi = boxed(subbridi);
-            field kuho = opt(cmavo(Kuho).wf());
-        }
+    rule "relative clause" restrictive_bridi_relative_clause(subbridi) -> struct {
+        field poi <- choice((
+            cmavo(Poi),
+            cmavo(Pohoi),
+        )).wf();
+        field subbridi <- boxed(subbridi);
+        field kuho <- opt(cmavo(Kuho).wf());
+    }
+
+    rule "relative clause" incidental_bridi_relative_clause(subbridi) -> struct {
+        field noi <- choice((
+            cmavo(Noi),
+            cmavo(Nohoi),
+            cmavo(Voi),
+            cmavo(Voihi),
+        )).wf();
+        field subbridi <- boxed(subbridi);
+        field kuho <- opt(cmavo(Kuho).wf());
     }
 
     alias "relative clause connective" relative_clause_connective =
