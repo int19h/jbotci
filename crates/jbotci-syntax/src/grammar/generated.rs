@@ -2011,11 +2011,9 @@ macro_rules! declare_generated_syntax_grammar {
 
     node lahe_term_wrapper(term) -> SumtiSyntax {
         context "converted term";
-        construct variant QualifiedTerm;
+        construct variant ReferentTermWrapper;
         fields {
-            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::Referent;
-            field wrapper = selmaho(Lahe).wf();
-            default wrapper_bo: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
+            field lahe = selmaho(Lahe).wf();
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2023,12 +2021,10 @@ macro_rules! declare_generated_syntax_grammar {
 
     node scalar_negated_term_wrapper_with_bo(term) -> SumtiSyntax {
         context "scalar-negated term";
-        construct variant QualifiedTerm;
+        construct variant ScalarNegatedTermWrapperWithBo;
         fields {
-            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::ScalarNegationWithBo;
-            scratch raw_wrapper = selmaho(Nahe);
-            let wrapper: WithFreeModifiers<Token, FreeModifierSyntax> = WithFreeModifiers::new(raw_wrapper, Vec::new());
-            field wrapper_bo = some(cmavo(Bo).wf());
+            field nahe = selmaho(Nahe);
+            field bo = cmavo(Bo).wf();
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
         }
@@ -2036,11 +2032,9 @@ macro_rules! declare_generated_syntax_grammar {
 
     node scalar_negated_term_wrapper(term) -> SumtiSyntax {
         context "scalar-negated term";
-        construct variant QualifiedTerm;
+        construct variant ScalarNegatedTermWrapper;
         fields {
-            let term_wrapper_kind: SumtiWrapperKindSyntax = SumtiWrapperKindSyntax::ScalarNegation;
-            field wrapper = selmaho(Nahe).wf();
-            default wrapper_bo: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
+            field nahe = selmaho(Nahe).wf();
             field inner_term = boxed(term);
             field luhu = opt(cmavo(Luhu).wf());
         }

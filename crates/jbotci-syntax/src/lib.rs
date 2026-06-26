@@ -133,9 +133,6 @@ where
             generated_model::AtomRef::SumtiTagSyntax(value) => {
                 self.visit_legacy_tree(value);
             }
-            generated_model::AtomRef::SumtiWrapperKindSyntax(value) => {
-                self.visit_legacy_tree(value);
-            }
             generated_model::AtomRef::Token(token) => self.visit_token(token),
         }
     }

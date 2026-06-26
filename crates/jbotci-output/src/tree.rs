@@ -3814,22 +3814,27 @@ fn legacy_as_generated_sumti_base_tree_value(
             inner_term,
             luhu,
         }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: Some("term_wrapper_kind"),
-                    value: required_legacy_syntax_subtree_value(term_wrapper_kind, source, options),
-                },
-                TreeEntry {
-                    label: Some("wrapper"),
-                    value: required_legacy_syntax_subtree_value(wrapper, source, options),
-                },
-            ];
-            if let Some(wrapper_bo) = wrapper_bo {
-                entries.push(TreeEntry {
-                    label: Some("wrapper_bo"),
-                    value: required_legacy_syntax_subtree_value(wrapper_bo, source, options),
-                });
-            }
+            let mut entries = Vec::new();
+            let constructor = match term_wrapper_kind {
+                jbotci_syntax::ast::SumtiWrapperKindSyntax::Referent => {
+                    entries.extend(legacy_token_field_entries("lahe", wrapper, source, options));
+                    "ReferentTermWrapper"
+                }
+                jbotci_syntax::ast::SumtiWrapperKindSyntax::ScalarNegationWithBo => {
+                    entries.push(TreeEntry {
+                        label: Some("nahe"),
+                        value: generated_token_tree_value(&wrapper.value, source, options),
+                    });
+                    let wrapper_bo =
+                        wrapper_bo.as_ref().expect("scalar NAhE BO term wrapper has BO");
+                    entries.extend(legacy_token_field_entries("bo", wrapper_bo, source, options));
+                    "ScalarNegatedTermWrapperWithBo"
+                }
+                jbotci_syntax::ast::SumtiWrapperKindSyntax::ScalarNegation => {
+                    entries.extend(legacy_token_field_entries("nahe", wrapper, source, options));
+                    "ScalarNegatedTermWrapper"
+                }
+            };
             entries.push(TreeEntry {
                 label: Some("inner_term"),
                 value: legacy_as_generated_term_tree_value(inner_term.as_ref(), source, options),
@@ -3841,7 +3846,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                 });
             }
             TreeValue::Node(TreeNode {
-                constructor: "QualifiedTerm",
+                constructor,
                 entries,
             })
         }
@@ -11111,9 +11116,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
-            GeneratedSyntaxAtomRef::SumtiWrapperKindSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
             GeneratedSyntaxAtomRef::Token(word) => {
                 with_indicators_tree_value(word.as_indicators(), source, options)
             }
@@ -11127,9 +11129,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             }
             GeneratedSyntaxAtomRef::Indicator(value) => last_legacy_syntax_subtree_position(value),
             GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
-            GeneratedSyntaxAtomRef::SumtiWrapperKindSyntax(value) => {
                 last_legacy_syntax_subtree_position(value)
             }
             GeneratedSyntaxAtomRef::Token(token) => token
