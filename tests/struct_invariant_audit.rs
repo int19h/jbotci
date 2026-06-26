@@ -428,10 +428,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated source-span visitor validity is enforced by Rust references and lifetimes",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:GeneratedModelLegacySourceSpanCollector",
-        "legacy span collector accepts any span sequence before source-order sorting",
-    ),
-    (
         "apps/jbotci/src/lib.rs:ToolGentufaRequest",
         "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
     ),
@@ -1208,12 +1204,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "temporary generated-model tree projection aggregate whose fields are independently rendered values",
     ),
     (
-        "crates/jbotci-output/src/tree.rs:LastLegacySyntaxAtomVisitor",
-        "visitor records an optional last rendered position and every option state is valid",
+        "crates/jbotci-output/src/tree.rs:FirstLegacySyntaxTokenStartVisitor",
+        "visitor records an optional first token byte offset and every option state is valid during traversal",
     ),
     (
-        "crates/jbotci-output/src/tree.rs:LastGeneratedSyntaxAtomVisitor",
-        "visitor records an optional last rendered position and every option state is valid",
+        "crates/jbotci-output/src/tree.rs:GeneratedSyntaxTokenTreeValueCollector",
+        "visitor accumulates rendered generated token values for a borrowed source and every accumulated prefix is valid",
     ),
     (
         "crates/jbotci-output/src/tree.rs:TreeEntry",
@@ -1822,10 +1818,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParsedStatementAttempt",
         "syntax attempt combines parser result with optional trace report without extra cross-field constraints",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:ParsedPartialValidStatementAttempt",
-        "partial-valid syntax attempt combines parser result with collected warnings and optional trace report",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
