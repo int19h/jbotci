@@ -1802,6 +1802,7 @@ struct EnumRule {
 
 struct EnumBranch {
     attrs: Vec<Attribute>,
+    conditions: Vec<Condition>,
     name: Ident,
 }
 
@@ -1818,13 +1819,14 @@ impl EnumRule {
         let context = self.context.value();
         let fields = self.branches.iter().map(|branch| {
             let branch_name = branch.name.to_string();
+            let conditions = branch.conditions.iter().map(Condition::expand);
             quote! {
                 SyntaxGrammarField {
                     kind: "variant",
                     name: #branch_name,
                     parser: #branch_name,
                     recovery: SyntaxGrammarRecoveryExpr::Rule(#branch_name),
-                    conditions: &[],
+                    conditions: &[#(#conditions),*],
                 }
             }
         });
@@ -1876,6 +1878,13 @@ impl EnumRule {
                     &free_modifier_parser,
                     StrictParserCallMode::Local,
                 )?;
+                let branch_parser = branch
+                    .conditions
+                    .iter()
+                    .rev()
+                    .fold(branch_parser, |parser, condition| {
+                        condition.expand_strict_gate(parser)
+                    });
                 let body = if use_model_construction {
                     quote!(#output_tokens::#variant { #field })
                 } else {
@@ -4041,8 +4050,16 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
         let mut branches = Vec::new();
         while !content.is_empty() {
             let attrs = content.call(Attribute::parse_outer)?;
+            let mut conditions = Vec::new();
+            while content.peek(kw::when) {
+                conditions.push(content.parse()?);
+            }
             let name = content.parse()?;
-            branches.push(EnumBranch { attrs, name });
+            branches.push(EnumBranch {
+                attrs,
+                conditions,
+                name,
+            });
             if content.peek(Token![,]) {
                 content.parse::<Token![,]>()?;
             } else if content.peek(Token![;]) {
@@ -4418,6 +4435,24 @@ impl Condition {
                 kind: #kind,
                 name: #name,
             }
+        }
+    }
+
+    fn expand_strict_gate(&self, parser: TokenStream2) -> TokenStream2 {
+        let name = &self.name;
+        match self.kind {
+            ConditionKind::Feature => quote! {
+                generated_runtime::feature_gate(
+                    generated_runtime::SyntaxGrammarFeature::#name,
+                    #parser,
+                )
+            },
+            ConditionKind::Policy => quote! {
+                generated_runtime::policy_gate(
+                    generated_runtime::SyntaxGrammarPolicyFlag::#name,
+                    #parser,
+                )
+            },
         }
     }
 }
