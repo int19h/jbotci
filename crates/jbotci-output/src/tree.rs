@@ -821,7 +821,7 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
                 following
                     .iter()
                     .map(|statement| {
-                        legacy_as_generated_paragraph_statement_tree_value(
+                        legacy_as_generated_following_paragraph_statement_tree_value(
                             statement, source, options,
                         )
                     })
@@ -836,7 +836,7 @@ fn legacy_as_generated_paragraph_statement_sequence_tree_value(
                 trailing
                     .iter()
                     .map(|statement| {
-                        legacy_as_generated_paragraph_statement_tree_value(
+                        legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
                             statement, source, options,
                         )
                     })
@@ -910,6 +910,87 @@ fn legacy_as_generated_paragraph_statement_tree_value(
     TreeValue::Node(TreeNode {
         constructor: "ParagraphStatement",
         entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_following_paragraph_statement_tree_value(
+    statement: &jbotci_syntax::ast::ParagraphStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let i = statement
+        .i
+        .as_ref()
+        .expect("legacy following paragraph statement must have an .i marker");
+    assert!(
+        statement.connective.is_none(),
+        "legacy following paragraph statement has an unexpected connective"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("i"),
+        value: generated_token_tree_value(i, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "free_modifiers",
+        statement
+            .free_modifiers
+            .iter()
+            .map(|free_modifier| {
+                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(inner) = &statement.statement {
+        entries.push(TreeEntry {
+            label: None,
+            value: legacy_as_generated_statement_tree_value(inner.as_ref(), source, options),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "FollowingParagraphStatement",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_trailing_ijek_paragraph_statement_tree_value(
+    statement: &jbotci_syntax::ast::ParagraphStatementSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let i = statement
+        .i
+        .as_ref()
+        .expect("legacy trailing paragraph statement must have an .i marker");
+    let connective = statement
+        .connective
+        .as_ref()
+        .expect("legacy trailing paragraph statement must have a connective");
+    assert!(
+        statement.free_modifiers.is_empty(),
+        "legacy trailing paragraph statement has unexpected free modifiers"
+    );
+    assert!(
+        statement.statement.is_none(),
+        "legacy trailing paragraph statement has an unexpected statement"
+    );
+    TreeValue::Node(TreeNode {
+        constructor: "TrailingIjekParagraphStatement",
+        entries: vec![
+            TreeEntry {
+                label: Some("i"),
+                value: generated_token_tree_value(i, source, options),
+            },
+            TreeEntry {
+                label: Some("connective"),
+                value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
+            },
+        ],
     })
 }
 
@@ -11791,11 +11872,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             GeneratedSyntaxNodeRef::StatementSyntaxLinkedSumtiFragment(statement) => Some(
                 generated_linked_sumti_fragment_tree_value(statement, source, options),
             ),
-            GeneratedSyntaxNodeRef::ParagraphStatementSyntaxTrailingIjekParagraphStatement(
-                statement,
-            ) => Some(generated_trailing_ijek_paragraph_statement_tree_value(
-                statement, source, options,
-            )),
             GeneratedSyntaxNodeRef::StatementSyntaxBridiStatement(statement) => Some(
                 generated_bridi_statement_tree_value(statement, source, options),
             ),
@@ -12559,33 +12635,6 @@ fn rename_tree_constructor(value: TreeValue, from: &'static str, to: &'static st
         }
         value => value,
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_trailing_ijek_paragraph_statement_tree_value(
-    statement: &generated_model::ParagraphStatementSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> TreeValue {
-    let generated_model::ParagraphStatementSyntax::TrailingIjekParagraphStatement { i, connective } =
-        statement
-    else {
-        return required_generated_syntax_subtree_value(statement, source, options);
-    };
-    TreeValue::Node(TreeNode {
-        constructor: "BridiConnective",
-        entries: vec![
-            TreeEntry {
-                label: Some("i"),
-                value: generated_token_tree_value(i, source, options),
-            },
-            TreeEntry {
-                label: Some("connective"),
-                value: generated_statement_connective_tree_value(connective, source, options),
-            },
-        ],
-    })
 }
 
 #[requires(true)]

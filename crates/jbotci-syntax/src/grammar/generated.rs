@@ -155,50 +155,22 @@ macro_rules! declare_generated_syntax_grammar {
         field statements <- opt(boxed(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
-    node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
-        context "paragraph statement";
-        construct variant InitialParagraphStatement;
-        fields {
-            default i: Option<Token> = None;
-            default connective: Option<Box<ConnectiveSyntax>> = None;
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-            #[tree_child(primary)]
-            field statement = some(boxed(statement_or_fragment));
-        }
+    rule "paragraph statement" initial_paragraph_statement(statement_or_fragment) -> struct {
+        #[tree_child(primary)]
+        field statement <- some(boxed(statement_or_fragment));
     }
 
-    node i_paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
-        context "paragraph statement";
-        construct variant IParagraphStatement;
-        fields {
-            field i = some(cmavo(I));
-            field connective = opt(boxed(i_paragraph_statement_connective(tense_modal)));
-            field free_modifiers = many(free_modifier);
-            #[tree_child(primary)]
-            field statement = opt(boxed(statement_or_fragment));
-        }
+    rule "paragraph statement" following_paragraph_statement(statement_or_fragment, free_modifier) -> struct {
+        field i <- some(cmavo(I));
+        assert !statement_connective;
+        field free_modifiers <- many(free_modifier);
+        #[tree_child(primary)]
+        field statement <- opt(boxed(statement_or_fragment));
     }
 
-    node following_paragraph_statement(statement_or_fragment, free_modifier) -> ParagraphStatementSyntax {
-        context "paragraph statement";
-        construct variant FollowingParagraphStatement;
-        fields {
-            field i = some(cmavo(I));
-            require statement_connective.not();
-            default connective: Option<Box<ConnectiveSyntax>> = None;
-            field free_modifiers = many(free_modifier);
-            #[tree_child(primary)]
-            field statement = opt(boxed(statement_or_fragment));
-        }
-    }
-
-    node trailing_ijek_paragraph_statement -> ParagraphStatementSyntax {
-        context "paragraph statement";
-        construct variant TrailingIjekParagraphStatement;
-        fields {
-            field i = cmavo(I);
-            field connective = statement_connective;
-        }
+    rule "paragraph statement" trailing_ijek_paragraph_statement -> struct {
+        field i <- cmavo(I);
+        field connective <- statement_connective;
     }
 
     alias "statement" statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) =
