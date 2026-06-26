@@ -8078,6 +8078,26 @@ fn legacy_as_generated_additional_linked_sumti_tree_value(
     })
 }
 
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_linked_sumti_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn legacy_as_generated_linked_sumti_tree_value(
@@ -8087,9 +8107,10 @@ fn legacy_as_generated_linked_sumti_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match (fa, sumti) {
-        (Some(fa), Some(sumti)) => TreeValue::Node(TreeNode {
-            constructor: "PlaceTaggedLinkedSumti",
-            entries: {
+        (Some(fa), Some(sumti)) => legacy_as_generated_linked_sumti_variant_tree_value(
+            "PlaceTaggedLinkedSumti",
+            "place_tagged_linked_sumti",
+            {
                 let mut entries = legacy_token_field_entries("fa", fa, source, options);
                 entries.push(TreeEntry {
                     label: Some("sumti"),
@@ -8099,7 +8120,7 @@ fn legacy_as_generated_linked_sumti_tree_value(
                 });
                 entries
             },
-        }),
+        ),
         (Some(fa), None) => {
             let mut entries = legacy_token_field_entries("fa", fa, source, options);
             entries.push(TreeEntry {
@@ -8109,10 +8130,11 @@ fn legacy_as_generated_linked_sumti_tree_value(
                     entries: Vec::new(),
                 }),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "PlaceTaggedLinkedSumti",
+            legacy_as_generated_linked_sumti_variant_tree_value(
+                "PlaceTaggedLinkedSumti",
+                "place_tagged_linked_sumti",
                 entries,
-            })
+            )
         }
         (None, Some(sumti)) => {
             if let Some((fa, maybe_ku, free_modifiers)) =
@@ -8128,17 +8150,19 @@ fn legacy_as_generated_linked_sumti_tree_value(
                         options,
                     ),
                 });
-                return TreeValue::Node(TreeNode {
-                    constructor: "PlaceTaggedLinkedSumti",
+                return legacy_as_generated_linked_sumti_variant_tree_value(
+                    "PlaceTaggedLinkedSumti",
+                    "place_tagged_linked_sumti",
                     entries,
-                });
+                );
             }
             if let Some((tense_modal, maybe_ku, free_modifiers)) =
                 legacy_elided_tense_tagged_sumti_parts(sumti)
             {
-                return TreeValue::Node(TreeNode {
-                    constructor: "TenseTaggedLinkedSumti",
-                    entries: vec![
+                return legacy_as_generated_linked_sumti_variant_tree_value(
+                    "TenseTaggedLinkedSumti",
+                    "tense_tagged_linked_sumti",
+                    vec![
                         TreeEntry {
                             label: Some("tense_modal"),
                             value: legacy_as_generated_tense_modal_tree_value(
@@ -8157,7 +8181,7 @@ fn legacy_as_generated_linked_sumti_tree_value(
                             ),
                         },
                     ],
-                });
+                );
             }
             if let Some((fa, inner_sumti)) = legacy_place_tagged_linked_sumti_parts(sumti) {
                 let mut entries = legacy_token_field_entries("fa", fa, source, options);
@@ -8169,16 +8193,18 @@ fn legacy_as_generated_linked_sumti_tree_value(
                         options,
                     ),
                 });
-                return TreeValue::Node(TreeNode {
-                    constructor: "PlaceTaggedLinkedSumti",
+                return legacy_as_generated_linked_sumti_variant_tree_value(
+                    "PlaceTaggedLinkedSumti",
+                    "place_tagged_linked_sumti",
                     entries,
-                });
+                );
             }
             if let Some((tense_modal, inner_sumti)) = legacy_tense_tagged_linked_sumti_parts(sumti)
             {
-                return TreeValue::Node(TreeNode {
-                    constructor: "TenseTaggedLinkedSumti",
-                    entries: vec![
+                return legacy_as_generated_linked_sumti_variant_tree_value(
+                    "TenseTaggedLinkedSumti",
+                    "tense_tagged_linked_sumti",
+                    vec![
                         TreeEntry {
                             label: Some("tense_modal"),
                             value: legacy_as_generated_tense_modal_tree_value(
@@ -8196,22 +8222,24 @@ fn legacy_as_generated_linked_sumti_tree_value(
                             ),
                         },
                     ],
-                });
+                );
             }
-            TreeValue::Node(TreeNode {
-                constructor: "PlainLinkedSumti",
-                entries: vec![TreeEntry {
+            legacy_as_generated_linked_sumti_variant_tree_value(
+                "PlainLinkedSumti",
+                "plain_linked_sumti",
+                vec![TreeEntry {
                     label: Some("sumti"),
                     value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
                         sumti, source, options,
                     ),
                 }],
-            })
+            )
         }
-        _ => TreeValue::Node(TreeNode {
-            constructor: "EmptyLinkedSumti",
-            entries: Vec::new(),
-        }),
+        _ => legacy_as_generated_linked_sumti_variant_tree_value(
+            "EmptyLinkedSumti",
+            "empty_linked_sumti",
+            Vec::new(),
+        ),
     }
 }
 

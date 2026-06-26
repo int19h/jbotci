@@ -3748,12 +3748,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node empty_linked_sumti -> LinkedSumtiSyntax {
-        context "linked arguments";
-        fields {
-            default fa: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
-            default sumti: Option<Box<SumtiSyntax>> = None;
-        }
+    rule "linked arguments" linked_sumti(sumti, tense_modal) -> enum {
+        place_tagged_linked_sumti,
+        tense_tagged_linked_sumti,
+        plain_linked_sumti,
+        empty_linked_sumti,
     }
 
     alias "linked arguments" linked_sumti_tail(sumti) =
@@ -3762,36 +3761,22 @@ macro_rules! declare_generated_syntax_grammar {
             tagged_elided_sumti(),
         ));
 
-    node place_tagged_linked_sumti(sumti) -> LinkedSumtiSyntax {
-        context "linked arguments";
-        fields {
-            field fa = selmaho(Fa).wf();
-            field sumti = boxed(linked_sumti_tail(sumti));
-        }
+    rule "linked arguments" place_tagged_linked_sumti(sumti) -> struct {
+        field fa <- selmaho(Fa).wf();
+        field sumti <- boxed(linked_sumti_tail(sumti));
     }
 
-    node tense_tagged_linked_sumti(sumti, tense_modal) -> LinkedSumtiSyntax {
-        context "linked arguments";
-        fields {
-            field tense_modal = boxed(tense_modal);
-            field sumti = boxed(linked_sumti_tail(sumti));
-        }
+    rule "linked arguments" tense_tagged_linked_sumti(sumti, tense_modal) -> struct {
+        field tense_modal <- boxed(tense_modal);
+        field sumti <- boxed(linked_sumti_tail(sumti));
     }
 
-    node plain_linked_sumti(sumti) -> LinkedSumtiSyntax {
-        context "linked arguments";
-        fields {
-            field sumti = boxed(sumti);
-        }
+    rule "linked arguments" plain_linked_sumti(sumti) -> struct {
+        field sumti <- boxed(sumti);
     }
 
-    alias "linked arguments" linked_sumti(sumti, tense_modal) =
-        choice((
-            place_tagged_linked_sumti(sumti),
-            tense_tagged_linked_sumti(sumti, tense_modal),
-            plain_linked_sumti(sumti),
-            empty_linked_sumti(),
-        ));
+    rule "linked arguments" empty_linked_sumti -> struct {
+    }
 
     node bei_link(sumti, tense_modal) -> AdditionalLinkedSumtiSyntax {
         context "linked arguments";
