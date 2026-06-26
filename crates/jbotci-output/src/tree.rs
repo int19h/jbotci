@@ -3231,15 +3231,30 @@ fn legacy_as_generated_vocative_markers_tree_value(
         .first()
         .is_some_and(|word| word.is_cmavo(Cmavo::Doi))
     {
-        TreeValue::Node(TreeNode {
+        let inner = TreeValue::Node(TreeNode {
             constructor: "DoiVocativeMarkerWords",
             entries: vec![TreeEntry {
                 label: Some("doi"),
                 value: generated_token_tree_value(&marker_words[0], source, options),
             }],
+        });
+        TreeValue::Node(TreeNode {
+            constructor: "DoiVocativeMarkerWords",
+            entries: vec![TreeEntry {
+                label: Some("doi_vocative_marker_words"),
+                value: inner,
+            }],
         })
     } else {
-        legacy_as_generated_coi_vocative_markers_tree_value(marker_words, source, options)
+        let inner =
+            legacy_as_generated_coi_vocative_markers_tree_value(marker_words, source, options);
+        TreeValue::Node(TreeNode {
+            constructor: "CoiVocativeMarkerWords",
+            entries: vec![TreeEntry {
+                label: Some("coi_vocative_marker_words"),
+                value: inner,
+            }],
+        })
     };
 
     marker_value
@@ -3441,11 +3456,7 @@ fn legacy_as_generated_vuho_sumti_attachment_tree_value(
         });
     }
     TreeValue::Node(TreeNode {
-        constructor: if relative_clauses.is_empty() {
-            "VuhoConnectedSumtiAttachmentTail"
-        } else {
-            "VuhoRelativeSumtiAttachmentTail"
-        },
+        constructor: "VuhoSumtiAttachment",
         entries,
     })
 }
@@ -4196,28 +4207,29 @@ fn legacy_as_generated_quoted_sumti_tree_value(
 fn legacy_generated_delimited_word_quote_branch(
     quote_marker: &Token,
 ) -> (&'static str, &'static str) {
-    if quote_marker.is_cmavo(Cmavo::Mehoi) {
+    let marker_cmavo = quote_marker.quote_marker_cmavo();
+    if marker_cmavo == Some(Cmavo::Mehoi) {
         return (
             "ExperimentalMehoiCompoundQuote",
             "experimental_mehoi_compound_quote",
         );
     }
-    if quote_marker.is_cmavo(Cmavo::Zohoi) || quote_marker.is_cmavo(Cmavo::Lahoi) {
+    if marker_cmavo == Some(Cmavo::Zohoi) || marker_cmavo == Some(Cmavo::Lahoi) {
         return (
             "ExperimentalZohoiCompoundQuote",
             "experimental_zohoi_compound_quote",
         );
     }
-    if quote_marker.is_cmavo(Cmavo::Rahoi) {
+    if marker_cmavo == Some(Cmavo::Rahoi) {
         return (
             "ExperimentalRahoiCompoundQuote",
             "experimental_rahoi_compound_quote",
         );
     }
-    if quote_marker.is_cmavo(Cmavo::Gohoi)
-        || quote_marker.is_cmavo(Cmavo::Zehoi)
-        || quote_marker.is_cmavo(Cmavo::Tahai)
-        || quote_marker.is_cmavo(Cmavo::Bohei)
+    if marker_cmavo == Some(Cmavo::Gohoi)
+        || marker_cmavo == Some(Cmavo::Zehoi)
+        || marker_cmavo == Some(Cmavo::Tahai)
+        || marker_cmavo == Some(Cmavo::Bohei)
     {
         return (
             "ExperimentalGohoiCompoundQuote",
@@ -10893,20 +10905,32 @@ fn legacy_as_generated_flat_tag_atom_tree_value(
 ) -> Option<TreeValue> {
     if token.is_selmaho(Selmaho::Fa) {
         return Some(TreeValue::Node(TreeNode {
-            constructor: "Fa",
+            constructor: "FaFlatTagAtom",
             entries: vec![TreeEntry {
-                label: Some("fa"),
-                value: generated_token_tree_value(token, source, options),
+                label: Some("fa_flat_tag_atom"),
+                value: TreeValue::Node(TreeNode {
+                    constructor: "FaFlatTagAtom",
+                    entries: vec![TreeEntry {
+                        label: Some("fa"),
+                        value: generated_token_tree_value(token, source, options),
+                    }],
+                }),
             }],
         }));
     }
     legacy_as_generated_single_composite_tense_token_tree_value(token, source, options).map(
         |composite| {
             TreeValue::Node(TreeNode {
-                constructor: "Composite",
+                constructor: "CompositeFlatTagAtom",
                 entries: vec![TreeEntry {
-                    label: Some("composite"),
-                    value: composite,
+                    label: Some("composite_flat_tag_atom"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "CompositeFlatTagAtom",
+                        entries: vec![TreeEntry {
+                            label: Some("composite"),
+                            value: composite,
+                        }],
+                    }),
                 }],
             })
         },
@@ -10932,10 +10956,16 @@ fn legacy_as_generated_composite_flat_tag_atom_tree_value(
             _ => None,
         })?;
     Some(TreeValue::Node(TreeNode {
-        constructor: "Composite",
+        constructor: "CompositeFlatTagAtom",
         entries: vec![TreeEntry {
-            label: Some("composite"),
-            value: composite,
+            label: Some("composite_flat_tag_atom"),
+            value: TreeValue::Node(TreeNode {
+                constructor: "CompositeFlatTagAtom",
+                entries: vec![TreeEntry {
+                    label: Some("composite"),
+                    value: composite,
+                }],
+            }),
         }],
     }))
 }

@@ -2157,31 +2157,27 @@ macro_rules! declare_generated_syntax_grammar {
             sumti,
         ));
 
-    node coi_vocative_marker_words -> VocativeMarkerWordsSyntax {
-        context "vocative marker";
-        fields {
-            field first_coi = selmaho(Coi);
-            field first_nai = opt(cmavo(Nai));
-            field additional_coi = many((selmaho(Coi), opt(cmavo(Nai))));
-            field doi = opt(cmavo(Doi));
-        }
+    rule "vocative marker" vocative_marker_words -> enum {
+        coi_vocative_marker_words,
+        doi_vocative_marker_words,
     }
 
-    node doi_vocative_marker_words -> VocativeMarkerWordsSyntax {
-        context "vocative marker";
-        fields {
-            field doi = cmavo(Doi);
-        }
+    rule "vocative marker" coi_vocative_marker_words -> struct {
+        field first_coi <- selmaho(Coi);
+        field first_nai <- opt(cmavo(Nai));
+        field additional_coi <- many((selmaho(Coi), opt(cmavo(Nai))));
+        field doi <- opt(cmavo(Doi));
+    }
+
+    rule "vocative marker" doi_vocative_marker_words -> struct {
+        field doi <- cmavo(Doi);
     }
 
     node vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> FreeModifierSyntax {
         context "vocative phrase";
         construct variant Vocative;
         fields {
-            field vocative_markers = choice((
-                coi_vocative_marker_words(),
-                doi_vocative_marker_words(),
-            )).wf();
+            field vocative_markers = vocative_marker_words().wf();
             field sumti = opt(boxed(vocative_argument(sumti, subbridi, selbri, tense_modal)));
             field dohu = opt(cmavo(Dohu).prohibited_wf());
         }
