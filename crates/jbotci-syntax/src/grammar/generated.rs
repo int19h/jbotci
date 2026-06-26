@@ -63,13 +63,11 @@ macro_rules! declare_generated_syntax_grammar {
         field nai <- opt(cmavo(Nai));
     }
 
-    alias text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
-        context "text";
+    alias "text" text(paragraph, statement_or_fragment, free_modifier, tense_modal) =
         choice((
             explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier),
             regular_text(paragraph, statement_or_fragment, free_modifier, tense_modal),
         ));
-    }
 
     product explicit_xauha_lohoi_lookahead -> () {
         fields {
@@ -103,21 +101,17 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias text_paragraphs(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
-        context "paragraphs";
+    alias "paragraphs" text_paragraphs(paragraph, statement_or_fragment, free_modifier) =
         opt_or_default(choice((
             text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier),
             many1(niho_paragraph(statement_or_fragment, free_modifier)),
         )));
-    }
 
-    alias text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphSyntax> {
-        context "paragraphs";
+    alias "paragraphs" text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) =
         prepend(
             paragraph,
             many(niho_paragraph(statement_or_fragment, free_modifier)),
         );
-    }
 
     alias text_leading_connective(tense_modal) -> ConnectiveSyntax {
         context "text connective";
@@ -134,13 +128,11 @@ macro_rules! declare_generated_syntax_grammar {
         field free_modifiers <- many(free_modifier);
     }
 
-    alias paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
-        context "paragraph";
+    alias "paragraph" paragraph(statement_or_fragment, free_modifier) =
         choice((
             i_niho_paragraph(statement_or_fragment, free_modifier),
             simple_paragraph(statement_or_fragment, free_modifier),
         ));
-    }
 
     node simple_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
         context "paragraph";
@@ -154,8 +146,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias paragraph_statement_sequence(statement_or_fragment, free_modifier) -> std::vec::Vec<ParagraphStatementSyntax> {
-        context "paragraph";
+    alias "paragraph" paragraph_statement_sequence(statement_or_fragment, free_modifier) =
         append(
             prepend(
                 initial_paragraph_statement(statement_or_fragment),
@@ -163,7 +154,6 @@ macro_rules! declare_generated_syntax_grammar {
             ),
             many(trailing_ijek_paragraph_statement()),
         );
-    }
 
     node i_niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
         context "paragraph";
@@ -189,14 +179,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias paragraph_statement(statement_or_fragment, free_modifier, tense_modal) -> ParagraphStatementSyntax {
-        context "paragraph statement";
+    alias "paragraph statement" paragraph_statement(statement_or_fragment, free_modifier, tense_modal) =
         choice((
             trailing_ijek_paragraph_statement(),
             i_paragraph_statement(statement_or_fragment, free_modifier, tense_modal),
             initial_paragraph_statement(statement_or_fragment),
         ));
-    }
 
     node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
         context "paragraph statement";
@@ -244,34 +232,27 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> StatementSyntax {
-        context "statement";
+    alias "statement" statement(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) =
         choice((
             i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
             preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens),
             statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens),
         ));
-    }
 
-    alias statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> StatementSyntax {
-        context "statement";
+    alias "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) =
         choice((
             prenex_statement(statement, term),
             bridi_statement(bridi, subbridi, tense_modal),
             text_group_statement(text, tense_modal),
         ));
-    }
 
-    alias statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> StatementSyntax {
-        context "paragraph statement";
+    alias "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) =
         choice((
             statement,
             fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens),
         ));
-    }
 
-    alias fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> StatementSyntax {
-        context "fragment";
+    alias "fragment" fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) =
         choice((
             prenex_fragment(term),
             selbri_fragment(selbri),
@@ -285,15 +266,12 @@ macro_rules! declare_generated_syntax_grammar {
             linked_sumti_continuation_fragment(sumti, tense_modal),
             linked_sumti_fragment(sumti, tense_modal),
         ));
-    }
 
-    alias statement_after_i_connective(bridi, subbridi, tense_modal, text) -> StatementSyntax {
-        context "statement";
+    alias "statement" statement_after_i_connective(bridi, subbridi, tense_modal, text) =
         choice((
             bridi_statement(bridi, subbridi, tense_modal),
             text_group_statement(text, tense_modal),
         ));
-    }
 
     node multiple_na_fragment -> StatementSyntax {
         context "fragment";
@@ -428,13 +406,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
-        context "bridi continuation";
+    alias "bridi continuation" bridi_statement_continuation(subbridi, tense_modal) =
         choice((
             bo_bridi_statement_continuation(subbridi, tense_modal),
             ke_bridi_statement_continuation(subbridi, tense_modal),
         ));
-    }
 
     product bo_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
         context "bridi continuation";
@@ -488,13 +464,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias relative_clause_list(sumti, subbridi, tense_modal) -> std::vec::Vec<RelativeClauseSyntax> {
-        context "relative clauses";
+    alias "relative clauses" relative_clause_list(sumti, subbridi, tense_modal) =
         prepend(
             relative_clause_atom(sumti, subbridi, tense_modal),
             many(relative_clause_tail(sumti, subbridi, tense_modal)),
         );
-    }
 
     node relative_clause_fragment(sumti, subbridi, tense_modal) -> StatementSyntax {
         context "relative clauses";
@@ -523,8 +497,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> BridiSyntax {
-        context "bridi";
+    alias "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) =
         choice((
             bridi_with_leading_terms(term, bridi_tail),
             bridi_with_post_cu_terms(term, bridi_tail),
@@ -532,7 +505,6 @@ macro_rules! declare_generated_syntax_grammar {
             bare_cu_terms_bridi(term, bridi_tail),
             relation_only_bridi(bridi_tail),
         ));
-    }
 
     node bridi_with_leading_terms(term, bridi_tail) -> BridiSyntax {
         context "bridi";
@@ -592,13 +564,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> BridiTailSyntax {
-        context "bridi tail";
+    alias "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) =
         choice((
             bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal),
             bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal),
         ));
-    }
 
     node bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> BridiTailSyntax {
         context "bridi tail";
@@ -655,21 +625,17 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> SimpleBridiTailSyntax {
-        context "bridi tail";
+    alias "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) =
         choice((
             forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms),
             selbri_simple_bridi_tail_without_tail_terms(selbri),
         ));
-    }
 
-    alias simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> SimpleBridiTailSyntax {
-        context "bridi tail";
+    alias "bridi tail" simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) =
         choice((
             forethought_simple_bridi_tail(forethought_bridi_connection),
             selbri_simple_bridi_tail(selbri, term),
         ));
-    }
 
     node forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> SimpleBridiTailSyntax {
         context "forethought bridi connection";
@@ -709,23 +675,19 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
+    alias "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal) =
         choice((
             direct_forethought_bridi_connection(subbridi, term, tense_modal),
             grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal),
             negated_forethought_bridi_connection(forethought_bridi_connection),
         ));
-    }
 
-    alias forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
+    alias "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal) =
         choice((
             direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal),
             grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal),
             negated_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms),
         ));
-    }
 
     node direct_forethought_bridi_connection(subbridi, term, tense_modal) -> ForethoughtBridiConnectionSyntax {
         context "forethought bridi connection";
@@ -881,13 +843,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias subbridi(subbridi, bridi, term) -> SubbridiSyntax {
-        context "subbridi";
+    alias "subbridi" subbridi(subbridi, bridi, term) =
         choice((
             prenex_subbridi(subbridi, term),
             bridi_subbridi(bridi),
         ));
-    }
 
     node bridi_subbridi(bridi) -> SubbridiSyntax {
         context "subbridi";
@@ -927,17 +887,14 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "term";
+    alias "term" pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) =
         choice((
             bound_term_connection(sumti, tense_modal, subbridi, selbri, term),
             termset_group(sumti, tense_modal, subbridi, selbri, term),
             simple_term(sumti, tense_modal, subbridi, selbri, term),
         ));
-    }
 
-    alias simple_term(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "term";
+    alias "term" simple_term(sumti, tense_modal, subbridi, selbri, term) =
         choice((
             place_tagged_sumti_term(sumti),
             feature(ZantufaTags, jai_tagged_sumti_term(tense_modal, sumti)),
@@ -953,7 +910,6 @@ macro_rules! declare_generated_syntax_grammar {
             nuhi_termset(term),
             ke_termset(term),
         ));
-    }
 
     node bound_term_connection(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
         context "term connection";
@@ -1043,13 +999,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias noiha_adverbial_term(selbri) -> TermSyntax {
-        context "NOIhA adverbial";
+    alias "NOIhA adverbial" noiha_adverbial_term(selbri) =
         choice((
             noiha_variable_adverbial_term(selbri),
             noiha_relative_adverbial_term(selbri),
         ));
-    }
 
     node noiha_variable_adverbial_term(selbri) -> TermSyntax {
         context "NOIhA adverbial";
@@ -1132,8 +1086,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bare_na_term_forbidden_follow(selbri, tense_modal) -> () {
-        context "NA term";
+    alias "NA term" bare_na_term_forbidden_follow(selbri, tense_modal) =
         choice((
             bare_na_selbri_follow(selbri),
             bare_na_modal_forethought_follow(tense_modal),
@@ -1141,7 +1094,6 @@ macro_rules! declare_generated_syntax_grammar {
             bare_na_a_follow(),
             bare_na_giha_follow(),
         ));
-    }
 
     product bare_na_selbri_follow(selbri) -> () {
         context "NA term";
@@ -1203,8 +1155,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias leading_term_tag_tense_modal(tense_modal, selbri) -> TenseModalSyntax {
-        context "tag";
+    alias "tag" leading_term_tag_tense_modal(tense_modal, selbri) =
         choice((
             pu_before_nahe_leading_term_tag_tense(),
             pu_distance_before_tag_leading_term_tag_tense(),
@@ -1215,7 +1166,6 @@ macro_rules! declare_generated_syntax_grammar {
             interval_property_leading_term_tag_tense(selbri),
             tense_modal,
         ));
-    }
 
     node pu_before_nahe_leading_term_tag_tense -> TenseModalSyntax {
         context "tag";
@@ -1271,13 +1221,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias interval_property_leading_term_tag_tense(selbri) -> TenseModalSyntax {
-        context "interval property";
-        interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead());
-    }
+    alias "interval property" interval_property_leading_term_tag_tense(selbri) = interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead());
 
-    alias leading_interval_property_follower(selbri) -> () {
-        context "tag";
+    alias "tag" leading_interval_property_follower(selbri) =
         choice((
             pu_leading_interval_property_follower(),
             zi_leading_interval_property_follower(),
@@ -1286,7 +1232,6 @@ macro_rules! declare_generated_syntax_grammar {
             modal_leading_interval_property_follower(),
             fiho_leading_interval_property_follower(selbri),
         ));
-    }
 
     product pu_leading_interval_property_follower -> () {
         context "tag";
@@ -1382,13 +1327,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "sumti";
+    alias "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) =
         choice((
             forethought_sumti(sumti, sumti_forethought, tense_modal),
             simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens),
         ));
-    }
 
     node forethought_sumti(sumti, sumti_forethought, tense_modal) -> SumtiSyntax {
         context "forethought sumti connection";
@@ -1434,13 +1377,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) -> VuhoSumtiAttachmentSyntax {
-        context "sumti relative phrase";
+    alias "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) =
         choice((
             vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal),
             vuho_connected_sumti_attachment_tail(sumti),
         ));
-    }
 
     product vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> VuhoSumtiAttachmentSyntax {
         context "sumti relative phrase";
@@ -1470,16 +1411,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "sumti";
+    alias "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) =
         choice((
             sumti_base,
             quantified_sumti(sumti_base, mekso, letter_tokens),
         ));
-    }
 
-    alias sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) -> SumtiSyntax {
-        context "sumti";
+    alias "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) =
         choice((
             scalar_negated_sumti_with_bo(sumti),
             scalar_negated_sumti(sumti),
@@ -1496,7 +1434,6 @@ macro_rules! declare_generated_syntax_grammar {
             pro_sumti(),
             text_quote_sumti(text),
         ));
-    }
 
     node quantified_sumti(sumti_base, mekso, letter_tokens) -> SumtiSyntax {
         context "quantified sumti";
@@ -1588,13 +1525,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias quantifier(mekso, letter_tokens) -> QuantifierSyntax {
-        context "quantifier";
+    alias "quantifier" quantifier(mekso, letter_tokens) =
         choice((
             mekso_quantifier(mekso),
             pa_run_quantifier(letter_tokens),
         ));
-    }
 
     node number_mekso(letter_tokens) -> MeksoSyntax {
         context "number mex";
@@ -1612,14 +1547,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
-        context "operator";
+    alias "operator" mekso_operator(mekso, mekso_operator, selbri) =
         choice((
             afterthought_mekso_operator(mekso, mekso_operator, selbri),
             bound_mekso_operator(mekso, mekso_operator, selbri),
             mekso_operator_atom(mekso, mekso_operator, selbri),
         ));
-    }
 
     node afterthought_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
         context "operator";
@@ -1629,13 +1562,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
-        context "operator";
+    alias "operator" bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) =
         choice((
             bound_mekso_operator(mekso, mekso_operator, selbri),
             mekso_operator_atom(mekso, mekso_operator, selbri),
         ));
-    }
 
     node bound_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
         context "operator";
@@ -1648,8 +1579,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias mekso_operator_atom(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
-        context "operator";
+    alias "operator" mekso_operator_atom(mekso, mekso_operator, selbri) =
         choice((
             converted_mekso_operator(mekso_operator),
             scalar_negated_mekso_operator(mekso_operator),
@@ -1659,7 +1589,6 @@ macro_rules! declare_generated_syntax_grammar {
             operand_mekso_operator(mekso),
             primitive_mekso_operator(),
         ));
-    }
 
     node converted_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
         context "converted operator";
@@ -1719,14 +1648,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
-        context "operand";
+    alias "operand" mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
         choice((
             afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
             bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
             simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
         ));
-    }
 
     node afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
         context "operand connective";
@@ -1736,13 +1663,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
-        context "operand";
+    alias "operand" bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
         choice((
             bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
             simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
         ));
-    }
 
     node bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
         context "operand connective";
@@ -1756,8 +1681,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
-        context "operand";
+    alias "operand" simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
         choice((
             forethought_mekso_operand(mekso_operand, tense_modal),
             qualified_mekso_operand(mekso_operand),
@@ -1768,7 +1692,6 @@ macro_rules! declare_generated_syntax_grammar {
             number_mekso(letter_tokens),
             lerfu_string_mekso(letter_string, free_modifier),
         ));
-    }
 
     node qualified_mekso_operand(mekso_operand) -> MeksoSyntax {
         context "qualified operand";
@@ -1835,8 +1758,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias letter_string(letter_tokens) -> std::vec::Vec<Token> {
-        context "lerfu string";
+    alias "lerfu string" letter_string(letter_tokens) =
         concat(
             letter_tokens,
             many(choice((
@@ -1844,10 +1766,8 @@ macro_rules! declare_generated_syntax_grammar {
                 letter_tokens,
             ))),
         );
-    }
 
-    alias number_words(letter_tokens) -> std::vec::Vec<Token> {
-        context "number";
+    alias "number" number_words(letter_tokens) =
         concat(
             pa_word_as_words(),
             many(choice((
@@ -1855,15 +1775,12 @@ macro_rules! declare_generated_syntax_grammar {
                 letter_tokens,
             ))),
         );
-    }
 
-    alias number_or_letter_words(letter_tokens, letter_string) -> std::vec::Vec<Token> {
-        context "number or lerfu string";
+    alias "number or lerfu string" number_or_letter_words(letter_tokens, letter_string) =
         choice((
             number_words(letter_tokens),
             letter_string,
         ));
-    }
 
     product number_or_letter_mekso(letter_tokens, letter_string, free_modifier) -> MeksoSyntax {
         context "number or lerfu string";
@@ -1874,37 +1791,24 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias letter_tokens(letter_string, letter_tokens) -> std::vec::Vec<Token> {
-        context "lerfu word";
+    alias "lerfu word" letter_tokens(letter_string, letter_tokens) =
         choice((
             plain_letter_word_as_words(),
             lau_letter_tokens(letter_tokens),
             tei_letter_tokens(letter_string),
         ));
-    }
 
-    alias pa_word_as_words -> std::vec::Vec<Token> {
-        context "number";
-        singleton(pa_word());
-    }
+    alias "number" pa_word_as_words = singleton(pa_word());
 
-    alias plain_letter_word_as_words -> std::vec::Vec<Token> {
-        context "lerfu word";
-        singleton(word_category(LetterWord));
-    }
+    alias "lerfu word" plain_letter_word_as_words = singleton(word_category(LetterWord));
 
-    alias lau_letter_tokens(letter_tokens) -> std::vec::Vec<Token> {
-        context "lerfu word";
-        prepend(selmaho(Lau), letter_tokens);
-    }
+    alias "lerfu word" lau_letter_tokens(letter_tokens) = prepend(selmaho(Lau), letter_tokens);
 
-    alias tei_letter_tokens(letter_string) -> std::vec::Vec<Token> {
-        context "lerfu word";
+    alias "lerfu word" tei_letter_tokens(letter_string) =
         prepend(
             cmavo(Tei),
             append(letter_string, singleton(cmavo(Foi))),
         );
-    }
 
     node lerfu_string_mekso(letter_string, free_modifier) -> MeksoSyntax {
         context "lerfu string";
@@ -1915,13 +1819,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias mekso_base(mekso_base, mekso_operand, mekso_operator) -> MeksoSyntax {
-        context "mex";
+    alias "mex" mekso_base(mekso_base, mekso_operand, mekso_operator) =
         choice((
             mekso_operand,
             forethought_call_mekso(mekso_base, mekso_operator),
         ));
-    }
 
     node mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> MeksoSyntax {
         context "mex";
@@ -1950,13 +1852,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> MeksoSyntax {
-        context "mex";
+    alias "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) =
         choice((
             infix_mekso(mekso_base, mekso_precedence, mekso_operator),
             reverse_polish_mekso(reverse_polish_parts),
         ));
-    }
 
     rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
         field first_operand <- boxed(mekso_operand);
@@ -2082,15 +1982,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "description";
+    alias "description" description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) =
         choice((
             description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
             descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
             descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
             descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
         ));
-    }
 
     node description_head -> DescriptionHeadSyntax {
         context "descriptor";
@@ -2316,8 +2214,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias compound_quote -> QuoteSyntax {
-        context "quote";
+    alias "quote" compound_quote =
         choice((
             experimental_mehoi_compound_quote(),
             experimental_zohoi_compound_quote(),
@@ -2325,7 +2222,6 @@ macro_rules! declare_generated_syntax_grammar {
             experimental_gohoi_compound_quote(),
             generic_compound_quote(),
         ));
-    }
 
     node experimental_mehoi_compound_quote -> QuoteSyntax {
         context "quote";
@@ -2400,14 +2296,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias vocative_argument(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
-        context "vocative phrase";
+    alias "vocative phrase" vocative_argument(sumti, subbridi, selbri, tense_modal) =
         choice((
             selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal),
             cmevla_vocative_sumti(sumti, subbridi, tense_modal),
             sumti,
         ));
-    }
 
     node coi_vocative_marker_words -> VocativeMarkerWordsSyntax {
         context "vocative marker";
@@ -2493,14 +2387,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias text_replacement_free_modifier -> FreeModifierSyntax {
-        context "replacement free modifier";
+    alias "replacement free modifier" text_replacement_free_modifier =
         choice((
             full_text_replacement_free_modifier(),
             new_only_text_replacement_free_modifier(),
             close_only_text_replacement_free_modifier(),
         ));
-    }
 
     node full_text_replacement_free_modifier -> FreeModifierSyntax {
         context "replacement free modifier";
@@ -2538,8 +2430,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier) -> FreeModifierSyntax {
-        context "free modifier";
+    alias "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier) =
         choice((
             text_replacement_free_modifier(),
             sei_free_modifier(term, selbri),
@@ -2549,15 +2440,12 @@ macro_rules! declare_generated_syntax_grammar {
             parenthetical_text(text),
             vocative_free_modifier(sumti, subbridi, selbri, tense_modal),
         ));
-    }
 
-    alias relative_clause_tail(sumti, subbridi, tense_modal) -> RelativeClauseSyntax {
-        context "relative clauses";
+    alias "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal) =
         choice((
             joined_relative_clause_tail(sumti, subbridi, tense_modal),
             connected_relative_clause_tail(sumti, subbridi, tense_modal),
         ));
-    }
 
     node joined_relative_clause_tail(sumti, subbridi, tense_modal) -> RelativeClauseSyntax {
         context "relative clause";
@@ -2577,13 +2465,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias relative_clause_atom(sumti, subbridi, tense_modal) -> RelativeClauseSyntax {
-        context "relative clause";
+    alias "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) =
         choice((
             sumti_association_relative_clause(sumti, tense_modal),
             bridi_relative_clause(subbridi),
         ));
-    }
 
     node sumti_association_relative_clause(sumti, tense_modal) -> RelativeClauseSyntax {
         context "sumti association phrase";
@@ -2619,13 +2505,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
-        context "relative clause";
+    alias "relative clause" bridi_relative_clause(subbridi) =
         choice((
             restrictive_bridi_relative_clause(subbridi),
             incidental_bridi_relative_clause(subbridi),
         ));
-    }
 
     node restrictive_bridi_relative_clause(subbridi) -> RelativeClauseSyntax {
         context "relative clause";
@@ -2655,21 +2539,17 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias relative_clause_connective -> ConnectiveSyntax {
-        context "relative clause connective";
+    alias "relative clause connective" relative_clause_connective =
         choice((
             joik_connective(),
             jek_connective(),
         ));
-    }
 
-    alias joik_ek_connective -> ConnectiveSyntax {
-        context "sumti connective";
+    alias "sumti connective" joik_ek_connective =
         choice((
             joik_connective(),
             ek_connective(),
         ));
-    }
 
     product ek_connective -> ConnectiveSyntax {
         context "ek";
@@ -2725,14 +2605,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias joik_connective -> ConnectiveSyntax {
-        context "joik";
+    alias "joik" joik_connective =
         choice((
             joi_connective(),
             simple_interval_connective(),
             closed_interval_connective(),
         ));
-    }
 
     product joi_connective -> ConnectiveSyntax {
         context "joik";
@@ -2809,8 +2687,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias argument_connective -> ConnectiveSyntax {
-        context "sumti connective";
+    alias "sumti connective" argument_connective =
         choice((
             cehe_connective(),
             ek_connective(),
@@ -2818,70 +2695,55 @@ macro_rules! declare_generated_syntax_grammar {
             joik_connective(),
             vuhu_nonlogical_connective(),
         ));
-    }
 
-    alias operand_connective -> ConnectiveSyntax {
-        context "operand connective";
+    alias "operand connective" operand_connective =
         choice((
             joik_connective(),
             ek_connective(),
             jek_connective(),
         ));
-    }
 
-    alias term_connective -> ConnectiveSyntax {
-        context "term connective";
+    alias "term connective" term_connective =
         choice((
             joik_connective(),
             jek_connective(),
             ek_connective(),
             vuhu_nonlogical_connective(),
         ));
-    }
 
-    alias relation_afterthought_connective -> ConnectiveSyntax {
-        context "selbri connective";
+    alias "selbri connective" relation_afterthought_connective =
         choice((
             joik_connective(),
             jek_connective(),
             ek_connective(),
             vuhu_nonlogical_connective(),
         ));
-    }
 
-    alias standard_statement_connective -> ConnectiveSyntax {
-        context "statement connective";
+    alias "statement connective" standard_statement_connective =
         choice((
             joik_connective(),
             jek_connective(),
         ));
-    }
 
-    alias statement_connective -> ConnectiveSyntax {
-        context "statement connective";
+    alias "statement connective" statement_connective =
         choice((
             joik_connective(),
             jek_connective(),
             ek_connective(),
             vuhu_nonlogical_connective(),
         ));
-    }
 
-    alias i_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
+    alias "statement connective" i_statement_connective(tense_modal) =
         choice((
             i_standard_statement_connective(tense_modal),
             i_tag_bo_statement_connective(tense_modal),
         ));
-    }
 
-    alias i_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
+    alias "statement connective" i_paragraph_statement_connective(tense_modal) =
         choice((
             i_standard_paragraph_statement_connective(tense_modal),
             i_tag_bo_paragraph_statement_connective(tense_modal),
         ));
-    }
 
     product i_standard_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
@@ -2903,13 +2765,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias standard_paragraph_statement_connective -> ConnectiveSyntax {
-        context "statement connective";
+    alias "statement connective" standard_paragraph_statement_connective =
         choice((
             paragraph_joik_connective(),
             paragraph_jek_connective(),
         ));
-    }
 
     product paragraph_jek_connective -> ConnectiveSyntax {
         context "jek";
@@ -2923,14 +2783,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias paragraph_joik_connective -> ConnectiveSyntax {
-        context "joik";
+    alias "joik" paragraph_joik_connective =
         choice((
             paragraph_joi_connective(),
             paragraph_simple_interval_connective(),
             paragraph_closed_interval_connective(),
         ));
-    }
 
     product paragraph_joi_connective -> ConnectiveSyntax {
         context "joik";
@@ -3063,13 +2921,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bridi_tail_connective -> ConnectiveSyntax {
-        context "bridi tail connective";
+    alias "bridi tail connective" bridi_tail_connective =
         choice((
             gihek_connective(),
             relation_connective_as_bridi_tail(),
         ));
-    }
 
     product relation_connective_as_bridi_tail -> ConnectiveSyntax {
         context "bridi tail connective";
@@ -3080,16 +2936,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tag_connective -> ConnectiveSyntax {
-        context "connected tag";
+    alias "connected tag" tag_connective =
         choice((
             joik_connective(),
             jek_connective(),
         ));
-    }
 
-    alias modal_forethought_connective(tense_modal) -> ConnectiveSyntax {
-        context "forethought connective";
+    alias "forethought connective" modal_forethought_connective(tense_modal) =
         choice((
             ga_forethought_connective(),
             joik_jek_gi_forethought_connective(),
@@ -3097,7 +2950,6 @@ macro_rules! declare_generated_syntax_grammar {
             modal_gi_forethought_connective(tense_modal),
             feature(ZantufaConnectives, zantufa_initial_gi_forethought_connective()),
         ));
-    }
 
     product ga_forethought_connective -> ConnectiveSyntax {
         context "forethought connective";
@@ -3219,8 +3071,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tense_modal_atom(selbri) -> TenseModalSyntax {
-        context "tag";
+    alias "tag" tense_modal_atom(selbri) =
         choice((
             composite_tense(),
             fiho_tense(selbri),
@@ -3229,7 +3080,6 @@ macro_rules! declare_generated_syntax_grammar {
             feature(ZantufaTags, zantufa_recursive_tag_tense()),
             sticky_tense(),
         ));
-    }
 
     node fiho_tense(selbri) -> TenseModalSyntax {
         context "FIhO modal";
@@ -3240,14 +3090,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias flat_prefixed_tense -> TenseModalSyntax {
-        context "tag";
+    alias "tag" flat_prefixed_tense =
         choice((
             nahe_se_flat_prefixed_tense(),
             se_flat_prefixed_tense(),
             fa_flat_tag_tense(),
         ));
-    }
 
     node fa_flat_tag_tense -> TenseModalSyntax {
         context "tag";
@@ -3256,14 +3104,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias flat_tag_atom -> FlatTagAtomSyntax {
-        context "tag";
+    alias "tag" flat_tag_atom =
         choice((
             fa_flat_tag_atom(),
             modal_flat_tag_atom(),
             composite_flat_tag_atom(),
         ));
-    }
 
     product fa_flat_tag_atom -> FlatTagAtomSyntax {
         context "tag";
@@ -3334,14 +3180,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias composite_tense -> TenseModalSyntax {
-        context "tag";
+    alias "tag" composite_tense =
         choice((
             prefixed_time_space_caha_tense(),
             time_space_caha_ki_tense(),
             cuhe_tense(),
         ));
-    }
 
     node prefixed_time_space_caha_tense -> TenseModalSyntax {
         context "tag";
@@ -3360,14 +3204,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias time_space_caha_tense -> TenseModalSyntax {
-        context "tag";
+    alias "tag" time_space_caha_tense =
         choice((
             time_then_space_caha_tense(),
             space_then_time_caha_tense(),
             caha_tense(),
         ));
-    }
 
     node time_then_space_caha_tense -> TenseModalSyntax {
         context "time tense";
@@ -3387,15 +3229,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias time_tense -> TenseModalSyntax {
-        context "time tense";
+    alias "time tense" time_tense =
         choice((
             time_tense_with_zi(),
             time_tense_with_offset(),
             time_tense_with_interval(),
             time_tense_with_properties(),
         ));
-    }
 
     node time_tense_with_zi -> TenseModalSyntax {
         context "time tense";
@@ -3437,14 +3277,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias interval_property_tense -> TenseModalSyntax {
-        context "interval property";
+    alias "interval property" interval_property_tense =
         choice((
             numbered_interval_property_tense(),
             tahe_interval_property_tense(),
             zaho_interval_property_tense(),
         ));
-    }
 
     node numbered_interval_property_tense -> TenseModalSyntax {
         context "interval property";
@@ -3455,8 +3293,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias interval_property_number_words -> std::vec::Vec<Token> {
-        context "number";
+    alias "number" interval_property_number_words =
         concat(
             singleton(pa_word()),
             many(choice((
@@ -3464,7 +3301,6 @@ macro_rules! declare_generated_syntax_grammar {
                 plain_letter_word_as_words(),
             ))),
         );
-    }
 
     node tahe_interval_property_tense -> TenseModalSyntax {
         context "interval property";
@@ -3506,15 +3342,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias space_tense -> TenseModalSyntax {
-        context "space tense";
+    alias "space tense" space_tense =
         choice((
             space_tense_with_va(),
             space_tense_with_offset(),
             space_tense_with_interval(),
             space_tense_with_mohi(),
         ));
-    }
 
     node space_tense_with_va -> TenseModalSyntax {
         context "space tense";
@@ -3580,13 +3414,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias space_interval_tense -> TenseModalSyntax {
-        context "space interval";
+    alias "space interval" space_interval_tense =
         choice((
             space_interval_with_extent_tense(),
             space_interval_properties_tense(),
         ));
-    }
 
     node space_interval_with_extent_tense -> TenseModalSyntax {
         context "space interval";
@@ -3605,13 +3437,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias veha_viha_space_interval_tense -> TenseModalSyntax {
-        context "space interval";
+    alias "space interval" veha_viha_space_interval_tense =
         choice((
             veha_space_interval_tense(),
             viha_space_interval_tense(),
         ));
-    }
 
     node veha_space_interval_tense -> TenseModalSyntax {
         context "space interval";
@@ -3722,22 +3552,18 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias selbri(selbri, co_selbri, tense_modal) -> SelbriSyntax {
-        context "selbri";
+    alias "selbri" selbri(selbri, co_selbri, tense_modal) =
         choice((
             tagged_selbri(selbri, co_selbri, tense_modal),
             untagged_selbri(selbri, co_selbri),
         ));
-    }
 
-    alias untagged_selbri(selbri, co_selbri) -> SelbriSyntax {
-        context "selbri";
+    alias "selbri" untagged_selbri(selbri, co_selbri) =
         choice((
             negated_selbri(selbri),
             co_selbri,
             forethought_selbri_connection(selbri),
         ));
-    }
 
     node co_selbri(co_selbri, tanru_unit) -> SelbriSyntax {
         context "selbri";
@@ -3774,10 +3600,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tanru_unit(bo_or_linked_tanru_unit) -> TanruUnitSyntax {
-        context "tanru unit";
-        connected_tanru_unit(bo_or_linked_tanru_unit);
-    }
+    alias "tanru unit" tanru_unit(bo_or_linked_tanru_unit) = connected_tanru_unit(bo_or_linked_tanru_unit);
 
     node connected_tanru_unit(bo_or_linked_tanru_unit) -> TanruUnitSyntax {
         context "tanru unit";
@@ -3787,15 +3610,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
+    alias "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
         choice((
             forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri),
             bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal),
             assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string),
             linked_tanru_unit(tanru_unit_atom, sumti, tense_modal),
         ));
-    }
 
     node forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri) -> TanruUnitSyntax {
         context "forethought selbri connection";
@@ -3852,8 +3673,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
+    alias "tanru unit" tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
         choice((
             pro_bridi_tanru_unit(),
             ordinal_tanru_unit(letter_tokens, letter_string),
@@ -3871,7 +3691,6 @@ macro_rules! declare_generated_syntax_grammar {
             goha_word_tanru_unit(free_modifier),
             grouped_tanru_unit(tanru_unit),
         ));
-    }
 
     node tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
         context "tanru unit";
@@ -3881,8 +3700,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
+    alias "tanru unit" tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
         choice((
             ordinal_tanru_unit(letter_tokens, letter_string),
             word_tanru_unit(),
@@ -3900,7 +3718,6 @@ macro_rules! declare_generated_syntax_grammar {
             pro_bridi_tanru_unit(),
             grouped_tanru_unit(tanru_unit),
         ));
-    }
 
     node tagged_selbri_group_tanru_unit(tanru_unit, tense_modal) -> TanruUnitSyntax {
         context "tagged selbri";
@@ -3927,14 +3744,12 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias scalar_negated_tanru_unit_inner(tanru_unit_atom, tanru_unit, tense_modal) -> TanruUnitSyntax {
-        context "scalar-negated tanru unit";
+    alias "scalar-negated tanru unit" scalar_negated_tanru_unit_inner(tanru_unit_atom, tanru_unit, tense_modal) =
         choice((
             tagged_selbri_group_tanru_unit(tanru_unit, tense_modal),
             pro_bridi_tanru_unit(),
             tanru_unit_atom,
         ));
-    }
 
     node jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> TanruUnitSyntax {
         context "modal conversion";
@@ -3946,8 +3761,7 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "modal conversion";
+    alias "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, letter_tokens, letter_string) =
         choice((
             converted_jai_inner_tanru_unit(jai_inner_tanru_unit),
             scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit),
@@ -3961,7 +3775,6 @@ macro_rules! declare_generated_syntax_grammar {
             pro_bridi_tanru_unit(),
             word_tanru_unit(),
         ));
-    }
 
     node converted_jai_inner_tanru_unit(jai_inner_tanru_unit) -> TanruUnitSyntax {
         context "converted tanru unit";
@@ -4107,13 +3920,11 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias linked_sumti_tail(sumti) -> SumtiSyntax {
-        context "linked arguments";
+    alias "linked arguments" linked_sumti_tail(sumti) =
         choice((
             sumti,
             tagged_elided_sumti(),
         ));
-    }
 
     node place_tagged_linked_sumti(sumti) -> LinkedSumtiSyntax {
         context "linked arguments";
@@ -4138,15 +3949,13 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias linked_sumti(sumti, tense_modal) -> LinkedSumtiSyntax {
-        context "linked arguments";
+    alias "linked arguments" linked_sumti(sumti, tense_modal) =
         choice((
             place_tagged_linked_sumti(sumti),
             tense_tagged_linked_sumti(sumti, tense_modal),
             plain_linked_sumti(sumti),
             empty_linked_sumti(),
         ));
-    }
 
     node bei_link(sumti, tense_modal) -> AdditionalLinkedSumtiSyntax {
         context "linked arguments";

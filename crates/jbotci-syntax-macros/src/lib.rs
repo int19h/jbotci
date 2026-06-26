@@ -739,6 +739,67 @@ fn token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     left.to_string() == right.to_string()
 }
 
+fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
+    if token_streams_match(left, right) {
+        return true;
+    }
+    let Ok(left) = syn::parse2::<Type>(left.clone()) else {
+        return false;
+    };
+    let Ok(right) = syn::parse2::<Type>(right.clone()) else {
+        return false;
+    };
+    canonical_type_key(&left)
+        .is_some_and(|left| canonical_type_key(&right).is_some_and(|right| left == right))
+}
+
+fn canonical_type_key(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Path(path) if path.qself.is_none() => {
+            let segment = path.path.segments.last()?;
+            let type_name = if segment.ident == "Vec" {
+                "Vec".to_owned()
+            } else if segment.ident == "Vec1" {
+                "Vec1".to_owned()
+            } else {
+                path.path.to_token_stream().to_string()
+            };
+            let args = match &segment.arguments {
+                PathArguments::None => String::new(),
+                PathArguments::AngleBracketed(args) => {
+                    let args = args
+                        .args
+                        .iter()
+                        .map(|arg| match arg {
+                            GenericArgument::Type(ty) => canonical_type_key(ty),
+                            _ => Some(arg.to_token_stream().to_string()),
+                        })
+                        .collect::<Option<Vec<_>>>()?
+                        .join(",");
+                    format!("<{args}>")
+                }
+                PathArguments::Parenthesized(args) => args.to_token_stream().to_string(),
+            };
+            Some(format!("{type_name}{args}"))
+        }
+        Type::Tuple(tuple) => {
+            let elems = tuple
+                .elems
+                .iter()
+                .map(canonical_type_key)
+                .collect::<Option<Vec<_>>>()?
+                .join(",");
+            Some(format!("({elems})"))
+        }
+        Type::Paren(paren) => canonical_type_key(&paren.elem),
+        Type::Group(group) => canonical_type_key(&group.elem),
+        Type::Reference(reference) => {
+            canonical_type_key(&reference.elem).map(|inner| format!("&{inner}"))
+        }
+        _ => Some(ty.to_token_stream().to_string()),
+    }
+}
+
 fn pascal_case_ident(name: &str) -> Ident {
     let mut out = String::new();
     let mut uppercase_next = true;
@@ -3378,7 +3439,7 @@ fn vector_element_type(
             continue;
         };
         if let Some(element) = &element {
-            if !token_streams_match(element, &item_element) {
+            if !type_token_streams_match(element, &item_element) {
                 return None;
             }
         } else {
@@ -3643,7 +3704,7 @@ fn choice_outputs_same<'a>(
     if outputs.all(|output| {
         output
             .as_ref()
-            .is_some_and(|output| output.to_string() == first.to_string())
+            .is_some_and(|output| type_token_streams_match(output, &first))
     }) {
         Some(first)
     } else {
@@ -3701,7 +3762,11 @@ fn simple_type_ident(output: &Type) -> Option<&Ident> {
     if path.qself.is_some() || path.path.segments.len() != 1 {
         return None;
     }
-    Some(&path.path.segments.first()?.ident)
+    let segment = path.path.segments.first()?;
+    if !matches!(segment.arguments, PathArguments::None) {
+        return None;
+    }
+    Some(&segment.ident)
 }
 
 fn parser_type_tokens(
