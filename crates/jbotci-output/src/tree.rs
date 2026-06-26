@@ -4051,13 +4051,11 @@ fn legacy_as_generated_sumti_base_tree_value(
             maybe_ku,
             free_modifiers,
         }) => {
+            assert!(
+                tag.is_none(),
+                "tagged legacy elided sumti reached untagged generated ElidedSumti adapter"
+            );
             let mut entries = Vec::new();
-            if let Some(tag) = tag {
-                entries.push(TreeEntry {
-                    label: Some("tag"),
-                    value: required_legacy_syntax_subtree_value(tag.as_ref(), source, options),
-                });
-            }
             if let Some(maybe_ku) = maybe_ku {
                 entries.extend(legacy_token_field_entries(
                     "maybe_ku", maybe_ku, source, options,
@@ -11113,9 +11111,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             GeneratedSyntaxAtomRef::Indicator(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
-            GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
             GeneratedSyntaxAtomRef::Token(word) => {
                 with_indicators_tree_value(word.as_indicators(), source, options)
             }
@@ -11128,9 +11123,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
                 last_legacy_syntax_subtree_position(value)
             }
             GeneratedSyntaxAtomRef::Indicator(value) => last_legacy_syntax_subtree_position(value),
-            GeneratedSyntaxAtomRef::SumtiTagSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
             GeneratedSyntaxAtomRef::Token(token) => token
                 .source_spans()
                 .into_iter()

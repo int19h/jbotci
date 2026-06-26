@@ -1336,7 +1336,6 @@ macro_rules! declare_generated_syntax_grammar {
         context "elided sumti";
         construct variant ElidedSumti;
         fields {
-            default tag: Option<Box<SumtiTagSyntax>> = None;
             field maybe_ku = opt(cmavo(Ku).wf());
             default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
         }
