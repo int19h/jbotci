@@ -4157,22 +4157,32 @@ fn legacy_as_generated_quoted_sumti_tree_value(
             }
             TreeValue::Node(TreeNode {
                 constructor: "TextQuote",
-                entries,
+                entries: vec![TreeEntry {
+                    label: Some("text_quote"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "TextQuote",
+                        entries,
+                    }),
+                }],
             })
         }
         bityzba::data!(jbotci_syntax::ast::QuoteSyntax::WordQuote(quote))
         | bityzba::data!(jbotci_syntax::ast::QuoteSyntax::WordsQuote(quote))
         | bityzba::data!(jbotci_syntax::ast::QuoteSyntax::DelimitedNonLojbanQuote(
             quote
-        )) => legacy_as_generated_compound_quote_tree_value(
+        )) => legacy_as_generated_compound_quote_enum_tree_value(
             "GenericCompoundQuote",
+            "generic_compound_quote",
             quote,
             source,
             options,
         ),
         bityzba::data!(jbotci_syntax::ast::QuoteSyntax::DelimitedWordQuote(quote)) => {
-            legacy_as_generated_compound_quote_tree_value(
-                "DelimitedWordQuote",
+            let (constructor, field_label) =
+                legacy_generated_delimited_word_quote_branch(&quote.value);
+            legacy_as_generated_compound_quote_enum_tree_value(
+                constructor,
+                field_label,
                 quote,
                 source,
                 options,
@@ -4183,34 +4193,61 @@ fn legacy_as_generated_quoted_sumti_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_compound_quote_tree_value(
+fn legacy_generated_delimited_word_quote_branch(
+    quote_marker: &Token,
+) -> (&'static str, &'static str) {
+    if quote_marker.is_cmavo(Cmavo::Mehoi) {
+        return (
+            "ExperimentalMehoiCompoundQuote",
+            "experimental_mehoi_compound_quote",
+        );
+    }
+    if quote_marker.is_cmavo(Cmavo::Zohoi) || quote_marker.is_cmavo(Cmavo::Lahoi) {
+        return (
+            "ExperimentalZohoiCompoundQuote",
+            "experimental_zohoi_compound_quote",
+        );
+    }
+    if quote_marker.is_cmavo(Cmavo::Rahoi) {
+        return (
+            "ExperimentalRahoiCompoundQuote",
+            "experimental_rahoi_compound_quote",
+        );
+    }
+    if quote_marker.is_cmavo(Cmavo::Gohoi)
+        || quote_marker.is_cmavo(Cmavo::Zehoi)
+        || quote_marker.is_cmavo(Cmavo::Tahai)
+        || quote_marker.is_cmavo(Cmavo::Bohei)
+    {
+        return (
+            "ExperimentalGohoiCompoundQuote",
+            "experimental_gohoi_compound_quote",
+        );
+    }
+    panic!(
+        "legacy delimited word quote marker was not represented in generated compound_quote: {}",
+        quote_marker.core_word()
+    );
+}
+
+#[requires(!constructor.is_empty() && !field_label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_compound_quote_enum_tree_value(
     constructor: &'static str,
+    field_label: &'static str,
     quote: &WithFreeModifiers<Token>,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let mut entries = match generated_token_tree_value(&quote.value, source, options) {
-        TreeValue::Node(node) if node.constructor == constructor => node.entries,
-        value => vec![TreeEntry {
-            label: Some("quote"),
-            value,
-        }],
-    };
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        quote
-            .free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
     TreeValue::Node(TreeNode {
         constructor,
-        entries,
+        entries: vec![TreeEntry {
+            label: Some(field_label),
+            value: TreeValue::Node(TreeNode {
+                constructor,
+                entries: legacy_token_field_entries("quote", quote, source, options),
+            }),
+        }],
     })
 }
 

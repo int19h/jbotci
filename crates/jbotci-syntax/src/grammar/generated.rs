@@ -1331,9 +1331,8 @@ macro_rules! declare_generated_syntax_grammar {
             description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
             number_sumti(mekso),
             lerfu_string_sumti(letter_string, free_modifier),
-            compound_quote_sumti(),
+            quoted_sumti(text),
             pro_sumti(),
-            text_quote_sumti(text),
         ));
 
     node quantified_sumti(sumti_base, mekso, letter_tokens) -> SumtiSyntax {
@@ -2091,85 +2090,54 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node text_quote(text) -> QuoteSyntax {
-        context "text quote";
-        construct variant TextQuote;
-        fields {
-            field lu = cmavo(Lu).wf();
-            field text = boxed(text);
-            field lihu = opt(cmavo(Lihu).wf());
-        }
+    rule "quote" quote(text) -> enum {
+        experimental_mehoi_compound_quote,
+        experimental_zohoi_compound_quote,
+        experimental_rahoi_compound_quote,
+        experimental_gohoi_compound_quote,
+        generic_compound_quote,
+        text_quote,
     }
 
-    node text_quote_sumti(text) -> SumtiSyntax {
-        context "text quote";
-        construct tuple_variant QuotedSumti;
-        fields {
-            field quote = boxed(text_quote(text));
-        }
+    rule "text quote" text_quote(text) -> struct {
+        field lu <- cmavo(Lu).wf();
+        field text <- boxed(text);
+        field lihu <- opt(cmavo(Lihu).wf());
     }
 
-    alias "quote" compound_quote =
-        choice((
-            experimental_mehoi_compound_quote(),
-            experimental_zohoi_compound_quote(),
-            experimental_rahoi_compound_quote(),
-            experimental_gohoi_compound_quote(),
-            generic_compound_quote(),
-        ));
-
-    node experimental_mehoi_compound_quote -> QuoteSyntax {
-        context "quote";
-        construct tuple_variant DelimitedWordQuote;
-        fields {
-            field quote = quote_marker(Mehoi).warn(ExperimentalMehOiQuote).wf();
-        }
+    rule "quote" experimental_mehoi_compound_quote -> struct {
+        field quote <- quote_marker(Mehoi).warn(ExperimentalMehOiQuote).wf();
     }
 
-    node experimental_zohoi_compound_quote -> QuoteSyntax {
-        context "quote";
-        construct tuple_variant DelimitedWordQuote;
-        fields {
-            field quote = choice((
-                quote_marker(Zohoi),
-                quote_marker(Lahoi),
-            )).warn(ExperimentalZohOiQuote).wf();
-        }
+    rule "quote" experimental_zohoi_compound_quote -> struct {
+        field quote <- choice((
+            quote_marker(Zohoi),
+            quote_marker(Lahoi),
+        )).warn(ExperimentalZohOiQuote).wf();
     }
 
-    node experimental_rahoi_compound_quote -> QuoteSyntax {
-        context "quote";
-        construct tuple_variant DelimitedWordQuote;
-        fields {
-            field quote = quote_marker(Rahoi).warn(ExperimentalZantufaRahoiQuote).wf();
-        }
+    rule "quote" experimental_rahoi_compound_quote -> struct {
+        field quote <- quote_marker(Rahoi).warn(ExperimentalZantufaRahoiQuote).wf();
     }
 
-    node experimental_gohoi_compound_quote -> QuoteSyntax {
-        context "quote";
-        construct tuple_variant DelimitedWordQuote;
-        fields {
-            field quote = choice((
-                quote_marker(Gohoi),
-                quote_marker(Zehoi),
-                quote_marker(Tahai),
-                quote_marker(Bohei),
-            )).warn(ExperimentalGohoiSelbriUnit).wf();
-        }
+    rule "quote" experimental_gohoi_compound_quote -> struct {
+        field quote <- choice((
+            quote_marker(Gohoi),
+            quote_marker(Zehoi),
+            quote_marker(Tahai),
+            quote_marker(Bohei),
+        )).warn(ExperimentalGohoiSelbriUnit).wf();
     }
 
-    node generic_compound_quote -> QuoteSyntax {
-        context "quote";
-        fields {
-            field quote = word_category(Quote).wf();
-        }
+    rule "quote" generic_compound_quote -> struct {
+        field quote <- word_category(Quote).wf();
     }
 
-    node compound_quote_sumti -> SumtiSyntax {
+    node quoted_sumti(text) -> SumtiSyntax {
         context "quote";
         construct tuple_variant QuotedSumti;
         fields {
-            field quote = boxed(compound_quote());
+            field quote = boxed(quote(text));
         }
     }
 
