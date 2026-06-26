@@ -1269,30 +1269,20 @@ macro_rules! declare_generated_syntax_grammar {
         field kehe <- opt(cmavo(Kehe).wf());
     }
 
-    alias "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) =
-        choice((
-            vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal),
-            vuho_connected_sumti_attachment_tail(sumti),
-        ));
-
-    product vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> VuhoSumtiAttachmentSyntax {
-        context "sumti relative phrase";
-        construct direct;
-        fields {
-            field vuho = cmavo(Vuho).wf();
-            field relative_clauses = relative_clause_list(sumti, subbridi, tense_modal);
-            field sumti_connection = opt(boxed(sumti_connection_tail(sumti)));
-        }
+    rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) -> enum {
+        vuho_relative_sumti_attachment_tail,
+        vuho_connected_sumti_attachment_tail,
     }
 
-    product vuho_connected_sumti_attachment_tail(sumti) -> VuhoSumtiAttachmentSyntax {
-        context "sumti relative phrase";
-        construct direct;
-        fields {
-            field vuho = cmavo(Vuho).wf();
-            default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
-            field sumti_connection = some(boxed(sumti_connection_tail(sumti)));
-        }
+    rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> struct {
+        field vuho <- cmavo(Vuho).wf();
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field sumti_connection <- opt(boxed(sumti_connection_tail(sumti)));
+    }
+
+    rule "sumti relative phrase" vuho_connected_sumti_attachment_tail(sumti) -> struct {
+        field vuho <- cmavo(Vuho).wf();
+        field sumti_connection <- some(boxed(sumti_connection_tail(sumti)));
     }
 
     node simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {

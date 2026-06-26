@@ -3585,9 +3585,27 @@ fn legacy_as_generated_vuho_sumti_attachment_tree_value(
             ),
         });
     }
-    TreeValue::Node(TreeNode {
-        constructor: "VuhoSumtiAttachment",
+    let (constructor, label) = if relative_clauses.is_empty() {
+        (
+            "VuhoConnectedSumtiAttachmentTail",
+            "vuho_connected_sumti_attachment_tail",
+        )
+    } else {
+        (
+            "VuhoRelativeSumtiAttachmentTail",
+            "vuho_relative_sumti_attachment_tail",
+        )
+    };
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
         entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
     })
 }
 
