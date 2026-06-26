@@ -113,9 +113,8 @@ macro_rules! declare_generated_syntax_grammar {
             many(niho_paragraph(statement_or_fragment, free_modifier)),
         );
 
-    alias text_leading_connective(tense_modal) -> ConnectiveSyntax {
-        context "text connective";
-        require modal_forethought_connective(tense_modal).not();
+    alias "text connective" text_leading_connective(tense_modal) {
+        assert !modal_forethought_connective(tense_modal);
         choice((
             standard_statement_connective,
             cehe_connective(),
@@ -867,9 +866,8 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias term(term, sumti, tense_modal, subbridi, selbri) -> TermSyntax {
-        context "term";
-        require (relation_word(), cmavo(Bu).not()).not();
+    alias "term" term(term, sumti, tense_modal, subbridi, selbri) {
+        assert !(relation_word(), cmavo(Bu).not());
         choice((
             pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term),
             bound_term_connection(sumti, tense_modal, subbridi, selbri, term),
@@ -3033,9 +3031,8 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias tense_modal(selbri) -> TenseModalSyntax {
-        context "tag";
-        require choice((
+    alias "tag" tense_modal(selbri) {
+        assert choice((
             cmavo(Fiho),
             selmaho(Bai),
             selmaho(Nahe),
@@ -3056,7 +3053,7 @@ macro_rules! declare_generated_syntax_grammar {
             cmavo(Fehe),
             selmaho(Mohi),
             pa_word(),
-        )).lookahead();
+        ));
         choice((
             connected_tense_modal(selbri),
             tense_modal_atom(selbri),

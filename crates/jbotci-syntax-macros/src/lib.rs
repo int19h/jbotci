@@ -1681,15 +1681,24 @@ impl Parse for AliasRule {
             let context = Some(input.parse()?);
             let name = input.parse()?;
             let arguments = parse_optional_arguments(input)?;
-            input.parse::<Token![=]>()?;
-            let parser = input.parse()?;
-            input.parse::<Token![;]>()?;
+            let (requires, parser) = if input.peek(Token![=]) {
+                input.parse::<Token![=]>()?;
+                let parser = input.parse()?;
+                input.parse::<Token![;]>()?;
+                (Vec::new(), parser)
+            } else if input.peek(syn::token::Brace) {
+                let content;
+                braced!(content in input);
+                parse_parser_only_alias_body(&content)?
+            } else {
+                return Err(input.error("expected `=` or an alias body"));
+            };
             return Ok(Self {
                 name,
                 arguments,
                 output: None,
                 context,
-                requires: Vec::new(),
+                requires,
                 parser,
             });
         }
@@ -1731,6 +1740,36 @@ impl Parse for AliasRule {
             parser,
         })
     }
+}
+
+fn parse_parser_only_alias_body(input: ParseStream<'_>) -> Result<(Vec<Expr>, ParserExpr)> {
+    let mut requires = Vec::new();
+    let mut parser = None;
+    while !input.is_empty() {
+        if input.peek(kw::assert) {
+            input.parse::<kw::assert>()?;
+            let negated = input.peek(Token![!]);
+            if negated {
+                input.parse::<Token![!]>()?;
+            }
+            let expr: Expr = input.parse()?;
+            input.parse::<Token![;]>()?;
+            let expr = if negated {
+                syn::parse2::<Expr>(quote!(#expr.not()))?
+            } else {
+                syn::parse2::<Expr>(quote!(#expr.lookahead().ignored()))?
+            };
+            requires.push(expr);
+        } else {
+            if parser.is_some() {
+                return Err(input.error("alias rules accept exactly one parser expression"));
+            }
+            parser = Some(input.parse()?);
+            input.parse::<Token![;]>()?;
+        }
+    }
+    let parser = parser.ok_or_else(|| input.error("alias rule requires a parser expression"))?;
+    Ok((requires, parser))
 }
 
 struct EnumRule {

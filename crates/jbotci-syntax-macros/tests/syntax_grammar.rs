@@ -372,6 +372,11 @@ mod new_dsl {
         }
 
         alias "item alias" item_alias = item;
+
+        alias "guarded item alias" guarded_item_alias {
+            assert !cmavo(Bo);
+            item;
+        }
     }
 
     #[test]
@@ -396,7 +401,7 @@ mod new_dsl {
 
     #[test]
     fn grammar_macro_exports_new_dsl_metadata() {
-        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 5);
+        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 6);
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "struct");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "item");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].output, "ItemSyntax");
@@ -426,5 +431,15 @@ mod new_dsl {
         assert_eq!(SYNTAX_GRAMMAR_RULES[4].kind, "alias");
         assert_eq!(SYNTAX_GRAMMAR_RULES[4].output, "ItemSyntax");
         assert_eq!(SYNTAX_GRAMMAR_RULES[4].context, Some("item alias"));
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[5].kind, "alias");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[5].output, "ItemSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[5].context, Some("guarded item alias"));
+        assert_eq!(SYNTAX_GRAMMAR_RULES[5].fields[0].kind, "require");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[5].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+        );
+        assert_eq!(SYNTAX_GRAMMAR_RULES[5].fields[1].kind, "alias");
     }
 }
