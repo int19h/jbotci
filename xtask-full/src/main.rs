@@ -8355,16 +8355,23 @@ fn syntax_parser_benchmark_worker(args: SyntaxParserBenchmarkArgs) -> Result<()>
                     &fixture.test_case.lojban,
                     &syntax_options,
                 )
+                .map(|tree| {
+                    drop(tree);
+                })
             }
-            SyntaxParserBenchmarkParser::Generated => parse_syntax_tree_with_source_and_options(
-                &words,
-                &fixture.test_case.lojban,
-                &syntax_options,
-            ),
+            SyntaxParserBenchmarkParser::Generated => {
+                parse_syntax_tree_generated_model_with_source_and_options(
+                    &words,
+                    &fixture.test_case.lojban,
+                    &syntax_options,
+                )
+                .map(|tree| {
+                    drop(tree);
+                })
+            }
         };
         match parsed_tree {
-            Ok(tree) => {
-                drop(tree);
+            Ok(()) => {
                 parsed += 1;
             }
             Err(_) => {
