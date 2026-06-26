@@ -87,20 +87,27 @@ macro_rules! declare_generated_syntax_grammar {
         field leading_connective <- opt(text_leading_connective(tense_modal));
         field leading_i_statements <- many(leading_i_statement(free_modifier, tense_modal));
         #[tree_child(primary)]
-        field paragraphs <- text_paragraphs(paragraph, statement_or_fragment, free_modifier);
+        field paragraphs <- opt(boxed(text_paragraphs(
+            paragraph,
+            statement_or_fragment,
+            free_modifier,
+        )));
     }
 
-    alias "paragraphs" text_paragraphs(paragraph, statement_or_fragment, free_modifier) =
-        opt_or_default(choice((
-            text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier),
-            many1(niho_paragraph(statement_or_fragment, free_modifier)),
-        )));
+    rule "paragraphs" text_paragraphs(paragraph, statement_or_fragment, free_modifier) -> enum {
+        text_paragraph_with_additional_niho,
+        text_niho_paragraphs,
+    }
 
-    alias "paragraphs" text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) =
-        prepend(
-            paragraph,
-            many(niho_paragraph(statement_or_fragment, free_modifier)),
-        );
+    rule "paragraphs" text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier) -> struct {
+        #[tree_child(primary)]
+        field first <- paragraph;
+        field additional_niho <- many(niho_paragraph(statement_or_fragment, free_modifier));
+    }
+
+    rule "paragraphs" text_niho_paragraphs(statement_or_fragment, free_modifier) -> struct {
+        field paragraphs <- many1(niho_paragraph(statement_or_fragment, free_modifier));
+    }
 
     alias "text connective" text_leading_connective(tense_modal) {
         assert !modal_forethought_connective(tense_modal);

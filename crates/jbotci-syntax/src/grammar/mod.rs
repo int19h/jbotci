@@ -707,7 +707,27 @@ mod tests {
             else {
                 panic!("basic text should parse as regular generated-model text");
             };
-            assert_eq!(regular_text.paragraphs.len(), 1);
+            assert!(regular_text.paragraphs.is_some());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_model_strict_parser_keeps_leading_i_statement_marker() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("i mi klama").expect("valid morphology");
+            let tokens = syntax_tokens(&words);
+
+            let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
+                .expect("valid generated-model syntax");
+            let generated::generated_model::TextSyntax::RegularText { regular_text } = parsed
+            else {
+                panic!("basic text should parse as regular generated-model text");
+            };
+
+            assert_eq!(regular_text.leading_i_statements.len(), 1);
+            assert!(regular_text.paragraphs.is_some());
         });
     }
 

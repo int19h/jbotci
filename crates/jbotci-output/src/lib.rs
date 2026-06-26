@@ -939,7 +939,9 @@ mod tests {
         segment_words_with_modifiers,
     };
     use jbotci_source::SourceSpan;
-    use jbotci_syntax::parse_syntax_tree;
+    use jbotci_syntax::{
+        ParseOptions, parse_syntax_tree, parse_syntax_tree_generated_model_with_source_and_options,
+    };
 
     use super::*;
 
@@ -1398,6 +1400,37 @@ mod tests {
                 .expect("json")
                 .contains("\"elided\"")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_model_tree_renders_leading_i_statement_marker() {
+        let source = "i mi klama";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let parsed = parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        )
+        .expect("valid syntax");
+        let jbotci_syntax::generated_model::TextSyntax::RegularText { regular_text } =
+            parsed.as_ref()
+        else {
+            panic!("generated model should parse regular text");
+        };
+        assert_eq!(regular_text.leading_i_statements.len(), 1);
+        let tree = pretty_generated_model_tree_with_options(
+            parsed.as_ref(),
+            source,
+            TreeRenderOptions {
+                show_spans: true,
+                ..TreeRenderOptions::default()
+            },
+        )
+        .expect("tree");
+
+        assert!(tree.contains("i: Cmavo @[0‥1) \"i\""), "{tree}");
     }
 
     #[test]

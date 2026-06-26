@@ -519,10 +519,11 @@ fn legacy_as_generated_text_tree_value(
             value: required_legacy_syntax_subtree_value(connective.as_ref(), source, options),
         });
     }
-    entries.extend(tree.paragraphs.iter().map(|paragraph| TreeEntry {
-        label: None,
-        value: legacy_as_generated_paragraph_tree_value(paragraph, source, options),
-    }));
+    if let Some(value) =
+        legacy_as_generated_text_paragraphs_tree_value(&tree.paragraphs, source, options)
+    {
+        entries.push(TreeEntry { label: None, value });
+    }
     TreeValue::Node(TreeNode {
         constructor: "Text",
         entries,
@@ -541,16 +542,106 @@ fn legacy_as_generated_text_child_tree_value(
         && tree.leading_indicators.is_empty()
         && tree.leading_free_modifiers.is_empty()
         && tree.leading_connective.is_none()
-        && tree.paragraphs.len() == 1
+        && !tree.paragraphs.is_empty()
     {
-        return legacy_as_generated_paragraph_tree_value(
-            tree.paragraphs.first().expect("length checked"),
-            source,
-            options,
-        );
+        return legacy_as_generated_text_paragraphs_tree_value(&tree.paragraphs, source, options)
+            .expect("paragraphs checked non-empty");
     }
 
     legacy_as_generated_text_tree_value(tree, source, options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_text_paragraphs_tree_value(
+    paragraphs: &[jbotci_syntax::ast::ParagraphSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let first = paragraphs.first()?;
+    if first.i.is_some() || first.niho.is_empty() {
+        return Some(
+            legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
+                first,
+                &paragraphs[1..],
+                source,
+                options,
+            ),
+        );
+    }
+
+    Some(legacy_as_generated_text_niho_paragraphs_tree_value(
+        paragraphs, source, options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_text_paragraph_with_additional_niho_tree_value(
+    first: &jbotci_syntax::ast::ParagraphSyntax,
+    additional_niho: &[jbotci_syntax::ast::ParagraphSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let inner = if additional_niho.is_empty() {
+        legacy_as_generated_paragraph_tree_value(first, source, options)
+    } else {
+        TreeValue::Node(TreeNode {
+            constructor: "TextParagraphWithAdditionalNiho",
+            entries: std::iter::once(TreeEntry {
+                label: None,
+                value: legacy_as_generated_paragraph_tree_value(first, source, options),
+            })
+            .chain(std::iter::once(TreeEntry {
+                label: Some("additional_niho"),
+                value: TreeValue::Collection(
+                    additional_niho
+                        .iter()
+                        .map(|paragraph| {
+                            legacy_as_generated_paragraph_tree_value(paragraph, source, options)
+                        })
+                        .collect(),
+                ),
+            }))
+            .collect(),
+        })
+    };
+    TreeValue::Node(TreeNode {
+        constructor: "TextParagraphWithAdditionalNiho",
+        entries: vec![TreeEntry {
+            label: Some("text_paragraph_with_additional_niho"),
+            value: inner,
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_text_niho_paragraphs_tree_value(
+    paragraphs: &[jbotci_syntax::ast::ParagraphSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "TextNihoParagraphs",
+        entries: vec![TreeEntry {
+            label: Some("text_niho_paragraphs"),
+            value: TreeValue::Node(TreeNode {
+                constructor: "TextNihoParagraphs",
+                entries: vec![TreeEntry {
+                    label: Some("paragraphs"),
+                    value: TreeValue::Collection(
+                        paragraphs
+                            .iter()
+                            .map(|paragraph| {
+                                legacy_as_generated_paragraph_tree_value(paragraph, source, options)
+                            })
+                            .collect(),
+                    ),
+                }],
+            }),
+        }],
+    })
 }
 
 #[requires(true)]
@@ -11856,7 +11947,6 @@ fn generated_regular_text_tree_value(
             value: generated_statement_connective_tree_value(connective, source, options),
         });
     }
-
     let mut paragraph_values = paragraphs
         .iter()
         .map(|paragraph| required_generated_syntax_subtree_value(paragraph, source, options))
@@ -11956,14 +12046,34 @@ fn generated_prepend_marker_to_paragraph_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match paragraph {
+        TreeValue::Node(mut node)
+            if node.constructor == "TextParagraphWithAdditionalNiho"
+                || node.constructor == "TextNihoParagraphs" =>
+        {
+            if let Some(position) = node.entries.iter().position(|entry| {
+                entry.label == Some("text_paragraph_with_additional_niho")
+                    || entry.label == Some("text_niho_paragraphs")
+                    || entry.label == Some("paragraphs")
+                    || entry.label.is_none()
+            }) {
+                let value = std::mem::replace(
+                    &mut node.entries[position].value,
+                    TreeValue::Collection(Vec::new()),
+                );
+                node.entries[position].value =
+                    generated_prepend_marker_to_paragraph_value(marker, value, source, options);
+            }
+            TreeValue::Node(node)
+        }
         TreeValue::Node(mut node) if node.constructor == "Paragraph" => {
             if generated_paragraph_has_niho(&node) {
                 prepend_generated_marker_to_paragraph_node(marker, &mut node, source, options);
                 return TreeValue::Node(node);
             }
-            let statement_position = node.entries.iter().position(|entry| {
-                entry.label.is_none() || entry.label == Some("simple_paragraph")
-            });
+            let statement_position = node
+                .entries
+                .iter()
+                .position(|entry| entry.label.is_none() || entry.label == Some("simple_paragraph"));
             let statement_already_marked = statement_position
                 .and_then(|position| node.entries.get(position))
                 .is_some_and(|entry| generated_paragraph_statement_value_has_i(&entry.value));
