@@ -2173,123 +2173,79 @@ macro_rules! declare_generated_syntax_grammar {
         field doi <- cmavo(Doi);
     }
 
-    node vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> FreeModifierSyntax {
-        context "vocative phrase";
-        construct variant Vocative;
-        fields {
-            field vocative_markers = vocative_marker_words().wf();
-            field sumti = opt(boxed(vocative_argument(sumti, subbridi, selbri, tense_modal)));
-            field dohu = opt(cmavo(Dohu).prohibited_wf());
-        }
+    rule "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier) -> enum {
+        text_replacement_free_modifier,
+        sei_free_modifier,
+        xi_free_modifier,
+        mai_free_modifier,
+        soi_free_modifier,
+        parenthetical_text,
+        vocative_free_modifier,
     }
 
-    node parenthetical_text(text) -> FreeModifierSyntax {
-        context "parenthetical text";
-        construct variant ParentheticalText;
-        fields {
-            field to = selmaho(To).wf();
-            field text = boxed(text);
-            field toi = opt(cmavo(Toi).prohibited_wf());
-        }
+    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> struct {
+        field vocative_markers <- vocative_marker_words().wf();
+        field sumti <- opt(boxed(vocative_argument(sumti, subbridi, selbri, tense_modal)));
+        field dohu <- opt(cmavo(Dohu).prohibited_wf());
     }
 
-    node sei_free_modifier(term, selbri) -> FreeModifierSyntax {
-        context "metalinguistic bridi";
-        construct variant MetalinguisticBridi;
-        fields {
-            field sei = selmaho(Sei).wf();
-            field terms = many(term);
-            field cu = opt(cmavo(Cu).wf());
-            field selbri = boxed(selbri);
-            field sehu = opt(cmavo(Sehu).prohibited_wf());
-        }
+    rule "parenthetical text" parenthetical_text(text) -> struct {
+        field to <- selmaho(To).wf();
+        field text <- boxed(text);
+        field toi <- opt(cmavo(Toi).prohibited_wf());
     }
 
-    node xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> FreeModifierSyntax {
-        context "subscript";
-        construct variant Subscript;
-        fields {
-            field xi = selmaho(Xi).wf();
-            field expression = boxed(choice((
-                number_or_letter_mekso(letter_tokens, letter_string, free_modifier),
-                mekso,
-            )));
-        }
+    rule "metalinguistic bridi" sei_free_modifier(term, selbri) -> struct {
+        field sei <- selmaho(Sei).wf();
+        field terms <- many(term);
+        field cu <- opt(cmavo(Cu).wf());
+        field selbri <- boxed(selbri);
+        field sehu <- opt(cmavo(Sehu).prohibited_wf());
     }
 
-    node mai_free_modifier(letter_tokens, letter_string) -> FreeModifierSyntax {
-        context "utterance ordinal";
-        construct variant UtteranceOrdinal;
-        fields {
-            field number = number_or_letter_words(letter_tokens, letter_string);
-            field mai = selmaho(Mai).wf();
-        }
+    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> struct {
+        field xi <- selmaho(Xi).wf();
+        field expression <- boxed(choice((
+            number_or_letter_mekso(letter_tokens, letter_string, free_modifier),
+            mekso,
+        )));
     }
 
-    node soi_free_modifier(sumti) -> FreeModifierSyntax {
-        context "reciprocal";
-        construct variant ReciprocalSumti;
-        fields {
-            field soi = cmavo(Soi).wf();
-            field leading_sumti = boxed(sumti);
-            field trailing_sumti = opt(boxed(sumti));
-            field sehu = opt(cmavo(Sehu).wf());
-        }
+    rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {
+        field number <- number_or_letter_words(letter_tokens, letter_string);
+        field mai <- selmaho(Mai).wf();
     }
 
-    alias "replacement free modifier" text_replacement_free_modifier =
-        choice((
-            full_text_replacement_free_modifier(),
-            new_only_text_replacement_free_modifier(),
-            close_only_text_replacement_free_modifier(),
-        ));
-
-    node full_text_replacement_free_modifier -> FreeModifierSyntax {
-        context "replacement free modifier";
-        construct variant TextReplacement;
-        fields {
-            field lohai = some(cmavo(Lohai));
-            field old_words = raw_words_until(Sahai, Lehai);
-            field sahai = opt(cmavo(Sahai));
-            field new_words = raw_words_until(Lehai);
-            field lehai = cmavo(Lehai).wf();
-        }
+    rule "reciprocal" soi_free_modifier(sumti) -> struct {
+        field soi <- cmavo(Soi).wf();
+        field leading_sumti <- boxed(sumti);
+        field trailing_sumti <- opt(boxed(sumti));
+        field sehu <- opt(cmavo(Sehu).wf());
     }
 
-    node new_only_text_replacement_free_modifier -> FreeModifierSyntax {
-        context "replacement free modifier";
-        construct variant TextReplacement;
-        fields {
-            default lohai: Option<Token> = None;
-            default old_words: Vec<Token> = Vec::new();
-            field sahai = some(cmavo(Sahai));
-            field new_words = raw_words_until(Lehai);
-            field lehai = cmavo(Lehai).wf();
-        }
+    rule "replacement free modifier" text_replacement_free_modifier -> enum {
+        full_text_replacement_free_modifier,
+        new_only_text_replacement_free_modifier,
+        close_only_text_replacement_free_modifier,
     }
 
-    node close_only_text_replacement_free_modifier -> FreeModifierSyntax {
-        context "replacement free modifier";
-        construct variant TextReplacement;
-        fields {
-            default lohai: Option<Token> = None;
-            default old_words: Vec<Token> = Vec::new();
-            default sahai: Option<Token> = None;
-            default new_words: Vec<Token> = Vec::new();
-            field lehai = cmavo(Lehai).wf();
-        }
+    rule "replacement free modifier" full_text_replacement_free_modifier -> struct {
+        field lohai <- some(cmavo(Lohai));
+        field old_words <- raw_words_until(Sahai, Lehai);
+        field sahai <- opt(cmavo(Sahai));
+        field new_words <- raw_words_until(Lehai);
+        field lehai <- cmavo(Lehai).wf();
     }
 
-    alias "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier) =
-        choice((
-            text_replacement_free_modifier(),
-            sei_free_modifier(term, selbri),
-            xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier),
-            mai_free_modifier(letter_tokens, letter_string),
-            soi_free_modifier(sumti),
-            parenthetical_text(text),
-            vocative_free_modifier(sumti, subbridi, selbri, tense_modal),
-        ));
+    rule "replacement free modifier" new_only_text_replacement_free_modifier -> struct {
+        field sahai <- some(cmavo(Sahai));
+        field new_words <- raw_words_until(Lehai);
+        field lehai <- cmavo(Lehai).wf();
+    }
+
+    rule "replacement free modifier" close_only_text_replacement_free_modifier -> struct {
+        field lehai <- cmavo(Lehai).wf();
+    }
 
     alias "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal) =
         choice((

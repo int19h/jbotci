@@ -2954,10 +2954,11 @@ fn legacy_as_generated_free_modifier_tree_value(
             if let Some(sehu) = sehu {
                 entries.extend(legacy_token_field_entries("sehu", sehu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "MetalinguisticBridi",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "SeiFreeModifier",
+                "sei_free_modifier",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::ReciprocalSumti {
             soi,
@@ -2987,10 +2988,11 @@ fn legacy_as_generated_free_modifier_tree_value(
             if let Some(sehu) = sehu {
                 entries.extend(legacy_token_field_entries("sehu", sehu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ReciprocalSumti",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "SoiFreeModifier",
+                "soi_free_modifier",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::Vocative {
             vocative_markers,
@@ -3030,10 +3032,11 @@ fn legacy_as_generated_free_modifier_tree_value(
             if let Some(dohu) = dohu {
                 entries.extend(legacy_token_field_entries("dohu", dohu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "Vocative",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "VocativeFreeModifier",
+                "vocative_free_modifier",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::ParentheticalText {
             to,
@@ -3048,10 +3051,11 @@ fn legacy_as_generated_free_modifier_tree_value(
             if let Some(toi) = toi {
                 entries.extend(legacy_token_field_entries("toi", toi, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ParentheticalText",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "ParentheticalText",
+                "parenthetical_text",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::Subscript { xi, expression }) => {
             let mut entries = legacy_token_field_entries("xi", xi, source, options);
@@ -3063,10 +3067,11 @@ fn legacy_as_generated_free_modifier_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "Subscript",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "XiFreeModifier",
+                "xi_free_modifier",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::UtteranceOrdinal {
             number,
@@ -3093,13 +3098,138 @@ fn legacy_as_generated_free_modifier_tree_value(
             ) {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "UtteranceOrdinal",
+            legacy_as_generated_free_modifier_variant_tree_value(
+                "MaiFreeModifier",
+                "mai_free_modifier",
                 entries,
-            })
+            )
         }
-        _ => required_legacy_syntax_subtree_value(free_modifier, source, options),
+        bityzba::data!(jbotci_syntax::ast::FreeModifierSyntax::TextReplacement {
+            lohai,
+            old_words,
+            sahai,
+            new_words,
+            lehai,
+        }) => legacy_as_generated_text_replacement_free_modifier_tree_value(
+            lohai.as_ref(),
+            old_words,
+            sahai.as_ref(),
+            new_words,
+            lehai,
+            source,
+            options,
+        ),
     }
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_free_modifier_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_text_replacement_free_modifier_tree_value(
+    lohai: Option<&Token>,
+    old_words: &[Token],
+    sahai: Option<&Token>,
+    new_words: &[Token],
+    lehai: &WithFreeModifiers<Token>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (constructor, label, entries) = if let Some(lohai) = lohai {
+        let mut entries = vec![TreeEntry {
+            label: Some("lohai"),
+            value: generated_token_tree_value(lohai, source, options),
+        }];
+        if let Some(entry) =
+            legacy_raw_replacement_words_tree_entry("old_words", old_words, source, options)
+        {
+            entries.push(entry);
+        }
+        if let Some(sahai) = sahai {
+            entries.push(TreeEntry {
+                label: Some("sahai"),
+                value: generated_token_tree_value(sahai, source, options),
+            });
+        }
+        if let Some(entry) =
+            legacy_raw_replacement_words_tree_entry("new_words", new_words, source, options)
+        {
+            entries.push(entry);
+        }
+        entries.extend(legacy_token_field_entries("lehai", lehai, source, options));
+        (
+            "FullTextReplacementFreeModifier",
+            "full_text_replacement_free_modifier",
+            entries,
+        )
+    } else if let Some(sahai) = sahai {
+        let mut entries = vec![TreeEntry {
+            label: Some("sahai"),
+            value: generated_token_tree_value(sahai, source, options),
+        }];
+        if let Some(entry) =
+            legacy_raw_replacement_words_tree_entry("new_words", new_words, source, options)
+        {
+            entries.push(entry);
+        }
+        entries.extend(legacy_token_field_entries("lehai", lehai, source, options));
+        (
+            "NewOnlyTextReplacementFreeModifier",
+            "new_only_text_replacement_free_modifier",
+            entries,
+        )
+    } else {
+        let entries = legacy_token_field_entries("lehai", lehai, source, options);
+        (
+            "CloseOnlyTextReplacementFreeModifier",
+            "close_only_text_replacement_free_modifier",
+            entries,
+        )
+    };
+    let replacement =
+        legacy_as_generated_free_modifier_variant_tree_value(constructor, label, entries);
+    TreeValue::Node(TreeNode {
+        constructor: "TextReplacementFreeModifier",
+        entries: vec![TreeEntry {
+            label: Some("text_replacement_free_modifier"),
+            value: replacement,
+        }],
+    })
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn legacy_raw_replacement_words_tree_entry(
+    label: &'static str,
+    words: &[Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeEntry> {
+    labelled_tree_collection_entry_from_values(
+        label,
+        words
+            .iter()
+            .map(|word| generated_token_tree_value(word, source, options))
+            .collect(),
+    )
 }
 
 #[requires(true)]
