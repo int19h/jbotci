@@ -8896,11 +8896,54 @@ fn fixture_test_chunk_output(
             .arg("--path-prefix")
             .arg(relative.to_string_lossy().to_string());
     }
-    command
-        .stdout(Stdio::piped())
+    let stdout_path = std::env::temp_dir().join(format!(
+        "jbotci-fixture-test-worker-stdout-{}-{}.txt",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    let stdout_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&stdout_path)
+        .with_context(|| {
+            format!(
+                "creating fixture-test worker stdout file `{}`",
+                stdout_path.display()
+            )
+        })?;
+    // Some fixture paths can leave inherited descriptors alive after the worker exits; a
+    // file avoids waiting for pipe EOF while preserving the captured summary text.
+    let status = match command
+        .stdout(Stdio::from(stdout_file))
         .stderr(Stdio::inherit())
-        .output()
-        .context("running fixture-test worker")
+        .status()
+    {
+        Ok(status) => status,
+        Err(error) => {
+            let _ = fs::remove_file(&stdout_path);
+            return Err(error).context("running fixture-test worker");
+        }
+    };
+    let stdout = fs::read(&stdout_path).with_context(|| {
+        format!(
+            "reading fixture-test worker stdout file `{}`",
+            stdout_path.display()
+        )
+    })?;
+    fs::remove_file(&stdout_path).with_context(|| {
+        format!(
+            "removing fixture-test worker stdout file `{}`",
+            stdout_path.display()
+        )
+    })?;
+    Ok(std::process::Output {
+        status,
+        stdout,
+        stderr: Vec::new(),
+    })
 }
 
 #[requires(selector.is_valid())]
