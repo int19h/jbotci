@@ -1592,9 +1592,7 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant MeksoArray;
         fields {
             field johi = cmavo(Johi).wf();
-            scratch expression_items = many1(mekso);
-            let expressions: MeksoVec = MeksoVec::try_from_vec(expression_items)
-                .expect("many1 guarantees non-empty mex array");
+            field expressions = vec1(mekso);
             field tehu = opt(cmavo(Tehu).wf());
         }
     }
