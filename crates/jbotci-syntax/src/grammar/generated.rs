@@ -3015,35 +3015,22 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "tag" flat_tag_atom =
-        choice((
-            fa_flat_tag_atom(),
-            modal_flat_tag_atom(),
-            composite_flat_tag_atom(),
-        ));
-
-    product fa_flat_tag_atom -> FlatTagAtomSyntax {
-        context "tag";
-        construct variant Fa;
-        fields {
-            field fa = selmaho(Fa).warn(ExperimentalFaAsTag).wf();
-        }
+    rule "tag" flat_tag_atom -> enum {
+        fa_flat_tag_atom,
+        modal_flat_tag_atom,
+        composite_flat_tag_atom,
     }
 
-    product modal_flat_tag_atom -> FlatTagAtomSyntax {
-        context "modal tag";
-        construct variant Modal;
-        fields {
-            field modal = boxed(modal_tense());
-        }
+    rule "tag" fa_flat_tag_atom -> struct {
+        field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
     }
 
-    product composite_flat_tag_atom -> FlatTagAtomSyntax {
-        context "tag";
-        construct variant Composite;
-        fields {
-            field composite = boxed(composite_tense());
-        }
+    rule "modal tag" modal_flat_tag_atom -> struct {
+        field modal <- boxed(modal_tense());
+    }
+
+    rule "tag" composite_flat_tag_atom -> struct {
+        field composite <- boxed(composite_tense());
     }
 
     node nahe_se_flat_prefixed_tense -> TenseModalSyntax {
