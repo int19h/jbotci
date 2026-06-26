@@ -1055,7 +1055,6 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant BridiVariableAdverbialTerm;
         fields {
             field poiha = selmaho(Noiha).wf();
-            default tail_elements: Vec<DescriptionTailElementSyntax> = Vec::new();
             field selbri = some(boxed(selbri));
             default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field brigahi_ku = cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
@@ -1067,7 +1066,6 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant RelativeAdverbialTerm;
         fields {
             field noiha = selmaho(Noiha).wf();
-            default tail_elements: Vec<DescriptionTailElementSyntax> = Vec::new();
             field selbri = some(boxed(selbri));
             default relative_clauses: Vec<RelativeClauseSyntax> = Vec::new();
             field fehu = opt(cmavo(Fehu).wf());

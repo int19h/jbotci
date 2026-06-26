@@ -2489,21 +2489,14 @@ fn legacy_as_generated_simple_term_tree_value(
             relative_clauses,
             fehu,
         }) => {
+            assert!(
+                tail_elements.is_empty(),
+                "legacy RelativeAdverbialTerm tail elements are not represented in generated adverbial term shape"
+            );
             let mut entries = vec![TreeEntry {
                 label: Some("noiha"),
                 value: required_legacy_syntax_subtree_value(noiha, source, options),
             }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "tail_elements",
-                tail_elements
-                    .iter()
-                    .map(|tail_element| {
-                        required_legacy_syntax_subtree_value(tail_element, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
             if let Some(selbri) = selbri {
                 entries.push(TreeEntry {
                     label: Some("selbri"),
@@ -2543,21 +2536,14 @@ fn legacy_as_generated_simple_term_tree_value(
             relative_clauses,
             brigahi_ku,
         }) => {
+            assert!(
+                tail_elements.is_empty(),
+                "legacy BridiVariableAdverbialTerm tail elements are not represented in generated adverbial term shape"
+            );
             let mut entries = vec![TreeEntry {
                 label: Some("poiha"),
                 value: required_legacy_syntax_subtree_value(poiha, source, options),
             }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "tail_elements",
-                tail_elements
-                    .iter()
-                    .map(|tail_element| {
-                        required_legacy_syntax_subtree_value(tail_element, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
             if let Some(selbri) = selbri {
                 entries.push(TreeEntry {
                     label: Some("selbri"),
@@ -11105,9 +11091,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         options: TreeRenderOptions,
     ) -> TreeValue {
         match atom {
-            GeneratedSyntaxAtomRef::DescriptionTailElementSyntax(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
             GeneratedSyntaxAtomRef::Indicator(value) => {
                 required_legacy_syntax_subtree_value(value, source, options)
             }
@@ -11119,9 +11102,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
 
     fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
         match atom {
-            GeneratedSyntaxAtomRef::DescriptionTailElementSyntax(value) => {
-                last_legacy_syntax_subtree_position(value)
-            }
             GeneratedSyntaxAtomRef::Indicator(value) => last_legacy_syntax_subtree_position(value),
             GeneratedSyntaxAtomRef::Token(token) => token
                 .source_spans()

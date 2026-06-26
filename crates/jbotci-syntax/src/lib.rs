@@ -126,9 +126,6 @@ where
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            generated_model::AtomRef::DescriptionTailElementSyntax(value) => {
-                self.visit_legacy_tree(value);
-            }
             generated_model::AtomRef::Indicator(value) => self.visit_legacy_tree(value),
             generated_model::AtomRef::Token(token) => self.visit_token(token),
         }
