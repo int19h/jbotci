@@ -47,9 +47,9 @@ macro_rules! declare_generated_syntax_grammar {
         jai_inner_tanru_unit: TanruUnitSyntax;
         tense_modal: TenseModalSyntax;
         mekso: MeksoSyntax;
-        mekso_base: MeksoSyntax;
-        mekso_precedence: MeksoSyntax;
-        mekso_operand: MeksoSyntax;
+        mekso_base: MeksoBaseSyntax;
+        mekso_precedence: MeksoPrecedenceSyntax;
+        mekso_operand: MeksoOperandSyntax;
         mekso_operator: MeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: std::vec::Vec<Token>;
@@ -1038,12 +1038,8 @@ macro_rules! declare_generated_syntax_grammar {
             pa_run_quantifier(letter_tokens),
         ));
 
-    node number_mekso(letter_tokens) -> MeksoSyntax {
-        context "number mex";
-        construct tuple_variant NumberMekso;
-        fields {
-            field quantifier = boxed(pa_run_quantifier(letter_tokens));
-        }
+    rule "number mex" number_mekso(letter_tokens) -> struct {
+        field quantifier <- boxed(pa_run_quantifier(letter_tokens));
     }
 
     rule "operator" primitive_mekso_operator -> struct {
@@ -1118,112 +1114,77 @@ macro_rules! declare_generated_syntax_grammar {
         field tehu <- opt(cmavo(Tehu).wf());
     }
 
-    alias "operand" mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
-        choice((
-            afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
-            bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
-            simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
-        ));
-
-    node afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
-        context "operand connective";
-        fields {
-            field leading_expression = boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-            field continuations = many((operand_connective, boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier))));
-        }
+    rule "operand" mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+        afterthought_mekso_operand,
+        bound_mekso_operand,
+        simple_mekso_operand,
     }
 
-    alias "operand" bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
-        choice((
-            bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
-            simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
-        ));
-
-    node bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> MeksoSyntax {
-        context "operand connective";
-        construct variant BoundMeksoOperandConnection;
-        fields {
-            field left_expression = boxed(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-            field operand_connective = operand_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field right_expression = boxed(mekso_operand);
-        }
+    rule "operand connective" afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+        field leading_expression <- boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
+        field continuations <- many((operand_connective, boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier))));
     }
 
-    alias "operand" simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
-        choice((
-            forethought_mekso_operand(mekso_operand, tense_modal),
-            qualified_mekso_operand(mekso_operand),
-            parenthesized_mekso_operand(mekso),
-            sumti_mekso_operand(sumti),
-            selbri_mekso_operand(selbri),
-            array_mekso_operand(mekso),
-            number_mekso(letter_tokens),
-            lerfu_string_mekso(letter_string, free_modifier),
-        ));
-
-    node qualified_mekso_operand(mekso_operand) -> MeksoSyntax {
-        context "qualified operand";
-        construct variant QualifiedOperand;
-        fields {
-            scratch nahe = selmaho(Nahe);
-            scratch bo = cmavo(Bo);
-            let markers: WithFreeModifiers<Vec<Token>, FreeModifierSyntax> = WithFreeModifiers::new(vec![nahe, bo], Vec::new());
-            field inner_expression = boxed(mekso_operand);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "operand" bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+        bound_mekso_operand,
+        simple_mekso_operand,
     }
 
-    node forethought_mekso_operand(mekso_operand, tense_modal) -> MeksoSyntax {
-        context "forethought mex";
-        construct variant ForethoughtMeksoConnection;
-        fields {
-            field gek = modal_forethought_connective(tense_modal);
-            field left_expression = boxed(mekso_operand);
-            field gik = gik_connective;
-            field right_expression = boxed(mekso_operand);
-        }
+    rule "operand connective" bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+        field left_expression <- boxed(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
+        field operand_connective <- operand_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field right_expression <- boxed(mekso_operand);
     }
 
-    node sumti_mekso_operand(sumti) -> MeksoSyntax {
-        context "sumti operand";
-        construct variant SumtiOperand;
-        fields {
-            field mohe = cmavo(Mohe).wf();
-            field sumti = boxed(sumti);
-            field tehu = opt(cmavo(Tehu).wf());
-        }
+    rule "operand" simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+        forethought_mekso_operand,
+        qualified_mekso_operand,
+        parenthesized_mekso_operand,
+        sumti_mekso_operand,
+        selbri_mekso_operand,
+        array_mekso_operand,
+        number_mekso,
+        lerfu_string_mekso,
     }
 
-    node selbri_mekso_operand(selbri) -> MeksoSyntax {
-        context "selbri operand";
-        construct variant SelbriOperand;
-        fields {
-            field nihe = cmavo(Nihe).wf();
-            field selbri = boxed(selbri);
-            field tehu = opt(cmavo(Tehu).wf());
-        }
+    rule "qualified operand" qualified_mekso_operand(mekso_operand) -> struct {
+        field nahe <- selmaho(Nahe);
+        field bo <- cmavo(Bo);
+        field inner_expression <- boxed(mekso_operand);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node parenthesized_mekso_operand(mekso) -> MeksoSyntax {
-        context "parenthesized mex";
-        construct variant ParenthesizedMekso;
-        fields {
-            field vei = cmavo(Vei).wf();
-            field inner_expression = boxed(mekso);
-            field veho = opt(cmavo(Veho).wf());
-        }
+    rule "forethought mex" forethought_mekso_operand(mekso_operand, tense_modal) -> struct {
+        field gek <- modal_forethought_connective(tense_modal);
+        field left_expression <- boxed(mekso_operand);
+        field gik <- gik_connective;
+        field right_expression <- boxed(mekso_operand);
     }
 
-    node array_mekso_operand(mekso) -> MeksoSyntax {
-        context "mekso array";
-        construct variant MeksoArray;
-        fields {
-            field johi = cmavo(Johi).wf();
-            field expressions = vec1(mekso);
-            field tehu = opt(cmavo(Tehu).wf());
-        }
+    rule "sumti operand" sumti_mekso_operand(sumti) -> struct {
+        field mohe <- cmavo(Mohe).wf();
+        field sumti <- boxed(sumti);
+        field tehu <- opt(cmavo(Tehu).wf());
+    }
+
+    rule "selbri operand" selbri_mekso_operand(selbri) -> struct {
+        field nihe <- cmavo(Nihe).wf();
+        field selbri <- boxed(selbri);
+        field tehu <- opt(cmavo(Tehu).wf());
+    }
+
+    rule "parenthesized mex" parenthesized_mekso_operand(mekso) -> struct {
+        field vei <- cmavo(Vei).wf();
+        field inner_expression <- boxed(mekso);
+        field veho <- opt(cmavo(Veho).wf());
+    }
+
+    rule "mekso array" array_mekso_operand(mekso) -> struct {
+        field johi <- cmavo(Johi).wf();
+        field expressions <- vec1(mekso);
+        field tehu <- opt(cmavo(Tehu).wf());
     }
 
     alias "lerfu string" letter_string(letter_tokens) =
@@ -1250,15 +1211,6 @@ macro_rules! declare_generated_syntax_grammar {
             letter_string,
         ));
 
-    product number_or_letter_mekso(letter_tokens, letter_string, free_modifier) -> MeksoSyntax {
-        context "number or lerfu string";
-        fields {
-            field words = number_or_letter_words(letter_tokens, letter_string);
-            field boi = opt(cmavo(Boi));
-            field free_modifiers = many(free_modifier);
-        }
-    }
-
     alias "lerfu word" letter_tokens(letter_string, letter_tokens) =
         choice((
             plain_letter_word_as_words(),
@@ -1278,66 +1230,47 @@ macro_rules! declare_generated_syntax_grammar {
             append(letter_string, singleton(cmavo(Foi))),
         );
 
-    node lerfu_string_mekso(letter_string, free_modifier) -> MeksoSyntax {
-        context "lerfu string";
-        fields {
-            field letters = letter_string;
-            field boi = opt(cmavo(Boi));
-            field free_modifiers = many(free_modifier);
-        }
+    rule "lerfu string" lerfu_string_mekso(letter_string, free_modifier) -> struct {
+        field letters <- letter_string;
+        field boi <- opt(cmavo(Boi));
+        field free_modifiers <- many(free_modifier);
     }
 
-    alias "mex" mekso_base(mekso_base, mekso_operand, mekso_operator) =
-        choice((
-            mekso_operand,
-            forethought_call_mekso(mekso_base, mekso_operator),
-        ));
-
-    node mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> MeksoSyntax {
-        context "mex";
-        fields {
-            field left_expression = boxed(mekso_base);
-            field tail = opt((cmavo(Bihe).wf(), boxed(mekso_operator), boxed(mekso_precedence)));
-        }
+    rule "mex" mekso_base(mekso, mekso_base, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
+        mekso_operand,
+        forethought_call_mekso,
     }
 
-    node infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> MeksoSyntax {
-        context "mex";
-        fields {
-            field first_expression = boxed(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
-            field continuations = many((boxed(mekso_operator), boxed(mekso_precedence)));
-        }
+    rule "mex" mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> struct {
+        field left_expression <- boxed(mekso_base);
+        field tail <- opt((cmavo(Bihe).wf(), boxed(mekso_operator), boxed(mekso_precedence)));
     }
 
-    node forethought_call_mekso(mekso_base, mekso_operator) -> MeksoSyntax {
-        context "forethought mex";
-        construct variant ForethoughtCall;
-        fields {
-            field peho = opt(cmavo(Peho).wf());
-            field operator = boxed(mekso_operator);
-            field operands = many1(mekso_base);
-            field kuhe = opt(cmavo(Kuhe).wf());
-        }
+    rule "mex" infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
+        field first_expression <- boxed(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
+        field continuations <- many((boxed(mekso_operator), boxed(mekso_precedence)));
     }
 
-    alias "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) =
-        choice((
-            infix_mekso(mekso_base, mekso_precedence, mekso_operator),
-            reverse_polish_mekso(reverse_polish_parts),
-        ));
+    rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
+        field peho <- opt(cmavo(Peho).wf());
+        field operator <- boxed(mekso_operator);
+        field operands <- many1(mekso_base);
+        field kuhe <- opt(cmavo(Kuhe).wf());
+    }
+
+    rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> enum {
+        infix_mekso,
+        reverse_polish_mekso,
+    }
 
     rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
         field first_operand <- boxed(mekso_operand);
         field tails <- many((boxed(reverse_polish_parts), mekso_operator));
     }
 
-    node reverse_polish_mekso(reverse_polish_parts) -> MeksoSyntax {
-        context "reverse Polish mex";
-        construct variant ReversePolish;
-        fields {
-            field fuha = cmavo(Fuha).wf();
-            field parts = boxed(reverse_polish_parts);
-        }
+    rule "reverse Polish mex" reverse_polish_mekso(reverse_polish_parts) -> struct {
+        field fuha <- cmavo(Fuha).wf();
+        field parts <- boxed(reverse_polish_parts);
     }
 
     node number_sumti(mekso) -> SumtiSyntax {
@@ -1775,10 +1708,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> struct {
         field xi <- selmaho(Xi).wf();
-        field expression <- boxed(choice((
-            number_or_letter_mekso(letter_tokens, letter_string, free_modifier),
-            mekso,
-        )));
+        field expression <- boxed(mekso);
     }
 
     rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {
