@@ -758,10 +758,16 @@ fn legacy_as_generated_paragraph_tree_value(
     ) {
         entries.push(entry);
     }
-    entries.extend(paragraph.statements.iter().map(|statement| TreeEntry {
-        label: None,
-        value: legacy_as_generated_paragraph_statement_tree_value(statement, source, options),
-    }));
+    if !paragraph.statements.is_empty() {
+        entries.push(TreeEntry {
+            label: None,
+            value: legacy_as_generated_paragraph_statement_sequence_tree_value(
+                &paragraph.statements,
+                source,
+                options,
+            ),
+        });
+    }
     TreeValue::Node(TreeNode {
         constructor: "Paragraph",
         entries,
@@ -775,47 +781,84 @@ fn legacy_as_generated_simple_paragraph_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    if paragraph.statements.len() == 1 {
-        return legacy_as_generated_paragraph_statement_tree_value(
-            paragraph.statements.first().expect("length checked"),
-            source,
-            options,
-        );
+    legacy_as_generated_paragraph_statement_sequence_tree_value(
+        &paragraph.statements,
+        source,
+        options,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_paragraph_statement_sequence_tree_value(
+    statements: &[jbotci_syntax::ast::ParagraphStatementSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let first = statements
+        .first()
+        .expect("paragraph statement sequence is non-empty");
+    if statements.len() == 1 {
+        return legacy_as_generated_paragraph_statement_tree_value(first, source, options);
     }
 
+    let trailing_start = statements[1..]
+        .iter()
+        .position(legacy_paragraph_statement_is_trailing_ijek)
+        .map(|position| position + 1)
+        .unwrap_or(statements.len());
+    let following = &statements[1..trailing_start];
+    let trailing = &statements[trailing_start..];
+
+    let mut entries = vec![TreeEntry {
+        label: None,
+        value: legacy_as_generated_paragraph_statement_tree_value(first, source, options),
+    }];
+    if !following.is_empty() {
+        entries.push(TreeEntry {
+            label: Some("following"),
+            value: TreeValue::Collection(
+                following
+                    .iter()
+                    .map(|statement| {
+                        legacy_as_generated_paragraph_statement_tree_value(
+                            statement, source, options,
+                        )
+                    })
+                    .collect(),
+            ),
+        });
+    }
+    if !trailing.is_empty() {
+        entries.push(TreeEntry {
+            label: Some("trailing"),
+            value: TreeValue::Collection(
+                trailing
+                    .iter()
+                    .map(|statement| {
+                        legacy_as_generated_paragraph_statement_tree_value(
+                            statement, source, options,
+                        )
+                    })
+                    .collect(),
+            ),
+        });
+    }
     TreeValue::Node(TreeNode {
-        constructor: "SimpleParagraph",
-        entries: paragraph
-            .statements
-            .iter()
-            .map(|statement| TreeEntry {
-                label: None,
-                value: legacy_as_generated_paragraph_statement_tree_value(
-                    statement, source, options,
-                ),
-            })
-            .collect(),
+        constructor: "ParagraphStatementSequence",
+        entries,
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_paragraph_statements_tree_value(
-    statements: &[jbotci_syntax::ast::ParagraphStatementSyntax],
-    source: &str,
-    options: TreeRenderOptions,
-) -> TreeValue {
-    let values = statements
-        .iter()
-        .map(|statement| {
-            legacy_as_generated_paragraph_statement_tree_value(statement, source, options)
-        })
-        .collect::<Vec<_>>();
-    if values.len() == 1 {
-        values.into_iter().next().expect("length checked")
-    } else {
-        TreeValue::Collection(values)
-    }
+fn legacy_paragraph_statement_is_trailing_ijek(
+    statement: &jbotci_syntax::ast::ParagraphStatementSyntax,
+) -> bool {
+    statement.i.is_some()
+        && statement.connective.is_some()
+        && statement.free_modifiers.is_empty()
+        && statement.statement.is_none()
 }
 
 #[requires(true)]

@@ -133,28 +133,26 @@ macro_rules! declare_generated_syntax_grammar {
         field statements <- paragraph_statement_sequence(statement_or_fragment, free_modifier);
     }
 
-    alias "paragraph" paragraph_statement_sequence(statement_or_fragment, free_modifier) =
-        append(
-            prepend(
-                initial_paragraph_statement(statement_or_fragment),
-                many(following_paragraph_statement(statement_or_fragment, free_modifier)),
-            ),
-            many(trailing_ijek_paragraph_statement()),
-        );
+    rule "paragraph statement sequence" paragraph_statement_sequence(statement_or_fragment, free_modifier) -> struct {
+        #[tree_child(primary)]
+        field initial <- initial_paragraph_statement(statement_or_fragment);
+        field following <- many(following_paragraph_statement(statement_or_fragment, free_modifier));
+        field trailing <- many(trailing_ijek_paragraph_statement());
+    }
 
     rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
         field i <- some(cmavo(I));
         field niho <- many1(selmaho(Niho));
         field free_modifiers <- many(free_modifier);
         #[tree_child(primary)]
-        field statements <- opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
+        field statements <- opt(boxed(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     rule "paragraph" niho_paragraph(statement_or_fragment, free_modifier) -> struct {
         field niho <- many1(selmaho(Niho));
         field free_modifiers <- many(free_modifier);
         #[tree_child(primary)]
-        field statements <- opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
+        field statements <- opt(boxed(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
