@@ -38,3 +38,62 @@ tree = """
   Gismu @[56‥61) "xúkmi",
 ]"""
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}},{"PlainWord":{"Gismu":{"phonemes":"fácki","span":[11,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[17,19]}}},{"PlainWord":{"Gismu":{"phonemes":"bífce","span":[20,25]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[26,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[29,31]}}},{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[32,34]}}},{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[34,36]}}},{"PlainWord":{"Gismu":{"phonemes":"cátra","span":[37,42]}}},{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[43,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[46,48]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi'o","span":[48,52]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[53,55]}}},{"PlainWord":{"Gismu":{"phonemes":"xúkmi","span":[56,61]}}}]"""
+
+[expectations.output.gentufa]
+tree = """
+Bridi @[0‥61) {
+  leading_terms: [
+    TaggedSumti @[0‥25) {
+      tense_modal: Cmavo @[0‥2) "ca",
+      Description @[3‥25) {
+        description: Cmavo @[3‥5) "le",
+        selbri: Abstraction @[5‥25) {
+          nu: Cmavo @[5‥7) "nu",
+          Bridi @[8‥25) {
+            leading_terms: [
+              Cmavo @[8‥10) "mi",
+            ],
+            SelbriBridiTail @[11‥25) {
+              Gismu @[11‥16) "fácki",
+              terms: [
+                Description @[17‥25) {
+                  description: Cmavo @[17‥19) "lo",
+                  selbri: Gismu @[20‥25) "bífce",
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  ],
+  cu: Cmavo @[26‥28) "cu",
+  TermPrefixedBridiTail @[29‥61) {
+    terms: [
+      Cmavo @[29‥31) "mi",
+    ],
+    SelbriBridiTail @[32‥61) {
+      TaggedSelbri @[32‥42) {
+        tense_modal: Composite @[32‥36) {
+          Cmavo @[32‥34) "ba",
+          Cmavo @[34‥36) "zi",
+        },
+        Gismu @[37‥42) "cátra",
+      },
+      terms: [
+        Cmavo @[43‥45) "ri",
+        TaggedSumti @[46‥61) {
+          tense_modal: Modal @[46‥52) {
+            se: Cmavo @[46‥48) "se",
+            bai: Cmavo @[48‥52) "pi'o",
+          },
+          Description @[53‥61) {
+            description: Cmavo @[53‥55) "le",
+            selbri: Gismu @[56‥61) "xúkmi",
+          },
+        },
+      ],
+    },
+  },
+}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[5,7]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fácki","span":[11,16]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[17,19]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bífce","span":[20,25]}}}}}}}}]}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[26,28]}}}},"bridi_tail":{"first":{"first":{"first":{"TermPrefixedBridiTail":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[29,31]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[32,34]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[34,36]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cátra","span":[37,42]}}}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[43,45]}}}}}},{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[46,48]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'o","span":[48,52]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[53,55]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xúkmi","span":[56,61]}}}}}}}}}]}}}}}}}}}}}}}]}]}"""

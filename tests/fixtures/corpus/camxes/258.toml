@@ -12,7 +12,7 @@ raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Emphasized { bahe: Cmavo { phonemes: Phonemes { text: "ba'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, word_like: PlainWord(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None } }) }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
+raw = """TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [ParagraphSyntax { i: None, niho: [], free_modifiers: [], statements: [ParagraphStatementSyntax { i: None, connective: None, free_modifiers: [], statement: Some(Bridi(BridiSyntax { leading_terms: [Sumti(ProSumti(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))], cu: None, bridi_tail: BridiTailSyntax { first: AfterthoughtBridiTailSyntax { first: BoGroupedBridiTailSyntax { first: SelbriBridiTail { selbri: SelbriWord(Emphasized { bahe: Cmavo { phonemes: Phonemes { text: "ba'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } }, extra_bahe: [Cmavo { phonemes: Phonemes { text: "ba'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 12, char_start: 8, char_end: 12, start: None, end: None } }], word_like: PlainWord(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 13, byte_end: 18, char_start: 13, char_end: 18, start: None, end: None } }) }), terms: [], vau: None, free_modifiers: [] }, bo_continuation: None }, continuations: [] }, ke_continuation: None }, free_modifiers: [] })) }] }] }"""
 
 [expectations.semantics.refs]
 status = "success"
@@ -37,7 +37,10 @@ Bridi @[0‥18) {
   ],
   Emphasized @[3‥18) {
     bahe: Cmavo @[3‥7) "ba'e",
+    extra_bahe: [
+      Cmavo @[8‥12) "ba'e",
+    ],
     Gismu @[13‥18) "kláma",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"ba'e","span":[3,7]}},"word_like":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[13,18]}}}}}}}}}}}}}}]}]}"""
+json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"ba'e","span":[3,7]}},"extra_bahe":[{"Cmavo":{"phonemes":"ba'e","span":[8,12]}}],"word_like":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[13,18]}}}}}}}}}}}}}}]}]}"""
