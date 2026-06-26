@@ -1263,7 +1263,9 @@ enum VectorItem {
     One(ParserExpr),
     Spread(ParserExpr),
     ZeroOrMore(ParserExpr),
+    ZeroOrMoreSpread(ParserExpr),
     OneOrMore(ParserExpr),
+    OneOrMoreSpread(ParserExpr),
     Assert { negated: bool, parser: ParserExpr },
 }
 
@@ -1288,10 +1290,20 @@ impl Parse for VectorExpr {
                 VectorItem::Spread(content.parse()?)
             } else if content.peek(kw::zero_or_more) {
                 content.parse::<kw::zero_or_more>()?;
-                VectorItem::ZeroOrMore(content.parse()?)
+                if content.peek(Token![..]) {
+                    content.parse::<Token![..]>()?;
+                    VectorItem::ZeroOrMoreSpread(content.parse()?)
+                } else {
+                    VectorItem::ZeroOrMore(content.parse()?)
+                }
             } else if content.peek(kw::one_or_more) {
                 content.parse::<kw::one_or_more>()?;
-                VectorItem::OneOrMore(content.parse()?)
+                if content.peek(Token![..]) {
+                    content.parse::<Token![..]>()?;
+                    VectorItem::OneOrMoreSpread(content.parse()?)
+                } else {
+                    VectorItem::OneOrMore(content.parse()?)
+                }
             } else {
                 VectorItem::One(content.parse()?)
             };
@@ -1331,9 +1343,17 @@ impl VectorItem {
                 let expr = expr.to_token_stream();
                 quote!(zero_or_more #expr)
             }
+            Self::ZeroOrMoreSpread(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(zero_or_more ..#expr)
+            }
             Self::OneOrMore(expr) => {
                 let expr = expr.to_token_stream();
                 quote!(one_or_more #expr)
+            }
+            Self::OneOrMoreSpread(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(one_or_more ..#expr)
             }
             Self::Assert { negated, parser } => {
                 let parser = parser.to_token_stream();
@@ -2622,6 +2642,24 @@ fn strict_vector_parser_expr_tokens(
                 bindings.push(quote!(#binding));
                 statements.push(quote!(__items.extend(#binding);));
             }
+            VectorItem::ZeroOrMoreSpread(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote! {
+                    for __chunk in #binding {
+                        __items.extend(__chunk);
+                    }
+                });
+            }
             VectorItem::OneOrMore(expr) => {
                 let inner = strict_parser_expr_tokens(
                     expr,
@@ -2635,6 +2673,24 @@ fn strict_vector_parser_expr_tokens(
                 )));
                 bindings.push(quote!(#binding));
                 statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::OneOrMoreSpread(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote! {
+                    for __chunk in #binding {
+                        __items.extend(__chunk);
+                    }
+                });
             }
             VectorItem::Assert { negated, parser } => {
                 let parser = strict_parser_expr_tokens(
@@ -3145,31 +3201,29 @@ fn strict_call_parser_expr_tokens(
             mode,
         ),
         ("choice", 1) => {
-            let alternatives = call.args.first().and_then(|expr| {
-                choice_alternative_parser_tokens(
-                    expr,
-                    arguments,
-                    generation,
-                    free_modifier_parser,
-                    mode,
-                )
-            })?;
-            strict_choice_chain(alternatives)
-        }
-        ("choice", _) => {
             let alternatives = call
                 .args
-                .iter()
-                .map(|expr| {
-                    strict_rust_parser_expr_tokens(
-                        expr,
+                .first()
+                .map(choice_alternative_exprs)
+                .and_then(|exprs| {
+                    strict_choice_alternative_parser_tokens(
+                        exprs,
                         arguments,
                         generation,
                         free_modifier_parser,
                         mode,
                     )
-                })
-                .collect::<Option<Vec<_>>>()?;
+                })?;
+            strict_choice_chain(alternatives)
+        }
+        ("choice", _) => {
+            let alternatives = strict_choice_alternative_parser_tokens(
+                call.args.iter().collect(),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
             strict_choice_chain(alternatives)
         }
         ("seq" | "sequence", _) => {
@@ -3377,30 +3431,41 @@ fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Option<TokenStrea
     Some(parser)
 }
 
-fn choice_alternative_parser_tokens(
-    expr: &Expr,
+fn choice_alternative_exprs(expr: &Expr) -> Vec<&Expr> {
+    if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
+        elems.iter().collect()
+    } else {
+        vec![expr]
+    }
+}
+
+fn strict_choice_alternative_parser_tokens(
+    exprs: Vec<&Expr>,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> Option<Vec<TokenStream2>> {
-    if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
-        elems
-            .iter()
-            .map(|expr| {
-                strict_rust_parser_expr_tokens(
-                    expr,
-                    arguments,
-                    generation,
-                    free_modifier_parser,
-                    mode,
-                )
-            })
-            .collect()
-    } else {
-        strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
-            .map(|expr| vec![expr])
-    }
+    let argument_types = argument_type_map(arguments, generation.type_env)?;
+    let outputs = exprs
+        .iter()
+        .map(|expr| rust_parser_output_type(expr, generation.type_env, &argument_types))
+        .collect::<Option<Vec<_>>>()?;
+    let target_output = common_choice_output_type(&outputs)?;
+    exprs
+        .iter()
+        .zip(outputs.iter())
+        .map(|(expr, output)| {
+            let parser = strict_rust_parser_expr_tokens(
+                expr,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            coerce_choice_parser_output(parser, output, &target_output)
+        })
+        .collect()
 }
 
 fn strict_choice_chain(mut alternatives: Vec<TokenStream2>) -> Option<TokenStream2> {
@@ -3449,11 +3514,18 @@ fn vector_output_is_vec1(
     type_env: &GrammarTypeEnv,
     argument_names: &BTreeSet<String>,
 ) -> Option<bool> {
-    let arguments = argument_names
+    let arguments = argument_type_map(argument_names, type_env)?;
+    Some(vector_min_cardinality(expr, type_env, &arguments)? > 0)
+}
+
+fn argument_type_map(
+    argument_names: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Option<BTreeMap<String, Type>> {
+    argument_names
         .iter()
         .map(|name| Some((name.clone(), type_env.recursive.get(name)?.clone())))
-        .collect::<Option<BTreeMap<_, _>>>()?;
-    Some(vector_min_cardinality(expr, type_env, &arguments)? > 0)
+        .collect()
 }
 
 fn vector_element_type(
@@ -3466,6 +3538,10 @@ fn vector_element_type(
         let item_element = match item {
             VectorItem::One(expr) => Some(parser_output_type(expr, type_env, arguments)?),
             VectorItem::Spread(expr) => {
+                let output = parser_output_type(expr, type_env, arguments)?;
+                vector_collection_element_type(&output)
+            }
+            VectorItem::ZeroOrMoreSpread(expr) | VectorItem::OneOrMoreSpread(expr) => {
                 let output = parser_output_type(expr, type_env, arguments)?;
                 vector_collection_element_type(&output)
             }
@@ -3497,13 +3573,21 @@ fn vector_min_cardinality(
     for item in &expr.items {
         match item {
             VectorItem::One(_) | VectorItem::OneOrMore(_) => min += 1,
+            VectorItem::OneOrMoreSpread(expr) => {
+                let output = parser_output_type(expr, type_env, arguments)?;
+                if vector_collection_is_vec1(&output)? {
+                    min += 1;
+                }
+            }
             VectorItem::Spread(expr) => {
                 let output = parser_output_type(expr, type_env, arguments)?;
                 if vector_collection_is_vec1(&output)? {
                     min += 1;
                 }
             }
-            VectorItem::ZeroOrMore(_) | VectorItem::Assert { .. } => {}
+            VectorItem::ZeroOrMore(_)
+            | VectorItem::ZeroOrMoreSpread(_)
+            | VectorItem::Assert { .. } => {}
         }
     }
     Some(min)
@@ -3738,17 +3822,66 @@ fn choice_outputs_same<'a>(
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
-    let mut outputs = exprs.map(|expr| rust_parser_output_type(expr, type_env, arguments));
-    let first = outputs.next()??;
-    if outputs.all(|output| {
-        output
-            .as_ref()
-            .is_some_and(|output| type_token_streams_match(output, &first))
-    }) {
-        Some(first)
-    } else {
-        None
+    let outputs = exprs
+        .map(|expr| rust_parser_output_type(expr, type_env, arguments))
+        .collect::<Option<Vec<_>>>()?;
+    common_choice_output_type(&outputs)
+}
+
+fn common_choice_output_type(outputs: &[TokenStream2]) -> Option<TokenStream2> {
+    let first = outputs.first()?;
+    if outputs
+        .iter()
+        .all(|output| type_token_streams_match(output, first))
+    {
+        return Some(first.clone());
     }
+
+    let mut element: Option<TokenStream2> = None;
+    let mut saw_vec = false;
+    for output in outputs {
+        let item_element = vector_collection_element_type(output)?;
+        if let Some(element) = &element {
+            if !type_token_streams_match(element, &item_element) {
+                return None;
+            }
+        } else {
+            element = Some(item_element);
+        }
+        if !vector_collection_is_vec1(output)? {
+            saw_vec = true;
+        }
+    }
+
+    let element = element?;
+    if saw_vec {
+        Some(quote!(Vec<#element>))
+    } else {
+        Some(quote!(vec1::Vec1<#element>))
+    }
+}
+
+fn coerce_choice_parser_output(
+    parser: TokenStream2,
+    source: &TokenStream2,
+    target: &TokenStream2,
+) -> Option<TokenStream2> {
+    if type_token_streams_match(source, target) {
+        return Some(parser);
+    }
+
+    let source_element = vector_collection_element_type(source)?;
+    let target_element = vector_collection_element_type(target)?;
+    if type_token_streams_match(&source_element, &target_element)
+        && vector_collection_is_vec1(source)?
+        && !vector_collection_is_vec1(target)?
+    {
+        return Some(quote! {
+            #parser.map(|__items| __items.into_iter().collect::<Vec<_>>())
+        });
+    }
+
+    None
 }
 
 fn sequence_output_type<'a>(
@@ -4449,10 +4582,10 @@ fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> Reco
                     VectorItem::One(expr) | VectorItem::Spread(expr) => {
                         classify_parser_expr(expr, arguments)
                     }
-                    VectorItem::ZeroOrMore(expr) => {
+                    VectorItem::ZeroOrMore(expr) | VectorItem::ZeroOrMoreSpread(expr) => {
                         RecoveryExpr::Many(Box::new(classify_parser_expr(expr, arguments)))
                     }
-                    VectorItem::OneOrMore(expr) => {
+                    VectorItem::OneOrMore(expr) | VectorItem::OneOrMoreSpread(expr) => {
                         RecoveryExpr::Many1(Box::new(classify_parser_expr(expr, arguments)))
                     }
                     VectorItem::Assert { negated, parser } => {

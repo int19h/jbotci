@@ -52,8 +52,8 @@ macro_rules! declare_generated_syntax_grammar {
         mekso_operand: MeksoOperandSyntax;
         mekso_operator: MeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
-        letter_string: std::vec::Vec<Token>;
-        letter_tokens: std::vec::Vec<Token>;
+        letter_string: vec1::Vec1<Token>;
+        letter_tokens: vec1::Vec1<Token>;
         free_modifier: FreeModifierSyntax;
     }
 
@@ -1015,7 +1015,7 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             scratch number_words = number_words(letter_tokens).wf();
             let number: WithFreeModifiers<WordRun, FreeModifierSyntax> = WithFreeModifiers::new(
-                WordRun::try_from_vec(number_words.value).expect("many1 guarantees non-empty number words"),
+                number_words.value,
                 number_words.free_modifiers,
             );
             field boi = opt(cmavo(Boi).wf());
@@ -1188,22 +1188,16 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     alias "lerfu string" letter_string(letter_tokens) =
-        concat(
+        [..letter_tokens; zero_or_more ..choice((
+            pa_word_as_words(),
             letter_tokens,
-            many(choice((
-                pa_word_as_words(),
-                letter_tokens,
-            ))),
-        );
+        ))];
 
     alias "number" number_words(letter_tokens) =
-        concat(
+        [..pa_word_as_words(); zero_or_more ..choice((
             pa_word_as_words(),
-            many(choice((
-                pa_word_as_words(),
-                letter_tokens,
-            ))),
-        );
+            letter_tokens,
+        ))];
 
     alias "number or lerfu string" number_or_letter_words(letter_tokens, letter_string) =
         choice((
@@ -1218,17 +1212,14 @@ macro_rules! declare_generated_syntax_grammar {
             tei_letter_tokens(letter_string),
         ));
 
-    alias "number" pa_word_as_words = singleton(pa_word());
+    alias "number" pa_word_as_words = [pa_word()];
 
-    alias "lerfu word" plain_letter_word_as_words = singleton(word_category(LetterWord));
+    alias "lerfu word" plain_letter_word_as_words = [word_category(LetterWord)];
 
-    alias "lerfu word" lau_letter_tokens(letter_tokens) = prepend(selmaho(Lau), letter_tokens);
+    alias "lerfu word" lau_letter_tokens(letter_tokens) = [selmaho(Lau); ..letter_tokens];
 
     alias "lerfu word" tei_letter_tokens(letter_string) =
-        prepend(
-            cmavo(Tei),
-            append(letter_string, singleton(cmavo(Foi))),
-        );
+        [cmavo(Tei); ..letter_string; cmavo(Foi)];
 
     rule "lerfu string" lerfu_string_mekso(letter_string, free_modifier) -> struct {
         field letters <- letter_string;
@@ -2578,13 +2569,10 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     alias "number" interval_property_number_words =
-        concat(
-            singleton(pa_word()),
-            many(choice((
-                pa_word_as_words(),
-                plain_letter_word_as_words(),
-            ))),
-        );
+        [pa_word(); zero_or_more ..choice((
+            pa_word_as_words(),
+            plain_letter_word_as_words(),
+        ))];
 
     node tahe_interval_property_tense -> TenseModalSyntax {
         context "interval property";

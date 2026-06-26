@@ -363,7 +363,13 @@ mod new_dsl {
         }
 
         rule "token list" token_list -> struct {
-            field tokens <- [cmavo(Be); zero_or_more cmavo(Bo); assert !cmavo(Be);];
+            field tokens <- [
+                cmavo(Be);
+                zero_or_more cmavo(Bo);
+                zero_or_more ..[cmavo(Bo)];
+                one_or_more ..[cmavo(Be)];
+                assert !cmavo(Be);
+            ];
         }
 
         rule "item choice" item_choice -> enum {
