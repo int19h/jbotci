@@ -362,6 +362,10 @@ mod new_dsl {
             field token <- cmavo(Bo);
         }
 
+        rule "token list" token_list -> struct {
+            field tokens <- [cmavo(Be); zero_or_more cmavo(Bo); assert !cmavo(Be);];
+        }
+
         rule "item choice" item_choice -> enum {
             item,
             other_item,
@@ -377,18 +381,22 @@ mod new_dsl {
             computed: 1,
         };
         let other_item = OtherItemSyntax { token: Token };
+        let token_list = TokenListSyntax {
+            tokens: vec1::Vec1::new(Token),
+        };
         let item_choice = ItemChoiceSyntax::Item { item: item.clone() };
         let other_choice = ItemChoiceSyntax::OtherItem { other_item };
 
         assert_eq!(item.token, Token);
         assert_eq!(item.computed, 1);
+        assert_eq!(token_list.tokens.len(), 1);
         assert!(matches!(item_choice, ItemChoiceSyntax::Item { .. }));
         assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem { .. }));
     }
 
     #[test]
     fn grammar_macro_exports_new_dsl_metadata() {
-        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 4);
+        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 5);
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "struct");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "item");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].output, "ItemSyntax");
@@ -402,13 +410,21 @@ mod new_dsl {
             SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
         );
 
-        assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "enum");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[2].output, "ItemChoiceSyntax");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[0].kind, "variant");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[0].name, "item");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "struct");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].name, "token_list");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[0].kind, "field");
+        assert!(matches!(
+            SYNTAX_GRAMMAR_RULES[2].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Sequence(_)
+        ));
 
-        assert_eq!(SYNTAX_GRAMMAR_RULES[3].kind, "alias");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[3].output, "ItemSyntax");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[3].context, Some("item alias"));
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].kind, "enum");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].output, "ItemChoiceSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].fields[0].kind, "variant");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].fields[0].name, "item");
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[4].kind, "alias");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[4].output, "ItemSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[4].context, Some("item alias"));
     }
 }

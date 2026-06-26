@@ -7,7 +7,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument, Ident, LitStr,
-    Path, PathArguments, Result, Token, Type, braced, parenthesized,
+    Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
 };
@@ -48,6 +48,8 @@ mod kw {
     syn::custom_keyword!(tuple_variant);
     syn::custom_keyword!(variant);
     syn::custom_keyword!(when);
+    syn::custom_keyword!(one_or_more);
+    syn::custom_keyword!(zero_or_more);
 }
 
 struct SyntaxGrammar {
@@ -1151,6 +1153,139 @@ impl Parse for RecursiveRule {
     }
 }
 
+enum ParserExpr {
+    Rust(Expr),
+    Vector(VectorExpr),
+}
+
+impl ParserExpr {
+    fn compact_tokens(&self) -> String {
+        match self {
+            Self::Rust(expr) => compact_tokens(expr),
+            Self::Vector(expr) => compact_tokens(&expr.to_token_stream()),
+        }
+    }
+
+    fn to_token_stream(&self) -> TokenStream2 {
+        match self {
+            Self::Rust(expr) => quote!(#expr),
+            Self::Vector(expr) => expr.to_token_stream(),
+        }
+    }
+
+    fn rust_tokens(&self) -> TokenStream2 {
+        self.to_token_stream()
+    }
+}
+
+impl From<Expr> for ParserExpr {
+    fn from(expr: Expr) -> Self {
+        Self::Rust(expr)
+    }
+}
+
+impl Parse for ParserExpr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        if input.peek(syn::token::Bracket) {
+            input.parse().map(Self::Vector)
+        } else {
+            input.parse().map(Self::Rust)
+        }
+    }
+}
+
+struct VectorExpr {
+    items: Vec<VectorItem>,
+}
+
+enum VectorItem {
+    One(ParserExpr),
+    Spread(ParserExpr),
+    ZeroOrMore(ParserExpr),
+    OneOrMore(ParserExpr),
+    Assert { negated: bool, parser: ParserExpr },
+}
+
+impl Parse for VectorExpr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        let content;
+        bracketed!(content in input);
+        let mut items = Vec::new();
+        while !content.is_empty() {
+            let item = if content.peek(kw::assert) {
+                content.parse::<kw::assert>()?;
+                let negated = content.peek(Token![!]);
+                if negated {
+                    content.parse::<Token![!]>()?;
+                }
+                VectorItem::Assert {
+                    negated,
+                    parser: content.parse()?,
+                }
+            } else if content.peek(Token![..]) {
+                content.parse::<Token![..]>()?;
+                VectorItem::Spread(content.parse()?)
+            } else if content.peek(kw::zero_or_more) {
+                content.parse::<kw::zero_or_more>()?;
+                VectorItem::ZeroOrMore(content.parse()?)
+            } else if content.peek(kw::one_or_more) {
+                content.parse::<kw::one_or_more>()?;
+                VectorItem::OneOrMore(content.parse()?)
+            } else {
+                VectorItem::One(content.parse()?)
+            };
+            items.push(item);
+            if content.peek(Token![;]) {
+                content.parse::<Token![;]>()?;
+            } else if !content.is_empty() {
+                return Err(content.error("expected `;` between vector parser items"));
+            }
+        }
+        if items.is_empty() {
+            return Err(content.error("vector parser expressions need at least one item"));
+        }
+        Ok(Self { items })
+    }
+}
+
+impl ToTokens for VectorExpr {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let items = self.items.iter().map(VectorItem::to_token_stream);
+        tokens.extend(quote!([#(#items;)*]));
+    }
+}
+
+impl VectorItem {
+    fn to_token_stream(&self) -> TokenStream2 {
+        match self {
+            Self::One(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(#expr)
+            }
+            Self::Spread(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(..#expr)
+            }
+            Self::ZeroOrMore(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(zero_or_more #expr)
+            }
+            Self::OneOrMore(expr) => {
+                let expr = expr.to_token_stream();
+                quote!(one_or_more #expr)
+            }
+            Self::Assert { negated, parser } => {
+                let parser = parser.to_token_stream();
+                if *negated {
+                    quote!(assert !#parser)
+                } else {
+                    quote!(assert #parser)
+                }
+            }
+        }
+    }
+}
+
 enum Rule {
     Alias(AliasRule),
     Struct(NodeRule),
@@ -1293,7 +1428,7 @@ struct AliasRule {
     output: Option<Type>,
     context: Option<LitStr>,
     requires: Vec<Expr>,
-    parser: Expr,
+    parser: ParserExpr,
 }
 
 impl AliasRule {
@@ -1322,8 +1457,8 @@ impl AliasRule {
             .iter()
             .map(Ident::to_string)
             .collect::<BTreeSet<_>>();
-        let parser = compact_tokens(&self.parser);
-        let recovery = classify_recovery_expr(&self.parser, &argument_names).expand();
+        let parser = self.parser.compact_tokens();
+        let recovery = classify_parser_expr(&self.parser, &argument_names).expand();
         let requires = self.requires.iter().map(|require| {
             let parser = compact_tokens(require);
             let recovery = classify_recovery_expr(require, &argument_names).expand();
@@ -1388,7 +1523,7 @@ impl AliasRule {
             .iter()
             .rev()
             .try_fold(parser, |parser, require| {
-                let require = strict_parser_expr_tokens(
+                let require = strict_rust_parser_expr_tokens(
                     require,
                     &argument_names,
                     &generation,
@@ -1520,7 +1655,7 @@ impl Parse for AliasRule {
                 if parser.is_some() {
                     return Err(content.error("alias rules accept exactly one parser expression"));
                 }
-                parser = Some(content.parse()?);
+                parser = Some(content.parse::<Expr>()?.into());
                 content.parse::<Token![;]>()?;
             }
         }
@@ -1852,7 +1987,7 @@ impl NodeRule {
                 )
                 .then(|| {
                     let name = field.name.as_ref().expect("let field items have names");
-                    let value = &field.parser;
+                    let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
                 })
             });
@@ -1868,7 +2003,7 @@ impl NodeRule {
                 )
                 .then(|| {
                     let name = field.name.as_ref().expect("let field items have names");
-                    let value = &field.parser;
+                    let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
                 })
             });
@@ -1877,7 +2012,7 @@ impl NodeRule {
                 match field.kind {
                     FieldKind::Field | FieldKind::Computed | FieldKind::Let => Some(quote!(#name)),
                     FieldKind::Default => {
-                        let value = &field.parser;
+                        let value = field.parser.rust_tokens();
                         Some(quote!(#value))
                     }
                     FieldKind::Scratch | FieldKind::TempLet | FieldKind::Require => None,
@@ -1895,7 +2030,7 @@ impl NodeRule {
                 )
                 .then(|| {
                     let name = field.name.as_ref().expect("let field items have names");
-                    let value = &field.parser;
+                    let value = field.parser.rust_tokens();
                     quote!(let #name = #value;)
                 })
             });
@@ -1904,7 +2039,7 @@ impl NodeRule {
                 match field.kind {
                     FieldKind::Field | FieldKind::Computed | FieldKind::Let => Some(quote!(#name,)),
                     FieldKind::Default => {
-                        let value = &field.parser;
+                        let value = field.parser.rust_tokens();
                         Some(quote!(#name: #value,))
                     }
                     FieldKind::Scratch | FieldKind::TempLet | FieldKind::Require => None,
@@ -1964,7 +2099,7 @@ impl NodeRule {
                                     Some(quote!(#name))
                                 }
                                 FieldKind::Default => {
-                                    let value = &field.parser;
+                                    let value = field.parser.rust_tokens();
                                     Some(quote!(#value))
                                 }
                                 FieldKind::Scratch | FieldKind::TempLet | FieldKind::Require => {
@@ -2318,6 +2453,139 @@ fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
 }
 
 fn strict_parser_expr_tokens(
+    expr: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    match expr {
+        ParserExpr::Rust(expr) => {
+            strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+        }
+        ParserExpr::Vector(expr) => strict_vector_parser_expr_tokens(
+            expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+    }
+}
+
+fn strict_vector_parser_expr_tokens(
+    expr: &VectorExpr,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    let mut parsers = Vec::new();
+    let mut bindings = Vec::new();
+    let mut statements = Vec::new();
+    for (index, item) in expr.items.iter().enumerate() {
+        let binding = format_ident!("__vector_item_{index}");
+        match item {
+            VectorItem::One(expr) => {
+                parsers.push(strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?);
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.push(#binding);));
+            }
+            VectorItem::Spread(expr) => {
+                parsers.push(strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?);
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::ZeroOrMore(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::OneOrMore(expr) => {
+                let inner = strict_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::Assert { negated, parser } => {
+                let parser = strict_parser_expr_tokens(
+                    parser,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                let parser = if *negated {
+                    quote!(generated_runtime::not(#parser))
+                } else {
+                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                };
+                parsers.push(parser);
+                bindings.push(quote!(_));
+            }
+        }
+    }
+    let parser = strict_sequence_expr_chain(parsers)?;
+    let pattern = nested_sequence_pattern(bindings)?;
+    let returns_vec1 = vector_output_is_vec1(expr, generation.type_env, arguments)?;
+    let finish = if returns_vec1 {
+        quote! {
+            vec1::Vec1::try_from_vec(__items)
+                .expect("vector parser expression has statically non-zero cardinality")
+        }
+    } else {
+        quote!(__items)
+    };
+    Some(quote! {
+        #parser.map(|#pattern| {
+            let mut __items = Vec::new();
+            #(#statements)*
+            #finish
+        })
+    })
+}
+
+fn nested_sequence_pattern(mut bindings: Vec<TokenStream2>) -> Option<TokenStream2> {
+    if bindings.is_empty() {
+        return Some(quote!(()));
+    }
+    let mut pattern = bindings.remove(0);
+    for binding in bindings {
+        pattern = quote!((#pattern, #binding));
+    }
+    Some(pattern)
+}
+
+fn strict_rust_parser_expr_tokens(
     expr: &Expr,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
@@ -2357,7 +2625,7 @@ fn strict_method_parser_expr_tokens(
     mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     if method.method == "warn" && method.args.len() == 1 {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2375,7 +2643,7 @@ fn strict_method_parser_expr_tokens(
             )
         })
     } else if method.method == "not_next_selmaho" && method.args.len() == 1 {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2390,7 +2658,7 @@ fn strict_method_parser_expr_tokens(
                 .map(|(value, _)| value)
         })
     } else if method.method == "not_next_token" && method.args.len() == 1 {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2405,7 +2673,7 @@ fn strict_method_parser_expr_tokens(
                 .map(|(value, _)| value)
         })
     } else if method.method == "not_next_rule" && method.args.len() == 1 {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2447,14 +2715,14 @@ fn strict_method_parser_expr_tokens(
         })
     } else if method.method == "followed_by" && method.args.len() == 1 {
         let guard_expr = method.args.first()?;
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
             free_modifier_parser,
             mode,
         )?;
-        let guard = strict_parser_expr_tokens(
+        let guard = strict_rust_parser_expr_tokens(
             guard_expr,
             arguments,
             generation,
@@ -2463,7 +2731,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         Some(quote!(generated_runtime::followed_by(#inner, #guard)))
     } else if method.method == "lookahead" && method.args.is_empty() {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2472,7 +2740,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         Some(quote!(generated_runtime::lookahead(#inner)))
     } else if method.method == "not" && method.args.is_empty() {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2481,7 +2749,7 @@ fn strict_method_parser_expr_tokens(
         )?;
         Some(quote!(generated_runtime::not(#inner)))
     } else if method.method == "ignored" && method.args.is_empty() {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2494,7 +2762,7 @@ fn strict_method_parser_expr_tokens(
         || method.method == "prohibited_wf")
         && method.args.is_empty()
     {
-        let inner = strict_parser_expr_tokens(
+        let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
             generation,
@@ -2584,7 +2852,7 @@ fn strict_call_parser_expr_tokens(
         ("feature", 2) => {
             let feature = call.args.first().and_then(path_expr_last_segment)?;
             let feature = format_ident!("{feature}");
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
                 generation,
@@ -2599,7 +2867,7 @@ fn strict_call_parser_expr_tokens(
         ("policy", 2) => {
             let policy = call.args.first().and_then(path_expr_last_segment)?;
             let policy = format_ident!("{policy}");
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
                 generation,
@@ -2624,7 +2892,7 @@ fn strict_call_parser_expr_tokens(
         }
         ("pa_word", 0) => Some(quote!(pa_word())),
         ("opt", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2634,7 +2902,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::strict_optional(#inner)))
         }
         ("some", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2644,7 +2912,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(#inner.map(Some)))
         }
         ("opt_or_default", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2654,7 +2922,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::strict_optional(#inner).map(Option::unwrap_or_default)))
         }
         ("many" | "many_local", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2664,7 +2932,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::strict_greedy_many_parser(#inner.boxed())))
         }
         ("many1" | "nonempty", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2674,7 +2942,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
         }
         ("vec1", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2689,7 +2957,7 @@ fn strict_call_parser_expr_tokens(
             })
         }
         ("singleton", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2699,14 +2967,14 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::singleton(#inner)))
         }
         ("prepend", 2) => {
-            let head = strict_parser_expr_tokens(
+            let head = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
                 free_modifier_parser,
                 mode,
             )?;
-            let tail = strict_parser_expr_tokens(
+            let tail = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
                 generation,
@@ -2716,14 +2984,14 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::prepend(#head, #tail)))
         }
         ("append", 2) => {
-            let left = strict_parser_expr_tokens(
+            let left = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
                 free_modifier_parser,
                 mode,
             )?;
-            let right = strict_parser_expr_tokens(
+            let right = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
                 generation,
@@ -2733,14 +3001,14 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::append(#left, #right)))
         }
         ("concat", 2) => {
-            let head = strict_parser_expr_tokens(
+            let head = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
                 free_modifier_parser,
                 mode,
             )?;
-            let tail = strict_parser_expr_tokens(
+            let tail = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
                 arguments,
                 generation,
@@ -2750,7 +3018,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::concat(#head, #tail)))
         }
         ("boxed", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2760,7 +3028,7 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(#inner.map(Box::new)))
         }
         ("arc", 1) => {
-            let inner = strict_parser_expr_tokens(
+            let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
                 generation,
@@ -2769,7 +3037,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(#inner.map(std::sync::Arc::new)))
         }
-        ("recover_as", 2) => strict_parser_expr_tokens(
+        ("recover_as", 2) => strict_rust_parser_expr_tokens(
             call.args.iter().nth(1).expect("length checked"),
             arguments,
             generation,
@@ -2793,7 +3061,7 @@ fn strict_call_parser_expr_tokens(
                 .args
                 .iter()
                 .map(|expr| {
-                    strict_parser_expr_tokens(
+                    strict_rust_parser_expr_tokens(
                         expr,
                         arguments,
                         generation,
@@ -2809,7 +3077,7 @@ fn strict_call_parser_expr_tokens(
                 .args
                 .iter()
                 .map(|expr| {
-                    strict_parser_expr_tokens(
+                    strict_rust_parser_expr_tokens(
                         expr,
                         arguments,
                         generation,
@@ -2869,7 +3137,7 @@ fn strict_tuple_parser_expr_tokens(
         .elems
         .iter()
         .map(|expr| {
-            strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+            strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
         })
         .collect::<Option<Vec<_>>>()?;
     strict_sequence_expr_chain(parts)
@@ -2895,7 +3163,7 @@ fn strict_rule_call_parser_tokens<'a>(
     };
     let parser_arguments = argument_exprs
         .map(|argument| {
-            strict_parser_expr_tokens(
+            strict_rust_parser_expr_tokens(
                 argument,
                 arguments,
                 generation,
@@ -3020,11 +3288,17 @@ fn choice_alternative_parser_tokens(
         elems
             .iter()
             .map(|expr| {
-                strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+                strict_rust_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )
             })
             .collect()
     } else {
-        strict_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+        strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
             .map(|expr| vec![expr])
     }
 }
@@ -3047,20 +3321,146 @@ fn strict_choice_chain(mut alternatives: Vec<TokenStream2>) -> Option<TokenStrea
 }
 
 fn parser_output_type(
+    expr: &ParserExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<TokenStream2> {
+    match expr {
+        ParserExpr::Rust(expr) => rust_parser_output_type(expr, type_env, arguments),
+        ParserExpr::Vector(expr) => vector_parser_output_type(expr, type_env, arguments),
+    }
+}
+
+fn vector_parser_output_type(
+    expr: &VectorExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<TokenStream2> {
+    let element = vector_element_type(expr, type_env, arguments)?;
+    if vector_min_cardinality(expr, type_env, arguments)? > 0 {
+        Some(quote!(vec1::Vec1<#element>))
+    } else {
+        Some(quote!(Vec<#element>))
+    }
+}
+
+fn vector_output_is_vec1(
+    expr: &VectorExpr,
+    type_env: &GrammarTypeEnv,
+    argument_names: &BTreeSet<String>,
+) -> Option<bool> {
+    let arguments = argument_names
+        .iter()
+        .map(|name| Some((name.clone(), type_env.recursive.get(name)?.clone())))
+        .collect::<Option<BTreeMap<_, _>>>()?;
+    Some(vector_min_cardinality(expr, type_env, &arguments)? > 0)
+}
+
+fn vector_element_type(
+    expr: &VectorExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<TokenStream2> {
+    let mut element: Option<TokenStream2> = None;
+    for item in &expr.items {
+        let item_element = match item {
+            VectorItem::One(expr) => Some(parser_output_type(expr, type_env, arguments)?),
+            VectorItem::Spread(expr) => {
+                let output = parser_output_type(expr, type_env, arguments)?;
+                vector_collection_element_type(&output)
+            }
+            VectorItem::ZeroOrMore(expr) | VectorItem::OneOrMore(expr) => {
+                Some(parser_output_type(expr, type_env, arguments)?)
+            }
+            VectorItem::Assert { .. } => None,
+        };
+        let Some(item_element) = item_element else {
+            continue;
+        };
+        if let Some(element) = &element {
+            if !token_streams_match(element, &item_element) {
+                return None;
+            }
+        } else {
+            element = Some(item_element);
+        }
+    }
+    element
+}
+
+fn vector_min_cardinality(
+    expr: &VectorExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<usize> {
+    let mut min = 0usize;
+    for item in &expr.items {
+        match item {
+            VectorItem::One(_) | VectorItem::OneOrMore(_) => min += 1,
+            VectorItem::Spread(expr) => {
+                let output = parser_output_type(expr, type_env, arguments)?;
+                if vector_collection_is_vec1(&output)? {
+                    min += 1;
+                }
+            }
+            VectorItem::ZeroOrMore(_) | VectorItem::Assert { .. } => {}
+        }
+    }
+    Some(min)
+}
+
+fn vector_collection_element_type(output: &TokenStream2) -> Option<TokenStream2> {
+    let ty = syn::parse2::<Type>(output.clone()).ok()?;
+    match ty {
+        Type::Path(path) => {
+            let segment = path.path.segments.last()?;
+            if segment.ident != "Vec" && segment.ident != "Vec1" {
+                return None;
+            }
+            let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                return None;
+            };
+            args.args.iter().find_map(|arg| match arg {
+                GenericArgument::Type(ty) => Some(quote!(#ty)),
+                _ => None,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn vector_collection_is_vec1(output: &TokenStream2) -> Option<bool> {
+    let ty = syn::parse2::<Type>(output.clone()).ok()?;
+    match ty {
+        Type::Path(path) => {
+            let segment = path.path.segments.last()?;
+            if segment.ident == "Vec1" {
+                Some(true)
+            } else if segment.ident == "Vec" {
+                Some(false)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn rust_parser_output_type(
     expr: &Expr,
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     match expr {
-        Expr::Call(call) => call_parser_output_type(call, type_env, arguments),
-        Expr::MethodCall(method) => method_parser_output_type(method, type_env, arguments),
-        Expr::Path(path) => path_parser_output_type(path, type_env, arguments),
-        Expr::Tuple(tuple) => tuple_parser_output_type(tuple, type_env, arguments),
+        Expr::Call(call) => call_rust_parser_output_type(call, type_env, arguments),
+        Expr::MethodCall(method) => method_rust_parser_output_type(method, type_env, arguments),
+        Expr::Path(path) => path_rust_parser_output_type(path, type_env, arguments),
+        Expr::Tuple(tuple) => tuple_rust_parser_output_type(tuple, type_env, arguments),
         _ => None,
     }
 }
 
-fn method_parser_output_type(
+fn method_rust_parser_output_type(
     method: &ExprMethodCall,
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
@@ -3072,7 +3472,7 @@ fn method_parser_output_type(
         || method.method == "followed_by"
         || method.method == "lookahead"
     {
-        parser_output_type(&method.receiver, type_env, arguments)
+        rust_parser_output_type(&method.receiver, type_env, arguments)
     } else if method.method == "not" || method.method == "ignored" {
         Some(quote!(()))
     } else if (method.method == "wf"
@@ -3080,14 +3480,14 @@ fn method_parser_output_type(
         || method.method == "prohibited_wf")
         && method.args.is_empty()
     {
-        let inner = parser_output_type(&method.receiver, type_env, arguments)?;
+        let inner = rust_parser_output_type(&method.receiver, type_env, arguments)?;
         Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
     } else {
         None
     }
 }
 
-fn call_parser_output_type(
+fn call_rust_parser_output_type(
     call: &ExprCall,
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
@@ -3116,7 +3516,7 @@ fn call_parser_output_type(
         ) => Some(quote!(Token)),
         ("raw_words_until", _) if !call.args.is_empty() => Some(quote!(Vec<Token>)),
         ("opt", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
@@ -3124,20 +3524,20 @@ fn call_parser_output_type(
             Some(quote!(Option<#inner>))
         }
         ("some", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
             )?;
             Some(quote!(Option<#inner>))
         }
-        ("opt_or_default", 1) => parser_output_type(
+        ("opt_or_default", 1) => rust_parser_output_type(
             call.args.first().expect("length checked"),
             type_env,
             arguments,
         ),
         ("many" | "many1" | "many_local", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
@@ -3145,7 +3545,7 @@ fn call_parser_output_type(
             Some(quote!(Vec<#inner>))
         }
         ("vec1", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
@@ -3153,7 +3553,7 @@ fn call_parser_output_type(
             Some(quote!(vec1::Vec1<#inner>))
         }
         ("singleton", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
@@ -3161,25 +3561,25 @@ fn call_parser_output_type(
             Some(quote!(Vec<#inner>))
         }
         ("prepend", 2) => {
-            let head = parser_output_type(
+            let head = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
             )?;
             Some(quote!(Vec<#head>))
         }
-        ("append", 2) => parser_output_type(
+        ("append", 2) => rust_parser_output_type(
             call.args.first().expect("length checked"),
             type_env,
             arguments,
         ),
-        ("concat", 2) => parser_output_type(
+        ("concat", 2) => rust_parser_output_type(
             call.args.first().expect("length checked"),
             type_env,
             arguments,
         ),
         ("boxed", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
@@ -3187,24 +3587,24 @@ fn call_parser_output_type(
             Some(quote!(Box<#inner>))
         }
         ("arc", 1) => {
-            let inner = parser_output_type(
+            let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
                 arguments,
             )?;
             Some(quote!(std::sync::Arc<#inner>))
         }
-        ("recover_as", 2) => parser_output_type(
+        ("recover_as", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
             type_env,
             arguments,
         ),
-        ("feature" | "policy", 2) => parser_output_type(
+        ("feature" | "policy", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
             type_env,
             arguments,
         ),
-        ("nonempty", 1) => parser_output_type(
+        ("nonempty", 1) => rust_parser_output_type(
             call.args.first().expect("length checked"),
             type_env,
             arguments,
@@ -3229,7 +3629,7 @@ fn choice_output_type(
     if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
         choice_outputs_same(elems.iter(), type_env, arguments)
     } else {
-        parser_output_type(expr, type_env, arguments)
+        rust_parser_output_type(expr, type_env, arguments)
     }
 }
 
@@ -3238,7 +3638,7 @@ fn choice_outputs_same<'a>(
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
-    let mut outputs = exprs.map(|expr| parser_output_type(expr, type_env, arguments));
+    let mut outputs = exprs.map(|expr| rust_parser_output_type(expr, type_env, arguments));
     let first = outputs.next()??;
     if outputs.all(|output| {
         output
@@ -3257,7 +3657,7 @@ fn sequence_output_type<'a>(
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     let mut outputs = exprs
-        .map(|expr| parser_output_type(expr, type_env, arguments))
+        .map(|expr| rust_parser_output_type(expr, type_env, arguments))
         .collect::<Option<Vec<_>>>()?;
     if outputs.is_empty() {
         return Some(quote!(()));
@@ -3269,7 +3669,7 @@ fn sequence_output_type<'a>(
     Some(output)
 }
 
-fn tuple_parser_output_type(
+fn tuple_rust_parser_output_type(
     tuple: &ExprTuple,
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
@@ -3277,7 +3677,7 @@ fn tuple_parser_output_type(
     sequence_output_type(tuple.elems.iter(), type_env, arguments)
 }
 
-fn path_parser_output_type(
+fn path_rust_parser_output_type(
     path: &ExprPath,
     type_env: &GrammarTypeEnv,
     arguments: &BTreeMap<String, Type>,
@@ -3463,7 +3863,11 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         } else {
             return Err(input.error("expected `<-` for a parser field or `=` for a computed field"));
         };
-        let parser = input.parse()?;
+        let parser = if matches!(kind, FieldKind::Field) {
+            input.parse()?
+        } else {
+            input.parse::<Expr>()?.into()
+        };
         input.parse::<Token![;]>()?;
         Ok(FieldItem {
             attrs,
@@ -3483,7 +3887,7 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
             None
         };
         input.parse::<Token![=]>()?;
-        let parser = input.parse()?;
+        let parser = input.parse::<Expr>()?.into();
         input.parse::<Token![;]>()?;
         Ok(FieldItem {
             attrs,
@@ -3501,11 +3905,12 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         }
         let parser: Expr = input.parse()?;
         input.parse::<Token![;]>()?;
-        let parser = if negated {
-            syn::parse2(quote!(#parser.not()))
+        let parser: ParserExpr = if negated {
+            syn::parse2::<Expr>(quote!(#parser.not()))
         } else {
-            syn::parse2(quote!(#parser.lookahead().ignored()))
-        }?;
+            syn::parse2::<Expr>(quote!(#parser.lookahead().ignored()))
+        }?
+        .into();
         Ok(FieldItem {
             attrs,
             conditions,
@@ -3619,7 +4024,7 @@ struct FieldItem {
     kind: FieldKind,
     name: Option<Ident>,
     ty: Option<Type>,
-    parser: Expr,
+    parser: ParserExpr,
 }
 
 impl FieldItem {
@@ -3629,8 +4034,8 @@ impl FieldItem {
             .name
             .as_ref()
             .map_or_else(String::new, Ident::to_string);
-        let parser = compact_tokens(&self.parser);
-        let recovery = classify_recovery_expr(&self.parser, arguments).expand();
+        let parser = self.parser.compact_tokens();
+        let recovery = classify_parser_expr(&self.parser, arguments).expand();
         let conditions = self.conditions.iter().map(Condition::expand);
         quote! {
             SyntaxGrammarField {
@@ -3656,23 +4061,22 @@ impl FieldItem {
                 "conditional generated model fields need explicit model support before they can be emitted",
             ));
         }
-        let name = self
-            .name
-            .clone()
-            .ok_or_else(|| syn::Error::new_spanned(&self.parser, "model fields need a name"))?;
+        let name = self.name.clone().ok_or_else(|| {
+            syn::Error::new_spanned(self.parser.to_token_stream(), "model fields need a name")
+        })?;
         let ty = match (&self.ty, &self.kind) {
             (Some(ty), _) => quote!(#ty),
             (None, FieldKind::Field) => {
                 parser_output_type(&self.parser, type_env, argument_types).ok_or_else(|| {
                     syn::Error::new_spanned(
-                        &self.parser,
+                        self.parser.to_token_stream(),
                         "cannot infer generated model field type from parser expression; add an explicit `: Type` annotation",
                     )
                 })?
             }
             (None, FieldKind::Computed | FieldKind::Let | FieldKind::Default) => {
                 return Err(syn::Error::new_spanned(
-                    &self.parser,
+                    self.parser.to_token_stream(),
                     "computed/default generated model fields require an explicit `: Type` annotation",
                 ));
             }
@@ -3723,7 +4127,7 @@ impl Parse for FieldItem {
         if !matches!(kind, FieldKind::Require) {
             input.parse::<Token![=]>()?;
         }
-        let parser = input.parse()?;
+        let parser = input.parse::<Expr>()?.into();
         input.parse::<Token![;]>()?;
         Ok(Self {
             attrs,
@@ -3928,6 +4332,36 @@ impl RecoveryExpr {
             RecoveryExpr::Opaque(text) => quote!(SyntaxGrammarRecoveryExpr::Opaque(#text)),
             RecoveryExpr::Eof => quote!(SyntaxGrammarRecoveryExpr::Eof),
         }
+    }
+}
+
+fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> RecoveryExpr {
+    match expr {
+        ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments),
+        ParserExpr::Vector(expr) => RecoveryExpr::Sequence(
+            expr.items
+                .iter()
+                .map(|item| match item {
+                    VectorItem::One(expr) | VectorItem::Spread(expr) => {
+                        classify_parser_expr(expr, arguments)
+                    }
+                    VectorItem::ZeroOrMore(expr) => {
+                        RecoveryExpr::Many(Box::new(classify_parser_expr(expr, arguments)))
+                    }
+                    VectorItem::OneOrMore(expr) => {
+                        RecoveryExpr::Many1(Box::new(classify_parser_expr(expr, arguments)))
+                    }
+                    VectorItem::Assert { negated, parser } => {
+                        let inner = classify_parser_expr(parser, arguments);
+                        if *negated {
+                            RecoveryExpr::Not(Box::new(inner))
+                        } else {
+                            RecoveryExpr::Lookahead(Box::new(inner))
+                        }
+                    }
+                })
+                .collect(),
+        ),
     }
 }
 
