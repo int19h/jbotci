@@ -7293,23 +7293,12 @@ fn legacy_as_generated_mekso_operator_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    if let Some(forethought_operator) =
-        legacy_as_generated_forethought_mekso_operator_tree_value(operator, source, options)
-    {
-        return TreeValue::Node(TreeNode {
-            constructor: "AfterthoughtMeksoOperator",
-            entries: vec![TreeEntry {
-                label: Some("leading_operator"),
-                value: forethought_operator,
-            }],
-        });
-    }
     if let Some((leading_operator, continuations)) =
         legacy_mekso_operator_connection_parts(operator)
     {
         let mut entries = vec![TreeEntry {
             label: Some("leading_operator"),
-            value: legacy_as_generated_simple_mekso_operator_tree_value(
+            value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
                 leading_operator,
                 source,
                 options,
@@ -7322,7 +7311,7 @@ fn legacy_as_generated_mekso_operator_tree_value(
                 .map(|(connective, trailing_operator)| {
                     TreeValue::Collection(vec![
                         legacy_as_generated_connective_tree_value(connective, source, options),
-                        legacy_as_generated_simple_mekso_operator_tree_value(
+                        legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
                             trailing_operator,
                             source,
                             options,
@@ -7333,18 +7322,22 @@ fn legacy_as_generated_mekso_operator_tree_value(
         ) {
             entries.push(entry);
         }
-        return TreeValue::Node(TreeNode {
-            constructor: "AfterthoughtMeksoOperator",
+        return legacy_as_generated_wrapped_variant_tree_value(
+            "AfterthoughtMeksoOperator",
+            "afterthought_mekso_operator",
             entries,
-        });
+        );
     }
-    TreeValue::Node(TreeNode {
-        constructor: "AfterthoughtMeksoOperator",
-        entries: vec![TreeEntry {
+    legacy_as_generated_wrapped_variant_tree_value(
+        "AfterthoughtMeksoOperator",
+        "afterthought_mekso_operator",
+        vec![TreeEntry {
             label: Some("leading_operator"),
-            value: legacy_as_generated_simple_mekso_operator_tree_value(operator, source, options),
+            value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+                operator, source, options,
+            ),
         }],
-    })
+    )
 }
 
 #[requires(true)]
@@ -7441,6 +7434,77 @@ fn legacy_as_generated_forethought_mekso_operator_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+    operator: &jbotci_syntax::ast::MeksoOperatorSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if let Some(bound_operator) =
+        legacy_as_generated_bound_mekso_operator_tree_value(operator, source, options)
+    {
+        return bound_operator;
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "SimpleMeksoOperator",
+        entries: vec![TreeEntry {
+            label: Some("simple_mekso_operator"),
+            value: legacy_as_generated_simple_mekso_operator_tree_value(operator, source, options),
+        }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bound_mekso_operator_tree_value(
+    operator: &jbotci_syntax::ast::MeksoOperatorSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeValue> {
+    let bityzba::data!(
+        jbotci_syntax::ast::MeksoOperatorSyntax::BoundOperatorConnection {
+            left_operator,
+            connective,
+            bo,
+            right_operator,
+        }
+    ) = operator.as_data()
+    else {
+        return None;
+    };
+    Some(legacy_as_generated_wrapped_variant_tree_value(
+        "BoundMeksoOperator",
+        "bound_mekso_operator",
+        vec![
+            TreeEntry {
+                label: Some("left_operator"),
+                value: legacy_as_generated_simple_mekso_operator_tree_value(
+                    left_operator.as_ref(),
+                    source,
+                    options,
+                ),
+            },
+            TreeEntry {
+                label: Some("connective"),
+                value: legacy_as_generated_connective_tree_value(connective, source, options),
+            },
+            TreeEntry {
+                label: Some("bo"),
+                value: required_legacy_syntax_subtree_value(bo, source, options),
+            },
+            TreeEntry {
+                label: Some("right_operator"),
+                value: legacy_as_generated_mekso_operator_tree_value(
+                    right_operator.as_ref(),
+                    source,
+                    options,
+                ),
+            },
+        ],
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_connective_is_guhek_gik_forethought(
     connective: &jbotci_syntax::ast::ConnectiveSyntax,
 ) -> bool {
@@ -7522,9 +7586,27 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if let Some(forethought_operator) =
+        legacy_as_generated_forethought_mekso_operator_tree_value(operator, source, options)
+    {
+        return TreeValue::Node(TreeNode {
+            constructor: "ForethoughtMeksoOperator",
+            entries: vec![TreeEntry {
+                label: Some("forethought_mekso_operator"),
+                value: forethought_operator,
+            }],
+        });
+    }
     match operator.as_data() {
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::Primitive(vuhu)) => {
-            required_legacy_syntax_subtree_value(vuhu, source, options)
+            legacy_as_generated_wrapped_variant_tree_value(
+                "PrimitiveMeksoOperator",
+                "primitive_mekso_operator",
+                vec![TreeEntry {
+                    label: Some("vuhu"),
+                    value: required_legacy_syntax_subtree_value(vuhu, source, options),
+                }],
+            )
         }
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::OperandAsOperator {
             maho,
@@ -7539,17 +7621,19 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
             if let Some(tehu) = tehu {
                 entries.extend(legacy_token_field_entries("tehu", tehu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "OperandAsOperator",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "OperandMeksoOperator",
+                "operand_mekso_operator",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::Converted {
             se,
             inner_operator,
-        }) => TreeValue::Node(TreeNode {
-            constructor: "Converted",
-            entries: vec![
+        }) => legacy_as_generated_wrapped_variant_tree_value(
+            "ConvertedMeksoOperator",
+            "converted_mekso_operator",
+            vec![
                 TreeEntry {
                     label: Some("se"),
                     value: required_legacy_syntax_subtree_value(se, source, options),
@@ -7563,13 +7647,14 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
                     ),
                 },
             ],
-        }),
+        ),
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::ScalarNegated {
             nahe,
             inner_operator,
-        }) => TreeValue::Node(TreeNode {
-            constructor: "ScalarNegated",
-            entries: vec![
+        }) => legacy_as_generated_wrapped_variant_tree_value(
+            "ScalarNegatedMeksoOperator",
+            "scalar_negated_mekso_operator",
+            vec![
                 TreeEntry {
                     label: Some("nahe"),
                     value: required_legacy_syntax_subtree_value(nahe, source, options),
@@ -7583,7 +7668,7 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
                     ),
                 },
             ],
-        }),
+        ),
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::SelbriAsOperator {
             nahu,
             selbri,
@@ -7601,10 +7686,11 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
             if let Some(tehu) = tehu {
                 entries.extend(legacy_token_field_entries("tehu", tehu, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "SelbriAsOperator",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SelbriMeksoOperator",
+                "selbri_mekso_operator",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::GroupedOperator {
             ke,
@@ -7623,47 +7709,15 @@ fn legacy_as_generated_simple_mekso_operator_tree_value(
             if let Some(kehe) = kehe {
                 entries.extend(legacy_token_field_entries("kehe", kehe, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "GroupedOperator",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "GroupedMeksoOperator",
+                "grouped_mekso_operator",
                 entries,
-            })
+            )
         }
-        bityzba::data!(
-            jbotci_syntax::ast::MeksoOperatorSyntax::BoundOperatorConnection {
-                left_operator,
-                connective,
-                bo,
-                right_operator,
-            }
-        ) => TreeValue::Node(TreeNode {
-            constructor: "BoundOperatorConnection",
-            entries: vec![
-                TreeEntry {
-                    label: Some("left_operator"),
-                    value: legacy_as_generated_simple_mekso_operator_tree_value(
-                        left_operator.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-                TreeEntry {
-                    label: Some("connective"),
-                    value: legacy_as_generated_connective_tree_value(connective, source, options),
-                },
-                TreeEntry {
-                    label: Some("bo"),
-                    value: required_legacy_syntax_subtree_value(bo, source, options),
-                },
-                TreeEntry {
-                    label: Some("right_operator"),
-                    value: legacy_as_generated_mekso_operator_tree_value(
-                        right_operator.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ],
-        }),
+        bityzba::data!(jbotci_syntax::ast::MeksoOperatorSyntax::BoundOperatorConnection { .. }) => {
+            panic!("legacy bound operator cannot be represented as a generated simple operator")
+        }
         _ => required_legacy_syntax_subtree_value(operator, source, options),
     }
 }

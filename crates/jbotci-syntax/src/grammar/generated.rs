@@ -1046,113 +1046,76 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node primitive_mekso_operator -> MeksoOperatorSyntax {
-        context "operator";
-        construct tuple_variant Primitive;
-        fields {
-            field vuhu = selmaho(Vuhu).wf();
-        }
+    rule "operator" primitive_mekso_operator -> struct {
+        field vuhu <- selmaho(Vuhu).wf();
     }
 
-    alias "operator" mekso_operator(mekso, mekso_operator, selbri) =
-        choice((
-            afterthought_mekso_operator(mekso, mekso_operator, selbri),
-            bound_mekso_operator(mekso, mekso_operator, selbri),
-            mekso_operator_atom(mekso, mekso_operator, selbri),
-        ));
-
-    node afterthought_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
-        context "operator";
-        fields {
-            field leading_operator = boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
-            field continuations = many((standard_statement_connective, boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri))));
-        }
+    rule "operator" mekso_operator(mekso, mekso_operator, selbri) -> enum {
+        afterthought_mekso_operator,
+        bound_mekso_operator,
+        simple_mekso_operator,
     }
 
-    alias "operator" bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) =
-        choice((
-            bound_mekso_operator(mekso, mekso_operator, selbri),
-            mekso_operator_atom(mekso, mekso_operator, selbri),
-        ));
-
-    node bound_mekso_operator(mekso, mekso_operator, selbri) -> MeksoOperatorSyntax {
-        context "operator";
-        construct variant BoundOperatorConnection;
-        fields {
-            field left_operator = boxed(mekso_operator_atom(mekso, mekso_operator, selbri));
-            field connective = standard_statement_connective;
-            field bo = cmavo(Bo).wf();
-            field right_operator = boxed(mekso_operator);
-        }
+    rule "operator" afterthought_mekso_operator(mekso, mekso_operator, selbri) -> struct {
+        field leading_operator <- boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
+        field continuations <- many((standard_statement_connective, boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri))));
     }
 
-    alias "operator" mekso_operator_atom(mekso, mekso_operator, selbri) =
-        choice((
-            converted_mekso_operator(mekso_operator),
-            scalar_negated_mekso_operator(mekso_operator),
-            forethought_mekso_operator(mekso_operator),
-            grouped_mekso_operator(mekso_operator),
-            selbri_mekso_operator(selbri),
-            operand_mekso_operator(mekso),
-            primitive_mekso_operator(),
-        ));
-
-    node converted_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
-        context "converted operator";
-        construct variant Converted;
-        fields {
-            field se = selmaho(Se).wf();
-            field inner_operator = boxed(mekso_operator);
-        }
+    rule "operator" bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) -> enum {
+        bound_mekso_operator,
+        simple_mekso_operator,
     }
 
-    node scalar_negated_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
-        context "converted operator";
-        construct variant ScalarNegated;
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field inner_operator = boxed(mekso_operator);
-        }
+    rule "operator" bound_mekso_operator(mekso, mekso_operator, selbri) -> struct {
+        field left_operator <- boxed(simple_mekso_operator(mekso, mekso_operator, selbri));
+        field connective <- standard_statement_connective;
+        field bo <- cmavo(Bo).wf();
+        field right_operator <- boxed(mekso_operator);
     }
 
-    node forethought_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
-        context "operator";
-        fields {
-            field guhek = guhek_connective;
-            field left_operator = boxed(mekso_operator);
-            field gik = gik_connective;
-            field right_operator = boxed(mekso_operator);
-        }
+    rule "operator" simple_mekso_operator(mekso, mekso_operator, selbri) -> enum {
+        converted_mekso_operator,
+        scalar_negated_mekso_operator,
+        forethought_mekso_operator,
+        grouped_mekso_operator,
+        selbri_mekso_operator,
+        operand_mekso_operator,
+        primitive_mekso_operator,
     }
 
-    node grouped_mekso_operator(mekso_operator) -> MeksoOperatorSyntax {
-        context "grouped operator";
-        construct variant GroupedOperator;
-        fields {
-            field ke = cmavo(Ke).wf();
-            field inner_operator = boxed(mekso_operator);
-            field kehe = opt(cmavo(Kehe).wf());
-        }
+    rule "converted operator" converted_mekso_operator(mekso_operator) -> struct {
+        field se <- selmaho(Se).wf();
+        field inner_operator <- boxed(mekso_operator);
     }
 
-    node selbri_mekso_operator(selbri) -> MeksoOperatorSyntax {
-        context "selbri-to-operator";
-        construct variant SelbriAsOperator;
-        fields {
-            field nahu = cmavo(Nahu).wf();
-            field selbri = boxed(selbri);
-            field tehu = opt(cmavo(Tehu).wf());
-        }
+    rule "converted operator" scalar_negated_mekso_operator(mekso_operator) -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        field inner_operator <- boxed(mekso_operator);
     }
 
-    node operand_mekso_operator(mekso) -> MeksoOperatorSyntax {
-        context "operand-to-operator";
-        construct variant OperandAsOperator;
-        fields {
-            field maho = cmavo(Maho).wf();
-            field mekso = boxed(mekso);
-            field tehu = opt(cmavo(Tehu).wf());
-        }
+    rule "operator" forethought_mekso_operator(mekso_operator) -> struct {
+        field guhek <- guhek_connective;
+        field left_operator <- boxed(mekso_operator);
+        field gik <- gik_connective;
+        field right_operator <- boxed(mekso_operator);
+    }
+
+    rule "grouped operator" grouped_mekso_operator(mekso_operator) -> struct {
+        field ke <- cmavo(Ke).wf();
+        field inner_operator <- boxed(mekso_operator);
+        field kehe <- opt(cmavo(Kehe).wf());
+    }
+
+    rule "selbri-to-operator" selbri_mekso_operator(selbri) -> struct {
+        field nahu <- cmavo(Nahu).wf();
+        field selbri <- boxed(selbri);
+        field tehu <- opt(cmavo(Tehu).wf());
+    }
+
+    rule "operand-to-operator" operand_mekso_operator(mekso) -> struct {
+        field maho <- cmavo(Maho).wf();
+        field mekso <- boxed(mekso);
+        field tehu <- opt(cmavo(Tehu).wf());
     }
 
     alias "operand" mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) =
