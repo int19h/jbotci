@@ -332,3 +332,83 @@ mod generated_model_with_env {
         assert_eq!(SYNTAX_GRAMMAR_ENV, "SyntaxGrammarEnv");
     }
 }
+
+mod new_dsl {
+    use crate::{Cmavo, Selmaho};
+
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {}
+        model;
+        env SyntaxGrammarEnv;
+
+        recursive {
+            item: ItemSyntax;
+        }
+
+        rule "item" item -> struct {
+            field token <- cmavo(Be);
+            field computed: usize = 1usize;
+            let temp = 2usize;
+            assert !cmavo(Bo);
+        }
+
+        rule "other item" other_item -> struct {
+            field token <- cmavo(Bo);
+        }
+
+        rule "item choice" item_choice -> enum {
+            item,
+            other_item,
+        }
+
+        alias "item alias" item_alias = item;
+    }
+
+    #[test]
+    fn grammar_macro_accepts_explicit_struct_enum_and_alias_rules() {
+        let item = ItemSyntax {
+            token: Token,
+            computed: 1,
+        };
+        let other_item = OtherItemSyntax { token: Token };
+        let item_choice = ItemChoiceSyntax::Item { item: item.clone() };
+        let other_choice = ItemChoiceSyntax::OtherItem { other_item };
+
+        assert_eq!(item.token, Token);
+        assert_eq!(item.computed, 1);
+        assert!(matches!(item_choice, ItemChoiceSyntax::Item { .. }));
+        assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem { .. }));
+    }
+
+    #[test]
+    fn grammar_macro_exports_new_dsl_metadata() {
+        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 4);
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "struct");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "item");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].output, "ItemSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].context, Some("item"));
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[0].kind, "field");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[1].kind, "field");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[2].kind, "let");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[3].kind, "require");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[3].recovery,
+            SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+        );
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "enum");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].output, "ItemChoiceSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[0].kind, "variant");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[0].name, "item");
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].kind, "alias");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].output, "ItemSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[3].context, Some("item alias"));
+    }
+}
