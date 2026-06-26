@@ -12178,31 +12178,35 @@ fn generated_statement_connection_part(
     options: TreeRenderOptions,
 ) -> GeneratedStatementConnectionPart {
     match continuation {
-        GeneratedIStatementConnectionTailSyntax::Simple {
-            i,
-            connective,
-            trailing_statement,
-        } => GeneratedStatementConnectionPart {
-            i: generated_token_tree_value(i, source, options),
-            connective: generated_statement_connective_tree_value(connective, source, options),
-            connective_has_bo: generated_connective_has_bo(connective),
-            trailing_statement: required_generated_syntax_subtree_value(
-                trailing_statement.as_ref(),
-                source,
-                options,
-            ),
-        },
-        GeneratedIStatementConnectionTailSyntax::Chained {
-            pending,
-            i,
-            connective,
-            trailing_statement,
+        GeneratedIStatementConnectionTailSyntax::SimpleIConnectiveStatementTail {
+            simple_i_connective_statement_tail,
         } => {
-            let first_pending = pending
+            let tail = simple_i_connective_statement_tail;
+            GeneratedStatementConnectionPart {
+                i: generated_token_tree_value(&tail.i, source, options),
+                connective: generated_statement_connective_tree_value(
+                    &tail.connective,
+                    source,
+                    options,
+                ),
+                connective_has_bo: generated_connective_has_bo(&tail.connective),
+                trailing_statement: required_generated_syntax_subtree_value(
+                    tail.trailing_statement.as_ref(),
+                    source,
+                    options,
+                ),
+            }
+        }
+        GeneratedIStatementConnectionTailSyntax::ChainedIConnectiveStatementTail {
+            chained_i_connective_statement_tail,
+        } => {
+            let tail = chained_i_connective_statement_tail;
+            let first_pending = tail
+                .pending
                 .first()
                 .expect("chained I statement tails parse pending with many1");
             let mut extra = Vec::new();
-            for pending_connective in pending.iter().skip(1) {
+            for pending_connective in tail.pending.iter().skip(1) {
                 extra.push(generated_token_tree_value(
                     &pending_connective.i,
                     source,
@@ -12214,9 +12218,11 @@ fn generated_statement_connection_part(
                     options,
                 ));
             }
-            extra.push(generated_token_tree_value(i, source, options));
+            extra.push(generated_token_tree_value(&tail.i, source, options));
             extra.push(generated_statement_connective_tree_value(
-                connective, source, options,
+                &tail.connective,
+                source,
+                options,
             ));
             GeneratedStatementConnectionPart {
                 i: generated_token_tree_value(&first_pending.i, source, options),
@@ -12226,9 +12232,9 @@ fn generated_statement_connection_part(
                     source,
                     options,
                 ),
-                connective_has_bo: generated_connective_has_bo(connective),
+                connective_has_bo: generated_connective_has_bo(&tail.connective),
                 trailing_statement: required_generated_syntax_subtree_value(
-                    trailing_statement.as_ref(),
+                    tail.trailing_statement.as_ref(),
                     source,
                     options,
                 ),

@@ -303,10 +303,7 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant IStatementConnection;
         fields {
             field leading_statement = boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-            field continuations = many1(choice((
-                chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
-                simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens),
-            )));
+            field continuations = many1(i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens));
         }
     }
 
@@ -316,27 +313,22 @@ macro_rules! declare_generated_syntax_grammar {
         assert cmavo(I);
     }
 
-    product chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
-        context "statement connection";
-        construct variant Chained;
-        no_partial_valid;
-        fields {
-            field pending = many1(pending_i_connective);
-            field i = cmavo(I);
-            field connective = i_statement_connective(tense_modal);
-            field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
-        }
+    rule "statement connection" i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> enum {
+        chained_i_connective_statement_tail,
+        simple_i_connective_statement_tail,
     }
 
-    product simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> IStatementConnectionTailSyntax {
-        context "statement connection";
-        construct variant Simple;
-        no_partial_valid;
-        fields {
-            field i = cmavo(I);
-            field connective = i_statement_connective(tense_modal);
-            field trailing_statement = boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
-        }
+    rule "statement connection" chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
+        field pending <- many1(pending_i_connective);
+        field i <- cmavo(I);
+        field connective <- i_statement_connective(tense_modal);
+        field trailing_statement <- boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
+    }
+
+    rule "statement connection" simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
+        field i <- cmavo(I);
+        field connective <- i_statement_connective(tense_modal);
+        field trailing_statement <- boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
     }
 
     node preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> StatementSyntax {
