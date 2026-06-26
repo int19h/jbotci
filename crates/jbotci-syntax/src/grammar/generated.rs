@@ -2232,32 +2232,31 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "sumti association phrase" sumti_association_relative_clause(sumti, tense_modal) -> struct {
         field association_marker <- selmaho(Goi).wf();
-        field sumti <- boxed(choice((
-            tense_tagged_relative_sumti(tense_modal, sumti),
-            na_ku_relative_sumti(),
-            sumti,
-        )));
+        field sumti <- boxed(relative_sumti(sumti, tense_modal));
         field gehu <- opt(cmavo(Gehu).wf());
     }
 
-    node na_ku_relative_sumti -> SumtiSyntax {
-        context "sumti association phrase";
-        construct variant NegatedSumti;
-        fields {
-            field na = selmaho(Na);
-            field ku = cmavo(Ku).wf();
-        }
+    rule "sumti association phrase" relative_sumti(sumti, tense_modal) -> enum {
+        tense_tagged_relative_sumti,
+        na_ku_relative_sumti,
+        plain_relative_sumti,
     }
 
-    node tense_tagged_relative_sumti(tense_modal, sumti) -> SumtiSyntax {
-        context "tagged sumti";
-        fields {
-            field tense_modal = boxed(tense_modal);
-            field sumti = boxed(choice((
-                sumti,
-                tagged_elided_sumti(),
-            )));
-        }
+    rule "sumti association phrase" na_ku_relative_sumti -> struct {
+        field na <- selmaho(Na);
+        field ku <- cmavo(Ku).wf();
+    }
+
+    rule "tagged sumti" tense_tagged_relative_sumti(tense_modal, sumti) -> struct {
+        field tense_modal <- boxed(tense_modal);
+        field sumti <- boxed(choice((
+            sumti,
+            tagged_elided_sumti(),
+        )));
+    }
+
+    rule "sumti association phrase" plain_relative_sumti(sumti) -> struct {
+        field sumti <- boxed(sumti);
     }
 
     rule "relative clause" bridi_relative_clause(subbridi) -> enum {

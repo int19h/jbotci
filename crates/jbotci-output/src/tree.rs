@@ -5280,14 +5280,33 @@ fn legacy_as_generated_relative_sumti_tree_value(
         sumti.as_data(),
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::NegatedSumti { .. })
     ) {
-        return required_legacy_syntax_subtree_value(sumti, source, options);
+        let bityzba::data!(jbotci_syntax::ast::SumtiSyntax::NegatedSumti { na, ku }) =
+            sumti.as_data()
+        else {
+            unreachable!("matches! verified NegatedSumti shape");
+        };
+        return legacy_as_generated_relative_sumti_variant_tree_value(
+            "NaKuRelativeSumti",
+            "na_ku_relative_sumti",
+            vec![
+                TreeEntry {
+                    label: Some("na"),
+                    value: required_legacy_syntax_subtree_value(na, source, options),
+                },
+                TreeEntry {
+                    label: Some("ku"),
+                    value: required_legacy_syntax_subtree_value(ku, source, options),
+                },
+            ],
+        );
     }
     if let Some((tense_modal, maybe_ku, free_modifiers)) =
         legacy_elided_tense_tagged_sumti_parts(sumti)
     {
-        return TreeValue::Node(TreeNode {
-            constructor: "TenseTaggedRelativeSumti",
-            entries: vec![
+        return legacy_as_generated_relative_sumti_variant_tree_value(
+            "TenseTaggedRelativeSumti",
+            "tense_tagged_relative_sumti",
+            vec![
                 TreeEntry {
                     label: Some("tense_modal"),
                     value: legacy_as_generated_tense_modal_tree_value(tense_modal, source, options),
@@ -5302,12 +5321,13 @@ fn legacy_as_generated_relative_sumti_tree_value(
                     ),
                 },
             ],
-        });
+        );
     }
     if let Some((tense_modal, inner_sumti)) = legacy_tense_tagged_linked_sumti_parts(sumti) {
-        return TreeValue::Node(TreeNode {
-            constructor: "TenseTaggedRelativeSumti",
-            entries: vec![
+        return legacy_as_generated_relative_sumti_variant_tree_value(
+            "TenseTaggedRelativeSumti",
+            "tense_tagged_relative_sumti",
+            vec![
                 TreeEntry {
                     label: Some("tense_modal"),
                     value: legacy_as_generated_tense_modal_tree_value(tense_modal, source, options),
@@ -5321,9 +5341,36 @@ fn legacy_as_generated_relative_sumti_tree_value(
                     ),
                 },
             ],
-        });
+        );
     }
-    legacy_as_generated_sumti_tree_value(sumti, source, options)
+    legacy_as_generated_relative_sumti_variant_tree_value(
+        "PlainRelativeSumti",
+        "plain_relative_sumti",
+        vec![TreeEntry {
+            label: Some("sumti"),
+            value: legacy_as_generated_sumti_tree_value(sumti, source, options),
+        }],
+    )
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_relative_sumti_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
+    })
 }
 
 #[requires(true)]
