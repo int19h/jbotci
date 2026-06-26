@@ -3564,16 +3564,15 @@ fn legacy_as_generated_vuho_sumti_attachment_tree_value(
         label: Some("vuho"),
         value: required_legacy_syntax_subtree_value(vuho, source, options),
     }];
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "relative_clauses",
-        relative_clauses
-            .iter()
-            .map(|relative_clause| {
-                legacy_as_generated_relative_clause_tree_value(relative_clause, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
+    if !relative_clauses.is_empty() {
+        entries.push(TreeEntry {
+            label: Some("relative_clauses"),
+            value: legacy_as_generated_relative_clause_list_tree_value(
+                relative_clauses,
+                source,
+                options,
+            ),
+        });
     }
     if let Some(sumti_connection) = sumti_connection {
         entries.push(TreeEntry {
@@ -5338,6 +5337,41 @@ fn legacy_as_generated_relative_clause_list_tree_values(
     values
 }
 
+#[requires(!relative_clauses.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_relative_clause_list_tree_value(
+    relative_clauses: &[jbotci_syntax::ast::RelativeClauseSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (first, additional) = relative_clauses
+        .split_first()
+        .expect("precondition requires non-empty relative clauses");
+    let mut entries = vec![TreeEntry {
+        label: Some("first"),
+        value: legacy_as_generated_relative_clause_tree_value(first, source, options),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "additional",
+        additional
+            .iter()
+            .map(|relative_clause| {
+                legacy_as_generated_relative_clause_tail_tree_value(
+                    relative_clause,
+                    source,
+                    options,
+                )
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "RelativeClauseList",
+        entries,
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn legacy_as_generated_relative_clause_tail_tree_value(
@@ -5345,10 +5379,74 @@ fn legacy_as_generated_relative_clause_tail_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    match legacy_as_generated_relative_clause_tree_value(relative_clause, source, options) {
-        TreeValue::Collection(mut values) if values.len() == 1 => values.remove(0),
-        value => value,
+    match relative_clause.as_data() {
+        bityzba::data!(
+            jbotci_syntax::ast::RelativeClauseSyntax::JoinedRelativeClauses { zihe, inner }
+        ) => legacy_as_generated_relative_clause_tail_variant_tree_value(
+            "JoinedRelativeClauseTail",
+            "joined_relative_clause_tail",
+            vec![
+                TreeEntry {
+                    label: Some("zihe"),
+                    value: required_legacy_syntax_subtree_value(zihe, source, options),
+                },
+                TreeEntry {
+                    label: Some("inner"),
+                    value: legacy_as_generated_relative_clause_tree_value(
+                        inner.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        ),
+        bityzba::data!(
+            jbotci_syntax::ast::RelativeClauseSyntax::RelativeClauseConnection {
+                connective,
+                inner,
+            }
+        ) => legacy_as_generated_relative_clause_tail_variant_tree_value(
+            "ConnectedRelativeClauseTail",
+            "connected_relative_clause_tail",
+            vec![
+                TreeEntry {
+                    label: Some("connective"),
+                    value: required_legacy_syntax_subtree_value(connective, source, options),
+                },
+                TreeEntry {
+                    label: Some("inner"),
+                    value: legacy_as_generated_relative_clause_tree_value(
+                        inner.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        ),
+        _ => {
+            panic!("legacy relative clause list continuation was not represented by a tail variant")
+        }
     }
+}
+
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_relative_clause_tail_variant_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    entries: Vec<TreeEntry>,
+) -> TreeValue {
+    let inner = TreeValue::Node(TreeNode {
+        constructor,
+        entries,
+    });
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value: inner,
+        }],
+    })
 }
 
 #[requires(true)]

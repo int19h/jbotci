@@ -433,11 +433,10 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "relative clauses" relative_clause_list(sumti, subbridi, tense_modal) =
-        prepend(
-            relative_clause_atom(sumti, subbridi, tense_modal),
-            many(relative_clause_tail(sumti, subbridi, tense_modal)),
-        );
+    rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal) -> struct {
+        field first <- relative_clause_atom(sumti, subbridi, tense_modal);
+        field additional <- many(relative_clause_tail(sumti, subbridi, tense_modal));
+    }
 
     node relative_clause_fragment(sumti, subbridi, tense_modal) -> StatementSyntax {
         context "relative clauses";
@@ -1343,18 +1342,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "sumti relative phrase";
-        construct variant SumtiWithRelativeClauses;
-        fields {
-            field base_sumti = boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-            default vuho: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
-            scratch first_relative_clause = relative_clause_atom(sumti, subbridi, tense_modal);
-            scratch additional_relative_clauses = many(relative_clause_tail(sumti, subbridi, tense_modal));
-            let relative_clauses: Vec<RelativeClauseSyntax> = std::iter::once(first_relative_clause)
-                .chain(additional_relative_clauses)
-                .collect();
-        }
+    rule "sumti relative phrase" sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
+        field base_sumti <- boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
     }
 
     node vuho_sumti_attachment(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
@@ -2222,28 +2212,19 @@ macro_rules! declare_generated_syntax_grammar {
         field lehai <- cmavo(Lehai).wf();
     }
 
-    alias "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal) =
-        choice((
-            joined_relative_clause_tail(sumti, subbridi, tense_modal),
-            connected_relative_clause_tail(sumti, subbridi, tense_modal),
-        ));
-
-    node joined_relative_clause_tail(sumti, subbridi, tense_modal) -> RelativeClauseSyntax {
-        context "relative clause";
-        construct variant JoinedRelativeClauses;
-        fields {
-            field zihe = cmavo(Zihe).wf();
-            field inner = boxed(relative_clause_atom(sumti, subbridi, tense_modal));
-        }
+    rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal) -> enum {
+        joined_relative_clause_tail,
+        connected_relative_clause_tail,
     }
 
-    node connected_relative_clause_tail(sumti, subbridi, tense_modal) -> RelativeClauseSyntax {
-        context "relative clause";
-        construct variant RelativeClauseConnection;
-        fields {
-            field connective = relative_clause_connective;
-            field inner = boxed(relative_clause_atom(sumti, subbridi, tense_modal));
-        }
+    rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
+        field zihe <- cmavo(Zihe).wf();
+        field inner <- boxed(relative_clause_atom(sumti, subbridi, tense_modal));
+    }
+
+    rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
+        field connective <- relative_clause_connective;
+        field inner <- boxed(relative_clause_atom(sumti, subbridi, tense_modal));
     }
 
     alias "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) =
