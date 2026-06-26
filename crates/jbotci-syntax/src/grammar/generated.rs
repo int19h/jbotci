@@ -34,10 +34,10 @@ macro_rules! declare_generated_syntax_grammar {
         subbridi: SubbridiSyntax;
         term: TermSyntax;
         sumti: SumtiSyntax;
-        sumti_grouped: SumtiSyntax;
-        sumti_afterthought: SumtiSyntax;
-        sumti_bound: SumtiSyntax;
-        sumti_forethought: SumtiSyntax;
+        sumti_grouped: SumtiGroupedSyntax;
+        sumti_afterthought: SumtiAfterthoughtSyntax;
+        sumti_bound: SumtiBoundSyntax;
+        sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiSyntax;
         selbri: SelbriSyntax;
         co_selbri: SelbriSyntax;
@@ -898,46 +898,32 @@ macro_rules! declare_generated_syntax_grammar {
         field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal));
     }
 
-    node sumti_grouped(sumti, sumti_afterthought, tense_modal) -> SumtiSyntax {
-        context "sumti connection";
-        fields {
-            field leading_sumti = boxed(sumti_afterthought);
-            field grouped_tail = opt(grouped_sumti_tail(sumti, tense_modal));
-        }
+    rule "sumti connection" sumti_grouped(sumti, sumti_afterthought, tense_modal) -> struct {
+        field leading_sumti <- boxed(sumti_afterthought);
+        field grouped_tail <- opt(grouped_sumti_tail(sumti, tense_modal));
     }
 
-    node sumti_afterthought(sumti_bound) -> SumtiSyntax {
-        context "sumti connection";
-        fields {
-            field leading_sumti = boxed(sumti_bound);
-            field continuations = many(sumti_afterthought_tail(sumti_bound));
-        }
+    rule "sumti connection" sumti_afterthought(sumti_bound) -> struct {
+        field leading_sumti <- boxed(sumti_bound);
+        field continuations <- many(sumti_afterthought_tail(sumti_bound));
     }
 
-    node sumti_bound(sumti_bound, sumti_forethought, tense_modal) -> SumtiSyntax {
-        context "sumti connection";
-        fields {
-            field leading_sumti = boxed(sumti_forethought);
-            field bound_tail = opt(bound_sumti_tail(sumti_bound, tense_modal));
-        }
+    rule "sumti connection" sumti_bound(sumti_bound, sumti_forethought, tense_modal) -> struct {
+        field leading_sumti <- boxed(sumti_forethought);
+        field bound_tail <- opt(bound_sumti_tail(sumti_bound, tense_modal));
     }
 
-    alias "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) =
-        choice((
-            forethought_sumti(sumti, sumti_forethought, tense_modal),
-            simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens),
-        ));
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> enum {
+        forethought_sumti,
+        simple_sumti,
+    }
 
-    node forethought_sumti(sumti, sumti_forethought, tense_modal) -> SumtiSyntax {
-        context "forethought sumti connection";
-        construct variant ForethoughtSumtiConnection;
-        fields {
-            field gek = modal_forethought_connective(tense_modal);
-            field leading_sumti = boxed(sumti);
-            field gik = gik_connective;
-            field trailing_sumti = boxed(sumti_forethought);
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-        }
+    rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal) -> struct {
+        field gek <- modal_forethought_connective(tense_modal);
+        field leading_sumti <- boxed(sumti);
+        field gik <- gik_connective;
+        field trailing_sumti <- boxed(sumti_forethought);
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
     }
 
     rule "sumti connection" bound_sumti_tail(sumti_bound, tense_modal) -> struct {
@@ -976,12 +962,9 @@ macro_rules! declare_generated_syntax_grammar {
         field sumti_connection <- some(boxed(sumti_connection_tail(sumti)));
     }
 
-    node simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "sumti";
-        fields {
-            field base_sumti = boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
+        field base_sumti <- boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
+        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
     alias "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) =
@@ -1016,44 +999,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node connected_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "sumti connection";
-        construct variant SumtiConnection;
-        fields {
-            field leading_sumti = boxed(simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-            field connective = argument_connective;
-            field trailing_sumti = boxed(simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-        }
-    }
-
-    node grouped_sumti_connection(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "sumti connection";
-        fields {
-            field leading_sumti = boxed(simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-            field connective = argument_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field inner_sumti = boxed(sumti);
-            field kehe = opt(cmavo(Kehe).wf());
-        }
-    }
-
     rule "sumti relative phrase" sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
         field base_sumti <- boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
         field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
-    }
-
-    node vuho_sumti_attachment(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "sumti relative phrase";
-        fields {
-            field base_sumti = boxed(choice((
-                connected_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-                sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens),
-            )));
-            field vuho = cmavo(Vuho).wf();
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field sumti_connection = opt(sumti_connection_tail(sumti));
-        }
     }
 
     rule "sumti connective" sumti_connection_tail(sumti) -> struct {

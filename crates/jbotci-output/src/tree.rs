@@ -4926,11 +4926,23 @@ fn legacy_as_generated_sumti_forethought_tree_value(
                 });
             }
             TreeValue::Node(TreeNode {
-                constructor: "ForethoughtSumtiConnection",
-                entries,
+                constructor: "ForethoughtSumti",
+                entries: vec![TreeEntry {
+                    label: Some("forethought_sumti"),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "ForethoughtSumti",
+                        entries,
+                    }),
+                }],
             })
         }
-        _ => legacy_as_generated_simple_sumti_tree_value(sumti, source, options),
+        _ => TreeValue::Node(TreeNode {
+            constructor: "SimpleSumti",
+            entries: vec![TreeEntry {
+                label: Some("simple_sumti"),
+                value: legacy_as_generated_simple_sumti_tree_value(sumti, source, options),
+            }],
+        }),
     }
 }
 
