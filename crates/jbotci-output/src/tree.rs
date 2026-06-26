@@ -3256,6 +3256,37 @@ fn legacy_as_generated_term_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match term.as_data() {
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::BoundTermConnection { .. }) => {
+            legacy_as_generated_bound_term_connection_tree_value(term, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermConnection { .. }) => {
+            legacy_as_generated_connected_term_tree_value(term, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup { .. }) => {
+            legacy_as_generated_termset_group_tree_value(term, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetConnection { .. }) => {
+            legacy_as_generated_pehe_termset_connection_tree_value(term, source, options)
+        }
+        _ => legacy_as_generated_wrapped_variant_tree_value(
+            "ConnectedTerm",
+            "connected_term",
+            vec![TreeEntry {
+                label: Some("leading_term"),
+                value: legacy_as_generated_simple_term_tree_value(term, source, options),
+            }],
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bound_term_connection_tree_value(
+    term: &jbotci_syntax::ast::TermSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match term.as_data() {
         bityzba::data!(jbotci_syntax::ast::TermSyntax::BoundTermConnection {
             leading_terms,
             bo_connective,
@@ -3302,11 +3333,24 @@ fn legacy_as_generated_term_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "BoundTermConnection",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "BoundTermConnection",
+                "bound_term_connection",
                 entries,
-            })
+            )
         }
+        _ => required_legacy_syntax_subtree_value(term, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_connected_term_tree_value(
+    term: &jbotci_syntax::ast::TermSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match term.as_data() {
         bityzba::data!(jbotci_syntax::ast::TermSyntax::TermConnection {
             leading_terms,
             connective,
@@ -3340,22 +3384,13 @@ fn legacy_as_generated_term_tree_value(
             {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ConnectedTerm",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "ConnectedTerm",
+                "connected_term",
                 entries,
-            })
+            )
         }
-        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup { .. })
-        | bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetConnection { .. }) => {
-            legacy_as_generated_simple_term_tree_value(term, source, options)
-        }
-        _ => TreeValue::Node(TreeNode {
-            constructor: "ConnectedTerm",
-            entries: vec![TreeEntry {
-                label: Some("leading_term"),
-                value: legacy_as_generated_simple_term_tree_value(term, source, options),
-            }],
-        }),
+        _ => required_legacy_syntax_subtree_value(term, source, options),
     }
 }
 
@@ -3378,17 +3413,29 @@ fn legacy_as_generated_simple_term_tree_value(
                         options,
                     )
             {
-                return TreeValue::Node(TreeNode {
-                    constructor: "TaggedSumtiBeforeTagTerm",
-                    entries: vec![TreeEntry {
+                return legacy_as_generated_wrapped_variant_tree_value(
+                    "TaggedSumtiBeforeTagTerm",
+                    "tagged_sumti_before_tag_term",
+                    vec![TreeEntry {
                         label: Some("tense_modal"),
                         value: tense_modal,
                     }],
-                });
+                );
             }
-            legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options)
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SumtiTerm",
+                "sumti_term",
+                vec![TreeEntry {
+                    label: Some("sumti"),
+                    value: legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options),
+                }],
+            )
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::PlaceTaggedSumti { fa, sumti, ku }) => {
+            assert!(
+                ku.is_none(),
+                "legacy place-tagged sumti term has ku field that is not represented in generated place-tagged term"
+            );
             let mut entries = legacy_token_field_entries("fa", fa, source, options);
             entries.push(TreeEntry {
                 label: Some("sumti"),
@@ -3398,13 +3445,11 @@ fn legacy_as_generated_simple_term_tree_value(
                     options,
                 ),
             });
-            if let Some(ku) = ku {
-                entries.extend(legacy_token_field_entries("ku", ku, source, options));
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "PlaceTaggedSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "PlaceTaggedSumtiTerm",
+                "place_tagged_sumti_term",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::JaiTaggedSumti { jai, tag, sumti }) => {
             let mut entries = legacy_token_field_entries("jai", jai, source, options);
@@ -3420,65 +3465,25 @@ fn legacy_as_generated_simple_term_tree_value(
             }
             entries.push(TreeEntry {
                 label: Some("sumti"),
-                value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
-                    sumti.as_ref(),
-                    source,
-                    options,
-                ),
+                value: legacy_as_generated_sumti_tree_value(sumti.as_ref(), source, options),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "JaiTaggedSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "JaiTaggedSumtiTerm",
+                "jai_tagged_sumti_term",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::BridiNegation { na, na_ku }) => {
-            let mut entries = vec![
-                TreeEntry {
-                    label: Some("na"),
-                    value: generated_token_tree_value(na, source, options),
-                },
-                TreeEntry {
-                    label: Some("na_ku"),
-                    value: generated_token_tree_value(&na_ku.value, source, options),
-                },
-            ];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                na_ku
-                    .free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "BridiNegation",
-                entries,
-            })
+            let mut entries = vec![TreeEntry {
+                label: Some("na"),
+                value: generated_token_tree_value(na, source, options),
+            }];
+            entries.extend(legacy_token_field_entries("na_ku", na_ku, source, options));
+            legacy_as_generated_wrapped_variant_tree_value("NaKuTerm", "na_ku_term", entries)
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::BareNegation(na)) => {
-            let mut entries = vec![TreeEntry {
-                label: None,
-                value: generated_token_tree_value(&na.value, source, options),
-            }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                na.free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "BareNegation",
-                entries,
-            })
+            let entries = legacy_token_field_entries("na", na, source, options);
+            legacy_as_generated_wrapped_variant_tree_value("BareNaTerm", "bare_na_term", entries)
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::TaggedSumti { tense_modal, sumti }) => {
             let mut entries = Vec::new();
@@ -3496,10 +3501,11 @@ fn legacy_as_generated_simple_term_tree_value(
                     label: Some("tense_modal"),
                     value: tense_modal,
                 });
-                return TreeValue::Node(TreeNode {
-                    constructor: "TaggedSumtiBeforeTagTerm",
+                return legacy_as_generated_wrapped_variant_tree_value(
+                    "TaggedSumtiBeforeTagTerm",
+                    "tagged_sumti_before_tag_term",
                     entries,
-                });
+                );
             }
             if let Some(tense_modal) = tense_modal {
                 entries.push(TreeEntry {
@@ -3519,10 +3525,11 @@ fn legacy_as_generated_simple_term_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "TaggedSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "TaggedSumtiTerm",
+                "tagged_sumti_term",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::RelativeAdverbialTerm {
             noiha,
@@ -3556,8 +3563,15 @@ fn legacy_as_generated_simple_term_tree_value(
                 });
             }
             TreeValue::Node(TreeNode {
-                constructor: "RelativeAdverbialTerm",
-                entries,
+                constructor: "NoihaAdverbialTerm",
+                entries: vec![TreeEntry {
+                    label: Some("noiha_adverbial_term"),
+                    value: legacy_as_generated_wrapped_variant_tree_value(
+                        "NoihaRelativeAdverbialTerm",
+                        "noiha_relative_adverbial_term",
+                        entries,
+                    ),
+                }],
             })
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::BridiVariableAdverbialTerm {
@@ -3590,8 +3604,15 @@ fn legacy_as_generated_simple_term_tree_value(
                 value: required_legacy_syntax_subtree_value(brigahi_ku, source, options),
             });
             TreeValue::Node(TreeNode {
-                constructor: "BridiVariableAdverbialTerm",
-                entries,
+                constructor: "NoihaAdverbialTerm",
+                entries: vec![TreeEntry {
+                    label: Some("noiha_adverbial_term"),
+                    value: legacy_as_generated_wrapped_variant_tree_value(
+                        "NoihaVariableAdverbialTerm",
+                        "noiha_variable_adverbial_term",
+                        entries,
+                    ),
+                }],
             })
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::AdHocBridiAdverbialTerm {
@@ -3619,10 +3640,11 @@ fn legacy_as_generated_simple_term_tree_value(
                     value: required_legacy_syntax_subtree_value(fihau, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "AdHocBridiAdverbialTerm",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "FihoiAdverbialTerm",
+                "fihoi_adverbial_term",
                 entries,
-            })
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::TermSyntax::ReciprocalBridiAdverbialTerm {
@@ -3651,10 +3673,11 @@ fn legacy_as_generated_simple_term_tree_value(
                     value: required_legacy_syntax_subtree_value(sehu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ReciprocalBridiAdverbialTerm",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SoiAdverbialTerm",
+                "soi_adverbial_term",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::Termset {
             nuhi,
@@ -3684,10 +3707,12 @@ fn legacy_as_generated_simple_term_tree_value(
                     options,
                 ));
             }
-            TreeValue::Node(TreeNode {
-                constructor,
-                entries,
-            })
+            let label = match constructor {
+                "KeTermset" => "ke_termset",
+                "NuhiTermset" => "nuhi_termset",
+                _ => unreachable!("constructor selected above"),
+            };
+            legacy_as_generated_wrapped_variant_tree_value(constructor, label, entries)
         }
         bityzba::data!(
             jbotci_syntax::ast::TermSyntax::ForethoughtTermsetConnection {
@@ -3747,11 +3772,30 @@ fn legacy_as_generated_simple_term_tree_value(
                     "gik_nuhu", gik_nuhu, source, options,
                 ));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ForethoughtTermsetConnection",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "ForethoughtTermset",
+                "forethought_termset",
                 entries,
-            })
+            )
         }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup { .. }) => {
+            legacy_as_generated_termset_group_tree_value(term, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetConnection { .. }) => {
+            legacy_as_generated_pehe_termset_connection_tree_value(term, source, options)
+        }
+        _ => required_legacy_syntax_subtree_value(term, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_termset_group_tree_value(
+    term: &jbotci_syntax::ast::TermSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match term.as_data() {
         bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup {
             leading_terms,
             cehe,
@@ -3785,11 +3829,20 @@ fn legacy_as_generated_simple_term_tree_value(
             {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "TermsetGroup",
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value("TermsetGroup", "termset_group", entries)
         }
+        _ => required_legacy_syntax_subtree_value(term, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_pehe_termset_connection_tree_value(
+    term: &jbotci_syntax::ast::TermSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match term.as_data() {
         bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetConnection {
             leading_terms,
             pehe,
@@ -3801,7 +3854,9 @@ fn legacy_as_generated_simple_term_tree_value(
             };
             let mut entries = vec![TreeEntry {
                 label: Some("leading_term"),
-                value: legacy_as_generated_simple_term_tree_value(first_term, source, options),
+                value: legacy_as_generated_pehe_termset_operand_tree_value(
+                    first_term, source, options,
+                ),
             }];
             let continuations = leading_terms
                 .iter()
@@ -3812,7 +3867,7 @@ fn legacy_as_generated_simple_term_tree_value(
                             required_legacy_syntax_subtree_value(pehe, source, options),
                             legacy_as_generated_connective_tree_value(connective, source, options),
                         ]),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
+                        legacy_as_generated_pehe_termset_operand_tree_value(term, source, options),
                     ])
                 })
                 .chain(trailing_terms.iter().map(|term| {
@@ -3821,7 +3876,7 @@ fn legacy_as_generated_simple_term_tree_value(
                             required_legacy_syntax_subtree_value(pehe, source, options),
                             legacy_as_generated_connective_tree_value(connective, source, options),
                         ]),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
+                        legacy_as_generated_pehe_termset_operand_tree_value(term, source, options),
                     ])
                 }))
                 .collect::<Vec<_>>();
@@ -3830,12 +3885,37 @@ fn legacy_as_generated_simple_term_tree_value(
             {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "PeheTermsetConnection",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "PeheTermsetConnection",
+                "pehe_termset_connection",
                 entries,
-            })
+            )
         }
         _ => required_legacy_syntax_subtree_value(term, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_pehe_termset_operand_tree_value(
+    term: &jbotci_syntax::ast::TermSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match term.as_data() {
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::BoundTermConnection { .. }) => {
+            legacy_as_generated_bound_term_connection_tree_value(term, source, options)
+        }
+        bityzba::data!(jbotci_syntax::ast::TermSyntax::TermsetGroup { .. }) => {
+            legacy_as_generated_termset_group_tree_value(term, source, options)
+        }
+        _ => TreeValue::Node(TreeNode {
+            constructor: "SimpleTerm",
+            entries: vec![TreeEntry {
+                label: Some("simple_term"),
+                value: legacy_as_generated_simple_term_tree_value(term, source, options),
+            }],
+        }),
     }
 }
 

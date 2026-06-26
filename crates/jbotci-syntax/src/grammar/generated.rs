@@ -580,59 +580,55 @@ macro_rules! declare_generated_syntax_grammar {
         field inner_subbridi <- boxed(subbridi);
     }
 
-    alias "term" term(term, sumti, tense_modal, subbridi, selbri) {
+    alias "term" term_guard {
         assert !(relation_word(), cmavo(Bu).not());
-        choice((
-            pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term),
-            bound_term_connection(sumti, tense_modal, subbridi, selbri, term),
-            termset_group(sumti, tense_modal, subbridi, selbri, term),
-            connected_term(sumti, tense_modal, subbridi, selbri, term),
-            simple_term(sumti, tense_modal, subbridi, selbri, term),
-        ));
+        empty();
     }
 
-    node pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "termset connection";
-        fields {
-            field leading_term = boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
-            field continuations = many1((cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term))));
-        }
+    rule "term" term(term, sumti, tense_modal, subbridi, selbri) -> enum {
+        pehe_termset_connection,
+        bound_term_connection,
+        termset_group,
+        connected_term,
+        simple_term,
     }
 
-    alias "term" pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) =
-        choice((
-            bound_term_connection(sumti, tense_modal, subbridi, selbri, term),
-            termset_group(sumti, tense_modal, subbridi, selbri, term),
-            simple_term(sumti, tense_modal, subbridi, selbri, term),
-        ));
+    rule "termset connection" pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        assert term_guard();
+        field leading_term <- boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
+        field continuations <- many1((cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term))));
+    }
 
-    alias "term" simple_term(sumti, tense_modal, subbridi, selbri, term) =
-        choice((
-            place_tagged_sumti_term(sumti),
-            feature(ZantufaTags, jai_tagged_sumti_term(tense_modal, sumti)),
-            tagged_sumti_before_tag_term(tense_modal, selbri),
-            tagged_sumti_term(tense_modal, sumti, selbri),
-            noiha_adverbial_term(selbri),
-            fihoi_adverbial_term(subbridi),
-            soi_adverbial_term(subbridi),
-            na_ku_term(),
-            sumti_term(sumti),
-            bare_na_term(selbri, tense_modal),
-            forethought_termset(term, tense_modal),
-            nuhi_termset(term),
-            ke_termset(term),
-        ));
+    rule "term" pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) -> enum {
+        bound_term_connection,
+        termset_group,
+        simple_term,
+    }
 
-    node bound_term_connection(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "term connection";
-        fields {
-            field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-            field connective = boxed(joik_ek_connective);
-            field bo = cmavo(Bo).wf();
-            require term_hierarchy_post_bo_argument_gate(sumti);
-            field trailing_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-            require term_hierarchy_post_bo_argument_gate(sumti);
-        }
+    rule "term" simple_term(sumti, tense_modal, subbridi, selbri, term) -> enum {
+        place_tagged_sumti_term,
+        jai_tagged_sumti_term,
+        tagged_sumti_before_tag_term,
+        tagged_sumti_term,
+        noiha_adverbial_term,
+        fihoi_adverbial_term,
+        soi_adverbial_term,
+        na_ku_term,
+        sumti_term,
+        bare_na_term,
+        forethought_termset,
+        nuhi_termset,
+        ke_termset,
+    }
+
+    rule "term connection" bound_term_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        assert term_guard();
+        field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+        field connective <- boxed(joik_ek_connective);
+        field bo <- cmavo(Bo).wf();
+        assert term_hierarchy_post_bo_argument_gate(sumti);
+        field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+        assert term_hierarchy_post_bo_argument_gate(sumti);
     }
 
     alias "term connection" term_hierarchy_post_bo_argument_gate(sumti) =
@@ -650,140 +646,90 @@ macro_rules! declare_generated_syntax_grammar {
             sumti.not(),
         ).ignored();
 
-    node connected_term(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "term connection";
-        fields {
-            field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-            field continuations = many((term_connective, boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
-        }
+    rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        assert term_guard();
+        field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+        field continuations <- many((term_connective, boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
     }
 
-    node termset_group(sumti, tense_modal, subbridi, selbri, term) -> TermSyntax {
-        context "termset";
-        fields {
-            field leading_term = boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-            field continuations = many1((cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
-        }
+    rule "termset" termset_group(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        assert term_guard();
+        field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+        field continuations <- many1((cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
     }
 
-    node forethought_termset(term, tense_modal) -> TermSyntax {
-        context "termset";
-        construct variant ForethoughtTermsetConnection;
-        fields {
-            field m_nuhi = opt(cmavo(Nuhi).wf());
-            field gek = modal_forethought_connective(tense_modal);
-            field terms = many1(boxed(term));
-            field nuhu = opt(cmavo(Nuhu).wf());
-            field gik = gik_connective;
-            field gik_terms = many1(boxed(term));
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-            field gik_nuhu = opt(cmavo(Nuhu).wf());
-        }
+    rule "termset" forethought_termset(term, tense_modal) -> struct {
+        field m_nuhi <- opt(cmavo(Nuhi).wf());
+        field gek <- modal_forethought_connective(tense_modal);
+        field terms <- many1(boxed(term));
+        field nuhu <- opt(cmavo(Nuhu).wf());
+        field gik <- gik_connective;
+        field gik_terms <- many1(boxed(term));
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
+        field gik_nuhu <- opt(cmavo(Nuhu).wf());
     }
 
-    node nuhi_termset(term) -> TermSyntax {
-        context "termset";
-        construct variant NuhiTermset;
-        fields {
-            field nuhi = cmavo(Nuhi).wf();
-            field termset = many1(boxed(term));
-            field nuhu = opt(cmavo(Nuhu).wf());
-        }
+    rule "termset" nuhi_termset(term) -> struct {
+        field nuhi <- cmavo(Nuhi).wf();
+        field termset <- many1(boxed(term));
+        field nuhu <- opt(cmavo(Nuhu).wf());
     }
 
-    node ke_termset(term) -> TermSyntax {
-        context "termset";
-        construct variant KeTermset;
-        fields {
-            field ke = cmavo(Ke).warn(ExperimentalKeTermset).wf();
-            field termset = many1(boxed(term));
-            field kehe = opt(cmavo(Kehe).wf());
-        }
+    rule "termset" ke_termset(term) -> struct {
+        field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
+        field termset <- many1(boxed(term));
+        field kehe <- opt(cmavo(Kehe).wf());
     }
 
-    alias "NOIhA adverbial" noiha_adverbial_term(selbri) =
-        choice((
-            noiha_variable_adverbial_term(selbri),
-            noiha_relative_adverbial_term(selbri),
-        ));
-
-    node noiha_variable_adverbial_term(selbri) -> TermSyntax {
-        context "NOIhA adverbial";
-        construct variant BridiVariableAdverbialTerm;
-        fields {
-            field poiha = selmaho(Noiha).wf();
-            field selbri = some(boxed(selbri));
-            field brigahi_ku = cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
-        }
+    rule "NOIhA adverbial" noiha_adverbial_term(selbri) -> enum {
+        noiha_variable_adverbial_term,
+        noiha_relative_adverbial_term,
     }
 
-    node noiha_relative_adverbial_term(selbri) -> TermSyntax {
-        context "NOIhA adverbial";
-        construct variant RelativeAdverbialTerm;
-        fields {
-            field noiha = selmaho(Noiha).wf();
-            field selbri = some(boxed(selbri));
-            field fehu = opt(cmavo(Fehu).wf());
-        }
+    rule "NOIhA adverbial" noiha_variable_adverbial_term(selbri) -> struct {
+        field poiha <- selmaho(Noiha).wf();
+        field selbri <- some(boxed(selbri));
+        field brigahi_ku <- cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
     }
 
-    node fihoi_adverbial_term(subbridi) -> TermSyntax {
-        context "FIhOI adverbial";
-        construct variant AdHocBridiAdverbialTerm;
-        fields {
-            field fihoi = cmavo(Fihoi).wf();
-            field subbridi = boxed(subbridi);
-            field fihau = opt(cmavo(Fihau).wf());
-        }
+    rule "NOIhA adverbial" noiha_relative_adverbial_term(selbri) -> struct {
+        field noiha <- selmaho(Noiha).wf();
+        field selbri <- some(boxed(selbri));
+        field fehu <- opt(cmavo(Fehu).wf());
     }
 
-    node soi_adverbial_term(subbridi) -> TermSyntax {
-        context "SOI adverbial";
-        construct variant ReciprocalBridiAdverbialTerm;
-        fields {
-            field soi = selmaho(Soi).wf();
-            field subbridi = boxed(subbridi);
-            field sehu = opt(cmavo(Sehu).wf());
-        }
+    rule "FIhOI adverbial" fihoi_adverbial_term(subbridi) -> struct {
+        field fihoi <- cmavo(Fihoi).wf();
+        field subbridi <- boxed(subbridi);
+        field fihau <- opt(cmavo(Fihau).wf());
     }
 
-    node sumti_term(sumti) -> TermSyntax {
-        context "term";
-        construct tuple_variant Sumti;
-        fields {
-            field sumti = boxed(sumti);
-        }
+    rule "SOI adverbial" soi_adverbial_term(subbridi) -> struct {
+        field soi <- selmaho(Soi).wf();
+        field subbridi <- boxed(subbridi);
+        field sehu <- opt(cmavo(Sehu).wf());
     }
 
-    node place_tagged_sumti_term(sumti) -> TermSyntax {
-        context "place tag";
-        construct variant PlaceTaggedSumti;
-        fields {
-            field fa = selmaho(Fa).wf();
-            field sumti = boxed(choice((
-                sumti,
-                tagged_elided_sumti(),
-            )));
-            default ku: Option<WithFreeModifiers<Token, FreeModifierSyntax>> = None;
-        }
+    rule "term" sumti_term(sumti) -> struct {
+        field sumti <- boxed(sumti);
     }
 
-    node na_ku_term -> TermSyntax {
-        context "NA KU term";
-        construct variant BridiNegation;
-        fields {
-            field na = selmaho(Na);
-            field na_ku = cmavo(Ku).wf();
-        }
+    rule "place tag" place_tagged_sumti_term(sumti) -> struct {
+        field fa <- selmaho(Fa).wf();
+        field sumti <- boxed(choice((
+            sumti,
+            tagged_elided_sumti(),
+        )));
     }
 
-    node bare_na_term(selbri, tense_modal) -> TermSyntax {
-        context "NA term";
-        construct tuple_variant BareNegation;
-        fields {
-            field na = selmaho(Na).wf();
-            require bare_na_term_forbidden_follow(selbri, tense_modal).not();
-        }
+    rule "NA KU term" na_ku_term -> struct {
+        field na <- selmaho(Na);
+        field na_ku <- cmavo(Ku).wf();
+    }
+
+    rule "NA term" bare_na_term(selbri, tense_modal) -> struct {
+        field na <- selmaho(Na).wf();
+        assert !bare_na_term_forbidden_follow(selbri, tense_modal);
     }
 
     alias "NA term" bare_na_term_forbidden_follow(selbri, tense_modal) =
@@ -816,27 +762,27 @@ macro_rules! declare_generated_syntax_grammar {
             selmaho(Giha),
         ).ignored();
 
-    node tagged_sumti_before_tag_term(tense_modal, selbri) -> TermSyntax {
-        context "tag";
-        fields {
-            require modal_forethought_connective(tense_modal).not();
-            field tense_modal = boxed(leading_term_tag_tense_modal(tense_modal, selbri));
-            require tense_modal.lookahead();
-        }
+    rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri) -> struct {
+        assert !modal_forethought_connective(tense_modal);
+        field tense_modal <- boxed(leading_term_tag_tense_modal(tense_modal, selbri));
+        assert tense_modal.lookahead();
     }
 
-    node tagged_sumti_term(tense_modal, sumti, selbri) -> TermSyntax {
-        context "tag";
-        construct variant TaggedSumti;
-        fields {
-            require modal_forethought_connective(tense_modal).not();
-            field tense_modal = some(boxed(leading_term_tag_tense_modal(tense_modal, selbri)));
-            require selbri.not();
-            field sumti = boxed(choice((
-                sumti,
-                tagged_elided_sumti(),
-            )));
-        }
+    rule "tag" tagged_sumti_term(tense_modal, sumti, selbri) -> struct {
+        assert !modal_forethought_connective(tense_modal);
+        field tense_modal <- some(boxed(leading_term_tag_tense_modal(tense_modal, selbri)));
+        assert !selbri;
+        field sumti <- boxed(choice((
+            sumti,
+            tagged_elided_sumti(),
+        )));
+    }
+
+    rule "tag" jai_tagged_sumti_term(tense_modal, sumti) -> struct {
+        assert feature(ZantufaTags, empty());
+        field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
+        field tag <- opt(boxed(tense_modal));
+        field sumti <- boxed(sumti);
     }
 
     alias "tag" leading_term_tag_tense_modal(tense_modal, selbri) =
@@ -944,16 +890,6 @@ macro_rules! declare_generated_syntax_grammar {
         fields {
             field maybe_ku = opt(cmavo(Ku).wf());
             default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
-    }
-
-    node jai_tagged_sumti_term(tense_modal, sumti) -> TermSyntax {
-        context "tag";
-        construct variant JaiTaggedSumti;
-        fields {
-            field jai = cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
-            field tag = opt(boxed(tense_modal));
-            field sumti = boxed(sumti);
         }
     }
 
