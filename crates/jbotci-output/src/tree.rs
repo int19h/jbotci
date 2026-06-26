@@ -14766,10 +14766,7 @@ fn generated_statement_connection_part(
             chained_i_connective_statement_tail,
         } => {
             let tail = chained_i_connective_statement_tail;
-            let first_pending = tail
-                .pending
-                .first()
-                .expect("chained I statement tails parse pending with many1");
+            let first_pending = tail.pending.first();
             let mut extra = Vec::new();
             for pending_connective in tail.pending.iter().skip(1) {
                 extra.push(generated_token_tree_value(

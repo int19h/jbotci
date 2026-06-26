@@ -106,7 +106,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "paragraphs" text_niho_paragraphs(statement_or_fragment, free_modifier) -> struct {
-        field paragraphs <- many1(niho_paragraph(statement_or_fragment, free_modifier));
+        field paragraphs <- [one_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
     alias "text connective" text_leading_connective(tense_modal) {
@@ -142,14 +142,14 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
         field i <- some(cmavo(I));
-        field niho <- many1(selmaho(Niho));
+        field niho <- [one_or_more selmaho(Niho)];
         field free_modifiers <- many(free_modifier);
         #[tree_child(primary)]
         field statements <- opt(boxed(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
     }
 
     rule "paragraph" niho_paragraph(statement_or_fragment, free_modifier) -> struct {
-        field niho <- many1(selmaho(Niho));
+        field niho <- [one_or_more selmaho(Niho)];
         field free_modifiers <- many(free_modifier);
         #[tree_child(primary)]
         field statements <- opt(boxed(paragraph_statement_sequence(statement_or_fragment, free_modifier)));
@@ -236,7 +236,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "statement connection" i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
         field leading_statement <- boxed(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
-        field continuations <- many1(i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens));
+        field continuations <- [one_or_more i_statement_connection_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens)];
     }
 
     rule "statement connective" pending_i_connective -> struct {
@@ -251,7 +251,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "statement connection" chained_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
-        field pending <- many1(pending_i_connective);
+        field pending <- [one_or_more pending_i_connective];
         field i <- cmavo(I);
         field connective <- i_statement_connective(tense_modal);
         field trailing_statement <- boxed(statement_after_i_connective(bridi, subbridi, tense_modal, text));
@@ -323,7 +323,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "terms" terms_fragment(term) -> struct {
         #[tree_child(primary)]
-        field terms <- many1(term);
+        field terms <- [one_or_more term];
         field vau <- opt(cmavo(Vau).wf());
     }
 
@@ -344,7 +344,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal) -> struct {
         #[tree_child(primary)]
-        field bei_links <- many1(bei_link(sumti, tense_modal));
+        field bei_links <- [one_or_more bei_link(sumti, tense_modal)];
     }
 
     rule "linked arguments" linked_sumti_fragment(sumti, tense_modal) -> struct {
@@ -361,13 +361,13 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "bridi" bridi_with_leading_terms(term, bridi_tail) -> struct {
-        field leading_terms <- many1(term);
+        field leading_terms <- [one_or_more term];
         field cu <- opt(arc(cmavo(Cu).wf()));
         field bridi_tail <- boxed(bridi_tail);
     }
 
     rule "bridi" bridi_with_post_cu_terms(term, bridi_tail) -> struct {
-        field leading_terms <- many1(term);
+        field leading_terms <- [one_or_more term];
         field cu <- some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
         field bridi_tail <- boxed(cu_terms_bridi_tail(term, bridi_tail));
     }
@@ -387,7 +387,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "bridi tail" cu_terms_bridi_tail(term, bridi_tail) -> struct {
-        field terms <- many1(term);
+        field terms <- [one_or_more term];
         field bridi_tail <- boxed(bridi_tail);
     }
 
@@ -596,7 +596,7 @@ macro_rules! declare_generated_syntax_grammar {
     rule "termset connection" pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- many1((cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term))));
+        field continuations <- [one_or_more (cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term)))];
     }
 
     rule "term" pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) -> enum {
@@ -655,29 +655,29 @@ macro_rules! declare_generated_syntax_grammar {
     rule "termset" termset_group(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- many1((cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term))));
+        field continuations <- [one_or_more (cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term)))];
     }
 
     rule "termset" forethought_termset(term, tense_modal) -> struct {
         field m_nuhi <- opt(cmavo(Nuhi).wf());
         field gek <- modal_forethought_connective(tense_modal);
-        field terms <- many1(boxed(term));
+        field terms <- [one_or_more boxed(term)];
         field nuhu <- opt(cmavo(Nuhu).wf());
         field gik <- gik_connective;
-        field gik_terms <- many1(boxed(term));
+        field gik_terms <- [one_or_more boxed(term)];
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
         field gik_nuhu <- opt(cmavo(Nuhu).wf());
     }
 
     rule "termset" nuhi_termset(term) -> struct {
         field nuhi <- cmavo(Nuhi).wf();
-        field termset <- many1(boxed(term));
+        field termset <- [one_or_more boxed(term)];
         field nuhu <- opt(cmavo(Nuhu).wf());
     }
 
     rule "termset" ke_termset(term) -> struct {
         field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
-        field termset <- many1(boxed(term));
+        field termset <- [one_or_more boxed(term)];
         field kehe <- opt(cmavo(Kehe).wf());
     }
 
@@ -1183,7 +1183,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "mekso array" array_mekso_operand(mekso) -> struct {
         field johi <- cmavo(Johi).wf();
-        field expressions <- vec1(mekso);
+        field expressions <- [one_or_more mekso];
         field tehu <- opt(cmavo(Tehu).wf());
     }
 
@@ -1245,7 +1245,7 @@ macro_rules! declare_generated_syntax_grammar {
     rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
         field peho <- opt(cmavo(Peho).wf());
         field operator <- boxed(mekso_operator);
-        field operands <- many1(mekso_base);
+        field operands <- [one_or_more mekso_base];
         field kuhe <- opt(cmavo(Kuhe).wf());
     }
 
