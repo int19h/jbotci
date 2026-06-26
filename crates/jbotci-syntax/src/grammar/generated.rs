@@ -3778,22 +3778,16 @@ macro_rules! declare_generated_syntax_grammar {
     rule "linked arguments" empty_linked_sumti -> struct {
     }
 
-    node bei_link(sumti, tense_modal) -> AdditionalLinkedSumtiSyntax {
-        context "linked arguments";
-        fields {
-            field bei = cmavo(Bei).wf();
-            field link = linked_sumti(sumti, tense_modal);
-        }
+    rule "linked arguments" bei_link(sumti, tense_modal) -> struct {
+        field bei <- cmavo(Bei).wf();
+        field link <- linked_sumti(sumti, tense_modal);
     }
 
-    node linkargs(sumti, tense_modal) -> LinkedSumtiListSyntax {
-        context "linked arguments";
-        fields {
-            field be = cmavo(Be).wf();
-            field first_link = linked_sumti(sumti, tense_modal);
-            field bei_links = many(bei_link(sumti, tense_modal));
-            field beho = opt(cmavo(Beho).wf());
-        }
+    rule "linked arguments" linkargs(sumti, tense_modal) -> struct {
+        field be <- cmavo(Be).wf();
+        field first_link <- linked_sumti(sumti, tense_modal);
+        field bei_links <- many(bei_link(sumti, tense_modal));
+        field beho <- opt(cmavo(Beho).wf());
     }
 
     node abstraction_tanru_unit(subbridi) -> TanruUnitSyntax {

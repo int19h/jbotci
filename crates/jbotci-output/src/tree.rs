@@ -1118,7 +1118,7 @@ fn legacy_as_generated_fragment_tree_value(
                 source,
                 options,
             ),
-            "LinkedSumtiList",
+            "Linkargs",
             "LinkedSumti",
         ),
         bityzba::data!(jbotci_syntax::ast::FragmentSyntax::LinkedSumtiContinuation(
@@ -8050,7 +8050,7 @@ fn legacy_as_generated_linked_sumti_list_tree_value(
         entries.extend(legacy_token_field_entries("beho", beho, source, options));
     }
     TreeValue::Node(TreeNode {
-        constructor: "LinkedSumtiList",
+        constructor: "Linkargs",
         entries,
     })
 }
@@ -8073,7 +8073,7 @@ fn legacy_as_generated_additional_linked_sumti_tree_value(
         ),
     });
     TreeValue::Node(TreeNode {
-        constructor: "AdditionalLinkedSumti",
+        constructor: "BeiLink",
         entries,
     })
 }
@@ -12032,7 +12032,7 @@ fn generated_linked_sumti_fragment_tree_value(
     };
     rename_tree_constructor(
         required_generated_syntax_subtree_value(linkargs, source, options),
-        "LinkedSumtiList",
+        "Linkargs",
         "LinkedSumti",
     )
 }
