@@ -2133,26 +2133,6 @@ pub fn parse_syntax_tree_with_source_and_options_attempt(
     grammar::parse_syntax_tree_with_source_attempt(words, Some(source), options)
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_syntax_tree_generated_strict_with_source_and_options(
-    words: &[WordLike],
-    source: &str,
-    options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
-    grammar::parse_generated_strict_syntax_tree_with_source(words, Some(source), options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_syntax_tree_generated_partial_valid_with_source_and_options(
-    words: &[WordLike],
-    source: &str,
-    options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
-    grammar::parse_generated_partial_valid_syntax_tree_with_source(words, Some(source), options)
-}
-
 #[doc(hidden)]
 #[requires(true)]
 #[ensures(true)]

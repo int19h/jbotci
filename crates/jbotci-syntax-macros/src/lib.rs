@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprCall, ExprClosure, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
-    Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, parenthesized,
+    Attribute, Expr, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument, Ident, LitStr,
+    Path, PathArguments, Result, Token, Type, braced, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -37,7 +37,6 @@ mod kw {
     syn::custom_keyword!(policy);
     syn::custom_keyword!(product);
     syn::custom_keyword!(recovered);
-    syn::custom_keyword!(recovered_build);
     syn::custom_keyword!(recursive);
     syn::custom_keyword!(require);
     syn::custom_keyword!(parsers);
@@ -1394,7 +1393,6 @@ struct NodeRule {
     construction: ConstructionMode,
     model_variant: Option<Ident>,
     no_partial_valid: bool,
-    _recovered_build: Option<ExprClosure>,
 }
 
 impl NodeRule {
@@ -2956,7 +2954,6 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
     let mut construction = ConstructionMode::Validated;
     let mut model_variant = None;
     let mut no_partial_valid = false;
-    let mut recovered_build = None;
     while !content.is_empty() {
         if content.peek(kw::context) {
             content.parse::<kw::context>()?;
@@ -2992,13 +2989,9 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
             return Err(content.error(
                 "`build` blocks are no longer supported; use declarative fields, `default`, `let`, `scratch`, `require`, aliases, products, and construct variants",
             ));
-        } else if content.peek(kw::recovered_build) {
-            content.parse::<kw::recovered_build>()?;
-            recovered_build = Some(content.parse()?);
-            content.parse::<Token![;]>()?;
         } else {
             return Err(content.error(
-                "expected `context`, `construct`, `model_variant`, `no_partial_valid`, `fields`, or `recovered_build`",
+                "expected `context`, `construct`, `model_variant`, `no_partial_valid`, or `fields`",
             ));
         }
     }
@@ -3012,7 +3005,6 @@ fn parse_rule_after_kind(input: ParseStream<'_>) -> Result<NodeRule> {
         construction,
         model_variant,
         no_partial_valid,
-        _recovered_build: recovered_build,
     })
 }
 
@@ -3560,6 +3552,23 @@ mod tests {
                 .to_string()
                 .contains("`build` blocks are no longer supported"),
             "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_does_not_support_recovered_build_blocks() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            node item -> ItemSyntax {
+                fields {
+                    field token = cmavo(Be);
+                }
+                recovered_build |token| ItemSyntax { token };
+            }
+        });
+
+        assert!(
+            result.is_err(),
+            "recovered_build blocks must be unsupported"
         );
     }
 }

@@ -486,29 +486,6 @@ pub(crate) fn parse_handwritten_syntax_tree_with_source(
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::syntax_parse_leaf_spans_match_words(words, parse)
-}))]
-pub(crate) fn parse_generated_strict_syntax_tree_with_source(
-    words: &[WordLike],
-    source: Option<&str>,
-    options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
-    parse_handwritten_syntax_tree_with_source(words, source, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn parse_generated_partial_valid_syntax_tree_with_source(
-    words: &[WordLike],
-    source: Option<&str>,
-    options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
-    parse_handwritten_syntax_tree_with_source(words, source, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn parse_generated_model_syntax_tree_with_source(
     words: &[WordLike],
     _source: Option<&str>,
