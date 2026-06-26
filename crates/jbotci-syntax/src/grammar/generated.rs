@@ -1252,13 +1252,9 @@ macro_rules! declare_generated_syntax_grammar {
         field trailing_sumti <- boxed(sumti_bound);
     }
 
-    product sumti_afterthought_tail(sumti_bound) -> SumtiConnectionSyntax {
-        context "sumti connective";
-        construct direct;
-        fields {
-            field connective = argument_connective;
-            field sumti = boxed(sumti_bound);
-        }
+    rule "sumti connective" sumti_afterthought_tail(sumti_bound) -> struct {
+        field connective <- argument_connective;
+        field sumti <- boxed(sumti_bound);
     }
 
     rule "sumti connection" grouped_sumti_tail(sumti, tense_modal) -> struct {
@@ -1374,13 +1370,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    node sumti_connection_tail(sumti) -> SumtiConnectionSyntax {
-        context "sumti connective";
-        construct direct;
-        fields {
-            field connective = argument_connective;
-            field sumti = boxed(sumti);
-        }
+    rule "sumti connective" sumti_connection_tail(sumti) -> struct {
+        field connective <- argument_connective;
+        field sumti <- boxed(sumti);
     }
 
     node pa_run_quantifier(letter_tokens) -> QuantifierSyntax {

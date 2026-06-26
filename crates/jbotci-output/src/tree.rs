@@ -3617,7 +3617,7 @@ fn legacy_as_generated_sumti_connection_tail_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     TreeValue::Node(TreeNode {
-        constructor: "SumtiConnection",
+        constructor: "SumtiConnectionTail",
         entries: vec![
             TreeEntry {
                 label: Some("connective"),
@@ -3748,7 +3748,7 @@ fn legacy_sumti_afterthought_parts<'tree>(
             let (leading, mut continuations) =
                 legacy_sumti_afterthought_parts(leading_sumti.as_ref(), source, options);
             continuations.push(TreeValue::Node(TreeNode {
-                constructor: "SumtiConnection",
+                constructor: "SumtiAfterthoughtTail",
                 entries: vec![
                     TreeEntry {
                         label: Some("connective"),
