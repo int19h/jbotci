@@ -372,6 +372,30 @@ fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> Tre
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_leading_indicator_tree_value(
+    indicator: &jbotci_syntax::ast::Indicator,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("indicator"),
+        value: generated_token_tree_value(&indicator.indicator, source, options),
+    }];
+    if let Some(nai) = &indicator.nai {
+        let nai = Token::bare(WordLike::bare(nai.clone()));
+        entries.push(TreeEntry {
+            label: Some("nai"),
+            value: generated_token_tree_value(&nai, source, options),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "LeadingIndicator",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn morphology_tree_value(
     word_like: &WordLike,
     source: &str,
@@ -451,7 +475,9 @@ fn legacy_as_generated_text_tree_value(
         "leading_indicators",
         tree.leading_indicators
             .iter()
-            .map(|indicator| required_legacy_syntax_subtree_value(indicator, source, options))
+            .map(|indicator| {
+                legacy_as_generated_leading_indicator_tree_value(indicator, source, options)
+            })
             .collect(),
     ) {
         entries.push(entry);
@@ -3811,9 +3837,12 @@ fn legacy_as_generated_sumti_base_tree_value(
                         label: Some("nahe"),
                         value: generated_token_tree_value(&wrapper.value, source, options),
                     });
-                    let wrapper_bo =
-                        wrapper_bo.as_ref().expect("scalar NAhE BO term wrapper has BO");
-                    entries.extend(legacy_token_field_entries("bo", wrapper_bo, source, options));
+                    let wrapper_bo = wrapper_bo
+                        .as_ref()
+                        .expect("scalar NAhE BO term wrapper has BO");
+                    entries.extend(legacy_token_field_entries(
+                        "bo", wrapper_bo, source, options,
+                    ));
                     "ScalarNegatedTermWrapperWithBo"
                 }
                 jbotci_syntax::ast::SumtiWrapperKindSyntax::ScalarNegation => {
@@ -11091,9 +11120,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         options: TreeRenderOptions,
     ) -> TreeValue {
         match atom {
-            GeneratedSyntaxAtomRef::Indicator(value) => {
-                required_legacy_syntax_subtree_value(value, source, options)
-            }
             GeneratedSyntaxAtomRef::Token(word) => {
                 with_indicators_tree_value(word.as_indicators(), source, options)
             }
@@ -11102,7 +11128,6 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
 
     fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
         match atom {
-            GeneratedSyntaxAtomRef::Indicator(value) => last_legacy_syntax_subtree_position(value),
             GeneratedSyntaxAtomRef::Token(token) => token
                 .source_spans()
                 .into_iter()
@@ -11319,7 +11344,7 @@ fn generated_regular_text_tree_value(
         "leading_indicators",
         leading_indicators
             .iter()
-            .map(|indicator| required_legacy_syntax_subtree_value(indicator, source, options))
+            .map(|indicator| required_generated_syntax_subtree_value(indicator, source, options))
             .collect(),
     ) {
         entries.push(entry);
@@ -12365,10 +12390,9 @@ impl<'source, 'tree> TreeVisitor<'tree> for GeneratedSyntaxTokenTreeValueCollect
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
-        if let GeneratedSyntaxAtomRef::Token(token) = atom {
-            self.values
-                .push(generated_token_tree_value(token, self.source, self.options));
-        }
+        let GeneratedSyntaxAtomRef::Token(token) = atom;
+        self.values
+            .push(generated_token_tree_value(token, self.source, self.options));
     }
 }
 
@@ -12511,33 +12535,6 @@ fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -
             generated_connective_has_bo(connective)
         }
         _ => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn last_legacy_syntax_subtree_position<T>(value: &T) -> Option<RenderedPosition>
-where
-    T: SyntaxAstTreeNode,
-{
-    let mut visitor = LastLegacySyntaxAtomVisitor { last: None };
-    value.visit_in_order(&mut visitor);
-    visitor.last
-}
-
-#[invariant(true)]
-struct LastLegacySyntaxAtomVisitor {
-    last: Option<RenderedPosition>,
-}
-
-impl<'tree> TreeVisitor<'tree> for LastLegacySyntaxAtomVisitor {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        self.last = LegacySyntaxRenderModel::atom_end_position(atom);
     }
 }
 

@@ -92,21 +92,6 @@ where
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_legacy_tree<T>(&mut self, value: &T)
-    where
-        T: grammar::ast::TreeNode,
-    {
-        // Some old AST islands still store folded products out of source order.
-        // This coverage check is about token presence and source order, not the
-        // legacy island's internal storage shape.
-        let collector = GeneratedModelLegacySourceSpanCollector::collect(value);
-        for span in collector.into_source_order_spans() {
-            (self.visitor)(&span);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn visit_generated_tree<T>(&mut self, value: &T)
     where
         T: generated_model::TreeNode,
@@ -126,62 +111,7 @@ where
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         match atom {
-            generated_model::AtomRef::Indicator(value) => self.visit_legacy_tree(value),
             generated_model::AtomRef::Token(token) => self.visit_token(token),
-        }
-    }
-}
-
-#[invariant(true)]
-struct GeneratedModelLegacySourceSpanCollector {
-    spans: Vec<SourceSpan>,
-}
-
-impl GeneratedModelLegacySourceSpanCollector {
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect<T>(value: &T) -> Self
-    where
-        T: grammar::ast::TreeNode,
-    {
-        let mut collector = Self { spans: Vec::new() };
-        value.visit_in_order(&mut collector);
-        collector
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_token(&mut self, token: &Token) {
-        for span in token.source_spans() {
-            self.spans.push(span.clone());
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn into_source_order_spans(mut self) -> Vec<SourceSpan> {
-        self.spans.sort_by_key(|span| {
-            (
-                span.byte_start,
-                span.byte_end,
-                span.char_start,
-                span.char_end,
-            )
-        });
-        self.spans
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for GeneratedModelLegacySourceSpanCollector {
-    type Node = grammar::ast::NodeRef<'tree>;
-    type Atom = grammar::ast::AtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            grammar::ast::AtomRef::Token(token) => self.push_token(token),
-            grammar::ast::AtomRef::Word(word) => self.spans.push(word.span().clone()),
         }
     }
 }

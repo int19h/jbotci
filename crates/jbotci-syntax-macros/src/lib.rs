@@ -2234,7 +2234,7 @@ fn strict_call_parser_expr_tokens(
         ("text_leading_cmevla_word", 0) => {
             Some(quote!(generated_runtime::text_leading_cmevla_word()))
         }
-        ("cmevla_word" | "leading_indicator", 0) => {
+        ("cmevla_word", 0) => {
             let parser = format_ident!("{function}");
             Some(quote!(#parser()))
         }
@@ -2682,7 +2682,6 @@ fn call_parser_output_type(
             0,
         ) => Some(quote!(Token)),
         ("raw_words_until", _) if !call.args.is_empty() => Some(quote!(Vec<Token>)),
-        ("leading_indicator", 0) => Some(quote!(Indicator)),
         ("opt", 1) => {
             let inner = parser_output_type(
                 call.args.first().expect("length checked"),

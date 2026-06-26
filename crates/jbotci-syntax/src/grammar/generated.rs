@@ -9,8 +9,7 @@ use jbotci_morphology::{Cmavo, Selmaho};
 use super::ast::*;
 use super::generated_runtime;
 use super::tokens::{
-    cmavo, cmevla_word, leading_indicator, pa_word, relation_word, selmaho, spanned_tokens,
-    syntax_error,
+    cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens, syntax_error,
 };
 use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
@@ -57,6 +56,14 @@ macro_rules! declare_generated_syntax_grammar {
         letter_string: std::vec::Vec<Token>;
         letter_tokens: std::vec::Vec<Token>;
         free_modifier: FreeModifierSyntax;
+    }
+
+    product leading_indicator -> LeadingIndicatorSyntax {
+        context "leading indicator";
+        fields {
+            field indicator = choice((selmaho(Ui), selmaho(Cai)));
+            field nai = opt(cmavo(Nai));
+        }
     }
 
     alias text(paragraph, statement_or_fragment, free_modifier, tense_modal) -> TextSyntax {
@@ -4229,9 +4236,8 @@ pub mod generated_model {
             if self.first.is_some() {
                 return;
             }
-            if let AtomRef::Token(token) = atom {
-                self.first = Some(token);
-            }
+            let AtomRef::Token(token) = atom;
+            self.first = Some(token);
         }
     }
 
