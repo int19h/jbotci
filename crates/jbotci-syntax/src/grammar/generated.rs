@@ -150,16 +150,11 @@ macro_rules! declare_generated_syntax_grammar {
         field statements <- opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
     }
 
-    node niho_paragraph(statement_or_fragment, free_modifier) -> ParagraphSyntax {
-        context "paragraph";
-        construct variant NihoParagraph;
-        fields {
-            default i: Option<Token> = None;
-            field niho = many1(selmaho(Niho));
-            field free_modifiers = many(free_modifier);
-            #[tree_child(primary)]
-            field statements = opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
-        }
+    rule "paragraph" niho_paragraph(statement_or_fragment, free_modifier) -> struct {
+        field niho <- many1(selmaho(Niho));
+        field free_modifiers <- many(free_modifier);
+        #[tree_child(primary)]
+        field statements <- opt_or_default(paragraph_statement_sequence(statement_or_fragment, free_modifier));
     }
 
     node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
