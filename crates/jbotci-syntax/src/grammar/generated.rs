@@ -28,9 +28,9 @@ macro_rules! declare_generated_syntax_grammar {
         bridi: BridiSyntax;
         bridi_tail: BridiTailSyntax;
         bo_grouped_bridi_tail: BoGroupedBridiTailSyntax;
-        bo_grouped_bridi_tail_without_tail_terms: BoGroupedBridiTailSyntax;
+        bo_grouped_bridi_tail_without_tail_terms: BoGroupedBridiTailWithoutTailTermsSyntax;
         forethought_bridi_connection: ForethoughtBridiConnectionSyntax;
-        forethought_bridi_connection_without_tail_terms: ForethoughtBridiConnectionSyntax;
+        forethought_bridi_connection_without_tail_terms: ForethoughtBridiConnectionWithoutTailTermsSyntax;
         subbridi: SubbridiSyntax;
         term: TermSyntax;
         sumti: SumtiSyntax;
@@ -391,38 +391,25 @@ macro_rules! declare_generated_syntax_grammar {
         field bridi_tail <- boxed(bridi_tail);
     }
 
-    alias "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) =
-        choice((
-            bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal),
-            bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal),
-        ));
-
-    node bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> BridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
-            field ke_continuation = opt(boxed(bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
-        }
+    rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+        bridi_tail_with_possible_tail_terms,
+        bridi_tail_without_tail_terms,
     }
 
-    node bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> BridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
-            require (relation_connective_as_bridi_tail, opt(boxed(tense_modal)), cmavo(Ke)).not();
-            field ke_continuation = opt(boxed(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
-        }
+    rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field ke_continuation <- opt(boxed(bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
     }
 
-    node afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> AfterthoughtBridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(bo_grouped_bridi_tail_without_tail_terms);
-            field continuations = many(bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal));
-        }
+    rule "bridi tail" bridi_tail_with_possible_tail_terms(bridi_tail, bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+        assert !(relation_connective_as_bridi_tail, opt(boxed(tense_modal)), cmavo(Ke));
+        field ke_continuation <- opt(boxed(gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal)));
+    }
+
+    rule "bridi tail" afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(bo_grouped_bridi_tail_without_tail_terms);
+        field continuations <- many(bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal));
     }
 
     rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
@@ -430,13 +417,9 @@ macro_rules! declare_generated_syntax_grammar {
         field continuations <- many(bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal));
     }
 
-    node bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> BoGroupedBridiTailSyntax {
-        context "bridi tail";
-        construct direct;
-        fields {
-            field first = boxed(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
-            field bo_continuation = opt(boxed(bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
-        }
+    rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        field first <- boxed(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
+        field bo_continuation <- opt(boxed(bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
     }
 
     rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> struct {
@@ -444,222 +427,142 @@ macro_rules! declare_generated_syntax_grammar {
         field bo_continuation <- opt(boxed(bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal)));
     }
 
-    alias "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) =
-        choice((
-            forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms),
-            selbri_simple_bridi_tail_without_tail_terms(selbri),
-        ));
-
-    alias "bridi tail" simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) =
-        choice((
-            forethought_simple_bridi_tail(forethought_bridi_connection),
-            selbri_simple_bridi_tail(selbri, term),
-        ));
-
-    node forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> SimpleBridiTailSyntax {
-        context "forethought bridi connection";
-        construct tuple_variant ForethoughtBridiTailConnection;
-        fields {
-            field connection = boxed(forethought_bridi_connection_without_tail_terms);
-        }
+    rule "bridi tail" simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+        forethought_simple_bridi_tail_without_tail_terms,
+        selbri_simple_bridi_tail_without_tail_terms,
     }
 
-    node forethought_simple_bridi_tail(forethought_bridi_connection) -> SimpleBridiTailSyntax {
-        context "forethought bridi connection";
-        construct tuple_variant ForethoughtBridiTailConnection;
-        fields {
-            field connection = boxed(forethought_bridi_connection);
-        }
+    rule "bridi tail" simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> enum {
+        forethought_simple_bridi_tail,
+        selbri_simple_bridi_tail,
     }
 
-    node selbri_simple_bridi_tail_without_tail_terms(selbri) -> SimpleBridiTailSyntax {
-        context "bridi tail";
-        construct variant SelbriBridiTail;
-        fields {
-            field selbri = boxed(selbri);
-            default terms: Vec<TermSyntax> = Vec::new();
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" forethought_simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> struct {
+        field connection <- boxed(forethought_bridi_connection_without_tail_terms);
     }
 
-    node selbri_simple_bridi_tail(selbri, term) -> SimpleBridiTailSyntax {
-        context "bridi tail";
-        construct variant SelbriBridiTail;
-        fields {
-            field selbri = boxed(selbri);
-            field terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" forethought_simple_bridi_tail(forethought_bridi_connection) -> struct {
+        field connection <- boxed(forethought_bridi_connection);
     }
 
-    alias "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal) =
-        choice((
-            direct_forethought_bridi_connection(subbridi, term, tense_modal),
-            grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal),
-            negated_forethought_bridi_connection(forethought_bridi_connection),
-        ));
-
-    alias "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal) =
-        choice((
-            direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal),
-            grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal),
-            negated_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms),
-        ));
-
-    node direct_forethought_bridi_connection(subbridi, term, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant BridiConnection;
-        fields {
-            field gek = modal_forethought_connective(tense_modal);
-            field first = boxed(subbridi);
-            field gik = gik_connective;
-            field second = boxed(subbridi);
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-            field tail_terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi tail" selbri_simple_bridi_tail_without_tail_terms(selbri) -> struct {
+        field selbri <- boxed(selbri);
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
-    node direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant BridiConnection;
-        fields {
-            field gek = modal_forethought_connective(tense_modal);
-            field first = boxed(subbridi);
-            field gik = gik_connective;
-            field second = boxed(subbridi);
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-            default tail_terms: Vec<TermSyntax> = Vec::new();
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi tail" selbri_simple_bridi_tail(selbri, term) -> struct {
+        field selbri <- boxed(selbri);
+        field terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
-    node grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant GroupedBridiConnection;
-        fields {
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field inner = boxed(forethought_bridi_connection);
-            field kehe = opt(arc(cmavo(Kehe).wf()));
-        }
+    rule "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal) -> enum {
+        direct_forethought_bridi_connection,
+        grouped_forethought_bridi_connection,
+        negated_forethought_bridi_connection,
     }
 
-    node grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant GroupedBridiConnection;
-        fields {
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field inner = boxed(forethought_bridi_connection_without_tail_terms);
-            field kehe = opt(arc(cmavo(Kehe).wf()));
-        }
+    rule "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal) -> enum {
+        direct_forethought_bridi_connection_without_tail_terms,
+        grouped_forethought_bridi_connection_without_tail_terms,
+        negated_forethought_bridi_connection_without_tail_terms,
     }
 
-    node negated_forethought_bridi_connection(forethought_bridi_connection) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant NegatedBridiConnection;
-        fields {
-            field na = selmaho(Na).wf();
-            field inner = boxed(forethought_bridi_connection);
-        }
+    rule "forethought bridi connection" direct_forethought_bridi_connection(subbridi, term, tense_modal) -> struct {
+        field gek <- modal_forethought_connective(tense_modal);
+        field first <- boxed(subbridi);
+        field gik <- gik_connective;
+        field second <- boxed(subbridi);
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
+        field tail_terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
-    node negated_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> ForethoughtBridiConnectionSyntax {
-        context "forethought bridi connection";
-        construct variant NegatedBridiConnection;
-        fields {
-            field na = selmaho(Na).wf();
-            field inner = boxed(forethought_bridi_connection_without_tail_terms);
-        }
+    rule "forethought bridi connection" direct_forethought_bridi_connection_without_tail_terms(subbridi, tense_modal) -> struct {
+        field gek <- modal_forethought_connective(tense_modal);
+        field first <- boxed(subbridi);
+        field gik <- gik_connective;
+        field second <- boxed(subbridi);
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
-    node bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> GroupedBridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            field connective = bridi_tail_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field bridi_tail = boxed(bridi_tail);
-            field kehe = opt(arc(cmavo(Kehe).wf()));
-            field tail_terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal) -> struct {
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field inner <- boxed(forethought_bridi_connection);
+        field kehe <- opt(arc(cmavo(Kehe).wf()));
     }
 
-    node gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> GroupedBridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            field connective = gihek_connective();
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field bridi_tail = boxed(bridi_tail);
-            field kehe = opt(arc(cmavo(Kehe).wf()));
-            field tail_terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal) -> struct {
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field inner <- boxed(forethought_bridi_connection_without_tail_terms);
+        field kehe <- opt(arc(cmavo(Kehe).wf()));
     }
 
-    node bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> BoundBridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            field connective = bridi_tail_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field cu = opt(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bo_grouped_bridi_tail_without_tail_terms);
-            default tail_terms: Vec<TermSyntax> = Vec::new();
-            default vau: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" negated_forethought_bridi_connection(forethought_bridi_connection) -> struct {
+        field na <- selmaho(Na).wf();
+        field inner <- boxed(forethought_bridi_connection);
     }
 
-    node bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal) -> BoundBridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            field connective = bridi_tail_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field cu = opt(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bo_grouped_bridi_tail);
-            field tail_terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "forethought bridi connection" negated_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms) -> struct {
+        field na <- selmaho(Na).wf();
+        field inner <- boxed(forethought_bridi_connection_without_tail_terms);
     }
 
-    node bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> BridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            require (bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not();
-            field connective = bridi_tail_connective;
-            default tense_modal: Option<Box<TenseModalSyntax>> = None;
-            field cu = opt(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bo_grouped_bridi_tail_without_tail_terms);
-            default tail_terms: Vec<TermSyntax> = Vec::new();
-            default vau: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi tail connective" bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
+        field connective <- bridi_tail_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field bridi_tail <- boxed(bridi_tail);
+        field kehe <- opt(arc(cmavo(Kehe).wf()));
+        field tail_terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
-    node bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal) -> BridiTailConnectionSyntax {
-        context "bridi tail connective";
-        fields {
-            require (bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke)))).not();
-            field connective = bridi_tail_connective;
-            default tense_modal: Option<Box<TenseModalSyntax>> = None;
-            field cu = opt(arc(cmavo(Cu).wf()));
-            field bridi_tail = boxed(bo_grouped_bridi_tail);
-            field tail_terms = many(term);
-            field vau = opt(arc(cmavo(Vau).wf()));
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "bridi tail connective" gihek_bridi_tail_ke_continuation(bridi_tail, term, tense_modal) -> struct {
+        field connective <- gihek_connective();
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field bridi_tail <- boxed(bridi_tail);
+        field kehe <- opt(arc(cmavo(Kehe).wf()));
+        field tail_terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
+    }
+
+    rule "bridi tail connective" bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
+        field connective <- bridi_tail_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bo_grouped_bridi_tail_without_tail_terms);
+    }
+
+    rule "bridi tail connective" bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
+        field connective <- bridi_tail_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bo_grouped_bridi_tail);
+        field tail_terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
+    }
+
+    rule "bridi tail connective" bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
+        assert !(bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
+        field connective <- bridi_tail_connective;
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bo_grouped_bridi_tail_without_tail_terms);
+    }
+
+    rule "bridi tail connective" bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
+        assert !(bridi_tail_connective, opt(boxed(tense_modal)), choice((cmavo(Bo), cmavo(Ke))));
+        field connective <- bridi_tail_connective;
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        field bridi_tail <- boxed(bo_grouped_bridi_tail);
+        field tail_terms <- many(term);
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
     rule "subbridi" subbridi(subbridi, bridi, term) -> enum {

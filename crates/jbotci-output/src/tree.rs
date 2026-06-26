@@ -1754,12 +1754,12 @@ fn legacy_as_generated_bridi_tree_value(
         "RelationOnlyBridi" => "relation_only_bridi",
         _ => unreachable!("constructor selected above"),
     };
-    legacy_as_generated_bridi_variant_tree_value(constructor, label, entries)
+    legacy_as_generated_wrapped_variant_tree_value(constructor, label, entries)
 }
 
 #[requires(!constructor.is_empty() && !label.is_empty())]
 #[ensures(true)]
-fn legacy_as_generated_bridi_variant_tree_value(
+fn legacy_as_generated_wrapped_variant_tree_value(
     constructor: &'static str,
     label: &'static str,
     entries: Vec<TreeEntry>,
@@ -1831,6 +1831,32 @@ fn legacy_as_generated_bridi_tail_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    if legacy_bridi_tail_uses_without_tail_terms_branch(bridi_tail) {
+        let mut entries = vec![TreeEntry {
+            label: Some("first"),
+            value: legacy_as_generated_afterthought_bridi_tail_without_tail_terms_tree_value(
+                bridi_tail.first.as_ref(),
+                source,
+                options,
+            ),
+        }];
+        if let Some(ke_continuation) = &bridi_tail.ke_continuation {
+            entries.push(TreeEntry {
+                label: Some("ke_continuation"),
+                value: legacy_as_generated_bridi_tail_ke_continuation_tree_value(
+                    ke_continuation.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+        }
+        return legacy_as_generated_wrapped_variant_tree_value(
+            "BridiTailWithoutTailTerms",
+            "bridi_tail_without_tail_terms",
+            entries,
+        );
+    }
+
     let mut entries = vec![TreeEntry {
         label: Some("first"),
         value: legacy_as_generated_afterthought_bridi_tail_tree_value(
@@ -1842,17 +1868,43 @@ fn legacy_as_generated_bridi_tail_tree_value(
     if let Some(ke_continuation) = &bridi_tail.ke_continuation {
         entries.push(TreeEntry {
             label: Some("ke_continuation"),
-            value: legacy_as_generated_grouped_bridi_tail_connection_tree_value(
+            value: legacy_as_generated_gihek_bridi_tail_ke_continuation_tree_value(
                 ke_continuation.as_ref(),
                 source,
                 options,
             ),
         });
     }
-    TreeValue::Node(TreeNode {
-        constructor: "BridiTail",
+
+    legacy_as_generated_wrapped_variant_tree_value(
+        "BridiTailWithPossibleTailTerms",
+        "bridi_tail_with_possible_tail_terms",
         entries,
-    })
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_bridi_tail_uses_without_tail_terms_branch(
+    bridi_tail: &jbotci_syntax::ast::BridiTailSyntax,
+) -> bool {
+    bridi_tail
+        .ke_continuation
+        .as_ref()
+        .is_some_and(|continuation| !legacy_bridi_tail_ke_continuation_is_gihek(continuation))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_bridi_tail_ke_continuation_is_gihek(
+    continuation: &jbotci_syntax::ast::GroupedBridiTailConnectionSyntax,
+) -> bool {
+    continuation
+        .connective
+        .cmavo()
+        .value
+        .iter()
+        .any(|token| token.is_selmaho(jbotci_morphology::Selmaho::Giha))
 }
 
 #[requires(true)]
@@ -1890,6 +1942,43 @@ fn legacy_as_generated_afterthought_bridi_tail_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_afterthought_bridi_tail_without_tail_terms_tree_value(
+    bridi_tail: &jbotci_syntax::ast::AfterthoughtBridiTailSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("first"),
+        value: legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+            bridi_tail.first.as_ref(),
+            source,
+            options,
+        ),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "continuations",
+        bridi_tail
+            .continuations
+            .iter()
+            .map(|continuation| {
+                legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
+                    continuation,
+                    source,
+                    options,
+                )
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "AfterthoughtBridiTailWithoutTailTerms",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_bo_grouped_bridi_tail_tree_value(
     bridi_tail: &jbotci_syntax::ast::BoGroupedBridiTailSyntax,
     source: &str,
@@ -1921,7 +2010,38 @@ fn legacy_as_generated_bo_grouped_bridi_tail_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_grouped_bridi_tail_connection_tree_value(
+fn legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+    bridi_tail: &jbotci_syntax::ast::BoGroupedBridiTailSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = vec![TreeEntry {
+        label: Some("first"),
+        value: legacy_as_generated_simple_bridi_tail_without_tail_terms_tree_value(
+            bridi_tail.first.as_ref(),
+            source,
+            options,
+        ),
+    }];
+    if let Some(bo_continuation) = &bridi_tail.bo_continuation {
+        entries.push(TreeEntry {
+            label: Some("bo_continuation"),
+            value: legacy_as_generated_bound_bridi_tail_connection_without_tail_terms_tree_value(
+                bo_continuation.as_ref(),
+                source,
+                options,
+            ),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "BoGroupedBridiTailWithoutTailTerms",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_tail_ke_continuation_tree_value(
     continuation: &jbotci_syntax::ast::GroupedBridiTailConnectionSyntax,
     source: &str,
     options: TreeRenderOptions,
@@ -1976,31 +2096,27 @@ fn legacy_as_generated_grouped_bridi_tail_connection_tree_value(
             options,
         ));
     }
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        continuation
-            .free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
+    assert!(
+        continuation.free_modifiers.is_empty(),
+        "legacy bridi tail KE continuation has free modifiers that are not represented in generated bridi-tail variants"
+    );
     TreeValue::Node(TreeNode {
-        constructor: "GroupedBridiTailConnection",
+        constructor: "BridiTailKeContinuation",
         entries,
     })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn legacy_as_generated_bridi_tail_connection_tree_value(
-    continuation: &jbotci_syntax::ast::BridiTailConnectionSyntax,
+fn legacy_as_generated_gihek_bridi_tail_ke_continuation_tree_value(
+    continuation: &jbotci_syntax::ast::GroupedBridiTailConnectionSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    assert!(
+        legacy_bridi_tail_ke_continuation_is_gihek(continuation),
+        "legacy bridi tail KE continuation is not a GIhA branch"
+    );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
         value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
@@ -2015,6 +2131,67 @@ fn legacy_as_generated_bridi_tail_connection_tree_value(
             ),
         });
     }
+    entries.push(TreeEntry {
+        label: Some("ke"),
+        value: required_legacy_syntax_subtree_value(&continuation.ke, source, options),
+    });
+    entries.push(TreeEntry {
+        label: Some("bridi_tail"),
+        value: legacy_as_generated_bridi_tail_tree_value(
+            continuation.bridi_tail.as_ref(),
+            source,
+            options,
+        ),
+    });
+    if let Some(kehe) = &continuation.kehe {
+        entries.push(TreeEntry {
+            label: Some("kehe"),
+            value: required_legacy_syntax_subtree_value(kehe.as_ref(), source, options),
+        });
+    }
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "tail_terms",
+        continuation
+            .tail_terms
+            .iter()
+            .map(|term| legacy_as_generated_term_tree_value(term, source, options))
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    if let Some(vau) = &continuation.vau {
+        entries.extend(legacy_token_field_entries(
+            "vau",
+            vau.as_ref(),
+            source,
+            options,
+        ));
+    }
+    assert!(
+        continuation.free_modifiers.is_empty(),
+        "legacy GIhA bridi tail KE continuation has free modifiers that are not represented in generated bridi-tail variants"
+    );
+    TreeValue::Node(TreeNode {
+        constructor: "GihekBridiTailKeContinuation",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_tail_connection_tree_value(
+    continuation: &jbotci_syntax::ast::BridiTailConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    assert!(
+        continuation.tense_modal.is_none(),
+        "legacy bridi tail continuation has tense_modal that is not represented in generated bridi-tail continuation"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("connective"),
+        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+    }];
     if let Some(cu) = &continuation.cu {
         entries.push(TreeEntry {
             label: Some("cu"),
@@ -2047,20 +2224,50 @@ fn legacy_as_generated_bridi_tail_connection_tree_value(
             options,
         ));
     }
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        continuation
-            .free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
+    assert!(
+        continuation.free_modifiers.is_empty(),
+        "legacy bridi tail continuation has free modifiers that are not represented in generated bridi-tail variants"
+    );
     TreeValue::Node(TreeNode {
-        constructor: "BridiTailConnection",
+        constructor: "BridiTailContinuation",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
+    continuation: &jbotci_syntax::ast::BridiTailConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    assert!(
+        continuation.tense_modal.is_none()
+            && continuation.tail_terms.is_empty()
+            && continuation.vau.is_none()
+            && continuation.free_modifiers.is_empty(),
+        "legacy bridi tail continuation has tail-term fields that are not represented in generated without-tail-terms continuation"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("connective"),
+        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+    }];
+    if let Some(cu) = &continuation.cu {
+        entries.push(TreeEntry {
+            label: Some("cu"),
+            value: required_legacy_syntax_subtree_value(cu.as_ref(), source, options),
+        });
+    }
+    entries.push(TreeEntry {
+        label: Some("bridi_tail"),
+        value: legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+            continuation.bridi_tail.as_ref(),
+            source,
+            options,
+        ),
+    });
+    TreeValue::Node(TreeNode {
+        constructor: "BridiTailContinuationWithoutTailTerms",
         entries,
     })
 }
@@ -2122,20 +2329,63 @@ fn legacy_as_generated_bound_bridi_tail_connection_tree_value(
             options,
         ));
     }
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        continuation
-            .free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
+    assert!(
+        continuation.free_modifiers.is_empty(),
+        "legacy bound bridi tail continuation has free modifiers that are not represented in generated bridi-tail variants"
+    );
     TreeValue::Node(TreeNode {
-        constructor: "BoundBridiTailConnection",
+        constructor: "BridiTailBoContinuation",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bound_bridi_tail_connection_without_tail_terms_tree_value(
+    continuation: &jbotci_syntax::ast::BoundBridiTailConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    assert!(
+        continuation.tail_terms.is_empty()
+            && continuation.vau.is_none()
+            && continuation.free_modifiers.is_empty(),
+        "legacy bound bridi tail continuation has tail-term fields that are not represented in generated without-tail-terms continuation"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("connective"),
+        value: required_legacy_syntax_subtree_value(&continuation.connective, source, options),
+    }];
+    if let Some(tense_modal) = &continuation.tense_modal {
+        entries.push(TreeEntry {
+            label: Some("tense_modal"),
+            value: legacy_as_generated_tense_modal_tree_value(
+                tense_modal.as_ref(),
+                source,
+                options,
+            ),
+        });
+    }
+    entries.push(TreeEntry {
+        label: Some("bo"),
+        value: required_legacy_syntax_subtree_value(&continuation.bo, source, options),
+    });
+    if let Some(cu) = &continuation.cu {
+        entries.push(TreeEntry {
+            label: Some("cu"),
+            value: required_legacy_syntax_subtree_value(cu.as_ref(), source, options),
+        });
+    }
+    entries.push(TreeEntry {
+        label: Some("bridi_tail"),
+        value: legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+            continuation.bridi_tail.as_ref(),
+            source,
+            options,
+        ),
+    });
+    TreeValue::Node(TreeNode {
+        constructor: "BridiTailBoContinuationWithoutTailTerms",
         entries,
     })
 }
@@ -2154,6 +2404,10 @@ fn legacy_as_generated_simple_bridi_tail_tree_value(
             vau,
             free_modifiers,
         }) => {
+            assert!(
+                free_modifiers.is_empty(),
+                "legacy selbri bridi tail has free modifiers that are not represented in generated selbri simple bridi tail"
+            );
             let mut entries = vec![TreeEntry {
                 label: Some("selbri"),
                 value: legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
@@ -2175,28 +2429,80 @@ fn legacy_as_generated_simple_bridi_tail_tree_value(
                     options,
                 ));
             }
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "SelbriBridiTail",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SelbriSimpleBridiTail",
+                "selbri_simple_bridi_tail",
                 entries,
-            })
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::SimpleBridiTailSyntax::ForethoughtBridiTailConnection(connection)
-        ) => legacy_as_generated_forethought_bridi_connection_tree_value(
-            connection.as_ref(),
-            source,
-            options,
+        ) => legacy_as_generated_wrapped_variant_tree_value(
+            "ForethoughtSimpleBridiTail",
+            "forethought_simple_bridi_tail",
+            vec![TreeEntry {
+                label: Some("connection"),
+                value: legacy_as_generated_forethought_bridi_connection_tree_value(
+                    connection.as_ref(),
+                    source,
+                    options,
+                ),
+            }],
+        ),
+        _ => required_legacy_syntax_subtree_value(bridi_tail, source, options),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_simple_bridi_tail_without_tail_terms_tree_value(
+    bridi_tail: &jbotci_syntax::ast::SimpleBridiTailSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match bridi_tail.as_data() {
+        bityzba::data!(jbotci_syntax::ast::SimpleBridiTailSyntax::SelbriBridiTail {
+            selbri,
+            terms,
+            vau,
+            free_modifiers,
+        }) => {
+            assert!(
+                terms.is_empty() && free_modifiers.is_empty(),
+                "legacy without-tail-terms selbri bridi tail has terms or free modifiers"
+            );
+            let mut entries = vec![TreeEntry {
+                label: Some("selbri"),
+                value: legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
+            }];
+            if let Some(vau) = vau {
+                entries.extend(legacy_token_field_entries(
+                    "vau",
+                    vau.as_ref(),
+                    source,
+                    options,
+                ));
+            }
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SelbriSimpleBridiTailWithoutTailTerms",
+                "selbri_simple_bridi_tail_without_tail_terms",
+                entries,
+            )
+        }
+        bityzba::data!(
+            jbotci_syntax::ast::SimpleBridiTailSyntax::ForethoughtBridiTailConnection(connection)
+        ) => legacy_as_generated_wrapped_variant_tree_value(
+            "ForethoughtSimpleBridiTailWithoutTailTerms",
+            "forethought_simple_bridi_tail_without_tail_terms",
+            vec![TreeEntry {
+                label: Some("connection"),
+                value:
+                    legacy_as_generated_forethought_bridi_connection_without_tail_terms_tree_value(
+                        connection.as_ref(),
+                        source,
+                        options,
+                    ),
+            }],
         ),
         _ => required_legacy_syntax_subtree_value(bridi_tail, source, options),
     }
@@ -2222,6 +2528,10 @@ fn legacy_as_generated_forethought_bridi_connection_tree_value(
                 free_modifiers,
             }
         ) => {
+            assert!(
+                free_modifiers.is_empty(),
+                "legacy forethought bridi connection has free modifiers that are not represented in generated bridi connection"
+            );
             let mut entries = vec![
                 TreeEntry {
                     label: Some("gek"),
@@ -2265,21 +2575,11 @@ fn legacy_as_generated_forethought_bridi_connection_tree_value(
                     value: required_legacy_syntax_subtree_value(vau.as_ref(), source, options),
                 });
             }
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "free_modifiers",
-                free_modifiers
-                    .iter()
-                    .map(|free_modifier| {
-                        legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
-            }
-            TreeValue::Node(TreeNode {
-                constructor: "BridiConnection",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "DirectForethoughtBridiConnection",
+                "direct_forethought_bridi_connection",
                 entries,
-            })
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::GroupedBridiConnection {
@@ -2318,19 +2618,21 @@ fn legacy_as_generated_forethought_bridi_connection_tree_value(
                     value: required_legacy_syntax_subtree_value(kehe.as_ref(), source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "GroupedBridiConnection",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "GroupedForethoughtBridiConnection",
+                "grouped_forethought_bridi_connection",
                 entries,
-            })
+            )
         }
         bityzba::data!(
             jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::NegatedBridiConnection {
                 na,
                 inner,
             }
-        ) => TreeValue::Node(TreeNode {
-            constructor: "NegatedBridiConnection",
-            entries: vec![
+        ) => legacy_as_generated_wrapped_variant_tree_value(
+            "NegatedForethoughtBridiConnection",
+            "negated_forethought_bridi_connection",
+            vec![
                 TreeEntry {
                     label: Some("na"),
                     value: required_legacy_syntax_subtree_value(na, source, options),
@@ -2344,7 +2646,140 @@ fn legacy_as_generated_forethought_bridi_connection_tree_value(
                     ),
                 },
             ],
-        }),
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_forethought_bridi_connection_without_tail_terms_tree_value(
+    connection: &jbotci_syntax::ast::ForethoughtBridiConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match connection.as_data() {
+        bityzba::data!(
+            jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::BridiConnection {
+                gek,
+                first,
+                gik,
+                second,
+                gihi,
+                tail_terms,
+                vau,
+                free_modifiers,
+            }
+        ) => {
+            assert!(
+                tail_terms.is_empty() && free_modifiers.is_empty(),
+                "legacy without-tail-terms forethought bridi connection has tail terms or free modifiers"
+            );
+            let mut entries = vec![
+                TreeEntry {
+                    label: Some("gek"),
+                    value: legacy_as_generated_connective_tree_value(gek, source, options),
+                },
+                TreeEntry {
+                    label: Some("first"),
+                    value: legacy_as_generated_subbridi_tree_value(first.as_ref(), source, options),
+                },
+                TreeEntry {
+                    label: Some("gik"),
+                    value: required_legacy_syntax_subtree_value(gik, source, options),
+                },
+                TreeEntry {
+                    label: Some("second"),
+                    value: legacy_as_generated_subbridi_tree_value(
+                        second.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ];
+            if let Some(gihi) = gihi {
+                entries.push(TreeEntry {
+                    label: Some("gihi"),
+                    value: generated_token_tree_value(gihi, source, options),
+                });
+            }
+            if let Some(vau) = vau {
+                entries.push(TreeEntry {
+                    label: Some("vau"),
+                    value: required_legacy_syntax_subtree_value(vau.as_ref(), source, options),
+                });
+            }
+            legacy_as_generated_wrapped_variant_tree_value(
+                "DirectForethoughtBridiConnectionWithoutTailTerms",
+                "direct_forethought_bridi_connection_without_tail_terms",
+                entries,
+            )
+        }
+        bityzba::data!(
+            jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::GroupedBridiConnection {
+                tense_modal,
+                ke,
+                inner,
+                kehe,
+            }
+        ) => {
+            let mut entries = Vec::new();
+            if let Some(tense_modal) = tense_modal {
+                entries.push(TreeEntry {
+                    label: Some("tense_modal"),
+                    value: legacy_as_generated_tense_modal_tree_value(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ),
+                });
+            }
+            entries.push(TreeEntry {
+                label: Some("ke"),
+                value: required_legacy_syntax_subtree_value(ke, source, options),
+            });
+            entries.push(TreeEntry {
+                label: Some("inner"),
+                value: legacy_as_generated_forethought_bridi_connection_without_tail_terms_tree_value(
+                    inner.as_ref(),
+                    source,
+                    options,
+                ),
+            });
+            if let Some(kehe) = kehe {
+                entries.push(TreeEntry {
+                    label: Some("kehe"),
+                    value: required_legacy_syntax_subtree_value(kehe.as_ref(), source, options),
+                });
+            }
+            legacy_as_generated_wrapped_variant_tree_value(
+                "GroupedForethoughtBridiConnectionWithoutTailTerms",
+                "grouped_forethought_bridi_connection_without_tail_terms",
+                entries,
+            )
+        }
+        bityzba::data!(
+            jbotci_syntax::ast::ForethoughtBridiConnectionSyntax::NegatedBridiConnection {
+                na,
+                inner,
+            }
+        ) => legacy_as_generated_wrapped_variant_tree_value(
+            "NegatedForethoughtBridiConnectionWithoutTailTerms",
+            "negated_forethought_bridi_connection_without_tail_terms",
+            vec![
+                TreeEntry {
+                    label: Some("na"),
+                    value: required_legacy_syntax_subtree_value(na, source, options),
+                },
+                TreeEntry {
+                    label: Some("inner"),
+                    value: legacy_as_generated_forethought_bridi_connection_without_tail_terms_tree_value(
+                        inner.as_ref(),
+                        source,
+                        options,
+                    ),
+                },
+            ],
+        ),
     }
 }
 
