@@ -155,13 +155,6 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "paragraph statement" paragraph_statement(statement_or_fragment, free_modifier, tense_modal) =
-        choice((
-            trailing_ijek_paragraph_statement(),
-            i_paragraph_statement(statement_or_fragment, free_modifier, tense_modal),
-            initial_paragraph_statement(statement_or_fragment),
-        ));
-
     node initial_paragraph_statement(statement_or_fragment) -> ParagraphStatementSyntax {
         context "paragraph statement";
         construct variant InitialParagraphStatement;
