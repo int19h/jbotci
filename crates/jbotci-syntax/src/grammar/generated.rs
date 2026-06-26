@@ -384,33 +384,24 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "bridi continuation" bridi_statement_continuation(subbridi, tense_modal) =
-        choice((
-            bo_bridi_statement_continuation(subbridi, tense_modal),
-            ke_bridi_statement_continuation(subbridi, tense_modal),
-        ));
-
-    product bo_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
-        context "bridi continuation";
-        construct variant BoGroupedBridiStatementContinuation;
-        fields {
-            field connective = bridi_tail_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field trailing_subbridi = boxed(subbridi);
-        }
+    rule "bridi continuation" bridi_statement_continuation(subbridi, tense_modal) -> enum {
+        bo_bridi_statement_continuation,
+        ke_bridi_statement_continuation,
     }
 
-    product ke_bridi_statement_continuation(subbridi, tense_modal) -> BridiStatementContinuationSyntax {
-        context "bridi continuation";
-        construct variant KeGroupedBridiStatementContinuation;
-        fields {
-            field connective = relation_afterthought_connective;
-            field tense_modal = opt(boxed(tense_modal));
-            field ke = cmavo(Ke).wf();
-            field trailing_subbridi = boxed(subbridi);
-            field kehe = opt(cmavo(Kehe).wf());
-        }
+    rule "bridi continuation" bo_bridi_statement_continuation(subbridi, tense_modal) -> struct {
+        field connective <- bridi_tail_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field trailing_subbridi <- boxed(subbridi);
+    }
+
+    rule "bridi continuation" ke_bridi_statement_continuation(subbridi, tense_modal) -> struct {
+        field connective <- relation_afterthought_connective;
+        field tense_modal <- opt(boxed(tense_modal));
+        field ke <- cmavo(Ke).wf();
+        field trailing_subbridi <- boxed(subbridi);
+        field kehe <- opt(cmavo(Kehe).wf());
     }
 
     node selbri_fragment(selbri) -> StatementSyntax {

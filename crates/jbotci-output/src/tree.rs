@@ -12066,17 +12066,19 @@ fn generated_bridi_statement_continuation_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match continuation {
-        generated_model::BridiStatementContinuationSyntax::BoGroupedBridiStatementContinuation {
-            connective,
-            tense_modal,
-            bo,
-            trailing_subbridi,
+        generated_model::BridiStatementContinuationSyntax::BoBridiStatementContinuation {
+            bo_bridi_statement_continuation,
         } => {
+            let continuation = bo_bridi_statement_continuation;
             let mut entries = vec![TreeEntry {
                 label: Some("connective"),
-                value: generated_statement_connective_tree_value(connective, source, options),
+                value: generated_statement_connective_tree_value(
+                    &continuation.connective,
+                    source,
+                    options,
+                ),
             }];
-            if let Some(tense_modal) = tense_modal {
+            if let Some(tense_modal) = &continuation.tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
                     value: required_generated_syntax_subtree_value(
@@ -12088,12 +12090,16 @@ fn generated_bridi_statement_continuation_tree_value(
             }
             entries.push(TreeEntry {
                 label: Some("marker"),
-                value: generated_with_free_modifiers_token_tree_value(bo, source, options),
+                value: generated_with_free_modifiers_token_tree_value(
+                    &continuation.bo,
+                    source,
+                    options,
+                ),
             });
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
                 value: required_generated_syntax_subtree_value(
-                    trailing_subbridi.as_ref(),
+                    continuation.trailing_subbridi.as_ref(),
                     source,
                     options,
                 ),
@@ -12103,18 +12109,19 @@ fn generated_bridi_statement_continuation_tree_value(
                 entries,
             })
         }
-        generated_model::BridiStatementContinuationSyntax::KeGroupedBridiStatementContinuation {
-            connective,
-            tense_modal,
-            ke,
-            trailing_subbridi,
-            kehe,
+        generated_model::BridiStatementContinuationSyntax::KeBridiStatementContinuation {
+            ke_bridi_statement_continuation,
         } => {
+            let continuation = ke_bridi_statement_continuation;
             let mut entries = vec![TreeEntry {
                 label: Some("connective"),
-                value: generated_statement_connective_tree_value(connective, source, options),
+                value: generated_statement_connective_tree_value(
+                    &continuation.connective,
+                    source,
+                    options,
+                ),
             }];
-            if let Some(tense_modal) = tense_modal {
+            if let Some(tense_modal) = &continuation.tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
                     value: required_generated_syntax_subtree_value(
@@ -12126,9 +12133,13 @@ fn generated_bridi_statement_continuation_tree_value(
             }
             let mut marker_entries = vec![TreeEntry {
                 label: Some("ke"),
-                value: generated_with_free_modifiers_token_tree_value(ke, source, options),
+                value: generated_with_free_modifiers_token_tree_value(
+                    &continuation.ke,
+                    source,
+                    options,
+                ),
             }];
-            if let Some(kehe) = kehe {
+            if let Some(kehe) = &continuation.kehe {
                 marker_entries.push(TreeEntry {
                     label: Some("kehe"),
                     value: generated_with_free_modifiers_token_tree_value(kehe, source, options),
@@ -12144,7 +12155,7 @@ fn generated_bridi_statement_continuation_tree_value(
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
                 value: required_generated_syntax_subtree_value(
-                    trailing_subbridi.as_ref(),
+                    continuation.trailing_subbridi.as_ref(),
                     source,
                     options,
                 ),
