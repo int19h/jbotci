@@ -38,7 +38,7 @@ macro_rules! declare_generated_syntax_grammar {
         sumti_afterthought: SumtiAfterthoughtSyntax;
         sumti_bound: SumtiBoundSyntax;
         sumti_forethought: SumtiForethoughtSyntax;
-        sumti_base: SumtiSyntax;
+        sumti_base: SumtiBaseSyntax;
         selbri: SelbriSyntax;
         co_selbri: SelbriSyntax;
         tanru_unit: TanruUnitSyntax;
@@ -924,25 +924,24 @@ macro_rules! declare_generated_syntax_grammar {
         quantified_sumti,
     }
 
-    alias "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) =
-        choice((
-            scalar_negated_sumti_with_bo(sumti),
-            scalar_negated_sumti(sumti),
-            lahe_sumti(sumti, subbridi, tense_modal),
-            lahe_term_wrapper(term),
-            scalar_negated_term_wrapper_with_bo(term),
-            scalar_negated_term_wrapper(term),
-            bridi_description_sumti(subbridi),
-            name_sumti(),
-            description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
-            number_sumti(mekso),
-            lerfu_string_sumti(letter_string, free_modifier),
-            quoted_sumti(text),
-            pro_sumti(),
-        ));
+    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+        scalar_negated_sumti_with_bo,
+        scalar_negated_sumti,
+        lahe_sumti,
+        lahe_term_wrapper,
+        scalar_negated_term_wrapper_with_bo,
+        scalar_negated_term_wrapper,
+        bridi_description_sumti,
+        name_sumti,
+        description_connection_sumti,
+        descriptor_with_outer_quantifier_sumti,
+        descriptor_with_gadri_sumti,
+        descriptor_without_gadri_sumti,
+        number_sumti,
+        lerfu_string_sumti,
+        quoted_sumti,
+        pro_sumti,
+    }
 
     rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens) -> struct {
         field quantifier <- quantifier(mekso, letter_tokens);
@@ -1255,114 +1254,80 @@ macro_rules! declare_generated_syntax_grammar {
         field parts <- boxed(reverse_polish_parts);
     }
 
-    node number_sumti(mekso) -> SumtiSyntax {
-        context "number sumti";
-        construct variant NumberSumti;
-        fields {
-            field li = selmaho(Li).wf();
-            field expression = boxed(mekso);
-            field loho = opt(cmavo(Loho).wf());
-        }
+    rule "number sumti" number_sumti(mekso) -> struct {
+        field li <- selmaho(Li).wf();
+        #[tree_child(primary)]
+        field expression <- boxed(mekso);
+        field loho <- opt(cmavo(Loho).wf());
     }
 
-    node lerfu_string_sumti(letter_string, free_modifier) -> SumtiSyntax {
-        context "lerfu string";
-        fields {
-            field words = letter_string;
-            require selmaho(Moi).not();
-            require selmaho(Mai).not();
-            field boi = opt(cmavo(Boi));
-            field free_modifiers = many(free_modifier);
-        }
+    rule "lerfu string" lerfu_string_sumti(letter_string, free_modifier) -> struct {
+        field words <- letter_string;
+        assert !selmaho(Moi);
+        assert !selmaho(Mai);
+        field boi <- opt(cmavo(Boi));
+        field free_modifiers <- [zero_or_more free_modifier];
     }
 
-    node lahe_sumti(sumti, subbridi, tense_modal) -> SumtiSyntax {
-        context "converted sumti";
-        construct variant ReferentSumti;
-        fields {
-            field lahe = selmaho(Lahe).wf();
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field inner_sumti = boxed(sumti);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal) -> struct {
+        field lahe <- selmaho(Lahe).wf();
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        #[tree_child(primary)]
+        field inner_sumti <- boxed(sumti);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node lahe_term_wrapper(term) -> SumtiSyntax {
-        context "converted term";
-        construct variant ReferentTermWrapper;
-        fields {
-            field lahe = selmaho(Lahe).wf();
-            field inner_term = boxed(term);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "converted term" lahe_term_wrapper(term) -> struct {
+        field lahe <- selmaho(Lahe).wf();
+        #[tree_child(primary)]
+        field inner_term <- boxed(term);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node scalar_negated_term_wrapper_with_bo(term) -> SumtiSyntax {
-        context "scalar-negated term";
-        construct variant ScalarNegatedTermWrapperWithBo;
-        fields {
-            field nahe = selmaho(Nahe);
-            field bo = cmavo(Bo).wf();
-            field inner_term = boxed(term);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "scalar-negated term" scalar_negated_term_wrapper_with_bo(term) -> struct {
+        field nahe <- selmaho(Nahe);
+        field bo <- cmavo(Bo).wf();
+        #[tree_child(primary)]
+        field inner_term <- boxed(term);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node scalar_negated_term_wrapper(term) -> SumtiSyntax {
-        context "scalar-negated term";
-        construct variant ScalarNegatedTermWrapper;
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field inner_term = boxed(term);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "scalar-negated term" scalar_negated_term_wrapper(term) -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        #[tree_child(primary)]
+        field inner_term <- boxed(term);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node scalar_negated_sumti_with_bo(sumti) -> SumtiSyntax {
-        context "scalar-negated sumti";
-        construct variant ScalarNegatedSumtiWithBo;
-        fields {
-            field nahe = selmaho(Nahe);
-            field bo = cmavo(Bo).wf();
-            field inner_sumti = boxed(sumti);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti) -> struct {
+        field nahe <- selmaho(Nahe);
+        field bo <- cmavo(Bo).wf();
+        #[tree_child(primary)]
+        field inner_sumti <- boxed(sumti);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node scalar_negated_sumti(sumti) -> SumtiSyntax {
-        context "scalar-negated sumti";
-        construct variant ScalarNegatedSumti;
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field inner_sumti = boxed(sumti);
-            field luhu = opt(cmavo(Luhu).wf());
-        }
+    rule "scalar-negated sumti" scalar_negated_sumti(sumti) -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        #[tree_child(primary)]
+        field inner_sumti <- boxed(sumti);
+        field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    node bridi_description_sumti(subbridi) -> SumtiSyntax {
-        context "bridi description";
-        construct variant BridiDescription;
-        fields {
-            field lohoi = selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
-            field subbridi = boxed(subbridi);
-            field kuhau = opt(cmavo(Kuhau).wf());
-        }
+    rule "bridi description" bridi_description_sumti(subbridi) -> struct {
+        field lohoi <- selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
+        #[tree_child(primary)]
+        field subbridi <- boxed(subbridi);
+        field kuhau <- opt(cmavo(Kuhau).wf());
     }
 
-    node pro_sumti -> SumtiSyntax {
-        context "sumti";
-        construct tuple_variant ProSumti;
-        fields {
-            field koha = word_category(ProSumti).wf();
-        }
+    rule "sumti" pro_sumti -> struct {
+        field koha <- word_category(ProSumti).wf();
     }
 
-    node name_sumti -> SumtiSyntax {
-        context "name";
-        fields {
-            field la = selmaho(La).wf();
-            field names = many1(cmevla_word()).wf();
-        }
+    rule "name" name_sumti -> struct {
+        field la <- selmaho(La).wf();
+        field names <- many1(cmevla_word()).wf();
     }
 
     rule "descriptor" description_head -> struct {
@@ -1373,44 +1338,33 @@ macro_rules! declare_generated_syntax_grammar {
         field connective <- boxed(jek_connective);
     }
 
-    node description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field leading_description_head = boxed(description_head());
-            field connective = description_head_connective();
-            field trailing_description_head = boxed(description_head());
-            field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+        field leading_description_head <- boxed(description_head());
+        field connective <- description_head_connective();
+        field trailing_description_head <- boxed(description_head());
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = description_head();
-            field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+        field description <- description_head();
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field outer_quantifier = quantifier(mekso, letter_tokens);
-            field description = description_head();
-            field tail = description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+        field outer_quantifier <- quantifier(mekso, letter_tokens);
+        field description <- description_head();
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field quantifier = quantifier(mekso, letter_tokens);
-            require selmaho(Roi).not();
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field quantifier <- quantifier(mekso, letter_tokens);
+        assert !selmaho(Roi);
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
     rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
@@ -1451,107 +1405,87 @@ macro_rules! declare_generated_syntax_grammar {
         field sumti <- boxed(sumti);
     }
 
-    node relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field first_relative_clause = relative_clause_atom(sumti, subbridi, tense_modal);
-            field additional_relative_clauses = many(relative_clause_tail(sumti, subbridi, tense_modal));
-            field tail_quantifier = opt(quantifier(mekso, letter_tokens));
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node outer_quantified_relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field outer_quantifier = quantifier(mekso, letter_tokens);
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field first_relative_clause = relative_clause_atom(sumti, subbridi, tense_modal);
-            field additional_relative_clauses = many(relative_clause_tail(sumti, subbridi, tense_modal));
-            field tail_quantifier = opt(quantifier(mekso, letter_tokens));
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" outer_quantified_relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field outer_quantifier <- quantifier(mekso, letter_tokens);
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node sumti_tail_relation_description_sumti(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            require pa_word().not();
-            field tail_sumti = boxed(sumti);
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" sumti_tail_relation_description_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        assert !pa_word();
+        field tail_sumti <- boxed(sumti);
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field tail_quantifier = quantifier(mekso, letter_tokens);
-            field tail_sumti = boxed(sumti);
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field tail_quantifier <- quantifier(mekso, letter_tokens);
+        #[tree_child(primary)]
+        field tail_sumti <- boxed(sumti);
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field tail_quantifier = quantifier(mekso, letter_tokens);
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field tail_quantifier <- quantifier(mekso, letter_tokens);
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field tail_quantifier = quantifier(mekso, letter_tokens);
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field tail_quantifier <- quantifier(mekso, letter_tokens);
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node simple_description_sumti(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
-        context "description";
-        fields {
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" simple_description_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node outer_quantified_sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field outer_quantifier = quantifier(mekso, letter_tokens);
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field tail_quantifier = quantifier(mekso, letter_tokens);
-            field tail_sumti = boxed(sumti);
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" outer_quantified_sumti_tail_description_sumti(sumti, mekso, letter_tokens) -> struct {
+        field outer_quantifier <- quantifier(mekso, letter_tokens);
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field tail_quantifier <- quantifier(mekso, letter_tokens);
+        #[tree_child(primary)]
+        field tail_sumti <- boxed(sumti);
+        field ku <- opt(cmavo(Ku).wf());
     }
 
-    node outer_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> SumtiSyntax {
-        context "description";
-        fields {
-            field outer_quantifier = quantifier(mekso, letter_tokens);
-            field description = choice((selmaho(Le), selmaho(La))).wf();
-            field tail_quantifier = opt(quantifier(mekso, letter_tokens));
-            field selbri = boxed(selbri);
-            field relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field ku = opt(cmavo(Ku).wf());
-        }
+    rule "description" outer_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+        field outer_quantifier <- quantifier(mekso, letter_tokens);
+        field description <- choice((selmaho(Le), selmaho(La))).wf();
+        field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
     rule "quote" quote(text) -> enum {
@@ -1597,30 +1531,28 @@ macro_rules! declare_generated_syntax_grammar {
         field quote <- word_category(Quote).wf();
     }
 
-    node quoted_sumti(text) -> SumtiSyntax {
-        context "quote";
-        construct tuple_variant QuotedSumti;
-        fields {
-            field quote = boxed(quote(text));
-        }
+    rule "quote" quoted_sumti(text) -> struct {
+        #[tree_child(primary)]
+        field quote <- boxed(quote(text));
     }
 
-    node selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal) -> SumtiSyntax {
-        context "vocative phrase";
-        fields {
-            field leading_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field selbri = boxed(selbri);
-            field trailing_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
+        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        #[tree_child(primary)]
+        field selbri <- boxed(selbri);
+        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
-    node cmevla_vocative_sumti(sumti, subbridi, tense_modal) -> SumtiSyntax {
-        context "vocative phrase";
-        fields {
-            field leading_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-            field names = many1(cmevla_word()).wf();
-            field trailing_relative_clauses = opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
-        }
+    rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal) -> struct {
+        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field names <- many1(cmevla_word()).wf();
+        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+    }
+
+    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, tense_modal) -> enum {
+        selbri_vocative_sumti,
+        cmevla_vocative_sumti,
+        sumti,
     }
 
     rule "vocative marker" vocative_marker_words -> enum {
@@ -1656,11 +1588,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> struct {
         field vocative_markers <- vocative_marker_words().wf();
-        field sumti <- opt(boxed(choice((
-            selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal),
-            cmevla_vocative_sumti(sumti, subbridi, tense_modal),
-            sumti,
-        ))));
+        field sumti <- opt(boxed(vocative_sumti(sumti, subbridi, selbri, tense_modal)));
         field dohu <- opt(cmavo(Dohu).prohibited_wf());
     }
 

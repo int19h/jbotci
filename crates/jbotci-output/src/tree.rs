@@ -3246,6 +3246,16 @@ fn legacy_as_generated_variant_payload_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn tree_node_entries(value: TreeValue) -> Vec<TreeEntry> {
+    match value {
+        TreeValue::Node(node) => node.entries,
+        TreeValue::Syntax { value, .. } => tree_node_entries(*value),
+        value => panic!("expected TreeValue::Node, got {value:?}"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_post_cu_bridi_tail_tree_value(
     bridi_tail: &jbotci_syntax::ast::BridiTailSyntax,
     source: &str,
@@ -6442,20 +6452,21 @@ fn legacy_as_generated_vocative_argument_tree_value(
             ) {
                 entries.push(entry);
             }
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "trailing_relative_clauses",
-                legacy_as_generated_relative_clause_list_tree_values(
-                    relative_clauses,
-                    source,
-                    options,
-                ),
-            ) {
-                entries.push(entry);
+            if !relative_clauses.is_empty() {
+                entries.push(TreeEntry {
+                    label: Some("trailing_relative_clauses"),
+                    value: legacy_as_generated_relative_clause_list_tree_value(
+                        relative_clauses,
+                        source,
+                        options,
+                    ),
+                });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "CmevlaVocativeSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "CmevlaVocativeSumti",
+                "cmevla_vocative_sumti",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::NameWords(names)) => {
             let mut entries = vec![TreeEntry {
@@ -6474,10 +6485,22 @@ fn legacy_as_generated_vocative_argument_tree_value(
             ) {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "CmevlaVocativeSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "CmevlaVocativeSumti",
+                "cmevla_vocative_sumti",
                 entries,
-            })
+            )
+        }
+        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::SelbriVocative {
+            leading_relative_clauses,
+            selbri,
+            trailing_relative_clauses,
+        }) if leading_relative_clauses.is_empty() && trailing_relative_clauses.is_empty() => {
+            legacy_as_generated_existing_variant_payload_tree_value(
+                "SelbriVocativeSumti",
+                "selbri_vocative_sumti",
+                legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::SelbriVocative {
             leading_relative_clauses,
@@ -6485,46 +6508,41 @@ fn legacy_as_generated_vocative_argument_tree_value(
             trailing_relative_clauses,
         }) => {
             let mut entries = Vec::new();
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "leading_relative_clauses",
-                leading_relative_clauses
-                    .iter()
-                    .map(|relative_clause| {
-                        legacy_as_generated_relative_clause_tree_value(
-                            relative_clause,
-                            source,
-                            options,
-                        )
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
+            if !leading_relative_clauses.is_empty() {
+                entries.push(TreeEntry {
+                    label: Some("leading_relative_clauses"),
+                    value: legacy_as_generated_relative_clause_list_tree_value(
+                        leading_relative_clauses,
+                        source,
+                        options,
+                    ),
+                });
             }
             entries.push(TreeEntry {
-                label: Some("selbri"),
+                label: None,
                 value: legacy_as_generated_selbri_tree_value(selbri.as_ref(), source, options),
             });
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
-                "trailing_relative_clauses",
-                trailing_relative_clauses
-                    .iter()
-                    .map(|relative_clause| {
-                        legacy_as_generated_relative_clause_tree_value(
-                            relative_clause,
-                            source,
-                            options,
-                        )
-                    })
-                    .collect(),
-            ) {
-                entries.push(entry);
+            if !trailing_relative_clauses.is_empty() {
+                entries.push(TreeEntry {
+                    label: Some("trailing_relative_clauses"),
+                    value: legacy_as_generated_relative_clause_list_tree_value(
+                        trailing_relative_clauses,
+                        source,
+                        options,
+                    ),
+                });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "SelbriVocativeSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SelbriVocativeSumti",
+                "selbri_vocative_sumti",
                 entries,
-            })
+            )
         }
-        _ => legacy_as_generated_sumti_tree_value(sumti, source, options),
+        _ => legacy_as_generated_existing_variant_payload_tree_value(
+            "Sumti",
+            "sumti",
+            legacy_as_generated_sumti_tree_value(sumti, source, options),
+        ),
     }
 }
 
@@ -7208,7 +7226,7 @@ fn legacy_as_generated_sumti_atom_tree_value(
     }
 
     legacy_as_generated_existing_variant_payload_tree_value(
-        "Sumti",
+        "SumtiBase",
         "sumti_base",
         legacy_as_generated_sumti_base_tree_value(sumti, source, options),
     )
@@ -7264,23 +7282,16 @@ fn legacy_as_generated_sumti_base_tree_value(
                 label: Some("lahe"),
                 value: required_legacy_syntax_subtree_value(lahe, source, options),
             }];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
+            if let Some(entry) = legacy_as_generated_optional_relative_clause_list_entry(
                 "relative_clauses",
-                relative_clauses
-                    .iter()
-                    .map(|relative_clause| {
-                        legacy_as_generated_relative_clause_tree_value(
-                            relative_clause,
-                            source,
-                            options,
-                        )
-                    })
-                    .collect(),
+                relative_clauses,
+                source,
+                options,
             ) {
                 entries.push(entry);
             }
             entries.push(TreeEntry {
-                label: Some("inner_sumti"),
+                label: None,
                 value: legacy_as_generated_sumti_tree_value(inner_sumti.as_ref(), source, options),
             });
             if let Some(luhu) = luhu {
@@ -7289,10 +7300,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(luhu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ReferentSumti",
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value("LaheSumti", "lahe_sumti", entries)
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QualifiedTerm {
             term_wrapper_kind,
@@ -7302,10 +7310,10 @@ fn legacy_as_generated_sumti_base_tree_value(
             luhu,
         }) => {
             let mut entries = Vec::new();
-            let constructor = match term_wrapper_kind {
+            let (constructor, label) = match term_wrapper_kind {
                 jbotci_syntax::ast::SumtiWrapperKindSyntax::Referent => {
                     entries.extend(legacy_token_field_entries("lahe", wrapper, source, options));
-                    "ReferentTermWrapper"
+                    ("LaheTermWrapper", "lahe_term_wrapper")
                 }
                 jbotci_syntax::ast::SumtiWrapperKindSyntax::ScalarNegationWithBo => {
                     entries.push(TreeEntry {
@@ -7318,15 +7326,18 @@ fn legacy_as_generated_sumti_base_tree_value(
                     entries.extend(legacy_token_field_entries(
                         "bo", wrapper_bo, source, options,
                     ));
-                    "ScalarNegatedTermWrapperWithBo"
+                    (
+                        "ScalarNegatedTermWrapperWithBo",
+                        "scalar_negated_term_wrapper_with_bo",
+                    )
                 }
                 jbotci_syntax::ast::SumtiWrapperKindSyntax::ScalarNegation => {
                     entries.extend(legacy_token_field_entries("nahe", wrapper, source, options));
-                    "ScalarNegatedTermWrapper"
+                    ("ScalarNegatedTermWrapper", "scalar_negated_term_wrapper")
                 }
             };
             entries.push(TreeEntry {
-                label: Some("inner_term"),
+                label: None,
                 value: legacy_as_generated_term_tree_value(inner_term.as_ref(), source, options),
             });
             if let Some(luhu) = luhu {
@@ -7335,10 +7346,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(luhu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor,
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value(constructor, label, entries)
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ScalarNegatedSumtiWithBo {
             nahe,
@@ -7356,7 +7364,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(bo, source, options),
                 },
                 TreeEntry {
-                    label: Some("inner_sumti"),
+                    label: None,
                     value: legacy_as_generated_sumti_tree_value(
                         inner_sumti.as_ref(),
                         source,
@@ -7370,10 +7378,11 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(luhu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ScalarNegatedSumtiWithBo",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "ScalarNegatedSumtiWithBo",
+                "scalar_negated_sumti_with_bo",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ScalarNegatedSumti {
             nahe,
@@ -7386,7 +7395,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(nahe, source, options),
                 },
                 TreeEntry {
-                    label: Some("inner_sumti"),
+                    label: None,
                     value: legacy_as_generated_sumti_tree_value(
                         inner_sumti.as_ref(),
                         source,
@@ -7400,14 +7409,15 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(luhu, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ScalarNegatedSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "ScalarNegatedSumti",
+                "scalar_negated_sumti",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ProSumti(token)) => {
             let mut entries = vec![TreeEntry {
-                label: None,
+                label: Some("koha"),
                 value: generated_token_tree_value(&token.value, source, options),
             }];
             if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -7422,10 +7432,7 @@ fn legacy_as_generated_sumti_base_tree_value(
             ) {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "ProSumti",
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value("ProSumti", "pro_sumti", entries)
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::NameDescription { la, names }) => {
             let mut entries = legacy_token_field_entries("la", la, source, options);
@@ -7445,23 +7452,34 @@ fn legacy_as_generated_sumti_base_tree_value(
             ) {
                 entries.push(entry);
             }
-            TreeValue::Node(TreeNode {
-                constructor: "NameSumti",
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value("NameSumti", "name_sumti", entries)
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::Description(description)) => {
-            legacy_as_generated_description_sumti_tree_value(description.as_ref(), source, options)
+            legacy_as_generated_sumti_base_description_variant_tree_value(
+                legacy_as_generated_description_sumti_tree_value(
+                    description.as_ref(),
+                    source,
+                    options,
+                ),
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::DescriptionConnection(
             description
-        )) => legacy_as_generated_description_connection_sumti_tree_value(
-            description.as_ref(),
-            source,
-            options,
+        )) => legacy_as_generated_wrapped_variant_tree_value(
+            "DescriptionConnectionSumti",
+            "description_connection_sumti",
+            tree_node_entries(legacy_as_generated_description_connection_sumti_tree_value(
+                description.as_ref(),
+                source,
+                options,
+            )),
         ),
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QuotedSumti(quote)) => {
-            legacy_as_generated_quoted_sumti_tree_value(quote.as_ref(), source, options)
+            legacy_as_generated_existing_variant_payload_tree_value(
+                "QuotedSumti",
+                "quoted_sumti",
+                legacy_as_generated_quoted_sumti_tree_value(quote.as_ref(), source, options),
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::NumberSumti {
             li,
@@ -7474,7 +7492,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(li, source, options),
                 },
                 TreeEntry {
-                    label: Some("expression"),
+                    label: None,
                     value: legacy_as_generated_mekso_tree_value(
                         expression.as_ref(),
                         source,
@@ -7488,10 +7506,7 @@ fn legacy_as_generated_sumti_base_tree_value(
                     value: required_legacy_syntax_subtree_value(loho, source, options),
                 });
             }
-            TreeValue::Node(TreeNode {
-                constructor: "NumberSumti",
-                entries,
-            })
+            legacy_as_generated_wrapped_variant_tree_value("NumberSumti", "number_sumti", entries)
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::LerfuStringSumti { letter, boi }) => {
             let mut entries = vec![TreeEntry {
@@ -7513,10 +7528,11 @@ fn legacy_as_generated_sumti_base_tree_value(
             if let Some(boi) = boi {
                 entries.extend(legacy_token_field_entries("boi", boi, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "LerfuStringSumti",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "LerfuStringSumti",
+                "lerfu_string_sumti",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::BridiDescription {
             lohoi,
@@ -7525,16 +7541,17 @@ fn legacy_as_generated_sumti_base_tree_value(
         }) => {
             let mut entries = legacy_token_field_entries("lohoi", lohoi, source, options);
             entries.push(TreeEntry {
-                label: Some("subbridi"),
+                label: None,
                 value: legacy_as_generated_subbridi_tree_value(subbridi.as_ref(), source, options),
             });
             if let Some(kuhau) = kuhau {
                 entries.extend(legacy_token_field_entries("kuhau", kuhau, source, options));
             }
-            TreeValue::Node(TreeNode {
-                constructor: "BridiDescription",
+            legacy_as_generated_wrapped_variant_tree_value(
+                "BridiDescriptionSumti",
+                "bridi_description_sumti",
                 entries,
-            })
+            )
         }
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ElidedSumti {
             tag,
@@ -7943,6 +7960,34 @@ fn legacy_as_generated_description_connection_sumti_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn legacy_as_generated_sumti_base_description_variant_tree_value(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        return value;
+    };
+    let label = match constructor {
+        "DescriptorWithOuterQuantifierSumti" => "descriptor_with_outer_quantifier_sumti",
+        "DescriptorWithGadriSumti" => "descriptor_with_gadri_sumti",
+        "DescriptorWithoutGadriSumti" => "descriptor_without_gadri_sumti",
+        "RelativeTailDescriptionSumti" => "relative_tail_description_sumti",
+        "OuterQuantifiedRelativeTailDescriptionSumti" => {
+            "outer_quantified_relative_tail_description_sumti"
+        }
+        "SumtiTailRelationDescriptionSumti" => "sumti_tail_relation_description_sumti",
+        "SumtiTailDescriptionSumti" => "sumti_tail_description_sumti",
+        "TailQuantifiedDescriptionSumti" => "tail_quantified_description_sumti",
+        "GadriElidedDescriptionSumti" => "gadri_elided_description_sumti",
+        "SimpleDescriptionSumti" => "simple_description_sumti",
+        "OuterQuantifiedSumtiTailDescriptionSumti" => {
+            "outer_quantified_sumti_tail_description_sumti"
+        }
+        "OuterQuantifiedDescriptionSumti" => "outer_quantified_description_sumti",
+        _ => return value,
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn legacy_as_generated_description_sumti_tree_value(
     description: &jbotci_syntax::ast::DescriptionSyntax,
     source: &str,
@@ -8014,17 +8059,15 @@ fn legacy_as_generated_gadri_elided_description_sumti_tree_value(
                 value: legacy_as_generated_quantifier_tree_value(quantifier, source, options),
             },
             TreeEntry {
-                label: Some("selbri"),
+                label: None,
                 value: legacy_as_generated_selbri_tree_value(selbri, source, options),
             },
         ];
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
+        if let Some(entry) = legacy_as_generated_optional_relative_clause_list_entry(
             "relative_clauses",
-            legacy_as_generated_relative_clause_list_tree_values(
-                &description.relative_clauses,
-                source,
-                options,
-            ),
+            &description.relative_clauses,
+            source,
+            options,
         ) {
             entries.push(entry);
         }
