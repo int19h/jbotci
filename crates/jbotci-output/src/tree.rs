@@ -15404,12 +15404,12 @@ fn generated_statement_connection_part(
             let tail = simple_i_connective_statement_tail;
             GeneratedStatementConnectionPart {
                 i: generated_token_tree_value(&tail.i, source, options),
-                connective: generated_statement_connective_tree_value(
+                connective: generated_i_statement_connective_tree_value(
                     &tail.connective,
                     source,
                     options,
                 ),
-                connective_has_bo: generated_connective_has_bo(&tail.connective),
+                connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
                 trailing_statement: required_generated_syntax_subtree_value(
                     tail.trailing_statement.as_ref(),
                     source,
@@ -15436,7 +15436,7 @@ fn generated_statement_connection_part(
                 ));
             }
             extra.push(generated_token_tree_value(&tail.i, source, options));
-            extra.push(generated_statement_connective_tree_value(
+            extra.push(generated_i_statement_connective_tree_value(
                 &tail.connective,
                 source,
                 options,
@@ -15449,7 +15449,7 @@ fn generated_statement_connection_part(
                     source,
                     options,
                 ),
-                connective_has_bo: generated_connective_has_bo(&tail.connective),
+                connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
                 trailing_statement: required_generated_syntax_subtree_value(
                     tail.trailing_statement.as_ref(),
                     source,
@@ -15540,23 +15540,6 @@ fn generated_statement_connective_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match connective {
-        generated_model::ConnectiveSyntax::IStandardStatementConnective {
-            connective,
-            tag_bo: Some((tense_modal, bo)),
-        } => {
-            let mut extra = Vec::new();
-            if let Some(tense_modal) = tense_modal {
-                extra.extend(generated_tense_modal_word_tree_values(
-                    tense_modal.as_ref(),
-                    source,
-                    options,
-                ));
-            }
-            extra.push(generated_with_free_modifiers_token_tree_value(
-                bo, source, options,
-            ));
-            generated_connective_tree_value_with_extra_words(connective, extra, source, options)
-        }
         generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
             connective,
             tag_bo: Some((tense_modal, bo)),
@@ -15587,9 +15570,50 @@ fn generated_statement_connective_tree_value(
             words.push(generated_token_tree_value(bo, source, options));
             generated_connective_word_node("Selbri", words)
         }
-        generated_model::ConnectiveSyntax::ITagBoStatementConnective { tense_modal, bo } => {
+        _ => collapse_value(required_generated_syntax_subtree_value(
+            connective, source, options,
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_i_statement_connective_tree_value(
+    connective: &generated_model::IStatementConnectiveSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match connective {
+        generated_model::IStatementConnectiveSyntax::IStandardStatementConnective {
+            i_standard_statement_connective,
+        } => {
+            let connective = i_standard_statement_connective.connective.as_ref();
+            if let Some((tense_modal, bo)) = &i_standard_statement_connective.tag_bo {
+                let mut extra = Vec::new();
+                if let Some(tense_modal) = tense_modal {
+                    extra.extend(generated_tense_modal_word_tree_values(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ));
+                }
+                extra.push(generated_with_free_modifiers_token_tree_value(
+                    bo, source, options,
+                ));
+                generated_connective_tree_value_with_extra_words(
+                    connective, extra, source, options,
+                )
+            } else {
+                collapse_value(required_generated_syntax_subtree_value(
+                    connective, source, options,
+                ))
+            }
+        }
+        generated_model::IStatementConnectiveSyntax::ITagBoStatementConnective {
+            i_tag_bo_statement_connective,
+        } => {
             let mut words = Vec::new();
-            if let Some(tense_modal) = tense_modal {
+            if let Some(tense_modal) = &i_tag_bo_statement_connective.tense_modal {
                 words.extend(generated_tense_modal_word_tree_values(
                     tense_modal.as_ref(),
                     source,
@@ -15597,13 +15621,12 @@ fn generated_statement_connective_tree_value(
                 ));
             }
             words.push(generated_with_free_modifiers_token_tree_value(
-                bo, source, options,
+                &i_tag_bo_statement_connective.bo,
+                source,
+                options,
             ));
             generated_connective_word_node("Selbri", words)
         }
-        _ => collapse_value(required_generated_syntax_subtree_value(
-            connective, source, options,
-        )),
     }
 }
 
@@ -15737,15 +15760,13 @@ fn generated_connective_constructor(
             connective,
             ..
         }
-        | generated_model::ConnectiveSyntax::IStandardStatementConnective { connective, .. }
         | generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
             connective, ..
         }
         | generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
             generated_connective_constructor(connective)
         }
-        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. }
-        | generated_model::ConnectiveSyntax::ITagBoStatementConnective { .. } => "Selbri",
+        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. } => "Selbri",
         generated_model::ConnectiveSyntax::JekGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ModalGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { .. } => {
@@ -15762,11 +15783,7 @@ fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -
             connective,
             tag_bo,
         } => tag_bo.is_some() || generated_connective_has_bo(connective),
-        generated_model::ConnectiveSyntax::IStandardStatementConnective { connective, tag_bo } => {
-            tag_bo.is_some() || generated_connective_has_bo(connective)
-        }
-        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. }
-        | generated_model::ConnectiveSyntax::ITagBoStatementConnective { .. } => true,
+        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. } => true,
         generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
             connective,
             bo,
@@ -15781,6 +15798,24 @@ fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -
             generated_connective_has_bo(connective)
         }
         _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_i_statement_connective_has_bo(
+    connective: &generated_model::IStatementConnectiveSyntax,
+) -> bool {
+    match connective {
+        generated_model::IStatementConnectiveSyntax::IStandardStatementConnective {
+            i_standard_statement_connective,
+        } => {
+            i_standard_statement_connective.tag_bo.is_some()
+                || generated_connective_has_bo(
+                    i_standard_statement_connective.connective.as_ref(),
+                )
+        }
+        generated_model::IStatementConnectiveSyntax::ITagBoStatementConnective { .. } => true,
     }
 }
 

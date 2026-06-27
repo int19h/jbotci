@@ -1985,20 +1985,15 @@ macro_rules! declare_generated_syntax_grammar {
             vuhu_nonlogical_connective(),
         ));
 
-    alias "statement connective" i_statement_connective(tense_modal) =
-        choice((
-            i_standard_statement_connective(tense_modal),
-            i_tag_bo_statement_connective(tense_modal),
-        ));
+    rule "statement connective" i_statement_connective(tense_modal) -> enum {
+        i_standard_statement_connective,
+        i_tag_bo_statement_connective,
+    }
 
-    product i_standard_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
-        construct variant IStandardStatementConnective;
-        fields {
-            #[tree_child(primary)]
-            field connective = boxed(statement_connective);
-            field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
-        }
+    rule "statement connective" i_standard_statement_connective(tense_modal) -> struct {
+        #[tree_child(primary)]
+        field connective <- boxed(statement_connective);
+        field tag_bo <- opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
     }
 
     product i_standard_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
@@ -2096,13 +2091,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product i_tag_bo_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
-        construct variant ITagBoStatementConnective;
-        fields {
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-        }
+    rule "statement connective" i_tag_bo_statement_connective(tense_modal) -> struct {
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
     }
 
     product cehe_connective -> ConnectiveSyntax {
