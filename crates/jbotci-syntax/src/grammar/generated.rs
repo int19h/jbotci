@@ -40,11 +40,11 @@ macro_rules! declare_generated_syntax_grammar {
         sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiBaseSyntax;
         selbri: SelbriSyntax;
-        co_selbri: SelbriSyntax;
+        co_selbri: CoSelbriSyntax;
         tanru_unit: TanruUnitSyntax;
-        bo_or_linked_tanru_unit: TanruUnitSyntax;
-        tanru_unit_atom: TanruUnitSyntax;
-        jai_inner_tanru_unit: TanruUnitSyntax;
+        bo_or_linked_tanru_unit: BoOrLinkedTanruUnitSyntax;
+        tanru_unit_atom: TanruUnitAtomSyntax;
+        jai_inner_tanru_unit: JaiInnerTanruUnitSyntax;
         tense_modal: TenseModalSyntax;
         mekso: MeksoSyntax;
         mekso_base: MeksoBaseSyntax;
@@ -2351,375 +2351,305 @@ macro_rules! declare_generated_syntax_grammar {
         field ki <- cmavo(Ki).wf();
     }
 
-    node tagged_selbri(selbri, co_selbri, tense_modal) -> SelbriSyntax {
-        context "tagged selbri";
-        construct variant TaggedSelbri;
-        fields {
-            field tense_modal = boxed(tense_modal);
-            field inner_selbri = boxed(untagged_selbri(selbri, co_selbri));
-        }
+    rule "selbri" selbri(selbri, co_selbri, tense_modal) -> enum {
+        tagged_selbri,
+        untagged_selbri,
     }
 
-    node negated_selbri(selbri) -> SelbriSyntax {
-        context "negated selbri";
-        construct variant Negated;
-        fields {
-            field na = selmaho(Na).not_next_selmaho(Ku).wf();
-            field inner_selbri = boxed(selbri);
-        }
+    rule "selbri" untagged_selbri(selbri, co_selbri) -> enum {
+        negated_selbri,
+        co_selbri,
+        forethought_selbri_connection,
     }
 
-    alias "selbri" selbri(selbri, co_selbri, tense_modal) =
-        choice((
-            tagged_selbri(selbri, co_selbri, tense_modal),
-            untagged_selbri(selbri, co_selbri),
-        ));
-
-    alias "selbri" untagged_selbri(selbri, co_selbri) =
-        choice((
-            negated_selbri(selbri),
-            co_selbri,
-            forethought_selbri_connection(selbri),
-        ));
-
-    node co_selbri(co_selbri, tanru_unit) -> SelbriSyntax {
-        context "selbri";
-        fields {
-            field leading_selbri = boxed(connected_selbri(tanru_unit));
-            field co_tail = opt((cmavo(Co).wf(), boxed(co_selbri)));
-        }
+    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal) -> struct {
+        field tense_modal <- boxed(tense_modal);
+        field inner_selbri <- boxed(untagged_selbri(selbri, co_selbri));
     }
 
-    node forethought_selbri_connection(selbri) -> SelbriSyntax {
-        context "forethought selbri connection";
-        fields {
-            field guhek = guhek_connective;
-            field leading_selbri = boxed(selbri);
-            field gik = gik_connective;
-            field trailing_selbri = boxed(selbri);
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-        }
+    rule "negated selbri" negated_selbri(selbri) -> struct {
+        field na <- selmaho(Na).not_next_selmaho(Ku).wf();
+        field inner_selbri <- boxed(selbri);
     }
 
-    node connected_selbri(tanru_unit) -> SelbriSyntax {
-        context "selbri connection";
-        fields {
-            field leading_selbri = boxed(tanru_selbri(tanru_unit));
-            field continuations = many((relation_afterthought_connective, boxed(tanru_selbri(tanru_unit))));
-        }
+    rule "selbri" co_selbri(co_selbri, tanru_unit) -> struct {
+        field leading_selbri <- boxed(connected_selbri(tanru_unit));
+        field co_tail <- opt(co_selbri_tail(co_selbri));
     }
 
-    node tanru_selbri(tanru_unit) -> SelbriSyntax {
-        context "selbri";
-        fields {
-            field first_unit = tanru_unit;
-            field additional_units = many(tanru_unit);
-        }
+    rule "selbri" co_selbri_tail(co_selbri) -> struct {
+        field co <- cmavo(Co).wf();
+        field trailing_selbri <- boxed(co_selbri);
     }
 
-    alias "tanru unit" tanru_unit(bo_or_linked_tanru_unit) = connected_tanru_unit(bo_or_linked_tanru_unit);
-
-    node connected_tanru_unit(bo_or_linked_tanru_unit) -> TanruUnitSyntax {
-        context "tanru unit";
-        fields {
-            field leading_unit = boxed(bo_or_linked_tanru_unit);
-            field continuations = many((relation_afterthought_connective, boxed(bo_or_linked_tanru_unit)));
-        }
+    rule "forethought selbri connection" forethought_selbri_connection(selbri) -> struct {
+        field guhek <- guhek_connective;
+        field leading_selbri <- boxed(selbri);
+        field gik <- gik_connective;
+        field trailing_selbri <- boxed(selbri);
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
     }
 
-    alias "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
-        choice((
-            forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri),
-            bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal),
-            assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string),
-            linked_tanru_unit(tanru_unit_atom, sumti, tense_modal),
-        ));
-
-    node forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri) -> TanruUnitSyntax {
-        context "forethought selbri connection";
-        fields {
-            field guhek = guhek_connective;
-            field leading_selbri = boxed(selbri);
-            field gik = gik_connective;
-            field trailing_unit = boxed(bo_or_linked_tanru_unit);
-            field gihi = opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
-        }
+    rule "selbri connection" connected_selbri(tanru_unit) -> struct {
+        field leading_selbri <- boxed(tanru_selbri(tanru_unit));
+        field continuations <- [zero_or_more connected_selbri_continuation(tanru_unit)];
     }
 
-    node bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal) -> TanruUnitSyntax {
-        context "BO-grouped tanru unit";
-        construct variant BoundTanruUnitConnection;
-        fields {
-            field leading_unit = boxed(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal));
-            field bo_connective = opt(boxed(relation_afterthought_connective));
-            field bo_tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo).wf();
-            field trailing_unit = boxed(bo_or_linked_tanru_unit);
-        }
+    rule "selbri connection continuation" connected_selbri_continuation(tanru_unit) -> struct {
+        field connective <- relation_afterthought_connective;
+        field trailing_selbri <- boxed(tanru_selbri(tanru_unit));
     }
 
-    node assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "pro-bridi assignment";
-        fields {
-            field base = boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
-            field assignments = many1((cmavo(Cei).wf(), boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string))));
-        }
+    rule "selbri" tanru_selbri(tanru_unit) -> struct {
+        field first_unit <- tanru_unit;
+        field additional_units <- [zero_or_more tanru_unit];
     }
 
-    node linked_tanru_unit(tanru_unit_atom, sumti, tense_modal) -> TanruUnitSyntax {
-        context "tanru unit";
-        fields {
-            field base = boxed(tanru_unit_atom);
-            field linkargs = opt(linkargs(sumti, tense_modal));
-        }
+    rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit) -> struct {
+        field leading_unit <- boxed(bo_or_linked_tanru_unit);
+        field continuations <- [zero_or_more tanru_unit_continuation(bo_or_linked_tanru_unit)];
     }
 
-    node linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
-        fields {
-            field base = boxed(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
-            field linkargs = opt(linkargs(sumti, tense_modal));
-        }
+    rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit) -> struct {
+        field connective <- relation_afterthought_connective;
+        field trailing_unit <- boxed(bo_or_linked_tanru_unit);
     }
 
-    node tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
-        fields {
-            field conversions = many(selmaho(Se).wf());
-            field base = boxed(choice((
-                pro_bridi_tanru_unit(),
-                ordinal_tanru_unit(letter_tokens, letter_string),
-                word_tanru_unit(),
-                preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
-                jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
-                scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
-                abstraction_tanru_unit(subbridi),
-                sumti_selbri_tanru_unit(sumti, letter_string),
-                operator_selbri_tanru_unit(mekso_operator),
-                quoted_bridi_selbri_tanru_unit(),
-                quoted_text_selbri_tanru_unit(),
-                text_selbri_tanru_unit(text),
-                tag_selbri_tanru_unit(tense_modal),
-                goha_word_tanru_unit(free_modifier),
-                grouped_tanru_unit(tanru_unit),
-            )));
-        }
+    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+        forethought_selbri_group_tanru_unit,
+        bound_tanru_unit,
+        assigned_pro_bridi_tanru_unit,
+        linked_tanru_unit,
     }
 
-    node tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "tanru unit";
-        fields {
-            field conversions = many(selmaho(Se).wf());
-            field base = boxed(choice((
-                ordinal_tanru_unit(letter_tokens, letter_string),
-                word_tanru_unit(),
-                preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
-                jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
-                scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
-                abstraction_tanru_unit(subbridi),
-                sumti_selbri_tanru_unit(sumti, letter_string),
-                operator_selbri_tanru_unit(mekso_operator),
-                quoted_bridi_selbri_tanru_unit(),
-                quoted_text_selbri_tanru_unit(),
-                text_selbri_tanru_unit(text),
-                tag_selbri_tanru_unit(tense_modal),
-                goha_word_tanru_unit(free_modifier),
-                pro_bridi_tanru_unit(),
-                grouped_tanru_unit(tanru_unit),
-            )));
-        }
+    rule "forethought selbri connection" forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri) -> struct {
+        field guhek <- guhek_connective;
+        field leading_selbri <- boxed(selbri);
+        field gik <- gik_connective;
+        field trailing_unit <- boxed(bo_or_linked_tanru_unit);
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
     }
 
-    node tagged_selbri_group_tanru_unit(tanru_unit, tense_modal) -> TanruUnitSyntax {
-        context "tagged selbri";
-        fields {
-            field tense_modal = boxed(tense_modal);
-            field inner_selbri = boxed(connected_selbri(tanru_unit));
-        }
+    rule "BO-grouped tanru unit" bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal) -> struct {
+        field leading_unit <- boxed(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal));
+        field bo_connective <- opt(boxed(relation_afterthought_connective));
+        field bo_tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo).wf();
+        field trailing_unit <- boxed(bo_or_linked_tanru_unit);
     }
 
-    node preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal) -> TanruUnitSyntax {
-        context "linked arguments";
-        fields {
-            field linkargs = linkargs(sumti, tense_modal);
-            field base = boxed(tanru_unit);
-        }
+    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+        field base <- boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string)];
     }
 
-    node scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal) -> TanruUnitSyntax {
-        context "scalar-negated tanru unit";
-        construct variant ScalarNegatedTanruUnit;
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field inner_unit = boxed(choice((
-                tagged_selbri_group_tanru_unit(tanru_unit, tense_modal),
-                pro_bridi_tanru_unit(),
-                tanru_unit_atom,
-            )));
-        }
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+        field cei <- cmavo(Cei).wf();
+        field tanru_unit <- boxed(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
     }
 
-    node jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> TanruUnitSyntax {
-        context "modal conversion";
-        construct variant ModalConversion;
-        fields {
-            field jai = cmavo(Jai).wf();
-            field tense_modal = opt(boxed(tense_modal));
-            field inner_unit = boxed(jai_inner_tanru_unit);
-        }
+    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal) -> struct {
+        field base <- boxed(tanru_unit_atom);
+        field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
-    alias "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, letter_tokens, letter_string) =
-        choice((
-            converted_jai_inner_tanru_unit(jai_inner_tanru_unit),
-            scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit),
-            sumti_selbri_tanru_unit(sumti, letter_string),
-            quoted_bridi_selbri_tanru_unit(),
-            quoted_text_selbri_tanru_unit(),
-            text_selbri_tanru_unit(text),
-            grouped_tanru_unit(jai_inner_tanru_unit),
-            ordinal_tanru_unit(letter_tokens, letter_string),
-            operator_selbri_tanru_unit(mekso_operator),
-            pro_bridi_tanru_unit(),
-            word_tanru_unit(),
-        ));
-
-    node converted_jai_inner_tanru_unit(jai_inner_tanru_unit) -> TanruUnitSyntax {
-        context "converted tanru unit";
-        construct variant ConvertedTanruUnit;
-        fields {
-            field se = selmaho(Se).wf();
-            field inner_unit = boxed(jai_inner_tanru_unit);
-        }
+    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+        field base <- boxed(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+        field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
-    node scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit) -> TanruUnitSyntax {
-        context "scalar-negated tanru unit";
-        construct variant ScalarNegatedTanruUnit;
-        model_variant ScalarNegatedJaiInnerTanruUnit;
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field inner_unit = boxed(jai_inner_tanru_unit);
-        }
+    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+        field conversions <- [zero_or_more selmaho(Se).wf()];
+        field base <- boxed(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
     }
 
-    node quoted_bridi_selbri_tanru_unit -> TanruUnitSyntax {
-        context "quoted bridi selbri";
-        construct tuple_variant QuotedBridiSelbri;
-        fields {
-            field quote = choice((
-                quote_marker(Gohoi),
-                quote_marker(Zehoi),
-                quote_marker(Tahai),
-                quote_marker(Bohei),
-            )).warn(ExperimentalGohoiSelbriUnit).wf();
-        }
+    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+        pro_bridi_tanru_unit,
+        ordinal_tanru_unit,
+        word_tanru_unit,
+        preposed_linkargs_tanru_unit,
+        jai_modal_tanru_unit,
+        scalar_negated_tanru_unit,
+        abstraction_tanru_unit,
+        sumti_selbri_tanru_unit,
+        operator_selbri_tanru_unit,
+        quoted_bridi_selbri_tanru_unit,
+        quoted_text_selbri_tanru_unit,
+        text_selbri_tanru_unit,
+        tag_selbri_tanru_unit,
+        goha_word_tanru_unit,
+        grouped_tanru_unit,
     }
 
-    node text_selbri_tanru_unit(text) -> TanruUnitSyntax {
-        context "text selbri";
-        construct variant TextSelbri;
-        fields {
-            field luhei = cmavo(Luhei).warn(ExperimentalZantufaLuheiSelbriUnit).wf();
-            field text = boxed(text);
-            field liau = opt(cmavo(Lihau).wf());
-        }
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+        field conversions <- [zero_or_more selmaho(Se).wf()];
+        field base <- boxed(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
     }
 
-    node quoted_text_selbri_tanru_unit -> TanruUnitSyntax {
-        context "quoted text selbri";
-        construct tuple_variant QuotedTextSelbri;
-        fields {
-            field muhoi = delimited_quote_marker(Muhoi).warn(ExperimentalZantufaMuhoiSelbriUnit).wf();
-        }
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+        ordinal_tanru_unit,
+        word_tanru_unit,
+        preposed_linkargs_tanru_unit,
+        jai_modal_tanru_unit,
+        scalar_negated_tanru_unit,
+        abstraction_tanru_unit,
+        sumti_selbri_tanru_unit,
+        operator_selbri_tanru_unit,
+        quoted_bridi_selbri_tanru_unit,
+        quoted_text_selbri_tanru_unit,
+        text_selbri_tanru_unit,
+        tag_selbri_tanru_unit,
+        goha_word_tanru_unit,
+        pro_bridi_tanru_unit,
+        grouped_tanru_unit,
     }
 
-    node tag_selbri_tanru_unit(tense_modal) -> TanruUnitSyntax {
-        context "tag selbri";
-        construct variant TagSelbri;
-        fields {
-            field xohi = cmavo(Xohi).warn(ExperimentalXohiTagSelbri).wf();
-            field tag = boxed(tense_modal);
-        }
+    rule "tagged selbri" tagged_selbri_group_tanru_unit(tanru_unit, tense_modal) -> struct {
+        field tense_modal <- boxed(tense_modal);
+        field inner_selbri <- boxed(connected_selbri(tanru_unit));
     }
 
-    node ordinal_tanru_unit(letter_tokens, letter_string) -> TanruUnitSyntax {
-        context "ordinal selbri";
-        fields {
-            field number = number_or_letter_words(letter_tokens, letter_string);
-            field moi = selmaho(Moi).wf();
-        }
+    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal) -> struct {
+        field linkargs <- linkargs(sumti, tense_modal);
+        field base <- boxed(tanru_unit);
     }
 
-    node word_tanru_unit -> TanruUnitSyntax {
-        context "tanru unit";
-        construct tuple_variant TanruUnitWord;
-        fields {
-            field word = tanru_unit_relation_word().wf();
-        }
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal) -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        field inner_unit <- boxed(scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal));
     }
 
-    node goha_word_tanru_unit(free_modifier) -> TanruUnitSyntax {
-        context "tanru unit";
-        construct tuple_variant TanruUnitWord;
-        model_variant GohaWordTanruUnit;
-        fields {
-            field word = selmaho(Goha)
-                .followed_by(choice((
-                    cmavo(Raho).ignored(),
-                    cmavo(Be).ignored(),
-                    pa_word().ignored(),
-                    free_modifier.ignored(),
-                )).not())
-                .wf();
-        }
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal) -> enum {
+        tagged_selbri_group_tanru_unit,
+        pro_bridi_tanru_unit,
+        tanru_unit_atom,
     }
 
-    node pro_bridi_tanru_unit -> TanruUnitSyntax {
-        context "pro-bridi";
-        construct variant ProBridi;
-        fields {
-            field goha = selmaho(Goha).wf();
-            field raho = opt(cmavo(Raho).wf());
-        }
+    rule "modal conversion" jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> struct {
+        field jai <- cmavo(Jai).wf();
+        field tense_modal <- opt(boxed(tense_modal));
+        field inner_unit <- boxed(jai_inner_tanru_unit);
     }
 
-    node sumti_selbri_tanru_unit(sumti, letter_string) -> TanruUnitSyntax {
-        context "sumti selbri";
-        construct variant SumtiSelbri;
-        fields {
-            field me = cmavo(Me).wf();
-            field sumti = boxed(choice((sumti, me_lerfu_sumti(letter_string))));
-            field mehu = opt(cmavo(Mehu).wf());
-            field moi_marker = opt(selmaho(Moi).wf());
-        }
+    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, letter_tokens, letter_string) -> enum {
+        converted_jai_inner_tanru_unit,
+        scalar_negated_jai_inner_tanru_unit,
+        sumti_selbri_tanru_unit,
+        quoted_bridi_selbri_tanru_unit,
+        quoted_text_selbri_tanru_unit,
+        text_selbri_tanru_unit,
+        grouped_jai_inner_tanru_unit,
+        ordinal_tanru_unit,
+        operator_selbri_tanru_unit,
+        pro_bridi_tanru_unit,
+        word_tanru_unit,
     }
 
-    node me_lerfu_sumti(letter_string) -> SumtiSyntax {
-        context "lerfu string";
-        fields {
-            field words = letter_string;
-        }
+    rule "converted tanru unit" converted_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
+        field se <- selmaho(Se).wf();
+        field inner_unit <- boxed(jai_inner_tanru_unit);
     }
 
-    node operator_selbri_tanru_unit(mekso_operator) -> TanruUnitSyntax {
-        context "operator-to-selbri";
-        construct variant OperatorSelbri;
-        fields {
-            field nuha = cmavo(Nuha).wf();
-            field mekso_operator = boxed(mekso_operator);
-        }
+    rule "scalar-negated tanru unit" scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        field inner_unit <- boxed(jai_inner_tanru_unit);
     }
 
-    node grouped_tanru_unit(tanru_unit) -> TanruUnitSyntax {
-        context "grouped tanru";
-        construct variant GroupedTanruUnit;
-        fields {
-            default ke_tense_modal: Option<Box<TenseModalSyntax>> = None;
-            field ke = cmavo(Ke).wf();
-            field selbri = boxed(connected_selbri(tanru_unit));
-            field kehe = opt(cmavo(Kehe).wf());
-        }
+    rule "quoted bridi selbri" quoted_bridi_selbri_tanru_unit -> struct {
+        field quote <- choice((
+            quote_marker(Gohoi),
+            quote_marker(Zehoi),
+            quote_marker(Tahai),
+            quote_marker(Bohei),
+        )).warn(ExperimentalGohoiSelbriUnit).wf();
+    }
+
+    rule "text selbri" text_selbri_tanru_unit(text) -> struct {
+        field luhei <- cmavo(Luhei).warn(ExperimentalZantufaLuheiSelbriUnit).wf();
+        field text <- boxed(text);
+        field liau <- opt(cmavo(Lihau).wf());
+    }
+
+    rule "quoted text selbri" quoted_text_selbri_tanru_unit -> struct {
+        field muhoi <- delimited_quote_marker(Muhoi).warn(ExperimentalZantufaMuhoiSelbriUnit).wf();
+    }
+
+    rule "tag selbri" tag_selbri_tanru_unit(tense_modal) -> struct {
+        field xohi <- cmavo(Xohi).warn(ExperimentalXohiTagSelbri).wf();
+        field tag <- boxed(tense_modal);
+    }
+
+    rule "ordinal selbri" ordinal_tanru_unit(letter_tokens, letter_string) -> struct {
+        field number <- number_or_letter_words(letter_tokens, letter_string);
+        field moi <- selmaho(Moi).wf();
+    }
+
+    rule "tanru unit" word_tanru_unit -> struct {
+        field word <- tanru_unit_relation_word().wf();
+    }
+
+    rule "tanru unit" goha_word_tanru_unit(free_modifier) -> struct {
+        field word <- selmaho(Goha)
+            .followed_by(choice((
+                cmavo(Raho).ignored(),
+                cmavo(Be).ignored(),
+                pa_word().ignored(),
+                free_modifier.ignored(),
+            )).not())
+            .wf();
+    }
+
+    rule "pro-bridi" pro_bridi_tanru_unit -> struct {
+        field goha <- selmaho(Goha).wf();
+        field raho <- opt(cmavo(Raho).wf());
+    }
+
+    rule "sumti selbri" sumti_selbri_tanru_unit(sumti, letter_string) -> struct {
+        field me <- cmavo(Me).wf();
+        field sumti <- boxed(sumti_selbri_sumti(sumti, letter_string));
+        field mehu <- opt(cmavo(Mehu).wf());
+        field moi_marker <- opt(selmaho(Moi).wf());
+    }
+
+    rule "sumti selbri" sumti_selbri_sumti(sumti, letter_string) -> enum {
+        sumti,
+        me_lerfu_sumti,
+    }
+
+    rule "lerfu string" me_lerfu_sumti(letter_string) -> struct {
+        field words <- letter_string;
+    }
+
+    rule "operator-to-selbri" operator_selbri_tanru_unit(mekso_operator) -> struct {
+        field nuha <- cmavo(Nuha).wf();
+        field mekso_operator <- boxed(mekso_operator);
+    }
+
+    rule "grouped tanru" grouped_tanru_unit(tanru_unit) -> struct {
+        field ke <- cmavo(Ke).wf();
+        field selbri <- boxed(connected_selbri(tanru_unit));
+        field kehe <- opt(cmavo(Kehe).wf());
+    }
+
+    rule "grouped tanru" grouped_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
+        field ke <- cmavo(Ke).wf();
+        field selbri <- boxed(connected_jai_inner_selbri(jai_inner_tanru_unit));
+        field kehe <- opt(cmavo(Kehe).wf());
+    }
+
+    rule "selbri connection" connected_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
+        field leading_selbri <- boxed(tanru_jai_inner_selbri(jai_inner_tanru_unit));
+        field continuations <- [zero_or_more connected_jai_inner_selbri_continuation(jai_inner_tanru_unit)];
+    }
+
+    rule "selbri connection continuation" connected_jai_inner_selbri_continuation(jai_inner_tanru_unit) -> struct {
+        field connective <- relation_afterthought_connective;
+        field trailing_selbri <- boxed(tanru_jai_inner_selbri(jai_inner_tanru_unit));
+    }
+
+    rule "selbri" tanru_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
+        field first_unit <- jai_inner_tanru_unit;
+        field additional_units <- [zero_or_more jai_inner_tanru_unit];
     }
 
     rule "linked arguments" linked_sumti(sumti, tense_modal) -> enum {
@@ -2758,15 +2688,12 @@ macro_rules! declare_generated_syntax_grammar {
         field beho <- opt(cmavo(Beho).wf());
     }
 
-    node abstraction_tanru_unit(subbridi) -> TanruUnitSyntax {
-        context "abstraction";
-        fields {
-            field nu = selmaho(Nu).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field abstractor_connections = many(abstractor_connection());
-            field subbridi = boxed(subbridi);
-            field kei = opt(cmavo(Kei).wf());
-        }
+    rule "abstraction" abstraction_tanru_unit(subbridi) -> struct {
+        field nu <- selmaho(Nu).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field abstractor_connections <- [zero_or_more abstractor_connection()];
+        field subbridi <- boxed(subbridi);
+        field kei <- opt(cmavo(Kei).wf());
     }
 
     rule "abstractor connection" abstractor_connection -> struct {

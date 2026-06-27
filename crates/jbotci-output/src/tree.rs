@@ -10287,41 +10287,52 @@ fn legacy_as_generated_mekso_operator_selbri_tree_value(
     if let bityzba::data!(jbotci_syntax::ast::SelbriSyntax::SelbriWord(word)) = selbri.as_data()
         && word.is_selmaho(Selmaho::Goha)
     {
-        return TreeValue::Node(TreeNode {
-            constructor: "CoSelbri",
+        let pro_bridi = legacy_as_generated_wrapped_variant_tree_value(
+            "ProBridiTanruUnit",
+            "pro_bridi_tanru_unit",
+            vec![TreeEntry {
+                label: Some("goha"),
+                value: generated_token_tree_value(word, source, options),
+            }],
+        );
+        let tanru_atom = TreeValue::Node(TreeNode {
+            constructor: "TanruUnitAtom",
             entries: vec![TreeEntry {
-                label: Some("leading_selbri"),
-                value: TreeValue::Node(TreeNode {
-                    constructor: "ConnectedSelbri",
+                label: Some("base"),
+                value: pro_bridi,
+            }],
+        });
+        let linked = legacy_as_generated_wrapped_variant_tree_value(
+            "LinkedTanruUnit",
+            "linked_tanru_unit",
+            vec![TreeEntry {
+                label: Some("base"),
+                value: tanru_atom,
+            }],
+        );
+        return legacy_as_generated_existing_variant_payload_tree_value(
+            "UntaggedSelbri",
+            "untagged_selbri",
+            legacy_as_generated_existing_variant_payload_tree_value(
+                "CoSelbri",
+                "co_selbri",
+                TreeValue::Node(TreeNode {
+                    constructor: "CoSelbri",
                     entries: vec![TreeEntry {
                         label: Some("leading_selbri"),
                         value: TreeValue::Node(TreeNode {
-                            constructor: "TanruSelbri",
+                            constructor: "ConnectedSelbri",
                             entries: vec![TreeEntry {
-                                label: Some("first_unit"),
+                                label: Some("leading_selbri"),
                                 value: TreeValue::Node(TreeNode {
-                                    constructor: "ConnectedTanruUnit",
+                                    constructor: "TanruSelbri",
                                     entries: vec![TreeEntry {
-                                        label: Some("leading_unit"),
+                                        label: Some("first_unit"),
                                         value: TreeValue::Node(TreeNode {
-                                            constructor: "LinkedTanruUnit",
+                                            constructor: "TanruUnit",
                                             entries: vec![TreeEntry {
-                                                label: Some("base"),
-                                                value: TreeValue::Node(TreeNode {
-                                                    constructor: "TanruUnitAtom",
-                                                    entries: vec![TreeEntry {
-                                                        label: Some("base"),
-                                                        value: TreeValue::Node(TreeNode {
-                                                            constructor: "ProBridi",
-                                                            entries: vec![TreeEntry {
-                                                                label: Some("goha"),
-                                                                value: generated_token_tree_value(
-                                                                    word, source, options,
-                                                                ),
-                                                            }],
-                                                        }),
-                                                    }],
-                                                }),
+                                                label: Some("leading_unit"),
+                                                value: linked,
                                             }],
                                         }),
                                     }],
@@ -10330,8 +10341,8 @@ fn legacy_as_generated_mekso_operator_selbri_tree_value(
                         }),
                     }],
                 }),
-            }],
-        });
+            ),
+        );
     }
     legacy_as_generated_selbri_tree_value(selbri, source, options)
 }
@@ -10642,9 +10653,10 @@ fn legacy_as_generated_selbri_tree_value(
         bityzba::data!(jbotci_syntax::ast::SelbriSyntax::TaggedSelbri {
             tense_modal,
             inner_selbri,
-        }) => TreeValue::Node(TreeNode {
-            constructor: "TaggedSelbri",
-            entries: vec![
+        }) => legacy_as_generated_wrapped_variant_tree_value(
+            "TaggedSelbri",
+            "tagged_selbri",
+            vec![
                 TreeEntry {
                     label: Some("tense_modal"),
                     value: legacy_as_generated_tense_modal_body_from_legacy(
@@ -10655,36 +10667,53 @@ fn legacy_as_generated_selbri_tree_value(
                 },
                 TreeEntry {
                     label: Some("inner_selbri"),
-                    value: legacy_as_generated_selbri_tree_value(
+                    value: legacy_as_generated_untagged_selbri_tree_value(
                         inner_selbri.as_ref(),
                         source,
                         options,
                     ),
                 },
             ],
-        }),
-        bityzba::data!(jbotci_syntax::ast::SelbriSyntax::Negated { na, inner_selbri }) => {
-            let mut entries = legacy_token_field_entries("na", na, source, options);
-            entries.push(TreeEntry {
-                label: Some("inner_selbri"),
-                value: legacy_as_generated_selbri_tree_value(
-                    inner_selbri.as_ref(),
-                    source,
-                    options,
-                ),
-            });
-            TreeValue::Node(TreeNode {
-                constructor: "Negated",
-                entries,
-            })
-        }
-        _ => legacy_as_generated_untagged_selbri_tree_value(selbri, source, options),
+        ),
+        _ => legacy_as_generated_existing_variant_payload_tree_value(
+            "UntaggedSelbri",
+            "untagged_selbri",
+            legacy_as_generated_untagged_selbri_tree_value(selbri, source, options),
+        ),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn legacy_as_generated_untagged_selbri_tree_value(
+    selbri: &jbotci_syntax::ast::SelbriSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::SelbriSyntax::Negated { na, inner_selbri }) =
+        selbri.as_data()
+    {
+        let mut entries = legacy_token_field_entries("na", na, source, options);
+        entries.push(TreeEntry {
+            label: Some("inner_selbri"),
+            value: legacy_as_generated_selbri_tree_value(inner_selbri.as_ref(), source, options),
+        });
+        return legacy_as_generated_wrapped_variant_tree_value(
+            "NegatedSelbri",
+            "negated_selbri",
+            entries,
+        );
+    }
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "CoSelbri",
+        "co_selbri",
+        legacy_as_generated_co_selbri_tree_value(selbri, source, options),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_co_selbri_tree_value(
     selbri: &jbotci_syntax::ast::SelbriSyntax,
     source: &str,
     options: TreeRenderOptions,
@@ -10708,14 +10737,23 @@ fn legacy_as_generated_untagged_selbri_tree_value(
                 },
                 TreeEntry {
                     label: Some("co_tail"),
-                    value: TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(co, source, options),
-                        legacy_as_generated_untagged_selbri_tree_value(
-                            trailing_selbri.as_ref(),
-                            source,
-                            options,
-                        ),
-                    ]),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "CoSelbriTail",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("co"),
+                                value: required_legacy_syntax_subtree_value(co, source, options),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_selbri"),
+                                value: legacy_as_generated_co_selbri_tree_value(
+                                    trailing_selbri.as_ref(),
+                                    source,
+                                    options,
+                                ),
+                            },
+                        ],
+                    }),
                 },
             ],
         });
@@ -10849,19 +10887,29 @@ fn legacy_as_generated_connected_tanru_unit_from_selbri_parts_tree_value(
         continuations
             .iter()
             .map(|(connective, trailing_selbri)| {
-                TreeValue::Collection(vec![
-                    legacy_as_generated_relation_afterthought_connective_tree_value(
-                        connective, source, options,
-                    ),
-                    trailing_selbri.bo_or_linked_tanru_unit_tree_value(source, options),
-                ])
+                TreeValue::Node(TreeNode {
+                    constructor: "TanruUnitContinuation",
+                    entries: vec![
+                        TreeEntry {
+                            label: Some("connective"),
+                            value: legacy_as_generated_relation_afterthought_connective_tree_value(
+                                connective, source, options,
+                            ),
+                        },
+                        TreeEntry {
+                            label: Some("trailing_unit"),
+                            value: trailing_selbri
+                                .bo_or_linked_tanru_unit_tree_value(source, options),
+                        },
+                    ],
+                })
             })
             .collect(),
     ) {
         entries.push(entry);
     }
     TreeValue::Node(TreeNode {
-        constructor: "ConnectedTanruUnit",
+        constructor: "TanruUnit",
         entries,
     })
 }
@@ -10956,6 +11004,114 @@ fn legacy_conversion_tree_parts(
     (TreeValue::Collection(conversions), free_modifiers)
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn legacy_wrap_bo_or_linked_tanru_unit_variant(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        panic!("expected tanru unit branch node, got {value:?}");
+    };
+    let label = match constructor {
+        "ForethoughtSelbriGroupTanruUnit" => "forethought_selbri_group_tanru_unit",
+        "BoundTanruUnit" => "bound_tanru_unit",
+        "AssignedProBridiTanruUnit" => "assigned_pro_bridi_tanru_unit",
+        "LinkedTanruUnit" => "linked_tanru_unit",
+        _ => panic!("unexpected tanru unit branch constructor {constructor}"),
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_wrap_tanru_unit_atom_base_variant(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        panic!("expected tanru atom base node, got {value:?}");
+    };
+    let label = match constructor {
+        "OrdinalTanruUnit" => "ordinal_tanru_unit",
+        "WordTanruUnit" => "word_tanru_unit",
+        "PreposedLinkargsTanruUnit" => "preposed_linkargs_tanru_unit",
+        "JaiModalTanruUnit" => "jai_modal_tanru_unit",
+        "ScalarNegatedTanruUnit" => "scalar_negated_tanru_unit",
+        "AbstractionTanruUnit" => "abstraction_tanru_unit",
+        "SumtiSelbriTanruUnit" => "sumti_selbri_tanru_unit",
+        "OperatorSelbriTanruUnit" => "operator_selbri_tanru_unit",
+        "QuotedBridiSelbriTanruUnit" => "quoted_bridi_selbri_tanru_unit",
+        "QuotedTextSelbriTanruUnit" => "quoted_text_selbri_tanru_unit",
+        "TextSelbriTanruUnit" => "text_selbri_tanru_unit",
+        "TagSelbriTanruUnit" => "tag_selbri_tanru_unit",
+        "GohaWordTanruUnit" => "goha_word_tanru_unit",
+        "ProBridiTanruUnit" => "pro_bridi_tanru_unit",
+        "GroupedTanruUnit" => "grouped_tanru_unit",
+        _ => panic!("unexpected tanru atom base constructor {constructor}"),
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_wrap_tanru_unit_atom_base_for_cei_variant(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        panic!("expected CEI tanru atom base node, got {value:?}");
+    };
+    let label = match constructor {
+        "ProBridiTanruUnit" => "pro_bridi_tanru_unit",
+        "OrdinalTanruUnit" => "ordinal_tanru_unit",
+        "WordTanruUnit" => "word_tanru_unit",
+        "PreposedLinkargsTanruUnit" => "preposed_linkargs_tanru_unit",
+        "JaiModalTanruUnit" => "jai_modal_tanru_unit",
+        "ScalarNegatedTanruUnit" => "scalar_negated_tanru_unit",
+        "AbstractionTanruUnit" => "abstraction_tanru_unit",
+        "SumtiSelbriTanruUnit" => "sumti_selbri_tanru_unit",
+        "OperatorSelbriTanruUnit" => "operator_selbri_tanru_unit",
+        "QuotedBridiSelbriTanruUnit" => "quoted_bridi_selbri_tanru_unit",
+        "QuotedTextSelbriTanruUnit" => "quoted_text_selbri_tanru_unit",
+        "TextSelbriTanruUnit" => "text_selbri_tanru_unit",
+        "TagSelbriTanruUnit" => "tag_selbri_tanru_unit",
+        "GohaWordTanruUnit" => "goha_word_tanru_unit",
+        "GroupedTanruUnit" => "grouped_tanru_unit",
+        _ => panic!("unexpected CEI tanru atom base constructor {constructor}"),
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_wrap_scalar_negated_tanru_inner_unit_variant(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        panic!("expected scalar-negated tanru inner unit node, got {value:?}");
+    };
+    let label = match constructor {
+        "TaggedSelbriGroupTanruUnit" => "tagged_selbri_group_tanru_unit",
+        "ProBridiTanruUnit" => "pro_bridi_tanru_unit",
+        "TanruUnitAtom" => "tanru_unit_atom",
+        _ => panic!("unexpected scalar-negated tanru inner constructor {constructor}"),
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_wrap_jai_inner_tanru_unit_variant(value: TreeValue) -> TreeValue {
+    let Some(constructor) = tree_value_node_constructor(&value) else {
+        panic!("expected JAI inner tanru unit node, got {value:?}");
+    };
+    let label = match constructor {
+        "ConvertedJaiInnerTanruUnit" => "converted_jai_inner_tanru_unit",
+        "ScalarNegatedJaiInnerTanruUnit" => "scalar_negated_jai_inner_tanru_unit",
+        "SumtiSelbriTanruUnit" => "sumti_selbri_tanru_unit",
+        "QuotedBridiSelbriTanruUnit" => "quoted_bridi_selbri_tanru_unit",
+        "QuotedTextSelbriTanruUnit" => "quoted_text_selbri_tanru_unit",
+        "TextSelbriTanruUnit" => "text_selbri_tanru_unit",
+        "GroupedJaiInnerTanruUnit" => "grouped_jai_inner_tanru_unit",
+        "OrdinalTanruUnit" => "ordinal_tanru_unit",
+        "OperatorSelbriTanruUnit" => "operator_selbri_tanru_unit",
+        "ProBridiTanruUnit" => "pro_bridi_tanru_unit",
+        "WordTanruUnit" => "word_tanru_unit",
+        _ => panic!("unexpected JAI inner tanru unit constructor {constructor}"),
+    };
+    legacy_as_generated_variant_payload_tree_value(constructor, label, value)
+}
+
 #[contract_trait]
 trait LegacyTanruUnitLike {
     #[requires(true)]
@@ -11011,19 +11167,23 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                 bo_tense_modal,
                 bo,
                 trailing_selbri,
-            }) => legacy_as_generated_bound_selbri_connection_tree_value(
-                leading_selbri.as_ref(),
-                bo_connective.as_deref(),
-                bo_tense_modal.as_deref(),
-                bo,
-                trailing_selbri.as_ref(),
-                source,
-                options,
+            }) => legacy_wrap_bo_or_linked_tanru_unit_variant(
+                legacy_as_generated_bound_selbri_connection_tree_value(
+                    leading_selbri.as_ref(),
+                    bo_connective.as_deref(),
+                    bo_tense_modal.as_deref(),
+                    bo,
+                    trailing_selbri.as_ref(),
+                    source,
+                    options,
+                ),
             ),
             _ if let Some(unit) = legacy_single_selbri_tanru_unit(self) => {
                 unit.bo_or_linked_tanru_unit_tree_value(source, options)
             }
-            _ => self.linked_tanru_unit_tree_value(source, options),
+            _ => legacy_wrap_bo_or_linked_tanru_unit_variant(
+                self.linked_tanru_unit_tree_value(source, options),
+            ),
         }
     }
 
@@ -11096,7 +11256,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                 }
                 entries.push(TreeEntry {
                     label: Some("base"),
-                    value: base.tanru_unit_atom_base_tree_value(source, options),
+                    value: legacy_wrap_tanru_unit_atom_base_variant(
+                        base.tanru_unit_atom_base_tree_value(source, options),
+                    ),
                 });
                 TreeValue::Node(TreeNode {
                     constructor: "TanruUnitAtom",
@@ -11107,7 +11269,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
                 constructor: "TanruUnitAtom",
                 entries: vec![TreeEntry {
                     label: Some("base"),
-                    value: self.tanru_unit_atom_base_tree_value(source, options),
+                    value: legacy_wrap_tanru_unit_atom_base_variant(
+                        self.tanru_unit_atom_base_tree_value(source, options),
+                    ),
                 }],
             }),
         }
@@ -11122,16 +11286,31 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::SelbriSyntax {
     ) -> TreeValue {
         match self.as_data() {
             bityzba::data!(jbotci_syntax::ast::SelbriSyntax::SelbriWord(word)) => {
-                if legacy_goha_token_renders_as_pro_bridi(word, &[]) {
+                if word.is_selmaho(Selmaho::Goha) {
+                    if legacy_goha_token_renders_as_pro_bridi(word, &[]) {
+                        return TreeValue::Node(TreeNode {
+                            constructor: "ProBridiTanruUnit",
+                            entries: vec![TreeEntry {
+                                label: Some("goha"),
+                                value: generated_token_tree_value(word, source, options),
+                            }],
+                        });
+                    }
                     return TreeValue::Node(TreeNode {
-                        constructor: "ProBridi",
+                        constructor: "GohaWordTanruUnit",
                         entries: vec![TreeEntry {
-                            label: Some("goha"),
+                            label: Some("word"),
                             value: generated_token_tree_value(word, source, options),
                         }],
                     });
                 }
-                generated_token_tree_value(word, source, options)
+                TreeValue::Node(TreeNode {
+                    constructor: "WordTanruUnit",
+                    entries: vec![TreeEntry {
+                        label: Some("word"),
+                        value: generated_token_tree_value(word, source, options),
+                    }],
+                })
             }
             bityzba::data!(jbotci_syntax::ast::SelbriSyntax::Abstraction(abstraction)) => {
                 legacy_as_generated_abstraction_tanru_unit_tree_value(
@@ -11205,12 +11384,7 @@ fn legacy_as_generated_grouped_tanru_unit_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     let mut entries = Vec::new();
-    if let Some(ke_tense_modal) = ke_tense_modal {
-        entries.push(TreeEntry {
-            label: Some("ke_tense_modal"),
-            value: legacy_as_generated_tense_modal_tree_value(ke_tense_modal, source, options),
-        });
-    }
+    assert!(ke_tense_modal.is_none());
     entries.extend(legacy_token_field_entries("ke", ke, source, options));
     entries.push(TreeEntry {
         label: Some("selbri"),
@@ -11221,6 +11395,120 @@ fn legacy_as_generated_grouped_tanru_unit_tree_value(
     }
     TreeValue::Node(TreeNode {
         constructor: "GroupedTanruUnit",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_grouped_jai_inner_tanru_unit_tree_value(
+    ke: &WithFreeModifiers<Token>,
+    selbri: &jbotci_syntax::ast::SelbriSyntax,
+    kehe: Option<&WithFreeModifiers<Token>>,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let mut entries = legacy_token_field_entries("ke", ke, source, options);
+    entries.push(TreeEntry {
+        label: Some("selbri"),
+        value: legacy_as_generated_connected_jai_inner_selbri_tree_value(selbri, source, options),
+    });
+    if let Some(kehe) = kehe {
+        entries.extend(legacy_token_field_entries("kehe", kehe, source, options));
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "GroupedJaiInnerTanruUnit",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_connected_jai_inner_selbri_tree_value(
+    selbri: &jbotci_syntax::ast::SelbriSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (leading_selbri, continuations) =
+        legacy_selbri_connection_parts(selbri).unwrap_or((selbri, Vec::new()));
+    let mut entries = vec![TreeEntry {
+        label: Some("leading_selbri"),
+        value: legacy_as_generated_tanru_jai_inner_selbri_tree_value(
+            leading_selbri,
+            source,
+            options,
+        ),
+    }];
+    if let Some(entry) = labelled_tree_collection_entry_from_values(
+        "continuations",
+        continuations
+            .iter()
+            .map(|(connective, trailing_selbri)| {
+                TreeValue::Node(TreeNode {
+                    constructor: "ConnectedJaiInnerSelbriContinuation",
+                    entries: vec![
+                        TreeEntry {
+                            label: Some("connective"),
+                            value: legacy_as_generated_relation_afterthought_connective_tree_value(
+                                connective, source, options,
+                            ),
+                        },
+                        TreeEntry {
+                            label: Some("trailing_selbri"),
+                            value: legacy_as_generated_tanru_jai_inner_selbri_tree_value(
+                                trailing_selbri,
+                                source,
+                                options,
+                            ),
+                        },
+                    ],
+                })
+            })
+            .collect(),
+    ) {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "ConnectedJaiInnerSelbri",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_tanru_jai_inner_selbri_tree_value(
+    selbri: &jbotci_syntax::ast::SelbriSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let units = legacy_selbri_tanru_units(selbri);
+    let mut entries = Vec::new();
+    if let Some((first, additional)) = units.split_first() {
+        entries.push(TreeEntry {
+            label: Some("first_unit"),
+            value: legacy_as_generated_jai_inner_tanru_unit_tree_value(first, source, options),
+        });
+        if let Some(entry) = labelled_tree_collection_entry_from_values(
+            "additional_units",
+            additional
+                .iter()
+                .map(|unit| {
+                    legacy_as_generated_jai_inner_tanru_unit_tree_value(unit, source, options)
+                })
+                .collect(),
+        ) {
+            entries.push(entry);
+        }
+    } else {
+        entries.push(TreeEntry {
+            label: Some("first_unit"),
+            value: legacy_wrap_jai_inner_tanru_unit_variant(
+                selbri.tanru_unit_atom_base_tree_value(source, options),
+            ),
+        });
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "TanruJaiInnerSelbri",
         entries,
     })
 }
@@ -11266,7 +11554,7 @@ fn legacy_as_generated_bound_tanru_unit_connection_tree_value(
         value: trailing_unit.bo_or_linked_tanru_unit_tree_value(source, options),
     });
     TreeValue::Node(TreeNode {
-        constructor: "BoundTanruUnitConnection",
+        constructor: "BoundTanruUnit",
         entries,
     })
 }
@@ -11312,7 +11600,7 @@ fn legacy_as_generated_bound_selbri_connection_tree_value(
         value: trailing_selbri.bo_or_linked_tanru_unit_tree_value(source, options),
     });
     TreeValue::Node(TreeNode {
-        constructor: "BoundTanruUnitConnection",
+        constructor: "BoundTanruUnit",
         entries,
     })
 }
@@ -11381,14 +11669,27 @@ fn legacy_as_generated_assigned_pro_bridi_tanru_unit_tree_value(
         assignments
             .iter()
             .map(|assignment| {
-                TreeValue::Collection(vec![
-                    required_legacy_syntax_subtree_value(&assignment.cei, source, options),
-                    legacy_as_generated_linked_tanru_unit_for_cei_tree_value(
-                        assignment.tanru_unit.as_ref(),
-                        source,
-                        options,
-                    ),
-                ])
+                TreeValue::Node(TreeNode {
+                    constructor: "ProBridiTanruUnitAssignment",
+                    entries: vec![
+                        TreeEntry {
+                            label: Some("cei"),
+                            value: required_legacy_syntax_subtree_value(
+                                &assignment.cei,
+                                source,
+                                options,
+                            ),
+                        },
+                        TreeEntry {
+                            label: Some("tanru_unit"),
+                            value: legacy_as_generated_linked_tanru_unit_for_cei_tree_value(
+                                assignment.tanru_unit.as_ref(),
+                                source,
+                                options,
+                            ),
+                        },
+                    ],
+                })
             })
             .collect(),
     ) {
@@ -11475,8 +11776,10 @@ fn legacy_as_generated_tanru_unit_atom_for_cei_tree_value(
             }
             entries.push(TreeEntry {
                 label: Some("base"),
-                value: legacy_as_generated_tanru_unit_atom_base_for_cei_tree_value(
-                    base, source, options,
+                value: legacy_wrap_tanru_unit_atom_base_for_cei_variant(
+                    legacy_as_generated_tanru_unit_atom_base_for_cei_tree_value(
+                        base, source, options,
+                    ),
                 ),
             });
             TreeValue::Node(TreeNode {
@@ -11488,8 +11791,10 @@ fn legacy_as_generated_tanru_unit_atom_for_cei_tree_value(
             constructor: "TanruUnitAtomForCei",
             entries: vec![TreeEntry {
                 label: Some("base"),
-                value: legacy_as_generated_tanru_unit_atom_base_for_cei_tree_value(
-                    unit, source, options,
+                value: legacy_wrap_tanru_unit_atom_base_for_cei_variant(
+                    legacy_as_generated_tanru_unit_atom_base_for_cei_tree_value(
+                        unit, source, options,
+                    ),
                 ),
             }],
         }),
@@ -11526,7 +11831,7 @@ fn legacy_as_generated_scalar_negated_tanru_inner_unit_tree_value(
             inner_selbri,
         }) = selbri.as_data()
     {
-        return TreeValue::Node(TreeNode {
+        return legacy_wrap_scalar_negated_tanru_inner_unit_variant(TreeValue::Node(TreeNode {
             constructor: "TaggedSelbriGroupTanruUnit",
             entries: vec![
                 TreeEntry {
@@ -11546,14 +11851,16 @@ fn legacy_as_generated_scalar_negated_tanru_inner_unit_tree_value(
                     ),
                 },
             ],
-        });
+        }));
     }
     if let Some(value) =
         legacy_as_generated_pro_bridi_if_goha_tanru_unit_tree_value(unit, source, options)
     {
-        return value;
+        return legacy_wrap_scalar_negated_tanru_inner_unit_variant(value);
     }
-    unit.tanru_unit_atom_tree_value(source, options)
+    legacy_wrap_scalar_negated_tanru_inner_unit_variant(
+        unit.tanru_unit_atom_tree_value(source, options),
+    )
 }
 
 #[requires(true)]
@@ -11566,7 +11873,7 @@ fn legacy_as_generated_jai_inner_tanru_unit_tree_value(
     if let Some(value) =
         legacy_as_generated_pro_bridi_if_goha_tanru_unit_tree_value(unit, source, options)
     {
-        return value;
+        return legacy_wrap_jai_inner_tanru_unit_variant(value);
     }
     match unit.as_data() {
         bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::ConvertedTanruUnit {
@@ -11582,10 +11889,10 @@ fn legacy_as_generated_jai_inner_tanru_unit_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
-                constructor: "ConvertedTanruUnit",
+            legacy_wrap_jai_inner_tanru_unit_variant(TreeValue::Node(TreeNode {
+                constructor: "ConvertedJaiInnerTanruUnit",
                 entries,
-            })
+            }))
         }
         bityzba::data!(
             jbotci_syntax::ast::TanruUnitSyntax::ScalarNegatedTanruUnit { nahe, inner_unit }
@@ -11599,12 +11906,31 @@ fn legacy_as_generated_jai_inner_tanru_unit_tree_value(
                     options,
                 ),
             });
-            TreeValue::Node(TreeNode {
+            legacy_wrap_jai_inner_tanru_unit_variant(TreeValue::Node(TreeNode {
                 constructor: "ScalarNegatedJaiInnerTanruUnit",
                 entries,
-            })
+            }))
         }
-        _ => unit.tanru_unit_atom_base_tree_value(source, options),
+        bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::GroupedTanruUnit {
+            ke_tense_modal,
+            ke,
+            selbri,
+            kehe,
+        }) => {
+            assert!(ke_tense_modal.is_none());
+            legacy_wrap_jai_inner_tanru_unit_variant(
+                legacy_as_generated_grouped_jai_inner_tanru_unit_tree_value(
+                    ke,
+                    selbri.as_ref(),
+                    kehe.as_ref(),
+                    source,
+                    options,
+                ),
+            )
+        }
+        _ => legacy_wrap_jai_inner_tanru_unit_variant(
+            unit.tanru_unit_atom_base_tree_value(source, options),
+        ),
     }
 }
 
@@ -11640,16 +11966,18 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                         options,
                     ) =>
             {
-                value
+                legacy_wrap_bo_or_linked_tanru_unit_variant(value)
             }
             bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::AssignedProBridi {
                 base,
                 assignments,
-            }) => legacy_as_generated_assigned_pro_bridi_tanru_unit_tree_value(
-                base.as_ref(),
-                assignments,
-                source,
-                options,
+            }) => legacy_wrap_bo_or_linked_tanru_unit_variant(
+                legacy_as_generated_assigned_pro_bridi_tanru_unit_tree_value(
+                    base.as_ref(),
+                    assignments,
+                    source,
+                    options,
+                ),
             ),
             bityzba::data!(
                 jbotci_syntax::ast::TanruUnitSyntax::BoundTanruUnitConnection {
@@ -11659,16 +11987,20 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     bo,
                     trailing_unit,
                 }
-            ) => legacy_as_generated_bound_tanru_unit_connection_tree_value(
-                leading_unit.as_ref(),
-                bo_connective.as_deref(),
-                bo_tense_modal.as_deref(),
-                bo,
-                trailing_unit.as_ref(),
-                source,
-                options,
+            ) => legacy_wrap_bo_or_linked_tanru_unit_variant(
+                legacy_as_generated_bound_tanru_unit_connection_tree_value(
+                    leading_unit.as_ref(),
+                    bo_connective.as_deref(),
+                    bo_tense_modal.as_deref(),
+                    bo,
+                    trailing_unit.as_ref(),
+                    source,
+                    options,
+                ),
             ),
-            _ => self.linked_tanru_unit_tree_value(source, options),
+            _ => legacy_wrap_bo_or_linked_tanru_unit_variant(
+                self.linked_tanru_unit_tree_value(source, options),
+            ),
         }
     }
 
@@ -11771,7 +12103,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                 }
                 entries.push(TreeEntry {
                     label: Some("base"),
-                    value: base.tanru_unit_atom_base_tree_value(source, options),
+                    value: legacy_wrap_tanru_unit_atom_base_variant(
+                        base.tanru_unit_atom_base_tree_value(source, options),
+                    ),
                 });
                 TreeValue::Node(TreeNode {
                     constructor: "TanruUnitAtom",
@@ -11782,7 +12116,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                 constructor: "TanruUnitAtom",
                 entries: vec![TreeEntry {
                     label: Some("base"),
-                    value: self.tanru_unit_atom_base_tree_value(source, options),
+                    value: legacy_wrap_tanru_unit_atom_base_variant(
+                        self.tanru_unit_atom_base_tree_value(source, options),
+                    ),
                 }],
             }),
         }
@@ -11860,7 +12196,7 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     ));
                 }
                 TreeValue::Node(TreeNode {
-                    constructor: "SumtiSelbri",
+                    constructor: "SumtiSelbriTanruUnit",
                     entries,
                 })
             }
@@ -11889,7 +12225,7 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     ),
                 });
                 TreeValue::Node(TreeNode {
-                    constructor: "ModalConversion",
+                    constructor: "JaiModalTanruUnit",
                     entries,
                 })
             }
@@ -11968,7 +12304,7 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     ),
                 });
                 TreeValue::Node(TreeNode {
-                    constructor: "TagSelbri",
+                    constructor: "TagSelbriTanruUnit",
                     entries,
                 })
             }
@@ -11999,7 +12335,7 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     ),
                 });
                 TreeValue::Node(TreeNode {
-                    constructor: "OperatorSelbri",
+                    constructor: "OperatorSelbriTanruUnit",
                     entries,
                 })
             }
@@ -12017,8 +12353,20 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
                     entries.extend(legacy_token_field_entries("liau", liau, source, options));
                 }
                 TreeValue::Node(TreeNode {
-                    constructor: "TextSelbri",
+                    constructor: "TextSelbriTanruUnit",
                     entries,
+                })
+            }
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::QuotedBridiSelbri(
+                quote
+            )) => TreeValue::Node(TreeNode {
+                constructor: "QuotedBridiSelbriTanruUnit",
+                entries: legacy_token_field_entries("quote", quote, source, options),
+            }),
+            bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::QuotedTextSelbri(muhoi)) => {
+                TreeValue::Node(TreeNode {
+                    constructor: "QuotedTextSelbriTanruUnit",
+                    entries: legacy_token_field_entries("muhoi", muhoi, source, options),
                 })
             }
             _ => required_legacy_syntax_subtree_value(self, source, options),
@@ -12041,15 +12389,20 @@ fn legacy_as_generated_sumti_selbri_sumti_tree_value(
         }) = sumti.as_data()
         && letter.free_modifiers.is_empty()
     {
-        return TreeValue::Node(TreeNode {
-            constructor: "MeLerfuSumti",
-            entries: vec![TreeEntry {
+        return legacy_as_generated_wrapped_variant_tree_value(
+            "MeLerfuSumti",
+            "me_lerfu_sumti",
+            vec![TreeEntry {
                 label: Some("words"),
                 value: legacy_as_generated_letter_string_tree_value(&letter.value, source, options),
             }],
-        });
+        );
     }
-    legacy_as_generated_sumti_tree_value(sumti, source, options)
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "Sumti",
+        "sumti",
+        legacy_as_generated_sumti_tree_value(sumti, source, options),
+    )
 }
 
 #[requires(true)]
@@ -12060,7 +12413,7 @@ fn legacy_as_generated_tanru_unit_word_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
-        label: None,
+        label: Some("word"),
         value: generated_token_tree_value(&word.value, source, options),
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -12077,7 +12430,7 @@ fn legacy_as_generated_tanru_unit_word_tree_value(
     let constructor = if word.value.is_selmaho(Selmaho::Goha) {
         "GohaWordTanruUnit"
     } else {
-        "TanruUnitWord"
+        "WordTanruUnit"
     };
     TreeValue::Node(TreeNode {
         constructor,
@@ -12098,7 +12451,7 @@ fn legacy_as_generated_pro_bridi_tree_value(
         entries.extend(legacy_token_field_entries("raho", raho, source, options));
     }
     TreeValue::Node(TreeNode {
-        constructor: "ProBridi",
+        constructor: "ProBridiTanruUnit",
         entries,
     })
 }
@@ -12224,24 +12577,35 @@ where
             continuations
                 .iter()
                 .map(|(connective, trailing_unit)| {
-                    TreeValue::Collection(vec![
-                        legacy_as_generated_relation_afterthought_connective_tree_value(
-                            connective, source, options,
-                        ),
-                        trailing_unit.bo_or_linked_tanru_unit_tree_value(source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "TanruUnitContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("connective"),
+                                value:
+                                    legacy_as_generated_relation_afterthought_connective_tree_value(
+                                        connective, source, options,
+                                    ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_unit"),
+                                value: trailing_unit
+                                    .bo_or_linked_tanru_unit_tree_value(source, options),
+                            },
+                        ],
+                    })
                 })
                 .collect(),
         ) {
             entries.push(entry);
         }
         return TreeValue::Node(TreeNode {
-            constructor: "ConnectedTanruUnit",
+            constructor: "TanruUnit",
             entries,
         });
     }
     TreeValue::Node(TreeNode {
-        constructor: "ConnectedTanruUnit",
+        constructor: "TanruUnit",
         entries: vec![TreeEntry {
             label: Some("leading_unit"),
             value: unit.bo_or_linked_tanru_unit_tree_value(source, options),
