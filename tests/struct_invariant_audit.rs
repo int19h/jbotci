@@ -76,6 +76,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
+        "crates/jbotci-output/src/tree.rs:LegacyLeadingIStatementRenderPart",
+        "legacy oracle render part borrows syntax tree fields; bityzba invariant wrappers do not currently support this lifetime-parametric helper shape",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:LegacyParagraphStatementRenderPart",
+        "legacy oracle render part borrows syntax tree fields; construction and rendering assertions enforce the non-empty marker/connective/statement combinations",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:LegacyParagraphRenderPart",
+        "legacy oracle render part borrows syntax tree fields; construction filters empty statements and rendering validates paragraph marker shape",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:ArrowOverlay",
         "arrow overlay geometry is measured from the browser DOM and rendered transiently",
     ),

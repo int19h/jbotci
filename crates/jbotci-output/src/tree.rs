@@ -89,16 +89,16 @@ pub(crate) enum TreeValue {
     },
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 struct LegacyLeadingIStatementRenderPart<'tree> {
     i: &'tree Token,
     connective: Option<&'tree jbotci_syntax::ast::ConnectiveSyntax>,
     free_modifiers: &'tree [jbotci_syntax::ast::FreeModifierSyntax],
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 struct LegacyParagraphStatementRenderPart<'tree> {
     i: Option<&'tree Token>,
     connective: Option<&'tree jbotci_syntax::ast::ConnectiveSyntax>,
@@ -106,8 +106,8 @@ struct LegacyParagraphStatementRenderPart<'tree> {
     statement: Option<&'tree jbotci_syntax::ast::StatementSyntax>,
 }
 
-#[derive(Debug, Clone)]
 #[invariant(true)]
+#[derive(Debug, Clone)]
 struct LegacyParagraphRenderPart<'tree> {
     i: Option<&'tree Token>,
     niho: &'tree [Token],
