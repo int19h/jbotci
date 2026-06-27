@@ -3115,16 +3115,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(#inner.map(Some)))
         }
-        ("opt_or_default", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::strict_optional(#inner).map(Option::unwrap_or_default)))
-        }
         ("many", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -3165,13 +3155,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(#inner.map(std::sync::Arc::new)))
         }
-        ("recover_as", 2) => strict_rust_parser_expr_tokens(
-            call.args.iter().nth(1).expect("length checked"),
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        ),
         ("choice", 1) => {
             let alternatives =
                 call.args
@@ -3198,7 +3181,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             strict_choice_chain(alternatives)
         }
-        ("seq" | "sequence", _) => {
+        ("sequence", _) => {
             let parts = call
                 .args
                 .iter()
@@ -3690,11 +3673,6 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(Option<#inner>))
         }
-        ("opt_or_default", 1) => rust_parser_output_type(
-            call.args.first().expect("length checked"),
-            type_env,
-            arguments,
-        ),
         ("many" | "many1", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -3719,11 +3697,6 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(std::sync::Arc<#inner>))
         }
-        ("recover_as", 2) => rust_parser_output_type(
-            call.args.iter().nth(1).expect("length checked"),
-            type_env,
-            arguments,
-        ),
         ("feature" | "policy", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
             type_env,
@@ -3735,7 +3708,7 @@ fn call_rust_parser_output_type(
             arguments,
         ),
         ("choice", _) => choice_outputs_same(call.args.iter(), type_env, arguments),
-        ("seq" | "sequence", _) => sequence_output_type(call.args.iter(), type_env, arguments),
+        ("sequence", _) => sequence_output_type(call.args.iter(), type_env, arguments),
         ("empty" | "eof", 0) => Some(quote!(())),
         _ => None,
     }
@@ -4670,9 +4643,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("some", 1) => {
             RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
-        ("opt_or_default", 1) => {
-            RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
         ("many", 1) => {
             RecoveryExpr::Many(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
@@ -4683,12 +4653,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
         ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(&call.args[0], arguments))),
-        ("recover_as", 2) => call
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::Rule)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
         ("choice", 1) => RecoveryExpr::Choice(
             call.args
                 .first()
@@ -4704,7 +4668,7 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
                 .map(|expr| classify_recovery_expr(expr, arguments))
                 .collect(),
         ),
-        ("seq" | "sequence", _) => RecoveryExpr::Sequence(
+        ("sequence", _) => RecoveryExpr::Sequence(
             call.args
                 .iter()
                 .map(|expr| classify_recovery_expr(expr, arguments))

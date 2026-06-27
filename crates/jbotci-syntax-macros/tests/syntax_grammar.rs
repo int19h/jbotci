@@ -49,7 +49,6 @@ jbotci_syntax_macros::syntax_grammar! {
             require cmavo(Bo).not();
             field fa = selmaho(Fa).wf();
             field first_sumti = opt(boxed(sumti));
-            field recovered_sumti = recover_as(association_argument, boxed(sumti));
             when feature(ZantufaTags) field tagged = boxed(sumti);
             when policy(ZantufaQuotes) require word_category(Quote).not();
             when policy(ZantufaQuotes) let scratch = fold_chain(head, tail);
@@ -119,19 +118,23 @@ fn grammar_macro_exports_declaration_metadata() {
             &SyntaxGrammarRecoveryExpr::Rule("sumti")
         ))
     );
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[4].conditions.len(), 1);
     assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[4].recovery,
-        SyntaxGrammarRecoveryExpr::Rule("association_argument")
-    );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].conditions.len(), 1);
-    assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[5].conditions[0],
+        SYNTAX_GRAMMAR_RULES[1].fields[4].conditions[0],
         SyntaxGrammarCondition {
             kind: SyntaxGrammarConditionKind::Feature,
             name: "ZantufaTags",
         }
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "require");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].kind, "require");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[1].fields[5].conditions[0],
+        SyntaxGrammarCondition {
+            kind: SyntaxGrammarConditionKind::Policy,
+            name: "ZantufaQuotes",
+        }
+    );
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "let");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[6].conditions[0],
         SyntaxGrammarCondition {
@@ -139,25 +142,17 @@ fn grammar_macro_exports_declaration_metadata() {
             name: "ZantufaQuotes",
         }
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "let");
-    assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[7].conditions[0],
-        SyntaxGrammarCondition {
-            kind: SyntaxGrammarConditionKind::Policy,
-            name: "ZantufaQuotes",
-        }
-    );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "scratch");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].name, "parsed_guard");
-    assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[8].recovery,
-        SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
-    );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].kind, "default");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].name, "trailing_sumti");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].parser, "Vec::new()");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "scratch");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].name, "parsed_guard");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[7].recovery,
+        SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+    );
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "default");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].name, "trailing_sumti");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].parser, "Vec::new()");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[1].fields[6].recovery,
         SyntaxGrammarRecoveryExpr::Opaque("fold_chain(head,tail)")
     );
 
