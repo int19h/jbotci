@@ -624,17 +624,17 @@ macro_rules! declare_generated_syntax_grammar {
         field connective <- boxed(bound_term_connective);
         field bo <- cmavo(Bo).wf();
         assert choice((
-            feature(TermHierarchy, empty()),
+            feature(TermHierarchy),
             (
-                feature(TermHierarchy, empty()).not(),
+                feature(TermHierarchy).not(),
                 sumti.not(),
             ).ignored(),
         ));
         field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
         assert choice((
-            feature(TermHierarchy, empty()),
+            feature(TermHierarchy),
             (
-                feature(TermHierarchy, empty()).not(),
+                feature(TermHierarchy).not(),
                 sumti.not(),
             ).ignored(),
         ));
@@ -771,7 +771,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "tag" jai_tagged_sumti_term(tense_modal, sumti) -> struct {
-        assert feature(ZantufaTags, empty());
+        assert feature(ZantufaTags);
         field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
         field tag <- opt(boxed(tense_modal));
         field sumti <- boxed(sumti);

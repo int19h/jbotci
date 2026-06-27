@@ -2559,6 +2559,14 @@ fn strict_call_parser_expr_tokens(
                 #inner,
             )))
         }
+        ("feature", 1) => {
+            let feature = call.args.first().and_then(path_expr_last_segment)?;
+            let feature = format_ident!("{feature}");
+            Some(quote!(generated_runtime::feature_gate(
+                generated_runtime::SyntaxGrammarFeature::#feature,
+                generated_runtime::empty(),
+            )))
+        }
         ("policy", 2) => {
             let policy = call.args.first().and_then(path_expr_last_segment)?;
             let policy = format_ident!("{policy}");
@@ -2572,6 +2580,14 @@ fn strict_call_parser_expr_tokens(
             Some(quote!(generated_runtime::policy_gate(
                 generated_runtime::SyntaxGrammarPolicyFlag::#policy,
                 #inner,
+            )))
+        }
+        ("policy", 1) => {
+            let policy = call.args.first().and_then(path_expr_last_segment)?;
+            let policy = format_ident!("{policy}");
+            Some(quote!(generated_runtime::policy_gate(
+                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
+                generated_runtime::empty(),
             )))
         }
         ("relation_word", 0) => Some(quote!(relation_word())),
@@ -3144,6 +3160,7 @@ fn call_rust_parser_output_type(
             0,
         ) => Some(quote!(Token)),
         ("raw_words_until", _) if !call.args.is_empty() => Some(quote!(Vec<Token>)),
+        ("feature" | "policy", 1) => Some(quote!(())),
         ("opt", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -4018,6 +4035,7 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("some", 1) => {
             RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
+        ("feature" | "policy", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
         ("boxed", 1) => {
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }

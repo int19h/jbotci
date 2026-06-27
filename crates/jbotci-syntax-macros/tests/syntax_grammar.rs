@@ -45,6 +45,8 @@ jbotci_syntax_macros::syntax_grammar! {
         field fa <- selmaho(Fa).wf();
         field first_sumti <- opt(boxed(sumti));
         when feature(ZantufaTags) field tagged <- boxed(sumti);
+        assert feature(ZantufaTags);
+        assert !policy(ZantufaQuotes);
         when policy(ZantufaQuotes) assert !word_category(Quote);
         when policy(ZantufaQuotes) let folded = fold_chain(head, tail);
         field computed: usize = 0usize;
@@ -116,28 +118,40 @@ fn grammar_macro_exports_declaration_metadata() {
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[5].kind, "require");
     assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[5].conditions[0],
+        SYNTAX_GRAMMAR_RULES[1].fields[5].recovery,
+        SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Lookahead(
+            &SyntaxGrammarRecoveryExpr::Opaque("feature(ZantufaTags)")
+        ))
+    );
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "require");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[1].fields[6].recovery,
+        SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Opaque("policy(ZantufaQuotes)"))
+    );
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "require");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[1].fields[7].conditions[0],
         SyntaxGrammarCondition {
             kind: SyntaxGrammarConditionKind::Policy,
             name: "ZantufaQuotes",
         }
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[6].kind, "let");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "let");
     assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[6].conditions[0],
+        SYNTAX_GRAMMAR_RULES[1].fields[8].conditions[0],
         SyntaxGrammarCondition {
             kind: SyntaxGrammarConditionKind::Policy,
             name: "ZantufaQuotes",
         }
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "field");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].name, "computed");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].kind, "field");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[9].name, "computed");
     assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[7].recovery,
+        SYNTAX_GRAMMAR_RULES[1].fields[9].recovery,
         SyntaxGrammarRecoveryExpr::Opaque("0usize")
     );
     assert_eq!(
-        SYNTAX_GRAMMAR_RULES[1].fields[6].recovery,
+        SYNTAX_GRAMMAR_RULES[1].fields[8].recovery,
         SyntaxGrammarRecoveryExpr::Opaque("fold_chain(head,tail)")
     );
 
@@ -318,6 +332,8 @@ mod new_dsl {
             field token <- cmavo(Be);
             field computed: usize = 1usize;
             let temp = 2usize;
+            assert feature(ZantufaTags);
+            assert !policy(ZantufaQuotes);
             assert !cmavo(Bo);
         }
 
@@ -405,6 +421,20 @@ mod new_dsl {
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[3].kind, "require");
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[0].fields[3].recovery,
+            SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Lookahead(
+                &SyntaxGrammarRecoveryExpr::Opaque("feature(ZantufaTags)")
+            ))
+        );
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[4].kind, "require");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[4].recovery,
+            SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Opaque(
+                "policy(ZantufaQuotes)"
+            ))
+        );
+        assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[5].kind, "require");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[5].recovery,
             SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
         );
 
