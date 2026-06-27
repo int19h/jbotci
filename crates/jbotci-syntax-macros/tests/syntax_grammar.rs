@@ -330,6 +330,11 @@ mod new_dsl {
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
+    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+    pub struct ExternalSyntax {
+        pub token: Token,
+    }
+
     jbotci_syntax_macros::syntax_grammar! {
         tree_model {}
         model;
@@ -337,6 +342,7 @@ mod new_dsl {
 
         recursive {
             item: ItemSyntax;
+            external: ExternalSyntax;
         }
 
         rule "item" item -> struct {
@@ -377,6 +383,11 @@ mod new_dsl {
             when feature(ZantufaTags) gated_item,
         }
 
+        rule "item choice" external_item_choice(external) -> enum {
+            external,
+            item,
+        }
+
         alias "item alias" item_alias = item;
 
         alias "guarded item alias" guarded_item_alias = guard_not(cmavo(Bo), item);
@@ -389,6 +400,7 @@ mod new_dsl {
             computed: 1,
         };
         let other_item = OtherItemSyntax { token: Token };
+        let external = ExternalSyntax { token: Token };
         let token_list = TokenListSyntax {
             tokens: vec1::Vec1::new(Token),
         };
@@ -397,6 +409,7 @@ mod new_dsl {
         };
         let item_choice = ItemChoiceSyntax::Item { item: item.clone() };
         let other_choice = ItemChoiceSyntax::OtherItem { other_item };
+        let external_choice = ExternalItemChoiceSyntax::External { external };
 
         assert_eq!(item.token, Token);
         assert_eq!(item.computed, 1);
@@ -404,11 +417,15 @@ mod new_dsl {
         assert_eq!(nested_token_list.tokens.len(), 1);
         assert!(matches!(item_choice, ItemChoiceSyntax::Item { .. }));
         assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem { .. }));
+        assert!(matches!(
+            external_choice,
+            ExternalItemChoiceSyntax::External { .. }
+        ));
     }
 
     #[test]
     fn grammar_macro_exports_new_dsl_metadata() {
-        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 8);
+        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 9);
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "struct");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "item");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].output, "ItemSyntax");
@@ -454,16 +471,23 @@ mod new_dsl {
             }]
         );
 
-        assert_eq!(SYNTAX_GRAMMAR_RULES[6].kind, "alias");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[6].output, "ItemSyntax");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[6].context, Some("item alias"));
+        assert_eq!(SYNTAX_GRAMMAR_RULES[6].kind, "enum");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[6].output,
+            "ExternalItemChoiceSyntax"
+        );
+        assert_eq!(SYNTAX_GRAMMAR_RULES[6].fields[0].name, "external");
 
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].kind, "alias");
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].output, "ItemSyntax");
-        assert_eq!(SYNTAX_GRAMMAR_RULES[7].context, Some("guarded item alias"));
-        assert_eq!(SYNTAX_GRAMMAR_RULES[7].fields[0].kind, "alias");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[7].context, Some("item alias"));
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[8].kind, "alias");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[8].output, "ItemSyntax");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[8].context, Some("guarded item alias"));
+        assert_eq!(SYNTAX_GRAMMAR_RULES[8].fields[0].kind, "alias");
         assert_eq!(
-            SYNTAX_GRAMMAR_RULES[7].fields[0].recovery,
+            SYNTAX_GRAMMAR_RULES[8].fields[0].recovery,
             SyntaxGrammarRecoveryExpr::Sequence(&[
                 SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo)),
                 SyntaxGrammarRecoveryExpr::Rule("item"),

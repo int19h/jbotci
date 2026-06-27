@@ -604,11 +604,15 @@ impl SyntaxGrammar {
                         continue;
                     }
                     for branch in &rule.branches {
-                        let Some(branch_output) = type_env.rules.get(&branch.name.to_string())
+                        let branch_name = branch.name.to_string();
+                        let Some(branch_output) = type_env
+                            .rules
+                            .get(&branch_name)
+                            .or_else(|| type_env.recursive.get(&branch_name))
                         else {
                             return Err(syn::Error::new_spanned(
                                 &branch.name,
-                                "enum branches must reference a known type-producing rule",
+                                "enum branches must reference a known type-producing rule or recursive parser argument",
                             ));
                         };
                         let variant = enum_variant_ident_for_output(branch_output, &branch.name);
@@ -1795,17 +1799,29 @@ impl EnumRule {
             .iter()
             .map(|branch| {
                 let branch_name = branch.name.to_string();
-                let branch_output = type_env.rules.get(&branch_name)?;
+                let branch_output = type_env
+                    .rules
+                    .get(&branch_name)
+                    .or_else(|| type_env.recursive.get(&branch_name))?;
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                 let field = &branch.name;
-                let branch_parser = strict_rule_call_by_argument_names(
-                    &branch_name,
-                    type_env.rule_arguments_for_call(&branch_name)?,
-                    &argument_names,
-                    &generation,
-                    &free_modifier_parser,
-                    StrictParserCallMode::Local,
-                )?;
+                let branch_parser = if type_env.rules.contains_key(&branch_name) {
+                    strict_rule_call_by_argument_names(
+                        &branch_name,
+                        type_env.rule_arguments_for_call(&branch_name)?,
+                        &argument_names,
+                        &generation,
+                        &free_modifier_parser,
+                        StrictParserCallMode::Local,
+                    )?
+                } else {
+                    strict_argument_parser_tokens(
+                        &branch_name,
+                        &argument_names,
+                        &generation,
+                        StrictParserCallMode::Local,
+                    )?
+                };
                 let branch_parser = branch
                     .conditions
                     .iter()
