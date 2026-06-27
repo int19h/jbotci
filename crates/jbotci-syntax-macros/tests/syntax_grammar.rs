@@ -386,10 +386,7 @@ mod new_dsl {
 
         alias "item alias" item_alias = item;
 
-        alias "guarded item alias" guarded_item_alias {
-            assert !cmavo(Bo);
-            item;
-        }
+        alias "guarded item alias" guarded_item_alias = guard_not(cmavo(Bo), item);
     }
 
     #[test]
@@ -471,11 +468,13 @@ mod new_dsl {
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].kind, "alias");
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].output, "ItemSyntax");
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].context, Some("guarded item alias"));
-        assert_eq!(SYNTAX_GRAMMAR_RULES[7].fields[0].kind, "require");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[7].fields[0].kind, "alias");
         assert_eq!(
             SYNTAX_GRAMMAR_RULES[7].fields[0].recovery,
-            SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+            SyntaxGrammarRecoveryExpr::Sequence(&[
+                SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo)),
+                SyntaxGrammarRecoveryExpr::Rule("item"),
+            ])
         );
-        assert_eq!(SYNTAX_GRAMMAR_RULES[7].fields[1].kind, "alias");
     }
 }

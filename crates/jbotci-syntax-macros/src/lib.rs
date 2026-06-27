@@ -3181,6 +3181,40 @@ fn strict_call_parser_expr_tokens(
             )?;
             strict_choice_chain(alternatives)
         }
+        ("guard", 2) => {
+            let predicate = strict_rust_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            let parser = strict_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Some(quote!(generated_runtime::lookahead(#predicate).ignore_then(#parser)))
+        }
+        ("guard_not", 2) => {
+            let predicate = strict_rust_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            let parser = strict_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Some(quote!(generated_runtime::not(#predicate).ignore_then(#parser)))
+        }
         ("sequence", _) => {
             let parts = call
                 .args
@@ -3708,6 +3742,11 @@ fn call_rust_parser_output_type(
             arguments,
         ),
         ("choice", _) => choice_outputs_same(call.args.iter(), type_env, arguments),
+        ("guard" | "guard_not", 2) => rust_parser_output_type(
+            call.args.iter().nth(1).expect("length checked"),
+            type_env,
+            arguments,
+        ),
         ("sequence", _) => sequence_output_type(call.args.iter(), type_env, arguments),
         ("empty" | "eof", 0) => Some(quote!(())),
         _ => None,
@@ -4668,6 +4707,14 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
                 .map(|expr| classify_recovery_expr(expr, arguments))
                 .collect(),
         ),
+        ("guard", 2) => RecoveryExpr::Sequence(vec![
+            RecoveryExpr::Lookahead(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+            classify_recovery_expr(&call.args[1], arguments),
+        ]),
+        ("guard_not", 2) => RecoveryExpr::Sequence(vec![
+            RecoveryExpr::Not(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+            classify_recovery_expr(&call.args[1], arguments),
+        ]),
         ("sequence", _) => RecoveryExpr::Sequence(
             call.args
                 .iter()
@@ -4685,7 +4732,7 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
 
 fn classify_path_recovery_expr(path: &ExprPath, arguments: &BTreeSet<String>) -> RecoveryExpr {
     let text = compact_tokens(path);
-    if arguments.contains(&text) {
+    if arguments.contains(&text) || (path.qself.is_none() && path.path.segments.len() == 1) {
         RecoveryExpr::Rule(text)
     } else {
         RecoveryExpr::Opaque(text)

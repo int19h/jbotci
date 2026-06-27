@@ -109,13 +109,14 @@ macro_rules! declare_generated_syntax_grammar {
         field paragraphs <- [one_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
-    alias "text connective" text_leading_connective(tense_modal) {
-        assert !modal_forethought_connective(tense_modal);
-        choice((
-            standard_statement_connective,
-            cehe_connective(),
-        ));
-    }
+    alias "text connective" text_leading_connective(tense_modal) =
+        guard_not(
+            modal_forethought_connective(tense_modal),
+            choice((
+                standard_statement_connective,
+                cehe_connective(),
+            )),
+        );
 
     rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
         field i <- cmavo(I);
@@ -580,10 +581,8 @@ macro_rules! declare_generated_syntax_grammar {
         field inner_subbridi <- boxed(subbridi);
     }
 
-    alias "term" term_guard {
-        assert !(relation_word(), cmavo(Bu).not());
-        empty();
-    }
+    alias "term" term_guard =
+        guard_not((relation_word(), cmavo(Bu).not()), empty());
 
     rule "term" term(term, sumti, tense_modal, subbridi, selbri) -> enum {
         pehe_termset_connection,
@@ -2301,34 +2300,35 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "tag" tense_modal(selbri) {
-        assert choice((
-            cmavo(Fiho),
-            selmaho(Bai),
-            selmaho(Nahe),
-            selmaho(Se),
-            selmaho(Fa),
-            cmavo(Ki),
-            selmaho(Cuhe),
-            selmaho(Pu),
-            selmaho(Zi),
-            selmaho(Zeha),
-            selmaho(Va),
-            selmaho(Faha),
-            selmaho(Veha),
-            selmaho(Viha),
-            selmaho(Caha),
-            selmaho(Zaho),
-            selmaho(Tahe),
-            cmavo(Fehe),
-            selmaho(Mohi),
-            pa_word(),
-        ));
-        choice((
-            connected_tense_modal(selbri),
-            tense_modal_atom(selbri),
-        ));
-    }
+    alias "tag" tense_modal(selbri) =
+        guard(
+            choice((
+                cmavo(Fiho),
+                selmaho(Bai),
+                selmaho(Nahe),
+                selmaho(Se),
+                selmaho(Fa),
+                cmavo(Ki),
+                selmaho(Cuhe),
+                selmaho(Pu),
+                selmaho(Zi),
+                selmaho(Zeha),
+                selmaho(Va),
+                selmaho(Faha),
+                selmaho(Veha),
+                selmaho(Viha),
+                selmaho(Caha),
+                selmaho(Zaho),
+                selmaho(Tahe),
+                cmavo(Fehe),
+                selmaho(Mohi),
+                pa_word(),
+            )),
+            choice((
+                connected_tense_modal(selbri),
+                tense_modal_atom(selbri),
+            )),
+        );
 
     node connected_tense_modal(selbri) -> TenseModalSyntax {
         context "connected tag";
