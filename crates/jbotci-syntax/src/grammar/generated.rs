@@ -632,18 +632,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "term connection" term_hierarchy_post_bo_argument_gate(sumti) =
         choice((
-            term_hierarchy_enabled_empty_gate(),
-            term_hierarchy_disabled_sumti_guard(sumti),
+            feature(TermHierarchy, empty()),
+            (
+                feature(TermHierarchy, empty()).not(),
+                sumti.not(),
+            ).ignored(),
         ));
-
-    alias "term connection" term_hierarchy_enabled_empty_gate =
-        feature(TermHierarchy, empty());
-
-    alias "term connection" term_hierarchy_disabled_sumti_guard(sumti) =
-        (
-            feature(TermHierarchy, empty()).not(),
-            sumti.not(),
-        ).ignored();
 
     rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
