@@ -5432,24 +5432,25 @@ fn legacy_as_generated_coi_vocative_markers_tree_value(
         .get(index)
         .is_some_and(|word| !word.is_cmavo(Cmavo::Doi))
     {
-        let mut pair = vec![generated_token_tree_value(
-            &marker_words[index],
-            source,
-            options,
-        )];
+        let mut marker_entries = vec![TreeEntry {
+            label: Some("coi"),
+            value: generated_token_tree_value(&marker_words[index], source, options),
+        }];
         index += 1;
         if marker_words
             .get(index)
             .is_some_and(|word| word.is_cmavo(Cmavo::Nai))
         {
-            pair.push(generated_token_tree_value(
-                &marker_words[index],
-                source,
-                options,
-            ));
+            marker_entries.push(TreeEntry {
+                label: Some("nai"),
+                value: generated_token_tree_value(&marker_words[index], source, options),
+            });
             index += 1;
         }
-        additional_coi.push(TreeValue::Collection(pair));
+        additional_coi.push(TreeValue::Node(TreeNode {
+            constructor: "AdditionalCoiVocativeMarker",
+            entries: marker_entries,
+        }));
     }
     if let Some(entry) =
         labelled_tree_collection_entry_from_values("additional_coi", additional_coi)

@@ -1598,8 +1598,13 @@ macro_rules! declare_generated_syntax_grammar {
     rule "vocative marker" coi_vocative_marker_words -> struct {
         field first_coi <- selmaho(Coi);
         field first_nai <- opt(cmavo(Nai));
-        field additional_coi <- [zero_or_more (selmaho(Coi), opt(cmavo(Nai)))];
+        field additional_coi <- [zero_or_more additional_coi_vocative_marker()];
         field doi <- opt(cmavo(Doi));
+    }
+
+    rule "vocative marker" additional_coi_vocative_marker -> struct {
+        field coi <- selmaho(Coi);
+        field nai <- opt(cmavo(Nai));
     }
 
     rule "vocative marker" doi_vocative_marker_words -> struct {
