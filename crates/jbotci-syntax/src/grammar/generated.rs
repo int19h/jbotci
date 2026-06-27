@@ -68,7 +68,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     alias "text" explicit_xauha_lohoi_lookahead =
-        sequence(
+        (
             cmavo(Xauha).ignored(),
             raw_words_until(Kuhau).ignored(),
             cmavo(Kuhau).ignored(),
@@ -640,7 +640,7 @@ macro_rules! declare_generated_syntax_grammar {
         feature(TermHierarchy, empty());
 
     alias "term connection" term_hierarchy_disabled_sumti_guard(sumti) =
-        sequence(
+        (
             feature(TermHierarchy, empty()).not(),
             sumti.not(),
         ).ignored();
@@ -750,13 +750,13 @@ macro_rules! declare_generated_syntax_grammar {
         selmaho(Ja).ignored();
 
     alias "NA term" bare_na_a_follow =
-        sequence(
+        (
             opt(selmaho(Se)),
             selmaho(A),
         ).ignored();
 
     alias "NA term" bare_na_giha_follow =
-        sequence(
+        (
             opt(selmaho(Se)),
             selmaho(Giha),
         ).ignored();
@@ -872,7 +872,7 @@ macro_rules! declare_generated_syntax_grammar {
         selmaho(Zeha).ignored();
 
     alias "tag" nahe_caha_leading_interval_property_follower =
-        sequence(
+        (
             selmaho(Nahe),
             selmaho(Caha),
         ).ignored();

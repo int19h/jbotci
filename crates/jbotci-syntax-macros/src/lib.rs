@@ -3111,22 +3111,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::not(#predicate).ignore_then(#parser)))
         }
-        ("sequence", _) => {
-            let parts = call
-                .args
-                .iter()
-                .map(|expr| {
-                    strict_rust_parser_expr_tokens(
-                        expr,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )
-                })
-                .collect::<Option<Vec<_>>>()?;
-            strict_sequence_expr_chain(parts)
-        }
         ("empty", 0) => Some(quote!(generated_runtime::empty())),
         ("eof", 0) => Some(quote!(generated_runtime::eof())),
         _ => None,
@@ -3643,7 +3627,6 @@ fn call_rust_parser_output_type(
             type_env,
             arguments,
         ),
-        ("sequence", _) => sequence_output_type(call.args.iter(), type_env, arguments),
         ("empty" | "eof", 0) => Some(quote!(())),
         _ => None,
     }
@@ -4611,12 +4594,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             RecoveryExpr::Not(Box::new(classify_recovery_expr(&call.args[0], arguments))),
             classify_recovery_expr(&call.args[1], arguments),
         ]),
-        ("sequence", _) => RecoveryExpr::Sequence(
-            call.args
-                .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
-        ),
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
         ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
         ("eof", 0) => RecoveryExpr::Eof,
