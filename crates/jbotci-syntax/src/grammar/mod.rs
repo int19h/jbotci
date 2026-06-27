@@ -71,6 +71,7 @@ pub(super) struct ParserStateFinish {
 #[invariant(true)]
 pub(crate) struct ParserCheckpoint {
     warning_count: usize,
+    diagnostic_history_len: usize,
     trace_save: bool,
 }
 
@@ -102,6 +103,9 @@ pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
     syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
+    syntax_memo_enabled: bool,
+    diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
+    diagnostic_history: Vec<Option<SyntaxParseError<'tokens>>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
@@ -116,6 +120,9 @@ impl<'tokens> ParserState<'tokens> {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
+            syntax_memo_enabled: options.syntax_memo,
+            diagnostic_candidate: None,
+            diagnostic_history: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
@@ -144,6 +151,12 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn syntax_grammar_env(&self) -> generated_runtime::SyntaxGrammarEnv {
         self.syntax_grammar_env
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.syntax_memo_enabled)]
+    pub(super) fn syntax_memo_enabled(&self) -> bool {
+        self.syntax_memo_enabled
     }
 
     #[requires(!rule_name.is_empty())]
@@ -192,6 +205,32 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     fn active_syntax_memo_mut(&mut self) -> &mut HashMap<(&'static str, usize), SyntaxMemoSuccess> {
         &mut self.syntax_memo
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        match &mut self.diagnostic_candidate {
+            None => {
+                self.diagnostic_history.push(None);
+                self.diagnostic_candidate = Some(error);
+            }
+            Some(candidate) if error.span().start > candidate.span().start => {
+                self.diagnostic_history.push(Some(candidate.clone()));
+                self.diagnostic_candidate = Some(error);
+            }
+            Some(candidate) if error.span().start == candidate.span().start => {
+                self.diagnostic_history.push(Some(candidate.clone()));
+                *candidate = candidate.clone().merge_for_report(error);
+            }
+            Some(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn diagnostic_candidate(&self) -> Option<SyntaxParseError<'tokens>> {
+        self.diagnostic_candidate.clone()
     }
 
     #[requires(true)]
@@ -365,6 +404,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
     ) -> ParserCheckpoint {
         ParserCheckpoint {
             warning_count: self.warnings.len(),
+            diagnostic_history_len: self.diagnostic_history.len(),
             trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
         }
     }
@@ -394,6 +434,12 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             || None,
         );
         self.warnings.truncate(marker.inspector().warning_count);
+        while self.diagnostic_history.len() > marker.inspector().diagnostic_history_len {
+            self.diagnostic_candidate = self
+                .diagnostic_history
+                .pop()
+                .expect("history length is above checkpoint length");
+        }
     }
 }
 
@@ -728,6 +774,38 @@ mod tests {
 
             assert_eq!(regular_text.leading_i_statements.len(), 1);
             assert!(regular_text.paragraphs.is_some());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_model_reports_farthest_soft_failure_before_eof() {
+        run_on_normal_stack(|| {
+            let source = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo ko ce'u xendo ije cnikansa ro lo jmive ta'i lo racli";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let tokens = syntax_tokens(&words);
+
+            let error = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
+                .expect_err("syntax should reject the malformed description tail");
+            let SyntaxError::Parse {
+                byte_start,
+                byte_end,
+                expected,
+                context,
+                ..
+            } = error
+            else {
+                panic!("expected syntax parse error");
+            };
+
+            assert_eq!(byte_start, 68);
+            assert_eq!(byte_end, 72);
+            assert!(!expected.iter().any(|item| item == "end of input"));
+            assert_eq!(
+                context.as_ref().map(|context| context.construct.as_str()),
+                Some("description tail")
+            );
         });
     }
 

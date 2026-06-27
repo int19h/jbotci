@@ -7925,7 +7925,11 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(stderr.contains("unexpected cmavo"));
-            assert!(stderr.contains("expected: end of input"));
+            assert!(stderr.contains("expected: number"), "{stderr}");
+            assert!(
+                stderr.contains("syntax construct, or end of input"),
+                "{stderr}"
+            );
             assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
             assert!(!stderr.contains("{be}"));
@@ -7966,7 +7970,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected: end of input"));
+            assert!(stderr.contains("expected: number"));
+            assert!(stderr.contains("syntax construct, or end of input"));
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
@@ -7980,11 +7985,11 @@ mod tests {
         run_on_normal_stack(|| {
             for (source, code, message) in [
                 (&["ku"][..], "syntax.unexpected-cmavo", "unexpected cmavo"),
-                (&["lo"][..], "syntax.unexpected-cmavo", "unexpected cmavo"),
+                (&["lo"][..], "syntax.incomplete-sumti", "incomplete sumti"),
                 (
                     &["ga", "lo", "mlatu", "gi"][..],
-                    "syntax.unexpected-cmavo",
-                    "unexpected cmavo",
+                    "syntax.incomplete-term",
+                    "incomplete term",
                 ),
             ] {
                 let mut args = vec!["jbotci", "gentufa", "--detailed-errors"];
@@ -8033,13 +8038,14 @@ mod tests {
             assert!(stderr.contains("{i}"));
             assert!(stderr.contains("end of input"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(compact_stderr.contains("[continues text]"));
-            assert!(compact_stderr.contains("[ends text]"));
+            assert!(compact_stderr.contains("[continues syntax construct]"));
             assert!(!stderr.contains("end of input (end of input)"));
             let continuation = compact_stderr
-                .find("continues text]")
-                .expect("text continuation group");
-            let end = compact_stderr.find("ends text]").expect("text end group");
+                .find("continues syntax construct]")
+                .expect("syntax construct continuation group");
+            let end = compact_stderr
+                .rfind("end of input")
+                .expect("text end group");
             assert!(continuation < end);
             assert!(!stderr.contains("\x1b["));
         });
@@ -8060,10 +8066,13 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("mi cu"));
+            assert!(stderr.contains("syntax.incomplete-bridi"));
             assert!(stderr.contains("needs one of:"));
-            assert!(stderr.contains("statement or end of input"));
-            assert!(stderr.contains("[ends terms, fragment, or text]"));
-            assert!(!stderr.contains("while parsing"), "{stderr}");
+            assert!(
+                stderr.contains("free modifier, forethought bridi connection, selbri, or terms")
+            );
+            assert!(stderr.contains("while parsing bridi"));
+            assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");
         });
     }
 

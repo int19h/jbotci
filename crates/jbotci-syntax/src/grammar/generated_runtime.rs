@@ -1,11 +1,7 @@
 //! Generic runtime primitives for declarative generated syntax parsers.
 
 use bityzba::{contract_trait, invariant, new, requires};
-use chumsky::{
-    IterParser, Parser,
-    input::Input,
-    primitive::{choice, custom},
-};
+use chumsky::{Parser, error::Error, input::Input, primitive::custom};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
@@ -187,6 +183,15 @@ where
 {
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
+        if !input.state().syntax_memo_enabled() {
+            return match input.parse(&parser) {
+                Ok(output) => Ok(output),
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    Err(error)
+                }
+            };
+        }
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
         if let Some((output, end_location, warnings)) =
             input.state().syntax_memo_success::<O>(name, start_location)
@@ -379,7 +384,20 @@ where
     O: 'tokens,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
 {
-    parser.or_not().boxed()
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let checkpoint = input.save();
+        match input.parse(&parser) {
+            Ok(output) => Ok(Some(output)),
+            Err(error) => {
+                let error =
+                    merge_error_with_state_candidate(error, input.state().diagnostic_candidate());
+                input.rewind(checkpoint);
+                input.state().record_diagnostic_candidate(error);
+                Ok(None)
+            }
+        }
+    })
+    .boxed()
 }
 
 #[requires(true)]
@@ -387,7 +405,35 @@ where
 pub(crate) fn strict_greedy_many_parser<'tokens, O: 'tokens>(
     parser: BoxedParser<'tokens, O>,
 ) -> BoxedParser<'tokens, Vec<O>> {
-    parser.repeated().collect::<Vec<_>>().boxed()
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let mut values = Vec::new();
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    if end_location == start_location {
+                        debug_assert!(false, "generated repetition parser accepted empty input");
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    let error = merge_error_with_state_candidate(
+                        error,
+                        input.state().diagnostic_candidate(),
+                    );
+                    input.rewind(checkpoint);
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
 }
 
 #[requires(true)]
@@ -403,19 +449,123 @@ fn strict_greedy_many_parser_without_diagnostics<'tokens, O: 'tokens>(
 pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
     parser: BoxedParser<'tokens, O>,
 ) -> BoxedParser<'tokens, Vec<O>> {
-    parser
-        .clone()
-        .then(strict_greedy_many_parser(parser))
-        .map(|(first, rest)| std::iter::once(first).chain(rest).collect())
-        .boxed()
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let first_checkpoint = input.save();
+        let first_start_location = ParserInput::cursor_location(first_checkpoint.cursor().inner());
+        let first = match input.parse(&parser) {
+            Ok(output) => {
+                let first_end_location = ParserInput::cursor_location(input.cursor().inner());
+                if first_end_location == first_start_location {
+                    debug_assert!(
+                        false,
+                        "generated non-empty repetition parser accepted empty input"
+                    );
+                    input.rewind(first_checkpoint);
+                    return Ok(Vec::new());
+                }
+                output
+            }
+            Err(error) => {
+                let error =
+                    merge_error_with_state_candidate(error, input.state().diagnostic_candidate());
+                input.rewind(first_checkpoint);
+                return Err(error);
+            }
+        };
+
+        let mut values = vec![first];
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    if end_location == start_location {
+                        debug_assert!(
+                            false,
+                            "generated non-empty repetition parser accepted empty input"
+                        );
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    let error = merge_error_with_state_candidate(
+                        error,
+                        input.state().diagnostic_candidate(),
+                    );
+                    input.rewind(checkpoint);
+                    input.state().record_diagnostic_candidate(error);
+                    break;
+                }
+            }
+        }
+        Ok(values)
+    })
+    .boxed()
 }
 
-#[requires(true)]
+#[requires(!alternatives.is_empty())]
 #[ensures(true)]
 pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
     alternatives: Vec<BoxedParser<'tokens, O>>,
 ) -> BoxedParser<'tokens, O> {
-    choice(alternatives).boxed()
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let mut abandoned_error = None;
+        for alternative in &alternatives {
+            let checkpoint = input.save();
+            match input.parse(alternative) {
+                Ok(output) => {
+                    if let Some(error) = abandoned_error {
+                        input.state().record_diagnostic_candidate(error);
+                    }
+                    return Ok(output);
+                }
+                Err(error) => {
+                    let error = merge_error_with_state_candidate(
+                        error,
+                        input.state().diagnostic_candidate(),
+                    );
+                    input.rewind(checkpoint);
+                    abandoned_error = Some(match abandoned_error {
+                        None => error,
+                        Some(previous) => merge_choice_errors(previous, error),
+                    });
+                }
+            }
+        }
+        Err(abandoned_error.expect("ordered choice has at least one alternative"))
+    })
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn merge_error_with_state_candidate<'tokens>(
+    error: SyntaxParseError<'tokens>,
+    diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
+) -> SyntaxParseError<'tokens> {
+    match diagnostic_candidate {
+        Some(candidate) => merge_choice_errors(error, candidate),
+        None => error,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn merge_choice_errors<'tokens>(
+    previous: SyntaxParseError<'tokens>,
+    error: SyntaxParseError<'tokens>,
+) -> SyntaxParseError<'tokens> {
+    match error.span().start.cmp(&previous.span().start) {
+        std::cmp::Ordering::Greater => error,
+        std::cmp::Ordering::Less => previous,
+        std::cmp::Ordering::Equal => <SyntaxParseError<'tokens> as Error<
+            'tokens,
+            ParserInput<'tokens>,
+        >>::merge(previous, error),
+    }
 }
 
 #[requires(true)]

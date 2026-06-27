@@ -1159,6 +1159,18 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
 }
 
 #[requires(true)]
+#[ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
+pub(super) fn syntax_error_with_diagnostic_candidate<'tokens>(
+    mut errors: Vec<SyntaxParseError<'tokens>>,
+    diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
+) -> SyntaxError {
+    if let Some(candidate) = diagnostic_candidate {
+        errors.push(candidate);
+    }
+    syntax_error(errors)
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn syntax_error_kind(
     error: &SyntaxParseError<'_>,

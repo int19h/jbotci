@@ -3,13 +3,19 @@
 #![allow(dead_code)]
 
 use chumsky::span::SimpleSpan;
-use chumsky::{Parser, input::Input, primitive::end, recursive::Recursive};
+use chumsky::{
+    Parser,
+    input::Input,
+    primitive::{custom, end},
+    recursive::Recursive,
+};
 use jbotci_morphology::{Cmavo, Selmaho};
 
 use super::ast::*;
 use super::generated_runtime;
 use super::tokens::{
-    cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens, syntax_error,
+    cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
+    syntax_error_with_diagnostic_candidate,
 };
 use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
@@ -2771,15 +2777,30 @@ pub mod generated_model {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new(words, options);
-        strict_generated_text_parser()
-            .then_ignore(end())
+        let result = strict_generated_text_parser_with_eof()
             .parse_with_state(
                 tokens
                     .as_slice()
                     .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
                 &mut state,
             )
-            .into_result()
-            .map_err(syntax_error)
+            .into_result();
+        match result {
+            Ok(text) => Ok(text),
+            Err(errors) => Err(syntax_error_with_diagnostic_candidate(
+                errors,
+                state.diagnostic_candidate(),
+            )),
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn strict_generated_text_parser_with_eof<'tokens>() -> BoxedParser<'tokens, TextSyntax> {
+        custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+            let text = input.parse(&strict_generated_text_parser())?;
+            input.parse(end()).map(|()| text)
+        })
+        .boxed()
     }
 }
