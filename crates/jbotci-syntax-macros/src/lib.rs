@@ -953,6 +953,11 @@ impl Parse for RecursiveRule {
 enum ParserExpr {
     Rust(Expr),
     Vector(VectorExpr),
+    Postfix {
+        receiver: Box<ParserExpr>,
+        method: Ident,
+        args: Vec<Expr>,
+    },
 }
 
 impl ParserExpr {
@@ -960,6 +965,7 @@ impl ParserExpr {
         match self {
             Self::Rust(expr) => compact_tokens(expr),
             Self::Vector(expr) => compact_tokens(&expr.to_token_stream()),
+            Self::Postfix { .. } => compact_tokens(&self.to_token_stream()),
         }
     }
 
@@ -967,6 +973,14 @@ impl ParserExpr {
         match self {
             Self::Rust(expr) => quote!(#expr),
             Self::Vector(expr) => expr.to_token_stream(),
+            Self::Postfix {
+                receiver,
+                method,
+                args,
+            } => {
+                let receiver = receiver.to_token_stream();
+                quote!(#receiver.#method(#(#args),*))
+            }
         }
     }
 
@@ -983,11 +997,32 @@ impl From<Expr> for ParserExpr {
 
 impl Parse for ParserExpr {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        if input.peek(syn::token::Bracket) {
-            input.parse().map(Self::Vector)
+        let mut expr = if input.peek(syn::token::Bracket) {
+            Self::Vector(input.parse()?)
         } else {
-            input.parse().map(Self::Rust)
+            return input.parse().map(Self::Rust);
+        };
+        while input.peek(Token![.]) {
+            input.parse::<Token![.]>()?;
+            let method = input.parse()?;
+            let content;
+            parenthesized!(content in input);
+            let mut args = Vec::new();
+            while !content.is_empty() {
+                args.push(content.parse()?);
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                } else if !content.is_empty() {
+                    return Err(content.error("expected `,` between parser method arguments"));
+                }
+            }
+            expr = Self::Postfix {
+                receiver: Box::new(expr),
+                method,
+                args,
+            };
         }
+        Ok(expr)
     }
 }
 
@@ -2013,6 +2048,54 @@ fn strict_parser_expr_tokens(
             free_modifier_parser,
             mode,
         ),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => strict_postfix_parser_expr_tokens(
+            receiver,
+            method,
+            args,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+    }
+}
+
+fn strict_postfix_parser_expr_tokens(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    let inner =
+        strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
+    match (method.to_string().as_str(), args.len()) {
+        ("lookahead", 0) => Some(quote!(generated_runtime::lookahead(#inner))),
+        ("not", 0) => Some(quote!(generated_runtime::not(#inner))),
+        ("ignored", 0) => Some(quote!(#inner.map(|_| ()))),
+        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+            let free_modifier =
+                strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            let free_modifier_list = if method == "prohibited_wf" {
+                quote!(generated_runtime::strict_cll_prohibited_free_modifier_list_parser(
+                    #free_modifier
+                ))
+            } else {
+                quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier))
+            };
+            Some(quote! {
+                #inner
+                    .then(#free_modifier_list)
+                    .map(|(value, free_modifiers)| WithFreeModifiers::new(value, free_modifiers))
+            })
+        }
+        _ => None,
     }
 }
 
@@ -2497,26 +2580,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(#inner.map(Some)))
         }
-        ("many", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::strict_greedy_many_parser(#inner.boxed())))
-        }
-        ("many1", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
-        }
         ("boxed", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -2848,6 +2911,29 @@ fn parser_output_type(
     match expr {
         ParserExpr::Rust(expr) => rust_parser_output_type(expr, type_env, arguments),
         ParserExpr::Vector(expr) => vector_parser_output_type(expr, type_env, arguments),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => postfix_parser_output_type(receiver, method, args, type_env, arguments),
+    }
+}
+
+fn postfix_parser_output_type(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<TokenStream2> {
+    match (method.to_string().as_str(), args.len()) {
+        ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
+        ("not" | "ignored", 0) => Some(quote!(())),
+        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+            let inner = parser_output_type(receiver, type_env, arguments)?;
+            Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
+        }
+        _ => None,
     }
 }
 
@@ -3072,14 +3158,6 @@ fn call_rust_parser_output_type(
                 arguments,
             )?;
             Some(quote!(Option<#inner>))
-        }
-        ("many" | "many1", 1) => {
-            let inner = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(Vec<#inner>))
         }
         ("boxed", 1) => {
             let inner = rust_parser_output_type(
@@ -3803,6 +3881,30 @@ fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> Reco
                 })
                 .collect(),
         ),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => classify_postfix_recovery_expr(receiver, method, args, arguments),
+    }
+}
+
+fn classify_postfix_recovery_expr(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    arguments: &BTreeSet<String>,
+) -> RecoveryExpr {
+    let inner = || Box::new(classify_parser_expr(receiver, arguments));
+    match (method.to_string().as_str(), args.len()) {
+        ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
+        ("ignored", 0) => RecoveryExpr::Ignored(inner()),
+        ("not", 0) => RecoveryExpr::Not(inner()),
+        ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
+        _ => {
+            let receiver = receiver.to_token_stream();
+            RecoveryExpr::Opaque(compact_tokens(quote!(#receiver.#method(#(#args),*))))
+        }
     }
 }
 
@@ -3911,12 +4013,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments))),
         ("some", 1) => {
             RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("many", 1) => {
-            RecoveryExpr::Many(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("many1", 1) => {
-            RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
         ("boxed", 1) => {
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
@@ -4205,6 +4301,24 @@ mod tests {
                 .to_string()
                 .contains("duplicate grammar rule declaration"),
             "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_accepts_vector_parser_method_suffixes() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env SyntaxGrammarEnv;
+
+            rule "item" item -> struct {
+                field tokens <- [one_or_more cmavo(Be)].wf();
+            }
+        })
+        .expect("vector parser method suffix parses");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers"),
+            "vector `.wf()` should be represented as a normal parser suffix: {expanded}"
         );
     }
 

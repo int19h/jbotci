@@ -1327,7 +1327,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "name" name_sumti -> struct {
         field la <- selmaho(La).wf();
-        field names <- many1(cmevla_word()).wf();
+        field names <- [one_or_more cmevla_word()].wf();
     }
 
     rule "descriptor" description_head -> struct {
@@ -1545,7 +1545,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal) -> struct {
         field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
-        field names <- many1(cmevla_word()).wf();
+        field names <- [one_or_more cmevla_word()].wf();
         field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
