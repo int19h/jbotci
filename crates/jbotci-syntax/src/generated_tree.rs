@@ -22,37 +22,30 @@ jbotci_syntax_macros::syntax_grammar! {
 
     alias "generated item" generated_item_alias = generated_item;
 
-    node generated_item_node -> GeneratedItemSyntax {
-        fields {
-            field token = cmavo(Be);
-        }
+    rule "generated item" generated_item -> struct {
+        field token <- cmavo(Be);
     }
 
-    node generated_pair_node(generated_item) -> GeneratedPairSyntax {
-        fields {
-            field head = cmavo(Be);
-            field nonempty: Vec<Token> = many1(cmavo(Be));
-            require cmavo(Bo).not();
-            scratch parser_only = cmavo(Bo).ignored();
-            #[tree_child(primary)]
-            field child = boxed(generated_item);
-            default trailing: Vec<Token> = Vec::new();
-        }
+    rule "generated pair" generated_pair(generated_item) -> struct {
+        field head <- cmavo(Be);
+        field nonempty <- [one_or_more cmavo(Be)];
+        assert !cmavo(Bo);
+        #[tree_child(primary)]
+        field child <- boxed(generated_item);
     }
 
-    node generated_choice_first -> GeneratedChoiceSyntax {
-        construct variant First;
-        fields {
-            field token = cmavo(Be);
-        }
+    rule "generated choice" generated_choice -> enum {
+        generated_choice_first,
+        generated_choice_second,
     }
 
-    node generated_choice_second(generated_item) -> GeneratedChoiceSyntax {
-        construct variant Second;
-        fields {
-            #[tree_child(primary)]
-            field item = boxed(generated_item);
-        }
+    rule "generated choice" generated_choice_first -> struct {
+        field token <- cmavo(Be);
+    }
+
+    rule "generated choice" generated_choice_second(generated_item) -> struct {
+        #[tree_child(primary)]
+        field item <- boxed(generated_item);
     }
 }
 
@@ -70,9 +63,8 @@ mod tests {
         };
         let pair = GeneratedPairSyntax {
             head: token.clone(),
-            nonempty: vec![token.clone()],
+            nonempty: vec1::Vec1::new(token.clone()),
             child: Box::new(item),
-            trailing: vec![token],
         };
 
         let recovered = recovered::GeneratedPairSyntax::from_valid(pair.clone());

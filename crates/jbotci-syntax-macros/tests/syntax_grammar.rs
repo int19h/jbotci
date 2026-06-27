@@ -39,28 +39,21 @@ jbotci_syntax_macros::syntax_grammar! {
     alias "statement" passthrough_statement(statement) =
         guard_not(cmavo(Bo), statement);
 
-    node linkargs(sumti) -> LinkedSumtiListSyntax {
-        context "linked arguments";
-        fields {
-            field be = cmavo(Be).wf();
-            require cmavo(Bo).not();
-            field fa = selmaho(Fa).wf();
-            field first_sumti = opt(boxed(sumti));
-            when feature(ZantufaTags) field tagged = boxed(sumti);
-            when policy(ZantufaQuotes) require word_category(Quote).not();
-            when policy(ZantufaQuotes) let scratch = fold_chain(head, tail);
-            scratch parsed_guard = cmavo(Bo).ignored();
-            default trailing_sumti = Vec::new();
-        }
+    rule "linked arguments" linkargs(sumti) -> struct {
+        field be <- cmavo(Be).wf();
+        assert !cmavo(Bo);
+        field fa <- selmaho(Fa).wf();
+        field first_sumti <- opt(boxed(sumti));
+        when feature(ZantufaTags) field tagged <- boxed(sumti);
+        when policy(ZantufaQuotes) assert !word_category(Quote);
+        when policy(ZantufaQuotes) let folded = fold_chain(head, tail);
+        field computed: usize = 0usize;
     }
 
-    product bo_sumti_tail -> BoSumtiTail {
-        construct direct;
-        fields {
-            field connective = choice(joik(), jek());
-            field bo = cmavo(Bo).wf();
-            field maybe_bo = some(cmavo(Bo));
-        }
+    rule "bo sumti tail" bo_sumti_tail -> struct {
+        field connective <- choice(joik(), jek());
+        field bo <- cmavo(Bo).wf();
+        field maybe_bo <- some(cmavo(Bo));
     }
 }
 
@@ -85,7 +78,7 @@ fn grammar_macro_exports_declaration_metadata() {
         ])
     );
 
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].kind, "node");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].kind, "struct");
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].name, "linkargs");
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].arguments, &["sumti"]);
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].context, Some("linked arguments"));
@@ -137,21 +130,18 @@ fn grammar_macro_exports_declaration_metadata() {
             name: "ZantufaQuotes",
         }
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "scratch");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].name, "parsed_guard");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].kind, "field");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[7].name, "computed");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[7].recovery,
-        SyntaxGrammarRecoveryExpr::Ignored(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+        SyntaxGrammarRecoveryExpr::Opaque("0usize")
     );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].kind, "default");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].name, "trailing_sumti");
-    assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[8].parser, "Vec::new()");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[6].recovery,
         SyntaxGrammarRecoveryExpr::Opaque("fold_chain(head,tail)")
     );
 
-    assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "product");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "struct");
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[1].name, "bo");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[2].fields[1].recovery,
@@ -167,7 +157,7 @@ fn grammar_macro_exports_declaration_metadata() {
 #[test]
 fn grammar_macro_exports_rule_lookup() {
     let rule = syntax_grammar_rule_by_name("linkargs").expect("linkargs rule exists");
-    assert_eq!(rule.output, "LinkedSumtiListSyntax");
+    assert_eq!(rule.output, "LinkargsSyntax");
     assert!(syntax_grammar_rule_by_name("missing").is_none());
 }
 
@@ -191,45 +181,31 @@ mod generated_model {
 
         alias "item" item_alias = item;
 
-        node pair(item) -> PairSyntax {
-            fields {
-                field head = cmavo(Be);
-                field nonempty = many1(cmavo(Be));
-                require cmavo(Bo).not();
-                scratch parser_only = cmavo(Bo).ignored();
-                default tail: Vec<Token> = Vec::new();
-                let computed: usize = 0usize;
-                #[tree_child(primary)]
-                field child = boxed(item);
-            }
+        rule "pair" pair(item) -> struct {
+            field head <- cmavo(Be);
+            field nonempty <- [one_or_more cmavo(Be)];
+            assert !cmavo(Bo);
+            field computed: usize = 0usize;
+            let temporary = 1usize;
+            #[tree_child(primary)]
+            field child <- boxed(item);
         }
 
-        node first_choice -> ChoiceSyntax {
-            construct variant First;
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "choice" choice -> enum {
+            choice_first,
+            choice_second,
         }
 
-        node second_choice(item) -> ChoiceSyntax {
-            construct variant Second;
-            fields {
-                field item = boxed(item);
-            }
+        rule "choice first" choice_first -> struct {
+            field token <- cmavo(Be);
         }
 
-        node renamed_choice -> RenamedChoiceSyntax {
-            construct variant RuntimeName;
-            model_variant ModelName;
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "choice second" choice_second(item) -> struct {
+            field item <- boxed(item);
         }
 
-        product helper_product -> HelperSyntax {
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "helper product" helper_product -> struct {
+            field token <- cmavo(Be);
         }
     }
 
@@ -238,23 +214,24 @@ mod generated_model {
         let item = ItemSyntax { token: Token };
         let pair = PairSyntax {
             head: Token,
-            nonempty: vec![Token],
-            tail: Vec::new(),
+            nonempty: vec1::Vec1::new(Token),
             computed: 0,
             child: Box::new(item.clone()),
         };
-        let first = ChoiceSyntax::First { token: Token };
-        let second = ChoiceSyntax::Second {
-            item: Box::new(item),
+        let first = ChoiceSyntax::ChoiceFirst {
+            choice_first: ChoiceFirstSyntax { token: Token },
         };
-        let renamed = RenamedChoiceSyntax::ModelName { token: Token };
-        let helper = HelperSyntax { token: Token };
+        let second = ChoiceSyntax::ChoiceSecond {
+            choice_second: ChoiceSecondSyntax {
+                item: Box::new(item),
+            },
+        };
+        let helper = HelperProductSyntax { token: Token };
 
-        assert!(matches!(first, ChoiceSyntax::First { .. }));
-        assert!(matches!(second, ChoiceSyntax::Second { .. }));
-        assert!(matches!(renamed, RenamedChoiceSyntax::ModelName { .. }));
-        assert_eq!(pair.tail.len(), 0);
+        assert!(matches!(first, ChoiceSyntax::ChoiceFirst { .. }));
+        assert!(matches!(second, ChoiceSyntax::ChoiceSecond { .. }));
         assert_eq!(helper.token, Token);
+        assert_eq!(pair.computed, 0);
     }
 }
 
@@ -266,22 +243,16 @@ mod generated_model_filter {
         tree_model {}
         model { KeptSyntax };
 
-        node kept -> KeptSyntax {
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "kept" kept -> struct {
+            field token <- cmavo(Be);
         }
 
-        node skipped_first -> SkippedSyntax {
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "skipped first" skipped_first -> struct {
+            field token <- cmavo(Be);
         }
 
-        node skipped_second -> SkippedSyntax {
-            fields {
-                field token = cmavo(Bo);
-            }
+        rule "skipped second" skipped_second -> struct {
+            field token <- cmavo(Bo);
         }
     }
 
@@ -306,10 +277,8 @@ mod generated_model_with_env {
         model { EnvNodeSyntax };
         env SyntaxGrammarEnv;
 
-        node env_node -> EnvNodeSyntax {
-            fields {
-                field token = cmavo(Be);
-            }
+        rule "env node" env_node -> struct {
+            field token <- cmavo(Be);
         }
     }
 
