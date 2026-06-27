@@ -7775,7 +7775,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_tree_outputs_collapsed_syntax_tree() {
+    fn gentufa_tree_outputs_generated_syntax_tree() {
         run_on_normal_stack(|| {
             let cli = Cli::try_parse_from(["jbotci", "gentufa", "--format", "tree", "mi", "klama"])
                 .expect("gentufa tree");
@@ -7787,10 +7787,12 @@ mod tests {
 
             assert!(output.starts_with("RegularText {\n"));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base_sumti: Sumti {"));
-            assert!(output.contains("sumti_base: Cmavo \"mi\""));
+            assert!(output.contains("base_sumti: SumtiBase {"));
+            assert!(output.contains("sumti_base: ProSumti {"));
+            assert!(output.contains("koha: Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base: Gismu \"kláma\""));
+            assert!(output.contains("base: WordTanruUnit {"));
+            assert!(output.contains("word: Gismu \"kláma\""));
             assert!(output.contains("BridiStatement"));
         });
     }
@@ -7857,7 +7859,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"RegularText{regular_text:TextParagraphWithAdditionalNiho{text_paragraph_with_additional_niho:SimpleParagraph{simple_paragraph:StatementOrFragmentStatement{statement_or_fragment_statement:StatementBase{statement_base:BridiStatement{bridi_statement:BridiWithLeadingTerms{bridi_with_leading_terms:BridiWithLeadingTerms{leading_terms:[ConnectedTerm{connected_term:ConnectedTerm{leading_term:SumtiTerm{sumti_term:SumtiTerm{sumti:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{simple_sumti:SimpleSumti{base_sumti:Sumti{sumti_base:Cmavo "mi"}}}}}}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{bridi_tail_with_possible_tail_terms:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri_simple_bridi_tail:SelbriSimpleBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:ConnectedTanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}}}}}}}}}}"#
+                r#"RegularText{regular_text:TextParagraphWithAdditionalNiho{text_paragraph_with_additional_niho:SimpleParagraph{simple_paragraph:StatementOrFragmentStatement{statement_or_fragment_statement:StatementBase{statement_base:BridiStatement{bridi_statement:BridiWithLeadingTerms{bridi_with_leading_terms:BridiWithLeadingTerms{leading_terms:[ConnectedTerm{connected_term:ConnectedTerm{leading_term:SumtiTerm{sumti_term:SumtiTerm{sumti:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{simple_sumti:SimpleSumti{base_sumti:SumtiBase{sumti_base:ProSumti{pro_sumti:ProSumti{koha:Cmavo "mi"}}}}}}}}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{bridi_tail_with_possible_tail_terms:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri_simple_bridi_tail:SelbriSimpleBridiTail{selbri:UntaggedSelbri{untagged_selbri:CoSelbri{co_selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:TanruUnit{leading_unit:LinkedTanruUnit{linked_tanru_unit:LinkedTanruUnit{base:TanruUnitAtom{base:WordTanruUnit{word_tanru_unit:WordTanruUnit{word:Gismu "kláma"}}}}}}}}}}}}}}}}}}}}}}}}}"#
             );
         });
     }
