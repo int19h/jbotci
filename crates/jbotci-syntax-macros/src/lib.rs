@@ -1402,7 +1402,7 @@ impl Parse for AliasRule {
         let arguments = parse_optional_arguments(input)?;
         if !input.peek(Token![=]) {
             return Err(input.error(
-                "alias rules must use `=`; use `guard` or `guard_not` for parser-only assertions",
+                "alias rules must use `=`; use parser method chains for parser-only assertions",
             ));
         }
         input.parse::<Token![=]>()?;
@@ -2079,6 +2079,16 @@ fn strict_postfix_parser_expr_tokens(
         ("lookahead", 0) => Some(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Some(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Some(quote!(#inner.map(|_| ()))),
+        ("ignore_then", 1) => {
+            let parser = strict_rust_parser_expr_tokens(
+                args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Some(quote!(#inner.ignore_then(#parser)))
+        }
         ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
             let free_modifier =
                 strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
@@ -2426,6 +2436,22 @@ fn strict_method_parser_expr_tokens(
             mode,
         )?;
         Some(quote!(#inner.map(|_| ())))
+    } else if method.method == "ignore_then" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let parser = strict_rust_parser_expr_tokens(
+            method.args.first().expect("length checked"),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Some(quote!(#inner.ignore_then(#parser)))
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
@@ -2625,40 +2651,6 @@ fn strict_call_parser_expr_tokens(
                 mode,
             )?;
             strict_choice_chain(alternatives)
-        }
-        ("guard", 2) => {
-            let predicate = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            let parser = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::lookahead(#predicate).ignore_then(#parser)))
-        }
-        ("guard_not", 2) => {
-            let predicate = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            let parser = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::not(#predicate).ignore_then(#parser)))
         }
         ("empty", 0) => Some(quote!(generated_runtime::empty())),
         ("eof", 0) => Some(quote!(generated_runtime::eof())),
@@ -2929,6 +2921,9 @@ fn postfix_parser_output_type(
     match (method.to_string().as_str(), args.len()) {
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
         ("not" | "ignored", 0) => Some(quote!(())),
+        ("ignore_then", 1) => {
+            rust_parser_output_type(args.first().expect("length checked"), type_env, arguments)
+        }
         ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
             let inner = parser_output_type(receiver, type_env, arguments)?;
             Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
@@ -3103,6 +3098,12 @@ fn method_rust_parser_output_type(
         rust_parser_output_type(&method.receiver, type_env, arguments)
     } else if method.method == "not" || method.method == "ignored" {
         Some(quote!(()))
+    } else if method.method == "ignore_then" && method.args.len() == 1 {
+        rust_parser_output_type(
+            method.args.first().expect("length checked"),
+            type_env,
+            arguments,
+        )
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
@@ -3186,11 +3187,6 @@ fn call_rust_parser_output_type(
             arguments,
         ),
         ("choice", _) => choice_outputs_same(call.args.iter(), type_env, arguments),
-        ("guard" | "guard_not", 2) => rust_parser_output_type(
-            call.args.iter().nth(1).expect("length checked"),
-            type_env,
-            arguments,
-        ),
         ("empty" | "eof", 0) => Some(quote!(())),
         _ => None,
     }
@@ -3901,6 +3897,10 @@ fn classify_postfix_recovery_expr(
         ("ignored", 0) => RecoveryExpr::Ignored(inner()),
         ("not", 0) => RecoveryExpr::Not(inner()),
         ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
+        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
+            classify_parser_expr(receiver, arguments),
+            classify_recovery_expr(args.first().expect("length checked"), arguments),
+        ]),
         _ => {
             let receiver = receiver.to_token_stream();
             RecoveryExpr::Opaque(compact_tokens(quote!(#receiver.#method(#(#args),*))))
@@ -3951,6 +3951,10 @@ fn classify_method_recovery_expr(
         ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
         ("payload_start", 0) => RecoveryExpr::PayloadStart(inner()),
         ("ignored", 0) => RecoveryExpr::Ignored(inner()),
+        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
+            classify_recovery_expr(&method.receiver, arguments),
+            classify_recovery_expr(method.args.first().expect("length checked"), arguments),
+        ]),
         ("not_next_selmaho", 1) => method
             .args
             .first()
@@ -4033,14 +4037,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
                 .map(|expr| classify_recovery_expr(expr, arguments))
                 .collect(),
         ),
-        ("guard", 2) => RecoveryExpr::Sequence(vec![
-            RecoveryExpr::Lookahead(Box::new(classify_recovery_expr(&call.args[0], arguments))),
-            classify_recovery_expr(&call.args[1], arguments),
-        ]),
-        ("guard_not", 2) => RecoveryExpr::Sequence(vec![
-            RecoveryExpr::Not(Box::new(classify_recovery_expr(&call.args[0], arguments))),
-            classify_recovery_expr(&call.args[1], arguments),
-        ]),
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
         ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
         ("eof", 0) => RecoveryExpr::Eof,

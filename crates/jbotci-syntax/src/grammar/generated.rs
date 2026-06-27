@@ -81,10 +81,11 @@ macro_rules! declare_generated_syntax_grammar {
         field leading_cmevla <- [zero_or_more text_leading_cmevla_word()];
         field leading_indicators <- [zero_or_more leading_indicator()];
         field leading_free_modifiers <- [zero_or_more free_modifier];
-        field leading_connective <- opt(guard_not(
-            modal_forethought_connective(tense_modal),
-            text_leading_connective,
-        ));
+        field leading_connective <- opt(
+            modal_forethought_connective(tense_modal)
+                .not()
+                .ignore_then(text_leading_connective),
+        );
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
         #[tree_child(primary)]
         field paragraphs <- opt(boxed(text_paragraphs(
@@ -573,7 +574,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     alias "term" term_guard =
-        guard_not((relation_word(), cmavo(Bu).not()), empty());
+        (relation_word(), cmavo(Bu).not()).not();
 
     rule "term" term(term, sumti, tense_modal, subbridi, selbri) -> enum {
         pehe_termset_connection,

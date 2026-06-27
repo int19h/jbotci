@@ -37,7 +37,7 @@ jbotci_syntax_macros::syntax_grammar! {
     }
 
     alias "statement" passthrough_statement(statement) =
-        guard_not(cmavo(Bo), statement);
+        cmavo(Bo).not().ignore_then(statement);
 
     rule "linked arguments" linkargs(sumti) -> struct {
         field be <- cmavo(Be).wf();
@@ -359,7 +359,7 @@ mod new_dsl {
 
         alias "item alias" item_alias = item;
 
-        alias "guarded item alias" guarded_item_alias = guard_not(cmavo(Bo), item);
+        alias "guarded item alias" guarded_item_alias = cmavo(Bo).not().ignore_then(item);
     }
 
     #[test]
