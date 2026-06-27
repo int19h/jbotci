@@ -1424,7 +1424,7 @@ impl Rule {
 
     fn declared_output(&self) -> Option<&Type> {
         match self {
-            Rule::Alias(rule) => rule.output.as_ref(),
+            Rule::Alias(_) => None,
             Rule::Struct(rule) => Some(&rule.output),
             Rule::Node(rule) => Some(&rule.output),
             Rule::Product(rule) => Some(&rule.0.output),
@@ -1538,7 +1538,6 @@ impl Rule {
 struct AliasRule {
     name: Ident,
     arguments: Vec<Ident>,
-    output: Option<Type>,
     context: Option<LitStr>,
     parser: ParserExpr,
 }
@@ -1715,7 +1714,6 @@ impl Parse for AliasRule {
         Ok(Self {
             name,
             arguments,
-            output: None,
             context,
             parser,
         })
