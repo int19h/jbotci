@@ -986,6 +986,14 @@ impl ParserExpr {
     fn rust_tokens(&self) -> TokenStream2 {
         self.to_token_stream()
     }
+
+    fn postfix(self, method: &str, args: Vec<Expr>) -> Self {
+        Self::Postfix {
+            receiver: Box::new(self),
+            method: format_ident!("{method}"),
+            args,
+        }
+    }
 }
 
 impl From<Expr> for ParserExpr {
@@ -2531,7 +2539,7 @@ fn strict_call_parser_expr_tokens(
             let cmavo = format_ident!("{cmavo}");
             Some(quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo)))
         }
-        ("raw_words_until", _) if !call.args.is_empty() => {
+        ("word_not_cmavo", _) if !call.args.is_empty() => {
             let terminators = call
                 .args
                 .iter()
@@ -2541,7 +2549,7 @@ fn strict_call_parser_expr_tokens(
                     Some(quote!(Cmavo::#cmavo))
                 })
                 .collect::<Option<Vec<_>>>()?;
-            Some(quote!(generated_runtime::raw_words_until(&[#(#terminators),*])))
+            Some(quote!(generated_runtime::word_not_cmavo(&[#(#terminators),*])))
         }
         ("feature", 2) => {
             let feature = call.args.first().and_then(path_expr_last_segment)?;
@@ -3148,7 +3156,7 @@ fn call_rust_parser_output_type(
             | "pa_word",
             0,
         ) => Some(quote!(Token)),
-        ("raw_words_until", _) if !call.args.is_empty() => Some(quote!(Vec<Token>)),
+        ("word_not_cmavo", _) if !call.args.is_empty() => Some(quote!(Token)),
         ("feature" | "policy", 1) => Some(quote!(())),
         ("opt", 1) => {
             let inner = rust_parser_output_type(
@@ -3530,14 +3538,15 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         if negated {
             input.parse::<Token![!]>()?;
         }
-        let parser: Expr = input.parse()?;
+        let parser: ParserExpr = input.parse()?;
         input.parse::<Token![;]>()?;
-        let parser: ParserExpr = if negated {
-            syn::parse2::<Expr>(quote!(#parser.not()))
+        let parser = if negated {
+            parser.postfix("not", Vec::new())
         } else {
-            syn::parse2::<Expr>(quote!(#parser.lookahead().ignored()))
-        }?
-        .into();
+            parser
+                .postfix("lookahead", Vec::new())
+                .postfix("ignored", Vec::new())
+        };
         Ok(FieldItem {
             attrs,
             conditions,

@@ -704,19 +704,17 @@ pub(crate) fn delimited_quote_marker<'tokens>(marker: Cmavo) -> BoxedParser<'tok
 
 #[requires(!terminators.is_empty())]
 #[ensures(true)]
-pub(crate) fn raw_words_until<'tokens>(
+pub(crate) fn word_not_cmavo<'tokens>(
     terminators: &'static [Cmavo],
-) -> BoxedParser<'tokens, Vec<Token>> {
+) -> BoxedParser<'tokens, Token> {
     token_matching(
-        "replacement word",
-        "REPLACEMENT WORD",
-        vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::ReplacementWord,
+        "word other than terminator cmavo",
+        "WORD",
+        vec![new!(SyntaxExpectedToken::Named(
+            "non-terminator word".to_owned()
         ))],
         move |token, _state| !token.is_one_of_cmavo(terminators),
     )
-    .repeated()
-    .collect::<Vec<_>>()
     .boxed()
 }
 
@@ -813,8 +811,8 @@ fn token_matches_word_category(token: &Token, category: SyntaxWordCategory) -> b
         SyntaxWordCategory::SelbriWord => is_relation_word(token),
         SyntaxWordCategory::ProSumti => is_koha_argument(token),
         SyntaxWordCategory::LetterWord => is_letter_word(token),
-        SyntaxWordCategory::Quote => token_is_compound_quote(token),
         SyntaxWordCategory::ReplacementWord => false,
+        SyntaxWordCategory::Quote => token_is_compound_quote(token),
     }
 }
 

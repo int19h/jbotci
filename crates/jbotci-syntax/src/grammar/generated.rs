@@ -67,12 +67,14 @@ macro_rules! declare_generated_syntax_grammar {
         regular_text,
     }
 
+    alias "word" word_before_kuhau = word_not_cmavo(Kuhau);
+
     rule "text" explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> struct {
-        assert (
-            cmavo(Xauha).ignored(),
-            raw_words_until(Kuhau).ignored(),
-            cmavo(Kuhau).ignored(),
-        ).ignored();
+        assert [
+            cmavo(Xauha);
+            zero_or_more word_before_kuhau();
+            cmavo(Kuhau);
+        ].ignored();
         field paragraphs <- text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
     }
 
@@ -1646,17 +1648,23 @@ macro_rules! declare_generated_syntax_grammar {
         close_only_text_replacement_free_modifier,
     }
 
+    alias "replacement free modifier word" word_before_sahai_or_lehai =
+        word_not_cmavo(Sahai, Lehai);
+
+    alias "replacement free modifier word" word_before_lehai =
+        word_not_cmavo(Lehai);
+
     rule "replacement free modifier" full_text_replacement_free_modifier -> struct {
         field lohai <- cmavo(Lohai);
-        field old_words <- raw_words_until(Sahai, Lehai);
+        field old_words <- [zero_or_more word_before_sahai_or_lehai()];
         field sahai <- opt(cmavo(Sahai));
-        field new_words <- raw_words_until(Lehai);
+        field new_words <- [zero_or_more word_before_lehai()];
         field lehai <- cmavo(Lehai).wf();
     }
 
     rule "replacement free modifier" new_only_text_replacement_free_modifier -> struct {
         field sahai <- cmavo(Sahai);
-        field new_words <- raw_words_until(Lehai);
+        field new_words <- [zero_or_more word_before_lehai()];
         field lehai <- cmavo(Lehai).wf();
     }
 
