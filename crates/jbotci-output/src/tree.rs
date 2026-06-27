@@ -14859,7 +14859,9 @@ fn generated_niho_marker_paragraph_statement_entries(
     if let Some(connective) = &marker.connective {
         entries.push(TreeEntry {
             label: Some("connective"),
-            value: generated_statement_connective_tree_value(connective, source, options),
+            value: generated_paragraph_i_statement_connective_tree_value(
+                connective, source, options,
+            ),
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -14930,7 +14932,9 @@ fn set_generated_paragraph_statement_connective(
         insertion_index,
         TreeEntry {
             label: Some("connective"),
-            value: generated_statement_connective_tree_value(connective, source, options),
+            value: generated_paragraph_i_statement_connective_tree_value(
+                connective, source, options,
+            ),
         },
     );
 }
@@ -15062,7 +15066,9 @@ fn generated_leading_i_statement_entries(
     if let Some(connective) = &marker.connective {
         entries.push(TreeEntry {
             label: Some("connective"),
-            value: generated_statement_connective_tree_value(connective, source, options),
+            value: generated_paragraph_i_statement_connective_tree_value(
+                connective, source, options,
+            ),
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
@@ -15540,39 +15546,63 @@ fn generated_statement_connective_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     match connective {
-        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
-            connective,
-            tag_bo: Some((tense_modal, bo)),
+        _ => collapse_value(required_generated_syntax_subtree_value(
+            connective, source, options,
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_paragraph_i_statement_connective_tree_value(
+    connective: &generated_model::IParagraphStatementConnectiveSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    match connective {
+        generated_model::IParagraphStatementConnectiveSyntax::IStandardParagraphStatementConnective {
+            i_standard_paragraph_statement_connective,
         } => {
-            let mut extra = Vec::new();
-            if let Some(tense_modal) = tense_modal {
-                extra.extend(generated_tense_modal_word_tree_values(
-                    tense_modal.as_ref(),
-                    source,
-                    options,
-                ));
+            let connective = i_standard_paragraph_statement_connective.connective.as_ref();
+            if let Some((tense_modal, bo)) =
+                &i_standard_paragraph_statement_connective.tag_bo
+            {
+                let mut extra = Vec::new();
+                if let Some(tense_modal) = tense_modal {
+                    extra.extend(generated_tense_modal_word_tree_values(
+                        tense_modal.as_ref(),
+                        source,
+                        options,
+                    ));
+                }
+                extra.push(generated_token_tree_value(bo, source, options));
+                generated_connective_tree_value_with_extra_words(
+                    connective, extra, source, options,
+                )
+            } else {
+                collapse_value(required_generated_syntax_subtree_value(
+                    connective, source, options,
+                ))
             }
-            extra.push(generated_token_tree_value(bo, source, options));
-            generated_connective_tree_value_with_extra_words(connective, extra, source, options)
         }
-        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective {
-            tense_modal,
-            bo,
+        generated_model::IParagraphStatementConnectiveSyntax::ITagBoParagraphStatementConnective {
+            i_tag_bo_paragraph_statement_connective,
         } => {
             let mut words = Vec::new();
-            if let Some(tense_modal) = tense_modal {
+            if let Some(tense_modal) = &i_tag_bo_paragraph_statement_connective.tense_modal {
                 words.extend(generated_tense_modal_word_tree_values(
                     tense_modal.as_ref(),
                     source,
                     options,
                 ));
             }
-            words.push(generated_token_tree_value(bo, source, options));
+            words.push(generated_token_tree_value(
+                &i_tag_bo_paragraph_statement_connective.bo,
+                source,
+                options,
+            ));
             generated_connective_word_node("Selbri", words)
         }
-        _ => collapse_value(required_generated_syntax_subtree_value(
-            connective, source, options,
-        )),
     }
 }
 
@@ -15756,17 +15786,12 @@ fn generated_connective_constructor(
         generated_model::ConnectiveSyntax::GaForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::GikForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::GuhekForethoughtConnective { .. } => "Forethought",
-        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
-            connective,
-            ..
-        }
-        | generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
+        generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
             connective, ..
         }
         | generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
             generated_connective_constructor(connective)
         }
-        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. } => "Selbri",
         generated_model::ConnectiveSyntax::JekGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ModalGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { .. } => {
@@ -15779,11 +15804,6 @@ fn generated_connective_constructor(
 #[ensures(true)]
 fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -> bool {
     match connective {
-        generated_model::ConnectiveSyntax::IStandardParagraphStatementConnective {
-            connective,
-            tag_bo,
-        } => tag_bo.is_some() || generated_connective_has_bo(connective),
-        generated_model::ConnectiveSyntax::ITagBoParagraphStatementConnective { .. } => true,
         generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
             connective,
             bo,

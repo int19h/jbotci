@@ -114,10 +114,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
         field i <- cmavo(I);
-        field connective <- opt(boxed(choice((
-            i_standard_paragraph_statement_connective(tense_modal),
-            i_tag_bo_paragraph_statement_connective(tense_modal),
-        ))));
+        field connective <- opt(boxed(i_paragraph_statement_connective(tense_modal)));
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
@@ -1996,19 +1993,20 @@ macro_rules! declare_generated_syntax_grammar {
         field tag_bo <- opt((opt(boxed(tense_modal)), cmavo(Bo).wf()));
     }
 
-    product i_standard_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
-        construct variant IStandardParagraphStatementConnective;
-        fields {
-            #[tree_child(primary)]
-            field connective = boxed(choice((
-                paragraph_joi_connective(),
-                paragraph_simple_interval_connective(),
-                paragraph_closed_interval_connective(),
-                paragraph_jek_connective(),
-            )));
-            field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo)));
-        }
+    rule "statement connective" i_paragraph_statement_connective(tense_modal) -> enum {
+        i_standard_paragraph_statement_connective,
+        i_tag_bo_paragraph_statement_connective,
+    }
+
+    rule "statement connective" i_standard_paragraph_statement_connective(tense_modal) -> struct {
+        #[tree_child(primary)]
+        field connective <- boxed(choice((
+            paragraph_joi_connective(),
+            paragraph_simple_interval_connective(),
+            paragraph_closed_interval_connective(),
+            paragraph_jek_connective(),
+        )));
+        field tag_bo <- opt((opt(boxed(tense_modal)), cmavo(Bo)));
     }
 
     product paragraph_jek_connective -> ConnectiveSyntax {
@@ -2082,13 +2080,9 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    product i_tag_bo_paragraph_statement_connective(tense_modal) -> ConnectiveSyntax {
-        context "statement connective";
-        construct variant ITagBoParagraphStatementConnective;
-        fields {
-            field tense_modal = opt(boxed(tense_modal));
-            field bo = cmavo(Bo);
-        }
+    rule "statement connective" i_tag_bo_paragraph_statement_connective(tense_modal) -> struct {
+        field tense_modal <- opt(boxed(tense_modal));
+        field bo <- cmavo(Bo);
     }
 
     rule "statement connective" i_tag_bo_statement_connective(tense_modal) -> struct {
