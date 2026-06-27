@@ -2931,6 +2931,7 @@ macro_rules! declare_generated_syntax_grammar {
     node scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit) -> TanruUnitSyntax {
         context "scalar-negated tanru unit";
         construct variant ScalarNegatedTanruUnit;
+        model_variant ScalarNegatedJaiInnerTanruUnit;
         fields {
             field nahe = selmaho(Nahe).wf();
             field inner_unit = boxed(jai_inner_tanru_unit);
@@ -2996,6 +2997,7 @@ macro_rules! declare_generated_syntax_grammar {
     node goha_word_tanru_unit(free_modifier) -> TanruUnitSyntax {
         context "tanru unit";
         construct tuple_variant TanruUnitWord;
+        model_variant GohaWordTanruUnit;
         fields {
             field word = selmaho(Goha)
                 .followed_by(choice((

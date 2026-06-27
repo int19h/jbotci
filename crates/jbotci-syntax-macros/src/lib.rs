@@ -688,19 +688,10 @@ impl SyntaxGrammar {
                     let key = output.to_string();
                     let fields = rule.generated_model_fields(type_env)?;
                     if let Some(existing) = structs.get(&key) {
-                        let duplicate = GeneratedStructModel {
-                            visibility: rule_kind.visibility_tokens(),
-                            ident: output.clone(),
-                            rule_name: rule.name.clone(),
-                            fields,
-                        };
-                        if existing.same_shape_as(&duplicate) {
-                            continue;
-                        }
                         return Err(syn::Error::new_spanned(
                             &rule.name,
                             format!(
-                                "cannot generate one struct `{key}` from both `{}` and `{}`; use alias rules for delegation or construct variants for alternatives",
+                                "cannot generate one struct `{key}` from both `{}` and `{}`; generated model ownership must be one rule per struct",
                                 existing.rule_name, rule.name
                             ),
                         ));
@@ -756,13 +747,10 @@ fn push_generated_variant(
         .iter()
         .find(|existing| existing.variant == variant.variant)
     {
-        if existing.same_shape_as(&variant) {
-            return Ok(());
-        }
         return Err(syn::Error::new_spanned(
             &variant.rule_name,
             format!(
-                "cannot generate enum variant `{}` from both `{}` and `{}` with different field shapes",
+                "cannot generate enum variant `{}` from both `{}` and `{}`; generated model ownership must be one rule per enum variant",
                 variant.variant, existing.rule_name, variant.rule_name
             ),
         ));
@@ -941,16 +929,6 @@ impl GeneratedVariantModel {
         }
     }
 
-    fn same_shape_as(&self, other: &Self) -> bool {
-        self.variant == other.variant
-            && self.tuple == other.tuple
-            && self.fields.len() == other.fields.len()
-            && self
-                .fields
-                .iter()
-                .zip(&other.fields)
-                .all(|(left, right)| left.same_shape_as(right))
-    }
 }
 
 impl ToTokens for GeneratedVariantModel {
@@ -4805,6 +4783,64 @@ mod tests {
                 .to_string()
                 .contains("duplicate grammar rule declaration"),
             "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_duplicate_generated_struct_outputs() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            node first_item -> ItemSyntax {
+                fields {
+                    field token = cmavo(Be);
+                }
+            }
+
+            node second_item -> ItemSyntax {
+                fields {
+                    field token = cmavo(Be);
+                }
+            }
+        })
+        .expect("grammar parses before generated model expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("cannot generate one struct")
+                && expanded.contains("generated model ownership must be one rule per struct"),
+            "unexpected expansion: {expanded}"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_duplicate_generated_enum_variants() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            node first_item -> ChoiceSyntax {
+                construct variant Item;
+                fields {
+                    field token = cmavo(Be);
+                }
+            }
+
+            node second_item -> ChoiceSyntax {
+                construct variant Item;
+                fields {
+                    field token = cmavo(Be);
+                }
+            }
+        })
+        .expect("grammar parses before generated model expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("cannot generate enum variant")
+                && expanded.contains("generated model ownership must be one rule per enum variant"),
+            "unexpected expansion: {expanded}"
         );
     }
 }

@@ -9861,7 +9861,7 @@ fn legacy_as_generated_jai_inner_tanru_unit_tree_value(
                 ),
             });
             TreeValue::Node(TreeNode {
-                constructor: "ScalarNegatedTanruUnit",
+                constructor: "ScalarNegatedJaiInnerTanruUnit",
                 entries,
             })
         }
@@ -10333,8 +10333,13 @@ fn legacy_as_generated_tanru_unit_word_tree_value(
     ) {
         entries.push(entry);
     }
+    let constructor = if word.value.is_selmaho(Selmaho::Goha) {
+        "GohaWordTanruUnit"
+    } else {
+        "TanruUnitWord"
+    };
     TreeValue::Node(TreeNode {
-        constructor: "TanruUnitWord",
+        constructor,
         entries,
     })
 }
