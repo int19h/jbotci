@@ -84,7 +84,13 @@ macro_rules! declare_generated_syntax_grammar {
         field leading_cmevla <- [zero_or_more text_leading_cmevla_word()];
         field leading_indicators <- [zero_or_more leading_indicator()];
         field leading_free_modifiers <- [zero_or_more free_modifier];
-        field leading_connective <- opt(text_leading_connective(tense_modal));
+        field leading_connective <- opt(guard_not(
+            modal_forethought_connective(tense_modal),
+            choice((
+                standard_statement_connective,
+                cehe_connective(),
+            )),
+        ));
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
         #[tree_child(primary)]
         field paragraphs <- opt(boxed(text_paragraphs(
@@ -109,18 +115,12 @@ macro_rules! declare_generated_syntax_grammar {
         field paragraphs <- [one_or_more niho_paragraph(statement_or_fragment, free_modifier)];
     }
 
-    alias "text connective" text_leading_connective(tense_modal) =
-        guard_not(
-            modal_forethought_connective(tense_modal),
-            choice((
-                standard_statement_connective,
-                cehe_connective(),
-            )),
-        );
-
     rule "paragraph statement" leading_i_statement(free_modifier, tense_modal) -> struct {
         field i <- cmavo(I);
-        field connective <- opt(boxed(i_paragraph_statement_connective(tense_modal)));
+        field connective <- opt(boxed(choice((
+            i_standard_paragraph_statement_connective(tense_modal),
+            i_tag_bo_paragraph_statement_connective(tense_modal),
+        ))));
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
@@ -623,7 +623,10 @@ macro_rules! declare_generated_syntax_grammar {
     rule "term connection" bound_term_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field connective <- boxed(joik_ek_connective);
+        field connective <- boxed(choice((
+            joik_connective(),
+            ek_connective(),
+        )));
         field bo <- cmavo(Bo).wf();
         assert term_hierarchy_post_bo_argument_gate(sumti);
         field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
@@ -642,7 +645,12 @@ macro_rules! declare_generated_syntax_grammar {
     rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- [zero_or_more (term_connective, boxed(simple_term(sumti, tense_modal, subbridi, selbri, term)))];
+        field continuations <- [zero_or_more (choice((
+            joik_connective(),
+            jek_connective(),
+            ek_connective(),
+            vuhu_nonlogical_connective(),
+        )), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term)))];
     }
 
     rule "termset" termset_group(sumti, tense_modal, subbridi, selbri, term) -> struct {
@@ -1686,7 +1694,10 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
-        field connective <- relative_clause_connective;
+        field connective <- choice((
+            joik_connective(),
+            jek_connective(),
+        ));
         field inner <- boxed(relative_clause_atom(sumti, subbridi, tense_modal));
     }
 
@@ -1748,18 +1759,6 @@ macro_rules! declare_generated_syntax_grammar {
         field subbridi <- boxed(subbridi);
         field kuho <- opt(cmavo(Kuho).wf());
     }
-
-    alias "relative clause connective" relative_clause_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-        ));
-
-    alias "sumti connective" joik_ek_connective =
-        choice((
-            joik_connective(),
-            ek_connective(),
-        ));
 
     product ek_connective -> ConnectiveSyntax {
         context "ek";
@@ -1913,14 +1912,6 @@ macro_rules! declare_generated_syntax_grammar {
             jek_connective(),
         ));
 
-    alias "term connective" term_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-            ek_connective(),
-            vuhu_nonlogical_connective(),
-        ));
-
     alias "selbri connective" relation_afterthought_connective =
         choice((
             joik_connective(),
@@ -1949,12 +1940,6 @@ macro_rules! declare_generated_syntax_grammar {
             i_tag_bo_statement_connective(tense_modal),
         ));
 
-    alias "statement connective" i_paragraph_statement_connective(tense_modal) =
-        choice((
-            i_standard_paragraph_statement_connective(tense_modal),
-            i_tag_bo_paragraph_statement_connective(tense_modal),
-        ));
-
     product i_standard_statement_connective(tense_modal) -> ConnectiveSyntax {
         context "statement connective";
         construct variant IStandardStatementConnective;
@@ -1970,16 +1955,15 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant IStandardParagraphStatementConnective;
         fields {
             #[tree_child(primary)]
-            field connective = boxed(standard_paragraph_statement_connective);
+            field connective = boxed(choice((
+                paragraph_joi_connective(),
+                paragraph_simple_interval_connective(),
+                paragraph_closed_interval_connective(),
+                paragraph_jek_connective(),
+            )));
             field tag_bo = opt((opt(boxed(tense_modal)), cmavo(Bo)));
         }
     }
-
-    alias "statement connective" standard_paragraph_statement_connective =
-        choice((
-            paragraph_joik_connective(),
-            paragraph_jek_connective(),
-        ));
 
     product paragraph_jek_connective -> ConnectiveSyntax {
         context "jek";
@@ -1992,13 +1976,6 @@ macro_rules! declare_generated_syntax_grammar {
             field nai = opt(cmavo(Nai));
         }
     }
-
-    alias "joik" paragraph_joik_connective =
-        choice((
-            paragraph_joi_connective(),
-            paragraph_simple_interval_connective(),
-            paragraph_closed_interval_connective(),
-        ));
 
     product paragraph_joi_connective -> ConnectiveSyntax {
         context "joik";
@@ -2146,12 +2123,6 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "connected tag" tag_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-        ));
-
     alias "forethought connective" modal_forethought_connective(tense_modal) =
         choice((
             ga_forethought_connective(),
@@ -2277,7 +2248,13 @@ macro_rules! declare_generated_syntax_grammar {
         context "connected tag";
         fields {
             field first = boxed(tense_modal_atom(selbri));
-            field continuations = many1((tag_connective, boxed(tense_modal_atom(selbri))));
+            field continuations = many1((
+                choice((
+                    joik_connective(),
+                    jek_connective(),
+                )),
+                boxed(tense_modal_atom(selbri)),
+            ));
         }
     }
 
