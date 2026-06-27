@@ -5908,9 +5908,11 @@ fn legacy_as_generated_simple_sumti_tree_value(
                 value: required_legacy_syntax_subtree_value(vuho, source, options),
             });
         }
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
+        if let Some(entry) = legacy_as_generated_optional_relative_clause_list_entry(
             "relative_clauses",
-            legacy_as_generated_relative_clause_list_tree_values(relative_clauses, source, options),
+            relative_clauses,
+            source,
+            options,
         ) {
             entries.push(entry);
         }
@@ -6849,13 +6851,11 @@ fn legacy_as_generated_description_tail_tree_value(
                     value: legacy_as_generated_selbri_tree_value(selbri, source, options),
                 },
             ];
-            if let Some(entry) = labelled_tree_collection_entry_from_values(
+            if let Some(entry) = legacy_as_generated_optional_relative_clause_list_entry(
                 "relative_clauses",
-                legacy_as_generated_relative_clause_list_tree_values(
-                    relative_clauses,
-                    source,
-                    options,
-                ),
+                relative_clauses,
+                source,
+                options,
             ) {
                 tail_entries.push(entry);
             }
@@ -6904,9 +6904,11 @@ fn legacy_as_generated_description_tail_tree_value(
             label: Some("selbri"),
             value: legacy_as_generated_selbri_tree_value(selbri, source, options),
         });
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
+        if let Some(entry) = legacy_as_generated_optional_relative_clause_list_entry(
             "relative_clauses",
-            legacy_as_generated_relative_clause_list_tree_values(relative_clauses, source, options),
+            relative_clauses,
+            source,
+            options,
         ) {
             tail_entries.push(entry);
         }
@@ -6993,12 +6995,10 @@ fn legacy_as_generated_leading_description_tail_elements_tree_value(
             ) => {
                 entries.push(TreeEntry {
                     label: Some("relative_clauses"),
-                    value: TreeValue::Collection(
-                        legacy_as_generated_relative_clause_list_tree_values(
-                            relative_clauses,
-                            source,
-                            options,
-                        ),
+                    value: legacy_as_generated_relative_clause_list_tree_value(
+                        relative_clauses,
+                        source,
+                        options,
                     ),
                 });
             }
@@ -7476,6 +7476,27 @@ fn legacy_as_generated_relative_clause_list_tree_values(
         values.push(TreeValue::Collection(additional_values));
     }
     values
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_optional_relative_clause_list_entry(
+    label: &'static str,
+    relative_clauses: &[jbotci_syntax::ast::RelativeClauseSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<TreeEntry> {
+    if relative_clauses.is_empty() {
+        return None;
+    }
+    Some(TreeEntry {
+        label: Some(label),
+        value: legacy_as_generated_relative_clause_list_tree_value(
+            relative_clauses,
+            source,
+            options,
+        ),
+    })
 }
 
 #[requires(!relative_clauses.is_empty())]

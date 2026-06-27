@@ -899,7 +899,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
         field base_sumti <- boxed(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
     rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> enum {
@@ -1351,7 +1351,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> struct {
         field tail_sumti <- opt(description_tail_sumti(sumti_base));
-        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
     rule "description tail" description_tail_sumti(sumti_base) -> struct {
@@ -1361,14 +1361,14 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "description tail" relation_description_tail(sumti, subbridi, selbri, tense_modal) -> struct {
         field selbri <- boxed(selbri);
-        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
     rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
         field quantifier <- quantifier(mekso, letter_tokens);
         assert !selmaho(Roi);
         field selbri <- boxed(selbri);
-        field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
     }
 
     rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> struct {
