@@ -928,7 +928,6 @@ impl GeneratedVariantModel {
             quote!(#[bityzba::invariant(::#variant => true)])
         }
     }
-
 }
 
 impl ToTokens for GeneratedVariantModel {
@@ -1688,7 +1687,9 @@ impl Parse for AliasRule {
         let name = input.parse()?;
         let arguments = parse_optional_arguments(input)?;
         if !input.peek(Token![=]) {
-            return Err(input.error("alias rules must use `=`; use `guard` or `guard_not` for parser-only assertions"));
+            return Err(input.error(
+                "alias rules must use `=`; use `guard` or `guard_not` for parser-only assertions",
+            ));
         }
         input.parse::<Token![=]>()?;
         let parser = input.parse()?;
@@ -4726,9 +4727,7 @@ mod tests {
             Err(error) => error,
         };
         assert!(
-            error
-                .to_string()
-                .contains("alias rules must use `=`"),
+            error.to_string().contains("alias rules must use `=`"),
             "unexpected error: {error}"
         );
     }

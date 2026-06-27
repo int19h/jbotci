@@ -2657,12 +2657,38 @@ fn legacy_bridi_tail_uses_without_tail_terms_branch(
 fn legacy_bridi_tail_ke_continuation_is_gihek(
     continuation: &jbotci_syntax::ast::GroupedBridiTailConnectionSyntax,
 ) -> bool {
-    continuation
-        .connective
+    legacy_bridi_tail_connective_is_gihek(&continuation.connective)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_bridi_tail_connective_is_gihek(
+    connective: &jbotci_syntax::ast::ConnectiveSyntax,
+) -> bool {
+    connective
         .cmavo()
         .value
         .iter()
         .any(|token| token.is_selmaho(jbotci_morphology::Selmaho::Giha))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_tail_connective_tree_value(
+    connective: &jbotci_syntax::ast::ConnectiveSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let label = if legacy_bridi_tail_connective_is_gihek(connective) {
+        "gihek_connective"
+    } else {
+        "relation_connective_as_bridi_tail"
+    };
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "Connective",
+        label,
+        legacy_as_generated_connective_tree_value(connective, source, options),
+    )
 }
 
 #[requires(true)]
@@ -2806,7 +2832,11 @@ fn legacy_as_generated_bridi_tail_ke_continuation_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -2948,7 +2978,11 @@ fn legacy_as_generated_bridi_tail_connection_tree_value(
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
     }];
     if let Some(cu) = &continuation.cu {
         entries.push(TreeEntry {
@@ -3008,7 +3042,11 @@ fn legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
     }];
     if let Some(cu) = &continuation.cu {
         entries.push(TreeEntry {
@@ -3039,7 +3077,11 @@ fn legacy_as_generated_bound_bridi_tail_connection_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -3112,7 +3154,11 @@ fn legacy_as_generated_bound_bridi_tail_connection_without_tail_terms_tree_value
     );
     let mut entries = vec![TreeEntry {
         label: Some("connective"),
-        value: legacy_as_generated_connective_tree_value(&continuation.connective, source, options),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
     }];
     if let Some(tense_modal) = &continuation.tense_modal {
         entries.push(TreeEntry {
@@ -4641,9 +4687,7 @@ fn legacy_as_generated_termset_group_tree_value(
                         entries: vec![
                             TreeEntry {
                                 label: Some("cehe"),
-                                value: required_legacy_syntax_subtree_value(
-                                    cehe, source, options,
-                                ),
+                                value: required_legacy_syntax_subtree_value(cehe, source, options),
                             },
                             TreeEntry {
                                 label: Some("trailing_term"),
@@ -4660,9 +4704,7 @@ fn legacy_as_generated_termset_group_tree_value(
                         entries: vec![
                             TreeEntry {
                                 label: Some("cehe"),
-                                value: required_legacy_syntax_subtree_value(
-                                    cehe, source, options,
-                                ),
+                                value: required_legacy_syntax_subtree_value(cehe, source, options),
                             },
                             TreeEntry {
                                 label: Some("trailing_term"),
@@ -4717,9 +4759,7 @@ fn legacy_as_generated_pehe_termset_connection_tree_value(
                         entries: vec![
                             TreeEntry {
                                 label: Some("pehe"),
-                                value: required_legacy_syntax_subtree_value(
-                                    pehe, source, options,
-                                ),
+                                value: required_legacy_syntax_subtree_value(pehe, source, options),
                             },
                             TreeEntry {
                                 label: Some("connective"),
@@ -4742,9 +4782,7 @@ fn legacy_as_generated_pehe_termset_connection_tree_value(
                         entries: vec![
                             TreeEntry {
                                 label: Some("pehe"),
-                                value: required_legacy_syntax_subtree_value(
-                                    pehe, source, options,
-                                ),
+                                value: required_legacy_syntax_subtree_value(pehe, source, options),
                             },
                             TreeEntry {
                                 label: Some("connective"),
@@ -6331,11 +6369,7 @@ fn legacy_as_generated_sumti_base_tree_value(
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::LerfuStringSumti { letter, boi }) => {
             let mut entries = vec![TreeEntry {
                 label: Some("words"),
-                value: legacy_as_generated_letter_string_tree_value(
-                    &letter.value,
-                    source,
-                    options,
-                ),
+                value: legacy_as_generated_letter_string_tree_value(&letter.value, source, options),
             }];
             if let Some(entry) = labelled_tree_collection_entry_from_values(
                 "free_modifiers",
@@ -7178,17 +7212,15 @@ fn legacy_as_generated_quantifier_tree_value(
             vei,
             mekso,
             veho,
-        }) => {
-            TreeValue::Node(TreeNode {
-                constructor: "MeksoQuantifier",
-                entries: vec![TreeEntry {
-                    label: Some("mekso_quantifier"),
-                    value: legacy_as_generated_mekso_quantifier_tree_value(
-                        vei, mekso, veho, source, options,
-                    ),
-                }],
-            })
-        }
+        }) => TreeValue::Node(TreeNode {
+            constructor: "MeksoQuantifier",
+            entries: vec![TreeEntry {
+                label: Some("mekso_quantifier"),
+                value: legacy_as_generated_mekso_quantifier_tree_value(
+                    vei, mekso, veho, source, options,
+                ),
+            }],
+        }),
     }
 }
 
@@ -7984,9 +8016,7 @@ fn legacy_as_generated_mekso_precedence_tree_value(
                         entries: vec![
                             TreeEntry {
                                 label: Some("bihe"),
-                                value: required_legacy_syntax_subtree_value(
-                                    bihe, source, options,
-                                ),
+                                value: required_legacy_syntax_subtree_value(bihe, source, options),
                             },
                             TreeEntry {
                                 label: Some("operator"),
@@ -8126,12 +8156,11 @@ fn legacy_as_generated_mekso_operand_tree_value(
                             },
                             TreeEntry {
                                 label: Some("trailing_expression"),
-                                value:
-                                    legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                                        *trailing_expression,
-                                        source,
-                                        options,
-                                    ),
+                                value: legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+                                    *trailing_expression,
+                                    source,
+                                    options,
+                                ),
                             },
                         ],
                     })
@@ -8646,12 +8675,11 @@ fn legacy_as_generated_mekso_operator_tree_value(
                             },
                             TreeEntry {
                                 label: Some("trailing_operator"),
-                                value:
-                                    legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
-                                        trailing_operator,
-                                        source,
-                                        options,
-                                    ),
+                                value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+                                    trailing_operator,
+                                    source,
+                                    options,
+                                ),
                             },
                         ],
                     })
@@ -9221,13 +9249,12 @@ fn legacy_as_generated_number_words_entries(
             ));
             index += 1;
         } else {
-            let (letter, next_index) =
-                legacy_as_generated_letter_tokens_tree_value_from_slice(
-                    &words[index..],
-                    source,
-                    options,
-                )
-                .expect("legacy number continuation must be PA or lerfu word");
+            let (letter, next_index) = legacy_as_generated_letter_tokens_tree_value_from_slice(
+                &words[index..],
+                source,
+                options,
+            )
+            .expect("legacy number continuation must be PA or lerfu word");
             continuations.push(legacy_as_generated_wrapped_variant_tree_value(
                 "NumberWordLerfuContinuation",
                 "number_word_lerfu_continuation",
@@ -9239,8 +9266,7 @@ fn legacy_as_generated_number_words_entries(
             index += next_index;
         }
     }
-    if let Some(entry) =
-        labelled_tree_collection_entry_from_values("continuations", continuations)
+    if let Some(entry) = labelled_tree_collection_entry_from_values("continuations", continuations)
     {
         entries.push(entry);
     }
@@ -9291,12 +9317,11 @@ fn legacy_as_generated_letter_string_tree_value_from_slice(
             ));
             index += 1;
         } else if legacy_token_can_start_lerfu_word(&words[index]) {
-            let (letter, consumed) =
-                legacy_as_generated_letter_tokens_tree_value_from_slice(
-                    &words[index..],
-                    source,
-                    options,
-                )?;
+            let (letter, consumed) = legacy_as_generated_letter_tokens_tree_value_from_slice(
+                &words[index..],
+                source,
+                options,
+            )?;
             continuations.push(legacy_as_generated_wrapped_variant_tree_value(
                 "LetterStringLerfuContinuation",
                 "letter_string_lerfu_continuation",
@@ -9310,8 +9335,7 @@ fn legacy_as_generated_letter_string_tree_value_from_slice(
             break;
         }
     }
-    if let Some(entry) =
-        labelled_tree_collection_entry_from_values("continuations", continuations)
+    if let Some(entry) = labelled_tree_collection_entry_from_values("continuations", continuations)
     {
         entries.push(entry);
     }
@@ -10814,11 +10838,7 @@ fn legacy_as_generated_sumti_selbri_sumti_tree_value(
             constructor: "MeLerfuSumti",
             entries: vec![TreeEntry {
                 label: Some("words"),
-                value: legacy_as_generated_letter_string_tree_value(
-                    &letter.value,
-                    source,
-                    options,
-                ),
+                value: legacy_as_generated_letter_string_tree_value(&letter.value, source, options),
             }],
         });
     }
@@ -15228,7 +15248,7 @@ fn generated_bridi_statement_continuation_tree_value(
             let continuation = bo_bridi_statement_continuation;
             let mut entries = vec![TreeEntry {
                 label: Some("connective"),
-                value: generated_statement_connective_tree_value(
+                value: generated_bridi_tail_connective_tree_value(
                     &continuation.connective,
                     source,
                     options,
@@ -15554,6 +15574,18 @@ fn generated_statement_connective_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
+fn generated_bridi_tail_connective_tree_value(
+    connective: &generated_model::BridiTailConnectiveSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    collapse_value(required_generated_syntax_subtree_value(
+        connective, source, options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_paragraph_i_statement_connective_tree_value(
     connective: &generated_model::IParagraphStatementConnectiveSyntax,
     source: &str,
@@ -15630,9 +15662,7 @@ fn generated_i_statement_connective_tree_value(
                 extra.push(generated_with_free_modifiers_token_tree_value(
                     bo, source, options,
                 ));
-                generated_connective_tree_value_with_extra_words(
-                    connective, extra, source, options,
-                )
+                generated_connective_tree_value_with_extra_words(connective, extra, source, options)
             } else {
                 collapse_value(required_generated_syntax_subtree_value(
                     connective, source, options,
@@ -15788,10 +15818,7 @@ fn generated_connective_constructor(
         | generated_model::ConnectiveSyntax::GuhekForethoughtConnective { .. } => "Forethought",
         generated_model::ConnectiveSyntax::JoikJekGiForethoughtConnective {
             connective, ..
-        }
-        | generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
-            generated_connective_constructor(connective)
-        }
+        } => generated_connective_constructor(connective),
         generated_model::ConnectiveSyntax::JekGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ModalGiForethoughtConnective { .. }
         | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { .. } => {
@@ -15814,9 +15841,6 @@ fn generated_connective_has_bo(connective: &generated_model::ConnectiveSyntax) -
         | generated_model::ConnectiveSyntax::ZantufaInitialGiForethoughtConnective { bo, .. } => {
             bo.is_some()
         }
-        generated_model::ConnectiveSyntax::RelationConnectiveAsBridiTail { connective } => {
-            generated_connective_has_bo(connective)
-        }
         _ => false,
     }
 }
@@ -15831,9 +15855,7 @@ fn generated_i_statement_connective_has_bo(
             i_standard_statement_connective,
         } => {
             i_standard_statement_connective.tag_bo.is_some()
-                || generated_connective_has_bo(
-                    i_standard_statement_connective.connective.as_ref(),
-                )
+                || generated_connective_has_bo(i_standard_statement_connective.connective.as_ref())
         }
         generated_model::IStatementConnectiveSyntax::ITagBoStatementConnective { .. } => true,
     }

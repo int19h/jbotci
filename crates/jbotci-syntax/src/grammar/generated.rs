@@ -2144,19 +2144,14 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "bridi tail connective" bridi_tail_connective =
-        choice((
-            gihek_connective(),
-            relation_connective_as_bridi_tail(),
-        ));
+    rule "bridi tail connective" bridi_tail_connective -> enum {
+        gihek_connective,
+        relation_connective_as_bridi_tail,
+    }
 
-    product relation_connective_as_bridi_tail -> ConnectiveSyntax {
-        context "bridi tail connective";
-        construct variant RelationConnectiveAsBridiTail;
-        fields {
-            #[tree_child(primary)]
-            field connective = boxed(relation_afterthought_connective);
-        }
+    rule "bridi tail connective" relation_connective_as_bridi_tail -> struct {
+        #[tree_child(primary)]
+        field connective <- boxed(relation_afterthought_connective);
     }
 
     alias "forethought connective" modal_forethought_connective(tense_modal) =

@@ -472,10 +472,7 @@ mod new_dsl {
         );
 
         assert_eq!(SYNTAX_GRAMMAR_RULES[6].kind, "enum");
-        assert_eq!(
-            SYNTAX_GRAMMAR_RULES[6].output,
-            "ExternalItemChoiceSyntax"
-        );
+        assert_eq!(SYNTAX_GRAMMAR_RULES[6].output, "ExternalItemChoiceSyntax");
         assert_eq!(SYNTAX_GRAMMAR_RULES[6].fields[0].name, "external");
 
         assert_eq!(SYNTAX_GRAMMAR_RULES[7].kind, "alias");
