@@ -784,73 +784,55 @@ macro_rules! declare_generated_syntax_grammar {
         field sumti <- boxed(sumti);
     }
 
-    alias "tag" leading_term_tag_tense_modal(tense_modal, selbri) =
-        choice((
-            pu_before_nahe_leading_term_tag_tense(),
-            pu_distance_before_tag_leading_term_tag_tense(),
-            zi_before_zi_leading_term_tag_tense(),
-            va_before_va_leading_term_tag_tense(),
-            mohi_before_mohi_leading_term_tag_tense(),
-            caha_before_tag_leading_term_tag_tense(tense_modal),
-            interval_property_leading_term_tag_tense(selbri),
-            tense_modal,
-        ));
-
-    node pu_before_nahe_leading_term_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field pu = selmaho(Pu).wf();
-            field nai = opt(cmavo(Nai).wf());
-            require selmaho(Nahe).lookahead();
-        }
+    rule "tag" leading_term_tag_tense_modal(tense_modal, selbri) -> enum {
+        pu_before_nahe_leading_term_tag_tense,
+        pu_distance_before_tag_leading_term_tag_tense,
+        zi_before_zi_leading_term_tag_tense,
+        va_before_va_leading_term_tag_tense,
+        mohi_before_mohi_leading_term_tag_tense,
+        caha_before_tag_leading_term_tag_tense,
+        interval_property_leading_term_tag_tense,
+        tense_modal,
     }
 
-    node pu_distance_before_tag_leading_term_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field pu = selmaho(Pu).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field distance = selmaho(Zi).wf();
-            require selmaho(Zi).lookahead();
-        }
+    rule "tag" pu_before_nahe_leading_term_tag_tense -> struct {
+        field pu <- selmaho(Pu).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        assert selmaho(Nahe);
     }
 
-    node zi_before_zi_leading_term_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field zi = selmaho(Zi).wf();
-            require selmaho(Zi).lookahead();
-        }
+    rule "tag" pu_distance_before_tag_leading_term_tag_tense -> struct {
+        field pu <- selmaho(Pu).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field distance <- selmaho(Zi).wf();
+        assert selmaho(Zi);
     }
 
-    node va_before_va_leading_term_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field va = selmaho(Va).wf();
-            require selmaho(Va).lookahead();
-        }
+    rule "tag" zi_before_zi_leading_term_tag_tense -> struct {
+        field zi <- selmaho(Zi).wf();
+        assert selmaho(Zi);
     }
 
-    node mohi_before_mohi_leading_term_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field mohi = selmaho(Mohi).wf();
-            field direction = selmaho(Faha).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field distance = opt(selmaho(Va).wf());
-            require selmaho(Mohi).lookahead();
-        }
+    rule "tag" va_before_va_leading_term_tag_tense -> struct {
+        field va <- selmaho(Va).wf();
+        assert selmaho(Va);
     }
 
-    node caha_before_tag_leading_term_tag_tense(tense_modal) -> TenseModalSyntax {
-        context "tag";
-        construct tuple_variant Actuality;
-        fields {
-            field caha = selmaho(Caha).wf().followed_by(tense_modal.lookahead());
-        }
+    rule "tag" mohi_before_mohi_leading_term_tag_tense -> struct {
+        field mohi <- selmaho(Mohi).wf();
+        field direction <- selmaho(Faha).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field distance <- opt(selmaho(Va).wf());
+        assert selmaho(Mohi);
     }
 
-    alias "interval property" interval_property_leading_term_tag_tense(selbri) = interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead());
+    rule "tag" caha_before_tag_leading_term_tag_tense(tense_modal) -> struct {
+        field caha <- selmaho(Caha).wf().followed_by(tense_modal.lookahead());
+    }
+
+    rule "interval property" interval_property_leading_term_tag_tense(selbri) -> struct {
+        field property <- boxed(interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead()));
+    }
 
     alias "tag" leading_interval_property_follower(selbri) =
         choice((

@@ -2519,6 +2519,22 @@ fn legacy_as_generated_wrapped_variant_tree_value(
     })
 }
 
+#[requires(!constructor.is_empty() && !label.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_existing_variant_payload_tree_value(
+    constructor: &'static str,
+    label: &'static str,
+    value: TreeValue,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor,
+        entries: vec![TreeEntry {
+            label: Some(label),
+            value,
+        }],
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn legacy_as_generated_post_cu_bridi_tail_tree_value(
@@ -4185,6 +4201,7 @@ fn legacy_as_generated_simple_term_tree_value(
             if let Some((tense_modal, None, free_modifiers)) =
                 legacy_elided_tense_tagged_sumti_parts(sumti.as_ref())
                 && free_modifiers.is_empty()
+                && legacy_tense_modal_has_following_tense_modal(tense_modal)
                 && let Some(tense_modal) =
                     legacy_as_generated_leading_term_tag_tense_modal_tree_value(
                         tense_modal,
@@ -4266,7 +4283,7 @@ fn legacy_as_generated_simple_term_tree_value(
         }
         bityzba::data!(jbotci_syntax::ast::TermSyntax::TaggedSumti { tense_modal, sumti }) => {
             let mut entries = Vec::new();
-            let before_tag_tense_modal = tense_modal.as_ref().and_then(|tense_modal| {
+            let mut before_tag_tense_modal = tense_modal.as_ref().and_then(|tense_modal| {
                 legacy_as_generated_leading_term_tag_tense_modal_tree_value(
                     tense_modal.as_ref(),
                     source,
@@ -4274,8 +4291,14 @@ fn legacy_as_generated_simple_term_tree_value(
                 )
             });
             if legacy_is_empty_elided_sumti(sumti.as_ref())
-                && let Some(tense_modal) = before_tag_tense_modal
+                && tense_modal.as_ref().is_some_and(|tense_modal| {
+                    legacy_tense_modal_has_following_tense_modal(tense_modal.as_ref())
+                })
+                && before_tag_tense_modal.is_some()
             {
+                let tense_modal = before_tag_tense_modal
+                    .take()
+                    .expect("presence checked above");
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
                     value: tense_modal,
@@ -4286,14 +4309,10 @@ fn legacy_as_generated_simple_term_tree_value(
                     entries,
                 );
             }
-            if let Some(tense_modal) = tense_modal {
+            if let Some(tense_modal) = before_tag_tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
-                    value: legacy_as_generated_tense_modal_tree_value(
-                        tense_modal.as_ref(),
-                        source,
-                        options,
-                    ),
+                    value: tense_modal,
                 });
             }
             entries.push(TreeEntry {
@@ -10959,6 +10978,17 @@ fn legacy_as_generated_leading_term_tag_tense_modal_tree_value(
     match tense_modal.as_data() {
         bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Composite { parts }) => {
             legacy_as_generated_leading_term_tag_composite_tense_value(parts, source, options)
+                .or_else(|| {
+                    Some(
+                        legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                            legacy_as_generated_tense_modal_tree_value(
+                                tense_modal,
+                                source,
+                                options,
+                            ),
+                        ),
+                    )
+                })
         }
         bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::TimeDirection(_))
         | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::TimeDirectionDistance { .. })
@@ -10969,17 +10999,11 @@ fn legacy_as_generated_leading_term_tag_tense_modal_tree_value(
         | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::SpaceMovement { .. })
         | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Modal { .. })
         | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Sticky(_))
-        | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::AdHocModal { .. }) => {
-            if legacy_tense_modal_has_following_tense_modal(tense_modal) {
-                Some(legacy_as_generated_tense_modal_tree_value(
-                    tense_modal,
-                    source,
-                    options,
-                ))
-            } else {
-                None
-            }
-        }
+        | bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::AdHocModal { .. }) => Some(
+            legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                legacy_as_generated_tense_modal_tree_value(tense_modal, source, options),
+            ),
+        ),
         bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::Actuality(caha)) => {
             let next =
                 legacy_next_tree_token_after_with_free_modifiers(&caha.value, &caha.free_modifiers);
@@ -10987,17 +11011,32 @@ fn legacy_as_generated_leading_term_tag_tense_modal_tree_value(
                 .as_ref()
                 .is_some_and(legacy_token_can_start_tense_modal)
             {
-                Some(legacy_as_generated_tense_modal_tree_value(
-                    tense_modal,
-                    source,
-                    options,
+                Some(legacy_as_generated_wrapped_variant_tree_value(
+                    "CahaBeforeTagLeadingTermTagTense",
+                    "caha_before_tag_leading_term_tag_tense",
+                    legacy_token_field_entries("caha", caha, source, options),
                 ))
             } else {
-                None
+                Some(
+                    legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                        legacy_as_generated_tense_modal_tree_value(tense_modal, source, options),
+                    ),
+                )
             }
         }
         bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::EventContour(words)) => {
             legacy_as_generated_leading_term_tag_event_contour_tense_value(words, source, options)
+                .or_else(|| {
+                    Some(
+                        legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                            legacy_as_generated_tense_modal_tree_value(
+                                tense_modal,
+                                source,
+                                options,
+                            ),
+                        ),
+                    )
+                })
         }
         bityzba::data!(jbotci_syntax::ast::TenseModalSyntax::IntervalProperty {
             number,
@@ -11009,8 +11048,36 @@ fn legacy_as_generated_leading_term_tag_tense_modal_tree_value(
             nai.as_ref(),
             source,
             options,
-        ),
+        )
+        .or_else(|| {
+            Some(
+                legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                    legacy_as_generated_tense_modal_tree_value(tense_modal, source, options),
+                ),
+            )
+        }),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_leading_term_tag_tense_modal_branch_value(value: TreeValue) -> TreeValue {
+    legacy_as_generated_existing_variant_payload_tree_value("TenseModal", "tense_modal", value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_interval_property_leading_term_tag_tense_branch_value(
+    value: TreeValue,
+) -> TreeValue {
+    legacy_as_generated_wrapped_variant_tree_value(
+        "IntervalPropertyLeadingTermTagTense",
+        "interval_property_leading_term_tag_tense",
+        vec![TreeEntry {
+            label: Some("property"),
+            value,
+        }],
+    )
 }
 
 #[requires(true)]
@@ -11046,10 +11113,11 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
                     options,
                 ));
             }
-            return Some(TreeValue::Node(TreeNode {
-                constructor: "PuBeforeNaheLeadingTermTagTense",
+            return Some(legacy_as_generated_wrapped_variant_tree_value(
+                "PuBeforeNaheLeadingTermTagTense",
+                "pu_before_nahe_leading_term_tag_tense",
                 entries,
-            }));
+            ));
         }
     }
 
@@ -11084,10 +11152,11 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
                 source,
                 options,
             ));
-            return Some(TreeValue::Node(TreeNode {
-                constructor: "PuDistanceBeforeTagLeadingTermTagTense",
+            return Some(legacy_as_generated_wrapped_variant_tree_value(
+                "PuDistanceBeforeTagLeadingTermTagTense",
+                "pu_distance_before_tag_leading_term_tag_tense",
                 entries,
-            }));
+            ));
         }
     }
 
@@ -11098,9 +11167,10 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
             .as_ref()
             .is_some_and(|token| token.is_selmaho(Selmaho::Zi))
         {
-            return Some(TreeValue::Node(TreeNode {
-                constructor: "ZiBeforeZiLeadingTermTagTense",
-                entries: vec![leading_term_tag_token_entry(
+            return Some(legacy_as_generated_wrapped_variant_tree_value(
+                "ZiBeforeZiLeadingTermTagTense",
+                "zi_before_zi_leading_term_tag_tense",
+                vec![leading_term_tag_token_entry(
                     "zi",
                     zi,
                     true,
@@ -11108,7 +11178,7 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
                     source,
                     options,
                 )],
-            }));
+            ));
         }
     }
 
@@ -11119,9 +11189,10 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
             .as_ref()
             .is_some_and(|token| token.is_selmaho(Selmaho::Va))
         {
-            return Some(TreeValue::Node(TreeNode {
-                constructor: "VaBeforeVaLeadingTermTagTense",
-                entries: vec![leading_term_tag_token_entry(
+            return Some(legacy_as_generated_wrapped_variant_tree_value(
+                "VaBeforeVaLeadingTermTagTense",
+                "va_before_va_leading_term_tag_tense",
+                vec![leading_term_tag_token_entry(
                     "va",
                     va,
                     true,
@@ -11129,7 +11200,7 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
                     source,
                     options,
                 )],
-            }));
+            ));
         }
     }
 
@@ -11169,10 +11240,11 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
                     options,
                 ));
             }
-            return Some(TreeValue::Node(TreeNode {
-                constructor: "MohiBeforeMohiLeadingTermTagTense",
+            return Some(legacy_as_generated_wrapped_variant_tree_value(
+                "MohiBeforeMohiLeadingTermTagTense",
+                "mohi_before_mohi_leading_term_tag_tense",
                 entries,
-            }));
+            ));
         }
     }
 
@@ -11184,7 +11256,9 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
             options,
         )
     {
-        return Some(value);
+        return Some(
+            legacy_as_generated_interval_property_leading_term_tag_tense_branch_value(value),
+        );
     }
 
     if next
@@ -11194,12 +11268,16 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
         && let Some(value) =
             legacy_as_generated_single_composite_tense_token_tree_value(token, source, options)
     {
-        return Some(legacy_attach_free_modifiers_to_rightmost_tense_leaf(
-            value,
-            free_modifiers,
-            source,
-            options,
-        ));
+        return Some(
+            legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+                    value,
+                    free_modifiers,
+                    source,
+                    options,
+                ),
+            ),
+        );
     }
 
     if next
@@ -11209,21 +11287,29 @@ fn legacy_as_generated_leading_term_tag_composite_tense_value(
         && let Some(value) =
             legacy_as_generated_time_space_caha_inner_tense_value(&tokens, source, options)
     {
-        return Some(legacy_attach_free_modifiers_to_rightmost_tense_leaf(
-            TreeValue::Node(TreeNode {
-                constructor: "TimeSpaceCahaKiTense",
-                entries: vec![TreeEntry {
-                    label: Some("tense"),
-                    value,
-                }],
-            }),
-            free_modifiers,
-            source,
-            options,
-        ));
+        return Some(
+            legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+                legacy_attach_free_modifiers_to_rightmost_tense_leaf(
+                    TreeValue::Node(TreeNode {
+                        constructor: "TimeSpaceCahaKiTense",
+                        entries: vec![TreeEntry {
+                            label: Some("tense"),
+                            value,
+                        }],
+                    }),
+                    free_modifiers,
+                    source,
+                    options,
+                ),
+            ),
+        );
     }
 
-    None
+    Some(
+        legacy_as_generated_leading_term_tag_tense_modal_branch_value(
+            legacy_as_generated_composite_tense_modal_tree_value(parts, source, options),
+        ),
+    )
 }
 
 #[requires(true)]
@@ -11262,17 +11348,21 @@ fn legacy_as_generated_leading_term_tag_event_contour_tense_value(
     if !legacy_interval_property_tense_has_follower(zaho, &words.free_modifiers) {
         return None;
     }
-    Some(TreeValue::Node(TreeNode {
-        constructor: "ZahoIntervalPropertyTense",
-        entries: vec![leading_term_tag_token_entry(
-            "zaho",
-            zaho,
-            true,
-            &words.free_modifiers,
-            source,
-            options,
-        )],
-    }))
+    Some(
+        legacy_as_generated_interval_property_leading_term_tag_tense_branch_value(TreeValue::Node(
+            TreeNode {
+                constructor: "ZahoIntervalPropertyTense",
+                entries: vec![leading_term_tag_token_entry(
+                    "zaho",
+                    zaho,
+                    true,
+                    &words.free_modifiers,
+                    source,
+                    options,
+                )],
+            },
+        )),
+    )
 }
 
 #[requires(true)]
@@ -11309,10 +11399,14 @@ fn legacy_as_generated_leading_term_tag_interval_property_tense_value(
         if let Some(nai) = nai {
             entries.extend(legacy_token_field_entries("nai", nai, source, options));
         }
-        return Some(TreeValue::Node(TreeNode {
-            constructor: "NumberedIntervalPropertyTense",
-            entries,
-        }));
+        return Some(
+            legacy_as_generated_interval_property_leading_term_tag_tense_branch_value(
+                TreeValue::Node(TreeNode {
+                    constructor: "NumberedIntervalPropertyTense",
+                    entries,
+                }),
+            ),
+        );
     }
 
     if roi_or_tahe.value.is_selmaho(Selmaho::Tahe) {
@@ -11320,10 +11414,14 @@ fn legacy_as_generated_leading_term_tag_interval_property_tense_value(
         if let Some(nai) = nai {
             entries.extend(legacy_token_field_entries("nai", nai, source, options));
         }
-        return Some(TreeValue::Node(TreeNode {
-            constructor: "TaheIntervalPropertyTense",
-            entries,
-        }));
+        return Some(
+            legacy_as_generated_interval_property_leading_term_tag_tense_branch_value(
+                TreeValue::Node(TreeNode {
+                    constructor: "TaheIntervalPropertyTense",
+                    entries,
+                }),
+            ),
+        );
     }
 
     None
