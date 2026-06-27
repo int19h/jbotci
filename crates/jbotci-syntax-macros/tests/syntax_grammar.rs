@@ -55,7 +55,7 @@ jbotci_syntax_macros::syntax_grammar! {
     rule "bo sumti tail" bo_sumti_tail -> struct {
         field connective <- choice(joik(), jek());
         field bo <- cmavo(Bo).wf();
-        field maybe_bo <- some(cmavo(Bo));
+        field maybe_bo <- opt(cmavo(Bo));
     }
 }
 
@@ -164,7 +164,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[2].name, "maybe_bo");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[2].fields[2].recovery,
-        SyntaxGrammarRecoveryExpr::Some(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+        SyntaxGrammarRecoveryExpr::Opt(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
     );
 }
 

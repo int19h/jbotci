@@ -173,7 +173,6 @@ impl SyntaxGrammar {
                 Opt(&'static SyntaxGrammarRecoveryExpr),
                 Many(&'static SyntaxGrammarRecoveryExpr),
                 Many1(&'static SyntaxGrammarRecoveryExpr),
-                Some(&'static SyntaxGrammarRecoveryExpr),
                 Boxed(&'static SyntaxGrammarRecoveryExpr),
                 Arc(&'static SyntaxGrammarRecoveryExpr),
                 WithFreeModifiers(&'static SyntaxGrammarRecoveryExpr),
@@ -2612,16 +2611,6 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::strict_optional(#inner)))
         }
-        ("some", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(#inner.map(Some)))
-        }
         ("boxed", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -3162,14 +3151,6 @@ fn call_rust_parser_output_type(
         ("raw_words_until", _) if !call.args.is_empty() => Some(quote!(Vec<Token>)),
         ("feature" | "policy", 1) => Some(quote!(())),
         ("opt", 1) => {
-            let inner = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(Option<#inner>))
-        }
-        ("some", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
@@ -3756,7 +3737,6 @@ enum RecoveryExpr {
     Opt(Box<RecoveryExpr>),
     Many(Box<RecoveryExpr>),
     Many1(Box<RecoveryExpr>),
-    Some(Box<RecoveryExpr>),
     Boxed(Box<RecoveryExpr>),
     Arc(Box<RecoveryExpr>),
     WithFreeModifiers(Box<RecoveryExpr>),
@@ -3806,10 +3786,6 @@ impl RecoveryExpr {
             RecoveryExpr::Many1(inner) => {
                 let inner = inner.expand();
                 quote!(SyntaxGrammarRecoveryExpr::Many1(&#inner))
-            }
-            RecoveryExpr::Some(inner) => {
-                let inner = inner.expand();
-                quote!(SyntaxGrammarRecoveryExpr::Some(&#inner))
             }
             RecoveryExpr::Boxed(inner) => {
                 let inner = inner.expand();
@@ -4032,9 +4008,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             .map(RecoveryExpr::Cmavo)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
         ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments))),
-        ("some", 1) => {
-            RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
         ("feature" | "policy", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
         ("boxed", 1) => {
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))

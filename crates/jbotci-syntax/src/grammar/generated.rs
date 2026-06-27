@@ -134,7 +134,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "paragraph" i_niho_paragraph(statement_or_fragment, free_modifier) -> struct {
-        field i <- some(cmavo(I));
+        field i <- cmavo(I);
         field niho <- [one_or_more selmaho(Niho)];
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
@@ -150,11 +150,11 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "paragraph statement" initial_paragraph_statement(statement_or_fragment) -> struct {
         #[tree_child(primary)]
-        field statement <- some(boxed(statement_or_fragment));
+        field statement <- boxed(statement_or_fragment);
     }
 
     rule "paragraph statement" following_paragraph_statement(statement_or_fragment, free_modifier) -> struct {
-        field i <- some(cmavo(I));
+        field i <- cmavo(I);
         assert !statement_connective;
         field free_modifiers <- [zero_or_more free_modifier];
         #[tree_child(primary)]
@@ -361,17 +361,17 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "bridi" bridi_with_post_cu_terms(term, bridi_tail) -> struct {
         field leading_terms <- [one_or_more term];
-        field cu <- some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
+        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
         field bridi_tail <- boxed(cu_terms_bridi_tail(term, bridi_tail));
     }
 
     rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
-        field cu <- some(arc(cmavo(Cu).wf()));
+        field cu <- arc(cmavo(Cu).wf());
         field bridi_tail <- boxed(bridi_tail);
     }
 
     rule "bridi" bare_cu_terms_bridi(term, bridi_tail) -> struct {
-        field cu <- some(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
+        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
         field bridi_tail <- boxed(cu_terms_bridi_tail(term, bridi_tail));
     }
 
@@ -704,13 +704,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "NOIhA adverbial" noiha_variable_adverbial_term(selbri) -> struct {
         field poiha <- selmaho(Noiha).wf();
-        field selbri <- some(boxed(selbri));
+        field selbri <- boxed(selbri);
         field brigahi_ku <- cmavo(Ku).warn(ExperimentalZantufaPoihaBrigahi).wf();
     }
 
     rule "NOIhA adverbial" noiha_relative_adverbial_term(selbri) -> struct {
         field noiha <- selmaho(Noiha).wf();
-        field selbri <- some(boxed(selbri));
+        field selbri <- boxed(selbri);
         field fehu <- opt(cmavo(Fehu).wf());
     }
 
@@ -765,7 +765,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "tag" tagged_sumti_term(tense_modal, sumti, selbri) -> struct {
         assert !modal_forethought_connective(tense_modal);
-        field tense_modal <- some(boxed(leading_term_tag_tense_modal(tense_modal, selbri)));
+        field tense_modal <- boxed(leading_term_tag_tense_modal(tense_modal, selbri));
         assert !selbri;
         field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
@@ -912,7 +912,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "sumti relative phrase" vuho_connected_sumti_attachment_tail(sumti) -> struct {
         field vuho <- cmavo(Vuho).wf();
-        field sumti_connection <- some(boxed(sumti_connection_tail(sumti)));
+        field sumti_connection <- boxed(sumti_connection_tail(sumti));
     }
 
     rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
@@ -1647,7 +1647,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "replacement free modifier" full_text_replacement_free_modifier -> struct {
-        field lohai <- some(cmavo(Lohai));
+        field lohai <- cmavo(Lohai);
         field old_words <- raw_words_until(Sahai, Lehai);
         field sahai <- opt(cmavo(Sahai));
         field new_words <- raw_words_until(Lehai);
@@ -1655,7 +1655,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "replacement free modifier" new_only_text_replacement_free_modifier -> struct {
-        field sahai <- some(cmavo(Sahai));
+        field sahai <- cmavo(Sahai);
         field new_words <- raw_words_until(Lehai);
         field lehai <- cmavo(Lehai).wf();
     }
