@@ -7715,12 +7715,23 @@ fn legacy_reverse_polish_expression_parts(
         }) => {
             let (first_operand, mut tails) =
                 legacy_reverse_polish_expression_parts(left, source, options);
-            tails.push(TreeValue::Collection(vec![
-                legacy_as_generated_reverse_polish_expression_parts_tree_value(
-                    right, source, options,
-                ),
-                legacy_as_generated_mekso_operator_tree_value(operator, source, options),
-            ]));
+            tails.push(TreeValue::Node(TreeNode {
+                constructor: "ReversePolishPartsTail",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("right_parts"),
+                        value: legacy_as_generated_reverse_polish_expression_parts_tree_value(
+                            right, source, options,
+                        ),
+                    },
+                    TreeEntry {
+                        label: Some("operator"),
+                        value: legacy_as_generated_mekso_operator_tree_value(
+                            operator, source, options,
+                        ),
+                    },
+                ],
+            }));
             (first_operand, tails)
         }
     }
@@ -7824,14 +7835,27 @@ fn legacy_mekso_infix_parts<'tree>(
         }) => {
             let (first_expression, mut continuations) =
                 legacy_mekso_infix_parts(left_expression.as_ref(), source, options);
-            continuations.push(TreeValue::Collection(vec![
-                legacy_as_generated_mekso_operator_tree_value(operator.as_ref(), source, options),
-                legacy_as_generated_mekso_precedence_tree_value(
-                    right_expression.as_ref(),
-                    source,
-                    options,
-                ),
-            ]));
+            continuations.push(TreeValue::Node(TreeNode {
+                constructor: "InfixMeksoContinuation",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("operator"),
+                        value: legacy_as_generated_mekso_operator_tree_value(
+                            operator.as_ref(),
+                            source,
+                            options,
+                        ),
+                    },
+                    TreeEntry {
+                        label: Some("right_expression"),
+                        value: legacy_as_generated_mekso_precedence_tree_value(
+                            right_expression.as_ref(),
+                            source,
+                            options,
+                        ),
+                    },
+                ],
+            }));
             (first_expression, continuations)
         }
         _ => (mekso, Vec::new()),

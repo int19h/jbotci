@@ -1161,7 +1161,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "mex" infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
         field first_expression <- boxed(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
-        field continuations <- [zero_or_more (boxed(mekso_operator), boxed(mekso_precedence))];
+        field continuations <- [zero_or_more infix_mekso_continuation(mekso_precedence, mekso_operator)];
+    }
+
+    rule "mex continuation" infix_mekso_continuation(mekso_precedence, mekso_operator) -> struct {
+        field operator <- boxed(mekso_operator);
+        field right_expression <- boxed(mekso_precedence);
     }
 
     rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
@@ -1178,7 +1183,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
         field first_operand <- boxed(mekso_operand);
-        field tails <- [zero_or_more (boxed(reverse_polish_parts), mekso_operator)];
+        field tails <- [zero_or_more reverse_polish_parts_tail(reverse_polish_parts, mekso_operator)];
+    }
+
+    rule "reverse Polish mex tail" reverse_polish_parts_tail(reverse_polish_parts, mekso_operator) -> struct {
+        field right_parts <- boxed(reverse_polish_parts);
+        field operator <- mekso_operator;
     }
 
     rule "reverse Polish mex" reverse_polish_mekso(reverse_polish_parts) -> struct {
