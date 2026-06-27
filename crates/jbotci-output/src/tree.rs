@@ -5900,7 +5900,7 @@ fn legacy_as_generated_simple_sumti_tree_value(
     {
         let mut entries = vec![TreeEntry {
             label: Some("base_sumti"),
-            value: legacy_as_generated_sumti_base_tree_value(base_sumti.as_ref(), source, options),
+            value: legacy_as_generated_sumti_atom_tree_value(base_sumti.as_ref(), source, options),
         }];
         if let Some(vuho) = vuho {
             entries.push(TreeEntry {
@@ -5924,8 +5924,62 @@ fn legacy_as_generated_simple_sumti_tree_value(
         constructor: "SimpleSumti",
         entries: vec![TreeEntry {
             label: Some("base_sumti"),
-            value: legacy_as_generated_sumti_base_tree_value(sumti, source, options),
+            value: legacy_as_generated_sumti_atom_tree_value(sumti, source, options),
         }],
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_sumti_atom_tree_value(
+    sumti: &jbotci_syntax::ast::SumtiSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if let bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QuantifiedSumti {
+        quantifier,
+        inner_sumti,
+    }) = sumti.as_data()
+    {
+        return legacy_as_generated_existing_variant_payload_tree_value(
+            "QuantifiedSumti",
+            "quantified_sumti",
+            legacy_as_generated_quantified_sumti_tree_value(
+                quantifier,
+                inner_sumti.as_ref(),
+                source,
+                options,
+            ),
+        );
+    }
+
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "Sumti",
+        "sumti_base",
+        legacy_as_generated_sumti_base_tree_value(sumti, source, options),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_quantified_sumti_tree_value(
+    quantifier: &jbotci_syntax::ast::QuantifierSyntax,
+    inner_sumti: &jbotci_syntax::ast::SumtiSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "QuantifiedSumti",
+        entries: vec![
+            TreeEntry {
+                label: Some("quantifier"),
+                value: legacy_as_generated_quantifier_tree_value(quantifier, source, options),
+            },
+            TreeEntry {
+                label: Some("inner_sumti"),
+                value: legacy_as_generated_sumti_base_tree_value(inner_sumti, source, options),
+            },
+        ],
     })
 }
 
@@ -5940,23 +5994,12 @@ fn legacy_as_generated_sumti_base_tree_value(
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::QuantifiedSumti {
             quantifier,
             inner_sumti,
-        }) => TreeValue::Node(TreeNode {
-            constructor: "QuantifiedSumti",
-            entries: vec![
-                TreeEntry {
-                    label: Some("quantifier"),
-                    value: legacy_as_generated_quantifier_tree_value(quantifier, source, options),
-                },
-                TreeEntry {
-                    label: Some("inner_sumti"),
-                    value: legacy_as_generated_sumti_base_tree_value(
-                        inner_sumti.as_ref(),
-                        source,
-                        options,
-                    ),
-                },
-            ],
-        }),
+        }) => legacy_as_generated_quantified_sumti_tree_value(
+            quantifier,
+            inner_sumti.as_ref(),
+            source,
+            options,
+        ),
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ReferentSumti {
             lahe,
             relative_clauses,

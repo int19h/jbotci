@@ -902,11 +902,10 @@ macro_rules! declare_generated_syntax_grammar {
         field relative_clauses <- opt((relative_clause_atom(sumti, subbridi, tense_modal), many(relative_clause_tail(sumti, subbridi, tense_modal))));
     }
 
-    alias "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) =
-        choice((
-            sumti_base,
-            quantified_sumti(sumti_base, mekso, letter_tokens),
-        ));
+    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> enum {
+        sumti_base,
+        quantified_sumti,
+    }
 
     alias "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) =
         choice((
@@ -928,13 +927,9 @@ macro_rules! declare_generated_syntax_grammar {
             pro_sumti(),
         ));
 
-    node quantified_sumti(sumti_base, mekso, letter_tokens) -> SumtiSyntax {
-        context "quantified sumti";
-        construct variant QuantifiedSumti;
-        fields {
-            field quantifier = quantifier(mekso, letter_tokens);
-            field inner_sumti = boxed(sumti_base);
-        }
+    rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens) -> struct {
+        field quantifier <- quantifier(mekso, letter_tokens);
+        field inner_sumti <- boxed(sumti_base);
     }
 
     rule "sumti relative phrase" sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
