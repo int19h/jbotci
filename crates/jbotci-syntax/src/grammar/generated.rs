@@ -14,10 +14,19 @@ use super::tokens::{
 use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
 use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
 
-macro_rules! declare_generated_syntax_grammar {
-    ($($prefix:tt)*) => {
-        jbotci_syntax_macros::syntax_grammar! {
-            $($prefix)*
+#[doc(hidden)]
+pub mod generated_model {
+    #![allow(dead_code)]
+
+    use super::*;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        tree_model {
+            #![tree_with_free_modifiers]
+        }
+        model;
+        env generated_runtime::SyntaxGrammarEnv;
+        strict_parsers;
 
     recursive {
         text: TextSyntax;
@@ -2722,23 +2731,6 @@ macro_rules! declare_generated_syntax_grammar {
         field nu <- selmaho(Nu).wf();
         field nai <- opt(cmavo(Nai).wf());
     }
-        }
-    };
-}
-
-#[doc(hidden)]
-pub mod generated_model {
-    #![allow(dead_code)]
-
-    use super::*;
-
-    declare_generated_syntax_grammar! {
-        tree_model {
-            #![tree_with_free_modifiers]
-        }
-        model;
-        env generated_runtime::SyntaxGrammarEnv;
-        strict_parsers;
     }
 
     #[bityzba::invariant(true)]
