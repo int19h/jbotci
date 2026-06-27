@@ -4986,7 +4986,9 @@ fn legacy_as_generated_free_modifier_tree_value(
             let mut entries = vec![
                 TreeEntry {
                     label: Some("number"),
-                    value: legacy_word_run_tree_value(number, source, options),
+                    value: legacy_as_generated_number_or_letter_words_tree_value(
+                        number, source, options,
+                    ),
                 },
                 TreeEntry {
                     label: Some("mai"),
@@ -6329,7 +6331,11 @@ fn legacy_as_generated_sumti_base_tree_value(
         bityzba::data!(jbotci_syntax::ast::SumtiSyntax::LerfuStringSumti { letter, boi }) => {
             let mut entries = vec![TreeEntry {
                 label: Some("words"),
-                value: legacy_word_run_tree_value(&letter.value, source, options),
+                value: legacy_as_generated_letter_string_tree_value(
+                    &letter.value,
+                    source,
+                    options,
+                ),
             }];
             if let Some(entry) = labelled_tree_collection_entry_from_values(
                 "free_modifiers",
@@ -7196,7 +7202,7 @@ fn legacy_as_generated_pa_run_quantifier_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("number"),
-        value: legacy_word_run_tree_value(&number.value, source, options),
+        value: legacy_as_generated_number_words_tree_value(&number.value, source, options),
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
@@ -8583,7 +8589,7 @@ fn legacy_as_generated_lerfu_string_mekso_tree_value(
 ) -> TreeValue {
     let mut entries = vec![TreeEntry {
         label: Some("letters"),
-        value: legacy_word_run_tree_value(&letters.value, source, options),
+        value: legacy_as_generated_letter_string_tree_value(&letters.value, source, options),
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
@@ -9144,6 +9150,262 @@ fn legacy_word_run_tree_value(
             .map(|token| generated_token_tree_value(token, source, options))
             .collect(),
     )
+}
+
+#[requires(!words.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_number_or_letter_words_tree_value(
+    words: &jbotci_syntax::ast::WordRun,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    if words[0].is_selmaho(Selmaho::Pa) {
+        legacy_as_generated_wrapped_variant_tree_value(
+            "NumberWords",
+            "number_words",
+            legacy_as_generated_number_words_entries(words, source, options),
+        )
+    } else {
+        let TreeValue::Node(node) =
+            legacy_as_generated_letter_string_tree_value(words, source, options)
+        else {
+            unreachable!("letter string renderer always returns a node")
+        };
+        legacy_as_generated_wrapped_variant_tree_value(
+            "LetterString",
+            "letter_string",
+            node.entries,
+        )
+    }
+}
+
+#[requires(!words.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_number_words_tree_value(
+    words: &jbotci_syntax::ast::WordRun,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    TreeValue::Node(TreeNode {
+        constructor: "NumberWords",
+        entries: legacy_as_generated_number_words_entries(words, source, options),
+    })
+}
+
+#[requires(!words.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_number_words_entries(
+    words: &jbotci_syntax::ast::WordRun,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Vec<TreeEntry> {
+    assert!(
+        words[0].is_selmaho(Selmaho::Pa),
+        "legacy number run must start with PA"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("first_number"),
+        value: generated_token_tree_value(&words[0], source, options),
+    }];
+    let mut index = 1usize;
+    let mut continuations = Vec::new();
+    while index < words.len() {
+        if words[index].is_selmaho(Selmaho::Pa) {
+            continuations.push(legacy_as_generated_wrapped_variant_tree_value(
+                "NumberWordPaContinuation",
+                "number_word_pa_continuation",
+                vec![TreeEntry {
+                    label: Some("pa"),
+                    value: generated_token_tree_value(&words[index], source, options),
+                }],
+            ));
+            index += 1;
+        } else {
+            let (letter, next_index) =
+                legacy_as_generated_letter_tokens_tree_value_from_slice(
+                    &words[index..],
+                    source,
+                    options,
+                )
+                .expect("legacy number continuation must be PA or lerfu word");
+            continuations.push(legacy_as_generated_wrapped_variant_tree_value(
+                "NumberWordLerfuContinuation",
+                "number_word_lerfu_continuation",
+                vec![TreeEntry {
+                    label: Some("letter"),
+                    value: letter,
+                }],
+            ));
+            index += next_index;
+        }
+    }
+    if let Some(entry) =
+        labelled_tree_collection_entry_from_values("continuations", continuations)
+    {
+        entries.push(entry);
+    }
+    entries
+}
+
+#[requires(!words.is_empty())]
+#[ensures(true)]
+fn legacy_as_generated_letter_string_tree_value(
+    words: &jbotci_syntax::ast::WordRun,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    let (value, consumed) =
+        legacy_as_generated_letter_string_tree_value_from_slice(words, source, options)
+            .expect("legacy lerfu string must start with a lerfu word");
+    assert_eq!(
+        consumed,
+        words.len(),
+        "legacy lerfu string renderer must consume the whole word run"
+    );
+    value
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_letter_string_tree_value_from_slice(
+    words: &[Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<(TreeValue, usize)> {
+    let (first_letter, mut index) =
+        legacy_as_generated_letter_tokens_tree_value_from_slice(words, source, options)?;
+    let mut entries = vec![TreeEntry {
+        label: Some("first_letter"),
+        value: first_letter,
+    }];
+    let mut continuations = Vec::new();
+    while index < words.len() {
+        if words[index].is_selmaho(Selmaho::Pa) {
+            continuations.push(legacy_as_generated_wrapped_variant_tree_value(
+                "LetterStringPaContinuation",
+                "letter_string_pa_continuation",
+                vec![TreeEntry {
+                    label: Some("pa"),
+                    value: generated_token_tree_value(&words[index], source, options),
+                }],
+            ));
+            index += 1;
+        } else if legacy_token_can_start_lerfu_word(&words[index]) {
+            let (letter, consumed) =
+                legacy_as_generated_letter_tokens_tree_value_from_slice(
+                    &words[index..],
+                    source,
+                    options,
+                )?;
+            continuations.push(legacy_as_generated_wrapped_variant_tree_value(
+                "LetterStringLerfuContinuation",
+                "letter_string_lerfu_continuation",
+                vec![TreeEntry {
+                    label: Some("letter"),
+                    value: letter,
+                }],
+            ));
+            index += consumed;
+        } else {
+            break;
+        }
+    }
+    if let Some(entry) =
+        labelled_tree_collection_entry_from_values("continuations", continuations)
+    {
+        entries.push(entry);
+    }
+    Some((
+        TreeValue::Node(TreeNode {
+            constructor: "LetterString",
+            entries,
+        }),
+        index,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_letter_tokens_tree_value_from_slice(
+    words: &[Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> Option<(TreeValue, usize)> {
+    let first = words.first()?;
+    if first.is_selmaho(Selmaho::Lau) {
+        let (letter, consumed) =
+            legacy_as_generated_letter_tokens_tree_value_from_slice(&words[1..], source, options)?;
+        return Some((
+            legacy_as_generated_wrapped_variant_tree_value(
+                "LauLerfuWord",
+                "lau_lerfu_word",
+                vec![
+                    TreeEntry {
+                        label: Some("lau"),
+                        value: generated_token_tree_value(first, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("letter"),
+                        value: letter,
+                    },
+                ],
+            ),
+            consumed + 1,
+        ));
+    }
+    if first.is_cmavo(Cmavo::Tei) {
+        let (letters, consumed_letters) =
+            legacy_as_generated_letter_string_tree_value_from_slice(&words[1..], source, options)?;
+        let foi_index = 1 + consumed_letters;
+        let foi = words.get(foi_index)?;
+        assert!(
+            foi.is_cmavo(Cmavo::Foi),
+            "legacy TEI lerfu word must be followed by FOI"
+        );
+        return Some((
+            legacy_as_generated_wrapped_variant_tree_value(
+                "TeiLerfuWord",
+                "tei_lerfu_word",
+                vec![
+                    TreeEntry {
+                        label: Some("tei"),
+                        value: generated_token_tree_value(first, source, options),
+                    },
+                    TreeEntry {
+                        label: Some("letters"),
+                        value: letters,
+                    },
+                    TreeEntry {
+                        label: Some("foi"),
+                        value: generated_token_tree_value(foi, source, options),
+                    },
+                ],
+            ),
+            foi_index + 1,
+        ));
+    }
+    if legacy_token_is_letter_word(first) {
+        return Some((
+            legacy_as_generated_wrapped_variant_tree_value(
+                "SimpleLerfuWord",
+                "simple_lerfu_word",
+                vec![TreeEntry {
+                    label: Some("word"),
+                    value: generated_token_tree_value(first, source, options),
+                }],
+            ),
+            1,
+        ));
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_token_can_start_lerfu_word(token: &Token) -> bool {
+    token.is_selmaho(Selmaho::Lau)
+        || token.is_cmavo(Cmavo::Tei)
+        || legacy_token_is_letter_word(token)
 }
 
 #[requires(true)]
@@ -10482,7 +10744,9 @@ impl LegacyTanruUnitLike for jbotci_syntax::ast::TanruUnitSyntax {
             bityzba::data!(jbotci_syntax::ast::TanruUnitSyntax::OrdinalSelbri { number, moi }) => {
                 let mut entries = vec![TreeEntry {
                     label: Some("number"),
-                    value: legacy_word_run_tree_value(number, source, options),
+                    value: legacy_as_generated_number_or_letter_words_tree_value(
+                        number, source, options,
+                    ),
                 }];
                 entries.extend(legacy_token_field_entries("moi", moi, source, options));
                 TreeValue::Node(TreeNode {
@@ -10550,7 +10814,11 @@ fn legacy_as_generated_sumti_selbri_sumti_tree_value(
             constructor: "MeLerfuSumti",
             entries: vec![TreeEntry {
                 label: Some("words"),
-                value: legacy_word_run_tree_value(&letter.value, source, options),
+                value: legacy_as_generated_letter_string_tree_value(
+                    &letter.value,
+                    source,
+                    options,
+                ),
             }],
         });
     }

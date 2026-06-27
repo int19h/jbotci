@@ -52,8 +52,8 @@ macro_rules! declare_generated_syntax_grammar {
         mekso_operand: MeksoOperandSyntax;
         mekso_operator: MeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
-        letter_string: vec1::Vec1<Token>;
-        letter_tokens: vec1::Vec1<Token>;
+        letter_string: LetterStringSyntax;
+        letter_tokens: LetterTokensSyntax;
         free_modifier: FreeModifierSyntax;
     }
 
@@ -1136,35 +1136,67 @@ macro_rules! declare_generated_syntax_grammar {
         field tehu <- opt(cmavo(Tehu).wf());
     }
 
-    alias "lerfu string" letter_string(letter_tokens) =
-        [..letter_tokens; zero_or_more ..choice((
-            [pa_word()],
-            letter_tokens,
-        ))];
+    rule "lerfu string" letter_string(letter_tokens) -> struct {
+        field first_letter <- boxed(letter_tokens);
+        field continuations <- [zero_or_more letter_string_continuation(letter_tokens)];
+    }
 
-    alias "number" number_words(letter_tokens) =
-        [..[pa_word()]; zero_or_more ..choice((
-            [pa_word()],
-            letter_tokens,
-        ))];
+    rule "lerfu string continuation" letter_string_continuation(letter_tokens) -> enum {
+        letter_string_pa_continuation,
+        letter_string_lerfu_continuation,
+    }
 
-    alias "number or lerfu string" number_or_letter_words(letter_tokens, letter_string) =
-        choice((
-            number_words(letter_tokens),
-            letter_string,
-        ));
+    rule "lerfu string continuation" letter_string_pa_continuation -> struct {
+        field pa <- pa_word();
+    }
 
-    alias "lerfu word" letter_tokens(letter_string, letter_tokens) =
-        choice((
-            [word_category(LetterWord)],
-            lau_letter_tokens(letter_tokens),
-            tei_letter_tokens(letter_string),
-        ));
+    rule "lerfu string continuation" letter_string_lerfu_continuation(letter_tokens) -> struct {
+        field letter <- boxed(letter_tokens);
+    }
 
-    alias "lerfu word" lau_letter_tokens(letter_tokens) = [selmaho(Lau); ..letter_tokens];
+    rule "number" number_words(letter_tokens) -> struct {
+        field first_number <- pa_word();
+        field continuations <- [zero_or_more number_word_continuation(letter_tokens)];
+    }
 
-    alias "lerfu word" tei_letter_tokens(letter_string) =
-        [cmavo(Tei); ..letter_string; cmavo(Foi)];
+    rule "number continuation" number_word_continuation(letter_tokens) -> enum {
+        number_word_pa_continuation,
+        number_word_lerfu_continuation,
+    }
+
+    rule "number continuation" number_word_pa_continuation -> struct {
+        field pa <- pa_word();
+    }
+
+    rule "number continuation" number_word_lerfu_continuation(letter_tokens) -> struct {
+        field letter <- boxed(letter_tokens);
+    }
+
+    rule "number or lerfu string" number_or_letter_words(letter_tokens, letter_string) -> enum {
+        number_words,
+        letter_string,
+    }
+
+    rule "lerfu word" letter_tokens(letter_string, letter_tokens) -> enum {
+        simple_lerfu_word,
+        lau_lerfu_word,
+        tei_lerfu_word,
+    }
+
+    rule "lerfu word" simple_lerfu_word -> struct {
+        field word <- word_category(LetterWord);
+    }
+
+    rule "lerfu word" lau_lerfu_word(letter_tokens) -> struct {
+        field lau <- selmaho(Lau);
+        field letter <- boxed(letter_tokens);
+    }
+
+    rule "lerfu word" tei_lerfu_word(letter_string) -> struct {
+        field tei <- cmavo(Tei);
+        field letters <- boxed(letter_string);
+        field foi <- cmavo(Foi);
+    }
 
     rule "lerfu string" lerfu_string_mekso(letter_string, free_modifier) -> struct {
         field letters <- letter_string;

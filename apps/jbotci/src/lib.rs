@@ -7787,7 +7787,8 @@ mod tests {
 
             assert!(output.starts_with("RegularText {\n"));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base_sumti: Cmavo \"mi\""));
+            assert!(output.contains("base_sumti: Sumti {"));
+            assert!(output.contains("sumti_base: Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
             assert!(output.contains("base: Gismu \"kláma\""));
             assert!(output.contains("BridiStatement"));
@@ -7856,7 +7857,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"RegularText{regular_text:TextParagraphWithAdditionalNiho{text_paragraph_with_additional_niho:SimpleParagraph{simple_paragraph:StatementOrFragmentStatement{statement_or_fragment_statement:StatementBase{statement_base:BridiStatement{bridi_statement:BridiWithLeadingTerms{bridi_with_leading_terms:BridiWithLeadingTerms{leading_terms:[ConnectedTerm{connected_term:ConnectedTerm{leading_term:SumtiTerm{sumti_term:SumtiTerm{sumti:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{simple_sumti:SimpleSumti{base_sumti:Cmavo "mi"}}}}}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{bridi_tail_with_possible_tail_terms:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri_simple_bridi_tail:SelbriSimpleBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:ConnectedTanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}}}}}}}}}}"#
+                r#"RegularText{regular_text:TextParagraphWithAdditionalNiho{text_paragraph_with_additional_niho:SimpleParagraph{simple_paragraph:StatementOrFragmentStatement{statement_or_fragment_statement:StatementBase{statement_base:BridiStatement{bridi_statement:BridiWithLeadingTerms{bridi_with_leading_terms:BridiWithLeadingTerms{leading_terms:[ConnectedTerm{connected_term:ConnectedTerm{leading_term:SumtiTerm{sumti_term:SumtiTerm{sumti:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{simple_sumti:SimpleSumti{base_sumti:Sumti{sumti_base:Cmavo "mi"}}}}}}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{bridi_tail_with_possible_tail_terms:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri_simple_bridi_tail:SelbriSimpleBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:ConnectedTanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}}}}}}}}}}"#
             );
         });
     }
