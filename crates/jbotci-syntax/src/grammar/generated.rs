@@ -2883,55 +2883,49 @@ macro_rules! declare_generated_syntax_grammar {
         context "tanru unit";
         fields {
             field conversions = many(selmaho(Se).wf());
-            field base = boxed(tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+            field base = boxed(choice((
+                pro_bridi_tanru_unit(),
+                ordinal_tanru_unit(letter_tokens, letter_string),
+                word_tanru_unit(),
+                preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
+                jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
+                scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
+                abstraction_tanru_unit(subbridi),
+                sumti_selbri_tanru_unit(sumti, letter_string),
+                operator_selbri_tanru_unit(mekso_operator),
+                quoted_bridi_selbri_tanru_unit(),
+                quoted_text_selbri_tanru_unit(),
+                text_selbri_tanru_unit(text),
+                tag_selbri_tanru_unit(tense_modal),
+                goha_word_tanru_unit(free_modifier),
+                grouped_tanru_unit(tanru_unit),
+            )));
         }
     }
-
-    alias "tanru unit" tanru_unit_base_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
-        choice((
-            pro_bridi_tanru_unit(),
-            ordinal_tanru_unit(letter_tokens, letter_string),
-            word_tanru_unit(),
-            preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
-            jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
-            scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
-            abstraction_tanru_unit(subbridi),
-            sumti_selbri_tanru_unit(sumti, letter_string),
-            operator_selbri_tanru_unit(mekso_operator),
-            quoted_bridi_selbri_tanru_unit(),
-            quoted_text_selbri_tanru_unit(),
-            text_selbri_tanru_unit(text),
-            tag_selbri_tanru_unit(tense_modal),
-            goha_word_tanru_unit(free_modifier),
-            grouped_tanru_unit(tanru_unit),
-        ));
 
     node tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> TanruUnitSyntax {
         context "tanru unit";
         fields {
             field conversions = many(selmaho(Se).wf());
-            field base = boxed(tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+            field base = boxed(choice((
+                ordinal_tanru_unit(letter_tokens, letter_string),
+                word_tanru_unit(),
+                preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
+                jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
+                scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
+                abstraction_tanru_unit(subbridi),
+                sumti_selbri_tanru_unit(sumti, letter_string),
+                operator_selbri_tanru_unit(mekso_operator),
+                quoted_bridi_selbri_tanru_unit(),
+                quoted_text_selbri_tanru_unit(),
+                text_selbri_tanru_unit(text),
+                tag_selbri_tanru_unit(tense_modal),
+                goha_word_tanru_unit(free_modifier),
+                pro_bridi_tanru_unit(),
+                grouped_tanru_unit(tanru_unit),
+            )));
         }
     }
-
-    alias "tanru unit" tanru_unit_base_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) =
-        choice((
-            ordinal_tanru_unit(letter_tokens, letter_string),
-            word_tanru_unit(),
-            preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal),
-            jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal),
-            scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal),
-            abstraction_tanru_unit(subbridi),
-            sumti_selbri_tanru_unit(sumti, letter_string),
-            operator_selbri_tanru_unit(mekso_operator),
-            quoted_bridi_selbri_tanru_unit(),
-            quoted_text_selbri_tanru_unit(),
-            text_selbri_tanru_unit(text),
-            tag_selbri_tanru_unit(tense_modal),
-            goha_word_tanru_unit(free_modifier),
-            pro_bridi_tanru_unit(),
-            grouped_tanru_unit(tanru_unit),
-        ));
 
     node tagged_selbri_group_tanru_unit(tanru_unit, tense_modal) -> TanruUnitSyntax {
         context "tagged selbri";
