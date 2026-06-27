@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument, Ident, LitStr,
-    Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
+    Attribute, Expr, ExprArray, ExprCall, ExprMethodCall, ExprPath, ExprTuple, GenericArgument,
+    Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
 };
@@ -2810,6 +2810,13 @@ fn strict_rust_parser_expr_tokens(
             free_modifier_parser,
             mode,
         ),
+        Expr::Array(array) => strict_vector_parser_expr_tokens(
+            &array_vector_expr(array)?,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
         _ => None,
     }
 }
@@ -3166,19 +3173,19 @@ fn strict_call_parser_expr_tokens(
             mode,
         ),
         ("choice", 1) => {
-            let alternatives = call
-                .args
-                .first()
-                .map(choice_alternative_exprs)
-                .and_then(|exprs| {
-                    strict_choice_alternative_parser_tokens(
-                        exprs,
-                        arguments,
-                        generation,
-                        free_modifier_parser,
-                        mode,
-                    )
-                })?;
+            let alternatives =
+                call.args
+                    .first()
+                    .map(choice_alternative_exprs)
+                    .and_then(|exprs| {
+                        strict_choice_alternative_parser_tokens(
+                            exprs,
+                            arguments,
+                            generation,
+                            free_modifier_parser,
+                            mode,
+                        )
+                    })?;
             strict_choice_chain(alternatives)
         }
         ("choice", _) => {
@@ -3605,6 +3612,9 @@ fn rust_parser_output_type(
         Expr::MethodCall(method) => method_rust_parser_output_type(method, type_env, arguments),
         Expr::Path(path) => path_rust_parser_output_type(path, type_env, arguments),
         Expr::Tuple(tuple) => tuple_rust_parser_output_type(tuple, type_env, arguments),
+        Expr::Array(array) => {
+            vector_parser_output_type(&array_vector_expr(array)?, type_env, arguments)
+        }
         _ => None,
     }
 }
@@ -4566,8 +4576,26 @@ fn classify_recovery_expr(expr: &Expr, arguments: &BTreeSet<String>) -> Recovery
                 .map(|expr| classify_recovery_expr(expr, arguments))
                 .collect(),
         ),
+        Expr::Array(array) => array_vector_expr(array)
+            .map(|expr| classify_parser_expr(&ParserExpr::Vector(expr), arguments))
+            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(expr))),
         _ => RecoveryExpr::Opaque(compact_tokens(expr)),
     }
+}
+
+fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
+    if array.elems.is_empty() {
+        return None;
+    }
+    Some(VectorExpr {
+        items: array
+            .elems
+            .iter()
+            .cloned()
+            .map(ParserExpr::Rust)
+            .map(VectorItem::One)
+            .collect(),
+    })
 }
 
 fn classify_method_recovery_expr(
@@ -4661,6 +4689,15 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::Rule)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
+        ("choice", 1) => RecoveryExpr::Choice(
+            call.args
+                .first()
+                .map(choice_alternative_exprs)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|expr| classify_recovery_expr(expr, arguments))
+                .collect(),
+        ),
         ("choice", _) => RecoveryExpr::Choice(
             call.args
                 .iter()

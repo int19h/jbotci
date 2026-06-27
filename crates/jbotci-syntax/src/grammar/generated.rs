@@ -1176,13 +1176,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "lerfu string" letter_string(letter_tokens) =
         [..letter_tokens; zero_or_more ..choice((
-            pa_word_as_words(),
+            [pa_word()],
             letter_tokens,
         ))];
 
     alias "number" number_words(letter_tokens) =
-        [..pa_word_as_words(); zero_or_more ..choice((
-            pa_word_as_words(),
+        [..[pa_word()]; zero_or_more ..choice((
+            [pa_word()],
             letter_tokens,
         ))];
 
@@ -1194,14 +1194,10 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "lerfu word" letter_tokens(letter_string, letter_tokens) =
         choice((
-            plain_letter_word_as_words(),
+            [word_category(LetterWord)],
             lau_letter_tokens(letter_tokens),
             tei_letter_tokens(letter_string),
         ));
-
-    alias "number" pa_word_as_words = [pa_word()];
-
-    alias "lerfu word" plain_letter_word_as_words = [word_category(LetterWord)];
 
     alias "lerfu word" lau_letter_tokens(letter_tokens) = [selmaho(Lau); ..letter_tokens];
 
@@ -2553,8 +2549,8 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "number" interval_property_number_words =
         [pa_word(); zero_or_more ..choice((
-            pa_word_as_words(),
-            plain_letter_word_as_words(),
+            [pa_word()],
+            [word_category(LetterWord)],
         ))];
 
     node tahe_interval_property_tense -> TenseModalSyntax {
