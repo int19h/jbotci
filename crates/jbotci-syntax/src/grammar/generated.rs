@@ -631,19 +631,22 @@ macro_rules! declare_generated_syntax_grammar {
             ek_connective(),
         )));
         field bo <- cmavo(Bo).wf();
-        assert term_hierarchy_post_bo_argument_gate(sumti);
-        field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        assert term_hierarchy_post_bo_argument_gate(sumti);
-    }
-
-    alias "term connection" term_hierarchy_post_bo_argument_gate(sumti) =
-        choice((
+        assert choice((
             feature(TermHierarchy, empty()),
             (
                 feature(TermHierarchy, empty()).not(),
                 sumti.not(),
             ).ignored(),
         ));
+        field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+        assert choice((
+            feature(TermHierarchy, empty()),
+            (
+                feature(TermHierarchy, empty()).not(),
+                sumti.not(),
+            ).ignored(),
+        ));
+    }
 
     rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
