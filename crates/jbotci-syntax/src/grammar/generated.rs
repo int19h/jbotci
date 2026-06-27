@@ -83,10 +83,7 @@ macro_rules! declare_generated_syntax_grammar {
         field leading_free_modifiers <- [zero_or_more free_modifier];
         field leading_connective <- opt(guard_not(
             modal_forethought_connective(tense_modal),
-            choice((
-                standard_statement_connective,
-                cehe_connective(),
-            )),
+            text_leading_connective,
         ));
         field leading_i_statements <- [zero_or_more leading_i_statement(free_modifier, tense_modal)];
         #[tree_child(primary)]
@@ -623,10 +620,7 @@ macro_rules! declare_generated_syntax_grammar {
     rule "term connection" bound_term_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field connective <- boxed(choice((
-            joik_connective(),
-            ek_connective(),
-        )));
+        field connective <- boxed(bound_term_connective);
         field bo <- cmavo(Bo).wf();
         assert choice((
             feature(TermHierarchy, empty()),
@@ -645,6 +639,11 @@ macro_rules! declare_generated_syntax_grammar {
         ));
     }
 
+    rule "term connective" bound_term_connective -> enum {
+        joik_connective,
+        ek_connective,
+    }
+
     rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
@@ -652,13 +651,15 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "term connection continuation" connected_term_continuation(sumti, tense_modal, subbridi, selbri, term) -> struct {
-        field connective <- choice((
-            joik_connective(),
-            jek_connective(),
-            ek_connective(),
-            vuhu_nonlogical_connective(),
-        ));
+        field connective <- connected_term_connective;
         field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
+    }
+
+    rule "term connective" connected_term_connective -> enum {
+        joik_connective,
+        jek_connective,
+        ek_connective,
+        vuhu_nonlogical_connective,
     }
 
     rule "termset" termset_group(sumti, tense_modal, subbridi, selbri, term) -> struct {
@@ -1745,11 +1746,13 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
-        field connective <- choice((
-            joik_connective(),
-            jek_connective(),
-        ));
+        field connective <- relative_clause_connective;
         field inner <- boxed(relative_clause_atom(sumti, subbridi, tense_modal));
+    }
+
+    rule "relative clause connective" relative_clause_connective -> enum {
+        joik_connective,
+        jek_connective,
     }
 
     rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) -> enum {
@@ -1808,179 +1811,103 @@ macro_rules! declare_generated_syntax_grammar {
         field kuho <- opt(cmavo(Kuho).wf());
     }
 
-    product ek_connective -> ConnectiveSyntax {
-        context "ek";
-        construct variant Afterthought;
-        model_variant EkAfterthoughtConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            scratch a = selmaho(A).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![a.value], a.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "ek" ek_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field a <- selmaho(A).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product jehi_connective -> ConnectiveSyntax {
-        context "ek";
-        construct variant Afterthought;
-        model_variant JehiAfterthoughtConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            scratch jehi = selmaho(Jehi).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![jehi.value], jehi.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "ek" jehi_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field jehi <- selmaho(Jehi).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product jek_connective -> ConnectiveSyntax {
-        context "jek";
-        construct variant Selbri;
-        model_variant JekSelbriConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            scratch ja = selmaho(Ja).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![ja.value], ja.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "jek" jek_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field ja <- selmaho(Ja).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    alias "joik" joik_connective =
-        choice((
-            joi_connective(),
-            simple_interval_connective(),
-            closed_interval_connective(),
-        ));
-
-    product joi_connective -> ConnectiveSyntax {
-        context "joik";
-        construct variant NonLogical;
-        model_variant JoiNonLogicalConnective;
-        fields {
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch joi = selmaho(Joi).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![joi.value], joi.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "joik" joik_connective -> enum {
+        joi_connective,
+        simple_interval_connective,
+        closed_interval_connective,
     }
 
-    product simple_interval_connective -> ConnectiveSyntax {
-        context "interval";
-        construct variant Interval;
-        model_variant SimpleIntervalConnective;
-        fields {
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch bihi = selmaho(Bihi).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![bihi.value], bihi.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "joik" joi_connective -> struct {
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field joi <- selmaho(Joi).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product closed_interval_connective -> ConnectiveSyntax {
-        context "interval";
-        construct variant Interval;
-        model_variant ClosedIntervalConnective;
-        fields {
-            scratch left_interval = selmaho(Gaho);
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch bihi = selmaho(Bihi);
-            scratch nai_token = opt(cmavo(Nai));
-            scratch right_interval = selmaho(Gaho).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(
-                vec![left_interval, bihi, right_interval.value],
-                right_interval.free_modifiers,
-            ));
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
-        }
+    rule "interval" simple_interval_connective -> struct {
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field bihi <- selmaho(Bihi).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product vuhu_nonlogical_connective -> ConnectiveSyntax {
-        context "non-logical connective";
-        construct variant NonLogical;
-        model_variant VuhuNonLogicalConnective;
-        fields {
-            default se: Option<Token> = None;
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch vuhu = selmaho(Vuhu).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![vuhu.value], vuhu.free_modifiers));
-            default nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> = None;
-        }
+    rule "interval" closed_interval_connective -> struct {
+        #[tree_child(primary)]
+        field left_interval <- selmaho(Gaho);
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field bihi <- selmaho(Bihi);
+        field nai <- opt(cmavo(Nai));
+        #[tree_child(primary)]
+        field right_interval <- selmaho(Gaho).wf();
     }
 
-    alias "sumti connective" argument_connective =
-        choice((
-            cehe_connective(),
-            ek_connective(),
-            jehi_connective(),
-            joik_connective(),
-            vuhu_nonlogical_connective(),
-        ));
+    rule "non-logical connective" vuhu_nonlogical_connective -> struct {
+        #[tree_child(primary)]
+        field vuhu <- selmaho(Vuhu).wf();
+    }
 
-    alias "operand connective" operand_connective =
-        choice((
-            joik_connective(),
-            ek_connective(),
-            jek_connective(),
-        ));
+    rule "sumti connective" argument_connective -> enum {
+        cehe_connective,
+        ek_connective,
+        jehi_connective,
+        joik_connective,
+        vuhu_nonlogical_connective,
+    }
 
-    alias "selbri connective" relation_afterthought_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-            ek_connective(),
-            vuhu_nonlogical_connective(),
-        ));
+    rule "operand connective" operand_connective -> enum {
+        joik_connective,
+        ek_connective,
+        jek_connective,
+    }
 
-    alias "statement connective" standard_statement_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-        ));
+    rule "selbri connective" relation_afterthought_connective -> enum {
+        joik_connective,
+        jek_connective,
+        ek_connective,
+        vuhu_nonlogical_connective,
+    }
 
-    alias "statement connective" statement_connective =
-        choice((
-            joik_connective(),
-            jek_connective(),
-            ek_connective(),
-            vuhu_nonlogical_connective(),
-        ));
+    rule "statement connective" standard_statement_connective -> enum {
+        joik_connective,
+        jek_connective,
+    }
+
+    rule "statement connective" statement_connective -> enum {
+        joik_connective,
+        jek_connective,
+        ek_connective,
+        vuhu_nonlogical_connective,
+    }
+
+    rule "text connective" text_leading_connective -> enum {
+        standard_statement_connective,
+        cehe_connective,
+    }
 
     rule "statement connective" i_statement_connective(tense_modal) -> enum {
         i_standard_statement_connective,
@@ -2000,84 +1927,48 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "statement connective" i_standard_paragraph_statement_connective(tense_modal) -> struct {
         #[tree_child(primary)]
-        field connective <- boxed(choice((
-            paragraph_joi_connective(),
-            paragraph_simple_interval_connective(),
-            paragraph_closed_interval_connective(),
-            paragraph_jek_connective(),
-        )));
+        field connective <- boxed(paragraph_standard_statement_connective);
         field tag_bo <- opt((opt(boxed(tense_modal)), cmavo(Bo)));
     }
 
-    product paragraph_jek_connective -> ConnectiveSyntax {
-        context "jek";
-        construct variant ParagraphJekConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            #[tree_child(primary)]
-            field ja = selmaho(Ja);
-            field nai = opt(cmavo(Nai));
-        }
+    rule "statement connective" paragraph_standard_statement_connective -> enum {
+        paragraph_joi_connective,
+        paragraph_simple_interval_connective,
+        paragraph_closed_interval_connective,
+        paragraph_jek_connective,
     }
 
-    product paragraph_joi_connective -> ConnectiveSyntax {
-        context "joik";
-        construct variant NonLogical;
-        model_variant ParagraphJoiNonLogicalConnective;
-        fields {
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch joi = selmaho(Joi);
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![joi], Vec::new()));
-            scratch nai_token = opt(cmavo(Nai));
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
-        }
+    rule "jek" paragraph_jek_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field ja <- selmaho(Ja);
+        field nai <- opt(cmavo(Nai));
     }
 
-    product paragraph_simple_interval_connective -> ConnectiveSyntax {
-        context "interval";
-        construct variant Interval;
-        model_variant ParagraphSimpleIntervalConnective;
-        fields {
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch bihi = selmaho(Bihi);
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![bihi], Vec::new()));
-            scratch nai_token = opt(cmavo(Nai));
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
-        }
+    rule "joik" paragraph_joi_connective -> struct {
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field joi <- selmaho(Joi);
+        field nai <- opt(cmavo(Nai));
     }
 
-    product paragraph_closed_interval_connective -> ConnectiveSyntax {
-        context "interval";
-        construct variant Interval;
-        model_variant ParagraphClosedIntervalConnective;
-        fields {
-            scratch left_interval = selmaho(Gaho);
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch bihi = selmaho(Bihi);
-            scratch nai_token = opt(cmavo(Nai));
-            scratch right_interval = selmaho(Gaho);
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(
-                vec![left_interval, bihi, right_interval],
-                Vec::new(),
-            ));
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(|nai| std::sync::Arc::new(WithFreeModifiers::new(nai, Vec::new())));
-        }
+    rule "interval" paragraph_simple_interval_connective -> struct {
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field bihi <- selmaho(Bihi);
+        field nai <- opt(cmavo(Nai));
+    }
+
+    rule "interval" paragraph_closed_interval_connective -> struct {
+        #[tree_child(primary)]
+        field left_interval <- selmaho(Gaho);
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field bihi <- selmaho(Bihi);
+        field nai <- opt(cmavo(Nai));
+        #[tree_child(primary)]
+        field right_interval <- selmaho(Gaho);
     }
 
     rule "statement connective" i_tag_bo_paragraph_statement_connective(tense_modal) -> struct {
@@ -2090,58 +1981,26 @@ macro_rules! declare_generated_syntax_grammar {
         field bo <- cmavo(Bo).wf();
     }
 
-    product cehe_connective -> ConnectiveSyntax {
-        context "termset connective";
-        construct variant NonLogical;
-        model_variant CeheNonLogicalConnective;
-        fields {
-            default se: Option<Token> = None;
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch cehe = cmavo(Cehe).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![cehe.value], cehe.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "termset connective" cehe_connective -> struct {
+        #[tree_child(primary)]
+        field cehe <- cmavo(Cehe).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product gihek_connective -> ConnectiveSyntax {
-        context "gihek";
-        construct variant BridiTail;
-        model_variant GihekBridiTailConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            scratch giha = selmaho(Giha).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![giha.value], giha.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "gihek" gihek_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field giha <- selmaho(Giha).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    product guhek_connective -> ConnectiveSyntax {
-        context "forethought selbri connective";
-        construct variant Forethought;
-        model_variant GuhekForethoughtConnective;
-        fields {
-            field nahe = opt(selmaho(Nahe));
-            field se = opt(selmaho(Se));
-            default na: Option<Token> = None;
-            scratch guha = selmaho(Guha).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![guha.value], guha.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "forethought selbri connective" guhek_connective -> struct {
+        field nahe <- opt(selmaho(Nahe));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field guha <- selmaho(Guha).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     rule "bridi tail connective" bridi_tail_connective -> enum {
@@ -2154,167 +2013,121 @@ macro_rules! declare_generated_syntax_grammar {
         field connective <- boxed(relation_afterthought_connective);
     }
 
-    alias "forethought connective" modal_forethought_connective(tense_modal) =
-        choice((
-            ga_forethought_connective(),
-            joik_jek_gi_forethought_connective(),
-            jek_gi_forethought_connective(),
-            modal_gi_forethought_connective(tense_modal),
-            feature(ZantufaConnectives, zantufa_initial_gi_forethought_connective()),
+    rule "forethought connective" modal_forethought_connective(tense_modal) -> enum {
+        ga_forethought_connective,
+        joik_jek_gi_forethought_connective,
+        jek_gi_forethought_connective,
+        modal_gi_forethought_connective,
+        when feature(ZantufaConnectives) zantufa_initial_gi_forethought_connective,
+    }
+
+    rule "forethought connective" ga_forethought_connective -> struct {
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field ga <- selmaho(Ga).wf();
+        field nai <- opt(cmavo(Nai).wf());
+    }
+
+    rule "forethought connective" zantufa_initial_gi_forethought_connective -> struct {
+        field gi <- cmavo(Gi).warn(ExperimentalZantufaGek).wf();
+        field tail <- boxed(standard_statement_connective);
+        field bo <- opt(cmavo(Bo).wf());
+    }
+
+    rule "forethought connective" joik_jek_gi_forethought_connective -> struct {
+        field connective <- boxed(joik_connective);
+        field gi <- cmavo(Gi).wf();
+        field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
+    }
+
+    rule "forethought connective" jek_gi_forethought_connective -> struct {
+        field na <- opt(selmaho(Na));
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        field ja <- selmaho(Ja).warn(ExperimentalZantufaGek).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field gi <- cmavo(Gi).wf();
+        field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
+    }
+
+    rule "forethought connective" modal_gi_forethought_connective(tense_modal) -> struct {
+        field tense_modal <- boxed(tense_modal);
+        field gi <- cmavo(Gi).wf();
+        field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
+    }
+
+    rule "forethought connective" gik_connective -> struct {
+        #[tree_child(primary)]
+        field gi <- cmavo(Gi).wf();
+        field nai <- opt(cmavo(Nai).wf());
+    }
+
+    rule "tag" tense_modal(selbri) -> struct {
+        assert choice((
+            cmavo(Fiho),
+            selmaho(Bai),
+            selmaho(Nahe),
+            selmaho(Se),
+            selmaho(Fa),
+            cmavo(Ki),
+            selmaho(Cuhe),
+            selmaho(Pu),
+            selmaho(Zi),
+            selmaho(Zeha),
+            selmaho(Va),
+            selmaho(Faha),
+            selmaho(Veha),
+            selmaho(Viha),
+            selmaho(Caha),
+            selmaho(Zaho),
+            selmaho(Tahe),
+            cmavo(Fehe),
+            selmaho(Mohi),
+            pa_word(),
         ));
-
-    product ga_forethought_connective -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant Forethought;
-        model_variant GaForethoughtConnective;
-        fields {
-            field se = opt(selmaho(Se));
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch ga = selmaho(Ga).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![ga.value], ga.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+        #[tree_child(primary)]
+        field body <- tense_modal_body(selbri);
     }
 
-    product zantufa_initial_gi_forethought_connective -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant ZantufaInitialGiForethoughtConnective;
-        fields {
-            field gi = cmavo(Gi).warn(ExperimentalZantufaGek).wf();
-            field tail = boxed(choice((
-                joik_connective(),
-                jek_connective(),
-            )));
-            field bo = opt(cmavo(Bo).wf());
-        }
+    rule "tag" tense_modal_body(selbri) -> enum {
+        connected_tense_modal,
+        tense_modal_atom,
     }
 
-    product joik_jek_gi_forethought_connective -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant JoikJekGiForethoughtConnective;
-        fields {
-            field connective = boxed(joik_connective());
-            field gi = cmavo(Gi).wf();
-            field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
-        }
+    rule "connected tag" connected_tense_modal(selbri) -> struct {
+        field first <- boxed(tense_modal_atom(selbri));
+        field continuations <- [one_or_more connected_tense_modal_continuation(selbri)];
     }
 
-    product jek_gi_forethought_connective -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant JekGiForethoughtConnective;
-        fields {
-            field na = opt(selmaho(Na));
-            field se = opt(selmaho(Se));
-            field ja = selmaho(Ja).warn(ExperimentalZantufaGek).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field gi = cmavo(Gi).wf();
-            field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
-        }
+    rule "connected tag continuation" connected_tense_modal_continuation(selbri) -> struct {
+        field connective <- tense_modal_connective;
+        field tense_modal <- boxed(tense_modal_atom(selbri));
     }
 
-    product modal_gi_forethought_connective(tense_modal) -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant ModalGiForethoughtConnective;
-        fields {
-            field tense_modal = boxed(tense_modal);
-            field gi = cmavo(Gi).wf();
-            field bo = opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
-        }
+    rule "tag connective" tense_modal_connective -> enum {
+        joik_connective,
+        jek_connective,
     }
 
-    product gik_connective -> ConnectiveSyntax {
-        context "forethought connective";
-        construct variant Forethought;
-        model_variant GikForethoughtConnective;
-        fields {
-            default se: Option<Token> = None;
-            default nahe: Option<Token> = None;
-            default na: Option<Token> = None;
-            scratch gi = cmavo(Gi).wf();
-            #[tree_child(primary)]
-            let cmavo: std::sync::Arc<WithFreeModifiers<Vec<Token>, FreeModifierSyntax>> =
-                std::sync::Arc::new(WithFreeModifiers::new(vec![gi.value], gi.free_modifiers));
-            scratch nai_token = opt(cmavo(Nai).wf());
-            let nai: Option<std::sync::Arc<WithFreeModifiers<Token, FreeModifierSyntax>>> =
-                nai_token.map(std::sync::Arc::new);
-        }
+    rule "tag" tense_modal_atom(selbri) -> enum {
+        composite_tense,
+        fiho_tense,
+        modal_tense,
+        nahe_se_flat_prefixed_tense,
+        se_flat_prefixed_tense,
+        fa_flat_tag_tense,
+        when feature(ZantufaTags) zantufa_recursive_tag_tense,
+        sticky_tense,
     }
 
-    alias "tag" tense_modal(selbri) =
-        guard(
-            choice((
-                cmavo(Fiho),
-                selmaho(Bai),
-                selmaho(Nahe),
-                selmaho(Se),
-                selmaho(Fa),
-                cmavo(Ki),
-                selmaho(Cuhe),
-                selmaho(Pu),
-                selmaho(Zi),
-                selmaho(Zeha),
-                selmaho(Va),
-                selmaho(Faha),
-                selmaho(Veha),
-                selmaho(Viha),
-                selmaho(Caha),
-                selmaho(Zaho),
-                selmaho(Tahe),
-                cmavo(Fehe),
-                selmaho(Mohi),
-                pa_word(),
-            )),
-            choice((
-                connected_tense_modal(selbri),
-                tense_modal_atom(selbri),
-            )),
-        );
-
-    node connected_tense_modal(selbri) -> TenseModalSyntax {
-        context "connected tag";
-        fields {
-            field first = boxed(tense_modal_atom(selbri));
-            field continuations = many1((
-                choice((
-                    joik_connective(),
-                    jek_connective(),
-                )),
-                boxed(tense_modal_atom(selbri)),
-            ));
-        }
+    rule "FIhO modal" fiho_tense(selbri) -> struct {
+        field fiho <- cmavo(Fiho).wf();
+        field selbri <- boxed(selbri);
+        field fehu <- opt(cmavo(Fehu).wf());
     }
 
-    alias "tag" tense_modal_atom(selbri) =
-        choice((
-            composite_tense(),
-            fiho_tense(selbri),
-            modal_tense(),
-            nahe_se_flat_prefixed_tense(),
-            se_flat_prefixed_tense(),
-            fa_flat_tag_tense(),
-            feature(ZantufaTags, zantufa_recursive_tag_tense()),
-            sticky_tense(),
-        ));
-
-    node fiho_tense(selbri) -> TenseModalSyntax {
-        context "FIhO modal";
-        fields {
-            field fiho = cmavo(Fiho).wf();
-            field selbri = boxed(selbri);
-            field fehu = opt(cmavo(Fehu).wf());
-        }
-    }
-
-    node fa_flat_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field fa = selmaho(Fa).warn(ExperimentalFaAsTag).wf();
-        }
+    rule "tag" fa_flat_tag_tense -> struct {
+        field fa <- selmaho(Fa).warn(ExperimentalFaAsTag).wf();
     }
 
     rule "tag" flat_tag_atom -> enum {
@@ -2335,162 +2148,122 @@ macro_rules! declare_generated_syntax_grammar {
         field composite <- boxed(composite_tense());
     }
 
-    node nahe_se_flat_prefixed_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field nahe = selmaho(Nahe).warn(ExperimentalFlattenedTag).wf();
-            field se = opt(selmaho(Se).wf());
-            field atom = flat_tag_atom();
-        }
+    rule "tag" nahe_se_flat_prefixed_tense -> struct {
+        field nahe <- selmaho(Nahe).warn(ExperimentalFlattenedTag).wf();
+        field se <- opt(selmaho(Se).wf());
+        field atom <- flat_tag_atom();
     }
 
-    node se_flat_prefixed_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field se = selmaho(Se).warn(ExperimentalFlattenedTag).wf();
-            field atom = flat_tag_atom();
-        }
+    rule "tag" se_flat_prefixed_tense -> struct {
+        field se <- selmaho(Se).warn(ExperimentalFlattenedTag).wf();
+        field atom <- flat_tag_atom();
     }
 
-    node zantufa_recursive_tag_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field first_prefix = choice((
-                selmaho(Nahe),
-                selmaho(Se),
-            )).warn(ExperimentalZantufaRecursiveTag).wf();
-            field additional_prefixes = many(choice((
-                selmaho(Nahe),
-                selmaho(Se),
-            )).wf());
-            field atom = choice((
-                selmaho(Fa).warn(ExperimentalFaAsTag),
-                selmaho(Pu),
-                selmaho(Zi),
-                selmaho(Zeha),
-                selmaho(Va),
-                selmaho(Faha),
-                selmaho(Veha),
-                selmaho(Viha),
-                selmaho(Caha),
-                selmaho(Zaho),
-                selmaho(Cuhe),
-                cmavo(Ki),
-            )).wf();
-        }
+    rule "tag" zantufa_recursive_tag_tense -> struct {
+        field first_prefix <- choice((
+            selmaho(Nahe),
+            selmaho(Se),
+        )).warn(ExperimentalZantufaRecursiveTag).wf();
+        field additional_prefixes <- [zero_or_more choice((
+            selmaho(Nahe),
+            selmaho(Se),
+        )).wf()];
+        field atom <- choice((
+            selmaho(Fa).warn(ExperimentalFaAsTag),
+            selmaho(Pu),
+            selmaho(Zi),
+            selmaho(Zeha),
+            selmaho(Va),
+            selmaho(Faha),
+            selmaho(Veha),
+            selmaho(Viha),
+            selmaho(Caha),
+            selmaho(Zaho),
+            selmaho(Cuhe),
+            cmavo(Ki),
+        )).wf();
     }
 
-    alias "tag" composite_tense =
-        choice((
-            prefixed_time_space_caha_tense(),
-            time_space_caha_ki_tense(),
-            cuhe_tense(),
-        ));
-
-    node prefixed_time_space_caha_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field nahe = selmaho(Nahe).wf();
-            field tense = boxed(time_space_caha_tense());
-            field ki = opt(boxed(ki_composite_tense()));
-        }
+    rule "tag" composite_tense -> enum {
+        prefixed_time_space_caha_tense,
+        time_space_caha_ki_tense,
+        cuhe_tense,
     }
 
-    node time_space_caha_ki_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field tense = boxed(time_space_caha_tense());
-            field ki = opt(boxed(ki_composite_tense()));
-        }
+    rule "tag" prefixed_time_space_caha_tense -> struct {
+        field nahe <- selmaho(Nahe).wf();
+        field tense <- boxed(time_space_caha_tense);
+        field ki <- opt(boxed(ki_composite_tense()));
     }
 
-    alias "tag" time_space_caha_tense =
-        choice((
-            time_then_space_caha_tense(),
-            space_then_time_caha_tense(),
-            caha_tense(),
-        ));
-
-    node time_then_space_caha_tense -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field time = boxed(time_tense());
-            field space = opt(boxed(space_tense()));
-            field caha = opt(boxed(caha_tense()));
-        }
+    rule "tag" time_space_caha_ki_tense -> struct {
+        field tense <- boxed(time_space_caha_tense);
+        field ki <- opt(boxed(ki_composite_tense()));
     }
 
-    node space_then_time_caha_tense -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field space = boxed(space_tense());
-            field time = opt(boxed(time_tense()));
-            field caha = opt(boxed(caha_tense()));
-        }
+    rule "tag" time_space_caha_tense -> enum {
+        time_then_space_caha_tense,
+        space_then_time_caha_tense,
+        caha_tense,
     }
 
-    alias "time tense" time_tense =
-        choice((
-            time_tense_with_zi(),
-            time_tense_with_offset(),
-            time_tense_with_interval(),
-            time_tense_with_properties(),
-        ));
-
-    node time_tense_with_zi -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field zi = boxed(zi_time_distance_tense());
-            field offsets = many(boxed(pu_time_offset_tense()));
-            field zeha = opt(boxed(zeha_time_interval_tense()));
-            field properties = many(boxed(interval_property_tense()));
-        }
+    rule "time tense" time_then_space_caha_tense -> struct {
+        field time <- boxed(time_tense);
+        field space <- opt(boxed(space_tense));
+        field caha <- opt(boxed(caha_tense()));
     }
 
-    node time_tense_with_offset -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field zi = opt(boxed(zi_time_distance_tense()));
-            field offsets = many1(boxed(pu_time_offset_tense()));
-            field zeha = opt(boxed(zeha_time_interval_tense()));
-            field properties = many(boxed(interval_property_tense()));
-        }
+    rule "space tense" space_then_time_caha_tense -> struct {
+        field space <- boxed(space_tense);
+        field time <- opt(boxed(time_tense));
+        field caha <- opt(boxed(caha_tense()));
     }
 
-    node time_tense_with_interval -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field zi = opt(boxed(zi_time_distance_tense()));
-            field offsets = many(boxed(pu_time_offset_tense()));
-            field zeha = boxed(zeha_time_interval_tense());
-            field properties = many(boxed(interval_property_tense()));
-        }
+    rule "time tense" time_tense -> enum {
+        time_tense_with_zi,
+        time_tense_with_offset,
+        time_tense_with_interval,
+        time_tense_with_properties,
     }
 
-    node time_tense_with_properties -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field zi = opt(boxed(zi_time_distance_tense()));
-            field offsets = many(boxed(pu_time_offset_tense()));
-            field zeha = opt(boxed(zeha_time_interval_tense()));
-            field properties = many1(boxed(interval_property_tense()));
-        }
+    rule "time tense" time_tense_with_zi -> struct {
+        field zi <- boxed(zi_time_distance_tense());
+        field offsets <- [zero_or_more boxed(pu_time_offset_tense())];
+        field zeha <- opt(boxed(zeha_time_interval_tense()));
+        field properties <- [zero_or_more boxed(interval_property_tense)];
     }
 
-    alias "interval property" interval_property_tense =
-        choice((
-            numbered_interval_property_tense(),
-            tahe_interval_property_tense(),
-            zaho_interval_property_tense(),
-        ));
+    rule "time tense" time_tense_with_offset -> struct {
+        field zi <- opt(boxed(zi_time_distance_tense()));
+        field offsets <- [one_or_more boxed(pu_time_offset_tense())];
+        field zeha <- opt(boxed(zeha_time_interval_tense()));
+        field properties <- [zero_or_more boxed(interval_property_tense)];
+    }
 
-    node numbered_interval_property_tense -> TenseModalSyntax {
-        context "interval property";
-        fields {
-            field number = interval_property_number_words().wf();
-            field roi = selmaho(Roi).wf();
-            field nai = opt(cmavo(Nai).wf());
-        }
+    rule "time tense" time_tense_with_interval -> struct {
+        field zi <- opt(boxed(zi_time_distance_tense()));
+        field offsets <- [zero_or_more boxed(pu_time_offset_tense())];
+        field zeha <- boxed(zeha_time_interval_tense());
+        field properties <- [zero_or_more boxed(interval_property_tense)];
+    }
+
+    rule "time tense" time_tense_with_properties -> struct {
+        field zi <- opt(boxed(zi_time_distance_tense()));
+        field offsets <- [zero_or_more boxed(pu_time_offset_tense())];
+        field zeha <- opt(boxed(zeha_time_interval_tense()));
+        field properties <- [one_or_more boxed(interval_property_tense)];
+    }
+
+    rule "interval property" interval_property_tense -> enum {
+        numbered_interval_property_tense,
+        tahe_interval_property_tense,
+        zaho_interval_property_tense,
+    }
+
+    rule "interval property" numbered_interval_property_tense -> struct {
+        field number <- interval_property_number_words().wf();
+        field roi <- selmaho(Roi).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     alias "number" interval_property_number_words =
@@ -2499,233 +2272,155 @@ macro_rules! declare_generated_syntax_grammar {
             [word_category(LetterWord)],
         ))];
 
-    node tahe_interval_property_tense -> TenseModalSyntax {
-        context "interval property";
-        fields {
-            field tahe = selmaho(Tahe).wf();
-            field nai = opt(cmavo(Nai).wf());
-        }
+    rule "interval property" tahe_interval_property_tense -> struct {
+        field tahe <- selmaho(Tahe).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    node zaho_interval_property_tense -> TenseModalSyntax {
-        context "interval property";
-        fields {
-            field zaho = selmaho(Zaho).wf();
-            field nai = opt(cmavo(Nai).wf());
-        }
+    rule "interval property" zaho_interval_property_tense -> struct {
+        field zaho <- selmaho(Zaho).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    node pu_time_offset_tense -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field pu = selmaho(Pu).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field distance = opt(selmaho(Zi).wf());
-        }
+    rule "time tense" pu_time_offset_tense -> struct {
+        field pu <- selmaho(Pu).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field distance <- opt(selmaho(Zi).wf());
     }
 
-    node zi_time_distance_tense -> TenseModalSyntax {
-        context "time tense";
-        fields {
-            field zi = selmaho(Zi).wf();
-        }
+    rule "time tense" zi_time_distance_tense -> struct {
+        field zi <- selmaho(Zi).wf();
     }
 
-    node zeha_time_interval_tense -> TenseModalSyntax {
-        context "time interval";
-        fields {
-            field zeha = selmaho(Zeha).wf();
-            field direction = opt((selmaho(Pu).wf(), opt(cmavo(Nai).wf())));
-        }
+    rule "time interval" zeha_time_interval_tense -> struct {
+        field zeha <- selmaho(Zeha).wf();
+        field direction <- opt((selmaho(Pu).wf(), opt(cmavo(Nai).wf())));
     }
 
-    alias "space tense" space_tense =
-        choice((
-            space_tense_with_va(),
-            space_tense_with_offset(),
-            space_tense_with_interval(),
-            space_tense_with_mohi(),
-        ));
-
-    node space_tense_with_va -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field va = boxed(va_space_distance_tense());
-            field offsets = many(boxed(faha_space_offset_tense()));
-            field interval = opt(boxed(space_interval_tense()));
-            field mohi = opt(boxed(mohi_space_offset_tense()));
-        }
+    rule "space tense" space_tense -> enum {
+        space_tense_with_va,
+        space_tense_with_offset,
+        space_tense_with_interval,
+        space_tense_with_mohi,
     }
 
-    node space_tense_with_offset -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field va = opt(boxed(va_space_distance_tense()));
-            field offsets = many1(boxed(faha_space_offset_tense()));
-            field interval = opt(boxed(space_interval_tense()));
-            field mohi = opt(boxed(mohi_space_offset_tense()));
-        }
+    rule "space tense" space_tense_with_va -> struct {
+        field va <- boxed(va_space_distance_tense());
+        field offsets <- [zero_or_more boxed(faha_space_offset_tense())];
+        field interval <- opt(boxed(space_interval_tense));
+        field mohi <- opt(boxed(mohi_space_offset_tense()));
     }
 
-    node space_tense_with_interval -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field va = opt(boxed(va_space_distance_tense()));
-            field offsets = many(boxed(faha_space_offset_tense()));
-            field interval = boxed(space_interval_tense());
-            field mohi = opt(boxed(mohi_space_offset_tense()));
-        }
+    rule "space tense" space_tense_with_offset -> struct {
+        field va <- opt(boxed(va_space_distance_tense()));
+        field offsets <- [one_or_more boxed(faha_space_offset_tense())];
+        field interval <- opt(boxed(space_interval_tense));
+        field mohi <- opt(boxed(mohi_space_offset_tense()));
     }
 
-    node space_tense_with_mohi -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field va = opt(boxed(va_space_distance_tense()));
-            field offsets = many(boxed(faha_space_offset_tense()));
-            field interval = opt(boxed(space_interval_tense()));
-            field mohi = boxed(mohi_space_offset_tense());
-        }
+    rule "space tense" space_tense_with_interval -> struct {
+        field va <- opt(boxed(va_space_distance_tense()));
+        field offsets <- [zero_or_more boxed(faha_space_offset_tense())];
+        field interval <- boxed(space_interval_tense);
+        field mohi <- opt(boxed(mohi_space_offset_tense()));
     }
 
-    node va_space_distance_tense -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field va = selmaho(Va).wf();
-        }
+    rule "space tense" space_tense_with_mohi -> struct {
+        field va <- opt(boxed(va_space_distance_tense()));
+        field offsets <- [zero_or_more boxed(faha_space_offset_tense())];
+        field interval <- opt(boxed(space_interval_tense));
+        field mohi <- boxed(mohi_space_offset_tense());
     }
 
-    node faha_space_offset_tense -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field faha = selmaho(Faha).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field distance = opt(selmaho(Va).wf());
-        }
+    rule "space tense" va_space_distance_tense -> struct {
+        field va <- selmaho(Va).wf();
     }
 
-    node faha_interval_direction_tense -> TenseModalSyntax {
-        context "space interval";
-        fields {
-            field faha = selmaho(Faha).wf();
-            field nai = opt(cmavo(Nai).wf());
-        }
+    rule "space tense" faha_space_offset_tense -> struct {
+        field faha <- selmaho(Faha).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field distance <- opt(selmaho(Va).wf());
     }
 
-    alias "space interval" space_interval_tense =
-        choice((
-            space_interval_with_extent_tense(),
-            space_interval_properties_tense(),
-        ));
-
-    node space_interval_with_extent_tense -> TenseModalSyntax {
-        context "space interval";
-        fields {
-            field extent = boxed(choice((
-                veha_space_interval_tense(),
-                viha_space_interval_tense(),
-            )));
-            field direction = opt(boxed(faha_interval_direction_tense()));
-            field properties = opt(boxed(space_interval_properties_tense()));
-        }
+    rule "space interval" faha_interval_direction_tense -> struct {
+        field faha <- selmaho(Faha).wf();
+        field nai <- opt(cmavo(Nai).wf());
     }
 
-    node space_interval_properties_tense -> TenseModalSyntax {
-        context "space interval";
-        fields {
-            field first = boxed(fehe_interval_property_tense());
-            field additional = many(boxed(fehe_interval_property_tense()));
-        }
+    rule "space interval" space_interval_tense -> enum {
+        space_interval_with_extent_tense,
+        space_interval_properties_tense,
     }
 
-    node veha_space_interval_tense -> TenseModalSyntax {
-        context "space interval";
-        fields {
-            field veha = selmaho(Veha).wf();
-            field viha = opt(selmaho(Viha).wf());
-        }
+    rule "space interval" space_interval_with_extent_tense -> struct {
+        field extent <- boxed(space_interval_extent_tense);
+        field direction <- opt(boxed(faha_interval_direction_tense()));
+        field properties <- opt(boxed(space_interval_properties_tense()));
     }
 
-    node viha_space_interval_tense -> TenseModalSyntax {
-        context "space interval";
-        fields {
-            field viha = selmaho(Viha).wf();
-        }
+    rule "space interval" space_interval_extent_tense -> enum {
+        veha_space_interval_tense,
+        viha_space_interval_tense,
     }
 
-    node fehe_interval_property_tense -> TenseModalSyntax {
-        context "space interval property";
-        fields {
-            field fehe = cmavo(Fehe).wf();
-            field property = boxed(interval_property_tense());
-        }
+    rule "space interval" space_interval_properties_tense -> struct {
+        field first <- boxed(fehe_interval_property_tense());
+        field additional <- [zero_or_more boxed(fehe_interval_property_tense())];
     }
 
-    node mohi_space_offset_tense -> TenseModalSyntax {
-        context "space tense";
-        fields {
-            field mohi = selmaho(Mohi).wf();
-            field offset = boxed(faha_space_offset_tense());
-        }
+    rule "space interval" veha_space_interval_tense -> struct {
+        field veha <- selmaho(Veha).wf();
+        field viha <- opt(selmaho(Viha).wf());
     }
 
-    node caha_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field caha = selmaho(Caha).wf();
-        }
+    rule "space interval" viha_space_interval_tense -> struct {
+        field viha <- selmaho(Viha).wf();
     }
 
-    node ki_composite_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field ki = cmavo(Ki).wf();
-        }
+    rule "space interval property" fehe_interval_property_tense -> struct {
+        field fehe <- cmavo(Fehe).wf();
+        field property <- boxed(interval_property_tense);
     }
 
-    node cuhe_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field cuhe = selmaho(Cuhe).wf();
-        }
+    rule "space tense" mohi_space_offset_tense -> struct {
+        field mohi <- selmaho(Mohi).wf();
+        field offset <- boxed(faha_space_offset_tense());
     }
 
-    node pu_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field pu = selmaho(Pu).wf();
-        }
+    rule "tag" caha_tense -> struct {
+        field caha <- selmaho(Caha).wf();
     }
 
-    node va_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field va = selmaho(Va).wf();
-        }
+    rule "tag" ki_composite_tense -> struct {
+        field ki <- cmavo(Ki).wf();
     }
 
-    node modal_tense -> TenseModalSyntax {
-        context "modal tag";
-        fields {
-            field nahe = opt(selmaho(Nahe).wf());
-            field se = opt(selmaho(Se).wf());
-            field bai = selmaho(Bai).wf();
-            field nai = opt(cmavo(Nai).wf());
-            field ki = opt(cmavo(Ki).wf());
-        }
+    rule "tag" cuhe_tense -> struct {
+        field cuhe <- selmaho(Cuhe).wf();
     }
 
-    node fa_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field fa = selmaho(Fa).wf();
-        }
+    rule "tag" pu_tense -> struct {
+        field pu <- selmaho(Pu).wf();
     }
 
-    node sticky_tense -> TenseModalSyntax {
-        context "tag";
-        fields {
-            field ki = cmavo(Ki).wf();
-        }
+    rule "tag" va_tense -> struct {
+        field va <- selmaho(Va).wf();
+    }
+
+    rule "modal tag" modal_tense -> struct {
+        field nahe <- opt(selmaho(Nahe).wf());
+        field se <- opt(selmaho(Se).wf());
+        field bai <- selmaho(Bai).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field ki <- opt(cmavo(Ki).wf());
+    }
+
+    rule "tag" fa_tense -> struct {
+        field fa <- selmaho(Fa).wf();
+    }
+
+    rule "tag" sticky_tense -> struct {
+        field ki <- cmavo(Ki).wf();
     }
 
     node tagged_selbri(selbri, co_selbri, tense_modal) -> SelbriSyntax {
