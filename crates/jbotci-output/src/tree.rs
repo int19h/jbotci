@@ -8022,14 +8022,28 @@ fn legacy_as_generated_mekso_operand_tree_value(
             continuations
                 .iter()
                 .map(|(connective, trailing_expression)| {
-                    TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(*connective, source, options),
-                        legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                            *trailing_expression,
-                            source,
-                            options,
-                        ),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "AfterthoughtMeksoOperandContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("operand_connective"),
+                                value: required_legacy_syntax_subtree_value(
+                                    *connective,
+                                    source,
+                                    options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_expression"),
+                                value:
+                                    legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+                                        *trailing_expression,
+                                        source,
+                                        options,
+                                    ),
+                            },
+                        ],
+                    })
                 })
                 .collect(),
         ) {
@@ -8530,14 +8544,26 @@ fn legacy_as_generated_mekso_operator_tree_value(
             continuations
                 .iter()
                 .map(|(connective, trailing_operator)| {
-                    TreeValue::Collection(vec![
-                        legacy_as_generated_connective_tree_value(connective, source, options),
-                        legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
-                            trailing_operator,
-                            source,
-                            options,
-                        ),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "AfterthoughtMeksoOperatorContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("connective"),
+                                value: legacy_as_generated_connective_tree_value(
+                                    connective, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_operator"),
+                                value:
+                                    legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+                                        trailing_operator,
+                                        source,
+                                        options,
+                                    ),
+                            },
+                        ],
+                    })
                 })
                 .collect(),
         ) {

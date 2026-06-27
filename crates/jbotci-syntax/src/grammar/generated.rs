@@ -974,7 +974,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "operator" afterthought_mekso_operator(mekso, mekso_operator, selbri) -> struct {
         field leading_operator <- boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
-        field continuations <- [zero_or_more (standard_statement_connective, boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri)))];
+        field continuations <- [zero_or_more afterthought_mekso_operator_continuation(mekso, mekso_operator, selbri)];
+    }
+
+    rule "operator continuation" afterthought_mekso_operator_continuation(mekso, mekso_operator, selbri) -> struct {
+        field connective <- standard_statement_connective;
+        field trailing_operator <- boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
     }
 
     rule "operator" bound_or_atom_mekso_operator(mekso, mekso_operator, selbri) -> enum {
@@ -1042,7 +1047,12 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "operand connective" afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
         field leading_expression <- boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-        field continuations <- [zero_or_more (operand_connective, boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)))];
+        field continuations <- [zero_or_more afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)];
+    }
+
+    rule "operand continuation" afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+        field operand_connective <- operand_connective;
+        field trailing_expression <- boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
     }
 
     rule "operand" bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
