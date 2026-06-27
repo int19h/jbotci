@@ -2194,11 +2194,23 @@ macro_rules! declare_generated_syntax_grammar {
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    alias "number" interval_property_number_words =
-        [pa_word(); zero_or_more ..choice((
-            [pa_word()],
-            [word_category(LetterWord)],
-        ))];
+    rule "number" interval_property_number_words -> struct {
+        field first_number <- pa_word();
+        field continuations <- [zero_or_more interval_property_number_word_continuation];
+    }
+
+    rule "number continuation" interval_property_number_word_continuation -> enum {
+        interval_property_number_pa_continuation,
+        interval_property_number_letter_continuation,
+    }
+
+    rule "number continuation" interval_property_number_pa_continuation -> struct {
+        field pa <- pa_word();
+    }
+
+    rule "number continuation" interval_property_number_letter_continuation -> struct {
+        field letter <- word_category(LetterWord);
+    }
 
     rule "interval property" tahe_interval_property_tense -> struct {
         field tahe <- selmaho(Tahe).wf();

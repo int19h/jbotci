@@ -10475,6 +10475,60 @@ fn legacy_as_generated_number_words_entries(
 
 #[requires(!words.is_empty())]
 #[ensures(true)]
+fn legacy_as_generated_interval_property_number_words_tree_value(
+    words: &[&Token],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    assert!(
+        words[0].is_selmaho(Selmaho::Pa),
+        "legacy interval property number run must start with PA"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("first_number"),
+        value: generated_token_tree_value(words[0], source, options),
+    }];
+    let continuations = words
+        .iter()
+        .skip(1)
+        .map(|token| {
+            if token.is_selmaho(Selmaho::Pa) {
+                legacy_as_generated_wrapped_variant_tree_value(
+                    "IntervalPropertyNumberPaContinuation",
+                    "interval_property_number_pa_continuation",
+                    vec![TreeEntry {
+                        label: Some("pa"),
+                        value: generated_token_tree_value(token, source, options),
+                    }],
+                )
+            } else {
+                assert!(
+                    legacy_token_is_letter_word(token),
+                    "legacy interval property number continuation must be PA or LetterWord"
+                );
+                legacy_as_generated_wrapped_variant_tree_value(
+                    "IntervalPropertyNumberLetterContinuation",
+                    "interval_property_number_letter_continuation",
+                    vec![TreeEntry {
+                        label: Some("letter"),
+                        value: generated_token_tree_value(token, source, options),
+                    }],
+                )
+            }
+        })
+        .collect();
+    if let Some(entry) = labelled_tree_collection_entry_from_values("continuations", continuations)
+    {
+        entries.push(entry);
+    }
+    TreeValue::Node(TreeNode {
+        constructor: "IntervalPropertyNumberWords",
+        entries,
+    })
+}
+
+#[requires(!words.is_empty())]
+#[ensures(true)]
 fn legacy_as_generated_letter_string_tree_value(
     words: &jbotci_syntax::ast::WordRun,
     source: &str,
@@ -13941,10 +13995,15 @@ fn legacy_as_generated_leading_term_tag_interval_property_tense_value(
 
     if roi_or_tahe.value.is_selmaho(Selmaho::Roi) {
         let number = number?;
+        let number_tokens = number.iter().collect::<Vec<_>>();
         let mut entries = vec![
             TreeEntry {
                 label: Some("number"),
-                value: legacy_word_run_tree_value(number, source, options),
+                value: legacy_as_generated_interval_property_number_words_tree_value(
+                    &number_tokens,
+                    source,
+                    options,
+                ),
             },
             TreeEntry {
                 label: Some("roi"),
@@ -15068,11 +15127,10 @@ fn legacy_as_generated_time_tense_sequence_tree_value(
             let mut entries = vec![
                 TreeEntry {
                     label: Some("number"),
-                    value: TreeValue::Collection(
-                        tokens[start..index - 1]
-                            .iter()
-                            .map(|token| generated_token_tree_value(token, source, options))
-                            .collect(),
+                    value: legacy_as_generated_interval_property_number_words_tree_value(
+                        &tokens[start..index - 1],
+                        source,
+                        options,
                     ),
                 },
                 TreeEntry {
@@ -15760,11 +15818,10 @@ fn legacy_as_generated_interval_property_tense_value(
         let mut entries = vec![
             TreeEntry {
                 label: Some("number"),
-                value: TreeValue::Collection(
-                    tokens[start..next - 1]
-                        .iter()
-                        .map(|token| generated_token_tree_value(token, source, options))
-                        .collect(),
+                value: legacy_as_generated_interval_property_number_words_tree_value(
+                    &tokens[start..next - 1],
+                    source,
+                    options,
                 ),
             },
             TreeEntry {
