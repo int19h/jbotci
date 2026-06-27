@@ -7864,21 +7864,33 @@ fn legacy_as_generated_mekso_precedence_tree_value(
                 },
                 TreeEntry {
                     label: Some("tail"),
-                    value: TreeValue::Collection(vec![
-                        TreeValue::Collection(vec![
-                            required_legacy_syntax_subtree_value(bihe, source, options),
-                            legacy_as_generated_mekso_operator_tree_value(
-                                operator.as_ref(),
-                                source,
-                                options,
-                            ),
-                        ]),
-                        legacy_as_generated_mekso_precedence_tree_value(
-                            right_expression.as_ref(),
-                            source,
-                            options,
-                        ),
-                    ]),
+                    value: TreeValue::Node(TreeNode {
+                        constructor: "MeksoPrecedenceTail",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("bihe"),
+                                value: required_legacy_syntax_subtree_value(
+                                    bihe, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("operator"),
+                                value: legacy_as_generated_mekso_operator_tree_value(
+                                    operator.as_ref(),
+                                    source,
+                                    options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("right_expression"),
+                                value: legacy_as_generated_mekso_precedence_tree_value(
+                                    right_expression.as_ref(),
+                                    source,
+                                    options,
+                                ),
+                            },
+                        ],
+                    }),
                 },
             ],
         }),

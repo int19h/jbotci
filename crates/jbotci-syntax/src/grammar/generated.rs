@@ -1150,7 +1150,13 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "mex" mekso_precedence(mekso_base, mekso_precedence, mekso_operator) -> struct {
         field left_expression <- boxed(mekso_base);
-        field tail <- opt((cmavo(Bihe).wf(), boxed(mekso_operator), boxed(mekso_precedence)));
+        field tail <- opt(mekso_precedence_tail(mekso_precedence, mekso_operator));
+    }
+
+    rule "mex precedence tail" mekso_precedence_tail(mekso_precedence, mekso_operator) -> struct {
+        field bihe <- cmavo(Bihe).wf();
+        field operator <- boxed(mekso_operator);
+        field right_expression <- boxed(mekso_precedence);
     }
 
     rule "mex" infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
