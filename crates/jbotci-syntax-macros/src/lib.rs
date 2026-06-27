@@ -3086,7 +3086,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::strict_optional(#inner).map(Option::unwrap_or_default)))
         }
-        ("many" | "many_local", 1) => {
+        ("many", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
@@ -3096,7 +3096,7 @@ fn strict_call_parser_expr_tokens(
             )?;
             Some(quote!(generated_runtime::strict_greedy_many_parser(#inner.boxed())))
         }
-        ("many1" | "nonempty", 1) => {
+        ("many1", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
                 arguments,
@@ -3105,82 +3105,6 @@ fn strict_call_parser_expr_tokens(
                 mode,
             )?;
             Some(quote!(generated_runtime::strict_greedy_many1_parser(#inner.boxed())))
-        }
-        ("vec1", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote! {
-                generated_runtime::strict_greedy_many1_parser(#inner.boxed()).map(|items| {
-                    vec1::Vec1::try_from_vec(items)
-                        .expect("strict_greedy_many1_parser guarantees a non-empty vector")
-                })
-            })
-        }
-        ("singleton", 1) => {
-            let inner = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::singleton(#inner)))
-        }
-        ("prepend", 2) => {
-            let head = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            let tail = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::prepend(#head, #tail)))
-        }
-        ("append", 2) => {
-            let left = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            let right = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::append(#left, #right)))
-        }
-        ("concat", 2) => {
-            let head = strict_rust_parser_expr_tokens(
-                call.args.first().expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            let tail = strict_rust_parser_expr_tokens(
-                call.args.iter().nth(1).expect("length checked"),
-                arguments,
-                generation,
-                free_modifier_parser,
-                mode,
-            )?;
-            Some(quote!(generated_runtime::concat(#head, #tail)))
         }
         ("boxed", 1) => {
             let inner = strict_rust_parser_expr_tokens(
@@ -3729,7 +3653,7 @@ fn call_rust_parser_output_type(
             type_env,
             arguments,
         ),
-        ("many" | "many1" | "many_local", 1) => {
+        ("many" | "many1", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
                 type_env,
@@ -3737,40 +3661,6 @@ fn call_rust_parser_output_type(
             )?;
             Some(quote!(Vec<#inner>))
         }
-        ("vec1", 1) => {
-            let inner = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(vec1::Vec1<#inner>))
-        }
-        ("singleton", 1) => {
-            let inner = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(Vec<#inner>))
-        }
-        ("prepend", 2) => {
-            let head = rust_parser_output_type(
-                call.args.first().expect("length checked"),
-                type_env,
-                arguments,
-            )?;
-            Some(quote!(Vec<#head>))
-        }
-        ("append", 2) => rust_parser_output_type(
-            call.args.first().expect("length checked"),
-            type_env,
-            arguments,
-        ),
-        ("concat", 2) => rust_parser_output_type(
-            call.args.first().expect("length checked"),
-            type_env,
-            arguments,
-        ),
         ("boxed", 1) => {
             let inner = rust_parser_output_type(
                 call.args.first().expect("length checked"),
@@ -3794,11 +3684,6 @@ fn call_rust_parser_output_type(
         ),
         ("feature" | "policy", 2) => rust_parser_output_type(
             call.args.iter().nth(1).expect("length checked"),
-            type_env,
-            arguments,
-        ),
-        ("nonempty", 1) => rust_parser_output_type(
-            call.args.first().expect("length checked"),
             type_env,
             arguments,
         ),
@@ -4728,24 +4613,12 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
         ("opt_or_default", 1) => {
             RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
-        ("many" | "many_local", 1) => {
+        ("many", 1) => {
             RecoveryExpr::Many(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
-        ("many1", 1) | ("nonempty", 1) => {
+        ("many1", 1) => {
             RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }
-        ("vec1", 1) => {
-            RecoveryExpr::Many1(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("singleton", 1) => {
-            RecoveryExpr::Some(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("prepend" | "append" | "concat", 2) => RecoveryExpr::Sequence(
-            call.args
-                .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
-        ),
         ("boxed", 1) => {
             RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
         }

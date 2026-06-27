@@ -412,63 +412,6 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn singleton<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, Vec<O>>
-where
-    O: 'tokens,
-    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
-{
-    parser.map(|item| vec![item]).boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn prepend<'tokens, O, H, T>(head: H, tail: T) -> BoxedParser<'tokens, Vec<O>>
-where
-    O: 'tokens,
-    H: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
-    T: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
-{
-    head.then(tail)
-        .map(|(head, tail)| std::iter::once(head).chain(tail).collect())
-        .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn append<'tokens, O, L, R>(left: L, right: R) -> BoxedParser<'tokens, Vec<O>>
-where
-    O: 'tokens,
-    L: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
-    R: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
-{
-    left.then(right)
-        .map(|(mut left, mut right)| {
-            left.append(&mut right);
-            left
-        })
-        .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn concat<'tokens, O, H, T>(head: H, tail: T) -> BoxedParser<'tokens, Vec<O>>
-where
-    O: 'tokens,
-    H: Parser<'tokens, ParserInput<'tokens>, Vec<O>, ParseExtra<'tokens>> + 'tokens,
-    T: Parser<'tokens, ParserInput<'tokens>, Vec<Vec<O>>, ParseExtra<'tokens>> + 'tokens,
-{
-    head.then(tail)
-        .map(|(mut head, tail)| {
-            for mut segment in tail {
-                head.append(&mut segment);
-            }
-            head
-        })
-        .boxed()
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
     alternatives: Vec<BoxedParser<'tokens, O>>,
 ) -> BoxedParser<'tokens, O> {
