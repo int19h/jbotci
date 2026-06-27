@@ -592,7 +592,13 @@ macro_rules! declare_generated_syntax_grammar {
     rule "termset connection" pehe_termset_connection(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- [one_or_more (cmavo(Pehe).wf(), statement_connective, boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term)))];
+        field continuations <- [one_or_more pehe_termset_connection_continuation(sumti, tense_modal, subbridi, selbri, term)];
+    }
+
+    rule "termset connection continuation" pehe_termset_connection_continuation(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        field pehe <- cmavo(Pehe).wf();
+        field connective <- statement_connective;
+        field trailing_term <- boxed(pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term));
     }
 
     rule "term" pehe_termset_operand(sumti, tense_modal, subbridi, selbri, term) -> enum {
@@ -642,18 +648,28 @@ macro_rules! declare_generated_syntax_grammar {
     rule "term connection" connected_term(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- [zero_or_more (choice((
+        field continuations <- [zero_or_more connected_term_continuation(sumti, tense_modal, subbridi, selbri, term)];
+    }
+
+    rule "term connection continuation" connected_term_continuation(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        field connective <- choice((
             joik_connective(),
             jek_connective(),
             ek_connective(),
             vuhu_nonlogical_connective(),
-        )), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term)))];
+        ));
+        field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
     }
 
     rule "termset" termset_group(sumti, tense_modal, subbridi, selbri, term) -> struct {
         assert term_guard();
         field leading_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
-        field continuations <- [one_or_more (cmavo(Cehe).wf(), boxed(simple_term(sumti, tense_modal, subbridi, selbri, term)))];
+        field continuations <- [one_or_more termset_group_continuation(sumti, tense_modal, subbridi, selbri, term)];
+    }
+
+    rule "termset continuation" termset_group_continuation(sumti, tense_modal, subbridi, selbri, term) -> struct {
+        field cehe <- cmavo(Cehe).wf();
+        field trailing_term <- boxed(simple_term(sumti, tense_modal, subbridi, selbri, term));
     }
 
     rule "termset" forethought_termset(term, tense_modal) -> struct {

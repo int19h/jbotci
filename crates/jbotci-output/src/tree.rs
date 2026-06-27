@@ -4162,16 +4162,42 @@ fn legacy_as_generated_connected_term_tree_value(
                 .iter()
                 .skip(1)
                 .map(|term| {
-                    TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(connective, source, options),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "ConnectedTermContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("connective"),
+                                value: required_legacy_syntax_subtree_value(
+                                    connective, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_simple_term_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 })
                 .chain(trailing_terms.iter().map(|term| {
-                    TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(connective, source, options),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "ConnectedTermContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("connective"),
+                                value: required_legacy_syntax_subtree_value(
+                                    connective, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_simple_term_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 }))
                 .collect::<Vec<_>>();
             if let Some(entry) =
@@ -4610,16 +4636,42 @@ fn legacy_as_generated_termset_group_tree_value(
                 .iter()
                 .skip(1)
                 .map(|term| {
-                    TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(cehe, source, options),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "TermsetGroupContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("cehe"),
+                                value: required_legacy_syntax_subtree_value(
+                                    cehe, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_simple_term_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 })
                 .chain(trailing_terms.iter().map(|term| {
-                    TreeValue::Collection(vec![
-                        required_legacy_syntax_subtree_value(cehe, source, options),
-                        legacy_as_generated_simple_term_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "TermsetGroupContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("cehe"),
+                                value: required_legacy_syntax_subtree_value(
+                                    cehe, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_simple_term_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 }))
                 .collect::<Vec<_>>();
             if let Some(entry) =
@@ -4660,22 +4712,54 @@ fn legacy_as_generated_pehe_termset_connection_tree_value(
                 .iter()
                 .skip(1)
                 .map(|term| {
-                    TreeValue::Collection(vec![
-                        TreeValue::Collection(vec![
-                            required_legacy_syntax_subtree_value(pehe, source, options),
-                            legacy_as_generated_connective_tree_value(connective, source, options),
-                        ]),
-                        legacy_as_generated_pehe_termset_operand_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "PeheTermsetConnectionContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("pehe"),
+                                value: required_legacy_syntax_subtree_value(
+                                    pehe, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("connective"),
+                                value: legacy_as_generated_connective_tree_value(
+                                    connective, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_pehe_termset_operand_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 })
                 .chain(trailing_terms.iter().map(|term| {
-                    TreeValue::Collection(vec![
-                        TreeValue::Collection(vec![
-                            required_legacy_syntax_subtree_value(pehe, source, options),
-                            legacy_as_generated_connective_tree_value(connective, source, options),
-                        ]),
-                        legacy_as_generated_pehe_termset_operand_tree_value(term, source, options),
-                    ])
+                    TreeValue::Node(TreeNode {
+                        constructor: "PeheTermsetConnectionContinuation",
+                        entries: vec![
+                            TreeEntry {
+                                label: Some("pehe"),
+                                value: required_legacy_syntax_subtree_value(
+                                    pehe, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("connective"),
+                                value: legacy_as_generated_connective_tree_value(
+                                    connective, source, options,
+                                ),
+                            },
+                            TreeEntry {
+                                label: Some("trailing_term"),
+                                value: legacy_as_generated_pehe_termset_operand_tree_value(
+                                    term, source, options,
+                                ),
+                            },
+                        ],
+                    })
                 }))
                 .collect::<Vec<_>>();
             if let Some(entry) =
