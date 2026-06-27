@@ -1373,12 +1373,8 @@ macro_rules! declare_generated_syntax_grammar {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
     }
 
-    node description_head_connective -> ConnectiveSyntax {
-        context "descriptor connective";
-        construct variant DescriptionHeadConnective;
-        fields {
-            field connective = boxed(jek_connective);
-        }
+    rule "descriptor connective" description_head_connective -> struct {
+        field connective <- boxed(jek_connective);
     }
 
     node description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> SumtiSyntax {

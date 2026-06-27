@@ -6548,7 +6548,7 @@ fn legacy_as_generated_description_connection_sumti_tree_value(
         TreeEntry {
             label: Some("connective"),
             value: TreeValue::Node(TreeNode {
-                constructor: "Afterthought",
+                constructor: "DescriptionHeadConnective",
                 entries: vec![TreeEntry {
                     label: Some("connective"),
                     value: required_legacy_syntax_subtree_value(
@@ -15108,8 +15108,7 @@ fn generated_connective_constructor(
 ) -> &'static str {
     match connective {
         generated_model::ConnectiveSyntax::EkAfterthoughtConnective { .. }
-        | generated_model::ConnectiveSyntax::JehiAfterthoughtConnective { .. }
-        | generated_model::ConnectiveSyntax::DescriptionHeadConnective { .. } => "Afterthought",
+        | generated_model::ConnectiveSyntax::JehiAfterthoughtConnective { .. } => "Afterthought",
         generated_model::ConnectiveSyntax::JekSelbriConnective { .. }
         | generated_model::ConnectiveSyntax::ParagraphJekConnective { .. } => "Selbri",
         generated_model::ConnectiveSyntax::GihekBridiTailConnective { .. } => "BridiTail",
