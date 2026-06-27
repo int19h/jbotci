@@ -323,6 +323,9 @@ impl Parse for SyntaxGrammar {
         let mut rules = Vec::new();
         while !input.is_empty() {
             if input.peek(kw::recursive) {
+                if !recursive.is_empty() {
+                    return Err(input.error("duplicate `recursive` block"));
+                }
                 recursive = parse_recursive_block(input)?;
             } else if input.peek(kw::alias) {
                 rules.push(Rule::Alias(input.parse()?));
@@ -338,6 +341,8 @@ impl Parse for SyntaxGrammar {
                 );
             }
         }
+        validate_unique_recursive_rules(&recursive)?;
+        validate_unique_rules(&rules)?;
 
         Ok(Self {
             tree_model,
@@ -352,6 +357,33 @@ impl Parse for SyntaxGrammar {
             rules,
         })
     }
+}
+
+fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
+    let mut names = BTreeSet::new();
+    for rule in rules {
+        if !names.insert(rule.name.to_string()) {
+            return Err(syn::Error::new_spanned(
+                &rule.name,
+                "duplicate recursive rule declaration",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
+    let mut names = BTreeSet::new();
+    for rule in rules {
+        let name = rule.name();
+        if !names.insert(name.to_string()) {
+            return Err(syn::Error::new_spanned(
+                name,
+                "duplicate grammar rule declaration",
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
@@ -4730,6 +4762,71 @@ mod tests {
         assert!(
             result.is_err(),
             "recovered_build blocks must be unsupported"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_duplicate_recursive_blocks() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            recursive {
+                item: ItemSyntax;
+            }
+
+            recursive {
+                other_item: OtherItemSyntax;
+            }
+        });
+
+        let error = match result {
+            Ok(_) => panic!("duplicate recursive blocks must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("duplicate `recursive` block"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_duplicate_recursive_names() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            recursive {
+                item: ItemSyntax;
+                item: OtherItemSyntax;
+            }
+        });
+
+        let error = match result {
+            Ok(_) => panic!("duplicate recursive declarations must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate recursive rule declaration"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_duplicate_rule_names() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+
+            alias "item alias" item = cmavo(Bo);
+        });
+
+        let error = match result {
+            Ok(_) => panic!("duplicate rule declarations must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("duplicate grammar rule declaration"),
+            "unexpected error: {error}"
         );
     }
 }
