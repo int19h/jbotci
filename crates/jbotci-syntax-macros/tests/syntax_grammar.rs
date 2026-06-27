@@ -36,11 +36,8 @@ jbotci_syntax_macros::syntax_grammar! {
         statement: StatementSyntax;
     }
 
-    alias passthrough_statement(statement) -> StatementSyntax {
-        context "statement";
-        require cmavo(Bo).not();
-        statement;
-    }
+    alias "statement" passthrough_statement(statement) =
+        guard_not(cmavo(Bo), statement);
 
     node linkargs(sumti) -> LinkedSumtiListSyntax {
         context "linked arguments";
@@ -79,15 +76,13 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "passthrough_statement");
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].arguments, &["statement"]);
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].context, Some("statement"));
-    assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[0].kind, "require");
+    assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[0].kind, "alias");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[0].fields[0].recovery,
-        SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
-    );
-    assert_eq!(SYNTAX_GRAMMAR_RULES[0].fields[1].kind, "alias");
-    assert_eq!(
-        SYNTAX_GRAMMAR_RULES[0].fields[1].recovery,
-        SyntaxGrammarRecoveryExpr::Rule("statement")
+        SyntaxGrammarRecoveryExpr::Sequence(&[
+            SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo)),
+            SyntaxGrammarRecoveryExpr::Rule("statement"),
+        ])
     );
 
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].kind, "node");
@@ -194,9 +189,7 @@ mod generated_model {
             item: ItemSyntax;
         }
 
-        alias item_alias(item) -> ItemSyntax {
-            item;
-        }
+        alias "item" item_alias = item;
 
         node pair(item) -> PairSyntax {
             fields {

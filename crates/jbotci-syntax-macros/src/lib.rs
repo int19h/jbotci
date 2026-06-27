@@ -1540,7 +1540,6 @@ struct AliasRule {
     arguments: Vec<Ident>,
     output: Option<Type>,
     context: Option<LitStr>,
-    requires: Vec<Expr>,
     parser: ParserExpr,
 }
 
@@ -1572,19 +1571,6 @@ impl AliasRule {
             .collect::<BTreeSet<_>>();
         let parser = self.parser.compact_tokens();
         let recovery = classify_parser_expr(&self.parser, &argument_names).expand();
-        let requires = self.requires.iter().map(|require| {
-            let parser = compact_tokens(require);
-            let recovery = classify_recovery_expr(require, &argument_names).expand();
-            quote! {
-                SyntaxGrammarField {
-                    kind: "require",
-                    name: "",
-                    parser: #parser,
-                    recovery: #recovery,
-                    conditions: &[],
-                }
-            }
-        });
         Ok(quote! {
             SyntaxGrammarRule {
                 kind: "alias",
@@ -1593,7 +1579,6 @@ impl AliasRule {
                 output: #output,
                 context: #context,
                 fields: &[
-                    #(#requires,)*
                     SyntaxGrammarField {
                     kind: "alias",
                     name: "",
@@ -1631,20 +1616,6 @@ impl AliasRule {
             &free_modifier_parser,
             StrictParserCallMode::Local,
         )?;
-        let parser = self
-            .requires
-            .iter()
-            .rev()
-            .try_fold(parser, |parser, require| {
-                let require = strict_rust_parser_expr_tokens(
-                    require,
-                    &argument_names,
-                    &generation,
-                    &free_modifier_parser,
-                    StrictParserCallMode::Local,
-                )?;
-                Some(quote!(#require.ignore_then(#parser)))
-            })?;
         let name = format_ident!("strict_{}_parser", self.name);
         let output = parser_type_tokens(output, generate_model, model_outputs, model_path);
         let argument_params = self.arguments.iter().map(|argument| {
@@ -1729,99 +1700,26 @@ impl AliasRule {
 impl Parse for AliasRule {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         input.parse::<kw::alias>()?;
-        if input.peek(LitStr) {
-            let context = Some(input.parse()?);
-            let name = input.parse()?;
-            let arguments = parse_optional_arguments(input)?;
-            let (requires, parser) = if input.peek(Token![=]) {
-                input.parse::<Token![=]>()?;
-                let parser = input.parse()?;
-                input.parse::<Token![;]>()?;
-                (Vec::new(), parser)
-            } else if input.peek(syn::token::Brace) {
-                let content;
-                braced!(content in input);
-                parse_parser_only_alias_body(&content)?
-            } else {
-                return Err(input.error("expected `=` or an alias body"));
-            };
-            return Ok(Self {
-                name,
-                arguments,
-                output: None,
-                context,
-                requires,
-                parser,
-            });
+        if !input.peek(LitStr) {
+            return Err(input.error("alias rules must use `alias \"context\" name = parser;`"));
         }
+        let context = Some(input.parse()?);
         let name = input.parse()?;
         let arguments = parse_optional_arguments(input)?;
-        input.parse::<Token![->]>()?;
-        let output = input.parse()?;
-        let content;
-        braced!(content in input);
-
-        let mut context = None;
-        let mut requires = Vec::new();
-        let mut parser = None;
-        while !content.is_empty() {
-            if content.peek(kw::context) {
-                content.parse::<kw::context>()?;
-                context = Some(content.parse()?);
-                content.parse::<Token![;]>()?;
-            } else if content.peek(kw::require) {
-                content.parse::<kw::require>()?;
-                requires.push(content.parse()?);
-                content.parse::<Token![;]>()?;
-            } else {
-                if parser.is_some() {
-                    return Err(content.error("alias rules accept exactly one parser expression"));
-                }
-                parser = Some(content.parse::<Expr>()?.into());
-                content.parse::<Token![;]>()?;
-            }
+        if !input.peek(Token![=]) {
+            return Err(input.error("alias rules must use `=`; use `guard` or `guard_not` for parser-only assertions"));
         }
-        let parser =
-            parser.ok_or_else(|| input.error("alias rule requires a parser expression"))?;
+        input.parse::<Token![=]>()?;
+        let parser = input.parse()?;
+        input.parse::<Token![;]>()?;
         Ok(Self {
             name,
             arguments,
-            output: Some(output),
+            output: None,
             context,
-            requires,
             parser,
         })
     }
-}
-
-fn parse_parser_only_alias_body(input: ParseStream<'_>) -> Result<(Vec<Expr>, ParserExpr)> {
-    let mut requires = Vec::new();
-    let mut parser = None;
-    while !input.is_empty() {
-        if input.peek(kw::assert) {
-            input.parse::<kw::assert>()?;
-            let negated = input.peek(Token![!]);
-            if negated {
-                input.parse::<Token![!]>()?;
-            }
-            let expr: Expr = input.parse()?;
-            input.parse::<Token![;]>()?;
-            let expr = if negated {
-                syn::parse2::<Expr>(quote!(#expr.not()))?
-            } else {
-                syn::parse2::<Expr>(quote!(#expr.lookahead().ignored()))?
-            };
-            requires.push(expr);
-        } else {
-            if parser.is_some() {
-                return Err(input.error("alias rules accept exactly one parser expression"));
-            }
-            parser = Some(input.parse()?);
-            input.parse::<Token![;]>()?;
-        }
-    }
-    let parser = parser.ok_or_else(|| input.error("alias rule requires a parser expression"))?;
-    Ok((requires, parser))
 }
 
 struct EnumRule {
@@ -4810,6 +4708,47 @@ mod tests {
         assert!(
             result.is_err(),
             "recovered_build blocks must be unsupported"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_old_typed_alias_rules() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            alias item_alias(item) -> ItemSyntax {
+                item;
+            }
+        });
+
+        let error = match result {
+            Ok(_) => panic!("old typed alias rules must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("alias rules must use `alias \"context\" name = parser;`"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn grammar_rejects_alias_bodies() {
+        let result = syn::parse2::<SyntaxGrammar>(quote! {
+            alias "item" item_alias {
+                assert !cmavo(Bo);
+                item;
+            }
+        });
+
+        let error = match result {
+            Ok(_) => panic!("alias body rules must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("alias rules must use `=`"),
+            "unexpected error: {error}"
         );
     }
 

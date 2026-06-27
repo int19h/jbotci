@@ -20,9 +20,7 @@ jbotci_syntax_macros::syntax_grammar! {
         generated_item: GeneratedItemSyntax;
     }
 
-    alias generated_item_alias(generated_item) -> GeneratedItemSyntax {
-        generated_item;
-    }
+    alias "generated item" generated_item_alias = generated_item;
 
     node generated_item_node -> GeneratedItemSyntax {
         fields {
