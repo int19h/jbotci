@@ -714,10 +714,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "place tag" place_tagged_sumti_term(sumti) -> struct {
         field fa <- selmaho(Fa).wf();
-        field sumti <- boxed(choice((
-            sumti,
-            tagged_elided_sumti(),
-        )));
+        field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
 
     rule "NA KU term" na_ku_term -> struct {
@@ -752,10 +749,7 @@ macro_rules! declare_generated_syntax_grammar {
         assert !modal_forethought_connective(tense_modal);
         field tense_modal <- some(boxed(leading_term_tag_tense_modal(tense_modal, selbri)));
         assert !selbri;
-        field sumti <- boxed(choice((
-            sumti,
-            tagged_elided_sumti(),
-        )));
+        field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
 
     rule "tag" jai_tagged_sumti_term(tense_modal, sumti) -> struct {
@@ -825,13 +819,13 @@ macro_rules! declare_generated_syntax_grammar {
         )).lookahead()));
     }
 
-    node tagged_elided_sumti -> SumtiSyntax {
-        context "elided sumti";
-        construct variant ElidedSumti;
-        fields {
-            field maybe_ku = opt(cmavo(Ku).wf());
-            default free_modifiers: Vec<FreeModifierSyntax> = Vec::new();
-        }
+    rule "sumti" tagged_or_elided_sumti(sumti) -> enum {
+        sumti,
+        tagged_elided_sumti,
+    }
+
+    rule "elided sumti" tagged_elided_sumti -> struct {
+        field maybe_ku <- opt(cmavo(Ku).wf());
     }
 
     rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal) -> struct {
@@ -1708,10 +1702,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "tagged sumti" tense_tagged_relative_sumti(tense_modal, sumti) -> struct {
         field tense_modal <- boxed(tense_modal);
-        field sumti <- boxed(choice((
-            sumti,
-            tagged_elided_sumti(),
-        )));
+        field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
 
     rule "sumti association phrase" plain_relative_sumti(sumti) -> struct {
@@ -3064,20 +3055,14 @@ macro_rules! declare_generated_syntax_grammar {
         empty_linked_sumti,
     }
 
-    alias "linked arguments" linked_sumti_tail(sumti) =
-        choice((
-            sumti,
-            tagged_elided_sumti(),
-        ));
-
     rule "linked arguments" place_tagged_linked_sumti(sumti) -> struct {
         field fa <- selmaho(Fa).wf();
-        field sumti <- boxed(linked_sumti_tail(sumti));
+        field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
 
     rule "linked arguments" tense_tagged_linked_sumti(sumti, tense_modal) -> struct {
         field tense_modal <- boxed(tense_modal);
-        field sumti <- boxed(linked_sumti_tail(sumti));
+        field sumti <- boxed(tagged_or_elided_sumti(sumti));
     }
 
     rule "linked arguments" plain_linked_sumti(sumti) -> struct {

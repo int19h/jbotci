@@ -1777,13 +1777,25 @@ impl EnumRule {
             .iter()
             .map(|branch| {
                 let branch_name = branch.name.to_string();
-                let branch_output = type_env
-                    .rules
-                    .get(&branch_name)
-                    .or_else(|| type_env.recursive.get(&branch_name))?;
+                let branch_is_argument = argument_names.contains(&branch_name);
+                let branch_output = if branch_is_argument {
+                    argument_types.get(&branch_name)?
+                } else {
+                    type_env
+                        .rules
+                        .get(&branch_name)
+                        .or_else(|| type_env.recursive.get(&branch_name))?
+                };
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                 let field = &branch.name;
-                let branch_parser = if type_env.rules.contains_key(&branch_name) {
+                let branch_parser = if branch_is_argument {
+                    strict_argument_parser_tokens(
+                        &branch_name,
+                        &argument_names,
+                        &generation,
+                        StrictParserCallMode::Local,
+                    )?
+                } else if type_env.rules.contains_key(&branch_name) {
                     strict_rule_call_by_argument_names(
                         &branch_name,
                         type_env.rule_arguments_for_call(&branch_name)?,
@@ -4783,6 +4795,39 @@ mod tests {
                 .to_string()
                 .contains("duplicate grammar rule declaration"),
             "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn enum_branch_prefers_same_named_parser_argument_over_rule() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            recursive {
+                item: ItemSyntax;
+            }
+
+            rule "item" item(item) -> struct {
+                field inner <- item;
+            }
+
+            rule "wrapper" wrapper(item) -> enum {
+                item,
+            }
+        })
+        .expect("grammar parses before expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("item . clone () . map"),
+            "enum branch should wrap the parser argument: {expanded}"
+        );
+        assert!(
+            expanded.contains("WrapperSyntax :: Item { item }"),
+            "enum branch should construct the wrapper from the parser argument: {expanded}"
         );
     }
 

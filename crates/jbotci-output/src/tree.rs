@@ -5471,14 +5471,49 @@ fn legacy_as_generated_tagged_or_elided_sumti_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    if matches!(
-        sumti.as_data(),
-        bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ElidedSumti { .. })
-    ) {
-        return legacy_as_generated_sumti_base_tree_value(sumti, source, options);
+    if let bityzba::data!(jbotci_syntax::ast::SumtiSyntax::ElidedSumti {
+        tag,
+        maybe_ku,
+        free_modifiers,
+    }) = sumti.as_data()
+    {
+        assert!(
+            tag.is_none(),
+            "tagged legacy elided sumti reached generated tagged_or_elided_sumti adapter"
+        );
+        return legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
+            maybe_ku.as_ref(),
+            free_modifiers,
+            source,
+            options,
+        );
     }
 
-    legacy_as_generated_sumti_tree_value(sumti, source, options)
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "Sumti",
+        "sumti",
+        legacy_as_generated_sumti_tree_value(sumti, source, options),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
+    maybe_ku: Option<&WithFreeModifiers<Token>>,
+    free_modifiers: &[jbotci_syntax::ast::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    legacy_as_generated_existing_variant_payload_tree_value(
+        "TaggedElidedSumti",
+        "tagged_elided_sumti",
+        legacy_as_generated_elided_sumti_without_tag_tree_value(
+            maybe_ku,
+            free_modifiers,
+            source,
+            options,
+        ),
+    )
 }
 
 #[requires(true)]
@@ -7315,7 +7350,7 @@ fn legacy_as_generated_relative_sumti_tree_value(
                 },
                 TreeEntry {
                     label: Some("sumti"),
-                    value: legacy_as_generated_elided_sumti_without_tag_tree_value(
+                    value: legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
                         maybe_ku,
                         free_modifiers,
                         source,
@@ -10638,10 +10673,12 @@ fn legacy_as_generated_linked_sumti_tree_value(
             let mut entries = legacy_token_field_entries("fa", fa, source, options);
             entries.push(TreeEntry {
                 label: Some("sumti"),
-                value: TreeValue::Node(TreeNode {
-                    constructor: "ElidedSumti",
-                    entries: Vec::new(),
-                }),
+                value: legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
+                    None,
+                    &[],
+                    source,
+                    options,
+                ),
             });
             legacy_as_generated_linked_sumti_variant_tree_value(
                 "PlaceTaggedLinkedSumti",
@@ -10656,7 +10693,7 @@ fn legacy_as_generated_linked_sumti_tree_value(
                 let mut entries = legacy_token_field_entries("fa", fa, source, options);
                 entries.push(TreeEntry {
                     label: Some("sumti"),
-                    value: legacy_as_generated_elided_sumti_without_tag_tree_value(
+                    value: legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
                         maybe_ku,
                         free_modifiers,
                         source,
@@ -10686,7 +10723,7 @@ fn legacy_as_generated_linked_sumti_tree_value(
                         },
                         TreeEntry {
                             label: Some("sumti"),
-                            value: legacy_as_generated_elided_sumti_without_tag_tree_value(
+                            value: legacy_as_generated_tagged_or_elided_elided_sumti_tree_value(
                                 maybe_ku,
                                 free_modifiers,
                                 source,
@@ -10742,9 +10779,7 @@ fn legacy_as_generated_linked_sumti_tree_value(
                 "plain_linked_sumti",
                 vec![TreeEntry {
                     label: Some("sumti"),
-                    value: legacy_as_generated_tagged_or_elided_sumti_tree_value(
-                        sumti, source, options,
-                    ),
+                    value: legacy_as_generated_sumti_tree_value(sumti, source, options),
                 }],
             )
         }
@@ -10764,25 +10799,18 @@ fn legacy_as_generated_elided_sumti_without_tag_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
+    assert!(
+        free_modifiers.is_empty(),
+        "legacy elided sumti free modifiers are not represented in generated tagged_elided_sumti"
+    );
     let mut entries = Vec::new();
     if let Some(maybe_ku) = maybe_ku {
         entries.extend(legacy_token_field_entries(
             "maybe_ku", maybe_ku, source, options,
         ));
     }
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "free_modifiers",
-        free_modifiers
-            .iter()
-            .map(|free_modifier| {
-                legacy_as_generated_free_modifier_tree_value(free_modifier, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
     TreeValue::Node(TreeNode {
-        constructor: "ElidedSumti",
+        constructor: "TaggedElidedSumti",
         entries,
     })
 }
