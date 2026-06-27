@@ -67,15 +67,12 @@ macro_rules! declare_generated_syntax_grammar {
         regular_text,
     }
 
-    alias "text" explicit_xauha_lohoi_lookahead =
-        (
+    rule "text" explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> struct {
+        assert (
             cmavo(Xauha).ignored(),
             raw_words_until(Kuhau).ignored(),
             cmavo(Kuhau).ignored(),
         ).ignored();
-
-    rule "text" explicit_xauha_lohoi_text(paragraph, statement_or_fragment, free_modifier) -> struct {
-        assert explicit_xauha_lohoi_lookahead();
         field paragraphs <- text_paragraph_with_additional_niho(paragraph, statement_or_fragment, free_modifier);
     }
 
@@ -730,11 +727,7 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "NA term" bare_na_term(selbri, tense_modal) -> struct {
         field na <- selmaho(Na).wf();
-        assert !bare_na_term_forbidden_follow(selbri, tense_modal);
-    }
-
-    alias "NA term" bare_na_term_forbidden_follow(selbri, tense_modal) =
-        choice((
+        assert !choice((
             selbri.ignored(),
             modal_forethought_connective(tense_modal).ignored(),
             selmaho(Ja).ignored(),
@@ -747,6 +740,7 @@ macro_rules! declare_generated_syntax_grammar {
                 selmaho(Giha),
             ).ignored(),
         ));
+    }
 
     rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri) -> struct {
         assert !modal_forethought_connective(tense_modal);
@@ -818,11 +812,7 @@ macro_rules! declare_generated_syntax_grammar {
     }
 
     rule "interval property" interval_property_leading_term_tag_tense(selbri) -> struct {
-        field property <- boxed(interval_property_tense().followed_by(leading_interval_property_follower(selbri).lookahead()));
-    }
-
-    alias "tag" leading_interval_property_follower(selbri) =
-        choice((
+        field property <- boxed(interval_property_tense().followed_by(choice((
             selmaho(Pu).ignored(),
             selmaho(Zi).ignored(),
             selmaho(Zeha).ignored(),
@@ -832,7 +822,8 @@ macro_rules! declare_generated_syntax_grammar {
             ).ignored(),
             modal_tense().ignored(),
             fiho_tense(selbri).ignored(),
-        ));
+        )).lookahead()));
+    }
 
     node tagged_elided_sumti -> SumtiSyntax {
         context "elided sumti";
@@ -933,7 +924,10 @@ macro_rules! declare_generated_syntax_grammar {
             scalar_negated_term_wrapper(term),
             bridi_description_sumti(subbridi),
             name_sumti(),
-            description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
+            description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
+            descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
+            descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
+            descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
             number_sumti(mekso),
             lerfu_string_sumti(letter_string, free_modifier),
             quoted_sumti(text),
@@ -1307,14 +1301,6 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "description" description_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) =
-        choice((
-            description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens),
-            descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens),
-        ));
-
     rule "descriptor" description_head -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
     }
@@ -1573,13 +1559,6 @@ macro_rules! declare_generated_syntax_grammar {
         }
     }
 
-    alias "vocative phrase" vocative_argument(sumti, subbridi, selbri, tense_modal) =
-        choice((
-            selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal),
-            cmevla_vocative_sumti(sumti, subbridi, tense_modal),
-            sumti,
-        ));
-
     rule "vocative marker" vocative_marker_words -> enum {
         coi_vocative_marker_words,
         doi_vocative_marker_words,
@@ -1608,7 +1587,11 @@ macro_rules! declare_generated_syntax_grammar {
 
     rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> struct {
         field vocative_markers <- vocative_marker_words().wf();
-        field sumti <- opt(boxed(vocative_argument(sumti, subbridi, selbri, tense_modal)));
+        field sumti <- opt(boxed(choice((
+            selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal),
+            cmevla_vocative_sumti(sumti, subbridi, tense_modal),
+            sumti,
+        ))));
         field dohu <- opt(cmavo(Dohu).prohibited_wf());
     }
 
@@ -2263,7 +2246,9 @@ macro_rules! declare_generated_syntax_grammar {
             composite_tense(),
             fiho_tense(selbri),
             modal_tense(),
-            flat_prefixed_tense(),
+            nahe_se_flat_prefixed_tense(),
+            se_flat_prefixed_tense(),
+            fa_flat_tag_tense(),
             feature(ZantufaTags, zantufa_recursive_tag_tense()),
             sticky_tense(),
         ));
@@ -2276,13 +2261,6 @@ macro_rules! declare_generated_syntax_grammar {
             field fehu = opt(cmavo(Fehu).wf());
         }
     }
-
-    alias "tag" flat_prefixed_tense =
-        choice((
-            nahe_se_flat_prefixed_tense(),
-            se_flat_prefixed_tense(),
-            fa_flat_tag_tense(),
-        ));
 
     node fa_flat_tag_tense -> TenseModalSyntax {
         context "tag";
@@ -2594,7 +2572,10 @@ macro_rules! declare_generated_syntax_grammar {
     node space_interval_with_extent_tense -> TenseModalSyntax {
         context "space interval";
         fields {
-            field extent = boxed(veha_viha_space_interval_tense());
+            field extent = boxed(choice((
+                veha_space_interval_tense(),
+                viha_space_interval_tense(),
+            )));
             field direction = opt(boxed(faha_interval_direction_tense()));
             field properties = opt(boxed(space_interval_properties_tense()));
         }
@@ -2607,12 +2588,6 @@ macro_rules! declare_generated_syntax_grammar {
             field additional = many(boxed(fehe_interval_property_tense()));
         }
     }
-
-    alias "space interval" veha_viha_space_interval_tense =
-        choice((
-            veha_space_interval_tense(),
-            viha_space_interval_tense(),
-        ));
 
     node veha_space_interval_tense -> TenseModalSyntax {
         context "space interval";
@@ -2911,16 +2886,13 @@ macro_rules! declare_generated_syntax_grammar {
         construct variant ScalarNegatedTanruUnit;
         fields {
             field nahe = selmaho(Nahe).wf();
-            field inner_unit = boxed(scalar_negated_tanru_unit_inner(tanru_unit_atom, tanru_unit, tense_modal));
+            field inner_unit = boxed(choice((
+                tagged_selbri_group_tanru_unit(tanru_unit, tense_modal),
+                pro_bridi_tanru_unit(),
+                tanru_unit_atom,
+            )));
         }
     }
-
-    alias "scalar-negated tanru unit" scalar_negated_tanru_unit_inner(tanru_unit_atom, tanru_unit, tense_modal) =
-        choice((
-            tagged_selbri_group_tanru_unit(tanru_unit, tense_modal),
-            pro_bridi_tanru_unit(),
-            tanru_unit_atom,
-        ));
 
     node jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> TanruUnitSyntax {
         context "modal conversion";
