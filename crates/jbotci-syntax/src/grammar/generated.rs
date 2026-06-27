@@ -2727,8 +2727,6 @@ pub mod generated_model {
     declare_generated_syntax_grammar! {
         tree_model {
             #![tree_with_free_modifiers]
-            pub type WordRun = ::vec1::Vec1<Token>;
-            pub type MeksoVec = ::vec1::Vec1<MeksoSyntax>;
         }
         model;
         env generated_runtime::SyntaxGrammarEnv;
