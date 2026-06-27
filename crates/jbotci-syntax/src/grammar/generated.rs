@@ -733,33 +733,18 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "NA term" bare_na_term_forbidden_follow(selbri, tense_modal) =
         choice((
-            bare_na_selbri_follow(selbri),
-            bare_na_modal_forethought_follow(tense_modal),
-            bare_na_ja_follow(),
-            bare_na_a_follow(),
-            bare_na_giha_follow(),
+            selbri.ignored(),
+            modal_forethought_connective(tense_modal).ignored(),
+            selmaho(Ja).ignored(),
+            (
+                opt(selmaho(Se)),
+                selmaho(A),
+            ).ignored(),
+            (
+                opt(selmaho(Se)),
+                selmaho(Giha),
+            ).ignored(),
         ));
-
-    alias "NA term" bare_na_selbri_follow(selbri) =
-        selbri.ignored();
-
-    alias "NA term" bare_na_modal_forethought_follow(tense_modal) =
-        modal_forethought_connective(tense_modal).ignored();
-
-    alias "NA term" bare_na_ja_follow =
-        selmaho(Ja).ignored();
-
-    alias "NA term" bare_na_a_follow =
-        (
-            opt(selmaho(Se)),
-            selmaho(A),
-        ).ignored();
-
-    alias "NA term" bare_na_giha_follow =
-        (
-            opt(selmaho(Se)),
-            selmaho(Giha),
-        ).ignored();
 
     rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri) -> struct {
         assert !modal_forethought_connective(tense_modal);
@@ -836,34 +821,16 @@ macro_rules! declare_generated_syntax_grammar {
 
     alias "tag" leading_interval_property_follower(selbri) =
         choice((
-            pu_leading_interval_property_follower(),
-            zi_leading_interval_property_follower(),
-            zeha_leading_interval_property_follower(),
-            nahe_caha_leading_interval_property_follower(),
-            modal_leading_interval_property_follower(),
-            fiho_leading_interval_property_follower(selbri),
+            selmaho(Pu).ignored(),
+            selmaho(Zi).ignored(),
+            selmaho(Zeha).ignored(),
+            (
+                selmaho(Nahe),
+                selmaho(Caha),
+            ).ignored(),
+            modal_tense().ignored(),
+            fiho_tense(selbri).ignored(),
         ));
-
-    alias "tag" pu_leading_interval_property_follower =
-        selmaho(Pu).ignored();
-
-    alias "tag" zi_leading_interval_property_follower =
-        selmaho(Zi).ignored();
-
-    alias "tag" zeha_leading_interval_property_follower =
-        selmaho(Zeha).ignored();
-
-    alias "tag" nahe_caha_leading_interval_property_follower =
-        (
-            selmaho(Nahe),
-            selmaho(Caha),
-        ).ignored();
-
-    alias "modal tag" modal_leading_interval_property_follower =
-        modal_tense().ignored();
-
-    alias "FIhO modal" fiho_leading_interval_property_follower(selbri) =
-        fiho_tense(selbri).ignored();
 
     node tagged_elided_sumti -> SumtiSyntax {
         context "elided sumti";
