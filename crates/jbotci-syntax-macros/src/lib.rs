@@ -34,6 +34,7 @@ mod kw {
     syn::custom_keyword!(strict_parsers);
     syn::custom_keyword!(tree_model);
     syn::custom_keyword!(when);
+    syn::custom_keyword!(chain);
     syn::custom_keyword!(one_or_more);
     syn::custom_keyword!(zero_or_more);
 }
@@ -1065,6 +1066,7 @@ impl Parse for RecursiveRule {
 enum ParserExpr {
     Rust(Expr),
     Vector(VectorExpr),
+    Chain(ChainExpr),
     Postfix {
         receiver: Box<ParserExpr>,
         method: Ident,
@@ -1077,6 +1079,7 @@ impl ParserExpr {
         match self {
             Self::Rust(expr) => compact_tokens(expr),
             Self::Vector(expr) => compact_tokens(&expr.to_token_stream()),
+            Self::Chain(expr) => compact_tokens(&expr.to_token_stream()),
             Self::Postfix { .. } => compact_tokens(&self.to_token_stream()),
         }
     }
@@ -1085,6 +1088,7 @@ impl ParserExpr {
         match self {
             Self::Rust(expr) => quote!(#expr),
             Self::Vector(expr) => expr.to_token_stream(),
+            Self::Chain(expr) => expr.to_token_stream(),
             Self::Postfix {
                 receiver,
                 method,
@@ -1117,7 +1121,9 @@ impl From<Expr> for ParserExpr {
 
 impl Parse for ParserExpr {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let mut expr = if input.peek(syn::token::Bracket) {
+        let mut expr = if input.peek(kw::chain) {
+            Self::Chain(input.parse()?)
+        } else if input.peek(syn::token::Bracket) {
             Self::Vector(input.parse()?)
         } else {
             return input.parse().map(Self::Rust);
@@ -1143,6 +1149,89 @@ impl Parse for ParserExpr {
             };
         }
         Ok(expr)
+    }
+}
+
+struct ChainExpr {
+    first: Box<ParserExpr>,
+    links: Box<ParserExpr>,
+    links_kind: ChainLinksKind,
+    element: Ident,
+}
+
+#[derive(Clone, Copy)]
+enum ChainLinksKind {
+    ZeroOrMore,
+    OneOrMore,
+}
+
+impl Parse for ChainExpr {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        input.parse::<kw::chain>()?;
+        let content;
+        parenthesized!(content in input);
+        let mut first = None;
+        let mut links = None;
+        let mut links_kind = None;
+        let mut element = None;
+        while !content.is_empty() {
+            if content.peek(kw::zero_or_more) {
+                content.parse::<kw::zero_or_more>()?;
+                content.parse::<Token![:]>()?;
+                links = Some(Box::new(content.parse()?));
+                links_kind = Some(ChainLinksKind::ZeroOrMore);
+            } else if content.peek(kw::one_or_more) {
+                content.parse::<kw::one_or_more>()?;
+                content.parse::<Token![:]>()?;
+                links = Some(Box::new(content.parse()?));
+                links_kind = Some(ChainLinksKind::OneOrMore);
+            } else {
+                let label: Ident = content.parse()?;
+                content.parse::<Token![:]>()?;
+                match label.to_string().as_str() {
+                    "first" => first = Some(Box::new(content.parse()?)),
+                    "element" => element = Some(content.parse()?),
+                    _ => {
+                        return Err(syn::Error::new_spanned(
+                            label,
+                            "expected `first`, `zero_or_more`, `one_or_more`, or `element` in chain expression",
+                        ));
+                    }
+                }
+            }
+            if content.peek(Token![,]) {
+                content.parse::<Token![,]>()?;
+            } else if !content.is_empty() {
+                return Err(content.error("expected `,` between chain expression entries"));
+            }
+        }
+        let first = first.ok_or_else(|| content.error("chain expression needs `first: ...`"))?;
+        let links = links.ok_or_else(|| {
+            content.error("chain expression needs `zero_or_more: ...` or `one_or_more: ...`")
+        })?;
+        let links_kind =
+            links_kind.ok_or_else(|| content.error("chain expression needs link cardinality"))?;
+        let element =
+            element.ok_or_else(|| content.error("chain expression needs `element: field_name`"))?;
+        Ok(Self {
+            first,
+            links,
+            links_kind,
+            element,
+        })
+    }
+}
+
+impl ToTokens for ChainExpr {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        let first = self.first.to_token_stream();
+        let links = self.links.to_token_stream();
+        let element = &self.element;
+        let links_kind = match self.links_kind {
+            ChainLinksKind::ZeroOrMore => quote!(zero_or_more),
+            ChainLinksKind::OneOrMore => quote!(one_or_more),
+        };
+        tokens.extend(quote!(chain(first: #first, #links_kind: #links, element: #element)));
     }
 }
 
@@ -1997,6 +2086,7 @@ struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
     rules: BTreeMap<String, Type>,
     rule_arguments: BTreeMap<String, Vec<String>>,
+    generated_struct_fields: BTreeMap<String, BTreeMap<String, Type>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2067,6 +2157,7 @@ impl GrammarTypeEnv {
                     )
                 })
                 .collect(),
+            generated_struct_fields: BTreeMap::new(),
         };
 
         for rule in rules {
@@ -2103,6 +2194,27 @@ impl GrammarTypeEnv {
             }
         }
 
+        type_env.generated_struct_fields = rules
+            .iter()
+            .filter_map(|rule| {
+                let Rule::Struct(rule) = rule else {
+                    return None;
+                };
+                let output = simple_type_ident(&rule.output)?.to_string();
+                let argument_types = rule.argument_types(&type_env)?;
+                let fields = rule
+                    .fields
+                    .iter()
+                    .filter_map(|field| {
+                        let name = field.name.as_ref()?.to_string();
+                        let ty = field_type_for_chain_metadata(field, &type_env, &argument_types)?;
+                        Some((name, ty))
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                Some((output, fields))
+            })
+            .collect();
+
         type_env
     }
 }
@@ -2110,6 +2222,32 @@ impl GrammarTypeEnv {
 impl GrammarTypeEnv {
     fn rule_arguments_for_call(&self, rule: &str) -> Option<&[String]> {
         self.rule_arguments.get(rule).map(Vec::as_slice)
+    }
+
+    fn generated_struct_field_type(
+        &self,
+        struct_ty: &TokenStream2,
+        field: &Ident,
+    ) -> Option<TokenStream2> {
+        let ty = syn::parse2::<Type>(struct_ty.clone()).ok()?;
+        let output = simple_type_ident(&ty)?;
+        self.generated_struct_fields
+            .get(&output.to_string())?
+            .get(&field.to_string())
+            .map(|ty| quote!(#ty))
+    }
+}
+
+fn field_type_for_chain_metadata(
+    field: &FieldItem,
+    type_env: &GrammarTypeEnv,
+    argument_types: &BTreeMap<String, Type>,
+) -> Option<Type> {
+    match (&field.ty, &field.kind) {
+        (Some(ty), _) => Some(ty.clone()),
+        (None, FieldKind::Field) => parser_output_type(&field.parser, type_env, argument_types)
+            .and_then(|ty| syn::parse2::<Type>(ty).ok()),
+        (None, FieldKind::Computed | FieldKind::TempLet | FieldKind::Require) => None,
     }
 }
 
@@ -2182,6 +2320,9 @@ fn strict_parser_expr_tokens(
             free_modifier_parser,
             mode,
         ),
+        ParserExpr::Chain(expr) => {
+            strict_chain_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+        }
         ParserExpr::Postfix {
             receiver,
             method,
@@ -2196,6 +2337,45 @@ fn strict_parser_expr_tokens(
             mode,
         ),
     }
+}
+
+fn strict_chain_parser_expr_tokens(
+    expr: &ChainExpr,
+    arguments: &BTreeSet<String>,
+    generation: &StrictParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: StrictParserCallMode,
+) -> Option<TokenStream2> {
+    let first = strict_parser_expr_tokens(
+        &expr.first,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )?;
+    let link = strict_parser_expr_tokens(
+        &expr.links,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )?;
+    let links = match expr.links_kind {
+        ChainLinksKind::ZeroOrMore => quote!(generated_runtime::strict_greedy_many_parser(
+            #link.boxed()
+        )),
+        ChainLinksKind::OneOrMore => quote! {
+            generated_runtime::strict_greedy_many1_parser(#link.boxed()).map(|__links| {
+                vec1::Vec1::try_from_vec(__links)
+                    .expect("chain parser expression has statically non-zero link cardinality")
+            })
+        },
+    };
+    Some(quote! {
+        #first
+            .then(#links)
+            .map(|(first, links)| ::jbotci_tree::Chain::new(first, links))
+    })
 }
 
 fn strict_postfix_parser_expr_tokens(
@@ -3043,12 +3223,31 @@ fn parser_output_type(
     match expr {
         ParserExpr::Rust(expr) => rust_parser_output_type(expr, type_env, arguments),
         ParserExpr::Vector(expr) => vector_parser_output_type(expr, type_env, arguments),
+        ParserExpr::Chain(expr) => chain_parser_output_type(expr, type_env, arguments),
         ParserExpr::Postfix {
             receiver,
             method,
             args,
         } => postfix_parser_output_type(receiver, method, args, type_env, arguments),
     }
+}
+
+fn chain_parser_output_type(
+    expr: &ChainExpr,
+    type_env: &GrammarTypeEnv,
+    arguments: &BTreeMap<String, Type>,
+) -> Option<TokenStream2> {
+    let first = parser_output_type(&expr.first, type_env, arguments)?;
+    let link = parser_output_type(&expr.links, type_env, arguments)?;
+    let element = type_env.generated_struct_field_type(&link, &expr.element)?;
+    if !type_token_streams_match(&first, &element) {
+        return None;
+    }
+    let links = match expr.links_kind {
+        ChainLinksKind::ZeroOrMore => quote!(Vec<#link>),
+        ChainLinksKind::OneOrMore => quote!(vec1::Vec1<#link>),
+    };
+    Some(quote!(::jbotci_tree::Chain<#first, #links>))
 }
 
 fn postfix_parser_output_type(
@@ -4006,6 +4205,17 @@ fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> Reco
                 })
                 .collect(),
         ),
+        ParserExpr::Chain(expr) => {
+            let links = match expr.links_kind {
+                ChainLinksKind::ZeroOrMore => {
+                    RecoveryExpr::Many(Box::new(classify_parser_expr(&expr.links, arguments)))
+                }
+                ChainLinksKind::OneOrMore => {
+                    RecoveryExpr::Many1(Box::new(classify_parser_expr(&expr.links, arguments)))
+                }
+            };
+            RecoveryExpr::Sequence(vec![classify_parser_expr(&expr.first, arguments), links])
+        }
         ParserExpr::Postfix {
             receiver,
             method,
@@ -4442,6 +4652,35 @@ mod tests {
         assert!(
             expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers"),
             "vector `.wf()` should be represented as a normal parser suffix: {expanded}"
+        );
+    }
+
+    #[test]
+    fn generated_chain_requires_link_element_field() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+
+            rule "link" link -> struct {
+                field connector <- cmavo(Bo);
+                field item <- item;
+            }
+
+            rule "chain" chain -> struct {
+                field run <- chain(first: item, zero_or_more: link, element: missing);
+            }
+        })
+        .expect("grammar tokens parse before model expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("cannot infer generated model field type"),
+            "bad chain element fields should fail during generated model expansion: {expanded}"
         );
     }
 

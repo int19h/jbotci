@@ -12,6 +12,21 @@ use vec1::Vec1;
 pub use jbotci_tree_macros::tree_model;
 
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Chain<E, Links> {
+    pub first: E,
+    pub links: Links,
+}
+
+impl<E, Links> Chain<E, Links> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn new(first: E, links: Links) -> Self {
+        Self { first, links }
+    }
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RecoveryItemKind {
@@ -305,6 +320,31 @@ where
         self.iter()
             .map(RecoveredFieldState::invalid_error_slots)
             .sum()
+    }
+}
+
+#[contract_trait]
+impl<E, Links> RecoveredFieldState for Chain<E, Links>
+where
+    E: RecoveredFieldState,
+    Links: RecoveredFieldState,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_slots(&self) -> usize {
+        self.first.recovery_error_slots() + self.links.recovery_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_error_slots(&self) -> usize {
+        self.first.missing_error_slots() + self.links.missing_error_slots()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_error_slots(&self) -> usize {
+        self.first.invalid_error_slots() + self.links.invalid_error_slots()
     }
 }
 

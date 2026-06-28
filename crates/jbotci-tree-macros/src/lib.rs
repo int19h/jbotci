@@ -368,9 +368,16 @@ fn unwrap_tree_type_with_seen<'a>(
                     WRAPPER_TYPES.contains(&segment.ident.to_string().as_str())
                 })
             {
-                let Some(inner) =
-                    first_type_argument(&path.path.segments.last().unwrap().arguments)
-                else {
+                let segment = path.path.segments.last().unwrap();
+                if segment.ident == "Chain" {
+                    let children = type_arguments(&segment.arguments);
+                    return if children.is_empty() {
+                        UnwrappedTreeType::Atom(ty)
+                    } else {
+                        UnwrappedTreeType::Children(children)
+                    };
+                }
+                let Some(inner) = first_type_argument(&segment.arguments) else {
                     return UnwrappedTreeType::Atom(ty);
                 };
                 return match inner {
@@ -413,16 +420,29 @@ const WRAPPER_TYPES: &[&str] = &[
     "SmallVec1",
     "WithFreeModifiers",
     "Recovered",
+    "Chain",
 ];
 
 fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
+    type_arguments(arguments).into_iter().next()
+}
+
+fn nth_type_argument(arguments: &PathArguments, index: usize) -> Option<&Type> {
+    type_arguments(arguments).into_iter().nth(index)
+}
+
+fn type_arguments(arguments: &PathArguments) -> Vec<&Type> {
     let PathArguments::AngleBracketed(arguments) = arguments else {
-        return None;
+        return Vec::new();
     };
-    arguments.args.iter().find_map(|argument| match argument {
-        GenericArgument::Type(ty) => Some(ty),
-        _ => None,
-    })
+    arguments
+        .args
+        .iter()
+        .filter_map(|argument| match argument {
+            GenericArgument::Type(ty) => Some(ty),
+            _ => None,
+        })
+        .collect()
 }
 
 fn strip_tree_attrs_from_item(item: &mut Item) -> syn::Result<Item> {
@@ -570,10 +590,13 @@ fn transform_wrapper_type_for_recovery(
     let PathArguments::AngleBracketed(arguments) = &mut segment.arguments else {
         return Ok(ty);
     };
+    let transform_all = segment.ident == "Chain";
     for argument in &mut arguments.args {
         if let GenericArgument::Type(inner) = argument {
             *inner = transform_type_for_recovery(inner, node_names, aliases)?;
-            break;
+            if !transform_all {
+                break;
+            }
         }
     }
     Ok(ty)
@@ -1575,6 +1598,19 @@ fn convert_wrapper_value_for_type(
                 Ok(super::WithFreeModifiers { value, free_modifiers })
             }))
         }
+        "Chain" => {
+            let links_ty = nth_type_argument(arguments, 1).ok_or_else(|| {
+                syn::Error::new_spanned(wrapper, "`Chain` needs first and links type arguments")
+            })?;
+            let first = convert_value_for_type(inner, quote!(first), node_names, aliases)?;
+            let links = convert_value_for_type(links_ty, quote!(links), node_names, aliases)?;
+            Ok(quote!({
+                let ::jbotci_tree::Chain { first, links } = #expr;
+                let first = #first?;
+                let links = #links?;
+                Ok(::jbotci_tree::Chain { first, links })
+            }))
+        }
         "Recovered" => convert_value_for_type(inner, expr, node_names, aliases),
         _ => Ok(quote!(Ok(#expr))),
     }
@@ -1777,7 +1813,20 @@ fn convert_valid_wrapper_value_for_type(
                         .map(FreeModifierSyntax::from_valid)
                         .map(Recovered::valid)
                         .collect(),
-                }
+                    }
+            }))
+        }
+        "Chain" => {
+            let links_ty = nth_type_argument(arguments, 1).ok_or_else(|| {
+                syn::Error::new_spanned(wrapper, "`Chain` needs first and links type arguments")
+            })?;
+            let first = convert_valid_value_for_type(inner, quote!(first), node_names, aliases)?;
+            let links = convert_valid_value_for_type(links_ty, quote!(links), node_names, aliases)?;
+            Ok(quote!({
+                let ::jbotci_tree::Chain { first, links } = #expr;
+                let first = #first;
+                let links = #links;
+                ::jbotci_tree::Chain { first, links }
             }))
         }
         "Recovered" => convert_valid_value_for_type(inner, expr, node_names, aliases),
@@ -2382,6 +2431,100 @@ fn wrapper_trait_impls(
                     0 => self.0.node_at_path_steps(rest),
                     1 => self.1.node_at_path_steps(rest),
                     _ => None,
+                }
+            }
+        }
+
+        impl<E: TreeNode, L: TreeNode> TreeNode for ::jbotci_tree::Chain<E, Vec<L>> {
+            fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+            where
+                V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
+            {
+                visitor.enter_sequence();
+                self.first.visit_in_order(visitor);
+                for link in &self.links {
+                    link.visit_in_order(visitor);
+                }
+                visitor.exit_sequence();
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                path.push(::jbotci_tree::TreePathStep::sequence_index(0));
+                if self.first.path_to_node_from(target, path) {
+                    return true;
+                }
+                path.pop();
+                for (index, link) in self.links.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
+                    if link.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                if index == 0 {
+                    self.first.node_at_path_steps(rest)
+                } else {
+                    self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
+                }
+            }
+        }
+
+        impl<E: TreeNode, L: TreeNode> TreeNode for ::jbotci_tree::Chain<E, ::vec1::Vec1<L>> {
+            fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
+            where
+                V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
+            {
+                visitor.enter_sequence();
+                self.first.visit_in_order(visitor);
+                for link in &self.links {
+                    link.visit_in_order(visitor);
+                }
+                visitor.exit_sequence();
+            }
+
+            fn path_to_node_from<'tree>(
+                &'tree self,
+                target: NodeRef<'tree>,
+                path: &mut ::jbotci_tree::TreePath,
+            ) -> bool {
+                path.push(::jbotci_tree::TreePathStep::sequence_index(0));
+                if self.first.path_to_node_from(target, path) {
+                    return true;
+                }
+                path.pop();
+                for (index, link) in self.links.iter().enumerate() {
+                    path.push(::jbotci_tree::TreePathStep::sequence_index(index + 1));
+                    if link.path_to_node_from(target, path) {
+                        return true;
+                    }
+                    path.pop();
+                }
+                false
+            }
+
+            fn node_at_path_steps<'tree>(
+                &'tree self,
+                steps: &[::jbotci_tree::TreePathStep],
+            ) -> Option<NodeRef<'tree>> {
+                let (step, rest) = steps.split_first()?;
+                let index = step.as_sequence_index()?;
+                if index == 0 {
+                    self.first.node_at_path_steps(rest)
+                } else {
+                    self.links.iter().nth(index - 1)?.node_at_path_steps(rest)
                 }
             }
         }

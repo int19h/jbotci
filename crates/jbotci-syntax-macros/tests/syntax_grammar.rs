@@ -370,6 +370,15 @@ mod new_dsl {
         alias "item alias" item_alias = item;
 
         alias "guarded item alias" guarded_item_alias = cmavo(Bo).not().ignore_then(item);
+
+        rule "chain link" chain_link -> struct {
+            field connector <- cmavo(Bo);
+            field item <- item;
+        }
+
+        rule "item chain" item_chain -> struct {
+            field run <- chain(first: item, zero_or_more: chain_link, element: item);
+        }
     }
 
     #[test]
@@ -385,11 +394,19 @@ mod new_dsl {
         let item_choice = ItemChoiceSyntax::Item(item.clone());
         let other_choice = ItemChoiceSyntax::OtherItem(other_item);
         let external_choice = ExternalItemChoiceSyntax::External(external);
+        let chain = ItemChainSyntax(jbotci_tree::Chain::new(
+            item.clone(),
+            vec![ChainLinkSyntax {
+                connector: Token,
+                item: item.clone(),
+            }],
+        ));
 
         assert_eq!(item.token, Token);
         assert_eq!(item.computed, 1);
         assert_eq!(token_list.0.len(), 1);
         assert_eq!(nested_token_list.0.len(), 1);
+        assert_eq!(chain.0.links.len(), 1);
         assert!(matches!(item_choice, ItemChoiceSyntax::Item(_)));
         assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem(_)));
         assert!(matches!(
@@ -400,7 +417,7 @@ mod new_dsl {
 
     #[test]
     fn grammar_macro_exports_new_dsl_metadata() {
-        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 9);
+        assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 11);
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "struct");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "item");
         assert_eq!(SYNTAX_GRAMMAR_RULES[0].output, "ItemSyntax");
@@ -477,6 +494,18 @@ mod new_dsl {
             SyntaxGrammarRecoveryExpr::Sequence(&[
                 SyntaxGrammarRecoveryExpr::Not(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo)),
                 SyntaxGrammarRecoveryExpr::Rule("item"),
+            ])
+        );
+
+        assert_eq!(SYNTAX_GRAMMAR_RULES[9].kind, "struct");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[9].name, "chain_link");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[10].kind, "struct");
+        assert_eq!(SYNTAX_GRAMMAR_RULES[10].name, "item_chain");
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[10].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Sequence(&[
+                SyntaxGrammarRecoveryExpr::Rule("item"),
+                SyntaxGrammarRecoveryExpr::Many(&SyntaxGrammarRecoveryExpr::Rule("chain_link")),
             ])
         );
     }
