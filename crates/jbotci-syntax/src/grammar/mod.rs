@@ -22,6 +22,7 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
     SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
+    syntax_construct_is_descendant_of,
 };
 
 pub(crate) mod ast;
@@ -71,7 +72,7 @@ pub(super) struct ParserStateFinish {
 #[invariant(true)]
 pub(crate) struct ParserCheckpoint {
     warning_count: usize,
-    diagnostic_history_len: usize,
+    syntax_context_count: usize,
     trace_save: bool,
 }
 
@@ -103,11 +104,10 @@ pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
     syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
-    syntax_memo_enabled: bool,
     diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
-    diagnostic_history: Vec<Option<SyntaxParseError<'tokens>>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
+    active_syntax_contexts: Vec<&'static str>,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     _tokens: PhantomData<&'tokens ()>,
 }
@@ -120,11 +120,10 @@ impl<'tokens> ParserState<'tokens> {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
-            syntax_memo_enabled: options.syntax_memo,
             diagnostic_candidate: None,
-            diagnostic_history: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
+            active_syntax_contexts: Vec::new(),
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
             _tokens: PhantomData,
         }
@@ -151,12 +150,6 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn syntax_grammar_env(&self) -> generated_runtime::SyntaxGrammarEnv {
         self.syntax_grammar_env
-    }
-
-    #[requires(true)]
-    #[ensures(ret == self.syntax_memo_enabled)]
-    pub(super) fn syntax_memo_enabled(&self) -> bool {
-        self.syntax_memo_enabled
     }
 
     #[requires(!rule_name.is_empty())]
@@ -210,21 +203,40 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
+        let error = error.with_active_contexts(&self.active_syntax_contexts);
         match &mut self.diagnostic_candidate {
             None => {
-                self.diagnostic_history.push(None);
                 self.diagnostic_candidate = Some(error);
             }
             Some(candidate) if error.span().start > candidate.span().start => {
-                self.diagnostic_history.push(Some(candidate.clone()));
                 self.diagnostic_candidate = Some(error);
             }
+            Some(candidate) if candidate.same_report_content(&error) => {}
             Some(candidate) if error.span().start == candidate.span().start => {
-                self.diagnostic_history.push(Some(candidate.clone()));
-                *candidate = candidate.clone().merge_for_report(error);
+                if !diagnostic_contexts_are_compatible(candidate, &error) {
+                    if diagnostic_context_is_more_specific(&error, candidate) {
+                        self.diagnostic_candidate = Some(error);
+                    }
+                    return;
+                }
+                *candidate = candidate.clone().merge_for_parser(error);
             }
             Some(_) => {}
         }
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(self.active_syntax_contexts.len() == old(self.active_syntax_contexts.len()) + 1)]
+    pub(super) fn push_syntax_context(&mut self, construct: &'static str) {
+        self.active_syntax_contexts.push(construct);
+    }
+
+    #[requires(!self.active_syntax_contexts.is_empty())]
+    #[ensures(self.active_syntax_contexts.len() + 1 == old(self.active_syntax_contexts.len()))]
+    pub(super) fn pop_syntax_context(&mut self) {
+        self.active_syntax_contexts
+            .pop()
+            .expect("syntax context stack is non-empty");
     }
 
     #[requires(true)]
@@ -370,6 +382,34 @@ impl<'tokens> ParserState<'tokens> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_contexts_are_compatible(
+    left: &SyntaxParseError<'_>,
+    right: &SyntaxParseError<'_>,
+) -> bool {
+    match (left.preferred_context(), right.preferred_context()) {
+        (None, _) | (_, None) => true,
+        (Some(left), Some(right)) => left.construct == right.construct,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_context_is_more_specific(
+    candidate: &SyntaxParseError<'_>,
+    current: &SyntaxParseError<'_>,
+) -> bool {
+    let Some(candidate) = candidate.preferred_context() else {
+        return false;
+    };
+    let Some(current) = current.preferred_context() else {
+        return true;
+    };
+    candidate.construct != current.construct
+        && syntax_construct_is_descendant_of(&current.construct, &candidate.construct)
+}
+
 impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> {
     type Checkpoint = ParserCheckpoint;
 
@@ -404,7 +444,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
     ) -> ParserCheckpoint {
         ParserCheckpoint {
             warning_count: self.warnings.len(),
-            diagnostic_history_len: self.diagnostic_history.len(),
+            syntax_context_count: self.active_syntax_contexts.len(),
             trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
         }
     }
@@ -434,12 +474,8 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             || None,
         );
         self.warnings.truncate(marker.inspector().warning_count);
-        while self.diagnostic_history.len() > marker.inspector().diagnostic_history_len {
-            self.diagnostic_candidate = self
-                .diagnostic_history
-                .pop()
-                .expect("history length is above checkpoint length");
-        }
+        self.active_syntax_contexts
+            .truncate(marker.inspector().syntax_context_count);
     }
 }
 

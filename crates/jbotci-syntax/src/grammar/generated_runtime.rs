@@ -1,7 +1,7 @@
 //! Generic runtime primitives for declarative generated syntax parsers.
 
 use bityzba::{contract_trait, invariant, new, requires};
-use chumsky::{Parser, error::Error, input::Input, primitive::custom};
+use chumsky::{Parser, input::Input, primitive::custom};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
@@ -183,15 +183,6 @@ where
 {
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
-        if !input.state().syntax_memo_enabled() {
-            return match input.parse(&parser) {
-                Ok(output) => Ok(output),
-                Err(error) => {
-                    input.rewind(checkpoint);
-                    Err(error)
-                }
-            };
-        }
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
         if let Some((output, end_location, warnings)) =
             input.state().syntax_memo_success::<O>(name, start_location)
@@ -229,39 +220,46 @@ pub(crate) fn syntax_context<'tokens, O: 'tokens>(
     construct: &'static str,
     parser: impl Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
 ) -> BoxedParser<'tokens, O> {
+    let parser = parser
+        .labelled(construct)
+        .as_context()
+        .map_with(move |output, extra| {
+            let span: Span = extra.span();
+            let byte_start = span.start.min(span.end);
+            let byte_end = span.start.max(span.end);
+            extra.state().trace_exit_construct(
+                TraceLevel::Top,
+                TraceEventKind::ConstructSuccess,
+                construct,
+                byte_start,
+                byte_end,
+                || None,
+            );
+            output
+        })
+        .map_err_with_state(move |error, span: Span, state| {
+            let byte_start = span.start.min(span.end);
+            let byte_end = span.start.max(span.end);
+            state.trace_exit_construct(
+                TraceLevel::Top,
+                TraceEventKind::ConstructFailure,
+                construct,
+                byte_start,
+                byte_end,
+                || None,
+            );
+            error
+        })
+        .boxed();
     trace_enter(construct)
-        .ignore_then(
-            parser
-                .labelled(construct)
-                .as_context()
-                .map_with(move |output, extra| {
-                    let span: Span = extra.span();
-                    let byte_start = span.start.min(span.end);
-                    let byte_end = span.start.max(span.end);
-                    extra.state().trace_exit_construct(
-                        TraceLevel::Top,
-                        TraceEventKind::ConstructSuccess,
-                        construct,
-                        byte_start,
-                        byte_end,
-                        || None,
-                    );
-                    output
-                })
-                .map_err_with_state(move |error, span: Span, state| {
-                    let byte_start = span.start.min(span.end);
-                    let byte_end = span.start.max(span.end);
-                    state.trace_exit_construct(
-                        TraceLevel::Top,
-                        TraceEventKind::ConstructFailure,
-                        construct,
-                        byte_start,
-                        byte_end,
-                        || None,
-                    );
-                    error
-                }),
-        )
+        .ignore_then(custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(
+            move |input| {
+                input.state().push_syntax_context(construct);
+                let result = input.parse(&parser);
+                input.state().pop_syntax_context();
+                result
+            },
+        ))
         .boxed()
 }
 
@@ -389,8 +387,6 @@ where
         match input.parse(&parser) {
             Ok(output) => Ok(Some(output)),
             Err(error) => {
-                let error =
-                    merge_error_with_state_candidate(error, input.state().diagnostic_candidate());
                 input.rewind(checkpoint);
                 input.state().record_diagnostic_candidate(error);
                 Ok(None)
@@ -421,10 +417,6 @@ pub(crate) fn strict_greedy_many_parser<'tokens, O: 'tokens>(
                     values.push(output);
                 }
                 Err(error) => {
-                    let error = merge_error_with_state_candidate(
-                        error,
-                        input.state().diagnostic_candidate(),
-                    );
                     input.rewind(checkpoint);
                     input.state().record_diagnostic_candidate(error);
                     break;
@@ -466,8 +458,6 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
                 output
             }
             Err(error) => {
-                let error =
-                    merge_error_with_state_candidate(error, input.state().diagnostic_candidate());
                 input.rewind(first_checkpoint);
                 return Err(error);
             }
@@ -491,10 +481,6 @@ pub(crate) fn strict_greedy_many1_parser<'tokens, O: 'tokens>(
                     values.push(output);
                 }
                 Err(error) => {
-                    let error = merge_error_with_state_candidate(
-                        error,
-                        input.state().diagnostic_candidate(),
-                    );
                     input.rewind(checkpoint);
                     input.state().record_diagnostic_candidate(error);
                     break;
@@ -523,10 +509,6 @@ pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
                     return Ok(output);
                 }
                 Err(error) => {
-                    let error = merge_error_with_state_candidate(
-                        error,
-                        input.state().diagnostic_candidate(),
-                    );
                     input.rewind(checkpoint);
                     abandoned_error = Some(match abandoned_error {
                         None => error,
@@ -542,18 +524,6 @@ pub(crate) fn strict_ordered_choice_parsers<'tokens, O: 'tokens>(
 
 #[requires(true)]
 #[ensures(true)]
-fn merge_error_with_state_candidate<'tokens>(
-    error: SyntaxParseError<'tokens>,
-    diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
-) -> SyntaxParseError<'tokens> {
-    match diagnostic_candidate {
-        Some(candidate) => merge_choice_errors(error, candidate),
-        None => error,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn merge_choice_errors<'tokens>(
     previous: SyntaxParseError<'tokens>,
     error: SyntaxParseError<'tokens>,
@@ -561,10 +531,8 @@ fn merge_choice_errors<'tokens>(
     match error.span().start.cmp(&previous.span().start) {
         std::cmp::Ordering::Greater => error,
         std::cmp::Ordering::Less => previous,
-        std::cmp::Ordering::Equal => <SyntaxParseError<'tokens> as Error<
-            'tokens,
-            ParserInput<'tokens>,
-        >>::merge(previous, error),
+        std::cmp::Ordering::Equal if previous.same_report_content(&error) => previous,
+        std::cmp::Ordering::Equal => previous.merge_for_parser(error),
     }
 }
 

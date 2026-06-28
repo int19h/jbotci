@@ -286,8 +286,6 @@ struct FixtureRunArgs {
     chunk_worker: bool,
     #[arg(long, hide = true)]
     syntax_tree_oracle: bool,
-    #[arg(long, hide = true)]
-    syntax_memo_oracle: bool,
 }
 
 #[derive(Debug, Args)]
@@ -315,11 +313,9 @@ struct SyntaxParserBenchmarkArgs {
 #[invariant(true)]
 #[invariant(::Handwritten => true)]
 #[invariant(::Generated => true)]
-#[invariant(::GeneratedNoMemo => true)]
 enum SyntaxParserBenchmarkParser {
     Handwritten,
     Generated,
-    GeneratedNoMemo,
 }
 
 #[derive(Debug, Args)]
@@ -8176,13 +8172,9 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 #[requires(true)]
 #[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
-    if args.syntax_tree_oracle && args.syntax_memo_oracle {
-        bail!("--syntax-tree-oracle and --syntax-memo-oracle are mutually exclusive");
-    }
     let profile = merged_profile(&args)?;
     let backend = NotImplementedBackend {
         syntax_tree_oracle: args.syntax_tree_oracle,
-        syntax_memo_oracle: args.syntax_memo_oracle,
     };
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
@@ -8240,7 +8232,6 @@ fn syntax_parser_benchmark(args: SyntaxParserBenchmarkArgs) -> Result<()> {
             vec![
                 SyntaxParserBenchmarkParser::Handwritten,
                 SyntaxParserBenchmarkParser::Generated,
-                SyntaxParserBenchmarkParser::GeneratedNoMemo,
             ]
         },
         |parser| vec![parser],
@@ -8529,9 +8520,9 @@ fn syntax_parser_benchmark_worker_input_files(
 }
 
 #[requires(true)]
-#[ensures(ret.syntax_memo == (parser != SyntaxParserBenchmarkParser::GeneratedNoMemo))]
-fn syntax_parser_benchmark_parse_options(parser: SyntaxParserBenchmarkParser) -> ParseOptions {
-    ParseOptions::default().with_syntax_memo(parser != SyntaxParserBenchmarkParser::GeneratedNoMemo)
+#[ensures(true)]
+fn syntax_parser_benchmark_parse_options(_parser: SyntaxParserBenchmarkParser) -> ParseOptions {
+    ParseOptions::default()
 }
 
 #[requires(true)]
@@ -8547,7 +8538,7 @@ fn run_syntax_parser_benchmark_parse(
             parse_syntax_tree_handwritten_with_source_and_options(words, source, syntax_options)
                 .map(drop)
         }
-        SyntaxParserBenchmarkParser::Generated | SyntaxParserBenchmarkParser::GeneratedNoMemo => {
+        SyntaxParserBenchmarkParser::Generated => {
             parse_syntax_tree_generated_model_with_source_and_options(words, source, syntax_options)
                 .map(drop)
         }
@@ -8575,7 +8566,6 @@ fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<F
         failure_samples: None,
         chunk_worker: false,
         syntax_tree_oracle: false,
-        syntax_memo_oracle: false,
     };
     merged_profile(&run_args)
 }
@@ -8744,7 +8734,6 @@ fn parse_syntax_parser_benchmark_parser(value: &str) -> Result<SyntaxParserBench
     match value {
         "handwritten" => Ok(SyntaxParserBenchmarkParser::Handwritten),
         "generated" => Ok(SyntaxParserBenchmarkParser::Generated),
-        "generated-no-memo" => Ok(SyntaxParserBenchmarkParser::GeneratedNoMemo),
         _ => bail!("unknown syntax parser benchmark parser `{value}`"),
     }
 }
@@ -8788,23 +8777,6 @@ fn print_syntax_parser_benchmark_report(
         SyntaxParserBenchmarkParser::Handwritten,
     ) {
         println!("  generated/handwritten wall ratio: {ratio:.3}x");
-    }
-    if let Some(ratio) = syntax_parser_benchmark_wall_ratio(
-        results,
-        SyntaxParserBenchmarkParser::Generated,
-        SyntaxParserBenchmarkParser::GeneratedNoMemo,
-    ) {
-        println!("  generated-with-memo/generated-without-memo wall ratio: {ratio:.3}x");
-    }
-    if let Some((delta, percent)) = syntax_parser_benchmark_peak_rss_delta(
-        results,
-        SyntaxParserBenchmarkParser::Generated,
-        SyntaxParserBenchmarkParser::GeneratedNoMemo,
-    ) {
-        println!(
-            "  generated memo peak-rss delta vs no-memo: {} ({percent:+.1}%)",
-            format_signed_bytes_delta(delta)
-        );
     }
 }
 
@@ -8871,54 +8843,6 @@ fn syntax_parser_benchmark_wall_ratio(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|(_, percent)| percent.is_finite()))]
-fn syntax_parser_benchmark_peak_rss_delta(
-    results: &[(
-        SyntaxParserBenchmarkParser,
-        Vec<SyntaxParserBenchmarkSummary>,
-    )],
-    parser: SyntaxParserBenchmarkParser,
-    baseline: SyntaxParserBenchmarkParser,
-) -> Option<(i128, f64)> {
-    let parser_peak = mean_peak_rss_bytes(results, parser)?;
-    let baseline_peak = mean_peak_rss_bytes(results, baseline)?;
-    if baseline_peak == 0 {
-        return None;
-    }
-    let delta = i128::from(parser_peak) - i128::from(baseline_peak);
-    let percent = delta as f64 * 100.0 / baseline_peak as f64;
-    percent.is_finite().then_some((delta, percent))
-}
-
-#[requires(true)]
-#[ensures(ret.is_none_or(|bytes| bytes > 0))]
-fn mean_peak_rss_bytes(
-    results: &[(
-        SyntaxParserBenchmarkParser,
-        Vec<SyntaxParserBenchmarkSummary>,
-    )],
-    parser: SyntaxParserBenchmarkParser,
-) -> Option<u64> {
-    let summaries = results
-        .iter()
-        .find(|(candidate, _)| *candidate == parser)
-        .map(|(_, summaries)| summaries)?;
-    let mut total = 0u128;
-    let mut count = 0u128;
-    for bytes in summaries
-        .iter()
-        .filter_map(|summary| summary.resources.peak_rss_bytes)
-    {
-        total = total.saturating_add(u128::from(bytes));
-        count += 1;
-    }
-    if count == 0 {
-        return None;
-    }
-    Some(u64::try_from(total / count).unwrap_or(u64::MAX))
-}
-
-#[requires(true)]
 #[ensures(true)]
 fn mean_duration<I>(durations: I) -> Duration
 where
@@ -8974,14 +8898,6 @@ fn format_optional_bytes(bytes: Option<u64>) -> String {
     bytes
         .map(|bytes| format!("{:.1} MiB", bytes as f64 / 1_048_576.0))
         .unwrap_or_else(|| "unavailable".to_owned())
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn format_signed_bytes_delta(bytes: i128) -> String {
-    let sign = if bytes < 0 { "-" } else { "+" };
-    let magnitude = bytes.unsigned_abs() as f64 / 1_048_576.0;
-    format!("{sign}{magnitude:.1} MiB")
 }
 
 const SYNTAX_PARSER_BENCHMARK_WORKER_PREFIX: &str = "syntax-parser-benchmark-worker ";
@@ -9058,7 +8974,6 @@ impl SyntaxParserBenchmarkParser {
         match self {
             Self::Handwritten => "handwritten",
             Self::Generated => "generated",
-            Self::GeneratedNoMemo => "generated-no-memo",
         }
     }
 }
@@ -9311,9 +9226,6 @@ fn fixture_test_chunk_output(
     }
     if args.syntax_tree_oracle {
         command.arg("--syntax-tree-oracle");
-    }
-    if args.syntax_memo_oracle {
-        command.arg("--syntax-memo-oracle");
     }
     for facet in &profile.facets {
         command.arg("--facet").arg(facet.to_string());
@@ -9772,7 +9684,7 @@ fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     if !args.facets.is_empty() {
         profile.facets = args.facets.clone();
     }
-    if args.syntax_tree_oracle || args.syntax_memo_oracle {
+    if args.syntax_tree_oracle {
         profile.facets = vec![Facet::Syntax];
     }
     Ok(profile)
@@ -9876,7 +9788,6 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
 #[invariant(true)]
 struct NotImplementedBackend {
     syntax_tree_oracle: bool,
-    syntax_memo_oracle: bool,
 }
 
 #[contract_trait]
@@ -9897,7 +9808,6 @@ impl FixtureBackend for NotImplementedBackend {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Jvozba => run_jvozba_fixture(fixture),
             Facet::Syntax if self.syntax_tree_oracle => run_syntax_tree_oracle_fixture(fixture),
-            Facet::Syntax if self.syntax_memo_oracle => run_syntax_memo_oracle_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SemanticsRefs => run_semantics_refs_fixture(fixture),
             Facet::VlaseiBrackets => {
@@ -11013,106 +10923,6 @@ fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
             "generated model syntax tree oracle",
             &legacy_tree,
             &generated_model_tree,
-        ));
-    }
-    FacetResult::passed()
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[ensures(ret.is_valid())]
-fn run_syntax_memo_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
-    let Some(expectation) = &fixture.test_case.expectations.syntax else {
-        return FacetResult::skipped("fixture has no syntax expectation");
-    };
-    if !syntax_accepts_success_tree_refresh(expectation) {
-        return FacetResult::skipped(format!(
-            "syntax memo oracle skips expectation whose accepted status is not success: {:?}",
-            expectation.status
-        ));
-    }
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &morphology_options,
-        Some(SourceId("<fixture>".to_owned())),
-    ) {
-        Ok(words) => words,
-        Err(error) => {
-            return FacetResult::failed(format!(
-                "syntax memo oracle blocked by morphology error: {error}"
-            ));
-        }
-    };
-    let memo_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let no_memo_options = memo_options.clone().with_syntax_memo(false);
-    let memo = match parse_syntax_tree_generated_model_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &memo_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            return FacetResult::failed(format!("generated memo syntax error: {error}"));
-        }
-    };
-    let no_memo = match parse_syntax_tree_generated_model_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &no_memo_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            return FacetResult::failed(format!("generated no-memo syntax error: {error}"));
-        }
-    };
-    if !generated_model_text_syntax_leaf_spans_match_words(&words, &memo) {
-        return FacetResult::failed(
-            "generated memo syntax tree token/source span order does not match morphology",
-        );
-    }
-    if !generated_model_text_syntax_leaf_spans_match_words(&words, &no_memo) {
-        return FacetResult::failed(
-            "generated no-memo syntax tree token/source span order does not match morphology",
-        );
-    }
-    if memo != no_memo {
-        let options = TreeRenderOptions {
-            color: false,
-            indent: 2,
-            show_spans: true,
-            show_refs: true,
-            ..TreeRenderOptions::default()
-        };
-        let memo_tree = match pretty_generated_model_tree_with_options(
-            &memo,
-            &fixture.test_case.lojban,
-            options,
-        ) {
-            Ok(tree) => tree,
-            Err(error) => {
-                return FacetResult::failed(format!("generated memo tree render error: {error}"));
-            }
-        };
-        let no_memo_tree = match pretty_generated_model_tree_with_options(
-            &no_memo,
-            &fixture.test_case.lojban,
-            options,
-        ) {
-            Ok(tree) => tree,
-            Err(error) => {
-                return FacetResult::failed(format!(
-                    "generated no-memo tree render error: {error}"
-                ));
-            }
-        };
-        return FacetResult::failed(format_text_mismatch(
-            "generated memo/no-memo AST",
-            &memo_tree,
-            &no_memo_tree,
         ));
     }
     FacetResult::passed()

@@ -167,24 +167,15 @@ fn is_indicator_word(word: &Word) -> bool {
 pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
-    #[serde(default = "default_syntax_memo")]
-    pub syntax_memo: bool,
-}
-
-#[requires(true)]
-#[ensures(ret)]
-fn default_syntax_memo() -> bool {
-    true
 }
 
 impl Default for ParseOptions {
     #[requires(true)]
-    #[ensures(ret.syntax_memo)]
+    #[ensures(true)]
     fn default() -> Self {
         Self {
             trace: TraceOptions::default(),
             dialect: DialectDefinition::default(),
-            syntax_memo: true,
         }
     }
 }
@@ -208,13 +199,6 @@ impl ParseOptions {
     #[ensures(true)]
     pub fn with_trace_options(mut self, trace: TraceOptions) -> Self {
         self.trace = trace;
-        self
-    }
-
-    #[requires(true)]
-    #[ensures(ret.syntax_memo == enabled)]
-    pub fn with_syntax_memo(mut self, enabled: bool) -> Self {
-        self.syntax_memo = enabled;
         self
     }
 }

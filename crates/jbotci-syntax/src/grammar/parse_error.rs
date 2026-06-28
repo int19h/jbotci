@@ -3,13 +3,14 @@ use bityzba::{data, ensures, invariant, new, requires};
 use chumsky::error::{Error, LabelError, Rich, RichPattern, RichReason};
 use chumsky::input::Input;
 use chumsky::util::MaybeRef;
+use std::sync::Arc;
 
 use super::{Span, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    syntax_construct_is_descendant_of, syntax_construct_is_known, syntax_construct_is_root,
-    syntax_construct_parent, syntax_immediate_child_under,
+    syntax_construct_depth, syntax_construct_is_descendant_of, syntax_construct_is_known,
+    syntax_construct_is_root, syntax_construct_parent, syntax_immediate_child_under,
 };
 
 #[invariant(true)]
@@ -21,6 +22,9 @@ pub(super) struct SyntaxParseError<'tokens> {
     context_paths: Vec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
     custom_kind: Option<SyntaxParseCustomKind>,
+    active_contexts: Vec<&'static str>,
+    preferred_context_hint: Option<SyntaxConstructContext>,
+    same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
 }
 
 #[invariant(true)]
@@ -75,6 +79,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
+            active_contexts: Vec::new(),
+            preferred_context_hint: None,
+            same_position_branches: Vec::new(),
         }
     }
 
@@ -92,6 +99,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: Some(custom_kind),
+            active_contexts: Vec::new(),
+            preferred_context_hint: None,
+            same_position_branches: Vec::new(),
         }
     }
 
@@ -105,6 +115,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
+            active_contexts: Vec::new(),
+            preferred_context_hint: None,
+            same_position_branches: Vec::new(),
         }
     }
 
@@ -122,6 +135,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: Some(found),
             custom_kind: None,
+            active_contexts: Vec::new(),
+            preferred_context_hint: None,
+            same_position_branches: Vec::new(),
         }
     }
 
@@ -190,6 +206,20 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+    pub(super) fn preferred_context(&self) -> Option<SyntaxConstructContext> {
+        if let Some(context) =
+            preferred_context_from_active_contexts(&self.active_contexts, self.span)
+        {
+            return Some(context);
+        }
+        if self.same_position_branches.is_empty() {
+            return self.current_context();
+        }
+        self.preferred_context_hint.clone()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
     pub(super) fn summary_context(&self) -> Option<SyntaxConstructContext> {
         select_current_context(&self.context_paths)
             .or_else(|| select_outer_common_context_including_roots(&self.context_paths))
@@ -215,12 +245,69 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn merge_for_report(mut self, other: Self) -> Self {
-        append_unique_groups(&mut self.expected_groups, other.expected_groups);
-        append_unique_context_paths(&mut self.context_paths, other.context_paths);
-        self.found = merge_optional_equal(self.found, other.found);
-        self.custom_kind = merge_optional_equal(self.custom_kind, other.custom_kind);
+    pub(super) fn merge_for_report(self, other: Self) -> Self {
+        let mut merged = self.into_report_error();
+        let other = other.into_report_error();
+        append_unique_groups(&mut merged.expected_groups, other.expected_groups);
+        append_unique_context_paths(&mut merged.context_paths, other.context_paths);
+        merged.found = merge_optional_equal(merged.found, other.found);
+        merged.custom_kind = merge_optional_equal(merged.custom_kind, other.custom_kind);
+        merged
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn merge_for_parser(self, other: Self) -> Self {
+        lazy_merge_errors(self, other)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn with_active_contexts(mut self, contexts: &[&'static str]) -> Self {
+        self.active_contexts = contexts.to_vec();
+        self.preferred_context_hint =
+            preferred_context_from_active_contexts(&self.active_contexts, self.span)
+                .or_else(|| preferred_context_from_branches(&self.same_position_branches));
         self
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn same_report_content(&self, other: &Self) -> bool {
+        if !self.same_position_branches.is_empty() || !other.same_position_branches.is_empty() {
+            return false;
+        }
+        self.span == other.span
+            && self.expected_groups == other.expected_groups
+            && self.context_paths == other.context_paths
+            && self.found == other.found
+            && self.custom_kind == other.custom_kind
+            && self.active_contexts == other.active_contexts
+    }
+
+    #[requires(true)]
+    #[ensures(ret.same_position_branches.is_empty())]
+    pub(super) fn into_report_error(self) -> Self {
+        if self.same_position_branches.is_empty() {
+            let mut error = self;
+            let active_contexts = std::mem::take(&mut error.active_contexts);
+            apply_active_contexts_to_leaf(&mut error, &active_contexts);
+            return error;
+        }
+        let mut error = self;
+        let active_contexts = std::mem::take(&mut error.active_contexts);
+        let branches = std::mem::take(&mut error.same_position_branches);
+        let mut merged = None;
+        for branch in branches {
+            let branch = arc_into_inner_or_clone(branch).into_report_error();
+            merged = Some(match merged {
+                None => branch,
+                Some(previous) => merge_report_errors(previous, branch),
+            });
+        }
+        let mut merged = merged.unwrap_or(error);
+        apply_active_contexts_to_leaf(&mut merged, &active_contexts);
+        merged
     }
 }
 
@@ -232,20 +319,7 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn merge(self, other: Self) -> Self {
-        let mut merged = self;
-        let other_inner = other.inner;
-        let other_expected_groups = other.expected_groups;
-        let other_context_paths = other.context_paths;
-        let other_found = other.found;
-        let other_custom_kind = other.custom_kind;
-        merged.inner =
-            <Rich<'tokens, Token, Span> as Error<'tokens, I>>::merge(merged.inner, other_inner);
-        merged.span = *merged.inner.span();
-        append_unique_groups(&mut merged.expected_groups, other_expected_groups);
-        append_unique_context_paths(&mut merged.context_paths, other_context_paths);
-        merged.found = merge_optional_equal(merged.found, other_found);
-        merged.custom_kind = merge_optional_equal(merged.custom_kind, other_custom_kind);
-        merged
+        lazy_merge_errors(self, other)
     }
 }
 
@@ -277,6 +351,9 @@ where
             context_paths: empty_context_paths(),
             found: Some(syntax_found),
             custom_kind: None,
+            active_contexts: Vec::new(),
+            preferred_context_hint: None,
+            same_position_branches: Vec::new(),
         }
     }
 
@@ -291,6 +368,9 @@ where
     where
         Self: Error<'tokens, I>,
     {
+        if !self.same_position_branches.is_empty() {
+            self = self.into_report_error();
+        }
         let expected = expected.into_iter().collect::<Vec<_>>();
         append_unique_groups(
             &mut self.expected_groups,
@@ -319,6 +399,9 @@ where
         found: Option<MaybeRef<'tokens, I::Token>>,
         span: I::Span,
     ) -> Self {
+        if !self.same_position_branches.is_empty() {
+            self = self.into_report_error();
+        }
         let expected = expected.into_iter().collect::<Vec<_>>();
         self.expected_groups = expected_token_groups_from_labels(expected.clone());
         let syntax_found = syntax_found_from_maybe(found.clone());
@@ -334,12 +417,23 @@ where
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
         self.custom_kind = None;
+        self.active_contexts = Vec::new();
+        self.preferred_context_hint = None;
         self
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn label_with(&mut self, label: L) {
+        if !self.same_position_branches.is_empty() {
+            for branch in &mut self.same_position_branches {
+                <SyntaxParseError<'tokens> as LabelError<'tokens, I, L>>::label_with(
+                    Arc::make_mut(branch),
+                    label.clone(),
+                );
+            }
+            return;
+        }
         <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::label_with(
             &mut self.inner,
             label.clone(),
@@ -371,6 +465,18 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn in_context(&mut self, label: L, span: I::Span) {
+        if !self.same_position_branches.is_empty() {
+            for branch in &mut self.same_position_branches {
+                <SyntaxParseError<'tokens> as LabelError<'tokens, I, L>>::in_context(
+                    Arc::make_mut(branch),
+                    label.clone(),
+                    span,
+                );
+            }
+            self.preferred_context_hint =
+                preferred_context_from_branches(&self.same_position_branches);
+            return;
+        }
         let context = label
             .clone()
             .try_into()
@@ -635,6 +741,185 @@ fn immediate_child_from_context_paths(
 #[ensures(!ret.is_empty())]
 fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
     vec![Vec::new()]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn lazy_merge_errors<'tokens>(
+    left: SyntaxParseError<'tokens>,
+    right: SyntaxParseError<'tokens>,
+) -> SyntaxParseError<'tokens> {
+    match right.span.start.cmp(&left.span.start) {
+        std::cmp::Ordering::Greater => right,
+        std::cmp::Ordering::Less => left,
+        std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
+        std::cmp::Ordering::Equal => lazy_merge_same_position_errors(left, right),
+    }
+}
+
+#[requires(left.span.start == right.span.start)]
+#[ensures(true)]
+fn lazy_merge_same_position_errors<'tokens>(
+    left: SyntaxParseError<'tokens>,
+    right: SyntaxParseError<'tokens>,
+) -> SyntaxParseError<'tokens> {
+    let span = Span::from(left.span.start.min(right.span.start)..left.span.end.max(right.span.end));
+    let preferred_context_hint =
+        deeper_preferred_context(left.preferred_context(), right.preferred_context());
+    SyntaxParseError {
+        span,
+        inner: Rich::custom(span, "unexpected input".to_owned()),
+        expected_groups: Vec::new(),
+        context_paths: Vec::new(),
+        found: None,
+        custom_kind: None,
+        active_contexts: Vec::new(),
+        preferred_context_hint,
+        same_position_branches: vec![Arc::new(left), Arc::new(right)],
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn deeper_preferred_context(
+    left: Option<SyntaxConstructContext>,
+    right: Option<SyntaxConstructContext>,
+) -> Option<SyntaxConstructContext> {
+    match (left, right) {
+        (None, None) => None,
+        (Some(context), None) | (None, Some(context)) => Some(context),
+        (Some(left), Some(right))
+            if syntax_construct_depth(&right.construct)
+                > syntax_construct_depth(&left.construct) =>
+        {
+            Some(right)
+        }
+        (Some(left), Some(_right)) => Some(left),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn preferred_context_from_branches(
+    branches: &[Arc<SyntaxParseError<'_>>],
+) -> Option<SyntaxConstructContext> {
+    let mut selected = None;
+    for branch in branches {
+        selected = deeper_preferred_context(selected, branch.preferred_context());
+    }
+    selected
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_active_contexts_to_leaf(error: &mut SyntaxParseError<'_>, contexts: &[&'static str]) {
+    if contexts.is_empty() {
+        return;
+    }
+    for construct in contexts.iter().rev() {
+        if !syntax_construct_is_known(construct) {
+            continue;
+        }
+        let context = SyntaxConstructContext::new(
+            (*construct).to_owned(),
+            error.span.start.min(error.span.end),
+            error.span.start.max(error.span.end),
+        );
+        for group in &mut error.expected_groups {
+            apply_context_to_group(group, &context.construct);
+        }
+    }
+    replace_context_paths_with_active_contexts(error, contexts);
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
+fn preferred_context_from_active_contexts(
+    contexts: &[&'static str],
+    span: Span,
+) -> Option<SyntaxConstructContext> {
+    contexts
+        .iter()
+        .rev()
+        .find(|construct| {
+            syntax_construct_is_known(construct) && !syntax_construct_is_root(construct)
+        })
+        .map(|construct| {
+            SyntaxConstructContext::new(
+                (*construct).to_owned(),
+                span.start.min(span.end),
+                span.start.max(span.end),
+            )
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn replace_context_paths_with_active_contexts(
+    error: &mut SyntaxParseError<'_>,
+    contexts: &[&'static str],
+) {
+    let mut active_path = contexts
+        .iter()
+        .rev()
+        .filter(|construct| syntax_construct_is_known(construct))
+        .map(|construct| {
+            SyntaxConstructContext::new(
+                (*construct).to_owned(),
+                error.span.start.min(error.span.end),
+                error.span.start.max(error.span.end),
+            )
+        })
+        .collect::<Vec<_>>();
+    if active_path.is_empty() {
+        return;
+    }
+    let old_paths = std::mem::take(&mut error.context_paths);
+    if old_paths.is_empty() {
+        error.context_paths = vec![active_path];
+        return;
+    }
+    let mut paths = Vec::new();
+    for old_path in old_paths {
+        let mut path = active_path.clone();
+        for context in old_path {
+            if !path
+                .iter()
+                .any(|active| active.construct == context.construct)
+            {
+                path.push(context);
+            }
+        }
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+    if paths.is_empty() {
+        paths.push(std::mem::take(&mut active_path));
+    }
+    error.context_paths = paths;
+}
+
+#[requires(true)]
+#[ensures(ret.same_position_branches.is_empty())]
+fn merge_report_errors<'tokens>(
+    left: SyntaxParseError<'tokens>,
+    right: SyntaxParseError<'tokens>,
+) -> SyntaxParseError<'tokens> {
+    let mut left = left.into_report_error();
+    let right = right.into_report_error();
+    append_unique_groups(&mut left.expected_groups, right.expected_groups);
+    append_unique_context_paths(&mut left.context_paths, right.context_paths);
+    left.found = merge_optional_equal(left.found, right.found);
+    left.custom_kind = merge_optional_equal(left.custom_kind, right.custom_kind);
+    left.same_position_branches = Vec::new();
+    left
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn arc_into_inner_or_clone<T: Clone>(value: Arc<T>) -> T {
+    Arc::try_unwrap(value).unwrap_or_else(|value| (*value).clone())
 }
 
 #[requires(true)]

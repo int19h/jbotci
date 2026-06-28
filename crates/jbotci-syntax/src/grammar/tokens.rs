@@ -1130,11 +1130,13 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
             context: None,
         };
     };
+    let preferred_context = error.preferred_context();
+    let error = error.into_report_error();
 
     let expectations = error.expectations();
     let expected = error.expected_strings();
-    let summary_context = error.summary_context();
-    let current_context = error.current_context();
+    let current_context = error.current_context().or(preferred_context);
+    let summary_context = error.summary_context().or_else(|| current_context.clone());
     let kind = syntax_error_kind(&error, &expectations, current_context.as_ref());
     let reason = syntax_error_reason(
         error.reason(),
@@ -1441,10 +1443,13 @@ pub(super) fn syntax_trace_failure_summary(
     let merged = farthest
         .iter()
         .map(|error| (*error).clone())
-        .reduce(SyntaxParseError::merge_for_report)?;
+        .reduce(SyntaxParseError::merge_for_parser)?;
+    let preferred_context = merged.preferred_context();
+    let merged = merged.into_report_error();
     let expectations = merged.expectations();
     let expected = merged.expected_strings();
-    let summary_context = merged.summary_context();
+    let current_context = merged.current_context().or(preferred_context);
+    let summary_context = merged.summary_context().or_else(|| current_context.clone());
     let reason = syntax_error_reason(
         merged.reason(),
         &expected,
@@ -1462,7 +1467,7 @@ pub(super) fn syntax_trace_failure_summary(
         byte_end: merged.span().end,
         reason,
         branches,
-        current_context: merged.current_context().map(trace_context),
+        current_context: current_context.map(trace_context),
     }))
 }
 
@@ -1487,6 +1492,7 @@ fn syntax_error_reason(
 #[requires(true)]
 #[ensures(true)]
 fn trace_failure_branches(error: &SyntaxParseError<'_>) -> Vec<TraceFailureBranch> {
+    let error = error.clone().into_report_error();
     let expected = error.expected_strings();
     if error.context_paths().is_empty() {
         return vec![TraceFailureBranch {
@@ -1521,5 +1527,5 @@ fn merge_farthest_errors(errors: Vec<SyntaxParseError<'_>>) -> Option<SyntaxPars
     errors
         .into_iter()
         .filter(|error| error.span().start == farthest_start)
-        .reduce(SyntaxParseError::merge_for_report)
+        .reduce(SyntaxParseError::merge_for_parser)
 }
