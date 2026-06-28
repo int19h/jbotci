@@ -3444,6 +3444,15 @@ fn legacy_as_generated_existing_variant_payload_tree_value(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_flat_chain_entries(values: Vec<TreeValue>) -> Vec<TreeEntry> {
+    values
+        .into_iter()
+        .map(|value| TreeEntry { label: None, value })
+        .collect()
+}
+
 #[requires(!constructor.is_empty() && !label.is_empty())]
 #[ensures(true)]
 fn legacy_as_generated_variant_payload_tree_value(
@@ -9529,43 +9538,32 @@ fn legacy_as_generated_mekso_operand_tree_value(
     options: TreeRenderOptions,
 ) -> TreeValue {
     if let Some((leading_expression, continuations)) = legacy_mekso_connection_parts(mekso) {
-        let mut entries = vec![TreeEntry {
-            label: Some("leading_expression"),
-            value: legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+        let entries = legacy_as_generated_flat_chain_entries(
+            std::iter::once(legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
                 leading_expression,
                 source,
                 options,
-            ),
-        }];
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
-            "continuations",
-            continuations
-                .iter()
-                .map(|(connective, trailing_expression)| {
+            ))
+            .chain(continuations.iter().flat_map(|(connective, trailing_expression)| {
+                [
                     TreeValue::Node(TreeNode {
                         constructor: "AfterthoughtMeksoOperandContinuation",
-                        entries: vec![
-                            TreeEntry {
-                                label: Some("operand_connective"),
-                                value: legacy_as_generated_operand_connective_tree_value(
-                                    connective, source, options,
-                                ),
-                            },
-                            TreeEntry {
-                                label: Some("trailing_expression"),
-                                value: legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                                    *trailing_expression,
-                                    source,
-                                    options,
-                                ),
-                            },
-                        ],
-                    })
-                })
-                .collect(),
-        ) {
-            entries.push(entry);
-        }
+                        entries: vec![TreeEntry {
+                            label: Some("operand_connective"),
+                            value: legacy_as_generated_operand_connective_tree_value(
+                                connective, source, options,
+                            ),
+                        }],
+                    }),
+                    legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+                        trailing_expression,
+                        source,
+                        options,
+                    ),
+                ]
+            }))
+            .collect(),
+        );
         return legacy_as_generated_wrapped_variant_tree_value(
             "AfterthoughtMeksoOperand",
             "afterthought_mekso_operand",
@@ -9575,12 +9573,9 @@ fn legacy_as_generated_mekso_operand_tree_value(
     legacy_as_generated_wrapped_variant_tree_value(
         "AfterthoughtMeksoOperand",
         "afterthought_mekso_operand",
-        vec![TreeEntry {
-            label: Some("leading_expression"),
-            value: legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                mekso, source, options,
-            ),
-        }],
+        legacy_as_generated_flat_chain_entries(vec![
+            legacy_as_generated_bound_or_simple_mekso_operand_tree_value(mekso, source, options),
+        ]),
     )
 }
 
@@ -10056,44 +10051,32 @@ fn legacy_as_generated_mekso_operator_tree_value(
     if let Some((leading_operator, continuations)) =
         legacy_mekso_operator_connection_parts(operator)
     {
-        let mut entries = vec![TreeEntry {
-            label: Some("leading_operator"),
-            value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+        let entries = legacy_as_generated_flat_chain_entries(
+            std::iter::once(legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
                 leading_operator,
                 source,
                 options,
-            ),
-        }];
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
-            "continuations",
-            continuations
-                .iter()
-                .map(|(connective, trailing_operator)| {
+            ))
+            .chain(continuations.iter().flat_map(|(connective, trailing_operator)| {
+                [
                     TreeValue::Node(TreeNode {
                         constructor: "AfterthoughtMeksoOperatorContinuation",
-                        entries: vec![
-                            TreeEntry {
-                                label: Some("connective"),
-                                value:
-                                    legacy_as_generated_relation_afterthought_connective_tree_value(
-                                        connective, source, options,
-                                    ),
-                            },
-                            TreeEntry {
-                                label: Some("trailing_operator"),
-                                value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
-                                    trailing_operator,
-                                    source,
-                                    options,
-                                ),
-                            },
-                        ],
-                    })
-                })
-                .collect(),
-        ) {
-            entries.push(entry);
-        }
+                        entries: vec![TreeEntry {
+                            label: Some("connective"),
+                            value: legacy_as_generated_relation_afterthought_connective_tree_value(
+                                connective, source, options,
+                            ),
+                        }],
+                    }),
+                    legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+                        trailing_operator,
+                        source,
+                        options,
+                    ),
+                ]
+            }))
+            .collect(),
+        );
         return legacy_as_generated_wrapped_variant_tree_value(
             "AfterthoughtMeksoOperator",
             "afterthought_mekso_operator",
@@ -10103,12 +10086,9 @@ fn legacy_as_generated_mekso_operator_tree_value(
     legacy_as_generated_wrapped_variant_tree_value(
         "AfterthoughtMeksoOperator",
         "afterthought_mekso_operator",
-        vec![TreeEntry {
-            label: Some("leading_operator"),
-            value: legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
-                operator, source, options,
-            ),
-        }],
+        legacy_as_generated_flat_chain_entries(vec![
+            legacy_as_generated_bound_or_atom_mekso_operator_tree_value(operator, source, options),
+        ]),
     )
 }
 

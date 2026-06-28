@@ -1007,8 +1007,11 @@ pub mod generated_model {
     }
 
     rule "operator" afterthought_mekso_operator(mekso, mekso_operator, selbri) -> struct {
-        field leading_operator <- boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri));
-        field continuations <- [zero_or_more afterthought_mekso_operator_continuation(mekso, mekso_operator, selbri)];
+        field operators <- chain(
+            first: boxed(bound_or_atom_mekso_operator(mekso, mekso_operator, selbri)),
+            zero_or_more: afterthought_mekso_operator_continuation(mekso, mekso_operator, selbri),
+            element: trailing_operator,
+        );
     }
 
     rule "operator continuation" afterthought_mekso_operator_continuation(mekso, mekso_operator, selbri) -> struct {
@@ -1080,8 +1083,11 @@ pub mod generated_model {
     }
 
     rule "operand connective" afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
-        field leading_expression <- boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
-        field continuations <- [zero_or_more afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)];
+        field operands <- chain(
+            first: boxed(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)),
+            zero_or_more: afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
+            element: trailing_expression,
+        );
     }
 
     rule "operand continuation" afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
