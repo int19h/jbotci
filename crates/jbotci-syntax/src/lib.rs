@@ -187,6 +187,13 @@ pub struct SyntaxParseAttempt {
     pub trace: Option<TraceReport>,
 }
 
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub struct GeneratedSyntaxParseAttempt {
+    pub result: Result<GeneratedSyntaxParse, SyntaxError>,
+    pub trace: Option<TraceReport>,
+}
+
 impl ParseOptions {
     #[requires(true)]
     #[ensures(ret.dialect == *definition)]
@@ -1569,6 +1576,29 @@ pub struct SyntaxParse {
     pub warnings: Vec<SyntaxWarning>,
 }
 
+#[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
+#[expensive_invariant({
+    let mut last_end = None;
+    let mut ordered = true;
+    parse_tree.visit_source_spans(&mut |span| {
+        if !ordered {
+            return;
+        }
+        if last_end.is_some_and(|end| end > span.byte_start) {
+            ordered = false;
+            return;
+        }
+        last_end = Some(span.byte_end);
+    });
+    ordered
+})]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GeneratedSyntaxParse {
+    pub parse_tree: Box<generated_model::TextSyntax>,
+    #[serde(default)]
+    pub warnings: Vec<SyntaxWarning>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
@@ -2153,6 +2183,20 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options(
     options: &ParseOptions,
 ) -> Result<Box<generated_model::TextSyntax>, SyntaxError> {
     grammar::parse_generated_model_syntax_tree_with_source(words, Some(source), options)
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
+}))]
+pub fn parse_syntax_tree_generated_model_with_source_and_options_attempt(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> GeneratedSyntaxParseAttempt {
+    grammar::parse_generated_model_syntax_tree_with_source_attempt(words, Some(source), options)
 }
 
 #[doc(hidden)]

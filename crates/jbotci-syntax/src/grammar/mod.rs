@@ -20,9 +20,9 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
-    SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
-    syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
+    SyntaxError, SyntaxExpectedToken, SyntaxParse, SyntaxParseAttempt, SyntaxWarning,
+    SyntaxWordCategory, Token, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 pub(crate) mod ast;
@@ -621,11 +621,33 @@ pub(crate) fn parse_handwritten_syntax_tree_with_source(
 #[ensures(true)]
 pub(crate) fn parse_generated_model_syntax_tree_with_source(
     words: &[WordLike],
-    _source: Option<&str>,
+    source: Option<&str>,
     options: &ParseOptions,
 ) -> Result<Box<generated::generated_model::TextSyntax>, SyntaxError> {
+    parse_generated_model_syntax_tree_with_source_attempt(words, source, options)
+        .result
+        .map(|parsed| parsed.into_data().parse_tree)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
+    words: &[WordLike],
+    _source: Option<&str>,
+    options: &ParseOptions,
+) -> GeneratedSyntaxParseAttempt {
     let tokens = syntax_tokens(words);
-    generated::generated_model::parse_text(&tokens, options).map(Box::new)
+    let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
+    let result = parsed.result.map(|parsed| {
+        new!(GeneratedSyntaxParse {
+            parse_tree: Box::new(parsed.text),
+            warnings: parsed.warnings,
+        })
+    });
+    GeneratedSyntaxParseAttempt {
+        result,
+        trace: parsed.trace,
+    }
 }
 
 #[requires(true)]

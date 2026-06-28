@@ -18,7 +18,9 @@ use super::tokens::{
     syntax_error_with_diagnostic_candidate,
 };
 use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
-use crate::{ExperimentalConstruct, ParseOptions, SyntaxWordCategory, Token};
+use crate::{
+    ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
+};
 
 #[doc(hidden)]
 pub mod generated_model {
@@ -2789,6 +2791,29 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> Result<TextSyntax, crate::SyntaxError> {
+        parse_text_attempt(words, options)
+            .result
+            .map(|parsed| parsed.text)
+    }
+
+    #[bityzba::invariant(true)]
+    pub(crate) struct GeneratedParsedText {
+        pub text: TextSyntax,
+        pub warnings: Vec<SyntaxWarning>,
+    }
+
+    #[bityzba::invariant(true)]
+    pub(crate) struct GeneratedParsedTextAttempt {
+        pub result: Result<GeneratedParsedText, crate::SyntaxError>,
+        pub trace: Option<TraceReport>,
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_text_attempt(
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new(words, options);
@@ -2800,12 +2825,21 @@ pub mod generated_model {
                 &mut state,
             )
             .into_result();
-        match result {
-            Ok(text) => Ok(text),
+        let diagnostic_candidate = state.diagnostic_candidate();
+        let finish = state.finish();
+        let result = match result {
+            Ok(text) => Ok(GeneratedParsedText {
+                text,
+                warnings: finish.warnings,
+            }),
             Err(errors) => Err(syntax_error_with_diagnostic_candidate(
                 errors,
-                state.diagnostic_candidate(),
+                diagnostic_candidate,
             )),
+        };
+        GeneratedParsedTextAttempt {
+            result,
+            trace: finish.trace,
         }
     }
 
