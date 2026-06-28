@@ -4561,9 +4561,6 @@ fn tanru_unit_label_from_bound_tanru_unit(
 fn tanru_unit_label_from_tanru_unit_atom(
     unit: &TanruUnitAtomSyntax,
 ) -> Result<String, SemanticsError> {
-    if !unit.conversions.is_empty() {
-        return Err(unsupported("converted tanru unit"));
-    }
     match unit.base.as_ref() {
         TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
             tanru_unit_label_from_scalar_negated_tanru_unit(unit)
@@ -4598,9 +4595,6 @@ fn tanru_unit_label_from_scalar_negated_tanru_unit(
 fn relation_label_from_tanru_unit_atom(
     unit: &TanruUnitAtomSyntax,
 ) -> Result<String, SemanticsError> {
-    if !unit.conversions.is_empty() {
-        return Err(unsupported("converted tanru unit"));
-    }
     match unit.base.as_ref() {
         TanruUnitAtomBaseSyntax::OrdinalTanruUnit(ordinal) => {
             relation_label_from_ordinal_tanru_unit(ordinal)
