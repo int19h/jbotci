@@ -32,7 +32,7 @@ use crate::model::{
     AbstractionKind, Actuality, ActualityKind, ArgumentValue, Connector, Descriptor,
     EventualityClass, EventualitySort, FormulaOperator, IndexicalKind, ParameterRole,
     PredicationMode, ReferentCategory, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticSort, TanruLink, UtteranceForce, source_from_spans,
+    SemanticSort, TanruLink, UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -375,8 +375,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let relation = relation_label_from_selbri(&simple_tail.selbri)?;
         let relation = semantic_relation_label(relation);
-        let place_count =
-            relation_place_count(self.dictionary, &relation).unwrap_or_else(|| terms.len());
+        let place_count = relation_place_count(self.dictionary, &relation);
+        let mut diagnostics = Vec::new();
+        let place_limit = match place_count {
+            Some(place_count) => place_count,
+            None => {
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+                terms.len().max(1)
+            }
+        };
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
             None => {
@@ -402,7 +413,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             );
             visible_place += 1;
         }
-        for place in visible_place..=place_count {
+        for place in visible_place..=place_limit {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
                 argument_key(place),
@@ -418,7 +429,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments,
                 predication_mode_for_relation(&relation, mode),
                 predication_source,
-                Vec::new(),
+                diagnostics,
             ),
         )?;
         let formula = self.next_formula_id();
@@ -479,8 +490,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let relation = semantic_relation_label(relation_label_from_generated_tanru_unit(unit)?);
-        let place_count =
-            relation_place_count(self.dictionary, &relation).unwrap_or_else(|| terms.len());
+        let place_count = relation_place_count(self.dictionary, &relation);
+        let mut diagnostics = Vec::new();
+        let place_limit = match place_count {
+            Some(place_count) => place_count,
+            None => {
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+                terms.len().max(1)
+            }
+        };
         let mut arguments = BTreeMap::new();
         let mut visible_place = 1usize;
         for term in terms {
@@ -496,7 +518,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             eventuality,
             SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
         )?;
-        for place in visible_place..=place_count {
+        for place in visible_place..=place_limit {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
                 argument_key(place),
@@ -516,7 +538,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments,
                 PredicationMode::Asserted,
                 source.clone(),
-                Vec::new(),
+                diagnostics,
             ),
         )?;
         let formula = self.next_formula_id();
@@ -647,8 +669,41 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         match pro_sumti.0.value.cmavo() {
             Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Ti) => {
+                self.build_demonstrative_referent(pro_sumti, IndexicalKind::ProximalDemonstrative)
+            }
+            Some(Cmavo::Ta) => {
+                self.build_demonstrative_referent(pro_sumti, IndexicalKind::MedialDemonstrative)
+            }
+            Some(Cmavo::Tu) => {
+                self.build_demonstrative_referent(pro_sumti, IndexicalKind::DistalDemonstrative)
+            }
             _ => Err(unsupported(&format!("pro-sumti {word}"))),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_demonstrative_referent(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+        indexical: IndexicalKind,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(indexical),
+                None,
+                None,
+                self.source_for_node(pro_sumti, "sumti"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(true)]
@@ -1005,30 +1060,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let kind = abstraction_kind_for_nu(abstraction);
         let sort = abstraction_output_sort(kind);
+        let Some(class) = abstraction_eventuality_class(kind) else {
+            return Err(unsupported("non-event abstraction"));
+        };
         let id = self.next_referent_with_sort_id(sort);
         let body = self.build_subbridi_formula_with_eventuality(
             &abstraction.subbridi,
             id,
             abstraction_body_mode(kind),
         )?;
-        if let Some(class) = abstraction_eventuality_class(kind) {
-            let mut object = SemanticObject::eventuality(class, None, source);
-            object.sort = Some(sort);
-            object.content = Some(body);
-            object.abstraction_kind = Some(kind);
-            self.insert(id, object)?;
-            return Ok(id);
-        }
-        let mut object = SemanticObject::referent(
-            ReferentCategory::Constant,
-            sort,
-            None,
-            None,
-            None,
-            source,
-            Vec::new(),
-        );
-        object.body = Some(body);
+        let mut object = SemanticObject::eventuality(class, None, source);
+        object.sort = Some(sort);
+        object.content = Some(body);
         object.abstraction_kind = Some(kind);
         self.insert(id, object)?;
         Ok(id)
@@ -1855,6 +1898,20 @@ mod tests {
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_explicit_cu() {
         assert_generated_builder_matches_legacy("mi cu klama le zarci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_demonstrative_sumti() {
+        assert_generated_builder_matches_legacy("ta bloti");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_unknown_place_structure() {
+        assert_generated_builder_matches_legacy("ta blotrskunri");
     }
 
     #[test]
