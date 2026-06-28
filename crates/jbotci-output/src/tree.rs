@@ -213,7 +213,9 @@ pub fn pretty_generated_model_tree_with_options(
             "generated-model syntax reference rendering is not wired yet".to_owned(),
         ));
     }
-    let value = collapse_value(generated_syntax_tree_value(tree, source, options));
+    let value = legacy_generated_root_projection(legacy_generated_singular_text_field_projection(
+        collapse_value(generated_syntax_tree_value(tree, source, options)),
+    ));
     Ok(render_tree_value_with_options(&value, options, None))
 }
 
@@ -16768,6 +16770,10 @@ trait SyntaxRenderModel {
         source: &str,
         options: TreeRenderOptions,
     ) -> Option<TreeValue>;
+
+    #[requires(!constructor.is_empty() && !label.is_empty())]
+    #[ensures(true)]
+    fn chain_link_element_field(constructor: &'static str, label: &'static str) -> bool;
 }
 
 #[invariant(true)]
@@ -16823,6 +16829,10 @@ impl SyntaxRenderModel for LegacySyntaxRenderModel {
         _options: TreeRenderOptions,
     ) -> Option<TreeValue> {
         None
+    }
+
+    fn chain_link_element_field(_constructor: &'static str, _label: &'static str) -> bool {
+        false
     }
 }
 
@@ -16921,6 +16931,14 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
             _ => None,
         }
     }
+
+    fn chain_link_element_field(constructor: &'static str, label: &'static str) -> bool {
+        generated_model::GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS
+            .iter()
+            .any(|(link_constructor, element_label)| {
+                *link_constructor == constructor && *element_label == label
+            })
+    }
 }
 
 #[invariant(true)]
@@ -16964,6 +16982,10 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         _options: TreeRenderOptions,
     ) -> Option<TreeValue> {
         None
+    }
+
+    fn chain_link_element_field(_constructor: &'static str, _label: &'static str) -> bool {
+        false
     }
 }
 
@@ -18443,6 +18465,7 @@ fn generated_i_statement_connective_has_bo(
 #[invariant(::Node => true)]
 #[invariant(::Field => true)]
 #[invariant(::Collection => true)]
+#[invariant(::Chain => true)]
 enum SyntaxFrame<'tree, M: SyntaxRenderModel> {
     Node {
         node_ref: M::Node<'tree>,
@@ -18457,6 +18480,9 @@ enum SyntaxFrame<'tree, M: SyntaxRenderModel> {
         nested_entries: Vec<TreeEntry>,
     },
     Collection {
+        items: Vec<TreeValue>,
+    },
+    Chain {
         items: Vec<TreeValue>,
     },
 }
@@ -18512,6 +18538,7 @@ where
         match self.stack.last_mut() {
             Some(SyntaxFrame::Field { values, .. }) => values.push(value),
             Some(SyntaxFrame::Collection { items }) => items.push(value),
+            Some(SyntaxFrame::Chain { items }) => items.push(value),
             Some(SyntaxFrame::Node { entries, .. }) => {
                 entries.push(TreeEntry { label: None, value })
             }
@@ -18538,7 +18565,7 @@ where
                     });
                     return;
                 }
-                SyntaxFrame::Collection { .. } => {}
+                SyntaxFrame::Collection { .. } | SyntaxFrame::Chain { .. } => {}
             }
         }
         panic!("syntax tree labelled field has no containing node");
@@ -18688,6 +18715,24 @@ where
     }
 
     #[requires(true)]
+    #[ensures(matches!(self.stack.last(), Some(SyntaxFrame::Chain { .. })))]
+    fn enter_chain(&mut self) {
+        self.stack.push(SyntaxFrame::Chain { items: Vec::new() });
+    }
+
+    #[requires(matches!(self.stack.last(), Some(SyntaxFrame::Chain { .. })))]
+    #[ensures(true)]
+    fn exit_chain(&mut self) {
+        let Some(SyntaxFrame::Chain { items }) = self.stack.pop() else {
+            panic!("syntax tree walker exited a chain without entering it");
+        };
+        let items = flatten_chain_tree_items::<M>(items);
+        if !items.is_empty() {
+            self.push_value(TreeValue::Collection(items));
+        }
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.last_position = M::atom_end_position(atom);
@@ -18713,6 +18758,59 @@ where
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn flatten_chain_tree_items<M>(items: Vec<TreeValue>) -> Vec<TreeValue>
+where
+    M: SyntaxRenderModel,
+{
+    let mut flattened = Vec::new();
+    for item in items {
+        flattened.extend(split_chain_link_tree_value::<M>(item));
+    }
+    flattened
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn split_chain_link_tree_value<M>(value: TreeValue) -> Vec<TreeValue>
+where
+    M: SyntaxRenderModel,
+{
+    match value {
+        TreeValue::Syntax { syntax_ids, value } => {
+            let mut parts = split_chain_link_tree_value::<M>(*value);
+            if parts.len() == 1 {
+                let value = parts.pop().expect("length checked");
+                return vec![syntax_value(syntax_ids, value)];
+            }
+            if let Some(first) = parts.first_mut() {
+                let first_value = std::mem::replace(first, TreeValue::Collection(Vec::new()));
+                *first = syntax_value(syntax_ids, first_value);
+            }
+            parts
+        }
+        TreeValue::Node(mut node) => {
+            let Some((element_index, _)) =
+                node.entries.iter().enumerate().find(|(_, entry)| {
+                    entry.label.is_some_and(|label| {
+                        M::chain_link_element_field(node.constructor, label)
+                    })
+                })
+            else {
+                return vec![TreeValue::Node(node)];
+            };
+            let element = node.entries.remove(element_index).value;
+            if node.entries.is_empty() {
+                vec![element]
+            } else {
+                vec![TreeValue::Node(node), element]
+            }
+        }
+        value => vec![value],
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 struct RenderedPosition {
@@ -18728,9 +18826,11 @@ where
 {
     stack.iter().rev().find_map(|frame| match frame {
         SyntaxFrame::Node { node_ref, .. } => Some(*node_ref),
-        SyntaxFrame::Field { .. } | SyntaxFrame::Collection { .. } => None,
-    })
-}
+            SyntaxFrame::Field { .. }
+            | SyntaxFrame::Collection { .. }
+            | SyntaxFrame::Chain { .. } => None,
+        })
+    }
 
 #[requires(span.byte_start <= span.byte_end)]
 #[requires(span.char_start <= span.char_end)]
@@ -18822,7 +18922,7 @@ fn collapse_node(node: TreeNode) -> TreeValue {
             value: collapse_value(entry.value),
         })
         .collect::<Vec<_>>();
-    if entries.len() == 1 && entries[0].label.is_none() {
+    if entries.len() == 1 {
         let mut entries = entries;
         return entries
             .pop()

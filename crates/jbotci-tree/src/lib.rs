@@ -669,6 +669,18 @@ pub trait TreeVisitor<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn enter_chain(&mut self) {
+        self.enter_sequence();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_chain(&mut self) {
+        self.exit_sequence();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn visit_atom(&mut self, _atom: Self::Atom) {}
 
     #[requires(true)]

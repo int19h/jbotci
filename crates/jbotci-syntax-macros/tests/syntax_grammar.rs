@@ -508,5 +508,9 @@ mod new_dsl {
                 SyntaxGrammarRecoveryExpr::Many(&SyntaxGrammarRecoveryExpr::Rule("chain_link")),
             ])
         );
+        assert_eq!(
+            GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS,
+            &[("ChainLink", "item")]
+        );
     }
 }

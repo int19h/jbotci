@@ -2440,12 +2440,12 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                visitor.enter_sequence();
+                visitor.enter_chain();
                 self.first.visit_in_order(visitor);
                 for link in &self.links {
                     link.visit_in_order(visitor);
                 }
-                visitor.exit_sequence();
+                visitor.exit_chain();
             }
 
             fn path_to_node_from<'tree>(
@@ -2487,12 +2487,12 @@ fn wrapper_trait_impls(
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
             {
-                visitor.enter_sequence();
+                visitor.enter_chain();
                 self.first.visit_in_order(visitor);
                 for link in &self.links {
                     link.visit_in_order(visitor);
                 }
-                visitor.exit_sequence();
+                visitor.exit_chain();
             }
 
             fn path_to_node_from<'tree>(

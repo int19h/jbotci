@@ -49,7 +49,7 @@ use jbotci_output::{
     BracketSourceFragment, BracketSourceRange, GlyphStyle, ReferenceDisplayModel,
     TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
     indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
-    phoneme_render_options_for_script, pretty_generated_model_raw_tree_with_options,
+    phoneme_render_options_for_script, pretty_generated_model_tree_with_options,
     reference_slot_name_for_place_slot, render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
@@ -451,7 +451,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let tree_text = match pretty_generated_model_raw_tree_with_options(
+    let tree_text = match pretty_generated_model_tree_with_options(
         &generated_model,
         source,
         TreeRenderOptions {

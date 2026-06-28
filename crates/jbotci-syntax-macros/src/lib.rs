@@ -473,7 +473,13 @@ impl SyntaxGrammar {
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
         let mut transparent_constructors = BTreeSet::<String>::new();
         let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
+        let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
         for rule in &self.rules {
+            collect_chain_link_element_fields_for_rule(
+                rule,
+                type_env,
+                &mut chain_link_element_fields,
+            )?;
             let rule = match rule {
                 Rule::Alias(_) => continue,
                 Rule::Struct(rule) => rule,
@@ -593,6 +599,9 @@ impl SyntaxGrammar {
         let transparent_field_pairs = transparent_field_pairs
             .iter()
             .map(|(constructor, field)| quote!((#constructor, #field)));
+        let chain_link_element_fields = chain_link_element_fields
+            .iter()
+            .map(|(constructor, field)| quote!((#constructor, #field)));
         let support_items = vec![quote! {
             #[doc(hidden)]
             pub const GENERATED_MODEL_TRANSPARENT_TREE_CONSTRUCTORS: &[&str] = &[
@@ -602,6 +611,11 @@ impl SyntaxGrammar {
             #[doc(hidden)]
             pub const GENERATED_MODEL_TRANSPARENT_TREE_FIELD_PAIRS: &[(&str, &str)] = &[
                 #(#transparent_field_pairs,)*
+            ];
+
+            #[doc(hidden)]
+            pub const GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS: &[(&str, &str)] = &[
+                #(#chain_link_element_fields,)*
             ];
         }];
         Ok(GeneratedTreeModel {
@@ -614,6 +628,131 @@ impl SyntaxGrammar {
 struct GeneratedTreeModel {
     tree_items: Vec<TokenStream2>,
     support_items: Vec<TokenStream2>,
+}
+
+fn collect_chain_link_element_fields_for_rule(
+    rule: &Rule,
+    type_env: &GrammarTypeEnv,
+    fields: &mut BTreeSet<(String, String)>,
+) -> Result<()> {
+    let Some(argument_types) = rule.argument_types(type_env) else {
+        return Ok(());
+    };
+    match rule {
+        Rule::Alias(rule) => collect_chain_link_element_fields_for_parser_expr(
+            &rule.parser,
+            type_env,
+            &argument_types,
+            fields,
+        ),
+        Rule::Struct(rule) => {
+            for field in &rule.fields {
+                collect_chain_link_element_fields_for_parser_expr(
+                    &field.parser,
+                    type_env,
+                    &argument_types,
+                    fields,
+                )?;
+            }
+            Ok(())
+        }
+        Rule::Enum(_) => Ok(()),
+    }
+}
+
+fn collect_chain_link_element_fields_for_parser_expr(
+    expr: &ParserExpr,
+    type_env: &GrammarTypeEnv,
+    argument_types: &BTreeMap<String, Type>,
+    fields: &mut BTreeSet<(String, String)>,
+) -> Result<()> {
+    match expr {
+        ParserExpr::Rust(expr) => {
+            if let Expr::Array(array) = expr
+                && let Some(vector) = array_vector_expr(array)
+            {
+                collect_chain_link_element_fields_for_parser_expr(
+                    &ParserExpr::Vector(vector),
+                    type_env,
+                    argument_types,
+                    fields,
+                )?;
+            }
+        }
+        ParserExpr::Vector(expr) => {
+            for item in &expr.items {
+                collect_chain_link_element_fields_for_vector_item(
+                    item,
+                    type_env,
+                    argument_types,
+                    fields,
+                )?;
+            }
+        }
+        ParserExpr::Chain(expr) => {
+            let link = parser_output_type(&expr.links, type_env, argument_types).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    expr.to_token_stream(),
+                    "cannot infer chain link output type for generated Tree metadata",
+                )
+            })?;
+            let link_ty = syn::parse2::<Type>(link).map_err(|error| {
+                syn::Error::new_spanned(
+                    expr.to_token_stream(),
+                    format!("cannot parse chain link output type: {error}"),
+                )
+            })?;
+            let link_ident = simple_type_ident(&link_ty).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    expr.to_token_stream(),
+                    "chain link parser must produce a generated struct type",
+                )
+            })?;
+            fields.insert((
+                generated_constructor_name(link_ident),
+                expr.element.to_string(),
+            ));
+            collect_chain_link_element_fields_for_parser_expr(
+                &expr.first,
+                type_env,
+                argument_types,
+                fields,
+            )?;
+            collect_chain_link_element_fields_for_parser_expr(
+                &expr.links,
+                type_env,
+                argument_types,
+                fields,
+            )?;
+        }
+        ParserExpr::Postfix { receiver, .. } => {
+            collect_chain_link_element_fields_for_parser_expr(
+                receiver,
+                type_env,
+                argument_types,
+                fields,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn collect_chain_link_element_fields_for_vector_item(
+    item: &VectorItem,
+    type_env: &GrammarTypeEnv,
+    argument_types: &BTreeMap<String, Type>,
+    fields: &mut BTreeSet<(String, String)>,
+) -> Result<()> {
+    let parser = match item {
+        VectorItem::One(parser)
+        | VectorItem::Spread(parser)
+        | VectorItem::ZeroOrMore(parser)
+        | VectorItem::ZeroOrMoreSpread(parser)
+        | VectorItem::OneOrMore(parser)
+        | VectorItem::OneOrMoreSpread(parser)
+        | VectorItem::Assert { parser, .. } => parser,
+    };
+    collect_chain_link_element_fields_for_parser_expr(parser, type_env, argument_types, fields)
 }
 
 fn push_generated_variant(
@@ -1387,6 +1526,14 @@ impl Rule {
             Rule::Alias(rule) => &rule.arguments,
             Rule::Struct(rule) => &rule.arguments,
             Rule::Enum(rule) => &rule.arguments,
+        }
+    }
+
+    fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
+        match self {
+            Rule::Alias(rule) => rule.argument_types(type_env),
+            Rule::Struct(rule) => rule.argument_types(type_env),
+            Rule::Enum(rule) => rule.argument_types(type_env),
         }
     }
 

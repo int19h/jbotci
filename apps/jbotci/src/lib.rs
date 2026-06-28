@@ -59,7 +59,7 @@ use jbotci_output::{
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, format_definition_or_notes_line_with_indexed_places,
     ipa_morphology_text, pretty_generated_model_brackets_with_options,
-    pretty_generated_model_raw_tree_with_options, pretty_morphology_brackets_with_options,
+    pretty_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, reference_display_model_for_syntax_tree,
     render_diagnostics, render_trace_report,
 };
@@ -4353,7 +4353,7 @@ fn render_gentufa(
             stdout.push_str(&debug_output_string(&generated_model, input.indent));
         }
         GentufaFormat::Tree => {
-            let rendered = pretty_generated_model_raw_tree_with_options(
+            let rendered = pretty_generated_model_tree_with_options(
                 &generated_model,
                 &text,
                 TreeRenderOptions {
@@ -7781,10 +7781,8 @@ mod tests {
 
             assert!(output.starts_with("BridiWithLeadingTerms {\n"));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base_sumti: Cmavo \"mi\""));
-            assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base: Gismu \"kláma\""));
-            assert!(output.contains("BridiTailWithPossibleTailTerms"));
+            assert!(output.contains("Cmavo \"mi\""));
+            assert!(output.contains("bridi_tail: Gismu \"kláma\""));
         });
     }
 
@@ -7850,7 +7848,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"BridiWithLeadingTerms{leading_terms:[ConnectedTerm{leading_term:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{base_sumti:Cmavo "mi"}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:TanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}"#
+                r#"BridiWithLeadingTerms{leading_terms:[Cmavo "mi"],bridi_tail:Gismu "kláma"}"#
             );
         });
     }
@@ -8545,7 +8543,7 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
             assert!(output.contains("\x1b[94mBridiWithLeadingTerms\x1b[39m"));
-            assert!(output.contains("\x1b[94mBridiTailWithPossibleTailTerms\x1b[39m"));
+            assert!(output.contains("\x1b[94mGismu\x1b[39m"));
             assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         });
