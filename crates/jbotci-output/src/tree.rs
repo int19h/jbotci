@@ -3773,33 +3773,32 @@ fn legacy_as_generated_afterthought_bridi_tail_without_tail_terms_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let mut entries = vec![TreeEntry {
-        label: Some("first"),
-        value: legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
-            bridi_tail.first.as_ref(),
-            source,
-            options,
-        ),
-    }];
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "continuations",
-        bridi_tail
-            .continuations
-            .iter()
-            .map(|continuation| {
-                legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
-                    continuation,
-                    source,
-                    options,
-                )
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
     TreeValue::Node(TreeNode {
         constructor: "AfterthoughtBridiTailWithoutTailTerms",
-        entries,
+        entries: legacy_as_generated_flat_chain_entries(
+            std::iter::once(
+                legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+                    bridi_tail.first.as_ref(),
+                    source,
+                    options,
+                ),
+            )
+            .chain(bridi_tail.continuations.iter().flat_map(|continuation| {
+                [
+                    legacy_as_generated_bridi_tail_connection_without_tail_terms_link_tree_value(
+                        continuation,
+                        source,
+                        options,
+                    ),
+                    legacy_as_generated_bo_grouped_bridi_tail_without_tail_terms_tree_value(
+                        continuation.bridi_tail.as_ref(),
+                        source,
+                        options,
+                    ),
+                ]
+            }))
+            .collect(),
+        ),
     })
 }
 
@@ -4104,6 +4103,40 @@ fn legacy_as_generated_bridi_tail_connection_without_tail_terms_tree_value(
             options,
         ),
     });
+    TreeValue::Node(TreeNode {
+        constructor: "BridiTailContinuationWithoutTailTerms",
+        entries,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_as_generated_bridi_tail_connection_without_tail_terms_link_tree_value(
+    continuation: &jbotci_syntax::ast::BridiTailConnectionSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> TreeValue {
+    assert!(
+        continuation.tense_modal.is_none()
+            && continuation.tail_terms.is_empty()
+            && continuation.vau.is_none()
+            && continuation.free_modifiers.is_empty(),
+        "legacy bridi tail continuation has tail-term fields that are not represented in generated without-tail-terms continuation"
+    );
+    let mut entries = vec![TreeEntry {
+        label: Some("connective"),
+        value: legacy_as_generated_bridi_tail_connective_tree_value(
+            &continuation.connective,
+            source,
+            options,
+        ),
+    }];
+    if let Some(cu) = &continuation.cu {
+        entries.push(TreeEntry {
+            label: Some("cu"),
+            value: required_legacy_syntax_subtree_value(cu.as_ref(), source, options),
+        });
+    }
     TreeValue::Node(TreeNode {
         constructor: "BridiTailContinuationWithoutTailTerms",
         entries,
