@@ -11129,39 +11129,26 @@ fn legacy_as_generated_connected_tanru_unit_from_selbri_parts_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let mut entries = vec![TreeEntry {
-        label: Some("leading_unit"),
-        value: leading_selbri.bo_or_linked_tanru_unit_tree_value(source, options),
-    }];
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "continuations",
-        continuations
-            .iter()
-            .map(|(connective, trailing_selbri)| {
-                TreeValue::Node(TreeNode {
-                    constructor: "TanruUnitContinuation",
-                    entries: vec![
-                        TreeEntry {
-                            label: Some("connective"),
-                            value: legacy_as_generated_relation_afterthought_connective_tree_value(
-                                connective, source, options,
-                            ),
-                        },
-                        TreeEntry {
-                            label: Some("trailing_unit"),
-                            value: trailing_selbri
-                                .bo_or_linked_tanru_unit_tree_value(source, options),
-                        },
-                    ],
-                })
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
     TreeValue::Node(TreeNode {
         constructor: "TanruUnit",
-        entries,
+        entries: legacy_as_generated_flat_chain_entries(
+            std::iter::once(leading_selbri.bo_or_linked_tanru_unit_tree_value(source, options))
+                .chain(continuations.iter().flat_map(|(connective, trailing_selbri)| {
+                    [
+                        TreeValue::Node(TreeNode {
+                            constructor: "TanruUnitContinuation",
+                            entries: vec![TreeEntry {
+                                label: Some("connective"),
+                                value: legacy_as_generated_relation_afterthought_connective_tree_value(
+                                    connective, source, options,
+                                ),
+                            }],
+                        }),
+                        trailing_selbri.bo_or_linked_tanru_unit_tree_value(source, options),
+                    ]
+                }))
+                .collect(),
+        ),
     })
 }
 
@@ -12819,48 +12806,34 @@ where
     T: LegacyTanruUnitLike + ?Sized,
 {
     if let Some((leading_unit, continuations)) = unit.tanru_unit_connection_parts() {
-        let mut entries = vec![TreeEntry {
-            label: Some("leading_unit"),
-            value: leading_unit.bo_or_linked_tanru_unit_tree_value(source, options),
-        }];
-        if let Some(entry) = labelled_tree_collection_entry_from_values(
-            "continuations",
-            continuations
-                .iter()
-                .map(|(connective, trailing_unit)| {
-                    TreeValue::Node(TreeNode {
-                        constructor: "TanruUnitContinuation",
-                        entries: vec![
-                            TreeEntry {
-                                label: Some("connective"),
-                                value:
-                                    legacy_as_generated_relation_afterthought_connective_tree_value(
-                                        connective, source, options,
-                                    ),
-                            },
-                            TreeEntry {
-                                label: Some("trailing_unit"),
-                                value: trailing_unit
-                                    .bo_or_linked_tanru_unit_tree_value(source, options),
-                            },
-                        ],
-                    })
-                })
-                .collect(),
-        ) {
-            entries.push(entry);
-        }
         return TreeValue::Node(TreeNode {
             constructor: "TanruUnit",
-            entries,
+            entries: legacy_as_generated_flat_chain_entries(
+                std::iter::once(leading_unit.bo_or_linked_tanru_unit_tree_value(source, options))
+                    .chain(continuations.iter().flat_map(|(connective, trailing_unit)| {
+                        [
+                            TreeValue::Node(TreeNode {
+                                constructor: "TanruUnitContinuation",
+                                entries: vec![TreeEntry {
+                                    label: Some("connective"),
+                                    value:
+                                        legacy_as_generated_relation_afterthought_connective_tree_value(
+                                            connective, source, options,
+                                        ),
+                                }],
+                            }),
+                            trailing_unit.bo_or_linked_tanru_unit_tree_value(source, options),
+                        ]
+                    }))
+                    .collect(),
+            ),
         });
     }
     TreeValue::Node(TreeNode {
         constructor: "TanruUnit",
-        entries: vec![TreeEntry {
-            label: Some("leading_unit"),
-            value: unit.bo_or_linked_tanru_unit_tree_value(source, options),
-        }],
+        entries: legacy_as_generated_flat_chain_entries(vec![
+            unit.bo_or_linked_tanru_unit_tree_value(source, options),
+        ]),
     })
 }
 

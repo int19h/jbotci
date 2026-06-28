@@ -2448,8 +2448,11 @@ pub mod generated_model {
     }
 
     rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit) -> struct {
-        field leading_unit <- boxed(bo_or_linked_tanru_unit);
-        field continuations <- [zero_or_more tanru_unit_continuation(bo_or_linked_tanru_unit)];
+        field units <- chain(
+            first: boxed(bo_or_linked_tanru_unit),
+            zero_or_more: tanru_unit_continuation(bo_or_linked_tanru_unit),
+            element: trailing_unit,
+        );
     }
 
     rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit) -> struct {
