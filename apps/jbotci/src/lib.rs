@@ -7925,11 +7925,11 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(stderr.contains("unexpected cmavo"));
-            assert!(stderr.contains("expected: number"), "{stderr}");
             assert!(
-                stderr.contains("syntax construct, or end of input"),
+                stderr.contains("expected: free modifier, linked arguments, or end of input"),
                 "{stderr}"
             );
+            assert!(stderr.contains("while parsing tanru unit"), "{stderr}");
             assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
             assert!(!stderr.contains("{be}"));
@@ -7970,8 +7970,9 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected: number"));
-            assert!(stderr.contains("syntax construct, or end of input"));
+            assert!(stderr.contains("expected: free modifier, linked"));
+            assert!(stderr.contains("arguments, or end of input"));
+            assert!(stderr.contains("while parsing tanru unit"));
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
@@ -7988,8 +7989,8 @@ mod tests {
                 (&["lo"][..], "syntax.incomplete-sumti", "incomplete sumti"),
                 (
                     &["ga", "lo", "mlatu", "gi"][..],
-                    "syntax.incomplete-term",
-                    "incomplete term",
+                    "syntax.incomplete-forethought-connection",
+                    "incomplete forethought connection",
                 ),
             ] {
                 let mut args = vec!["jbotci", "gentufa", "--detailed-errors"];
@@ -8034,15 +8035,18 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("needs one of:"));
-            assert!(stderr.contains("NIhO"));
-            assert!(stderr.contains("{i}"));
+            assert!(stderr.contains("linked arguments"));
+            assert!(stderr.contains("continues"));
+            assert!(stderr.contains("tanru unit"));
+            assert!(stderr.contains("text"));
             assert!(stderr.contains("end of input"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(compact_stderr.contains("[continues syntax construct]"));
+            assert!(compact_stderr.contains("[continues tanru unit]"));
+            assert!(compact_stderr.contains("[continues text]"));
             assert!(!stderr.contains("end of input (end of input)"));
             let continuation = compact_stderr
-                .find("continues syntax construct]")
-                .expect("syntax construct continuation group");
+                .find("continues tanru unit]")
+                .expect("tanru unit continuation group");
             let end = compact_stderr
                 .rfind("end of input")
                 .expect("text end group");
@@ -8065,13 +8069,12 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("mi cu"));
-            assert!(stderr.contains("syntax.incomplete-bridi"));
-            assert!(stderr.contains("needs one of:"));
-            assert!(
-                stderr.contains("free modifier, forethought bridi connection, selbri, or terms")
-            );
-            assert!(stderr.contains("while parsing bridi"));
+            assert!(stderr.contains("mi cu"), "{stderr}");
+            assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
+            assert!(stderr.contains("needs one of:"), "{stderr}");
+            assert!(stderr.contains("tanru unit"), "{stderr}");
+            assert!(stderr.contains("forethought bridi connection"), "{stderr}");
+            assert!(stderr.contains("while parsing bridi"), "{stderr}");
             assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");
         });
     }

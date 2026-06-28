@@ -22,7 +22,7 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxParse,
     SyntaxParseAttempt, SyntaxWarning, SyntaxWordCategory, Token,
-    syntax_construct_is_descendant_of,
+    syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 pub(crate) mod ast;
@@ -214,7 +214,9 @@ impl<'tokens> ParserState<'tokens> {
             Some(candidate) if candidate.same_report_content(&error) => {}
             Some(candidate) if error.span().start == candidate.span().start => {
                 if !diagnostic_contexts_are_compatible(candidate, &error) {
-                    if diagnostic_context_is_more_specific(&error, candidate) {
+                    if diagnostic_context_can_refine(candidate, &error) {
+                        self.diagnostic_candidate = Some(error);
+                    } else if diagnostic_context_covers_descendant(&error, candidate) {
                         self.diagnostic_candidate = Some(error);
                     }
                     return;
@@ -396,18 +398,67 @@ fn diagnostic_contexts_are_compatible(
 
 #[requires(true)]
 #[ensures(true)]
-fn diagnostic_context_is_more_specific(
+fn diagnostic_context_can_refine(
+    current: &SyntaxParseError<'_>,
+    candidate: &SyntaxParseError<'_>,
+) -> bool {
+    let Some(current_context) = current.preferred_context() else {
+        return true;
+    };
+    let Some(candidate_context) = candidate.preferred_context() else {
+        return false;
+    };
+    if !syntax_construct_is_descendant_of(&current_context.construct, &candidate_context.construct)
+    {
+        return false;
+    }
+    let Some(child) =
+        syntax_immediate_child_under(&current_context.construct, &candidate_context.construct)
+    else {
+        return false;
+    };
+    !diagnostic_expectations_include_construct(current, &child)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_context_covers_descendant(
     candidate: &SyntaxParseError<'_>,
     current: &SyntaxParseError<'_>,
 ) -> bool {
-    let Some(candidate) = candidate.preferred_context() else {
+    let Some(candidate_context) = candidate.preferred_context() else {
         return false;
     };
-    let Some(current) = current.preferred_context() else {
-        return true;
+    let Some(current_context) = current.preferred_context() else {
+        return false;
     };
-    candidate.construct != current.construct
-        && syntax_construct_is_descendant_of(&current.construct, &candidate.construct)
+    if !syntax_construct_is_descendant_of(&candidate_context.construct, &current_context.construct)
+    {
+        return false;
+    }
+    let Some(child) =
+        syntax_immediate_child_under(&candidate_context.construct, &current_context.construct)
+    else {
+        return false;
+    };
+    if current_context.construct != child {
+        return false;
+    }
+    diagnostic_expectations_include_construct(candidate, &child)
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn diagnostic_expectations_include_construct(
+    error: &SyntaxParseError<'_>,
+    construct: &str,
+) -> bool {
+    error
+        .clone()
+        .into_report_error()
+        .expectations()
+        .iter()
+        .any(|expectation| expectation.reason.construct() == construct)
 }
 
 impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> {

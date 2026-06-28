@@ -1167,9 +1167,38 @@ pub(super) fn syntax_error_with_diagnostic_candidate<'tokens>(
     diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
 ) -> SyntaxError {
     if let Some(candidate) = diagnostic_candidate {
-        errors.push(candidate);
+        let root_farthest_start = errors.iter().map(|error| error.span().start).max();
+        if root_farthest_start.is_none_or(|start| candidate.span().start > start)
+            || root_farthest_start.is_some_and(|start| {
+                candidate.span().start == start
+                    && diagnostic_candidate_matches_root_context(&candidate, &errors)
+            })
+        {
+            errors.push(candidate);
+        }
     }
     syntax_error(errors)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_candidate_matches_root_context(
+    candidate: &SyntaxParseError<'_>,
+    errors: &[SyntaxParseError<'_>],
+) -> bool {
+    let Some(root_farthest_start) = errors.iter().map(|error| error.span().start).max() else {
+        return true;
+    };
+    let candidate_context = candidate.preferred_context();
+    errors
+        .iter()
+        .filter(|error| error.span().start == root_farthest_start)
+        .any(
+            |error| match (error.preferred_context(), candidate_context.as_ref()) {
+                (None, _) | (_, None) => true,
+                (Some(root), Some(candidate)) => root.construct == candidate.construct,
+            },
+        )
 }
 
 #[requires(true)]

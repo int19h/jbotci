@@ -766,6 +766,9 @@ fn lazy_merge_same_position_errors<'tokens>(
     let span = Span::from(left.span.start.min(right.span.start)..left.span.end.max(right.span.end));
     let preferred_context_hint =
         deeper_preferred_context(left.preferred_context(), right.preferred_context());
+    let mut same_position_branches = Vec::new();
+    push_same_position_branch(&mut same_position_branches, left);
+    push_same_position_branch(&mut same_position_branches, right);
     SyntaxParseError {
         span,
         inner: Rich::custom(span, "unexpected input".to_owned()),
@@ -775,8 +778,32 @@ fn lazy_merge_same_position_errors<'tokens>(
         custom_kind: None,
         active_contexts: Vec::new(),
         preferred_context_hint,
-        same_position_branches: vec![Arc::new(left), Arc::new(right)],
+        same_position_branches,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn push_same_position_branch<'tokens>(
+    target: &mut Vec<Arc<SyntaxParseError<'tokens>>>,
+    error: SyntaxParseError<'tokens>,
+) {
+    if can_flatten_same_position_bundle(&error) {
+        target.extend(error.same_position_branches);
+    } else {
+        target.push(Arc::new(error));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn can_flatten_same_position_bundle(error: &SyntaxParseError<'_>) -> bool {
+    !error.same_position_branches.is_empty()
+        && error.expected_groups.is_empty()
+        && error.context_paths.is_empty()
+        && error.found.is_none()
+        && error.custom_kind.is_none()
+        && error.active_contexts.is_empty()
 }
 
 #[requires(true)]
@@ -1117,6 +1144,33 @@ mod tests {
             expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct }) if construct == "sumti"
         )));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_merge_keeps_same_position_leaves_arc_boxed_and_flat() {
+        let first = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        let second = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+        let third = SyntaxParseError::expected(Span::from(4..6), vec![named_token("la")]);
+
+        let merged = first.merge_for_parser(second).merge_for_parser(third);
+
+        assert_eq!(merged.same_position_branches.len(), 3);
+        assert!(
+            merged
+                .same_position_branches
+                .iter()
+                .all(|branch| branch.same_position_branches.is_empty())
+        );
+        assert_eq!(
+            std::mem::size_of_val(&merged.same_position_branches[0]),
+            std::mem::size_of::<Arc<SyntaxParseError<'_>>>()
+        );
+        assert!(
+            std::mem::size_of::<Arc<SyntaxParseError<'_>>>()
+                < std::mem::size_of::<SyntaxParseError<'_>>()
+        );
     }
 
     #[test]
