@@ -11,7 +11,8 @@ use jbotci_syntax::generated_model::{
     AtomRef as GeneratedAtomRef, BoGroupedBridiTailSyntax, BoOrLinkedTanruUnitSyntax,
     BridiStatementSyntax, BridiSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
     BridiWithLeadingTermsSyntax, CoSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
-    ParagraphSyntax, ProSumtiSyntax, RegularTextSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax,
+    DescriptionTailBodySyntax, DescriptorWithGadriSumtiSyntax, ParagraphSyntax, ProSumtiSyntax,
+    RegularTextSyntax, RelationDescriptionTailSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax,
     SimpleBridiTailSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax,
     StatementBaseSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
     StatementSyntax, SumtiAfterthoughtSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax,
@@ -27,9 +28,10 @@ use crate::builder::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::model::{
-    Actuality, ActualityKind, ArgumentValue, Descriptor, EventualityClass, EventualitySort,
-    IndexicalKind, PredicationMode, ReferentCategory, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticSort, UtteranceForce, source_from_spans,
+    AbstractionKind, Actuality, ActualityKind, ArgumentValue, Descriptor, EventualityClass,
+    EventualitySort, IndexicalKind, ParameterRole, PredicationMode, ReferentCategory,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticSort, UtteranceForce,
+    source_from_spans,
 };
 
 #[requires(true)]
@@ -193,9 +195,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         bridi: &BridiWithLeadingTermsSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if bridi.cu.is_some() {
-            return Err(unsupported("explicit cu in generated semantic checkpoint"));
-        }
         let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
         let relation = relation_label_from_selbri(&simple_tail.selbri)?;
         let relation = semantic_relation_label(relation);
@@ -267,8 +266,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         sumti: &SumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let pro_sumti = pro_sumti_from_sumti(sumti)?;
-        self.build_pro_sumti_referent(pro_sumti)
+        match simple_sumti_base_from_sumti(sumti)? {
+            SumtiBaseSyntax::ProSumti(pro_sumti) => self.build_pro_sumti_referent(pro_sumti),
+            SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
+                self.build_description_referent(description)
+            }
+            _ => Err(unsupported("non-pro-sumti")),
+        }
     }
 
     #[requires(true)]
@@ -283,6 +287,233 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
             _ => Err(unsupported(&format!("pro-sumti {word}"))),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_description_referent(
+        &mut self,
+        description: &DescriptorWithGadriSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if description.ku.is_some() {
+            return Err(unsupported(
+                "explicit KU in generated description checkpoint",
+            ));
+        }
+        if description.tail.leading_tail_elements.tail_sumti.is_some()
+            || description
+                .tail
+                .leading_tail_elements
+                .relative_clauses
+                .is_some()
+        {
+            return Err(unsupported("description leading tail elements"));
+        }
+        let DescriptionTailBodySyntax::RelationDescriptionTail(RelationDescriptionTailSyntax {
+            selbri,
+            relative_clauses,
+        }) = description.tail.tail.as_ref()
+        else {
+            return Err(unsupported("non-relation description tail"));
+        };
+        if relative_clauses.is_some() {
+            return Err(unsupported("description relative clauses"));
+        }
+        let cmavo = description.description.0.value.cmavo();
+        let word = token_text(&description.description.0.value);
+        let kind = description_kind_for_cmavo(cmavo).to_owned();
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                Some(Descriptor {
+                    kind,
+                    word,
+                    speaker: Some(SemanticObjectId::speaker()),
+                    body: None,
+                    veridical: cmavo
+                        .is_some_and(|cmavo| matches!(cmavo, Cmavo::Lohe | Cmavo::Lehe))
+                        .then_some(false),
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(description, "description"),
+                Vec::new(),
+            ),
+        )?;
+        let body = match description_characterization_for_cmavo(cmavo) {
+            DescriptionCharacterization::SpeakerDescribed => {
+                self.build_speaker_description_formula(description, selbri, id)?
+            }
+            DescriptionCharacterization::Veridical => self.build_restrictive_formula(selbri, id)?,
+        };
+        let object = self.objects.get_mut(&id).ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder could not find description referent {id}"
+            ))
+        })?;
+        let Some(descriptor) = object.descriptor.as_mut() else {
+            return Err(invalid_graph(format!(
+                "semantic builder description referent {id} has no descriptor"
+            )));
+        };
+        descriptor.body = Some(body);
+        Ok(id)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_speaker_description_formula(
+        &mut self,
+        description: &DescriptorWithGadriSumtiSyntax,
+        selbri: &SelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let property = self.build_description_property_abstraction_for_selbri(selbri)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            "x1".to_owned(),
+            ArgumentValue::filled(SemanticObjectId::speaker(), None),
+        );
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(
+            "x3".to_owned(),
+            ArgumentValue::filled(SemanticObjectId::addressee(), None),
+        );
+        arguments.insert("x4".to_owned(), ArgumentValue::filled(property, None));
+        self.build_structural_formula_from_arguments(
+            "skicu",
+            arguments,
+            PredicationMode::Incidental,
+            self.source_for_node(description, "speaker-description"),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Relation)) || ret.is_err())]
+    fn build_description_property_abstraction_for_selbri(
+        &mut self,
+        selbri: &SelbriSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_node(selbri, "speaker-description-property");
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                ParameterRole::PropertySlot,
+                "ce'u".to_owned(),
+                source.clone(),
+            ),
+        )?;
+        let body = self.build_restrictive_formula(selbri, parameter)?;
+        let abstraction = self.next_relation_id();
+        self.insert(
+            abstraction,
+            SemanticObject::abstraction(
+                AbstractionKind::Property,
+                body,
+                vec![parameter],
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(abstraction)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent || referent.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_restrictive_formula(
+        &mut self,
+        selbri: &SelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let relation = semantic_relation_label(relation_label_from_selbri(selbri)?);
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        let place_count = relation_place_count(self.dictionary, &relation).unwrap_or(1);
+        for place in 2..=place_count {
+            let elided = self.build_elided_referent("zo'e".to_owned())?;
+            arguments.insert(
+                argument_key(place),
+                ArgumentValue::elided(elided, "zo'e".to_owned(), None),
+            );
+        }
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                self.source_for_node(selbri, "restrictive-predication"),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.source_for_node(selbri, "restrictive-formula"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(arguments.keys().all(|place| place.starts_with('x')))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_structural_formula_from_arguments(
+        &mut self,
+        relation: &str,
+        mut arguments: BTreeMap<String, ArgumentValue>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let highest_argument = arguments
+            .keys()
+            .filter_map(|place| place.strip_prefix('x'))
+            .filter_map(|place| place.parse::<usize>().ok())
+            .max()
+            .unwrap_or(0);
+        let place_count =
+            relation_place_count(self.dictionary, relation).unwrap_or(highest_argument);
+        for place in 1..=place_count.max(highest_argument) {
+            let key = argument_key(place);
+            if !arguments.contains_key(&key) {
+                let elided = self.build_elided_referent("zo'e".to_owned())?;
+                arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
+            }
+        }
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation.to_owned(),
+                None,
+                arguments,
+                mode,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        Ok(formula)
     }
 
     #[requires(!label.is_empty())]
@@ -380,6 +611,23 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Formula)]
     fn next_formula_id(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::formula(self.next_index);
+        self.next_index += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    fn next_parameter_id(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::parameter(self.next_index);
+        self.next_index += 1;
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::Relation))]
+    fn next_relation_id(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::referent_with_sort(SemanticSort::Relation, self.next_index);
         self.next_index += 1;
         id
     }
@@ -594,7 +842,7 @@ fn simple_sumti_from_term(term: &TermSyntax) -> Result<&SumtiSyntax, SemanticsEr
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn pro_sumti_from_sumti(sumti: &SumtiSyntax) -> Result<&ProSumtiSyntax, SemanticsError> {
+fn simple_sumti_base_from_sumti(sumti: &SumtiSyntax) -> Result<&SumtiBaseSyntax, SemanticsError> {
     let SumtiSyntax {
         base_sumti,
         vuho_attachment,
@@ -633,11 +881,10 @@ fn pro_sumti_from_sumti(sumti: &SumtiSyntax) -> Result<&ProSumtiSyntax, Semantic
     if relative_clauses.is_some() {
         return Err(unsupported("relative clauses"));
     }
-    let SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::ProSumti(pro_sumti)) = base_sumti.as_ref()
-    else {
-        return Err(unsupported("non-pro-sumti"));
+    let SumtiAtomSyntax::SumtiBase(sumti_base) = base_sumti.as_ref() else {
+        return Err(unsupported("quantified sumti"));
     };
-    Ok(pro_sumti)
+    Ok(sumti_base)
 }
 
 #[requires(!relation.is_empty())]
@@ -662,6 +909,52 @@ fn asserted_predication_mode_for_relation(relation: &str) -> PredicationMode {
         PredicationMode::Definitional
     } else {
         PredicationMode::Asserted
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum DescriptionCharacterization {
+    SpeakerDescribed,
+    Veridical,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_characterization_for_cmavo(cmavo: Option<Cmavo>) -> DescriptionCharacterization {
+    match cmavo {
+        Some(Cmavo::Le | Cmavo::Lei | Cmavo::Lehi | Cmavo::Lehe) => {
+            DescriptionCharacterization::SpeakerDescribed
+        }
+        _ => DescriptionCharacterization::Veridical,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn description_kind_for_cmavo(cmavo: Option<Cmavo>) -> &'static str {
+    match cmavo {
+        Some(Cmavo::Lo) => "veridicalDescription",
+        Some(Cmavo::Loi) => "veridicalMassDescription",
+        Some(Cmavo::Lohi) => "veridicalSetDescription",
+        Some(Cmavo::Le) => "speakerDescription",
+        Some(Cmavo::Lei) => "speakerMassDescription",
+        Some(Cmavo::Lehi) => "speakerSetDescription",
+        Some(Cmavo::Lehe) => "speakerStereotypeDescription",
+        Some(Cmavo::La) => "name",
+        Some(Cmavo::Lai) => "massNameDescription",
+        Some(Cmavo::Lahi) => "setNameDescription",
+        Some(Cmavo::Lohe) => "typicalDescription",
+        _ => "description",
+    }
+}
+
+#[requires(!message.is_empty())]
+#[ensures(ret.kind == SemanticsErrorKind::InvalidGraph)]
+fn invalid_graph(message: String) -> SemanticsError {
+    SemanticsError {
+        kind: SemanticsErrorKind::InvalidGraph,
+        message: format!("semantic graph invariant failed: {message}"),
     }
 }
 
@@ -723,7 +1016,26 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_simple_bridi() {
-        let source = "mi tavla do";
+        assert_generated_builder_matches_legacy("mi tavla do");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_description_sumti() {
+        assert_generated_builder_matches_legacy("mi klama le zarci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_explicit_cu() {
+        assert_generated_builder_matches_legacy("mi cu klama le zarci");
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_generated_builder_matches_legacy(source: &str) {
         let dictionary = jbotci_dictionary_data::english();
         let old_syntax = legacy_syntax(source);
         let generated_syntax = generated_syntax(source);
