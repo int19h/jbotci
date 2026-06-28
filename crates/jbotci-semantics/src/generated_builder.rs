@@ -26,8 +26,9 @@ use jbotci_syntax::generated_model::{
     SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiForethoughtSyntax, SumtiGroupedSyntax,
     SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax,
     TaggedOrElidedSumtiSyntax, TanruSelbriSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax,
-    TanruUnitSyntax, TermSyntax, TermsFragmentSyntax, TextParagraphWithAdditionalNihoSyntax,
-    TextParagraphsSyntax, TextSyntax, TreeNode, UntaggedSelbriSyntax, WordTanruUnitSyntax,
+    TanruUnitSyntax, TenseModalSyntax, TermSyntax, TermsFragmentSyntax,
+    TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
+    UntaggedSelbriSyntax, WordTanruUnitSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers};
 use jbotci_tree::TreeVisitor;
@@ -36,11 +37,12 @@ use crate::builder::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, ArgumentValue, Composition, Connector, Descriptor,
-    EventualityClass, EventualitySort, FormulaOperator, IndexicalKind, ModalArgument,
-    ParameterRole, PredicationMode, QuantityForm, QuantityScale, QuantityValue, ReferentCategory,
-    ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic, source_from_spans,
+    AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, Composition,
+    Connector, Descriptor, EventualityClass, EventualitySort, FormulaOperator, IndexicalKind,
+    ModalArgument, ParameterRole, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
+    ReferentCategory, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 
 #[requires(true)]
@@ -490,7 +492,184 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
+        self.build_selbri_formula_with_options(
+            &simple_tail.selbri,
+            terms,
+            eventuality,
+            mode,
+            false,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_selbri_formula_with_options(
+        &mut self,
+        selbri: &SelbriSyntax,
+        terms: Vec<&TermSyntax>,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        formula_scope_child: bool,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match selbri {
+            SelbriSyntax::TaggedSelbri(tagged) => self.build_tagged_selbri_formula_with_options(
+                tagged,
+                terms,
+                eventuality,
+                mode,
+                formula_scope_child,
+                predication_source,
+                formula_source,
+            ),
+            SelbriSyntax::UntaggedSelbri(untagged) => self
+                .build_untagged_selbri_formula_with_options(
+                    untagged,
+                    terms,
+                    eventuality,
+                    mode,
+                    formula_scope_child,
+                    predication_source,
+                    formula_source,
+                ),
+        }
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tagged_selbri_formula_with_options(
+        &mut self,
+        tagged: &jbotci_syntax::generated_model::TaggedSelbriSyntax,
+        terms: Vec<&TermSyntax>,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        formula_scope_child: bool,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
+            if eventuality.is_some() {
+                return Err(unsupported("eventuality on scoped tagged selbri"));
+            }
+            let child = self.build_untagged_selbri_formula_with_options(
+                tagged.inner_selbri.as_ref(),
+                terms,
+                None,
+                mode,
+                true,
+                formula_source.clone(),
+                formula_source,
+            )?;
+            return self.build_generated_tense_scope_formula(
+                child,
+                tagged.tense_modal.as_ref(),
+                self.source_for_node(tagged, "tense-scope"),
+            );
+        }
+
+        let tense_eventuality = self.build_generated_tense_eventuality(
+            tagged.tense_modal.as_ref(),
+            predication_source.clone(),
+        )?;
+        let eventuality = match (eventuality, tense_eventuality) {
+            (None, Some(tense_eventuality)) => Some(tense_eventuality),
+            (Some(eventuality), None) => Some(eventuality),
+            (None, None) => None,
+            (Some(_), Some(_)) => return Err(unsupported("stacked tagged selbri eventuality")),
+        };
+        self.build_untagged_selbri_formula_with_options(
+            tagged.inner_selbri.as_ref(),
+            terms,
+            eventuality,
+            mode,
+            formula_scope_child,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_untagged_selbri_formula_with_options(
+        &mut self,
+        selbri: &UntaggedSelbriSyntax,
+        terms: Vec<&TermSyntax>,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        formula_scope_child: bool,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match selbri {
+            UntaggedSelbriSyntax::NegatedSelbri(negated) => {
+                let operator = generated_bridi_negation_operator(&negated.na);
+                let source_construct = bridi_negation_source_construct(operator);
+                let child = self.build_selbri_formula_with_options(
+                    negated.inner_selbri.as_ref(),
+                    terms,
+                    eventuality,
+                    mode,
+                    true,
+                    formula_source.clone(),
+                    formula_source.clone(),
+                )?;
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        operator,
+                        vec![child],
+                        None,
+                        self.source_for_node(negated, source_construct),
+                        Vec::new(),
+                    ),
+                )?;
+                Ok(formula)
+            }
+            UntaggedSelbriSyntax::CoSelbri(co_selbri) => self.build_co_selbri_formula_with_options(
+                co_selbri,
+                terms,
+                eventuality,
+                mode,
+                formula_scope_child,
+                predication_source,
+                formula_source,
+            ),
+            UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => {
+                Err(unsupported("forethought selbri connection"))
+            }
+        }
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_co_selbri_formula_with_options(
+        &mut self,
+        selbri: &CoSelbriSyntax,
+        terms: Vec<&TermSyntax>,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        formula_scope_child: bool,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(tanru) = tanru_selbri_from_co_selbri(selbri)?
+            && !tanru.additional_units.is_empty()
+        {
+            if eventuality.is_some() || mode != PredicationMode::Asserted {
+                return Err(unsupported("scoped tanru bridi"));
+            }
+            return self.build_tanru_formula_for_terms_with_head_eventuality_order(
+                tanru,
+                terms,
+                formula_scope_child,
+                formula_source,
+            );
+        }
+        if let Some(tanru) = tanru_selbri_from_co_selbri(selbri)?
             && tanru.additional_units.is_empty()
             && sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_none()
         {
@@ -503,7 +682,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 formula_source,
             );
         }
-        let relation = relation_label_from_selbri(&simple_tail.selbri)?;
+        let relation = relation_label_from_co_selbri(selbri)?;
         let relation = semantic_relation_label(relation);
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
@@ -568,6 +747,54 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
         Ok(formula)
+    }
+
+    #[requires(child.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_generated_tense_scope_formula(
+        &mut self,
+        child: SemanticObjectId,
+        tense_modal: &TenseModalSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.build_generated_tense_eventuality(tense_modal, source.clone())?;
+        let formula = self.next_formula_id();
+        let mut object = SemanticObject::connective_formula(
+            FormulaOperator::Scoped,
+            vec![child],
+            None,
+            source,
+            Vec::new(),
+        );
+        object.eventuality = eventuality;
+        self.insert(formula, object)?;
+        Ok(formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.as_ref().is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))) || ret.is_err())]
+    fn build_generated_tense_eventuality(
+        &mut self,
+        tense_modal: &TenseModalSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(relation) = generated_time_relation_for_tense_modal(tense_modal) else {
+            return Ok(None);
+        };
+        let eventuality = self.next_eventuality_id();
+        let mut object = SemanticObject::eventuality(EventualityClass::Event, None, source);
+        object.time = Some(new!(AnchorRelation {
+            relation: relation,
+            anchor: SemanticObjectId::now(),
+            sticky: false,
+            inherited: None,
+            distance: None,
+            magnitude: None,
+            scalar_negation: None,
+            motion: None,
+        }));
+        self.insert(eventuality, object)?;
+        Ok(Some(eventuality))
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
@@ -969,8 +1196,35 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         terms: Vec<&TermSyntax>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_tanru_formula_for_terms_with_head_eventuality_order(tanru, terms, false, source)
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tanru_formula_for_terms_with_head_eventuality_order(
+        &mut self,
+        tanru: &TanruSelbriSyntax,
+        terms: Vec<&TermSyntax>,
+        head_eventuality_before_terms: bool,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let head_eventuality = if head_eventuality_before_terms {
+            let head_eventuality = self.next_eventuality_id();
+            self.insert(
+                head_eventuality,
+                SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+            )?;
+            Some(head_eventuality)
+        } else {
+            None
+        };
         let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
-        self.build_tanru_formula_for_visible_arguments(tanru, visible_arguments, source)
+        self.build_tanru_formula_for_visible_arguments_with_head_eventuality(
+            tanru,
+            visible_arguments,
+            head_eventuality,
+            source,
+        )
     }
 
     #[requires(!tanru.additional_units.is_empty())]
@@ -981,12 +1235,31 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_tanru_formula_for_visible_arguments_with_head_eventuality(
+            tanru,
+            visible_arguments,
+            None,
+            source,
+        )
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tanru_formula_for_visible_arguments_with_head_eventuality(
+        &mut self,
+        tanru: &TanruSelbriSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        head_eventuality: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let [trailing_unit] = tanru.additional_units.as_slice() else {
             return Err(unsupported("multi-unit tanru"));
         };
         let head = self.build_tanru_head_relation_formula(
             trailing_unit,
             visible_arguments,
+            head_eventuality,
             source.clone(),
         )?;
         let modifier =
@@ -1055,6 +1328,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .build_tanru_head_relation_formula_for_linked_tanru_unit(
                     unit,
                     visible_arguments,
+                    None,
                     source,
                 ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => self
@@ -1086,6 +1360,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let head = self.build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit(
             &unit.trailing_unit,
             visible_arguments.clone(),
+            None,
             source.clone(),
         )?;
         let modifier_arguments = match unit.trailing_unit.as_ref() {
@@ -1154,10 +1429,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         unit: &TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
+        eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
-        self.build_tanru_head_relation_formula_from_parts(atom, linkargs, visible_arguments, source)
+        self.build_tanru_head_relation_formula_from_parts(
+            atom,
+            linkargs,
+            visible_arguments,
+            eventuality,
+            source,
+        )
     }
 
     #[requires(true)]
@@ -1166,6 +1448,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         unit: &BoOrLinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
+        eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match unit {
@@ -1173,6 +1456,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .build_tanru_head_relation_formula_for_linked_tanru_unit(
                     unit,
                     visible_arguments,
+                    eventuality,
                     source,
                 ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => self
@@ -1196,23 +1480,27 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         unit: &LinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
+        eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         self.build_tanru_head_relation_formula_from_parts(
             &unit.base,
             unit.linkargs.as_ref(),
             visible_arguments,
+            eventuality,
             source,
         )
     }
 
     #[requires(true)]
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_tanru_head_relation_formula_from_parts(
         &mut self,
         atom: &TanruUnitAtomSyntax,
         linkargs: Option<&LinkargsSyntax>,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
+        eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
@@ -1220,11 +1508,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?);
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
-        let eventuality = self.next_eventuality_id();
-        self.insert(
-            eventuality,
-            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
-        )?;
+        let eventuality = match eventuality {
+            Some(eventuality) => eventuality,
+            None => {
+                let eventuality = self.next_eventuality_id();
+                self.insert(
+                    eventuality,
+                    SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+                )?;
+                eventuality
+            }
+        };
         let visible_x1_argument = visible_arguments.get(&1).cloned();
         if let Some(linkargs) = linkargs {
             let (_, adjusted_arguments) =
@@ -3935,19 +4229,28 @@ fn simple_tail_from_bridi_tail(
 #[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
 fn relation_label_from_selbri(selbri: &SelbriSyntax) -> Result<String, SemanticsError> {
     let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(CoSelbriSyntax {
-        leading_selbri,
-        co_tail,
+        leading_selbri: _,
+        co_tail: _,
     })) = selbri
     else {
         return Err(unsupported("tagged or connected selbri"));
     };
-    if co_tail.is_some() {
+    let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri else {
+        unreachable!("previous pattern requires a co selbri")
+    };
+    relation_label_from_co_selbri(co_selbri)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
+fn relation_label_from_co_selbri(selbri: &CoSelbriSyntax) -> Result<String, SemanticsError> {
+    if selbri.co_tail.is_some() {
         return Err(unsupported("CO selbri"));
     }
     let ConnectedSelbriSyntax {
         leading_selbri,
         continuations,
-    } = leading_selbri.as_ref();
+    } = selbri.leading_selbri.as_ref();
     if !continuations.is_empty() {
         return Err(unsupported("connected selbri"));
     }
@@ -3967,19 +4270,30 @@ fn tanru_selbri_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&TanruSelbriSyntax>, SemanticsError> {
     let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(CoSelbriSyntax {
-        leading_selbri,
-        co_tail,
+        leading_selbri: _,
+        co_tail: _,
     })) = selbri
     else {
         return Ok(None);
     };
-    if co_tail.is_some() {
+    let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri else {
+        unreachable!("previous pattern requires a co selbri")
+    };
+    tanru_selbri_from_co_selbri(co_selbri)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn tanru_selbri_from_co_selbri(
+    selbri: &CoSelbriSyntax,
+) -> Result<Option<&TanruSelbriSyntax>, SemanticsError> {
+    if selbri.co_tail.is_some() {
         return Ok(None);
     }
     let ConnectedSelbriSyntax {
         leading_selbri,
         continuations,
-    } = leading_selbri.as_ref();
+    } = selbri.leading_selbri.as_ref();
     if !continuations.is_empty() {
         return Ok(None);
     }
@@ -4735,6 +5049,55 @@ fn no_gadri_description_from_sumti_bound(
         return Ok(None);
     };
     Ok(Some(description))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_untagged_selbri_has_formula_scope(selbri: &UntaggedSelbriSyntax) -> bool {
+    match selbri {
+        UntaggedSelbriSyntax::NegatedSelbri(_) => true,
+        UntaggedSelbriSyntax::CoSelbri(_) => false,
+        UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => true,
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, FormulaOperator::Affirmed | FormulaOperator::Not))]
+fn generated_bridi_negation_operator<F>(na: &WithFreeModifiers<Token, F>) -> FormulaOperator {
+    if na.value.cmavo() == Some(Cmavo::Jaha) {
+        FormulaOperator::Affirmed
+    } else {
+        FormulaOperator::Not
+    }
+}
+
+#[requires(matches!(operator, FormulaOperator::Affirmed | FormulaOperator::Not))]
+#[ensures(!ret.is_empty())]
+fn bridi_negation_source_construct(operator: FormulaOperator) -> &'static str {
+    match operator {
+        FormulaOperator::Affirmed => "bridi-affirmation",
+        FormulaOperator::Not => "bridi-negation",
+        _ => unreachable!("precondition restricts bridi NA operators"),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|relation| !relation.is_empty()))]
+fn generated_time_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+    let mut collector = GeneratedSpanCollector::default();
+    tense_modal.visit_in_order(&mut collector);
+    collector.tokens.iter().find_map(time_relation_for_pu_token)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|relation| !relation.is_empty()))]
+fn time_relation_for_pu_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Pu) => Some("before".to_owned()),
+        Some(Cmavo::Ca) => Some("at".to_owned()),
+        Some(Cmavo::Ba) => Some("after".to_owned()),
+        _ => None,
+    }
 }
 
 #[requires(!relation.is_empty())]
