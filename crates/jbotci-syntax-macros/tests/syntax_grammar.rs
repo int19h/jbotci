@@ -232,19 +232,13 @@ mod generated_model {
             computed: 0,
             child: Box::new(item.clone()),
         };
-        let first = ChoiceSyntax::ChoiceFirst {
-            choice_first: ChoiceFirstSyntax { token: Token },
-        };
-        let second = ChoiceSyntax::ChoiceSecond {
-            choice_second: ChoiceSecondSyntax {
-                item: Box::new(item),
-            },
-        };
-        let helper = HelperProductSyntax { token: Token };
+        let first = ChoiceSyntax::ChoiceFirst(ChoiceFirstSyntax(Token));
+        let second = ChoiceSyntax::ChoiceSecond(ChoiceSecondSyntax(Box::new(item)));
+        let helper = HelperProductSyntax(Token);
 
-        assert!(matches!(first, ChoiceSyntax::ChoiceFirst { .. }));
-        assert!(matches!(second, ChoiceSyntax::ChoiceSecond { .. }));
-        assert_eq!(helper.token, Token);
+        assert!(matches!(first, ChoiceSyntax::ChoiceFirst(_)));
+        assert!(matches!(second, ChoiceSyntax::ChoiceSecond(_)));
+        assert_eq!(helper.0, Token);
         assert_eq!(pair.computed, 0);
     }
 }
@@ -272,8 +266,8 @@ mod generated_model_filter {
 
     #[test]
     fn grammar_macro_filters_generated_model_outputs() {
-        let kept = KeptSyntax { token: Token };
-        assert_eq!(kept.token, Token);
+        let kept = KeptSyntax(Token);
+        assert_eq!(kept.0, Token);
     }
 }
 
@@ -298,8 +292,8 @@ mod generated_model_with_env {
 
     #[test]
     fn grammar_macro_emits_model_items_when_env_is_present() {
-        let node = EnvNodeSyntax { token: Token };
-        assert_eq!(node.token, Token);
+        let node = EnvNodeSyntax(Token);
+        assert_eq!(node.0, Token);
         assert_eq!(SYNTAX_GRAMMAR_ENV, "SyntaxGrammarEnv");
     }
 }
@@ -384,27 +378,23 @@ mod new_dsl {
             token: Token,
             computed: 1,
         };
-        let other_item = OtherItemSyntax { token: Token };
+        let other_item = OtherItemSyntax(Token);
         let external = ExternalSyntax { token: Token };
-        let token_list = TokenListSyntax {
-            tokens: vec1::Vec1::new(Token),
-        };
-        let nested_token_list = NestedTokenListSyntax {
-            tokens: vec1::Vec1::new(Token),
-        };
-        let item_choice = ItemChoiceSyntax::Item { item: item.clone() };
-        let other_choice = ItemChoiceSyntax::OtherItem { other_item };
-        let external_choice = ExternalItemChoiceSyntax::External { external };
+        let token_list = TokenListSyntax(vec1::Vec1::new(Token));
+        let nested_token_list = NestedTokenListSyntax(vec1::Vec1::new(Token));
+        let item_choice = ItemChoiceSyntax::Item(item.clone());
+        let other_choice = ItemChoiceSyntax::OtherItem(other_item);
+        let external_choice = ExternalItemChoiceSyntax::External(external);
 
         assert_eq!(item.token, Token);
         assert_eq!(item.computed, 1);
-        assert_eq!(token_list.tokens.len(), 1);
-        assert_eq!(nested_token_list.tokens.len(), 1);
-        assert!(matches!(item_choice, ItemChoiceSyntax::Item { .. }));
-        assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem { .. }));
+        assert_eq!(token_list.0.len(), 1);
+        assert_eq!(nested_token_list.0.len(), 1);
+        assert!(matches!(item_choice, ItemChoiceSyntax::Item(_)));
+        assert!(matches!(other_choice, ItemChoiceSyntax::OtherItem(_)));
         assert!(matches!(
             external_choice,
-            ExternalItemChoiceSyntax::External { .. }
+            ExternalItemChoiceSyntax::External(_)
         ));
     }
 

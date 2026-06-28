@@ -58,9 +58,7 @@ mod tests {
     #[bityzba::ensures(true)]
     fn generated_model_recovered_round_trip_uses_real_token_type() {
         let token = sample_token("be");
-        let item = GeneratedItemSyntax {
-            token: token.clone(),
-        };
+        let item = GeneratedItemSyntax(token.clone());
         let pair = GeneratedPairSyntax {
             head: token.clone(),
             nonempty: vec1::Vec1::new(token.clone()),

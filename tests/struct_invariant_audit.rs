@@ -88,6 +88,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "legacy oracle render part borrows syntax tree fields; construction filters empty statements and rendering validates paragraph marker shape",
     ),
     (
+        "crates/jbotci-output/src/brackets.rs:GeneratedBracketFrame",
+        "generated bracket rendering uses this as a mutable traversal stack frame; S-expression shape is normalized by sexpr::node and final rendering tests",
+    ),
+    (
+        "crates/jbotci-output/src/brackets.rs:GeneratedBracketVisitor",
+        "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
+    ),
+    (
         "crates/jbotci-ui/src/lib.rs:ArrowOverlay",
         "arrow overlay geometry is measured from the browser DOM and rendered transiently",
     ),

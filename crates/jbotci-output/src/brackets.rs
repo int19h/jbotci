@@ -7,8 +7,12 @@ use jbotci_orthography::{
     render_latin_word_surface_for_script, render_loose_latin_text_for_script,
 };
 use jbotci_syntax::ast::*;
+use jbotci_syntax::generated_model::{
+    AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
+    TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
+};
 use jbotci_syntax::{Indicator, Token, WithIndicators};
-use jbotci_tree::TreeVisitor;
+use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceRange, OutputError, sexpr, surface,
@@ -65,6 +69,23 @@ pub(crate) fn pretty_morphology_brackets_with_options(
             .map(|word_like| word_like_brackets(word_like, &context))
             .collect(),
     );
+    Ok(sexpr::render_bracketed_with_options(
+        &sexpr::flatten(sexpr),
+        options,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+pub(crate) fn pretty_generated_model_brackets_with_options(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    let context = BracketContext { source, options };
+    let mut visitor = GeneratedBracketVisitor::new(&context);
+    tree.visit_in_order(&mut visitor);
+    let sexpr = visitor.finish();
     Ok(sexpr::render_bracketed_with_options(
         &sexpr::flatten(sexpr),
         options,
@@ -2819,4 +2840,114 @@ impl<'tree> TreeVisitor<'tree> for SourceWordBracketVisitor<'_> {
 #[ensures(true)]
 fn math_expression_syntax(value: &MeksoSyntax, source: &BracketContext<'_>) -> sexpr::SExpr {
     mekso(value, source)
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedBracketFrame {
+    children: Vec<sexpr::SExpr>,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedBracketVisitor<'source> {
+    source: &'source BracketContext<'source>,
+    stack: Vec<GeneratedBracketFrame>,
+    root: Option<sexpr::SExpr>,
+}
+
+impl<'source> GeneratedBracketVisitor<'source> {
+    #[requires(true)]
+    #[ensures(ret.stack.is_empty())]
+    fn new(source: &'source BracketContext<'source>) -> Self {
+        Self {
+            source,
+            stack: Vec::new(),
+            root: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> sexpr::SExpr {
+        self.root
+            .expect("generated syntax bracket walk produced a root")
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(self.stack.last(), Some(frame) if frame.children.is_empty()))]
+    fn push_frame(&mut self) {
+        self.stack.push(GeneratedBracketFrame {
+            children: Vec::new(),
+        });
+    }
+
+    #[requires(matches!(self.stack.last(), Some(_)))]
+    #[ensures(true)]
+    fn pop_frame(&mut self) {
+        let frame = self
+            .stack
+            .pop()
+            .expect("generated syntax bracket walker popped an entered frame");
+        self.push_expr(sexpr::node(frame.children));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_expr(&mut self, expr: sexpr::SExpr) {
+        if let Some(frame) = self.stack.last_mut() {
+            frame.children.push(expr);
+        } else {
+            self.root = Some(expr);
+        }
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, _node: Self::Node) {
+        self.push_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        self.pop_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_field(&mut self, _field: FieldRef) {
+        self.push_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_field(&mut self, _field: FieldRef) {
+        self.pop_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_sequence(&mut self) {
+        self.push_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {
+        self.pop_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            GeneratedSyntaxAtomRef::Token(token) => self.push_expr(word(token, self.source)),
+        }
+    }
 }

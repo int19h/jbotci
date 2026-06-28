@@ -58,9 +58,10 @@ use jbotci_output::{
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, format_definition_or_notes_line_with_indexed_places,
-    ipa_morphology_text, pretty_generated_model_raw_tree_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
+    ipa_morphology_text, pretty_generated_model_brackets_with_options,
+    pretty_generated_model_raw_tree_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, reference_display_model_for_syntax_tree,
+    render_diagnostics, render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
@@ -4332,17 +4333,16 @@ fn render_gentufa(
             }));
         }
         GentufaFormat::Brackets => {
-            let rendered = pretty_generated_model_raw_tree_with_options(
+            let rendered = pretty_generated_model_brackets_with_options(
                 &generated_model,
                 &text,
-                TreeRenderOptions {
+                BracketRenderOptions {
                     color: color_policy.stdout,
-                    indent: 2,
                     phonemes: phoneme_options,
+                    script: LojbanScript::Latin,
                     glyphs,
-                    show_spans: input.show_spans,
-                    show_refs: false,
                     decompose_lujvo: input.decompose_lujvo,
+                    insert_hair_space: false,
                     show_elided: false,
                 },
             )?;
@@ -7043,7 +7043,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gentufa_default_output_shows_generated_tree() {
+    fn gentufa_default_output_shows_generated_brackets() {
         run_on_normal_stack(|| {
             let cli =
                 Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"]).expect("gentufa default");
@@ -7052,9 +7052,7 @@ mod tests {
             run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
-            assert!(output.starts_with("RegularText {"), "{output}");
-            assert!(output.contains("Cmavo \"mi\""), "{output}");
-            assert!(output.contains("Gismu \"kláma\""), "{output}");
+            assert_eq!(output.trim_end(), "(mi kláma)");
         });
     }
 
@@ -7738,11 +7736,7 @@ mod tests {
             let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
 
             assert!(value.get("leading_nai").is_none());
-            assert!(
-                value["RegularText"]["regular_text"]["paragraphs"]
-                    .as_object()
-                    .is_some()
-            );
+            assert!(value["RegularText"]["paragraphs"].as_object().is_some());
             assert!(text.contains("\"BridiStatement\""));
             assert!(!text.contains("\"constructor\""));
             assert!(!text.contains("\"kind\": \"node\""));
@@ -7785,15 +7779,12 @@ mod tests {
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
 
-            assert!(output.starts_with("RegularText {\n"));
+            assert!(output.starts_with("BridiWithLeadingTerms {\n"));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base_sumti: SumtiBase {"));
-            assert!(output.contains("sumti_base: ProSumti {"));
-            assert!(output.contains("koha: Cmavo \"mi\""));
+            assert!(output.contains("base_sumti: Cmavo \"mi\""));
             assert!(output.contains("leading_terms: ["));
-            assert!(output.contains("base: WordTanruUnit {"));
-            assert!(output.contains("word: Gismu \"kláma\""));
-            assert!(output.contains("BridiStatement"));
+            assert!(output.contains("base: Gismu \"kláma\""));
+            assert!(output.contains("BridiTailWithPossibleTailTerms"));
         });
     }
 
@@ -7859,7 +7850,7 @@ mod tests {
             let output = String::from_utf8(output).expect("utf8");
             assert_eq!(
                 output.trim_end(),
-                r#"RegularText{regular_text:TextParagraphWithAdditionalNiho{text_paragraph_with_additional_niho:SimpleParagraph{simple_paragraph:StatementOrFragmentStatement{statement_or_fragment_statement:StatementBase{statement_base:BridiStatement{bridi_statement:BridiWithLeadingTerms{bridi_with_leading_terms:BridiWithLeadingTerms{leading_terms:[ConnectedTerm{connected_term:ConnectedTerm{leading_term:SumtiTerm{sumti_term:SumtiTerm{sumti:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{simple_sumti:SimpleSumti{base_sumti:SumtiBase{sumti_base:ProSumti{pro_sumti:ProSumti{koha:Cmavo "mi"}}}}}}}}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{bridi_tail_with_possible_tail_terms:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri_simple_bridi_tail:SelbriSimpleBridiTail{selbri:UntaggedSelbri{untagged_selbri:CoSelbri{co_selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:TanruUnit{leading_unit:LinkedTanruUnit{linked_tanru_unit:LinkedTanruUnit{base:TanruUnitAtom{base:WordTanruUnit{word_tanru_unit:WordTanruUnit{word:Gismu "kláma"}}}}}}}}}}}}}}}}}}}}}}}}}"#
+                r#"BridiWithLeadingTerms{leading_terms:[ConnectedTerm{leading_term:Sumti{base_sumti:SumtiGrouped{leading_sumti:SumtiAfterthought{leading_sumti:SumtiBound{leading_sumti:SimpleSumti{base_sumti:Cmavo "mi"}}}}}}],bridi_tail:BridiTailWithPossibleTailTerms{first:AfterthoughtBridiTail{first:BoGroupedBridiTail{first:SelbriSimpleBridiTail{selbri:CoSelbri{leading_selbri:ConnectedSelbri{leading_selbri:TanruSelbri{first_unit:TanruUnit{leading_unit:LinkedTanruUnit{base:TanruUnitAtom{base:Gismu "kláma"}}}}}}}}}}}"#
             );
         });
     }
@@ -8474,7 +8465,7 @@ mod tests {
         assert!(output.starts_with("1. mi | by: officialdata | cmavo: KOhA3"));
         assert!(output.contains("\n2. klama | by: officialdata | gismu"));
         assert!(output.contains("  definitions:"));
-        assert!(output.contains("\n\nRegularText {"));
+        assert!(output.contains("\n\n(mi kláma)"));
     }
 
     #[test]
@@ -8553,8 +8544,8 @@ mod tests {
             run_cli(cli, &mut output, &mut error, false).expect("gentufa tree color run");
             assert!(error.is_empty());
             let output = String::from_utf8(output).expect("utf8");
-            assert!(output.contains("\x1b[94mRegularText\x1b[39m"));
-            assert!(output.contains("\x1b[94mBridiStatement\x1b[39m"));
+            assert!(output.contains("\x1b[94mBridiWithLeadingTerms\x1b[39m"));
+            assert!(output.contains("\x1b[94mBridiTailWithPossibleTailTerms\x1b[39m"));
             assert!(output.contains("\x1b[94mCmavo\x1b[39m"));
             assert!(output.contains("\x1b[33m\"mi\"\x1b[39m"));
         });

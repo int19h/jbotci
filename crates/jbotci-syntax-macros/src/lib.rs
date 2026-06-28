@@ -454,19 +454,24 @@ impl SyntaxGrammar {
             .as_ref()
             .map(|file| file.items.as_slice())
             .unwrap_or(&[]);
-        let generated_items = self.generated_tree_model_items(type_env)?;
+        let generated_model = self.generated_tree_model_items(type_env)?;
+        let generated_items = generated_model.tree_items;
+        let support_items = generated_model.support_items;
         Ok(quote! {
             jbotci_tree::tree_model! {
                 #(#attrs)*
                 #(#manual_items)*
                 #(#generated_items)*
             }
+            #(#support_items)*
         })
     }
 
-    fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<Vec<TokenStream2>> {
+    fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<GeneratedTreeModel> {
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
+        let mut transparent_constructors = BTreeSet::<String>::new();
+        let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         for rule in &self.rules {
             let rule = match rule {
                 Rule::Alias(_) => continue,
@@ -478,6 +483,8 @@ impl SyntaxGrammar {
                     if !self.generates_model_output_name(&output.to_string()) {
                         continue;
                     }
+                    let enum_constructor = generated_constructor_name(&output);
+                    transparent_constructors.insert(enum_constructor.clone());
                     for branch in &rule.branches {
                         let branch_name = branch.name.to_string();
                         let Some(branch_output) = type_env
@@ -491,6 +498,18 @@ impl SyntaxGrammar {
                             ));
                         };
                         let variant = enum_variant_ident_for_output(branch_output, &branch.name);
+                        let variant_constructor = variant.to_string();
+                        transparent_constructors.insert(variant_constructor.clone());
+                        transparent_field_pairs
+                            .insert((enum_constructor.clone(), branch_name.clone()));
+                        transparent_field_pairs
+                            .insert((enum_constructor.clone(), snake_case(&enum_constructor)));
+                        transparent_field_pairs
+                            .insert((variant_constructor.clone(), branch_name.clone()));
+                        transparent_field_pairs.insert((
+                            variant_constructor.clone(),
+                            snake_case(&variant_constructor),
+                        ));
                         let field = GeneratedFieldModel {
                             attrs: branch.attrs.clone(),
                             name: branch.name.clone(),
@@ -503,7 +522,7 @@ impl SyntaxGrammar {
                                 variant,
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
-                                tuple: false,
+                                tuple: true,
                             },
                         )?;
                     }
@@ -518,6 +537,13 @@ impl SyntaxGrammar {
             }
             let key = output.to_string();
             let fields = rule.generated_model_fields(type_env)?;
+            if fields.len() == 1 {
+                let constructor = generated_constructor_name(&output);
+                transparent_constructors.insert(constructor.clone());
+                let field_name = fields[0].name.to_string();
+                transparent_field_pairs.insert((constructor.clone(), field_name));
+                transparent_field_pairs.insert((constructor.clone(), snake_case(&constructor)));
+            }
             if let Some(existing) = structs.get(&key) {
                 return Err(syn::Error::new_spanned(
                     &rule.name,
@@ -562,8 +588,31 @@ impl SyntaxGrammar {
                 }
             }
         }));
-        Ok(items)
+        let transparent_constructors = transparent_constructors.iter();
+        let transparent_field_pairs = transparent_field_pairs
+            .iter()
+            .map(|(constructor, field)| quote!((#constructor, #field)));
+        let support_items = vec![quote! {
+            #[doc(hidden)]
+            pub const GENERATED_MODEL_TRANSPARENT_TREE_CONSTRUCTORS: &[&str] = &[
+                #(#transparent_constructors,)*
+            ];
+
+            #[doc(hidden)]
+            pub const GENERATED_MODEL_TRANSPARENT_TREE_FIELD_PAIRS: &[(&str, &str)] = &[
+                #(#transparent_field_pairs,)*
+            ];
+        }];
+        Ok(GeneratedTreeModel {
+            tree_items: items,
+            support_items,
+        })
     }
+}
+
+struct GeneratedTreeModel {
+    tree_items: Vec<TokenStream2>,
+    support_items: Vec<TokenStream2>,
 }
 
 fn push_generated_variant(
@@ -674,6 +723,37 @@ fn pascal_case_ident(name: &str) -> Ident {
     format_ident!("{out}")
 }
 
+fn snake_case(name: &str) -> String {
+    let mut out = String::new();
+    let mut previous_was_separator = false;
+    for (index, ch) in name.chars().enumerate() {
+        if ch == '-' || ch == ' ' {
+            if !out.is_empty() && !previous_was_separator {
+                out.push('_');
+            }
+            previous_was_separator = true;
+            continue;
+        }
+        if ch == '_' {
+            if !out.is_empty() && !previous_was_separator {
+                out.push('_');
+            }
+            previous_was_separator = true;
+            continue;
+        }
+        if ch.is_uppercase() {
+            if index > 0 && !previous_was_separator {
+                out.push('_');
+            }
+            out.extend(ch.to_lowercase());
+        } else {
+            out.push(ch);
+        }
+        previous_was_separator = false;
+    }
+    out
+}
+
 fn syntax_type_ident_for_rule(name: &Ident) -> Ident {
     let base = pascal_case_ident(&name.to_string());
     format_ident!("{base}Syntax")
@@ -682,6 +762,14 @@ fn syntax_type_ident_for_rule(name: &Ident) -> Ident {
 fn syntax_type_for_rule(name: &Ident) -> Type {
     let ident = syntax_type_ident_for_rule(name);
     parse_quote!(#ident)
+}
+
+fn generated_constructor_name(output: &Ident) -> String {
+    let output = output.to_string();
+    output
+        .strip_suffix("Syntax")
+        .unwrap_or(output.as_str())
+        .to_owned()
 }
 
 fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
@@ -704,7 +792,21 @@ impl GeneratedStructModel {
     fn expand(&self) -> TokenStream2 {
         let visibility = &self.visibility;
         let ident = &self.ident;
-        let fields = self.fields.iter().map(GeneratedFieldModel::expand_struct);
+        if self.fields.len() == 1 {
+            let fields = self
+                .fields
+                .iter()
+                .map(GeneratedFieldModel::expand_tuple_struct);
+            return quote! {
+                #[bityzba::invariant(true)]
+                #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+                #visibility struct #ident(#(#fields),*);
+            };
+        }
+        let fields = self
+            .fields
+            .iter()
+            .map(GeneratedFieldModel::expand_named_struct);
         quote! {
             #[bityzba::invariant(true)]
             #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
@@ -737,7 +839,10 @@ impl ToTokens for GeneratedVariantModel {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let variant = &self.variant;
         let expanded = if self.tuple {
-            let types = self.fields.iter().map(GeneratedFieldModel::expand_tuple);
+            let types = self
+                .fields
+                .iter()
+                .map(GeneratedFieldModel::expand_tuple_variant);
             quote!(#variant(#(#types),*))
         } else {
             let fields = self
@@ -757,7 +862,7 @@ struct GeneratedFieldModel {
 }
 
 impl GeneratedFieldModel {
-    fn expand_struct(&self) -> TokenStream2 {
+    fn expand_named_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;
         let ty = &self.ty;
@@ -771,8 +876,16 @@ impl GeneratedFieldModel {
         quote!(#(#attrs)* #name: #ty)
     }
 
-    fn expand_tuple(&self) -> TokenStream2 {
-        self.ty.clone()
+    fn expand_tuple_struct(&self) -> TokenStream2 {
+        let attrs = &self.attrs;
+        let ty = &self.ty;
+        quote!(#(#attrs)* pub #ty)
+    }
+
+    fn expand_tuple_variant(&self) -> TokenStream2 {
+        let attrs = &self.attrs;
+        let ty = &self.ty;
+        quote!(#(#attrs)* #ty)
     }
 }
 
@@ -1542,7 +1655,7 @@ impl EnumRule {
                         condition.expand_strict_gate(parser)
                     });
                 let body = if use_model_construction {
-                    quote!(#output_tokens::#variant { #field })
+                    quote!(#output_tokens::#variant(#field))
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field }))
                 };
@@ -1768,19 +1881,33 @@ impl NodeRule {
                     quote!(let #name = #value;)
                 })
             });
-            let assignments = self.fields.iter().filter_map(|field| {
-                let name = field.name.as_ref()?;
-                match field.kind {
-                    FieldKind::Field | FieldKind::Computed => Some(quote!(#name,)),
-                    FieldKind::TempLet | FieldKind::Require => None,
-                }
-            });
-            if use_model_construction {
-                quote!({
-                    #(#let_bindings)*
-                    #output_tokens { #(#assignments)* }
+            let constructed_fields = self
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let name = field.name.as_ref()?;
+                    match field.kind {
+                        FieldKind::Field | FieldKind::Computed => Some(name),
+                        FieldKind::TempLet | FieldKind::Require => None,
+                    }
                 })
+                .collect::<Vec<_>>();
+            if use_model_construction {
+                if constructed_fields.len() == 1 {
+                    let field = constructed_fields[0];
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens(#field)
+                    })
+                } else {
+                    let assignments = constructed_fields.iter().map(|name| quote!(#name,));
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens { #(#assignments)* }
+                    })
+                }
             } else {
+                let assignments = constructed_fields.iter().map(|name| quote!(#name,));
                 quote!({
                     #(#let_bindings)*
                     bityzba::new!(#output_tokens { #(#assignments)* })
@@ -4346,8 +4473,33 @@ mod tests {
             "enum branch should wrap the parser argument: {expanded}"
         );
         assert!(
-            expanded.contains("WrapperSyntax :: Item { item }"),
+            expanded.contains("WrapperSyntax :: Item (item)"),
             "enum branch should construct the wrapper from the parser argument: {expanded}"
+        );
+    }
+
+    #[test]
+    fn generated_single_field_structs_are_newtypes() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            tree_model {}
+            model;
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            rule "item" item -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before expansion");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("pub struct ItemSyntax (pub Token)"),
+            "single-field generated structs should be model newtypes: {expanded}"
+        );
+        assert!(
+            expanded.contains("ItemSyntax (token)"),
+            "single-field generated struct parser should construct a newtype: {expanded}"
         );
     }
 

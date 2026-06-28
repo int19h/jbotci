@@ -487,6 +487,17 @@ pub fn pretty_generated_model_raw_tree_with_options(
     tree::pretty_generated_model_raw_tree_with_options(tree, source, options)
 }
 
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_brackets_with_options(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    brackets::pretty_generated_model_brackets_with_options(tree, source, options)
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn compact_json_shape(value: Value) -> Value {
@@ -1414,8 +1425,7 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("valid syntax");
-        let jbotci_syntax::generated_model::TextSyntax::RegularText { regular_text } =
-            parsed.as_ref()
+        let jbotci_syntax::generated_model::TextSyntax::RegularText(regular_text) = parsed.as_ref()
         else {
             panic!("generated model should parse regular text");
         };
