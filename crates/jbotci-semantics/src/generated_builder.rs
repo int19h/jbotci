@@ -412,6 +412,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.source_for_node(bridi, "tanru-formula"),
             );
         }
+        if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
+            && tanru.additional_units.is_empty()
+            && generated_tanru_unit_is_grouped(&tanru.first_unit)?
+        {
+            return self.build_relation_formula_for_generated_tanru_unit_terms(
+                &tanru.first_unit,
+                terms,
+                eventuality,
+                mode,
+                self.source_for_node(bridi, "tanru-formula"),
+                self.source_for_node(bridi, "tanru-formula"),
+            );
+        }
         self.build_simple_tail_formula_with_options(
             simple_tail,
             terms,
@@ -433,6 +446,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
+            && tanru.additional_units.is_empty()
+            && sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_none()
+        {
+            return self.build_relation_formula_for_generated_tanru_unit_terms(
+                &tanru.first_unit,
+                terms,
+                eventuality,
+                mode,
+                predication_source,
+                formula_source,
+            );
+        }
         let relation = relation_label_from_selbri(&simple_tail.selbri)?;
         let relation = semantic_relation_label(relation);
         let place_count = relation_place_count(self.dictionary, &relation);
@@ -500,6 +526,123 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(formula)
     }
 
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_relation_formula_for_generated_tanru_unit_terms(
+        &mut self,
+        unit: &TanruUnitSyntax,
+        terms: Vec<&TermSyntax>,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
+        if linkargs.is_some() {
+            return Err(unsupported("simple bridi linkargs"));
+        }
+        if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() {
+            if eventuality.is_some() || mode != PredicationMode::Asserted {
+                return Err(unsupported("scoped grouped tanru unit"));
+            }
+            let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+            let visible_arguments = map_visible_arguments_for_generated_conversions(
+                visible_arguments,
+                &atom.conversions,
+            )?;
+            return self.build_tanru_formula_for_visible_arguments(
+                connected_selbri_as_tanru(&grouped.selbri)?,
+                visible_arguments,
+                formula_source,
+            );
+        }
+        let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
+            atom.base.as_ref(),
+        )?);
+        let place_count = relation_place_count(self.dictionary, &relation);
+        let mut diagnostics = Vec::new();
+        let eventuality = match eventuality {
+            Some(eventuality) => eventuality,
+            None => {
+                let eventuality = self.next_eventuality_id();
+                self.insert(
+                    eventuality,
+                    SemanticObject::eventuality(
+                        EventualityClass::Event,
+                        None,
+                        predication_source.clone(),
+                    ),
+                )?;
+                eventuality
+            }
+        };
+        let mut visible_arguments = BTreeMap::new();
+        for (index, term) in terms.into_iter().enumerate() {
+            let referent = self.build_term_referent(term)?;
+            insert_visible_argument(
+                &mut visible_arguments,
+                index + 1,
+                ArgumentValue::filled(referent, None),
+            )?;
+        }
+        let mut arguments = BTreeMap::new();
+        for (visible_place, argument) in visible_arguments {
+            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+            let key = argument_key(place);
+            if arguments.insert(key.clone(), argument).is_some() {
+                return Err(invalid_graph(format!(
+                    "multiple generated bridi arguments map to {key}"
+                )));
+            }
+        }
+        let highest_argument = arguments
+            .keys()
+            .filter_map(|place| place.strip_prefix('x'))
+            .filter_map(|place| place.parse::<usize>().ok())
+            .max()
+            .unwrap_or(0);
+        let place_limit = match place_count {
+            Some(place_count) => place_count,
+            None => {
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+                highest_argument.max(1)
+            }
+        };
+        for place in 1..=place_limit.max(highest_argument) {
+            let key = argument_key(place);
+            if !arguments.contains_key(&key) {
+                let referent = self.build_elided_referent("zo'e".to_owned())?;
+                arguments.insert(
+                    key,
+                    ArgumentValue::elided(referent, "zo'e".to_owned(), None),
+                );
+            }
+        }
+        let predication_mode = predication_mode_for_relation(&relation, mode);
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                Some(eventuality),
+                arguments,
+                predication_mode,
+                predication_source,
+                diagnostics,
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
+        )?;
+        Ok(formula)
+    }
+
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_no_gadri_quantified_argument_formula(
@@ -544,8 +687,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if connector != "joint" {
             return Err(unsupported("non-joint afterthought sumti distribution"));
         }
-        let Some(description) = no_gadri_description_from_sumti_bound(&sumti.leading_sumti)?
-        else {
+        let Some(description) = no_gadri_description_from_sumti_bound(&sumti.leading_sumti)? else {
             return Err(unsupported("non-quantified leading afterthought sumti"));
         };
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
@@ -752,10 +894,26 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         terms: Vec<&TermSyntax>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+        self.build_tanru_formula_for_visible_arguments(tanru, visible_arguments, source)
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tanru_formula_for_visible_arguments(
+        &mut self,
+        tanru: &TanruSelbriSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let [trailing_unit] = tanru.additional_units.as_slice() else {
             return Err(unsupported("multi-unit tanru"));
         };
-        let head = self.build_tanru_head_relation_formula(trailing_unit, terms, source.clone())?;
+        let head = self.build_tanru_head_relation_formula(
+            trailing_unit,
+            visible_arguments,
+            source.clone(),
+        )?;
         let modifier =
             self.build_property_abstraction_for_tanru_unit(&tanru.first_unit, source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
@@ -790,12 +948,40 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_tanru_head_relation_formula(
         &mut self,
         unit: &TanruUnitSyntax,
-        terms: Vec<&TermSyntax>,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        let relation = semantic_relation_label(relation_label_from_generated_tanru_unit(unit)?);
+        let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
+        if linkargs.is_some() {
+            return Err(unsupported("tanru head linkargs"));
+        }
+        let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
+            atom.base.as_ref(),
+        )?);
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
+        let eventuality = self.next_eventuality_id();
+        self.insert(
+            eventuality,
+            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+        )?;
+        let visible_x1_argument = visible_arguments.get(&1).cloned();
+        let mut arguments = BTreeMap::new();
+        for (visible_place, argument) in visible_arguments {
+            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+            let key = argument_key(place);
+            if arguments.insert(key.clone(), argument).is_some() {
+                return Err(invalid_graph(format!(
+                    "multiple generated tanru head arguments map to {key}"
+                )));
+            }
+        }
+        let highest_argument = arguments
+            .keys()
+            .filter_map(|place| place.strip_prefix('x'))
+            .filter_map(|place| place.parse::<usize>().ok())
+            .max()
+            .unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -804,34 +990,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         "relation place structure is unavailable; only places required by explicit assignments are represented",
                     ));
                 }
-                terms.len().max(1)
+                highest_argument.max(1)
             }
         };
-        let mut arguments = BTreeMap::new();
-        let mut visible_place = 1usize;
-        for term in terms {
-            let referent = self.build_term_referent(term)?;
-            arguments.insert(
-                argument_key(visible_place),
-                ArgumentValue::filled(referent, None),
-            );
-            visible_place += 1;
-        }
-        let eventuality = self.next_eventuality_id();
-        self.insert(
-            eventuality,
-            SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
-        )?;
-        for place in visible_place..=place_limit {
+        for place in 1..=place_limit.max(highest_argument) {
+            let key = argument_key(place);
+            if arguments.contains_key(&key) {
+                continue;
+            }
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
-                argument_key(place),
+                key,
                 ArgumentValue::elided(referent, "zo'e".to_owned(), None),
             );
         }
-        let x1_argument = arguments
-            .get("x1")
-            .cloned()
+        let x1_argument = visible_x1_argument
+            .or_else(|| arguments.get("x1").cloned())
             .ok_or_else(|| unsupported("tanru without visible x1"))?;
         let predication = self.next_predication_id();
         self.insert(
@@ -857,6 +1031,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 head_predication: predication,
             }
         )))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| *place > 0)) || ret.is_err())]
+    fn build_visible_arguments_for_terms(
+        &mut self,
+        terms: Vec<&TermSyntax>,
+    ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        for (index, term) in terms.into_iter().enumerate() {
+            let referent = self.build_term_referent(term)?;
+            insert_visible_argument(
+                &mut arguments,
+                index + 1,
+                ArgumentValue::filled(referent, None),
+            )?;
+        }
+        Ok(arguments)
     }
 
     #[requires(true)]
@@ -1111,7 +1303,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 source,
             );
         }
-        self.build_relation_formula_for_generated_tanru_unit_argument(
+        self.build_eventful_relation_formula_for_generated_tanru_unit_argument(
             unit,
             ArgumentValue::filled(parameter, None),
             PredicationMode::Restrictive,
@@ -1126,6 +1318,53 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         unit: &TanruUnitSyntax,
         argument: ArgumentValue,
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_relation_formula_for_generated_tanru_unit_argument_with_eventuality(
+            unit,
+            argument,
+            None,
+            mode,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_eventful_relation_formula_for_generated_tanru_unit_argument(
+        &mut self,
+        unit: &TanruUnitSyntax,
+        argument: ArgumentValue,
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let eventuality = self.next_eventuality_id();
+        self.insert(
+            eventuality,
+            SemanticObject::eventuality(EventualityClass::Event, None, predication_source.clone()),
+        )?;
+        self.build_relation_formula_for_generated_tanru_unit_argument_with_eventuality(
+            unit,
+            argument,
+            Some(eventuality),
+            mode,
+            predication_source,
+            formula_source,
+        )
+    }
+
+    #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    #[requires(eventuality.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_relation_formula_for_generated_tanru_unit_argument_with_eventuality(
+        &mut self,
+        unit: &TanruUnitSyntax,
+        argument: ArgumentValue,
+        eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
@@ -1180,7 +1419,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             predication,
             SemanticObject::predication(
                 relation.clone(),
-                None,
+                eventuality,
                 arguments,
                 predication_mode_for_relation(&relation, mode),
                 predication_source,
@@ -1204,11 +1443,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         first_visible_place: usize,
     ) -> Result<(), SemanticsError> {
         let mut next_visible_place = first_visible_place;
-        self.add_linked_sumti_argument(
-            arguments,
-            &mut next_visible_place,
-            &linkargs.first_link,
-        )?;
+        self.add_linked_sumti_argument(arguments, &mut next_visible_place, &linkargs.first_link)?;
         for link in &linkargs.bei_links {
             self.add_linked_sumti_argument(arguments, &mut next_visible_place, &link.link)?;
         }
@@ -1225,8 +1460,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<(), SemanticsError> {
         match link {
             LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
-                let argument =
-                    ArgumentValue::filled(self.build_sumti_referent(&sumti.0)?, None);
+                let argument = ArgumentValue::filled(self.build_sumti_referent(&sumti.0)?, None);
                 insert_visible_argument(arguments, *next_visible_place, argument)?;
                 *next_visible_place += 1;
             }
@@ -1253,9 +1487,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         sumti: &TaggedOrElidedSumtiSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
         match sumti {
-            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
-                Ok(ArgumentValue::filled(self.build_sumti_referent(sumti)?, None))
-            }
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => Ok(ArgumentValue::filled(
+                self.build_sumti_referent(sumti)?,
+                None,
+            )),
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
                 let referent = self.build_elided_referent("zo'e".to_owned())?;
                 Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
@@ -2474,6 +2709,17 @@ fn tanru_selbri_from_selbri(
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
+fn connected_selbri_as_tanru(
+    selbri: &ConnectedSelbriSyntax,
+) -> Result<&TanruSelbriSyntax, SemanticsError> {
+    if !selbri.continuations.is_empty() {
+        return Err(unsupported("connected grouped tanru unit"));
+    }
+    Ok(selbri.leading_selbri.as_ref())
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn sumti_selbri_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&SumtiSelbriTanruUnitSyntax>, SemanticsError> {
@@ -2502,6 +2748,16 @@ fn sumti_selbri_from_generated_tanru_unit(
         return Err(unsupported("converted sumti selbri"));
     }
     Ok(Some(sumti_selbri))
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn generated_tanru_unit_is_grouped(unit: &TanruUnitSyntax) -> Result<bool, SemanticsError> {
+    let (atom, _) = generated_linked_tanru_unit_parts(unit)?;
+    Ok(matches!(
+        atom.base.as_ref(),
+        TanruUnitAtomBaseSyntax::GroupedTanruUnit(_)
+    ))
 }
 
 #[requires(true)]
@@ -2570,6 +2826,27 @@ fn mapped_place_for_generated_conversions<F>(
         }
     }
     Ok(place)
+}
+
+#[requires(arguments.keys().all(|place| *place > 0))]
+#[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| *place > 0)) || ret.is_err())]
+fn map_visible_arguments_for_generated_conversions<F>(
+    arguments: BTreeMap<usize, ArgumentValue>,
+    conversions: &[WithFreeModifiers<Token, F>],
+) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
+    if conversions.is_empty() {
+        return Ok(arguments);
+    }
+    let mut mapped_arguments = BTreeMap::new();
+    for (visible_place, argument) in arguments {
+        let place = mapped_place_for_generated_conversions(visible_place, conversions)?;
+        if mapped_arguments.insert(place, argument).is_some() {
+            return Err(invalid_graph(format!(
+                "multiple grouped tanru arguments map to visible place x{place}"
+            )));
+        }
+    }
+    Ok(mapped_arguments)
 }
 
 #[requires(place > 0)]
@@ -2701,10 +2978,7 @@ fn tanru_relation_name_for_generated_unit_pair(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
 fn relation_label_from_tanru_unit(unit: &TanruUnitSyntax) -> Result<String, SemanticsError> {
-    if !unit.0.links.is_empty() {
-        return Err(unsupported("connected tanru unit"));
-    }
-    relation_label_from_bo_or_linked_tanru_unit(&unit.0.first)
+    relation_label_from_generated_tanru_unit(unit)
 }
 
 #[requires(true)]
@@ -3284,9 +3558,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_no_gadri_me_sumti_distribution() {
-        assert_generated_builder_matches_legacy(
-            "re me le ci nolraitru me'u .e la .djan. cu blabi",
-        );
+        assert_generated_builder_matches_legacy("re me le ci nolraitru me'u .e la .djan. cu blabi");
     }
 
     #[test]
@@ -3294,6 +3566,20 @@ mod tests {
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_linkargs_with_conversion_in_description() {
         assert_generated_builder_matches_legacy("ta me la'e le se cusku be do me'u cukta");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_simple_conversion() {
+        assert_generated_builder_matches_legacy("do se prami mi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_grouped_tanru_conversion() {
+        assert_generated_builder_matches_legacy("le zarci cu se ke cadzu klama ke'e la .alis.");
     }
 
     #[test]
