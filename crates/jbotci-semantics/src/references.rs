@@ -22,6 +22,10 @@ use jbotci_syntax::ast::{
     TenseModalSyntaxData, TermSyntax, TermSyntaxData, TextSyntax, Token, TreeNode,
     WithFreeModifiers,
 };
+use jbotci_syntax::generated_model::{
+    AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
+    TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
+};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -3457,6 +3461,170 @@ impl<'tree> SyntaxIndex<'tree> {
 
 #[derive(Debug)]
 #[invariant(true)]
+pub struct GeneratedSyntaxIndex<'tree> {
+    nodes: Vec<GeneratedIndexedSyntaxNode<'tree>>,
+    by_ref: HashMap<GeneratedSyntaxNodeRef<'tree>, RawSyntaxNodeId>,
+    root: TextNodeId,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedIndexedSyntaxNode<'tree> {
+    node: GeneratedSyntaxNodeRef<'tree>,
+    metadata: SyntaxNodeMetadata,
+}
+
+impl<'tree> GeneratedSyntaxIndex<'tree> {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()))]
+    pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
+        let mut builder = GeneratedSyntaxIndexBuilder::new();
+        root.visit_in_order(&mut builder);
+        let root_ref = generated_text_node_ref(root);
+        let root_raw = builder
+            .by_ref
+            .get(&root_ref)
+            .copied()
+            .ok_or(ReferenceAnalysisError::MissingRootNode)?;
+        Ok(Self {
+            nodes: builder.nodes,
+            by_ref: builder.by_ref,
+            root: TextNodeId(root_raw),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn root(&self) -> TextNodeId {
+        self.root
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn node(&self, id: RawSyntaxNodeId) -> Option<GeneratedSyntaxNodeRef<'tree>> {
+        self.nodes.get(id.0).map(|node| node.node)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn metadata(&self, id: RawSyntaxNodeId) -> Option<&SyntaxNodeMetadata> {
+        self.nodes.get(id.0).map(|node| &node.metadata)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn id_of(&self, node: GeneratedSyntaxNodeRef<'tree>) -> Option<RawSyntaxNodeId> {
+        self.by_ref.get(&node).copied()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn text_node_id(&self, node: &'tree GeneratedTextSyntax) -> Option<TextNodeId> {
+        self.id_of(generated_text_node_ref(node)).map(TextNodeId)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_text_node_ref<'tree>(
+    text: &'tree GeneratedTextSyntax,
+) -> GeneratedSyntaxNodeRef<'tree> {
+    match text {
+        GeneratedTextSyntax::ExplicitXauhaLohoiText(_) => {
+            GeneratedSyntaxNodeRef::TextSyntaxExplicitXauhaLohoiText(text)
+        }
+        GeneratedTextSyntax::RegularText(_) => GeneratedSyntaxNodeRef::TextSyntaxRegularText(text),
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedSyntaxIndexBuilder<'tree> {
+    nodes: Vec<GeneratedIndexedSyntaxNode<'tree>>,
+    by_ref: HashMap<GeneratedSyntaxNodeRef<'tree>, RawSyntaxNodeId>,
+    stack: Vec<RawSyntaxNodeId>,
+    leaf_index: usize,
+}
+
+impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
+    #[requires(true)]
+    #[ensures(ret.nodes.is_empty())]
+    fn new() -> Self {
+        Self {
+            nodes: Vec::new(),
+            by_ref: HashMap::new(),
+            stack: Vec::new(),
+            leaf_index: 0,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn record_source_span(&mut self, span: &SourceSpan) {
+        for id in &self.stack {
+            if let Some(node) = self.nodes.get_mut(id.0) {
+                node.metadata.source_spans.push(span.clone());
+            }
+        }
+        self.leaf_index += 1;
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        let id = RawSyntaxNodeId(self.nodes.len());
+        let parent = self.stack.last().copied();
+        let metadata = SyntaxNodeMetadata {
+            id,
+            parent,
+            preorder: id.0,
+            depth: self.stack.len(),
+            leaf_start: self.leaf_index,
+            leaf_end: self.leaf_index,
+            source_spans: Vec::new(),
+        };
+        self.nodes
+            .push(GeneratedIndexedSyntaxNode { node, metadata });
+        self.by_ref.insert(node, id);
+        self.stack.push(id);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, node: Self::Node) {
+        let Some(id) = self.stack.pop() else {
+            return;
+        };
+        debug_assert_eq!(self.nodes[id.0].node, node);
+        self.nodes[id.0].metadata.leaf_end = self.leaf_index;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            GeneratedSyntaxAtomRef::Token(token) => {
+                for span in token.source_spans() {
+                    self.record_source_span(span);
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
 struct SyntaxIndexBuilder<'tree> {
     nodes: Vec<IndexedSyntaxNode<'tree>>,
     by_ref: HashMap<SyntaxNodeRef<'tree>, RawSyntaxNodeId>,
@@ -6857,7 +7025,9 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{data, ensures, requires};
     use jbotci_morphology::segment_words_with_modifiers;
-    use jbotci_syntax::{ParseOptions, parse_text};
+    use jbotci_syntax::{
+        ParseOptions, parse_syntax_tree_generated_model_with_source_and_options, parse_text,
+    };
 
     #[requires(true)]
     #[ensures(true)]
@@ -6873,9 +7043,42 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn parse_generated_syntax(input: &str) -> Box<GeneratedTextSyntax> {
+        let words = segment_words_with_modifiers(input).expect("morphology succeeds");
+        parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            input,
+            &ParseOptions::default(),
+        )
+        .expect("generated syntax succeeds")
+    }
+
+    #[requires(true)]
     #[ensures(ret.offset == offset && ret.length == length)]
     fn span_key(offset: usize, length: usize) -> FixtureSpanKey {
         FixtureSpanKey { offset, length }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_syntax_index_records_root_and_ordered_spans() {
+        run_reference_test(|| {
+            let syntax = parse_generated_syntax("mi tavla do");
+            let index = GeneratedSyntaxIndex::new(&syntax).expect("generated index succeeds");
+            assert!(index.node_count() > 0);
+            assert_eq!(index.text_node_id(&syntax), Some(index.root()));
+            let root = index
+                .metadata(index.root().0)
+                .expect("root metadata is present");
+            let spans = root
+                .source_spans
+                .iter()
+                .map(|span| (span.byte_start, span.byte_end))
+                .collect::<Vec<_>>();
+            assert_eq!(spans, vec![(0, 2), (3, 8), (9, 11)]);
+        });
     }
 
     #[requires(true)]
