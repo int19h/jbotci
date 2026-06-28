@@ -460,7 +460,33 @@ fn statement_parser<'tokens>(
             source,
         ),
     ));
-    let tense_modal_with_free_modifiers = tense_modal_boxed()
+    let fiho_tense_modal_with_full_selbri_atom = fiho_tense_modal_with_selbri(selbri.clone())
+        .map(Box::new)
+        .boxed();
+    let term_tense_modal_atom = choice((
+        fiho_tense_modal_with_full_selbri_atom.clone(),
+        tense_modal_atom_boxed(),
+    ))
+    .boxed();
+    let term_tense_modal_boxed = connected_tense_modal_boxed_from_first_and_atom(
+        term_tense_modal_atom.clone(),
+        term_tense_modal_atom,
+    );
+    let fiho_tense_modal_with_full_selbri = connected_tense_modal_boxed_from_first_and_atom(
+        fiho_tense_modal_with_full_selbri_atom.clone(),
+        choice((
+            fiho_tense_modal_with_full_selbri_atom,
+            tense_modal_atom_boxed(),
+        ))
+        .boxed(),
+    );
+    let leading_term_tag_tense_modal = choice((
+        fiho_tense_modal_with_full_selbri.clone(),
+        leading_term_tag_tense_modal_boxed(),
+    ))
+    .boxed();
+    let tense_modal_with_free_modifiers = term_tense_modal_boxed
+        .clone()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
             attach_boxed_tense_modal_free_modifiers(tense_modal, free_modifiers)
@@ -517,7 +543,7 @@ fn statement_parser<'tokens>(
                     },
                 )
                 .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-                .then(tense_modal_boxed().or_not())
+                .then(term_tense_modal_boxed.clone().or_not())
                 .then(
                     sumti.clone().or(cmavo(Cmavo::Ku)
                         .or_not()
@@ -547,9 +573,10 @@ fn statement_parser<'tokens>(
                 })
             }),
     );
-    let tagged_term_before_tag_start = leading_term_tag_tense_modal_boxed()
+    let tagged_term_before_tag_start = leading_term_tag_tense_modal
+        .clone()
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
-        .then(tense_modal_boxed().rewind().ignored())
+        .then(term_tense_modal_boxed.clone().rewind().ignored())
         .rewind()
         .ignored();
     let bare_na_term_blocker = choice((
@@ -579,11 +606,11 @@ fn statement_parser<'tokens>(
     let tagged_term_start = modal_forethought_connective()
         .rewind()
         .not()
-        .ignore_then(leading_term_tag_tense_modal_boxed())
+        .ignore_then(leading_term_tag_tense_modal)
         .then(free_modifier.clone().repeated().collect::<Vec<_>>());
     let tagged_term_before_tag = tagged_term_start
         .clone()
-        .then(tense_modal_boxed().rewind().ignored())
+        .then(term_tense_modal_boxed.rewind().ignored())
         .map(|((tense_modal, free_modifiers), _)| {
             new!(TermSyntax::TaggedSumti {
                 tense_modal: Some(attach_boxed_tense_modal_free_modifiers(
@@ -6007,7 +6034,12 @@ where
         + 'tokens,
 {
     let zantufa_quotes_enabled = parser_dialect_config().zantufa_quotes_enabled;
-    let tense_modal_with_free_modifiers = tense_modal_boxed()
+    let fiho_tense_modal_with_full_selbri = fiho_tense_modal_with_selbri(selbri.clone())
+        .map(Box::new)
+        .boxed();
+    let relation_tense_modal_boxed =
+        choice((fiho_tense_modal_with_full_selbri, tense_modal_boxed())).boxed();
+    let tense_modal_with_free_modifiers = relation_tense_modal_boxed
         .then(free_modifier.clone().repeated().collect::<Vec<_>>())
         .map(|(tense_modal, free_modifiers)| {
             attach_boxed_tense_modal_free_modifiers(tense_modal, free_modifiers)
@@ -7677,6 +7709,15 @@ fn fiho_tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
             .map(relation_from_units)
     });
 
+    fiho_tense_modal_with_selbri(selbri)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn fiho_tense_modal_with_selbri<'tokens, R>(selbri: R) -> BoxedParser<'tokens, TenseModalSyntax>
+where
+    R: Parser<'tokens, ParserInput<'tokens>, SelbriSyntax, ParseExtra<'tokens>> + Clone + 'tokens,
+{
     syntax_label(
         "FIhO modal",
         cmavo(Cmavo::Fiho)
@@ -8325,6 +8366,23 @@ fn tense_modal<'tokens>() -> BoxedParser<'tokens, TenseModalSyntax> {
 #[ensures(true)]
 fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
     let atom = tense_modal_atom_boxed();
+    connected_tense_modal_boxed_from_first_and_atom(atom.clone(), atom)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn connected_tense_modal_boxed_from_first_and_atom<'tokens, F, A>(
+    first: F,
+    atom: A,
+) -> BoxedParser<'tokens, BoxedTenseModalSyntax>
+where
+    F: Parser<'tokens, ParserInput<'tokens>, BoxedTenseModalSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+    A: Parser<'tokens, ParserInput<'tokens>, BoxedTenseModalSyntax, ParseExtra<'tokens>>
+        + Clone
+        + 'tokens,
+{
     let continuations = syntax_label(
         "connected tag",
         choice((joik_connective(), jek_connective()))
@@ -8333,7 +8391,7 @@ fn tense_modal_boxed<'tokens>() -> BoxedParser<'tokens, BoxedTenseModalSyntax> {
             .at_least(1)
             .collect::<Vec<_>>(),
     );
-    atom.clone()
+    first
         .then(continuations.or_not().map(Option::unwrap_or_default))
         .map(|(first, continuations)| combine_connected_boxed_tense_modals(first, continuations))
         .boxed()

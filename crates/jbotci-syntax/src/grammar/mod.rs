@@ -997,6 +997,45 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_fiho_modal_with_full_linked_selbri() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("mi tavla fi'o tavla be do fe'u do")
+                .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert!(raw.contains("AdHocModal"));
+            assert!(raw.contains("LinkedSumtiTanruUnit"));
+            assert!(raw.contains("be"));
+            assert!(raw.contains("fe'u"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_connected_fiho_tags_as_one_tagged_term() {
+        run_on_normal_stack(|| {
+            let words =
+                segment_words_with_modifiers(".e'a casnu fi'o selsnu ja fi'o bangu la lojban")
+                    .expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+            let raw = format!("{:?}", parsed.parse_tree);
+
+            assert_eq!(raw.matches("TaggedSumti").count(), 1);
+            assert!(raw.contains("Composite"));
+            assert!(raw.contains("sél"));
+            assert!(raw.contains("snu"));
+            assert!(raw.contains("bángu"));
+            assert!(!raw.contains("TermConnection"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn keeps_i_connectives_out_of_tail_terms() {
         run_on_normal_stack(|| {
             let raw = parse_tree_debug("mi ca pilno .ije ca'o nelci", &ParseOptions::default());
@@ -1838,6 +1877,15 @@ mod tests {
     fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn voi_relative_bridi_is_syntax_restrictive() {
+        let raw = parse_tree_debug("le gerku voi blabi cu klama", &ParseOptions::default());
+        assert!(raw.contains("RestrictiveRelativeBridi"));
+        assert!(!raw.contains("IncidentalRelativeBridi"));
     }
 
     #[test]

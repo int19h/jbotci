@@ -313,7 +313,27 @@ pub enum AssignmentSource {
     LinkedSumti,
     CoSeltauTerm,
     TermsetBranch,
+    SharedHeadTerm,
+    SharedTailTerm,
     Propagated,
+}
+
+#[requires(true)]
+#[ensures(matches!(
+    ret,
+    AssignmentSource::SharedHeadTerm | AssignmentSource::SharedTailTerm | AssignmentSource::Propagated
+))]
+fn propagated_assignment_source(source: AssignmentSource) -> AssignmentSource {
+    match source {
+        AssignmentSource::SharedHeadTerm | AssignmentSource::SharedTailTerm => source,
+        AssignmentSource::SequentialTerm
+        | AssignmentSource::FaTerm
+        | AssignmentSource::ModalTerm
+        | AssignmentSource::LinkedSumti
+        | AssignmentSource::CoSeltauTerm
+        | AssignmentSource::TermsetBranch
+        | AssignmentSource::Propagated => AssignmentSource::Propagated,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -332,6 +352,8 @@ pub struct SumtiPlaceAssignment {
 #[invariant(true)]
 pub enum ReferenceKind {
     SumtiAssociation,
+    RelativePhraseHead,
+    RelativePhraseArgument,
     ProBridiAssignment,
     Koha,
     Ri,
@@ -1221,6 +1243,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             next_place_after_common_terms(initial_place, &bridi.leading_terms);
         let tail = self.analyze_bridi_tail(&bridi.bridi_tail, branch_initial_place);
         let predicate_raw = self.raw_for(SyntaxNodeRef::BridiSyntax(bridi));
+        let shared_branch_terms = tail.branch_cursors.is_some() || tail.frames.len() > 1;
         let predicate_frame = self.add_frame(
             predicate_raw,
             PlaceFrameKind::Bridi,
@@ -1230,16 +1253,22 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
         );
         let mut cursors =
             vec![self.cursor_with_existing_assignments(predicate_frame, initial_place)];
-        self.assign_terms(
-            &mut cursors,
-            &bridi.leading_terms,
-            AssignmentSource::SequentialTerm,
-        );
+        let leading_source = if shared_branch_terms {
+            AssignmentSource::SharedHeadTerm
+        } else {
+            AssignmentSource::SequentialTerm
+        };
+        self.assign_terms(&mut cursors, &bridi.leading_terms, leading_source);
         for cursor in &mut cursors {
             cursor.ensure_next_place_at_least(2);
             self.apply_linked_argument_cursor(cursor);
         }
-        self.assign_term_refs(&mut cursors, &tail.terms, AssignmentSource::SequentialTerm);
+        let tail_source = if shared_branch_terms {
+            AssignmentSource::SharedTailTerm
+        } else {
+            AssignmentSource::SequentialTerm
+        };
+        self.assign_term_refs(&mut cursors, &tail.terms, tail_source);
         self.analyze_free_modifiers_nested(&bridi.free_modifiers);
         predicate_frame
     }
@@ -1494,7 +1523,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             self.assign_terms(
                 &mut first_branch_cursors,
                 &ke_continuation.tail_terms,
-                AssignmentSource::SequentialTerm,
+                AssignmentSource::SharedTailTerm,
             );
             branch_cursors = Some(first_branch_cursors);
             self.analyze_free_modifiers_nested(&ke_continuation.free_modifiers);
@@ -1539,7 +1568,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_terms(
                     cursors,
                     &continuation.tail_terms,
-                    AssignmentSource::SequentialTerm,
+                    AssignmentSource::SharedTailTerm,
                 );
             }
             analysis.frames.extend(next.frames);
@@ -1586,7 +1615,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
             self.assign_terms(
                 &mut active_cursors,
                 &continuation.tail_terms,
-                AssignmentSource::SequentialTerm,
+                AssignmentSource::SharedTailTerm,
             );
             branch_cursors = Some(active_cursors);
             self.analyze_free_modifiers_nested(&continuation.free_modifiers);
@@ -1701,7 +1730,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     self.cursor_with_existing_assignments(first_frame, branch_initial_place),
                     self.cursor_with_existing_assignments(second_frame, branch_initial_place),
                 ];
-                self.assign_terms(&mut cursors, tail_terms, AssignmentSource::SequentialTerm);
+                self.assign_terms(&mut cursors, tail_terms, AssignmentSource::SharedTailTerm);
                 self.analyze_free_modifiers_nested(free_modifiers);
                 vec![first_frame, second_frame]
             }
@@ -3050,7 +3079,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3064,7 +3093,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     mapped,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3074,7 +3103,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     numbered_slot(NonZeroU8::new(1).expect("literal is non-zero")),
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 ),
                 PlaceSlot::Numbered(place) if place.get() > 1 => self.add_assignment_recursive(
@@ -3082,7 +3111,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     numbered_slot(place),
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 ),
                 PlaceSlot::Numbered(_) | PlaceSlot::Modal(_) | PlaceSlot::PlaceQuestion => {}
@@ -3094,7 +3123,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                         slot,
                         sumti,
                         term,
-                        AssignmentSource::Propagated,
+                        propagated_assignment_source(source),
                         visited,
                     );
                 }
@@ -3105,7 +3134,7 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
@@ -3115,12 +3144,11 @@ impl<'index, 'tree> PlaceAnalysisBuilder<'index, 'tree> {
                     slot,
                     sumti,
                     term,
-                    AssignmentSource::Propagated,
+                    propagated_assignment_source(source),
                     visited,
                 );
             }
         }
-        let _ = source;
     }
 
     #[requires(true)]
@@ -3376,6 +3404,15 @@ impl<'tree> SyntaxIndex<'tree> {
     pub fn abstraction_node_id(&self, node: &'tree AbstractionSyntax) -> Option<AbstractionNodeId> {
         self.id_of(SyntaxNodeRef::AbstractionSyntax(node))
             .map(AbstractionNodeId)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn sumti_association_phrase_node_id(
+        &self,
+        node: &'tree SumtiAssociationPhraseSyntax,
+    ) -> Option<RawSyntaxNodeId> {
+        self.id_of(SyntaxNodeRef::SumtiAssociationPhraseSyntax(node))
     }
 
     #[requires(true)]
@@ -3643,6 +3680,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 inner_statement,
                 ..
             }) => {
+                let previous_da_bindings = self.da_bindings.clone();
                 self.visit_terms(prenex_terms);
                 let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
@@ -3651,6 +3689,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_statement(inner_statement);
                 self.cei_bridi_bindings = previous_cei_bridi_bindings;
                 self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
             }
             data!(StatementSyntax::Bridi(bridi)) => {
                 self.visit_predicate(bridi);
@@ -3702,6 +3741,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 inner_subbridi,
                 ..
             }) => {
+                let previous_da_bindings = self.da_bindings.clone();
                 self.visit_terms(prenex_terms);
                 let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(prenex_terms);
@@ -3710,6 +3750,7 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_subbridi(inner_subbridi);
                 self.cei_bridi_bindings = previous_cei_bridi_bindings;
                 self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
             }
         }
     }
@@ -4308,7 +4349,11 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 );
                 self.visit_free_modifiers(&koha.free_modifiers);
                 if let Some(target) = resolved_target {
-                    self.note_sumti_mention_with_availability(argument_id, target, true);
+                    self.note_sumti_mention_with_availability(
+                        argument_id,
+                        target,
+                        cmavo.is_some_and(koha_mention_available_to_ri),
+                    );
                 } else if cmavo.is_some_and(koha_records_self_mention) {
                     self.note_self_sumti_mention_with_availability(
                         argument_id,
@@ -4869,6 +4914,13 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
             .index
             .sumti_node_id(&goi.sumti)
             .expect("goi sumti belongs to indexed syntax tree");
+        let Some(marker) = goi.association_marker.cmavo() else {
+            return;
+        };
+        if marker != Cmavo::Goi {
+            self.add_relative_phrase_place_edges(base_id, goi, goi_argument_id);
+            return;
+        }
         let source = goi_argument_id.0;
         self.add_edge(
             ReferenceKind::SumtiAssociation,
@@ -4889,6 +4941,37 @@ impl<'index, 'tree> DiscourseReferenceBuilder<'index, 'tree> {
                 "GOI assigns the relative-clause head pro-sumti to its sumti",
             );
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn add_relative_phrase_place_edges(
+        &mut self,
+        base_id: SumtiNodeId,
+        goi: &'tree SumtiAssociationPhraseSyntax,
+        goi_argument_id: SumtiNodeId,
+    ) {
+        let Some(marker) = goi.association_marker.cmavo() else {
+            return;
+        };
+        if !cmavo_is_relative_phrase_marker(marker) {
+            return;
+        }
+        let Some(source) = self.index.sumti_association_phrase_node_id(goi) else {
+            return;
+        };
+        self.add_edge(
+            ReferenceKind::RelativePhraseHead,
+            source,
+            target_resolved_node(base_id.0),
+            "GOI relative phrase marker relates x1 to the relative-clause head",
+        );
+        self.add_edge(
+            ReferenceKind::RelativePhraseArgument,
+            source,
+            target_resolved_node(goi_argument_id.0),
+            "GOI relative phrase marker relates x2 to the attached sumti",
+        );
     }
 
     #[requires(true)]
@@ -6669,6 +6752,15 @@ fn argument_koha_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
 
 #[requires(true)]
 #[ensures(true)]
+fn cmavo_is_relative_phrase_marker(cmavo: Cmavo) -> bool {
+    matches!(
+        cmavo,
+        Cmavo::Pe | Cmavo::Po | Cmavo::Pohe | Cmavo::Pohu | Cmavo::Ne | Cmavo::Nohu
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn argument_koha_cmavo_with_subscript(sumti: &SumtiSyntax) -> Option<(Cmavo, Option<usize>)> {
     match sumti.as_data() {
         data!(SumtiSyntax::ProSumti(koha)) => {
@@ -6778,6 +6870,12 @@ mod tests {
     fn parse_syntax(input: &str) -> TextSyntax {
         let words = segment_words_with_modifiers(input).expect("morphology succeeds");
         parse_text(&words, &ParseOptions::default()).expect("syntax succeeds")
+    }
+
+    #[requires(true)]
+    #[ensures(ret.offset == offset && ret.length == length)]
+    fn span_key(offset: usize, length: usize) -> FixtureSpanKey {
+        FixtureSpanKey { offset, length }
     }
 
     #[requires(true)]
@@ -6928,6 +7026,57 @@ mod tests {
             assert_eq!(root_metadata.leaf_start, 0);
             assert_eq!(root_metadata.leaf_end, 3);
             assert_eq!(root_metadata.source_spans.len(), 3);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_da_scope_stops_at_bare_i_boundary() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("su'oda zo'u mi prami da .i naku do prami da");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let da_edges = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::DaSeries)
+                .collect::<Vec<_>>();
+
+            assert_eq!(da_edges.len(), 1);
+            assert_eq!(da_edges[0].source, span_key(21, 2));
+            assert!(matches!(
+                &da_edges[0].target,
+                FixtureReferenceTarget::ResolvedNode { node } if *node == span_key(4, 2)
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_da_scope_extends_across_ijek_statement_connection() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("su'oda zo'u mi prami da .ije naku do prami da");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let da_edges = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::DaSeries)
+                .collect::<Vec<_>>();
+            let sources = da_edges
+                .iter()
+                .map(|edge| edge.source.clone())
+                .collect::<Vec<_>>();
+
+            assert_eq!(sources, vec![span_key(21, 2), span_key(43, 2)]);
+            for edge in da_edges {
+                assert!(matches!(
+                    &edge.target,
+                    FixtureReferenceTarget::ResolvedNode { node } if *node == span_key(4, 2)
+                ));
+            }
         });
     }
 
@@ -7303,6 +7452,31 @@ mod tests {
             assert!(ri_targets.iter().all(|target| {
                 matches!(target, FixtureReferenceTarget::ResolvedNode { node } if *node == expected)
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ri_skips_goi_assigned_koha() {
+        run_reference_test(|| {
+            let syntax = parse_syntax("le gerku goi ko'a viska lo mlatu .i ko'a batci ri");
+            let analysis = analyze_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+
+            let ri_targets: Vec<_> = projection
+                .references
+                .iter()
+                .filter(|edge| edge.kind == ReferenceKind::Ri)
+                .map(|edge| &edge.target)
+                .collect();
+
+            assert_eq!(ri_targets.len(), 1);
+            assert!(matches!(
+                ri_targets[0],
+                FixtureReferenceTarget::ResolvedNode { node }
+                    if *node == FixtureSpanKey { offset: 24, length: 8 }
+            ));
         });
     }
 

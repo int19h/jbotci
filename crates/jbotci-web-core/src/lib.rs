@@ -2064,11 +2064,13 @@ fn gimfihi_source_input_from_web_source(
         .map(parse_weight)
         .transpose()
         .map_err(|error| error.to_string())?;
-    Ok(GimfihiSourceInput {
-        language: source.language.trim().to_ascii_lowercase(),
+    // `from_fields` normalizes the word, preserving a bracketed `[IPA]` (which is
+    // case-sensitive and transliterated later) instead of lowercasing it.
+    Ok(GimfihiSourceInput::from_fields(
+        &source.language,
+        &source.word,
         explicit_weight,
-        word: source.word.trim().to_ascii_lowercase(),
-    })
+    ))
 }
 
 #[requires(true)]

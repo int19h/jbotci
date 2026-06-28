@@ -1759,6 +1759,8 @@ pub mod generated_model {
         field poi <- choice((
             cmavo(Poi),
             cmavo(Pohoi),
+            cmavo(Voi),
+            cmavo(Voihi),
         )).wf();
         field subbridi <- boxed(subbridi);
         field kuho <- opt(cmavo(Kuho).wf());
@@ -1768,8 +1770,6 @@ pub mod generated_model {
         field noi <- choice((
             cmavo(Noi),
             cmavo(Nohoi),
-            cmavo(Voi),
-            cmavo(Voihi),
         )).wf();
         field subbridi <- boxed(subbridi);
         field kuho <- opt(cmavo(Kuho).wf());

@@ -96,12 +96,28 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "quantifier scope validity is delegated to QuantifiedProSumtiScope and formula-typed restriction IDs",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::QuantifierBundle",
+        "bundle scope validity is delegated to QuantifierBundleScope and QuantifierBundleBindingScope",
+    ),
+    (
         "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::RelationQuantifier",
         "relation quantifier scope validity is delegated to QuantifiedRelationVariableScope",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",
         "all i64 values are valid math integer literal payloads",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Referent",
+        "referent ID prefixes carry a strongly typed semantic sort; graph validation checks sort/object agreement",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Structural",
+        "structural ID prefixes carry a strongly typed object kind; constructors choose the allowed structural kind",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
+        "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:SemanticOperator::Formula",
@@ -1360,15 +1376,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Section",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Paragraph",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaTarget::Example",
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
@@ -1510,6 +1526,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceWord",
         "invalid source word preserves normalized invalid input, including the empty word case",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidIpa",
+        "IPA error carries the rejected IPA string and a human-readable reason with no further constraint",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/transliterate.rs:Snap::Letters",
+        "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
     ),
     (
         "tests/support/fixtures/mod.rs:Provenance::Cll",

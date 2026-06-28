@@ -1041,7 +1041,12 @@ mod tests {
     #[requires(!property.is_empty())]
     #[ensures(true)]
     fn assert_string_enum_property(schema: &serde_json::Value, property: &str, expected: &[&str]) {
-        let property_schema = &schema["properties"][property];
+        assert_string_enum_property_at(&schema["properties"][property], expected);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_string_enum_property_at(property_schema: &serde_json::Value, expected: &[&str]) {
         // Documented enums render as an inline `oneOf` of `{const, description}`
         // (per-variant docs); a plain `enum` array is the undocumented fallback.
         let actual = if let Some(variants) = property_schema["oneOf"].as_array() {
@@ -1064,7 +1069,7 @@ mod tests {
                 .map(|value| value.as_str().expect("enum string"))
                 .collect::<Vec<_>>()
         };
-        assert_eq!(actual, expected, "{property}");
+        assert_eq!(actual, expected, "{property_schema}");
         assert!(property_schema.get("$ref").is_none(), "{property_schema}");
     }
 
@@ -1588,6 +1593,12 @@ mod tests {
         );
         assert_string_enum_property(cukta_schema, "format", &["markdown", "html", "raw"]);
         assert!(cukta_schema["properties"]["query"].is_object());
+        // The search-result-kind filter is named to disambiguate it from the
+        // `section`/`example` navigation modes; its items are content kinds.
+        assert!(cukta_schema["properties"]["targets"].is_null());
+        let kinds = &cukta_schema["properties"]["search-result-kinds"];
+        assert_eq!(kinds["type"], "array", "{kinds}");
+        assert_string_enum_property_at(&kinds["items"], &["section", "paragraph", "example"]);
         assert!(
             !serde_json::to_string(&cukta_schema)
                 .expect("schema JSON")
@@ -1950,7 +1961,8 @@ mod tests {
         let tersmu_parsed: serde_json::Value =
             serde_json::from_str(tersmu_text).expect("tersmu json content parses");
         assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
-        assert_eq!(tersmu_parsed["root"], "utterance:u1");
+        assert_eq!(tersmu_parsed["root"], "utterance:5");
+        assert_eq!(tersmu_parsed["objects"]["entity:1"]["indexical"], "speaker");
 
         let unknown = post_json(
             app.clone(),
@@ -2108,6 +2120,37 @@ mod tests {
         .await;
         let unknown_json = response_json(unknown).await;
         assert_eq!(unknown_json["error"]["code"], -32602);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_tools_call_tolerates_reserved_meta_field() {
+        // The MCP spec reserves a sibling `_meta` object in `tools/call` params
+        // (e.g. `progressToken`), which the Claude Agent SDK and other clients
+        // send. A conformant server must not reject the call because of it.
+        let app = router(test_config(test_static_dir()));
+        let response = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "meta",
+                "method": "tools/call",
+                "params": {
+                    "name": "gentufa",
+                    "arguments": { "text": "mi klama" },
+                    "_meta": { "progressToken": "abc-123" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert!(json.get("error").is_none(), "{json}");
+        let result = &json["result"];
+        assert_ne!(result["isError"], true, "{result}");
+        assert_eq!(result["content"][0]["type"], "text");
     }
 
     #[tokio::test]

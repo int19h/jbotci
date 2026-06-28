@@ -37,9 +37,10 @@ use jbotci_gentufa::{
     render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_gimfihi::{
-    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiSourceInput,
-    RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape, parse_source_spec,
+    GismuCollision, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
+    parse_source_spec,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -472,13 +473,14 @@ impl Default for ToolCuktaMode {
     }
 }
 
-/// One kind of CLL content that a search may return.
+/// One kind of CLL content a `meaning`/`word` search can keep. These are content
+/// *kinds*, not references — see `search_result_kinds` on the request.
 #[invariant(::Section => true)]
 #[invariant(::Paragraph => true)]
 #[invariant(::Example => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
-pub enum ToolCuktaTarget {
+pub enum ToolCuktaSearchResultKind {
     /// Whole sections (a heading and its prose).
     Section,
     /// Individual paragraphs.
@@ -487,7 +489,7 @@ pub enum ToolCuktaTarget {
     Example,
 }
 
-impl ToolCuktaTarget {
+impl ToolCuktaSearchResultKind {
     /// The canonical lowercase name, matching the CLI `--target` vocabulary.
     #[requires(true)]
     #[ensures(!ret.is_empty())]
@@ -503,6 +505,13 @@ impl ToolCuktaTarget {
 /// Read or search the CLL — *The Complete Lojban Language*, the canonical
 /// reference book. Use this to look up grammar rules, find where a concept is
 /// explained, or pull a specific section or example.
+///
+/// To fetch a specific section or example, set `mode` and put the reference in
+/// `query` — e.g. `{"mode": "section", "query": "5.2"}` or `{"mode": "example",
+/// "query": "6.8"}`. To search, use `mode: "meaning"` (natural language) or
+/// `"word"` (literal term), optionally narrowing the kinds of hits with
+/// `search_result_kinds` — e.g. `{"mode": "meaning", "query": "tanru",
+/// "search-result-kinds": ["section"]}`.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -511,8 +520,9 @@ pub struct ToolCuktaRequest {
     #[serde(default)]
     pub mode: ToolCuktaMode,
     /// The query, interpreted per `mode`: a natural-language description
-    /// (`meaning`), a literal term (`word`), or a section/example reference
-    /// (`section`/`example`). Ignored for `toc`; required otherwise.
+    /// (`meaning`), a literal term (`word`), or a section/example reference such
+    /// as `5.2` (`section`) or `6.8` (`example`). Ignored for `toc`; required
+    /// otherwise.
     #[serde(default)]
     pub query: Option<String>,
     /// Maximum number of results for the search modes (`meaning`, `word`).
@@ -520,10 +530,13 @@ pub struct ToolCuktaRequest {
     #[serde(default)]
     #[schemars(range(min = 1))]
     pub count: Option<usize>,
-    /// Restrict search results (`meaning`, `word`) to these content kinds. Empty
-    /// means all kinds.
+    /// Narrow the results of a `meaning`/`word` search to these content kinds —
+    /// the literal values `section`, `paragraph`, and/or `example`. Empty means
+    /// all kinds. This is NOT how you fetch a specific section or example and it
+    /// does NOT take references like `5.2`: for that, use `mode: section`/
+    /// `example` with the reference in `query`.
     #[serde(default)]
-    pub targets: Vec<ToolCuktaTarget>,
+    pub search_result_kinds: Vec<ToolCuktaSearchResultKind>,
     /// Output format. Defaults to the readable `markdown`.
     #[serde(default)]
     pub format: ToolCuktaFormat,
@@ -744,15 +757,54 @@ impl From<ToolCollisionScope> for CliCollisionScope {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiSource {
-    /// Language code for this source (e.g. `en`, `zh`, `es`). Each language may
-    /// appear only once.
+    /// A short language code for this source (e.g. `eng`, `cmn`, `spa`). Each
+    /// language may appear only once. With a `preset`, the code must be exactly
+    /// one the preset lists (see the `preset` field).
     pub language: String,
-    /// The source word, Lojbanized into gismu-scoring letters (the consonants
-    /// and vowels gismu are built from) plus apostrophe — e.g. `mlatu`, not
-    /// `cat`.
+    /// The word for this concept as a **broad phonetic IPA transcription** of how it
+    /// is pronounced in this language — its sounds, not its phonemes, and definitely
+    /// not its spelling.
+    ///
+    /// Transcribe carefully:
+    /// - Work at the **narrow phonetic** level to the extent permitted by the
+    ///   inventory provided. For example, if some phoneme has allophones which map to
+    ///   different IPA symbols in the inventory, then use those different symbols
+    ///   according to the actual pronunciation. Apply the language's own vowel
+    ///   weakening and reduction rules such as akanye, final devoicing, consonant
+    ///   assimilation such as nb→mb or kz→gz, effect of adjacent phonemes on each
+    ///   other etc, and pick positional allophones according to how the language is
+    ///   actually spoken.
+    /// - Drop grammatical endings (Spanish noun -o/-a: *gato* → `ɡat`).
+    /// - **Do not use the schwa `ə`** — it is rejected. Where you would use it, instead
+    ///   use the nearest full vowel in the provided IPA symbol inventory corresponding
+    ///   to the actual allophone of schwa in this position, based on the language's
+    ///   actual pronunciation of this word.
+    ///
+    /// Use standard IPA from this inventory; the tie bar `◌͡◌`, length `ː`,
+    /// nasalization `◌̃`, palatalization `ʲ`, labialization `ʷ`, aspiration `ʰ`,
+    /// and emphasis `ˤ` are fine to include:
+    /// - Consonants `p b t d k g q`, `f v θ ð s z ʃ ʒ ɕ ʑ ʂ ʐ ç x ɣ χ ħ h ɦ`,
+    ///   affricates `t͡ʃ d͡ʒ t͡s d͡z t͡ɕ d͡ʑ`, `m n ŋ ɲ ɳ`, `l ʎ ɫ`,
+    ///   `r ɾ ɹ ɻ ʀ ʁ ɽ`, `j w ɥ ʋ`, retroflex `ʈ ɖ`.
+    /// - Vowels `i y ɨ ʉ ɯ u ɪ ʊ`, `e ø ɛ œ ɘ ɜ o ɔ ɤ ɵ ɒ`, `a æ ɐ ɑ ʌ`, nasal
+    ///   vowels (`ɛ̃ ɑ̃ ɔ̃` …), glides, and length (`aː`).
+    ///
+    /// Examples (word → IPA): English *cat* → `kæt`, *late* → `leɪ̯t`; Spanish *gato*
+    /// (drop -o) → `ɡat`; Mandarin 用心 → `jʊŋɕin`; French *bon* → `bɔ̃`; Arabic
+    /// *ḥasan* → `ħasan`; Russian *мягко* → `mʲaxkʌ`, *мялись* → `mʲælʲɪsʲ`, *спасибо*
+    /// → `spɐsʲibʌ`.
+    ///
+    /// Reason carefully about the precise transcription and double-check to make sure
+    /// that you didn't use morphological or orthographic representation masquerading
+    /// as IPA; enumerate all the relevant features of the language phonology, such as
+    /// vowel reduction, devoicing, assimilation etc, and make sure that you have
+    /// correctly represented their effects in all positions. If in doubt, look the
+    /// word up in Wiktionary and check Wikipedia articles on the language's phonology.
     pub word: String,
     /// Optional blending weight (1–999). Required for every source unless
-    /// `preset` supplies the weights.
+    /// `preset` supplies the weights. Use presets unless user specifically requests
+    /// custom weights, in which case weights are typically based on the number of
+    /// speakers based on some specified criteria.
     #[serde(default)]
     #[schemars(range(min = 1, max = 999))]
     pub weight: Option<u16>,
@@ -775,9 +827,13 @@ impl ToolGimfihiSource {
 }
 
 /// Propose candidate gismu (root words) from a set of source-language words,
-/// using the standard gismu-creation algorithm: score every legal CVC-shape
-/// candidate by how well its letters recall the weighted sources, then rank
-/// them. This *creates new root words*; it does not look up existing ones.
+/// using the standard gismu-creation algorithm: score every legal candidate by how
+/// well its letters recall the weighted sources, then rank them. This *creates new
+/// root words*; it does not look up existing ones. The set of inputs is determined by
+/// the `sources` and/or `preset` fields. Presets are based on the number of L1 and,
+/// depending on the preset, L2 speakers, relative weights assigned to them, and the
+/// number of top languages picked from the list. Unless specifically directed
+/// otherwise by the user, use ilmen12.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -786,8 +842,18 @@ pub struct ToolGimfihiRequest {
     /// `preset`.
     #[serde(default)]
     pub sources: Vec<ToolGimfihiSource>,
-    /// Use a named weight preset instead of per-source weights. One of: `1985`,
-    /// `1987`, `1994`, `1995`, `1999`, `evenly`, `ilmen6`, `ilmen8`, `ilmen12`.
+    /// Use a named weight preset instead of supplying per-source `weight`s. You
+    /// must then provide exactly the languages that preset covers (ISO 639-3
+    /// codes):
+    /// - `1985`, `1987`, `1994`, `1995`, `1999`, `evenly` — the classic six:
+    ///   `cmn` (Mandarin), `hin` (Hindi), `eng` (English), `spa` (Spanish),
+    ///   `rus` (Russian), `ara` (Arabic). The years differ only in their
+    ///   speaker-population weights; `evenly` weights all six equally.
+    /// - `ilmen6` — `cmn`, `eng`, `hin`, `spa`, `ara`, `fra`
+    /// - `ilmen8` — `cmn`, `eng`, `spa`, `hin`, `ara`, `ben` (Bengali), `rus`,
+    ///   `por` (Portuguese).
+    /// - `ilmen12` — the `ilmen8` languages plus `msa` (Malay), `jpn`
+    ///   (Japanese), `deu` (German), `fra` (French).
     #[serde(default)]
     pub preset: Option<String>,
     /// Candidate letter shapes to generate. Each is `ccvcv` or `cvccv`; empty
@@ -801,8 +867,8 @@ pub struct ToolGimfihiRequest {
     /// default.
     #[serde(default)]
     pub all_letters: bool,
-    /// Include the per-candidate rafsi collision detail in the output. Off by
-    /// default.
+    /// Also include candidates that collide with an existing gismu (each marked
+    /// with the colliding word); otherwise they are omitted. Off by default.
     #[serde(default)]
     pub show_collisions: bool,
     /// Only keep candidates that have at least one free (unclaimed) short rafsi.
@@ -1429,6 +1495,9 @@ struct CuktaInput {
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
 struct GimfihiInput {
+    /// A source word as `LANG[:WEIGHT]:WORD` (repeat per source). WORD is Lojban
+    /// letters, or a phonemic IPA transcription in `[ ... ]` brackets (e.g.
+    /// `eng:210:[kæt]`).
     #[arg(
         long = "source",
         value_name = "LANG[:WEIGHT]:WORD",
@@ -2502,9 +2571,9 @@ fn run_tool_cukta_inner(
         ToolCuktaFormat::Raw => TEXT_PLAIN_CONTENT_TYPE,
     };
     let query = request.query.unwrap_or_default();
-    // The typed `targets` enum set maps directly onto the CLI's per-kind flags;
-    // the string `targets` channel stays empty. Filters only apply to the search
-    // modes and are rejected (downstream) for the navigation modes.
+    // The typed `search_result_kinds` set maps directly onto the CLI's per-kind
+    // target flags; the CLI's string `targets` channel stays empty. Filters only
+    // apply to the search modes and are rejected (downstream) for navigation.
     let mut input = CuktaInput {
         count: request.count,
         toc: false,
@@ -2512,9 +2581,15 @@ fn run_tool_cukta_inner(
         example: None,
         valsi: None,
         targets: Vec::new(),
-        target_sections: request.targets.contains(&ToolCuktaTarget::Section),
-        target_paragraphs: request.targets.contains(&ToolCuktaTarget::Paragraph),
-        target_examples: request.targets.contains(&ToolCuktaTarget::Example),
+        target_sections: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Section),
+        target_paragraphs: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Paragraph),
+        target_examples: request
+            .search_result_kinds
+            .contains(&ToolCuktaSearchResultKind::Example),
         format,
         query: Vec::new(),
     };
@@ -2595,9 +2670,23 @@ pub fn run_tool_jvozba(request: ToolJvozbaRequest) -> Result<ToolRenderedOutput>
     )
 }
 
+/// How a tool caller's source `word` should be read.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GimfihiSourceWordKind {
+    /// Bare phonemic IPA, always transliterated to Lojban (the MCP tool).
+    Ipa,
+    /// Lojban letters by default, with `[IPA]` opting into transliteration (the
+    /// CLI/Discord/web bracket convention).
+    LojbanOrBracketedIpa,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutput> {
+pub fn run_tool_gimfihi(
+    request: ToolGimfihiRequest,
+    word_kind: GimfihiSourceWordKind,
+) -> Result<ToolRenderedOutput> {
     let tool_format = request.format;
     let format = match tool_format {
         ToolGimfihiFormat::Table => GimfihiCliFormat::Table,
@@ -2610,7 +2699,7 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
     let sources = request
         .sources
         .into_iter()
-        .map(tool_gimfihi_source_to_input)
+        .map(|source| tool_gimfihi_source_to_input(source, word_kind))
         .collect::<Result<Vec<_>>>()?;
     run_tool_command(
         Command::Gimfihi(GimfihiInput {
@@ -2631,7 +2720,10 @@ pub fn run_tool_gimfihi(request: ToolGimfihiRequest) -> Result<ToolRenderedOutpu
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn tool_gimfihi_source_to_input(source: ToolGimfihiSource) -> Result<GimfihiSourceInput> {
+fn tool_gimfihi_source_to_input(
+    source: ToolGimfihiSource,
+    word_kind: GimfihiSourceWordKind,
+) -> Result<GimfihiSourceInput> {
     if let Some(weight) = source.weight
         && !(GIMFIHI_MIN_WEIGHT..=GIMFIHI_MAX_WEIGHT).contains(&weight)
     {
@@ -2640,11 +2732,14 @@ fn tool_gimfihi_source_to_input(source: ToolGimfihiSource) -> Result<GimfihiSour
             source.language
         );
     }
-    Ok(GimfihiSourceInput::from_fields(
-        &source.language,
-        &source.word,
-        source.weight,
-    ))
+    Ok(match word_kind {
+        GimfihiSourceWordKind::Ipa => {
+            GimfihiSourceInput::from_ipa_fields(&source.language, &source.word, source.weight)
+        }
+        GimfihiSourceWordKind::LojbanOrBracketedIpa => {
+            GimfihiSourceInput::from_fields(&source.language, &source.word, source.weight)
+        }
+    })
 }
 
 #[requires(true)]
@@ -3400,12 +3495,30 @@ fn render_gimfihi_table(output: &GimfihiOutput) -> String {
 #[ensures(!ret.is_empty())]
 fn render_gimfihi_candidate_row(candidate: &GimfihiCandidate) -> String {
     let marker = if candidate.highlighted { "*" } else { " " };
+    let collision = candidate
+        .collision
+        .as_ref()
+        .map(|collision| format!("{} ", format_gimfihi_collision(collision)))
+        .unwrap_or_default();
     format!(
-        "{marker}     {:<5}  {:<8} {}",
+        "{marker}     {:<5}  {:<8} {collision}{}",
         candidate.word,
         format_gimfihi_score(candidate.score),
         format_gimfihi_rafsi(candidate)
     )
+}
+
+/// Render a candidate's gismu-level collision with an existing word.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_gimfihi_collision(collision: &GismuCollision) -> String {
+    match collision.kind {
+        CollisionKind::Identical => format!("[= existing {}]", collision.existing_word_type),
+        CollisionKind::FinalVowel => format!("[~ {}: final vowel]", collision.existing_word),
+        CollisionKind::SimilarConsonant => {
+            format!("[~ {}: similar consonant]", collision.existing_word)
+        }
+    }
 }
 
 #[requires(score.is_finite())]
@@ -6118,7 +6231,7 @@ mod tests {
                 mode: ToolCuktaMode::Meaning,
                 query: Some("goer".to_owned()),
                 count: Some(1),
-                targets: Vec::new(),
+                search_result_kinds: Vec::new(),
                 format: ToolCuktaFormat::Markdown,
             },
             &mut context,
@@ -6608,15 +6721,16 @@ mod tests {
         assert!(run.stderr.is_empty());
         let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
         assert_eq!(json["version"], "lojban-semantics-json-1");
-        assert_eq!(json["root"], "utterance:u1");
-        assert_eq!(
-            json["objects"]["predication:p1"]["arguments"]["x1"]["kind"],
-            "filled"
-        );
-        assert_eq!(
-            json["objects"]["predication:p1"]["arguments"]["x1"]["value"],
-            "referent:speaker"
-        );
+        assert_eq!(json["root"], "utterance:5");
+        assert_eq!(json["objects"]["entity:1"]["indexical"], "speaker");
+        let klama = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "predication" && object["relation"] == "klama")
+            .expect("klama predication");
+        assert_eq!(klama["arguments"]["x1"]["kind"], "filled");
+        assert_eq!(klama["arguments"]["x1"]["value"], "entity:1");
     }
 
     #[test]
@@ -6630,10 +6744,17 @@ mod tests {
         assert_eq!(run.status, CliStatus::Success);
         assert!(run.stderr.is_empty());
         let json: serde_json::Value = serde_json::from_str(&run.stdout).expect("semantic json");
-        assert_eq!(json["objects"]["question:q1"]["kind"], "argument");
-        assert_eq!(
-            json["objects"]["question:q1"]["slots"][0]["parameter"],
-            "parameter:p1"
+        let question = json["objects"]
+            .as_object()
+            .expect("semantic objects")
+            .values()
+            .find(|object| object["type"] == "question")
+            .expect("question");
+        assert_eq!(question["kind"], "argument");
+        assert!(
+            question["slots"][0]["parameter"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("parameter:"))
         );
     }
 

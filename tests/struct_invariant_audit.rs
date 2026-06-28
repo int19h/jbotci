@@ -1656,6 +1656,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic ID counters are private builder state advanced only by typed next-id helpers",
     ),
     (
+        "crates/jbotci-semantics/src/builder.rs:LegacyIdCounters",
+        "test-only legacy ID counters are mutable projection state advanced by the local next-numbered-id helper",
+    ),
+    (
         "crates/jbotci-semantics/src/builder.rs:SemanticBuildOptions",
         "semantic build options are caller transport state with no invalid combination beyond lifetimes",
     ),
@@ -1670,6 +1674,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/builder.rs:BoundSelbriTanruPair",
         "bound tanru pair carries borrowed syntax nodes whose validity is enforced by SelbriSyntax",
+    ),
+    (
+        "crates/jbotci-semantics/src/builder.rs:RequantifiedDaSelection",
+        "re-quantified da selection is a private carrier produced by a helper with referent-ID postconditions and sealed by graph validation",
     ),
     (
         "crates/jbotci-semantics/src/builder.rs:DescriptionAbstraction",

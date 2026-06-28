@@ -356,6 +356,7 @@ struct FixtureRewriteArgs {
     syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
     syntax_only: bool,
+    only_semantics_refs: bool,
     #[arg(long, hide = true)]
     chunk_worker: bool,
     #[arg(long = "path", hide = true)]
@@ -6879,13 +6880,20 @@ fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
 #[ensures(true)]
 fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.syntax_failure_diagnostics_only
-        && (args.migrate_morphology_diagnostics || args.add_semantics_refs || args.syntax_only)
+        && (args.migrate_morphology_diagnostics
+            || args.add_semantics_refs
+            || args.syntax_only
+            || args.only_semantics_refs)
     {
         bail!(
             "`--syntax-failure-diagnostics-only` cannot be combined with other fixture rewrite modes"
         );
     }
-    if args.syntax_only && (args.migrate_morphology_diagnostics || args.add_semantics_refs) {
+    if args.syntax_only
+        && (args.migrate_morphology_diagnostics
+            || args.add_semantics_refs
+            || args.only_semantics_refs)
+    {
         bail!("`--syntax-only` cannot be combined with other fixture rewrite modes");
     }
     if args.chunk_worker {
@@ -6896,6 +6904,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
+            args.only_semantics_refs,
         )?;
         println!(
             "fixtures={}, rewritten={}",
@@ -6911,6 +6920,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
+            args.only_semantics_refs,
         )?;
         println!("rewrote {} fixture(s)", summary.rewritten);
         return Ok(());
@@ -6921,6 +6931,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.add_semantics_refs,
         args.syntax_failure_diagnostics_only,
         args.syntax_only,
+        args.only_semantics_refs,
     )
 }
 
@@ -6932,6 +6943,7 @@ fn fixture_rewrite_subprocess_chunks(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    only_semantics_refs: bool,
 ) -> Result<()> {
     let mut paths = Vec::new();
     for root in &roots {
@@ -6951,6 +6963,7 @@ fn fixture_rewrite_subprocess_chunks(
             add_semantics_refs,
             syntax_failure_diagnostics_only,
             syntax_only,
+            only_semantics_refs,
         )?;
         if !output.stderr.is_empty() {
             eprint!("{}", String::from_utf8_lossy(&output.stderr));
@@ -6985,6 +6998,7 @@ fn fixture_rewrite_chunk_output(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    only_semantics_refs: bool,
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command.arg("fixture-rewrite").arg("--chunk-worker");
@@ -6999,6 +7013,9 @@ fn fixture_rewrite_chunk_output(
     }
     if syntax_only {
         command.arg("--syntax-only");
+    }
+    if only_semantics_refs {
+        command.arg("--only-semantics-refs");
     }
     for path in chunk {
         command.arg("--path").arg(path);
@@ -7056,6 +7073,7 @@ fn fixture_rewrite_paths(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    only_semantics_refs: bool,
 ) -> Result<RewriteSummary> {
     let mut rewritten = 0usize;
     let total = paths.len();
@@ -7094,7 +7112,7 @@ fn fixture_rewrite_paths(
                 )
             })?;
         } else {
-            refresh_fixture_expectations(&mut fixture, add_semantics_refs)
+            refresh_fixture_expectations(&mut fixture, add_semantics_refs, only_semantics_refs)
                 .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
         }
         write_fixture_file(&path, &fixture.test_case)
@@ -7737,6 +7755,7 @@ fn format_fixture_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String>
 fn refresh_fixture_expectations(
     fixture: &mut LoadedTestCase,
     add_semantics_refs: bool,
+    only_semantics_refs: bool,
 ) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
     let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
@@ -7752,7 +7771,8 @@ fn refresh_fixture_expectations(
         &attempt.warnings,
     );
     let words = attempt.result;
-    if let Some(morphology) = &mut fixture.test_case.expectations.morphology {
+    if !only_semantics_refs && let Some(morphology) = &mut fixture.test_case.expectations.morphology
+    {
         if morphology.status == ExpectationStatus::Failure
             && let Err(error) = &words
         {
@@ -7806,27 +7826,31 @@ fn refresh_fixture_expectations(
         .expectations
         .syntax
         .as_ref()
-        .is_some_and(syntax_accepts_success_tree_refresh);
+        .is_some_and(syntax_accepts_success_tree_refresh)
+        && !only_semantics_refs;
     let refresh_syntax_failure = fixture
         .test_case
         .expectations
         .syntax
         .as_ref()
-        .is_some_and(|syntax| syntax.status == ExpectationStatus::Failure);
+        .is_some_and(|syntax| syntax.status == ExpectationStatus::Failure)
+        && !only_semantics_refs;
     let refresh_tree = fixture
         .test_case
         .expectations
         .output
         .as_ref()
         .and_then(|output| output.gentufa.as_ref())
-        .is_some_and(|output| output.tree.is_some());
+        .is_some_and(|output| output.tree.is_some())
+        && !only_semantics_refs;
     let refresh_brackets = fixture
         .test_case
         .expectations
         .output
         .as_ref()
         .and_then(|output| output.gentufa.as_ref())
-        .is_some_and(|output| output.brackets.is_some());
+        .is_some_and(|output| output.brackets.is_some())
+        && !only_semantics_refs;
     let existing_semantics_refs_success = fixture
         .test_case
         .expectations
