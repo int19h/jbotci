@@ -13,7 +13,7 @@ use jbotci_syntax::generated_model::{
     BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
     CoSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax, DescriptionTailBodySyntax,
     DescriptorWithGadriSumtiSyntax, NameSumtiSyntax, ParagraphSyntax, ProSumtiSyntax,
-    RegularTextSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    GohaWordTanruUnitSyntax, RegularTextSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
     SelbriSimpleBridiTailSyntax, SelbriSyntax, SimpleBridiTailSyntax, SimpleParagraphSyntax,
     SimpleSumtiSyntax, SimpleTermSyntax, StatementBaseSyntax, StatementOrFragmentStatementSyntax,
     StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax,
@@ -1232,7 +1232,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Option<crate::model::SemanticSource> {
         let mut visitor = GeneratedSpanCollector::default();
         node.visit_in_order(&mut visitor);
-        source_from_spans(&visitor.spans, self.options.source_text, Some(construct))
+        let spans =
+            source_spans_with_following_cmevla_period(&visitor.spans, self.options.source_text);
+        source_from_spans(&spans, self.options.source_text, Some(construct))
     }
 
     #[requires(true)]
@@ -1463,6 +1465,9 @@ fn relation_label_from_generated_tanru_unit(
         TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
             Ok(token_text(&word.value))
         }
+        TanruUnitAtomBaseSyntax::GohaWordTanruUnit(GohaWordTanruUnitSyntax(word)) => {
+            Ok(token_text(&word.value))
+        }
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
         }
@@ -1541,11 +1546,13 @@ fn relation_label_from_tanru_unit_atom(
     if !unit.conversions.is_empty() {
         return Err(unsupported("converted tanru unit"));
     }
-    let TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) = unit.base.as_ref()
-    else {
-        return Err(unsupported("non-word tanru unit"));
-    };
-    Ok(token_text(&word.value))
+    match unit.base.as_ref() {
+        TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word))
+        | TanruUnitAtomBaseSyntax::GohaWordTanruUnit(GohaWordTanruUnitSyntax(word)) => {
+            Ok(token_text(&word.value))
+        }
+        _ => Err(unsupported("non-word tanru unit")),
+    }
 }
 
 #[requires(true)]
@@ -1912,6 +1919,13 @@ mod tests {
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_unknown_place_structure() {
         assert_generated_builder_matches_legacy("ta blotrskunri");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_identity_goha() {
+        assert_generated_builder_matches_legacy("do du la .djan.");
     }
 
     #[test]
