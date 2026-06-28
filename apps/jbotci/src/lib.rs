@@ -31,10 +31,10 @@ use jbotci_embeddings::{
     semantic_cukta_output, semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
-    ElidedTerminator, EmbeddedGentufaFonts, GentufaBlock, GentufaBlockAnnotation,
-    GentufaBlockOptions, GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange,
-    blocks_layout, elided_terminators, render_gentufa_blocks_png, render_gentufa_blocks_svg,
-    rendered_leaves,
+    ElidedTerminator, EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions,
+    GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout,
+    elided_terminators, generated_model_blocks_layout, render_gentufa_blocks_png,
+    render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
@@ -4324,8 +4324,13 @@ fn render_gentufa(
     match input.format {
         GentufaFormat::Blocks => {
             let output_type = resolve_gentufa_blocks_output_type(&input)?;
-            let stdout =
-                render_gentufa_generated_blocks_output(&text, phoneme_options, output_type)?;
+            let stdout = render_gentufa_generated_blocks_output(
+                &generated_model,
+                &text,
+                words.as_slice(),
+                phoneme_options,
+                output_type,
+            )?;
             return Ok(new!(GentufaRendered {
                 status: CliStatus::Success,
                 stdout,
@@ -4598,45 +4603,19 @@ fn render_gentufa_blocks_output(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
 fn render_gentufa_generated_blocks_output(
+    syntax: &jbotci_syntax::generated_model::TextSyntax,
     source: &str,
-    _phoneme_options: PhonemeRenderOptions,
+    words: &[WordLike],
+    phoneme_options: PhonemeRenderOptions,
     output_type: GentufaImageOutputType,
 ) -> Result<Vec<u8>> {
-    let display_text = source.to_owned();
-    let layout = jbotci_gentufa::GentufaBlocksLayout::<(), ()> {
-        blocks: vec![GentufaBlock {
-            block_id: "generated-source".to_owned(),
-            node_ids: Vec::new(),
-            label: display_text.clone(),
-            is_leaf: true,
-            is_elided: false,
-            token_kind: None,
-            ref_markers: Vec::new(),
-            span: Some(WebSourceRange {
-                byte_start: 0,
-                byte_end: source.len(),
-                char_start: 0,
-                char_end: source.chars().count(),
-            }),
-            node_types: vec!["GeneratedTextSyntax".to_owned()],
-            ancestors: Vec::new(),
-            col: 0,
-            col_span: 1,
-            row: 0,
-            row_span: 1,
-            color: "#7fb3d5".to_owned(),
-            parent_color: None,
-            raw_text: source.to_owned(),
-            display_text,
-            transform: None,
-            glosses: Vec::new(),
-            definition: None,
-            computed_gloss: None,
-            tooltip: None,
-        }],
-        max_col: 1,
-        max_row: 1,
+    let block_options = GentufaBlockOptions {
+        script: GentufaScript::Latin,
+        show_elided: false,
+        phonemes: phoneme_options,
     };
+    let annotations = gentufa_block_annotations(words);
+    let layout = generated_model_blocks_layout(syntax, source, &annotations, &block_options);
     let svg_options = GentufaSvgOptions {
         show_glosses: false,
         script: GentufaScript::Latin,

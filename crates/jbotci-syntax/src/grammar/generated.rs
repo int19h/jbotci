@@ -426,8 +426,11 @@ pub mod generated_model {
     }
 
     rule "bridi tail" afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
-        field first <- boxed(bo_grouped_bridi_tail);
-        field continuations <- [zero_or_more bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal)];
+        field bridi_tails <- chain(
+            first: boxed(bo_grouped_bridi_tail),
+            zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal),
+            element: bridi_tail,
+        );
     }
 
     rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {

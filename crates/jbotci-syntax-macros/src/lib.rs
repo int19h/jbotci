@@ -690,12 +690,13 @@ fn collect_chain_link_element_fields_for_parser_expr(
             }
         }
         ParserExpr::Chain(expr) => {
-            let link = parser_output_type(&expr.links, type_env, argument_types).ok_or_else(|| {
-                syn::Error::new_spanned(
-                    expr.to_token_stream(),
-                    "cannot infer chain link output type for generated Tree metadata",
-                )
-            })?;
+            let link =
+                parser_output_type(&expr.links, type_env, argument_types).ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        expr.to_token_stream(),
+                        "cannot infer chain link output type for generated Tree metadata",
+                    )
+                })?;
             let link_ty = syn::parse2::<Type>(link).map_err(|error| {
                 syn::Error::new_spanned(
                     expr.to_token_stream(),

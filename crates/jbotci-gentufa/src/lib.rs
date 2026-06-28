@@ -23,7 +23,11 @@ use jbotci_output::{
 use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax};
-use jbotci_syntax::tree::TreeNode;
+use jbotci_syntax::generated_model::{
+    self, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
+    TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
+};
+use jbotci_syntax::tree::{Token, TreeNode};
 use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
@@ -340,6 +344,37 @@ pub fn blocks_layout<Tooltip: Clone>(
 }
 
 #[requires(true)]
+#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+pub fn generated_model_blocks_layout<Tooltip: Clone>(
+    syntax: &GeneratedTextSyntax,
+    source: &str,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+    options: &GentufaBlockOptions,
+) -> GentufaBlocksLayout<Tooltip> {
+    let mut collector = GeneratedBlockCollector::new(source, options);
+    syntax.visit_in_order(&mut collector);
+    let Some(root) = collector.finish() else {
+        return GentufaBlocksLayout {
+            blocks: Vec::new(),
+            max_col: 0,
+            max_row: 0,
+        };
+    };
+    let root = collapse_safe_multi_child_parents(collapse_single_child_chains(root));
+    let mut root = root;
+    assign_tree_depths_and_ancestors(&mut root);
+    let max_depth = block_tree_max_depth(&root);
+    let mut temp_blocks = Vec::new();
+    let max_col = push_positioned_blocks(&root, 0, max_depth, None, &mut temp_blocks);
+    let blocks = annotate_blocks(assign_block_colors(temp_blocks, max_depth), annotations);
+    GentufaBlocksLayout {
+        blocks,
+        max_col,
+        max_row: max_depth + 1,
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub fn display_text_for_spans(
     spans: &[SourceSpan],
@@ -523,6 +558,584 @@ impl<'source, 'options, 'tree> TreeVisitor<'tree> for LeafCollector<'source, 'op
     }
 }
 
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct GeneratedBlockPayload {
+    children: Vec<BlockTreeNode>,
+    leaf_parts: Vec<BlockLeafPart>,
+    source_spans: Vec<SourceSpan>,
+}
+
+impl GeneratedBlockPayload {
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_node(&mut self, node: BlockTreeNode) {
+        self.source_spans.extend(node.source_spans.clone());
+        self.children.push(node);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
+        self.source_spans.extend(source_spans);
+        self.leaf_parts.push(part);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn extend(&mut self, payload: GeneratedBlockPayload) {
+        self.source_spans.extend(payload.source_spans);
+        self.leaf_parts.extend(payload.leaf_parts);
+        self.children.extend(payload.children);
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedNodeFrame {
+    id: RawSyntaxNodeId,
+    label: String,
+    payload: GeneratedBlockPayload,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedFieldFrame {
+    name: Option<&'static str>,
+    payload: GeneratedBlockPayload,
+}
+
+#[derive(Debug)]
+#[invariant(::Node(_) => true)]
+#[invariant(::Field(_) => true)]
+#[invariant(::Collection(_) => true)]
+#[invariant(::Chain(_) => true)]
+enum GeneratedBlockFrame {
+    Node(GeneratedNodeFrame),
+    Field(GeneratedFieldFrame),
+    Collection(GeneratedBlockPayload),
+    Chain(GeneratedBlockPayload),
+}
+
+impl GeneratedBlockFrame {
+    #[requires(true)]
+    #[ensures(true)]
+    fn payload_mut(&mut self) -> &mut GeneratedBlockPayload {
+        match self {
+            Self::Node(frame) => &mut frame.payload,
+            Self::Field(frame) => &mut frame.payload,
+            Self::Collection(payload) | Self::Chain(payload) => payload,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedBlockCollector<'source, 'options> {
+    source: &'source str,
+    options: &'options GentufaBlockOptions,
+    stack: Vec<GeneratedBlockFrame>,
+    root: Option<BlockTreeNode>,
+    next_id: usize,
+}
+
+impl<'source, 'options> GeneratedBlockCollector<'source, 'options> {
+    #[requires(true)]
+    #[ensures(ret.source == source)]
+    fn new(source: &'source str, options: &'options GentufaBlockOptions) -> Self {
+        Self {
+            source,
+            options,
+            stack: Vec::new(),
+            root: None,
+            next_id: 0,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn finish(self) -> Option<BlockTreeNode> {
+        self.root
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn allocate_id(&mut self) -> RawSyntaxNodeId {
+        let id = RawSyntaxNodeId(self.next_id);
+        self.next_id = self.next_id.saturating_add(1);
+        id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_payload(&mut self, payload: GeneratedBlockPayload) {
+        if let Some(frame) = self.stack.last_mut() {
+            frame.payload_mut().extend(payload);
+            return;
+        }
+        if self.root.is_none() && payload.children.len() == 1 && payload.leaf_parts.is_empty() {
+            self.root = payload.children.into_iter().next();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_node(&mut self, node: BlockTreeNode) {
+        if let Some(frame) = self.stack.last_mut() {
+            frame.payload_mut().push_node(node);
+        } else {
+            self.root = Some(node);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
+        if let Some(frame) = self.stack.last_mut() {
+            frame.payload_mut().push_leaf_part(part, source_spans);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_token(&mut self, token: &Token) {
+        self.push_with_indicators(token.as_indicators());
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_with_indicators(&mut self, value: &WithIndicators<WordLike>) {
+        match value {
+            WithIndicators::Plain(word_like) => self.push_word_like(word_like),
+            WithIndicators::Emphasized {
+                bahe,
+                extra_bahe,
+                word_like,
+            } => {
+                self.push_word(bahe);
+                for bahe in extra_bahe {
+                    self.push_word(bahe);
+                }
+                self.push_word_like(word_like);
+            }
+            WithIndicators::WithIndicator {
+                base,
+                indicator_bahe,
+                indicator,
+                nai_bahe,
+                nai,
+            } => {
+                self.push_with_indicators(base);
+                for bahe in indicator_bahe {
+                    self.push_word(bahe);
+                }
+                self.push_word(indicator);
+                for bahe in nai_bahe {
+                    self.push_word(bahe);
+                }
+                if let Some(nai) = nai {
+                    self.push_word(nai);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_word_like(&mut self, word_like: &WordLike) {
+        let span_refs = word_like.source_spans();
+        let Some(range) = range_from_spans(span_refs.iter().copied()) else {
+            return;
+        };
+        let source_spans = span_refs.into_iter().cloned().collect::<Vec<_>>();
+        let id = self.allocate_id();
+        self.push_leaf_part(
+            BlockLeafPart {
+                id,
+                range,
+                is_elided: false,
+                raw_text: source_text_for_range(self.source, Some(range)),
+                display_text: render_word_like(word_like, self.source, self.options),
+            },
+            source_spans,
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_word(&mut self, word: &Word) {
+        let span = word.span().clone();
+        let range = range_from_span(&span);
+        let id = self.allocate_id();
+        self.push_leaf_part(
+            BlockLeafPart {
+                id,
+                range,
+                is_elided: false,
+                raw_text: source_text_for_range(self.source, Some(range)),
+                display_text: render_word(word, self.options),
+            },
+            vec![span],
+        );
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        let id = self.allocate_id();
+        self.stack
+            .push(GeneratedBlockFrame::Node(GeneratedNodeFrame {
+                id,
+                label: syntax_constructor_name(node.constructor_name()).to_owned(),
+                payload: GeneratedBlockPayload::default(),
+            }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        let Some(GeneratedBlockFrame::Node(frame)) = self.stack.pop() else {
+            panic!("generated block collector exited a node without entering it");
+        };
+        let node = generated_block_tree_node_from_frame(frame, self.source);
+        if let Some(node) = node {
+            self.push_node(node);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_field(&mut self, field: jbotci_tree::FieldRef) {
+        self.stack
+            .push(GeneratedBlockFrame::Field(GeneratedFieldFrame {
+                name: field.name,
+                payload: GeneratedBlockPayload::default(),
+            }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_field(&mut self, _field: jbotci_tree::FieldRef) {
+        let Some(GeneratedBlockFrame::Field(frame)) = self.stack.pop() else {
+            panic!("generated block collector exited a field without entering it");
+        };
+        let mut payload = frame.payload;
+        if let Some(name) = frame.name {
+            for child in &mut payload.children {
+                child.field_label = Some(name);
+            }
+        }
+        self.push_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_sequence(&mut self) {
+        self.stack.push(GeneratedBlockFrame::Collection(
+            GeneratedBlockPayload::default(),
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {
+        let Some(GeneratedBlockFrame::Collection(payload)) = self.stack.pop() else {
+            panic!("generated block collector exited a sequence without entering it");
+        };
+        self.push_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_chain(&mut self) {
+        self.stack
+            .push(GeneratedBlockFrame::Chain(GeneratedBlockPayload::default()));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_chain(&mut self) {
+        let Some(GeneratedBlockFrame::Chain(mut payload)) = self.stack.pop() else {
+            panic!("generated block collector exited a chain without entering it");
+        };
+        payload.children =
+            flatten_generated_chain_block_nodes(payload.children, self.source, &mut self.next_id);
+        payload.source_spans = generated_block_source_spans(&payload.children, &payload.leaf_parts);
+        self.push_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            GeneratedSyntaxAtomRef::Token(token) => self.push_token(token),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_block_tree_node_from_frame(
+    frame: GeneratedNodeFrame,
+    source: &str,
+) -> Option<BlockTreeNode> {
+    let GeneratedNodeFrame { id, label, payload } = frame;
+    generated_block_tree_node_from_parts(
+        id,
+        None,
+        vec![id],
+        label.clone(),
+        false,
+        None,
+        Vec::new(),
+        vec![label],
+        payload.children,
+        payload.leaf_parts,
+        source,
+        None,
+    )
+}
+
+#[requires(!label.is_empty())]
+#[ensures(true)]
+fn generated_block_tree_node_from_parts(
+    id: RawSyntaxNodeId,
+    field_label: Option<&'static str>,
+    node_ids: Vec<RawSyntaxNodeId>,
+    label: String,
+    is_elided: bool,
+    token_kind: Option<String>,
+    ref_markers: Vec<ReferenceMarker>,
+    node_types: Vec<String>,
+    mut children: Vec<BlockTreeNode>,
+    mut leaf_parts: Vec<BlockLeafPart>,
+    source: &str,
+    computed_gloss: Option<String>,
+) -> Option<BlockTreeNode> {
+    leaf_parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
+    let source_spans = generated_block_source_spans(&children, &leaf_parts);
+    let span = range_from_spans(source_spans.iter());
+    if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
+        return None;
+    }
+    children.sort_by_key(|child| child.span.map(|span| span.byte_start).unwrap_or(usize::MAX));
+    let display_text = leaf_parts
+        .iter()
+        .map(|part| part.display_text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let leaf_word = if children.is_empty() && leaf_parts.len() == 1 && !display_text.is_empty() {
+        Some(display_text)
+    } else {
+        None
+    };
+    Some(BlockTreeNode {
+        id,
+        field_label,
+        node_ids,
+        label,
+        is_elided,
+        token_kind: leaf_word
+            .as_deref()
+            .and_then(token_kind_for_text)
+            .or(token_kind),
+        ref_markers,
+        span,
+        source_spans,
+        leaf_parts,
+        node_types,
+        ancestors: Vec::new(),
+        depth: 0,
+        raw_text: source_text_for_range(source, span),
+        leaf_word,
+        computed_gloss,
+        children,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_block_source_spans(
+    children: &[BlockTreeNode],
+    leaf_parts: &[BlockLeafPart],
+) -> Vec<SourceSpan> {
+    let mut spans = Vec::new();
+    for child in children {
+        spans.extend(child.source_spans.clone());
+    }
+    spans.extend(
+        leaf_parts
+            .iter()
+            .map(|part| source_span_from_range(part.range)),
+    );
+    spans
+}
+
+#[requires(range.byte_start <= range.byte_end)]
+#[requires(range.char_start <= range.char_end)]
+#[ensures(ret.byte_start == range.byte_start)]
+fn source_span_from_range(range: WebSourceRange) -> SourceSpan {
+    SourceSpan::new(
+        None,
+        range.byte_start,
+        range.byte_end,
+        range.char_start,
+        range.char_end,
+    )
+    .expect("block ranges are ordered")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn flatten_generated_chain_block_nodes(
+    nodes: Vec<BlockTreeNode>,
+    source: &str,
+    next_id: &mut usize,
+) -> Vec<BlockTreeNode> {
+    nodes
+        .into_iter()
+        .flat_map(|node| split_generated_chain_link_block_node(node, source, next_id))
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn split_generated_chain_link_block_node(
+    node: BlockTreeNode,
+    source: &str,
+    next_id: &mut usize,
+) -> Vec<BlockTreeNode> {
+    let original = node.clone();
+    let Some(element_label) = generated_chain_link_element_field(&node.label) else {
+        return vec![node];
+    };
+    let Some(element_index) = node
+        .children
+        .iter()
+        .position(|child| child.field_label == Some(element_label))
+    else {
+        return vec![node];
+    };
+    let Some(element_span) = node.children[element_index].span else {
+        return vec![node];
+    };
+
+    let mut prefix_children = Vec::new();
+    let mut suffix_children = Vec::new();
+    let mut element = None;
+    for (index, child) in node.children.into_iter().enumerate() {
+        if index == element_index {
+            element = Some(child);
+        } else if index < element_index {
+            prefix_children.push(child);
+        } else {
+            suffix_children.push(child);
+        }
+    }
+
+    let mut prefix_leaf_parts = Vec::new();
+    let mut suffix_leaf_parts = Vec::new();
+    for part in node.leaf_parts {
+        if part.range.byte_end <= element_span.byte_start
+            || part.range.byte_start < element_span.byte_start
+        {
+            prefix_leaf_parts.push(part);
+        } else {
+            suffix_leaf_parts.push(part);
+        }
+    }
+
+    let element = element.expect("element index came from the children");
+    let mut fragments = Vec::new();
+    let mut original_identity_available = true;
+    if let Some(prefix) = generated_chain_link_fragment_node(
+        &original,
+        next_id,
+        &mut original_identity_available,
+        prefix_children,
+        prefix_leaf_parts,
+        source,
+    ) {
+        fragments.push(prefix);
+    }
+    fragments.push(element);
+    if let Some(suffix) = generated_chain_link_fragment_node(
+        &original,
+        next_id,
+        &mut original_identity_available,
+        suffix_children,
+        suffix_leaf_parts,
+        source,
+    ) {
+        fragments.push(suffix);
+    }
+    fragments
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_chain_link_fragment_node(
+    original: &BlockTreeNode,
+    next_id: &mut usize,
+    original_identity_available: &mut bool,
+    children: Vec<BlockTreeNode>,
+    leaf_parts: Vec<BlockLeafPart>,
+    source: &str,
+) -> Option<BlockTreeNode> {
+    if children.is_empty() && leaf_parts.is_empty() {
+        return None;
+    }
+    let (id, node_ids, ref_markers, computed_gloss) = if *original_identity_available {
+        *original_identity_available = false;
+        (
+            original.id,
+            original.node_ids.clone(),
+            original.ref_markers.clone(),
+            original.computed_gloss.clone(),
+        )
+    } else {
+        let id = allocate_generated_block_id(next_id);
+        (id, vec![id], Vec::new(), None)
+    };
+    generated_block_tree_node_from_parts(
+        id,
+        original.field_label,
+        node_ids,
+        original.label.clone(),
+        original.is_elided,
+        original.token_kind.clone(),
+        ref_markers,
+        original.node_types.clone(),
+        children,
+        leaf_parts,
+        source,
+        computed_gloss,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn allocate_generated_block_id(next_id: &mut usize) -> RawSyntaxNodeId {
+    let id = RawSyntaxNodeId(*next_id);
+    *next_id = (*next_id).saturating_add(1);
+    id
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_chain_link_element_field(constructor: &str) -> Option<&'static str> {
+    generated_model::GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS
+        .iter()
+        .find_map(|(link_constructor, element_label)| {
+            (*link_constructor == constructor).then_some(*element_label)
+        })
+}
+
 #[derive(Debug)]
 #[invariant(true)]
 struct ElidedTerminatorCollector<'analysis, 'options, 'tree> {
@@ -656,6 +1269,7 @@ fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
 #[invariant(true)]
 struct BlockTreeNode {
     id: RawSyntaxNodeId,
+    field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
     is_elided: bool,
@@ -781,6 +1395,7 @@ fn build_block_tree_node<Tooltip: Clone>(
     };
     Some(BlockTreeNode {
         id,
+        field_label: None,
         node_ids: vec![id],
         label: label.clone(),
         is_elided: false,
@@ -1920,11 +2535,69 @@ mod tests {
         assert_eq!(block_tree_max_depth(&node), 7);
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_chain_blocks_render_tanru_run_in_flat_source_order() {
+        let layout = generated_test_blocks_layout("mi melbi je cmalu je blanu");
+
+        assert_eq!(
+            generated_leaf_display_texts(&layout),
+            vec!["mi", "mélbi", "je", "cmálu", "je", "blánu"]
+        );
+        assert!(layout.blocks.iter().any(|block| block.label == "TanruUnit"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_chain_link_split_keeps_suffix_after_element_for_blocks() {
+        let link = BlockTreeNode {
+            id: RawSyntaxNodeId(1),
+            field_label: None,
+            node_ids: vec![RawSyntaxNodeId(1)],
+            label: "BridiTailContinuation".to_owned(),
+            is_elided: false,
+            token_kind: None,
+            ref_markers: Vec::new(),
+            span: Some(test_range(0, 3)),
+            source_spans: vec![source_span_from_range(test_range(0, 3))],
+            leaf_parts: vec![
+                test_leaf_part(2, "gi'e", test_range(0, 1)),
+                test_leaf_part(3, "do", test_range(2, 3)),
+            ],
+            node_types: vec!["BridiTailContinuation".to_owned()],
+            ancestors: Vec::new(),
+            depth: 0,
+            raw_text: String::new(),
+            leaf_word: None,
+            computed_gloss: None,
+            children: vec![test_generated_block_node(
+                4,
+                "SelbriSimpleBridiTail",
+                Some("bridi_tail"),
+                test_range(1, 2),
+                "cadzu",
+            )],
+        };
+        let mut next_id = 10;
+
+        let parts = split_generated_chain_link_block_node(link, "", &mut next_id);
+
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts[0].label, "BridiTailContinuation");
+        assert_eq!(parts[0].leaf_parts[0].display_text, "gi'e");
+        assert_eq!(parts[1].label, "SelbriSimpleBridiTail");
+        assert_eq!(parts[2].label, "BridiTailContinuation");
+        assert_eq!(parts[2].leaf_parts[0].display_text, "do");
+    }
+
     #[requires(true)]
     #[ensures(ret.depth == depth)]
     fn test_block_tree_node(depth: usize, leaf_part_count: usize) -> BlockTreeNode {
         BlockTreeNode {
             id: RawSyntaxNodeId(depth),
+            field_label: None,
             node_ids: vec![RawSyntaxNodeId(depth)],
             label: format!("node-{depth}"),
             is_elided: false,
@@ -1960,5 +2633,90 @@ mod tests {
                 display_text: format!("w{index}"),
             })
             .collect()
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn generated_test_blocks_layout(source: &str) -> GentufaBlocksLayout {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &jbotci_syntax::ParseOptions::default(),
+        )
+        .expect("valid generated syntax");
+        generated_model_blocks_layout(
+            &syntax,
+            source,
+            &Vec::<GentufaBlockAnnotation<()>>::new(),
+            &GentufaBlockOptions::default(),
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_leaf_display_texts(layout: &GentufaBlocksLayout) -> Vec<String> {
+        layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && !block.is_elided)
+            .map(|block| block.display_text.clone())
+            .collect()
+    }
+
+    #[requires(byte_start <= byte_end)]
+    #[ensures(ret.byte_start == byte_start)]
+    fn test_range(byte_start: usize, byte_end: usize) -> WebSourceRange {
+        WebSourceRange {
+            byte_start,
+            byte_end,
+            char_start: byte_start,
+            char_end: byte_end,
+        }
+    }
+
+    #[requires(!display_text.is_empty())]
+    #[requires(range.byte_start <= range.byte_end)]
+    #[ensures(ret.display_text == display_text)]
+    fn test_leaf_part(id: usize, display_text: &str, range: WebSourceRange) -> BlockLeafPart {
+        BlockLeafPart {
+            id: RawSyntaxNodeId(id),
+            range,
+            is_elided: false,
+            raw_text: display_text.to_owned(),
+            display_text: display_text.to_owned(),
+        }
+    }
+
+    #[requires(!label.is_empty() && !display_text.is_empty())]
+    #[requires(range.byte_start <= range.byte_end)]
+    #[ensures(ret.label == label)]
+    fn test_generated_block_node(
+        id: usize,
+        label: &str,
+        field_label: Option<&'static str>,
+        range: WebSourceRange,
+        display_text: &str,
+    ) -> BlockTreeNode {
+        BlockTreeNode {
+            id: RawSyntaxNodeId(id),
+            field_label,
+            node_ids: vec![RawSyntaxNodeId(id)],
+            label: label.to_owned(),
+            is_elided: false,
+            token_kind: token_kind_for_text(display_text),
+            ref_markers: Vec::new(),
+            span: Some(range),
+            source_spans: vec![source_span_from_range(range)],
+            leaf_parts: vec![test_leaf_part(id + 100, display_text, range)],
+            node_types: vec![label.to_owned()],
+            ancestors: Vec::new(),
+            depth: 0,
+            raw_text: display_text.to_owned(),
+            leaf_word: Some(display_text.to_owned()),
+            computed_gloss: None,
+            children: Vec::new(),
+        }
     }
 }

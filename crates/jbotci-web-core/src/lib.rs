@@ -24,6 +24,7 @@ pub use jbotci_gentufa::{
 };
 use jbotci_gentufa::{
     ElidedTerminator, RenderedLeaf, display_text_for_spans as gentufa_display_text_for_spans,
+    generated_model_blocks_layout as generated_syntax_blocks_layout,
     range_from_spans as gentufa_range_from_spans,
     reference_markers_for_node as gentufa_reference_markers_for_node,
     reference_slot_label_from_output, syntax_constructor_name as gentufa_syntax_constructor_name,
@@ -474,7 +475,15 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             });
         }
     };
-    let blocks_layout = generated_model_blocks_layout(source, &surface_text);
+    let block_options = gentufa_block_options(&request.options);
+    let generated_annotations = Vec::<GentufaBlockAnnotation<DictionaryTooltipCard>>::new();
+    let blocks_layout =
+        generated_blocks_layout_with_empty_reference_tooltips(generated_syntax_blocks_layout(
+            &generated_model,
+            source,
+            &generated_annotations,
+            &block_options,
+        ));
     let tree_rows = generated_model_tree_rows_from_text(&tree_text);
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
     let brackets_text = tree_text;
@@ -495,46 +504,6 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             ..WebFeatureAvailability::default()
         },
     })
-}
-
-#[requires(true)]
-#[ensures(ret.max_col == 1)]
-#[ensures(ret.max_row == 1)]
-fn generated_model_blocks_layout(source: &str, surface_text: &str) -> GentufaBlocksLayout {
-    GentufaBlocksLayout {
-        blocks: vec![GentufaBlock {
-            block_id: "generated-source".to_owned(),
-            node_ids: Vec::new(),
-            label: surface_text.to_owned(),
-            is_leaf: true,
-            is_elided: false,
-            token_kind: None,
-            ref_markers: Vec::new(),
-            span: Some(WebSourceRange {
-                byte_start: 0,
-                byte_end: source.len(),
-                char_start: 0,
-                char_end: source.chars().count(),
-            }),
-            node_types: vec!["GeneratedTextSyntax".to_owned()],
-            ancestors: Vec::new(),
-            col: 0,
-            col_span: 1,
-            row: 0,
-            row_span: 1,
-            color: "#7fb3d5".to_owned(),
-            parent_color: None,
-            raw_text: source.to_owned(),
-            display_text: surface_text.to_owned(),
-            transform: None,
-            glosses: Vec::new(),
-            definition: None,
-            computed_gloss: None,
-            tooltip: None,
-        }],
-        max_col: 1,
-        max_row: 1,
-    }
 }
 
 #[requires(!tree_text.is_empty())]
@@ -574,6 +543,99 @@ fn generated_model_tree_rows_from_text(tree_text: &str) -> Vec<GentufaTreeRow> {
             }
         })
         .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.max_col == layout.max_col)]
+fn generated_blocks_layout_with_empty_reference_tooltips(
+    layout: BareGentufaBlocksLayout,
+) -> GentufaBlocksLayout {
+    GentufaBlocksLayout {
+        blocks: layout
+            .blocks
+            .into_iter()
+            .map(generated_block_with_empty_reference_tooltips)
+            .collect(),
+        max_col: layout.max_col,
+        max_row: layout.max_row,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_block_with_empty_reference_tooltips(block: BareGentufaBlock) -> GentufaBlock {
+    let jbotci_gentufa::GentufaBlock {
+        block_id,
+        node_ids,
+        label,
+        is_leaf,
+        is_elided,
+        token_kind,
+        ref_markers,
+        span,
+        node_types,
+        ancestors,
+        col,
+        col_span,
+        row,
+        row_span,
+        color,
+        parent_color,
+        raw_text,
+        display_text,
+        transform,
+        glosses,
+        definition,
+        computed_gloss,
+        tooltip,
+    } = block;
+    GentufaBlock {
+        block_id,
+        node_ids,
+        label,
+        is_leaf,
+        is_elided,
+        token_kind,
+        ref_markers: ref_markers
+            .into_iter()
+            .map(generated_reference_marker_with_empty_tooltip)
+            .collect(),
+        span,
+        node_types,
+        ancestors,
+        col,
+        col_span,
+        row,
+        row_span,
+        color,
+        parent_color,
+        raw_text,
+        display_text,
+        transform,
+        glosses,
+        definition,
+        computed_gloss,
+        tooltip,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.tooltip.is_none())]
+fn generated_reference_marker_with_empty_tooltip(marker: BareReferenceMarker) -> ReferenceMarker {
+    let jbotci_gentufa::ReferenceMarker {
+        role,
+        kind,
+        label,
+        source,
+        tooltip: _,
+    } = marker;
+    ReferenceMarker {
+        role,
+        kind,
+        label,
+        source,
+        tooltip: None,
+    }
 }
 
 #[requires(true)]

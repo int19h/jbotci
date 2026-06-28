@@ -3740,29 +3740,27 @@ fn legacy_as_generated_afterthought_bridi_tail_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    let mut entries = vec![TreeEntry {
-        label: Some("first"),
-        value: legacy_as_generated_bo_grouped_bridi_tail_tree_value(
-            bridi_tail.first.as_ref(),
-            source,
-            options,
-        ),
-    }];
-    if let Some(entry) = labelled_tree_collection_entry_from_values(
-        "continuations",
-        bridi_tail
-            .continuations
-            .iter()
-            .map(|continuation| {
-                legacy_as_generated_bridi_tail_connection_tree_value(continuation, source, options)
-            })
-            .collect(),
-    ) {
-        entries.push(entry);
-    }
     TreeValue::Node(TreeNode {
         constructor: "AfterthoughtBridiTail",
-        entries,
+        entries: legacy_as_generated_flat_chain_entries(
+            std::iter::once(legacy_as_generated_bo_grouped_bridi_tail_tree_value(
+                bridi_tail.first.as_ref(),
+                source,
+                options,
+            ))
+            .chain(bridi_tail.continuations.iter().flat_map(|continuation| {
+                legacy_as_generated_split_bridi_tail_connection_tree_values(
+                    legacy_as_generated_bridi_tail_connection_tree_value(
+                        continuation,
+                        source,
+                        options,
+                    ),
+                    "BridiTailContinuation",
+                    "bridi_tail",
+                )
+            }))
+            .collect(),
+        ),
     })
 }
 
@@ -4065,6 +4063,23 @@ fn legacy_as_generated_bridi_tail_connection_tree_value(
         constructor: "BridiTailContinuation",
         entries,
     })
+}
+
+#[requires(!constructor.is_empty() && !element_label.is_empty())]
+#[ensures(!ret.is_empty())]
+fn legacy_as_generated_split_bridi_tail_connection_tree_values(
+    value: TreeValue,
+    constructor: &'static str,
+    element_label: &'static str,
+) -> Vec<TreeValue> {
+    match value {
+        TreeValue::Node(node) => {
+            split_chain_link_node_tree_value(node, |node_constructor, label| {
+                node_constructor == constructor && label == element_label
+            })
+        }
+        value => vec![value],
+    }
 }
 
 #[requires(true)]
@@ -9572,29 +9587,35 @@ fn legacy_as_generated_mekso_operand_tree_value(
 ) -> TreeValue {
     if let Some((leading_expression, continuations)) = legacy_mekso_connection_parts(mekso) {
         let entries = legacy_as_generated_flat_chain_entries(
-            std::iter::once(legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                leading_expression,
-                source,
-                options,
-            ))
-            .chain(continuations.iter().flat_map(|(connective, trailing_expression)| {
-                [
-                    TreeValue::Node(TreeNode {
-                        constructor: "AfterthoughtMeksoOperandContinuation",
-                        entries: vec![TreeEntry {
-                            label: Some("operand_connective"),
-                            value: legacy_as_generated_operand_connective_tree_value(
-                                connective, source, options,
+            std::iter::once(
+                legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+                    leading_expression,
+                    source,
+                    options,
+                ),
+            )
+            .chain(
+                continuations
+                    .iter()
+                    .flat_map(|(connective, trailing_expression)| {
+                        [
+                            TreeValue::Node(TreeNode {
+                                constructor: "AfterthoughtMeksoOperandContinuation",
+                                entries: vec![TreeEntry {
+                                    label: Some("operand_connective"),
+                                    value: legacy_as_generated_operand_connective_tree_value(
+                                        connective, source, options,
+                                    ),
+                                }],
+                            }),
+                            legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
+                                trailing_expression,
+                                source,
+                                options,
                             ),
-                        }],
+                        ]
                     }),
-                    legacy_as_generated_bound_or_simple_mekso_operand_tree_value(
-                        trailing_expression,
-                        source,
-                        options,
-                    ),
-                ]
-            }))
+            )
             .collect(),
         );
         return legacy_as_generated_wrapped_variant_tree_value(
@@ -10090,24 +10111,28 @@ fn legacy_as_generated_mekso_operator_tree_value(
                 source,
                 options,
             ))
-            .chain(continuations.iter().flat_map(|(connective, trailing_operator)| {
-                [
-                    TreeValue::Node(TreeNode {
-                        constructor: "AfterthoughtMeksoOperatorContinuation",
-                        entries: vec![TreeEntry {
+            .chain(
+                continuations
+                    .iter()
+                    .flat_map(|(connective, trailing_operator)| {
+                        [
+                            TreeValue::Node(TreeNode {
+                                constructor: "AfterthoughtMeksoOperatorContinuation",
+                                entries: vec![TreeEntry {
                             label: Some("connective"),
                             value: legacy_as_generated_relation_afterthought_connective_tree_value(
                                 connective, source, options,
                             ),
                         }],
+                            }),
+                            legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
+                                trailing_operator,
+                                source,
+                                options,
+                            ),
+                        ]
                     }),
-                    legacy_as_generated_bound_or_atom_mekso_operator_tree_value(
-                        trailing_operator,
-                        source,
-                        options,
-                    ),
-                ]
-            }))
+            )
             .collect(),
         );
         return legacy_as_generated_wrapped_variant_tree_value(
@@ -18776,25 +18801,63 @@ where
             }
             parts
         }
-        TreeValue::Node(mut node) => {
-            let Some((element_index, _)) =
-                node.entries.iter().enumerate().find(|(_, entry)| {
-                    entry.label.is_some_and(|label| {
-                        M::chain_link_element_field(node.constructor, label)
-                    })
-                })
-            else {
+        TreeValue::Node(node) => {
+            if !node.entries.iter().any(|entry| {
+                entry
+                    .label
+                    .is_some_and(|label| M::chain_link_element_field(node.constructor, label))
+            }) {
                 return vec![TreeValue::Node(node)];
             };
-            let element = node.entries.remove(element_index).value;
-            if node.entries.is_empty() {
-                vec![element]
-            } else {
-                vec![TreeValue::Node(node), element]
-            }
+            split_chain_link_node_tree_value(node, M::chain_link_element_field)
         }
         value => vec![value],
     }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn split_chain_link_node_tree_value(
+    node: TreeNode,
+    is_element_field: impl Fn(&'static str, &'static str) -> bool,
+) -> Vec<TreeValue> {
+    let constructor = node.constructor;
+    let Some(element_index) = node.entries.iter().position(|entry| {
+        entry
+            .label
+            .is_some_and(|label| is_element_field(constructor, label))
+    }) else {
+        return vec![TreeValue::Node(node)];
+    };
+
+    let mut prefix = Vec::new();
+    let mut suffix = Vec::new();
+    let mut element = None;
+    for (index, entry) in node.entries.into_iter().enumerate() {
+        if index == element_index {
+            element = Some(entry.value);
+        } else if index < element_index {
+            prefix.push(entry);
+        } else {
+            suffix.push(entry);
+        }
+    }
+
+    let mut parts = Vec::new();
+    if !prefix.is_empty() {
+        parts.push(TreeValue::Node(TreeNode {
+            constructor,
+            entries: prefix,
+        }));
+    }
+    parts.push(element.expect("element index came from the entries"));
+    if !suffix.is_empty() {
+        parts.push(TreeValue::Node(TreeNode {
+            constructor,
+            entries: suffix,
+        }));
+    }
+    parts
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18812,11 +18875,11 @@ where
 {
     stack.iter().rev().find_map(|frame| match frame {
         SyntaxFrame::Node { node_ref, .. } => Some(*node_ref),
-            SyntaxFrame::Field { .. }
-            | SyntaxFrame::Collection { .. }
-            | SyntaxFrame::Chain { .. } => None,
-        })
-    }
+        SyntaxFrame::Field { .. } | SyntaxFrame::Collection { .. } | SyntaxFrame::Chain { .. } => {
+            None
+        }
+    })
+}
 
 #[requires(span.byte_start <= span.byte_end)]
 #[requires(span.char_start <= span.char_end)]
@@ -19676,6 +19739,53 @@ mod tests {
         assert_eq!(
             output,
             "Bridi {\n  leading_terms: [\n    Cmavo \"mi\",\n  ],\n  Gismu \"kláma\",\n}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chain_link_split_preserves_prefix_element_suffix_order() {
+        let parts = split_chain_link_node_tree_value(
+            TreeNode {
+                constructor: "Link",
+                entries: vec![
+                    TreeEntry {
+                        label: Some("prefix"),
+                        value: TreeValue::Text("before".to_owned()),
+                    },
+                    TreeEntry {
+                        label: Some("element"),
+                        value: TreeValue::Text("middle".to_owned()),
+                    },
+                    TreeEntry {
+                        label: Some("suffix"),
+                        value: TreeValue::Text("after".to_owned()),
+                    },
+                ],
+            },
+            |_, label| label == "element",
+        );
+
+        assert_eq!(
+            parts,
+            vec![
+                TreeValue::Node(TreeNode {
+                    constructor: "Link",
+                    entries: vec![TreeEntry {
+                        label: Some("prefix"),
+                        value: TreeValue::Text("before".to_owned()),
+                    }],
+                }),
+                TreeValue::Text("middle".to_owned()),
+                TreeValue::Node(TreeNode {
+                    constructor: "Link",
+                    entries: vec![TreeEntry {
+                        label: Some("suffix"),
+                        value: TreeValue::Text("after".to_owned()),
+                    }],
+                }),
+            ]
         );
     }
 
