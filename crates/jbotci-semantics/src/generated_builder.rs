@@ -18,12 +18,13 @@ use jbotci_syntax::generated_model::{
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
     IStatementConnectionTailSyntax, IStatementConnectiveSyntax, JoikConnectiveSyntax,
-    LaheSumtiSyntax, LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitSyntax, NameSumtiSyntax,
-    NumberSumtiSyntax, OrdinalTanruUnitSyntax, ParagraphSyntax, PreposedIStatementConnectionSyntax,
-    ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
-    QuantifierSyntax, RegularTextSyntax, RelationAfterthoughtConnectiveSyntax,
-    RelationDescriptionTailSyntax, RelationOnlyBridiSyntax, RelativeClauseAtomSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, RestrictiveBridiRelativeClauseSyntax,
+    LaheSumtiSyntax, LerfuStringSumtiSyntax, LinkargsSyntax, LinkedSumtiSyntax,
+    LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax, OrdinalTanruUnitSyntax,
+    ParagraphSyntax, PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, RegularTextSyntax,
+    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    RestrictiveBridiRelativeClauseSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
     ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSyntax, SimpleBridiTailSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
@@ -44,13 +45,13 @@ use crate::builder::{
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, ArgumentValueKind,
-    CommandTarget, Composition, Connector, Descriptor, EventualityClass, EventualitySort,
-    FormulaOperator, IndexicalKind, ModalArgument, ModalNegation, ModalNegationKind, ParameterRole,
-    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink, UtteranceForce, diagnostic,
-    source_from_spans,
+    CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness, EventualityClass,
+    EventualitySort, FormulaOperator, IndexicalKind, ModalArgument, ModalNegation,
+    ModalNegationKind, ParameterRole, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
+    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause,
+    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -5404,6 +5405,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         sumti: &SumtiBaseSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match sumti {
+            SumtiBaseSyntax::ScalarNegatedSumtiWithBo(sumti) => {
+                self.build_scalar_negated_generated_sumti_with_bo_referent(sumti)
+            }
+            SumtiBaseSyntax::ScalarNegatedSumti(sumti) => {
+                self.build_scalar_negated_generated_sumti_referent(sumti)
+            }
             SumtiBaseSyntax::ProSumti(pro_sumti) => self.build_pro_sumti_referent(pro_sumti),
             SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
                 self.build_description_referent(description)
@@ -5413,9 +5420,146 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             SumtiBaseSyntax::NameSumti(name) => self.build_name_sumti_referent(name),
             SumtiBaseSyntax::NumberSumti(number) => self.build_number_sumti_referent(number),
+            SumtiBaseSyntax::LerfuStringSumti(sumti) => {
+                self.build_lerfu_string_sumti_referent(sumti)
+            }
             SumtiBaseSyntax::LaheSumti(sumti) => self.build_lahe_sumti_referent(sumti),
             _ => Err(unsupported("sumti base")),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_lerfu_string_sumti_referent(
+        &mut self,
+        sumti: &LerfuStringSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_generated_diagnostic_sumti_referent(
+            sumti,
+            "letteral pro-sumti did not resolve to an antecedent",
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_scalar_negated_generated_sumti_with_bo_referent(
+        &mut self,
+        sumti: &ScalarNegatedSumtiWithBoSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_scalar_negated_generated_sumti_referent_with_marker(
+            sumti,
+            sumti.nahe.cmavo(),
+            format!("{} bo", token_text(&sumti.nahe)),
+            &sumti.inner_sumti,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_scalar_negated_generated_sumti_referent(
+        &mut self,
+        sumti: &ScalarNegatedSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_scalar_negated_generated_sumti_referent_with_marker(
+            sumti,
+            sumti.nahe.value.cmavo(),
+            token_text(&sumti.nahe.value),
+            &sumti.inner_sumti,
+        )
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_scalar_negated_generated_sumti_referent_with_marker<N: TreeNode>(
+        &mut self,
+        node: &N,
+        cmavo: Option<Cmavo>,
+        word: String,
+        inner_sumti: &SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operand = self.build_sumti_referent(inner_sumti)?;
+        let sort = self
+            .objects
+            .get(&operand)
+            .and_then(|object| object.sort)
+            .unwrap_or(SemanticSort::Entity);
+        let scale = self.build_generated_scalar_negation_scale_referent(node, &word)?;
+        let id = self.next_referent_with_sort_id(sort);
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                sort,
+                None,
+                Some(Descriptor {
+                    kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
+                    word,
+                    speaker: Some(SemanticObjectId::speaker()),
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    scale: Some(scale),
+                    definiteness: descriptor_definiteness_for_scalar_negated_sumti(cmavo),
+                    operand: Some(operand),
+                }),
+                None,
+                self.source_for_node(node, "sumti"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_generated_scalar_negation_scale_referent<N: TreeNode>(
+        &mut self,
+        node: &N,
+        introduced_by: &str,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.insert_scalar_negation_scale_referent(
+            introduced_by,
+            "implicit scalar scale",
+            None,
+            self.source_for_node(node, "scalar-scale"),
+        )
+    }
+
+    #[requires(!message.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_generated_diagnostic_sumti_referent<N: TreeNode>(
+        &mut self,
+        node: &N,
+        message: &str,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                Some(Descriptor {
+                    kind: "unloweredSumti".to_owned(),
+                    word: "sumti".to_owned(),
+                    speaker: None,
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(node, "sumti"),
+                vec![diagnostic(message)],
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(true)]
@@ -9185,6 +9329,30 @@ fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
         Some(Cmavo::Nohe) => ScalarNegationKind::Neutral,
         Some(Cmavo::Jeha) => ScalarNegationKind::Affirmed,
         _ => ScalarNegationKind::OtherThan,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn scalar_negated_sumti_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
+    match cmavo {
+        Some(Cmavo::Tohe) => "oppositeOf",
+        Some(Cmavo::Nohe) => "neutralOf",
+        Some(Cmavo::Jeha) => "affirmedAs",
+        _ => "otherThan",
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn descriptor_definiteness_for_scalar_negated_sumti(
+    cmavo: Option<Cmavo>,
+) -> Option<DescriptorDefiniteness> {
+    match cmavo {
+        Some(Cmavo::Tohe) => Some(DescriptorDefiniteness::UniqueExtreme),
+        Some(Cmavo::Nohe) => Some(DescriptorDefiniteness::NeutralPoint),
+        Some(Cmavo::Jeha) => Some(DescriptorDefiniteness::AffirmedPoint),
+        _ => Some(DescriptorDefiniteness::IndefiniteAlternative),
     }
 }
 
