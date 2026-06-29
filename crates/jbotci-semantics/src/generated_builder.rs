@@ -4397,8 +4397,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         sumti: &SumtiSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
+        if generated_sumti_is_deleted(sumti) {
+            return Ok(ArgumentValue::deleted(
+                "zi'o".to_owned(),
+                self.source_for_node(sumti, "deleted-place"),
+            ));
+        }
         let referent = self.build_sumti_referent(sumti)?;
-        let mut argument = ArgumentValue::filled(referent, None);
+        let mut argument = if generated_sumti_is_elided(sumti) {
+            ArgumentValue::elided(
+                referent,
+                "zo'e".to_owned(),
+                self.source_for_node(sumti, "elided-place"),
+            )
+        } else {
+            ArgumentValue::filled(referent, None)
+        };
         if generated_sumti_is_command_target(sumti) {
             argument = argument.with_command_target(CommandTarget::new("ko".to_owned()));
         }
@@ -4873,6 +4887,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
             Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Zohe) => self.build_elided_referent_with_source(
+                "zo'e".to_owned(),
+                self.source_for_node(pro_sumti, "elided-sumti"),
+            ),
             Some(Cmavo::Keha) => self
                 .relative_head
                 .ok_or_else(|| unsupported("relative head pro-sumti outside relative clause")),
@@ -5363,7 +5381,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!label.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_elided_referent(&mut self, label: String) -> Result<SemanticObjectId, SemanticsError> {
-        self.build_elided_referent_with_sort(label, SemanticSort::Entity)
+        self.build_elided_referent_with_sort_and_source(label, SemanticSort::Entity, None)
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_elided_referent_with_source(
+        &mut self,
+        label: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_elided_referent_with_sort_and_source(label, SemanticSort::Entity, source)
     }
 
     #[requires(!label.is_empty())]
@@ -5372,6 +5400,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         label: String,
         sort: SemanticSort,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_elided_referent_with_sort_and_source(label, sort, None)
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_elided_referent_with_sort_and_source(
+        &mut self,
+        label: String,
+        sort: SemanticSort,
+        source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent_with_sort_id(sort);
         self.insert(
@@ -5394,7 +5433,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     operand: None,
                 }),
                 None,
-                None,
+                source,
                 Vec::new(),
             ),
         )?;
@@ -6700,64 +6739,80 @@ fn generated_sumti_relative_clause_list(sumti: &SumtiSyntax) -> Option<&Relative
 #[requires(true)]
 #[ensures(true)]
 fn generated_sumti_is_command_target(sumti: &SumtiSyntax) -> bool {
+    generated_sumti_spine_cmavo(sumti) == Some(Cmavo::Ko)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_is_elided(sumti: &SumtiSyntax) -> bool {
+    generated_sumti_spine_cmavo(sumti) == Some(Cmavo::Zohe)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_is_deleted(sumti: &SumtiSyntax) -> bool {
+    generated_sumti_spine_cmavo(sumti) == Some(Cmavo::Ziho)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_spine_cmavo(sumti: &SumtiSyntax) -> Option<Cmavo> {
     if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
-        return false;
+        return None;
     }
-    generated_sumti_afterthought_is_command_target(&sumti.base_sumti.leading_sumti)
+    generated_sumti_afterthought_spine_cmavo(&sumti.base_sumti.leading_sumti)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_afterthought_is_command_target(sumti: &SumtiAfterthoughtSyntax) -> bool {
+fn generated_sumti_afterthought_spine_cmavo(sumti: &SumtiAfterthoughtSyntax) -> Option<Cmavo> {
     if !sumti.continuations.is_empty() {
-        return false;
+        return None;
     }
-    generated_sumti_bound_is_command_target(&sumti.leading_sumti)
+    generated_sumti_bound_spine_cmavo(&sumti.leading_sumti)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_bound_is_command_target(sumti: &SumtiBoundSyntax) -> bool {
+fn generated_sumti_bound_spine_cmavo(sumti: &SumtiBoundSyntax) -> Option<Cmavo> {
     if sumti.bound_tail.is_some() {
-        return false;
+        return None;
     }
-    generated_sumti_forethought_is_command_target(&sumti.leading_sumti)
+    generated_sumti_forethought_spine_cmavo(&sumti.leading_sumti)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_forethought_is_command_target(sumti: &SumtiForethoughtSyntax) -> bool {
+fn generated_sumti_forethought_spine_cmavo(sumti: &SumtiForethoughtSyntax) -> Option<Cmavo> {
     match sumti {
-        SumtiForethoughtSyntax::SimpleSumti(simple) => {
-            generated_simple_sumti_is_command_target(simple)
-        }
-        SumtiForethoughtSyntax::ForethoughtSumti(_) => false,
+        SumtiForethoughtSyntax::SimpleSumti(simple) => generated_simple_sumti_spine_cmavo(simple),
+        SumtiForethoughtSyntax::ForethoughtSumti(_) => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_simple_sumti_is_command_target(sumti: &SimpleSumtiSyntax) -> bool {
-    generated_sumti_atom_is_command_target(&sumti.base_sumti)
+fn generated_simple_sumti_spine_cmavo(sumti: &SimpleSumtiSyntax) -> Option<Cmavo> {
+    generated_sumti_atom_spine_cmavo(&sumti.base_sumti)
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_atom_is_command_target(sumti: &SumtiAtomSyntax) -> bool {
+fn generated_sumti_atom_spine_cmavo(sumti: &SumtiAtomSyntax) -> Option<Cmavo> {
     match sumti {
-        SumtiAtomSyntax::SumtiBase(base) => generated_sumti_base_is_command_target(base),
+        SumtiAtomSyntax::SumtiBase(base) => generated_sumti_base_spine_cmavo(base),
         SumtiAtomSyntax::QuantifiedSumti(sumti) => {
-            generated_sumti_base_is_command_target(&sumti.inner_sumti)
+            generated_sumti_base_spine_cmavo(&sumti.inner_sumti)
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_base_is_command_target(sumti: &SumtiBaseSyntax) -> bool {
+fn generated_sumti_base_spine_cmavo(sumti: &SumtiBaseSyntax) -> Option<Cmavo> {
     match sumti {
-        SumtiBaseSyntax::ProSumti(pro_sumti) => pro_sumti.0.value.cmavo() == Some(Cmavo::Ko),
-        _ => false,
+        SumtiBaseSyntax::ProSumti(pro_sumti) => pro_sumti.0.value.cmavo(),
+        _ => None,
     }
 }
 
