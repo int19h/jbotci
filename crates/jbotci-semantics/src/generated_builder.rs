@@ -16,23 +16,25 @@ use jbotci_syntax::generated_model::{
     DescriptorWithGadriSumtiSyntax, DescriptorWithoutGadriSumtiSyntax, EkConnectiveSyntax,
     ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
-    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
-    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax,
-    OrdinalTanruUnitSyntax, ParagraphSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, RegularTextSyntax,
-    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
-    RestrictiveBridiRelativeClauseSyntax, ScalarNegatedTanruInnerUnitSyntax,
-    ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SimpleBridiTailSyntax,
-    SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, StatementBaseSyntax,
-    StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
-    SumtiAfterthoughtSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax,
-    SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax,
-    SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiTermSyntax,
-    TanruSelbriSyntax,
-    TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalSyntax, TermSyntax,
-    TermsFragmentSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax,
-    TreeNode, UntaggedSelbriSyntax, WordTanruUnitSyntax,
+    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
+    IStatementConnectionTailSyntax, IStatementConnectiveSyntax, JoikConnectiveSyntax,
+    LaheSumtiSyntax, LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitSyntax, NameSumtiSyntax,
+    NumberSumtiSyntax, OrdinalTanruUnitSyntax, ParagraphSyntax, PreposedIStatementConnectionSyntax,
+    ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
+    QuantifierSyntax, RegularTextSyntax, RelationAfterthoughtConnectiveSyntax,
+    RelationDescriptionTailSyntax, RelationOnlyBridiSyntax, RelativeClauseAtomSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, RestrictiveBridiRelativeClauseSyntax,
+    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax,
+    SelbriSyntax, SimpleBridiTailSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
+    SimpleTermSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
+    StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
+    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAtomSyntax, SumtiBaseSyntax,
+    SumtiBoundSyntax, SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiSelbriSumtiSyntax,
+    SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    TaggedSumtiTermSyntax, TanruSelbriSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax,
+    TanruUnitSyntax, TenseModalSyntax, TermSyntax, TermsFragmentSyntax,
+    TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
+    UntaggedSelbriSyntax, WordTanruUnitSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers};
 use jbotci_tree::TreeVisitor;
@@ -101,10 +103,14 @@ struct GeneratedTanruFormulaForArgument {
 
 #[invariant(::Bridi(_) => true)]
 #[invariant(::TermsFragment(_) => true)]
+#[invariant(::StatementConnection(_) => true)]
+#[invariant(::PreposedStatementConnection(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedTextRoot<'syntax> {
     Bridi(&'syntax BridiSyntax),
     TermsFragment(&'syntax TermsFragmentSyntax),
+    StatementConnection(&'syntax IStatementConnectionSyntax),
+    PreposedStatementConnection(&'syntax PreposedIStatementConnectionSyntax),
 }
 
 #[invariant(crate::model::argument_object_kind_can_fill(value.object_kind()))]
@@ -233,18 +239,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_text(mut self, syntax: &TextSyntax) -> Result<SemanticGraph, SemanticsError> {
         let roots = semantic_roots_from_text(syntax)?;
-        let utterance_ids = (0..roots.len())
-            .map(|_| self.next_utterance_id())
-            .collect::<Vec<_>>();
-        let mut items = Vec::new();
-        for (index, (utterance_id, root)) in utterance_ids.iter().copied().zip(roots).enumerate() {
-            self.previous_utterance = index
-                .checked_sub(1)
-                .and_then(|previous| utterance_ids.get(previous).copied());
-            self.current_utterance = Some(utterance_id);
-            self.next_utterance = utterance_ids.get(index + 1).copied();
-            items.push(self.build_utterance_for_generated_text_root(utterance_id, root)?);
-        }
+        let items = if roots.iter().all(generated_text_root_is_utterance) {
+            let utterance_ids = (0..roots.len())
+                .map(|_| self.next_utterance_id())
+                .collect::<Vec<_>>();
+            let mut items = Vec::new();
+            for (index, (utterance_id, root)) in
+                utterance_ids.iter().copied().zip(roots).enumerate()
+            {
+                self.previous_utterance = index
+                    .checked_sub(1)
+                    .and_then(|previous| utterance_ids.get(previous).copied());
+                self.current_utterance = Some(utterance_id);
+                self.next_utterance = utterance_ids.get(index + 1).copied();
+                items.push(self.build_utterance_for_generated_text_root(utterance_id, root)?);
+            }
+            items
+        } else {
+            let mut items = Vec::new();
+            for root in roots {
+                items.push(self.build_discourse_item_for_generated_text_root(root)?);
+            }
+            items
+        };
         self.previous_utterance = None;
         self.current_utterance = None;
         self.next_utterance = None;
@@ -277,28 +294,90 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         utterance_id: SemanticObjectId,
         root: GeneratedTextRoot<'_>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let (force, content, source) = match root {
-            GeneratedTextRoot::Bridi(bridi) => {
-                let force = if generated_node_contains_cmavo(bridi, Cmavo::Ko) {
-                    UtteranceForce::Command
-                } else {
-                    UtteranceForce::Assert
-                };
-                (
-                    force,
-                    Some(self.build_bridi_formula(bridi)?),
-                    self.source_for_node(bridi, "bridi"),
-                )
-            }
+        match root {
+            GeneratedTextRoot::Bridi(bridi) => self
+                .build_bridi_utterance_with_force(utterance_id, bridi, generated_bridi_force(bridi))
+                .map(|(utterance, _formula)| utterance),
             GeneratedTextRoot::TermsFragment(fragment) => {
                 let referent = self.build_terms_fragment_referent(fragment)?;
-                (
+                self.insert_generated_utterance(
+                    utterance_id,
                     UtteranceForce::Mention,
                     Some(referent),
                     self.source_for_node(fragment, "fragment"),
                 )
             }
-        };
+            GeneratedTextRoot::StatementConnection(_)
+            | GeneratedTextRoot::PreposedStatementConnection(_) => {
+                Err(unsupported("statement connection as utterance"))
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn build_discourse_item_for_generated_text_root(
+        &mut self,
+        root: GeneratedTextRoot<'_>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match root {
+            GeneratedTextRoot::Bridi(bridi) => {
+                let utterance_id = self.next_utterance_id();
+                self.current_utterance = Some(utterance_id);
+                self.build_bridi_utterance_with_force(
+                    utterance_id,
+                    bridi,
+                    generated_bridi_force(bridi),
+                )
+                .map(|(utterance, _formula)| utterance)
+            }
+            GeneratedTextRoot::TermsFragment(fragment) => {
+                let utterance_id = self.next_utterance_id();
+                self.current_utterance = Some(utterance_id);
+                let referent = self.build_terms_fragment_referent(fragment)?;
+                self.insert_generated_utterance(
+                    utterance_id,
+                    UtteranceForce::Mention,
+                    Some(referent),
+                    self.source_for_node(fragment, "fragment"),
+                )
+            }
+            GeneratedTextRoot::StatementConnection(connection) => {
+                self.build_i_statement_connection_sequence(connection)
+            }
+            GeneratedTextRoot::PreposedStatementConnection(connection) => {
+                self.build_preposed_i_statement_connection_sequence(connection)
+            }
+        }
+    }
+
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|(utterance, formula)| *utterance == utterance_id && formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_bridi_utterance_with_force(
+        &mut self,
+        utterance_id: SemanticObjectId,
+        bridi: &BridiSyntax,
+        force: UtteranceForce,
+    ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
+        let formula = self.build_bridi_formula(bridi)?;
+        self.insert_generated_utterance(
+            utterance_id,
+            force,
+            Some(formula),
+            self.source_for_node(bridi, "bridi"),
+        )?;
+        Ok((utterance_id, formula))
+    }
+
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|id| *id == utterance_id) || ret.is_err())]
+    fn insert_generated_utterance(
+        &mut self,
+        utterance_id: SemanticObjectId,
+        force: UtteranceForce,
+        content: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let locution = self.next_locution_id();
         self.insert(
             locution,
@@ -325,6 +404,146 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ),
         )?;
         Ok(utterance_id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn build_i_statement_connection_sequence(
+        &mut self,
+        connection: &IStatementConnectionSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading_bridi = bridi_from_statement_base(&connection.leading_statement)?;
+        let leading_utterance = self.next_utterance_id();
+        self.current_utterance = Some(leading_utterance);
+        let (leading_item, mut formula) = self.build_bridi_utterance_with_force(
+            leading_utterance,
+            leading_bridi,
+            UtteranceForce::Subordinated,
+        )?;
+        let mut items = vec![leading_item];
+        for continuation in &connection.continuations {
+            let (connective, trailing_bridi) = statement_connection_tail_parts(continuation)?;
+            let trailing_utterance = self.next_utterance_id();
+            self.previous_utterance = items.last().copied();
+            self.current_utterance = Some(trailing_utterance);
+            self.next_utterance = None;
+            let (trailing_item, trailing_formula) = self.build_bridi_utterance_with_force(
+                trailing_utterance,
+                trailing_bridi,
+                UtteranceForce::Subordinated,
+            )?;
+            items.push(trailing_item);
+            formula = self.build_binary_formula_for_generated_statement_connective(
+                connective,
+                formula,
+                trailing_formula,
+                self.source_for_node(connection, "statement-connection"),
+            )?;
+        }
+        let sequence = self.next_sequence_id();
+        let mut object = SemanticObject::sequence(
+            items,
+            SequenceRelation::SameTopicContinuation,
+            self.source_for_node(connection, "statement-connection"),
+            Vec::new(),
+        );
+        object.content = Some(formula);
+        self.insert(sequence, object)?;
+        Ok(sequence)
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_statement_connective(
+        &mut self,
+        connective: &IStatementConnectiveSyntax,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_binary_formula_for_generated_statement_connective_core(
+            generated_i_statement_connective_core(connective)?,
+            left,
+            right,
+            source,
+        )
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_statement_connective_core(
+        &mut self,
+        connective: &StatementConnectiveSyntax,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operator = generated_statement_connective_formula_operator_for_core(connective);
+        let Some(truth_table) = generated_statement_connective_core_truth_table(connective) else {
+            return Err(unsupported("nonlogical generated statement connective"));
+        };
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                operator,
+                vec![left, right],
+                Some(Connector {
+                    source: generated_statement_connective_core_source(connective)?,
+                    locus: "statement".to_owned(),
+                    truth_table: Some(truth_table),
+                    parameter: None,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn build_preposed_i_statement_connection_sequence(
+        &mut self,
+        connection: &PreposedIStatementConnectionSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading_bridi = bridi_from_statement_base(&connection.leading_statement)?;
+        let trailing_bridi =
+            bridi_from_statement_after_i_connective(&connection.trailing_statement)?;
+        let leading_utterance = self.next_utterance_id();
+        self.current_utterance = Some(leading_utterance);
+        let (leading_item, leading_formula) = self.build_bridi_utterance_with_force(
+            leading_utterance,
+            leading_bridi,
+            UtteranceForce::Subordinated,
+        )?;
+        let trailing_utterance = self.next_utterance_id();
+        self.previous_utterance = Some(leading_item);
+        self.current_utterance = Some(trailing_utterance);
+        self.next_utterance = None;
+        let (trailing_item, trailing_formula) = self.build_bridi_utterance_with_force(
+            trailing_utterance,
+            trailing_bridi,
+            UtteranceForce::Subordinated,
+        )?;
+        let formula = self.build_binary_formula_for_generated_statement_connective_core(
+            &connection.connective,
+            leading_formula,
+            trailing_formula,
+            self.source_for_node(connection, "statement-connection"),
+        )?;
+        let sequence = self.next_sequence_id();
+        let mut object = SemanticObject::sequence(
+            vec![leading_item, trailing_item],
+            SequenceRelation::SameTopicContinuation,
+            self.source_for_node(connection, "statement-connection"),
+            Vec::new(),
+        );
+        object.content = Some(formula);
+        self.insert(sequence, object)?;
+        Ok(sequence)
     }
 
     #[requires(self.objects.contains_key(&root))]
@@ -807,16 +1026,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         ArgumentValue::elided(referent, "zo'e".to_owned(), None),
                     )?;
                 }
-                let result = self.build_forethought_selbri_connection_formula_for_visible_arguments(
-                    connection,
-                    visible_arguments,
-                    source_with_construct(
-                        formula_source.or(predication_source),
-                        "connected-selbri-formula",
-                    ),
-                    "selbri",
-                    None,
-                )?;
+                let result = self
+                    .build_forethought_selbri_connection_formula_for_visible_arguments(
+                        connection,
+                        visible_arguments,
+                        source_with_construct(
+                            formula_source.or(predication_source),
+                            "connected-selbri-formula",
+                        ),
+                        "selbri",
+                        None,
+                    )?;
                 self.attach_generated_modal_terms_to_formula(
                     result.formula,
                     &assignments.modal_terms,
@@ -949,10 +1169,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             diagnostics,
         );
         predication_object.modal_arguments = modal_arguments;
-        self.insert(
-            predication,
-            predication_object,
-        )?;
+        self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -1060,10 +1277,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "selbri",
                 leading_eventuality,
             )?;
-            self.attach_generated_modal_terms_to_formula(
-                result.formula,
-                &assignments.modal_terms,
-            )?;
+            self.attach_generated_modal_terms_to_formula(result.formula, &assignments.modal_terms)?;
             return Ok(result.formula);
         }
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
@@ -1091,10 +1305,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 visible_arguments,
                 formula_source,
             )?;
-            self.attach_generated_modal_terms_to_formula(
-                formula,
-                &assignments.modal_terms,
-            )?;
+            self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
             self.apply_scalar_negation_to_tanru_links(
                 formula,
                 scalar_negation_for_marker(&scalar_unit.nahe)
@@ -1120,10 +1331,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 visible_arguments,
                 formula_source,
             )?;
-            self.attach_generated_modal_terms_to_formula(
-                formula,
-                &assignments.modal_terms,
-            )?;
+            self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
             return Ok(formula);
         }
         let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
@@ -1500,12 +1708,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .into_data();
         let result = self
             .build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
-            tanru,
-            assignments.visible_arguments,
-            head_eventuality,
-            source,
-            &assignments.modal_terms,
-        )?;
+                tanru,
+                assignments.visible_arguments,
+                head_eventuality,
+                source,
+                &assignments.modal_terms,
+            )?;
         Ok(result.formula)
     }
 
@@ -4615,7 +4823,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if mode != Some(PredicationMode::Asserted) {
             return Ok(());
         }
-        let mut modal_argument = self.build_modal_argument_for_generated_tagged_sumti(modal_term)?;
+        let mut modal_argument =
+            self.build_modal_argument_for_generated_tagged_sumti(modal_term)?;
         if let Some(eventuality) = eventuality {
             bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
         }
@@ -6083,19 +6292,88 @@ fn semantic_root_from_statement_or_fragment(
 fn semantic_root_from_statement(
     statement: &StatementSyntax,
 ) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
-    let StatementSyntax::StatementBase(StatementBaseSyntax::BridiStatement(
-        BridiStatementSyntax {
-            bridi,
-            continuations,
-        },
-    )) = statement
-    else {
-        return Err(unsupported("non-simple statement"));
-    };
-    if !continuations.is_empty() {
-        return Err(unsupported("statement connective continuations"));
+    match statement {
+        StatementSyntax::IStatementConnection(connection) => {
+            Ok(GeneratedTextRoot::StatementConnection(connection))
+        }
+        StatementSyntax::PreposedIStatementConnection(connection) => {
+            Ok(GeneratedTextRoot::PreposedStatementConnection(connection))
+        }
+        StatementSyntax::StatementBase(base) => {
+            Ok(GeneratedTextRoot::Bridi(bridi_from_statement_base(base)?))
+        }
     }
-    Ok(GeneratedTextRoot::Bridi(bridi))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_text_root_is_utterance(root: &GeneratedTextRoot<'_>) -> bool {
+    matches!(
+        root,
+        GeneratedTextRoot::Bridi(_) | GeneratedTextRoot::TermsFragment(_)
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_force(bridi: &BridiSyntax) -> UtteranceForce {
+    if generated_node_contains_cmavo(bridi, Cmavo::Ko) {
+        UtteranceForce::Command
+    } else {
+        UtteranceForce::Assert
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bridi| generated_node_contains_cmavo(*bridi, Cmavo::Ko) || !generated_node_contains_cmavo(*bridi, Cmavo::Ko)) || ret.is_err())]
+fn bridi_from_statement_base(base: &StatementBaseSyntax) -> Result<&BridiSyntax, SemanticsError> {
+    match base {
+        StatementBaseSyntax::BridiStatement(statement) => bridi_from_bridi_statement(statement),
+        StatementBaseSyntax::PrenexStatement(_) => Err(unsupported("prenex statement")),
+        StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group statement")),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bridi| generated_node_contains_cmavo(*bridi, Cmavo::Ko) || !generated_node_contains_cmavo(*bridi, Cmavo::Ko)) || ret.is_err())]
+fn bridi_from_bridi_statement(
+    statement: &BridiStatementSyntax,
+) -> Result<&BridiSyntax, SemanticsError> {
+    if !statement.continuations.is_empty() {
+        return Err(unsupported("bridi statement continuations"));
+    }
+    Ok(&statement.bridi)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|bridi| generated_node_contains_cmavo(*bridi, Cmavo::Ko) || !generated_node_contains_cmavo(*bridi, Cmavo::Ko)) || ret.is_err())]
+fn bridi_from_statement_after_i_connective(
+    statement: &StatementAfterIConnectiveSyntax,
+) -> Result<&BridiSyntax, SemanticsError> {
+    match statement {
+        StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            bridi_from_bridi_statement(statement)
+        }
+        StatementAfterIConnectiveSyntax::TextGroupStatement(_) => {
+            Err(unsupported("text group statement connection"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|(_connective, bridi)| generated_node_contains_cmavo(*bridi, Cmavo::Ko) || !generated_node_contains_cmavo(*bridi, Cmavo::Ko)) || ret.is_err())]
+fn statement_connection_tail_parts(
+    tail: &IStatementConnectionTailSyntax,
+) -> Result<(&IStatementConnectiveSyntax, &BridiSyntax), SemanticsError> {
+    match tail {
+        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => Ok((
+            &tail.connective,
+            bridi_from_statement_after_i_connective(&tail.trailing_statement)?,
+        )),
+        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(_) => {
+            Err(unsupported("chained pending statement connective"))
+        }
+    }
 }
 
 #[requires(true)]
@@ -7345,7 +7623,11 @@ fn generated_modal_relation_spec_for_tense_modal<N: TreeNode>(
         let introduced_by = conversion
             .map(|conversion| format!("{} {marker}", token_text(conversion)))
             .unwrap_or_else(|| marker.clone());
-        return Some((introduced_by, modal_relation_for_marker(&marker), visible_place));
+        return Some((
+            introduced_by,
+            modal_relation_for_marker(&marker),
+            visible_place,
+        ));
     }
     generated_tense_relation_spec_for_tokens(&collector.tokens)
 }
@@ -7440,9 +7722,7 @@ fn generated_se_token_conversion_place(se: &Token) -> Option<usize> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
-fn generated_modal_negation_for_tense_modal<N: TreeNode>(
-    tense_modal: &N,
-) -> Option<ModalNegation> {
+fn generated_modal_negation_for_tense_modal<N: TreeNode>(tense_modal: &N) -> Option<ModalNegation> {
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
     let mut previous_recurrence_marker = false;
@@ -7821,6 +8101,217 @@ fn connective_source_from_tokens(tokens: Vec<&Token>) -> String {
         .map(token_text)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|operator| matches!(operator, FormulaOperator::And | FormulaOperator::Or | FormulaOperator::Iff | FormulaOperator::WhetherOrNot)) || ret.is_err())]
+fn generated_statement_connective_formula_operator(
+    connective: &IStatementConnectiveSyntax,
+) -> Result<FormulaOperator, SemanticsError> {
+    let connective = generated_i_statement_connective_core(connective)?;
+    Ok(
+        match generated_statement_connective_primary_cmavo(connective) {
+            Some(Cmavo::A | Cmavo::Ja) => FormulaOperator::Or,
+            Some(Cmavo::E | Cmavo::Je) => FormulaOperator::And,
+            Some(Cmavo::O | Cmavo::Jo) => FormulaOperator::Iff,
+            Some(Cmavo::U | Cmavo::Ju) => FormulaOperator::WhetherOrNot,
+            _ => FormulaOperator::And,
+        },
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| !source.is_empty()) || ret.is_err())]
+fn generated_statement_connective_source(
+    connective: &IStatementConnectiveSyntax,
+) -> Result<String, SemanticsError> {
+    generated_statement_connective_core_source(generated_i_statement_connective_core(connective)?)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|table| table.is_none() || table.as_ref().is_some_and(|table| table.len() == 4)) || ret.is_err())]
+fn generated_statement_connective_truth_table(
+    connective: &IStatementConnectiveSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    Ok(generated_statement_connective_core_truth_table(
+        generated_i_statement_connective_core(connective)?,
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn generated_statement_connective_core_truth_table(
+    connective: &StatementConnectiveSyntax,
+) -> Option<String> {
+    if !generated_statement_connective_is_logical(connective) {
+        return None;
+    }
+    let operator = generated_statement_connective_formula_operator_for_core(connective);
+    let left_negated = generated_statement_connective_negates_left(connective);
+    let right_negated = generated_statement_connective_negates_right(connective);
+    let se = generated_statement_connective_has_se(connective);
+    Some(
+        [(true, true), (true, false), (false, true), (false, false)]
+            .into_iter()
+            .map(|(left, right)| {
+                let left = if left_negated { !left } else { left };
+                let right = if right_negated { !right } else { right };
+                let result = if se {
+                    connective_truth_value_for_operator(operator, right, left)
+                } else {
+                    connective_truth_value_for_operator(operator, left, right)
+                };
+                if result { 'T' } else { 'F' }
+            })
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
+fn generated_i_statement_connective_core(
+    connective: &IStatementConnectiveSyntax,
+) -> Result<&StatementConnectiveSyntax, SemanticsError> {
+    match connective {
+        IStatementConnectiveSyntax::IStandardStatementConnective(connective) => {
+            if connective.tag_bo.is_some() {
+                return Err(unsupported("tagged BO statement connective"));
+            }
+            Ok(&connective.connective)
+        }
+        IStatementConnectiveSyntax::ITagBoStatementConnective(_) => {
+            Err(unsupported("modal statement connective"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_formula_operator_for_core(
+    connective: &StatementConnectiveSyntax,
+) -> FormulaOperator {
+    match generated_statement_connective_primary_cmavo(connective) {
+        Some(Cmavo::A | Cmavo::Ja) => FormulaOperator::Or,
+        Some(Cmavo::E | Cmavo::Je) => FormulaOperator::And,
+        Some(Cmavo::O | Cmavo::Jo) => FormulaOperator::Iff,
+        Some(Cmavo::U | Cmavo::Ju) => FormulaOperator::WhetherOrNot,
+        _ => FormulaOperator::And,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_primary_cmavo(
+    connective: &StatementConnectiveSyntax,
+) -> Option<Cmavo> {
+    match connective {
+        StatementConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
+        StatementConnectiveSyntax::JekConnective(connective) => connective.ja.value.cmavo(),
+        StatementConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_primary_cmavo(connective)
+        }
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(connective) => {
+            connective.0.value.cmavo()
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| !source.is_empty()) || ret.is_err())]
+fn generated_statement_connective_core_source(
+    connective: &StatementConnectiveSyntax,
+) -> Result<String, SemanticsError> {
+    match connective {
+        StatementConnectiveSyntax::EkConnective(connective) => {
+            let mut tokens = Vec::new();
+            if let Some(token) = &connective.na {
+                tokens.push(token);
+            }
+            if let Some(token) = &connective.se {
+                tokens.push(token);
+            }
+            tokens.push(&connective.a.value);
+            if let Some(token) = &connective.nai {
+                tokens.push(&token.value);
+            }
+            Ok(connective_source_from_tokens(tokens))
+        }
+        StatementConnectiveSyntax::JekConnective(connective) => {
+            let mut tokens = Vec::new();
+            if let Some(token) = &connective.na {
+                tokens.push(token);
+            }
+            if let Some(token) = &connective.se {
+                tokens.push(token);
+            }
+            tokens.push(&connective.ja.value);
+            if let Some(token) = &connective.nai {
+                tokens.push(&token.value);
+            }
+            Ok(connective_source_from_tokens(tokens))
+        }
+        StatementConnectiveSyntax::JoikConnective(connective) => {
+            Ok(generated_joik_connective_source(connective))
+        }
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(connective) => {
+            Ok(token_text(&connective.0.value))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_has_se(connective: &StatementConnectiveSyntax) -> bool {
+    match connective {
+        StatementConnectiveSyntax::EkConnective(connective) => connective.se.is_some(),
+        StatementConnectiveSyntax::JekConnective(connective) => connective.se.is_some(),
+        StatementConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_has_se(connective)
+        }
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_negates_left(connective: &StatementConnectiveSyntax) -> bool {
+    match connective {
+        StatementConnectiveSyntax::EkConnective(connective) => connective.na.is_some(),
+        StatementConnectiveSyntax::JekConnective(connective) => connective.na.is_some(),
+        StatementConnectiveSyntax::JoikConnective(_) => false,
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_negates_right(connective: &StatementConnectiveSyntax) -> bool {
+    match connective {
+        StatementConnectiveSyntax::EkConnective(connective) => connective.nai.is_some(),
+        StatementConnectiveSyntax::JekConnective(connective) => connective.nai.is_some(),
+        StatementConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_negates_right(connective)
+        }
+        StatementConnectiveSyntax::VuhuNonlogicalConnective(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_connective_is_logical(connective: &StatementConnectiveSyntax) -> bool {
+    matches!(
+        generated_statement_connective_primary_cmavo(connective),
+        Some(
+            Cmavo::A
+                | Cmavo::E
+                | Cmavo::O
+                | Cmavo::U
+                | Cmavo::Ja
+                | Cmavo::Je
+                | Cmavo::Jo
+                | Cmavo::Ju
+        )
+    )
 }
 
 #[requires(true)]
@@ -8343,10 +8834,7 @@ fn generated_modal_relation_host_event_place_for_argument(
 
 #[requires(place > 0)]
 #[ensures(true)]
-fn generated_modal_argument_place_is_filled(
-    modal_argument: &ModalArgument,
-    place: usize,
-) -> bool {
+fn generated_modal_argument_place_is_filled(modal_argument: &ModalArgument, place: usize) -> bool {
     modal_argument
         .arguments
         .get(&argument_key(place))
