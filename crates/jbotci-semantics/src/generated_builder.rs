@@ -92,6 +92,7 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     previous_utterance: Option<SemanticObjectId>,
     next_utterance: Option<SemanticObjectId>,
     argument_question_parameters: Vec<SemanticObjectId>,
+    relation_question_parameters: Vec<SemanticObjectId>,
     implicit_existential_variables: Vec<GeneratedImplicitExistential>,
 }
 
@@ -121,6 +122,14 @@ enum GeneratedTextRoot<'syntax> {
 struct GeneratedImplicitExistential {
     variable: SemanticObjectId,
     source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(::ProBridi(_) => true)]
+#[invariant(::GohaWord(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedRelationQuestionSyntax<'syntax> {
+    ProBridi(&'syntax ProBridiTanruUnitSyntax),
+    GohaWord(&'syntax GohaWordTanruUnitSyntax),
 }
 
 #[invariant(crate::model::argument_object_kind_can_fill(value.object_kind()))]
@@ -185,6 +194,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             previous_utterance: None,
             next_utterance: None,
             argument_question_parameters: Vec::new(),
+            relation_question_parameters: Vec::new(),
             implicit_existential_variables: Vec::new(),
         };
         builder.insert_deictics();
@@ -372,6 +382,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
         let question_start = self.argument_question_parameters.len();
+        let relation_question_start = self.relation_question_parameters.len();
         let existential_start = self.implicit_existential_variables.len();
         let formula = self.build_bridi_formula(bridi)?;
         let existentials = self
@@ -379,18 +390,37 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .split_off(existential_start);
         let formula = self.wrap_formula_with_implicit_existentials(formula, existentials)?;
         let question_parameters = self.argument_question_parameters.split_off(question_start);
-        let (force, content) = if question_parameters.is_empty() {
-            (force, formula)
-        } else {
-            (
-                UtteranceForce::Ask,
-                self.build_direct_argument_question(
-                    formula,
-                    question_parameters,
-                    self.source_for_node(bridi, "question"),
-                )?,
-            )
-        };
+        let relation_question_parameters = self
+            .relation_question_parameters
+            .split_off(relation_question_start);
+        let (force, content) =
+            if question_parameters.is_empty() && relation_question_parameters.is_empty() {
+                (force, formula)
+            } else if question_parameters.is_empty() {
+                (
+                    UtteranceForce::Ask,
+                    self.build_direct_question(
+                        QuestionKind::Relation,
+                        SemanticSort::Relation,
+                        formula,
+                        relation_question_parameters,
+                        self.source_for_node(bridi, "question"),
+                    )?,
+                )
+            } else if relation_question_parameters.is_empty() {
+                (
+                    UtteranceForce::Ask,
+                    self.build_direct_question(
+                        QuestionKind::Argument,
+                        SemanticSort::Entity,
+                        formula,
+                        question_parameters,
+                        self.source_for_node(bridi, "question"),
+                    )?,
+                )
+            } else {
+                return Err(unsupported("mixed direct argument and relation question"));
+            };
         self.insert_generated_utterance(
             utterance_id,
             force,
@@ -403,8 +433,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(parameters.iter().all(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
-    fn build_direct_argument_question(
+    fn build_direct_question(
         &mut self,
+        kind: QuestionKind,
+        domain: SemanticSort,
         formula: SemanticObjectId,
         parameters: Vec<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -421,9 +453,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             question,
             SemanticObject::question(
-                QuestionKind::Argument,
+                kind,
                 QuestionMode::Direct,
-                SemanticSort::Entity,
+                domain,
                 formula,
                 slots,
                 SemanticObjectId::speaker(),
@@ -1167,6 +1199,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 formula_source,
             );
         }
+        if let Some(question) = relation_question_syntax_from_co_selbri(selbri)? {
+            return self.build_relation_question_formula_for_terms(
+                question,
+                terms,
+                first_visible_place,
+                eventuality,
+                mode,
+                source_with_construct(
+                    predication_source.or(formula_source),
+                    "relation-question-formula",
+                ),
+            );
+        }
         if let Some(tanru) = tanru_selbri_from_co_selbri(selbri)?
             && tanru.additional_units.is_empty()
             && sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_none()
@@ -1268,6 +1313,72 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_relation_question_formula_for_terms(
+        &mut self,
+        question: GeneratedRelationQuestionSyntax<'_>,
+        terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
+        eventuality: Option<SemanticObjectId>,
+        mode: PredicationMode,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Relation,
+                ParameterRole::RelationQuestion,
+                token_text(generated_relation_question_token(question)),
+                self.source_for_relation_question(question, "parameter"),
+            ),
+        )?;
+        self.relation_question_parameters.push(parameter);
+        let eventuality = match eventuality {
+            Some(eventuality) => eventuality,
+            None => {
+                let eventuality = self.next_eventuality_id();
+                self.insert(
+                    eventuality,
+                    SemanticObject::eventuality(EventualityClass::Event, None, source.clone()),
+                )?;
+                eventuality
+            }
+        };
+        let assignments = self
+            .build_term_assignments_for_terms(terms, first_visible_place)?
+            .into_data();
+        let modal_arguments =
+            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
+        let mut arguments = BTreeMap::new();
+        for (visible_place, argument) in assignments.visible_arguments {
+            let key = argument_key(visible_place);
+            if arguments.insert(key.clone(), argument).is_some() {
+                return Err(invalid_graph(format!(
+                    "multiple generated bridi arguments map to {key}"
+                )));
+            }
+        }
+        let predication = self.next_predication_id();
+        let mut object = SemanticObject::relation_parameter_predication(
+            parameter,
+            Some(eventuality),
+            arguments,
+            mode,
+            source.clone(),
+            Vec::new(),
+        );
+        object.modal_arguments = modal_arguments;
+        self.insert(predication, object)?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
         Ok(formula)
     }
@@ -6366,6 +6477,23 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn source_for_relation_question(
+        &self,
+        question: GeneratedRelationQuestionSyntax<'_>,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        match question {
+            GeneratedRelationQuestionSyntax::ProBridi(pro_bridi) => {
+                self.source_for_node(pro_bridi, construct)
+            }
+            GeneratedRelationQuestionSyntax::GohaWord(goha) => {
+                self.source_for_node(goha, construct)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn source_for_name_sumti(
         &self,
         name: &NameSumtiSyntax,
@@ -6652,6 +6780,67 @@ fn relation_label_from_co_selbri(selbri: &CoSelbriSyntax) -> Result<String, Sema
         return Err(unsupported("tanru"));
     }
     relation_label_from_tanru_unit(first_unit)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn relation_question_syntax_from_co_selbri(
+    selbri: &CoSelbriSyntax,
+) -> Result<Option<GeneratedRelationQuestionSyntax<'_>>, SemanticsError> {
+    if selbri.co_tail.is_some() {
+        return Ok(None);
+    }
+    let ConnectedSelbriSyntax {
+        leading_selbri,
+        continuations,
+    } = selbri.leading_selbri.as_ref();
+    if !continuations.is_empty() {
+        return Ok(None);
+    }
+    let TanruSelbriSyntax {
+        first_unit,
+        additional_units,
+    } = leading_selbri.as_ref();
+    if !additional_units.is_empty() || !first_unit.0.links.is_empty() {
+        return Ok(None);
+    }
+    let BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) = first_unit.0.first.as_ref() else {
+        return Ok(None);
+    };
+    if unit.linkargs.is_some() || !unit.base.conversions.is_empty() {
+        return Ok(None);
+    }
+    match unit.base.base.as_ref() {
+        TanruUnitAtomBaseSyntax::ProBridiTanruUnit(pro_bridi)
+            if pro_bridi.goha.value.cmavo() == Some(Cmavo::Mo) =>
+        {
+            Ok(Some(GeneratedRelationQuestionSyntax::ProBridi(pro_bridi)))
+        }
+        TanruUnitAtomBaseSyntax::GohaWordTanruUnit(goha)
+            if generated_goha_word_tanru_unit_token(goha).cmavo() == Some(Cmavo::Mo) =>
+        {
+            Ok(Some(GeneratedRelationQuestionSyntax::GohaWord(goha)))
+        }
+        _ => Ok(None),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_relation_question_token(question: GeneratedRelationQuestionSyntax<'_>) -> &Token {
+    match question {
+        GeneratedRelationQuestionSyntax::ProBridi(pro_bridi) => &pro_bridi.goha.value,
+        GeneratedRelationQuestionSyntax::GohaWord(goha) => {
+            generated_goha_word_tanru_unit_token(goha)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_goha_word_tanru_unit_token(unit: &GohaWordTanruUnitSyntax) -> &Token {
+    let GohaWordTanruUnitSyntax(word) = unit;
+    &word.value
 }
 
 #[requires(true)]
