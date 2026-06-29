@@ -989,15 +989,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let mut visible_arguments = BTreeMap::new();
-        for (index, term) in terms.into_iter().enumerate() {
-            let referent = self.build_term_referent(term)?;
-            insert_visible_argument(
-                &mut visible_arguments,
-                index + 1,
-                ArgumentValue::filled(referent, None),
-            )?;
-        }
+        let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in visible_arguments {
             let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
@@ -2213,12 +2205,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         terms: Vec<&TermSyntax>,
     ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        for (index, term) in terms.into_iter().enumerate() {
-            let referent = self.build_term_referent(term)?;
-            insert_visible_argument(
+        let mut next_visible_place = 1usize;
+        for term in terms {
+            self.insert_visible_argument_for_generated_term(
                 &mut arguments,
-                index + 1,
-                ArgumentValue::filled(referent, None),
+                &mut next_visible_place,
+                term,
             )?;
         }
         Ok(arguments)
@@ -2538,7 +2530,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             };
         };
         let tertau_source = match context {
-            GeneratedPropertyTanruContext::Description => source.clone(),
+            GeneratedPropertyTanruContext::Description => {
+                source_with_construct(source.clone(), "restrictive-predication")
+            }
             GeneratedPropertyTanruContext::PropertyAbstraction => source.clone(),
         };
         let tertau_formula = match context {
@@ -4227,8 +4221,81 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         term: &TermSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let sumti = simple_sumti_from_term(term)?;
-        self.build_sumti_referent(sumti)
+        let argument = self.build_argument_for_generated_term(term)?;
+        argument
+            .value
+            .ok_or_else(|| unsupported("non-referential term argument"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_visible_argument_for_generated_term(
+        &mut self,
+        arguments: &mut BTreeMap<usize, ArgumentValue>,
+        next_visible_place: &mut usize,
+        term: &TermSyntax,
+    ) -> Result<(), SemanticsError> {
+        let (place, argument) =
+            self.build_visible_place_and_argument_for_generated_term(*next_visible_place, term)?;
+        insert_visible_argument(arguments, place, argument)?;
+        *next_visible_place = (*next_visible_place).max(place + 1);
+        Ok(())
+    }
+
+    #[requires(next_visible_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|(place, _)| *place > 0) || ret.is_err())]
+    fn build_visible_place_and_argument_for_generated_term(
+        &mut self,
+        next_visible_place: usize,
+        term: &TermSyntax,
+    ) -> Result<(usize, ArgumentValue), SemanticsError> {
+        let simple = match term {
+            TermSyntax::SimpleTerm(simple) => simple,
+            TermSyntax::ConnectedTerm(ConnectedTermSyntax {
+                leading_term,
+                continuations,
+            }) if continuations.is_empty() => leading_term.as_ref(),
+            _ => return Err(unsupported("non-simple term")),
+        };
+        match simple {
+            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => Ok((
+                next_visible_place,
+                ArgumentValue::filled(self.build_sumti_referent(sumti)?, None),
+            )),
+            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Ok((
+                fa_place(&term.fa.value)?,
+                self.build_argument_for_tagged_or_elided_sumti(&term.sumti)?,
+            )),
+            _ => Err(unsupported("non-sumti term")),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_argument_for_generated_term(
+        &mut self,
+        term: &TermSyntax,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        let (_place, argument) =
+            self.build_visible_place_and_argument_for_generated_term(1, term)?;
+        Ok(argument)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_argument_for_tagged_or_elided_sumti(
+        &mut self,
+        sumti: &TaggedOrElidedSumtiSyntax,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        match sumti {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                Ok(ArgumentValue::filled(self.build_sumti_referent(sumti)?, None))
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
+                let referent = self.build_elided_referent("zo'e".to_owned())?;
+                Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
+            }
+        }
     }
 
     #[requires(true)]
@@ -4563,11 +4630,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         description: &DescriptorWithGadriSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if description.ku.is_some() {
-            return Err(unsupported(
-                "explicit KU in generated description checkpoint",
-            ));
-        }
         if description.tail.leading_tail_elements.tail_sumti.is_some()
             || description
                 .tail
