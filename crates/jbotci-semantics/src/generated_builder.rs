@@ -12,9 +12,10 @@ use jbotci_syntax::generated_model::{
     BoGroupedBridiTailSyntax, BoOrLinkedTanruUnitSyntax, BoundTanruUnitSyntax,
     BridiRelativeClauseSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
     BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
-    CoSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax, DescriptionTailBodySyntax,
-    DescriptorWithGadriSumtiSyntax, DescriptorWithoutGadriSumtiSyntax, EkConnectiveSyntax,
-    ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
+    CoSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax, DescriptionHeadSyntax,
+    DescriptionTailBodySyntax, DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
+    DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
+    EkConnectiveSyntax, ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
     IStatementConnectionTailSyntax, IStatementConnectiveSyntax, JoikConnectiveSyntax,
@@ -22,11 +23,12 @@ use jbotci_syntax::generated_model::{
     LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax, OrdinalTanruUnitSyntax,
     ParagraphSyntax, PlainRelativeSumtiSyntax, PreposedIStatementConnectionSyntax,
     ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifiedSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
-    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
-    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseListSyntax,
-    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
-    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
+    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
+    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax, ScalarNegatedSumtiSyntax,
+    ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
     ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SimpleBridiTailSyntax,
     SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, StatementAfterIConnectiveSyntax,
     StatementBaseSyntax, StatementConnectiveSyntax, StatementOrFragmentStatementSyntax,
@@ -165,10 +167,12 @@ struct GeneratedArgumentQuantifierScope<'syntax> {
 }
 
 #[invariant(::QuantifiedSumti(_) => true)]
+#[invariant(::OuterQuantifiedDescription(_) => true)]
 #[invariant(::NoGadriDescription(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedArgumentQuantifierSource<'syntax> {
     QuantifiedSumti(&'syntax QuantifiedSumtiSyntax),
+    OuterQuantifiedDescription(&'syntax DescriptorWithOuterQuantifierSumtiSyntax),
     NoGadriDescription(&'syntax DescriptorWithoutGadriSumtiSyntax),
 }
 
@@ -2053,6 +2057,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         match source {
             GeneratedArgumentQuantifierSource::QuantifiedSumti(quantified) => {
                 self.generated_argument_restrictions_for_quantified_sumti(quantified, variable)
+            }
+            GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description) => {
+                let base = self.build_outer_quantified_description_referent(description)?;
+                self.build_membership_restriction_formula(variable, base)
+                    .map(|restriction| vec![restriction])
             }
             GeneratedArgumentQuantifierSource::NoGadriDescription(description) => self
                 .build_no_gadri_restriction_formula(description, variable)
@@ -5454,6 +5463,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
                     quantified_sumti,
                 ))
+            } else if let Some(description) = outer_quantified_description_from_sumti(sumti) {
+                Some(GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description))
             } else {
                 no_gadri_description_from_sumti(sumti)?
                     .map(GeneratedArgumentQuantifierSource::NoGadriDescription)
@@ -5989,6 +6000,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SumtiBaseSyntax::ProSumti(pro_sumti) => self.build_pro_sumti_referent(pro_sumti),
             SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
                 self.build_description_referent(description)
+            }
+            SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
+                self.build_outer_quantified_description_referent(description)
             }
             SumtiBaseSyntax::DescriptorWithoutGadriSumti(description) => {
                 self.build_no_gadri_description_referent(description)
@@ -6663,32 +6677,68 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         description: &DescriptorWithGadriSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let (selbri, relative_clauses, quantity) = match description.tail.tail.as_ref() {
+        self.build_gadri_description_referent(&description.description, &description.tail)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_outer_quantified_description_referent(
+        &mut self,
+        description: &DescriptorWithOuterQuantifierSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_gadri_description_referent(&description.description, &description.tail)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_gadri_description_referent(
+        &mut self,
+        description_head: &DescriptionHeadSyntax,
+        tail: &DescriptionTailSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let (selbri, relative_clauses, quantity, body_operand_sumti) = match tail.tail.as_ref() {
             DescriptionTailBodySyntax::RelationDescriptionTail(RelationDescriptionTailSyntax {
                 selbri,
                 relative_clauses,
-            }) => (selbri.as_ref(), relative_clauses.as_ref(), None),
+            }) => (Some(selbri.as_ref()), relative_clauses.as_ref(), None, None),
             DescriptionTailBodySyntax::QuantifierRelationDescriptionTail(
                 QuantifierRelationDescriptionTailSyntax {
                     quantifier,
                     selbri,
                     relative_clauses,
                 },
-            ) => (selbri.as_ref(), relative_clauses.as_ref(), Some(quantifier)),
-            _ => return Err(unsupported("non-relation description tail")),
+            ) => (
+                Some(selbri.as_ref()),
+                relative_clauses.as_ref(),
+                Some(quantifier),
+                None,
+            ),
+            DescriptionTailBodySyntax::QuantifierSumtiDescriptionTail(
+                QuantifierSumtiDescriptionTailSyntax { quantifier, sumti },
+            ) => (None, None, Some(quantifier), Some(sumti.as_ref())),
         };
-        let leading_tail_elements = &description.tail.leading_tail_elements;
-        let operand_sumti = leading_tail_elements
+        let leading_tail_elements = &tail.leading_tail_elements;
+        let leading_operand_sumti = leading_tail_elements
             .tail_sumti
             .as_ref()
             .map(|tail_sumti| tail_sumti.0.as_ref());
-        let cmavo = description.description.0.value.cmavo();
-        let word = token_text(&description.description.0.value);
+        if leading_operand_sumti.is_some() && body_operand_sumti.is_some() {
+            return Err(unsupported("multiple description operands"));
+        }
+        let cmavo = description_head.0.value.cmavo();
+        let word = token_text(&description_head.0.value);
         let kind = description_kind_for_cmavo(cmavo).to_owned();
-        let abstraction = self.single_abstraction_from_selbri(selbri)?.cloned();
+        let abstraction = selbri
+            .map(|selbri| self.single_abstraction_from_selbri(selbri))
+            .transpose()?
+            .flatten()
+            .cloned();
+        let description_source =
+            self.source_for_gadri_description(description_head, tail, "description");
         if let Some(abstraction) = abstraction {
             return self.build_abstraction_description_output(
-                description,
+                description_source,
+                cmavo,
                 &abstraction,
                 kind,
                 word,
@@ -6717,21 +6767,30 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     operand: None,
                 }),
                 None,
-                self.source_for_node(description, "description"),
+                description_source.clone(),
                 Vec::new(),
             ),
         )?;
-        let body = match description_characterization_for_cmavo(cmavo) {
-            DescriptionCharacterization::SpeakerDescribed => {
-                self.build_speaker_description_formula(description, selbri, id)?
-            }
-            DescriptionCharacterization::Veridical => self.build_restrictive_formula(selbri, id)?,
-        };
-        let quantity = quantity
-            .map(|quantifier| self.build_quantity_for_quantifier(quantifier))
+        let body = selbri
+            .map(
+                |selbri| match description_characterization_for_cmavo(cmavo) {
+                    DescriptionCharacterization::SpeakerDescribed => {
+                        let source = self.source_for_gadri_description(
+                            description_head,
+                            tail,
+                            "speaker-description",
+                        );
+                        self.build_speaker_description_formula(source, selbri, id)
+                    }
+                    DescriptionCharacterization::Veridical => {
+                        self.build_restrictive_formula(selbri, id)
+                    }
+                },
+            )
             .transpose()?;
+        let mut descriptor_operand = None;
         let mut lowered_relative_clauses = Vec::new();
-        if operand_sumti.is_none()
+        if leading_operand_sumti.is_none()
             && let Some(relative_clauses) = &leading_tail_elements.relative_clauses
         {
             lowered_relative_clauses.extend(
@@ -6746,7 +6805,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .transpose()?
                 .unwrap_or_default(),
         );
-        if let Some(operand_sumti) = operand_sumti {
+        if let Some(operand_sumti) = leading_operand_sumti {
             let operand = self.build_sumti_base_referent(operand_sumti)?;
             let operand_relative_clauses = leading_tail_elements
                 .relative_clauses
@@ -6756,13 +6815,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 })
                 .transpose()?
                 .unwrap_or_default();
-            lowered_relative_clauses.push(self.build_generated_possessive_association_clause(
-                id,
-                operand,
-                operand_sumti,
-                operand_relative_clauses,
-            )?);
+            if selbri.is_some() {
+                lowered_relative_clauses.push(self.build_generated_possessive_association_clause(
+                    id,
+                    operand,
+                    operand_sumti,
+                    operand_relative_clauses,
+                )?);
+            } else {
+                descriptor_operand = Some(operand);
+                lowered_relative_clauses.extend(operand_relative_clauses);
+            }
         }
+        if let Some(operand_sumti) = body_operand_sumti {
+            descriptor_operand = Some(self.build_sumti_referent(operand_sumti)?);
+        }
+        let quantity = quantity
+            .map(|quantifier| self.build_quantity_for_quantifier(quantifier))
+            .transpose()?;
         let object = self.objects.get_mut(&id).ok_or_else(|| {
             invalid_graph(format!(
                 "semantic builder could not find description referent {id}"
@@ -6773,7 +6843,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder description referent {id} has no descriptor"
             )));
         };
-        descriptor.body = Some(body);
+        descriptor.body = body;
+        descriptor.operand = descriptor_operand;
         descriptor.quantity = quantity;
         descriptor.relative_clauses = lowered_relative_clauses;
         Ok(id)
@@ -6827,13 +6898,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_abstraction_description_output(
         &mut self,
-        description: &DescriptorWithGadriSumtiSyntax,
+        source: Option<crate::model::SemanticSource>,
+        cmavo: Option<Cmavo>,
         abstraction: &AbstractionTanruUnitSyntax,
         kind: String,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let cmavo = description.description.0.value.cmavo();
-        let source = self.source_for_node(description, "description");
         let id = self.build_abstraction_output(abstraction, source.clone())?;
         let speaker = self.current_speaker();
         let object = self.objects.get_mut(&id).ok_or_else(|| {
@@ -6864,7 +6934,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_speaker_description_formula(
         &mut self,
-        description: &DescriptorWithGadriSumtiSyntax,
+        source: Option<crate::model::SemanticSource>,
         selbri: &SelbriSyntax,
         referent: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -6884,7 +6954,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             "skicu",
             arguments,
             PredicationMode::Incidental,
-            self.source_for_node(description, "speaker-description"),
+            source,
         )
     }
 
@@ -7410,6 +7480,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Option<crate::model::SemanticSource> {
         let mut visitor = GeneratedSpanCollector::default();
         node.visit_in_order(&mut visitor);
+        let spans =
+            source_spans_with_following_cmevla_period(&visitor.spans, self.options.source_text);
+        source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_for_gadri_description(
+        &self,
+        description_head: &DescriptionHeadSyntax,
+        tail: &DescriptionTailSyntax,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut visitor = GeneratedSpanCollector::default();
+        description_head.visit_in_order(&mut visitor);
+        tail.visit_in_order(&mut visitor);
         let spans =
             source_spans_with_following_cmevla_period(&visitor.spans, self.options.source_text);
         source_from_spans(&spans, self.options.source_text, Some(construct))
@@ -8738,9 +8824,19 @@ fn generated_quantified_sumti_from_sumti(sumti: &SumtiSyntax) -> Option<&Quantif
 #[requires(true)]
 #[ensures(true)]
 fn generated_sumti_quantified_variable_sort(sumti: &SumtiSyntax) -> SemanticSort {
-    generated_quantified_sumti_from_sumti(sumti)
-        .map(|quantified| generated_sumti_base_variable_sort(&quantified.inner_sumti))
-        .unwrap_or(SemanticSort::Entity)
+    if let Some(quantified) = generated_quantified_sumti_from_sumti(sumti) {
+        return generated_sumti_base_variable_sort(&quantified.inner_sumti);
+    }
+    if let Some(description) = outer_quantified_description_from_sumti(sumti) {
+        return description
+            .description
+            .0
+            .value
+            .cmavo()
+            .map(description_sumti_sort_for_cmavo)
+            .unwrap_or(SemanticSort::Entity);
+    }
+    SemanticSort::Entity
 }
 
 #[requires(true)]
@@ -8769,6 +8865,9 @@ fn generated_argument_scope_source_quantifier<'syntax>(
 ) -> &'syntax QuantifierSyntax {
     match source {
         GeneratedArgumentQuantifierSource::QuantifiedSumti(sumti) => &sumti.quantifier,
+        GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description) => {
+            &description.outer_quantifier
+        }
         GeneratedArgumentQuantifierSource::NoGadriDescription(description) => {
             &description.quantifier
         }
@@ -8813,6 +8912,32 @@ fn no_gadri_description_from_sumti(
         return Ok(None);
     }
     no_gadri_description_from_sumti_bound(&afterthought.leading_sumti)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn outer_quantified_description_from_sumti(
+    sumti: &SumtiSyntax,
+) -> Option<&DescriptorWithOuterQuantifierSumtiSyntax> {
+    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+        return None;
+    }
+    let afterthought = sumti.base_sumti.leading_sumti.as_ref();
+    if !afterthought.continuations.is_empty() || afterthought.leading_sumti.bound_tail.is_some() {
+        return None;
+    }
+    let SumtiForethoughtSyntax::SimpleSumti(simple) =
+        afterthought.leading_sumti.leading_sumti.as_ref()
+    else {
+        return None;
+    };
+    let SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(
+        description,
+    )) = simple.base_sumti.as_ref()
+    else {
+        return None;
+    };
+    Some(description)
 }
 
 #[requires(true)]
