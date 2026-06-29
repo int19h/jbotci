@@ -46,8 +46,8 @@ use crate::model::{
     FormulaOperator, IndexicalKind, ModalArgument, ModalNegation, ModalNegationKind, ParameterRole,
     PredicationMode, QuantityForm, QuantityScale, QuantityValue, ReferentCategory, RelativeClause,
     RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic,
-    source_from_spans,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink,
+    UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -226,8 +226,43 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_text(mut self, syntax: &TextSyntax) -> Result<SemanticGraph, SemanticsError> {
-        let root = single_semantic_root_from_text(syntax)?;
-        let utterance_id = self.next_utterance_id();
+        let roots = semantic_roots_from_text(syntax)?;
+        let utterance_ids = (0..roots.len())
+            .map(|_| self.next_utterance_id())
+            .collect::<Vec<_>>();
+        let mut items = Vec::new();
+        for (utterance_id, root) in utterance_ids.into_iter().zip(roots) {
+            items.push(self.build_utterance_for_generated_text_root(utterance_id, root)?);
+        }
+        let root = if let [single] = items.as_slice() {
+            *single
+        } else {
+            let sequence = self.next_sequence_id();
+            self.insert(
+                sequence,
+                SemanticObject::sequence(
+                    items,
+                    SequenceRelation::SameTopicContinuation,
+                    self.source_for_node(syntax, "text"),
+                    Vec::new(),
+                ),
+            )?;
+            sequence
+        };
+        self.prune_unreachable_objects(root);
+        SemanticGraph::new(root, self.objects).map_err(|message| SemanticsError {
+            kind: SemanticsErrorKind::InvalidGraph,
+            message: format!("semantic graph invariant failed: {message}"),
+        })
+    }
+
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|id| *id == utterance_id) || ret.is_err())]
+    fn build_utterance_for_generated_text_root(
+        &mut self,
+        utterance_id: SemanticObjectId,
+        root: GeneratedTextRoot<'_>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let (force, content, source) = match root {
             GeneratedTextRoot::Bridi(bridi) => {
                 let force = if generated_node_contains_cmavo(bridi, Cmavo::Ko) {
@@ -275,11 +310,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Vec::new(),
             ),
         )?;
-        self.prune_unreachable_objects(utterance_id);
-        SemanticGraph::new(utterance_id, self.objects).map_err(|message| SemanticsError {
-            kind: SemanticsErrorKind::InvalidGraph,
-            message: format!("semantic graph invariant failed: {message}"),
-        })
+        Ok(utterance_id)
     }
 
     #[requires(self.objects.contains_key(&root))]
@@ -5736,6 +5767,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    fn next_sequence_id(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::sequence(self.next_index);
+        self.next_index += 1;
+        id
+    }
+
+    #[requires(true)]
     #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(ret.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     fn next_eventuality_id(&mut self) -> SemanticObjectId {
@@ -5871,10 +5910,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn single_semantic_root_from_text(
+#[ensures(ret.as_ref().is_ok_and(|roots| !roots.is_empty()) || ret.is_err())]
+fn semantic_roots_from_text(
     syntax: &TextSyntax,
-) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
+) -> Result<Vec<GeneratedTextRoot<'_>>, SemanticsError> {
     let TextSyntax::RegularText(RegularTextSyntax {
         leading_nai,
         leading_cmevla,
@@ -5892,9 +5931,13 @@ fn single_semantic_root_from_text(
         || !leading_indicators.is_empty()
         || !leading_free_modifiers.is_empty()
         || leading_connective.is_some()
-        || !leading_i_statements.is_empty()
     {
         return Err(unsupported("text leading material"));
+    }
+    for leading_i in leading_i_statements {
+        if leading_i.connective.is_some() || !leading_i.free_modifiers.is_empty() {
+            return Err(unsupported("text leading material"));
+        }
     }
     let TextParagraphsSyntax::TextParagraphWithAdditionalNiho(
         TextParagraphWithAdditionalNihoSyntax {
@@ -5908,35 +5951,78 @@ fn single_semantic_root_from_text(
     if !additional_niho.is_empty() {
         return Err(unsupported("additional paragraphs"));
     }
-    let ParagraphSyntax::SimpleParagraph(SimpleParagraphSyntax(sequence)) = first else {
-        return Err(unsupported("NIhO paragraph"));
+    semantic_roots_from_paragraph(first)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|roots| !roots.is_empty()) || ret.is_err())]
+fn semantic_roots_from_paragraph(
+    paragraph: &ParagraphSyntax,
+) -> Result<Vec<GeneratedTextRoot<'_>>, SemanticsError> {
+    let sequence = match paragraph {
+        ParagraphSyntax::SimpleParagraph(SimpleParagraphSyntax(sequence)) => sequence,
+        ParagraphSyntax::INihoParagraph(paragraph) => {
+            if !paragraph.free_modifiers.is_empty() {
+                return Err(unsupported("NIhO paragraph"));
+            }
+            let Some(sequence) = paragraph.statements.as_deref() else {
+                return Err(unsupported("empty NIhO paragraph"));
+            };
+            sequence
+        }
     };
-    if !sequence.following.is_empty() || !sequence.trailing.is_empty() {
+    if !sequence.trailing.is_empty() {
         return Err(unsupported("paragraph statement continuations"));
     }
-    match sequence.initial.0.as_ref() {
+    let mut roots = vec![semantic_root_from_statement_or_fragment(
+        sequence.initial.0.as_ref(),
+    )?];
+    for following in &sequence.following {
+        if !following.free_modifiers.is_empty() {
+            return Err(unsupported("paragraph statement continuations"));
+        }
+        let Some(statement) = following.statement.as_deref() else {
+            continue;
+        };
+        roots.push(semantic_root_from_statement_or_fragment(statement)?);
+    }
+    Ok(roots)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn semantic_root_from_statement_or_fragment(
+    statement_or_fragment: &StatementOrFragmentSyntax,
+) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
+    match statement_or_fragment {
         StatementOrFragmentSyntax::StatementOrFragmentStatement(
             StatementOrFragmentStatementSyntax(statement),
-        ) => {
-            let StatementSyntax::StatementBase(StatementBaseSyntax::BridiStatement(
-                BridiStatementSyntax {
-                    bridi,
-                    continuations,
-                },
-            )) = statement
-            else {
-                return Err(unsupported("non-simple statement"));
-            };
-            if !continuations.is_empty() {
-                return Err(unsupported("statement connective continuations"));
-            }
-            Ok(GeneratedTextRoot::Bridi(bridi))
-        }
+        ) => semantic_root_from_statement(statement),
         StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::TermsFragment(
             fragment,
         )) => Ok(GeneratedTextRoot::TermsFragment(fragment)),
         StatementOrFragmentSyntax::FragmentStatement(_) => Err(unsupported("non-terms fragment")),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn semantic_root_from_statement(
+    statement: &StatementSyntax,
+) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
+    let StatementSyntax::StatementBase(StatementBaseSyntax::BridiStatement(
+        BridiStatementSyntax {
+            bridi,
+            continuations,
+        },
+    )) = statement
+    else {
+        return Err(unsupported("non-simple statement"));
+    };
+    if !continuations.is_empty() {
+        return Err(unsupported("statement connective continuations"));
+    }
+    Ok(GeneratedTextRoot::Bridi(bridi))
 }
 
 #[requires(true)]
