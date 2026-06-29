@@ -46,10 +46,11 @@ use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, ArgumentValueKind,
     CommandTarget, Composition, Connector, Descriptor, EventualityClass, EventualitySort,
     FormulaOperator, IndexicalKind, ModalArgument, ModalNegation, ModalNegationKind, ParameterRole,
-    PredicationMode, QuantityForm, QuantityScale, QuantityValue, ReferentCategory, RelativeClause,
-    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink,
-    UtteranceForce, diagnostic, source_from_spans,
+    PredicationMode, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
+    QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause, RelativeClauseKind,
+    ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 
 #[requires(true)]
@@ -90,6 +91,8 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     current_utterance: Option<SemanticObjectId>,
     previous_utterance: Option<SemanticObjectId>,
     next_utterance: Option<SemanticObjectId>,
+    argument_question_parameters: Vec<SemanticObjectId>,
+    implicit_existential_variables: Vec<GeneratedImplicitExistential>,
 }
 
 #[invariant(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -111,6 +114,13 @@ enum GeneratedTextRoot<'syntax> {
     TermsFragment(&'syntax TermsFragmentSyntax),
     StatementConnection(&'syntax IStatementConnectionSyntax),
     PreposedStatementConnection(&'syntax PreposedIStatementConnectionSyntax),
+}
+
+#[invariant(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[derive(Debug, Clone)]
+struct GeneratedImplicitExistential {
+    variable: SemanticObjectId,
+    source: Option<crate::model::SemanticSource>,
 }
 
 #[invariant(crate::model::argument_object_kind_can_fill(value.object_kind()))]
@@ -174,6 +184,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             current_utterance: None,
             previous_utterance: None,
             next_utterance: None,
+            argument_question_parameters: Vec::new(),
+            implicit_existential_variables: Vec::new(),
         };
         builder.insert_deictics();
         builder
@@ -359,14 +371,96 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         bridi: &BridiSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
+        let question_start = self.argument_question_parameters.len();
+        let existential_start = self.implicit_existential_variables.len();
         let formula = self.build_bridi_formula(bridi)?;
+        let existentials = self
+            .implicit_existential_variables
+            .split_off(existential_start);
+        let formula = self.wrap_formula_with_implicit_existentials(formula, existentials)?;
+        let question_parameters = self.argument_question_parameters.split_off(question_start);
+        let (force, content) = if question_parameters.is_empty() {
+            (force, formula)
+        } else {
+            (
+                UtteranceForce::Ask,
+                self.build_direct_argument_question(
+                    formula,
+                    question_parameters,
+                    self.source_for_node(bridi, "question"),
+                )?,
+            )
+        };
         self.insert_generated_utterance(
             utterance_id,
             force,
-            Some(formula),
+            Some(content),
             self.source_for_node(bridi, "bridi"),
         )?;
         Ok((utterance_id, formula))
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(parameters.iter().all(|parameter| parameter.object_kind() == crate::model::SemanticObjectKind::Parameter))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Question) || ret.is_err())]
+    fn build_direct_argument_question(
+        &mut self,
+        formula: SemanticObjectId,
+        parameters: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let question = SemanticObjectId::question(self.next_index);
+        self.next_index += 1;
+        let slots = parameters
+            .into_iter()
+            .map(|parameter| QuestionSlot {
+                parameter,
+                role: QuestionSlotRole::Answer,
+            })
+            .collect::<Vec<_>>();
+        self.insert(
+            question,
+            SemanticObject::question(
+                QuestionKind::Argument,
+                QuestionMode::Direct,
+                SemanticSort::Entity,
+                formula,
+                slots,
+                SemanticObjectId::speaker(),
+                SemanticObjectId::addressee(),
+                source,
+            ),
+        )?;
+        Ok(question)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(existentials.iter().all(|existential| existential.variable.object_kind() == crate::model::SemanticObjectKind::Referent))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_formula_with_implicit_existentials(
+        &mut self,
+        formula: SemanticObjectId,
+        existentials: Vec<GeneratedImplicitExistential>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut body = formula;
+        for existential in existentials.into_iter().rev() {
+            let data!(GeneratedImplicitExistential { variable, source }) = existential.into_data();
+            let formula = self.next_formula_id();
+            self.insert(
+                formula,
+                SemanticObject::quantified_formula(
+                    FormulaOperator::Exists,
+                    variable,
+                    None,
+                    body,
+                    None,
+                    source,
+                    Vec::new(),
+                ),
+            )?;
+            body = formula;
+        }
+        Ok(body)
     }
 
     #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -5123,7 +5217,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_sumti_grouped_referent(
         &mut self,
         sumti: &SumtiGroupedSyntax,
@@ -5135,7 +5229,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_sumti_afterthought_referent(
         &mut self,
         sumti: &SumtiAfterthoughtSyntax,
@@ -5157,7 +5251,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_sumti_bound_referent(
         &mut self,
         sumti: &SumtiBoundSyntax,
@@ -5169,7 +5263,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_sumti_forethought_referent(
         &mut self,
         sumti: &SumtiForethoughtSyntax,
@@ -5181,7 +5275,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_simple_sumti_referent(
         &mut self,
         sumti: &SimpleSumtiSyntax,
@@ -5193,7 +5287,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|id| crate::model::argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
     fn build_sumti_base_referent(
         &mut self,
         sumti: &SumtiBaseSyntax,
@@ -5400,10 +5494,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
             Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
             Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Ma) => self.build_argument_question_parameter(pro_sumti),
+            Some(Cmavo::Cehu) => {
+                self.build_generated_parameter(pro_sumti, ParameterRole::PropertySlot)
+            }
             Some(Cmavo::Zohe) => self.build_elided_referent_with_source(
                 "zo'e".to_owned(),
                 self.source_for_node(pro_sumti, "elided-sumti"),
             ),
+            Some(Cmavo::Zuhi) => self.build_typical_place_value_referent(pro_sumti),
             Some(Cmavo::Keha) => self
                 .relative_head
                 .ok_or_else(|| unsupported("relative head pro-sumti outside relative clause")),
@@ -5426,8 +5525,117 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Cmavo::Tu) => {
                 self.build_demonstrative_referent(pro_sumti, IndexicalKind::DistalDemonstrative)
             }
+            Some(Cmavo::Da | Cmavo::De | Cmavo::Di) => {
+                self.build_implicit_existential_variable(pro_sumti)
+            }
             _ => Err(unsupported(&format!("pro-sumti {word}"))),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_argument_question_parameter(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter =
+            self.build_generated_parameter(pro_sumti, ParameterRole::ArgumentQuestion)?;
+        self.argument_question_parameters.push(parameter);
+        Ok(parameter)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_generated_parameter(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+        role: ParameterRole,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                role,
+                token_text(&pro_sumti.0.value),
+                self.source_for_node(pro_sumti, "parameter"),
+            ),
+        )?;
+        Ok(parameter)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_implicit_existential_variable(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_node(pro_sumti, "sumti");
+        let variable = self.next_referent_id();
+        self.insert(
+            variable,
+            SemanticObject::referent(
+                ReferentCategory::Variable,
+                SemanticSort::Entity,
+                None,
+                Some(Descriptor {
+                    kind: "proSumti".to_owned(),
+                    word: token_text(&pro_sumti.0.value),
+                    speaker: None,
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        self.implicit_existential_variables
+            .push(new!(GeneratedImplicitExistential {
+                variable,
+                source: self.source_for_node(pro_sumti, "quantifier-scope"),
+            }));
+        Ok(variable)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_typical_place_value_referent(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Entity,
+                None,
+                Some(Descriptor {
+                    kind: "typicalPlaceValue".to_owned(),
+                    word: token_text(&pro_sumti.0.value),
+                    speaker: Some(SemanticObjectId::speaker()),
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: None,
+                    name: None,
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(pro_sumti, "sumti"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(true)]
