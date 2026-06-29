@@ -21,22 +21,23 @@ use jbotci_syntax::generated_model::{
     LaheSumtiSyntax, LerfuStringSumtiSyntax, LinkargsSyntax, LinkedSumtiSyntax,
     LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax, OrdinalTanruUnitSyntax,
     ParagraphSyntax, PlainRelativeSumtiSyntax, PreposedIStatementConnectionSyntax,
-    ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
-    QuantifierSyntax, RegularTextSyntax, RelationAfterthoughtConnectiveSyntax,
-    RelationDescriptionTailSyntax, RelationOnlyBridiSyntax, RelativeClauseAtomSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
-    RestrictiveBridiRelativeClauseSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
-    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax,
-    SelbriSyntax, SimpleBridiTailSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
-    SimpleTermSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
-    StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
-    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax,
-    SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiForethoughtSyntax, SumtiGroupedSyntax,
-    SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax,
-    TaggedOrElidedSumtiSyntax, TaggedSumtiTermSyntax, TanruSelbriSyntax, TanruUnitAtomBaseSyntax,
-    TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalSyntax, TenseTaggedRelativeSumtiSyntax,
-    TermSyntax, TermsFragmentSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
-    TextSyntax, TreeNode, UntaggedSelbriSyntax, WordTanruUnitSyntax,
+    ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifiedSumtiSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
+    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
+    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseListSyntax,
+    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
+    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
+    ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SimpleBridiTailSyntax,
+    SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, StatementAfterIConnectiveSyntax,
+    StatementBaseSyntax, StatementConnectiveSyntax, StatementOrFragmentStatementSyntax,
+    StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax,
+    SumtiAssociationRelativeClauseSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax,
+    SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax,
+    SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiTermSyntax,
+    TanruSelbriSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax, TanruUnitSyntax,
+    TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
+    TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
+    UntaggedSelbriSyntax, WordTanruUnitSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers};
 use jbotci_tree::TreeVisitor;
@@ -49,10 +50,10 @@ use crate::model::{
     CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness, EventualityClass,
     EventualitySort, FormulaOperator, IndexicalKind, ModalArgument, ModalNegation,
     ModalNegationKind, ParameterRole, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, ReferentCategory, RelativeClause,
-    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
-    SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation, TanruLink,
-    UtteranceForce, diagnostic, source_from_spans,
+    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory,
+    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, TanruLink, UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -93,6 +94,11 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     current_utterance: Option<SemanticObjectId>,
     previous_utterance: Option<SemanticObjectId>,
     next_utterance: Option<SemanticObjectId>,
+    current_speaker: SemanticObjectId,
+    current_audience: SemanticObjectId,
+    current_now: SemanticObjectId,
+    current_here: SemanticObjectId,
+    scoped_argument_variables: BTreeMap<(usize, usize), SemanticObjectId>,
     argument_question_parameters: Vec<SemanticObjectId>,
     relation_question_parameters: Vec<SemanticObjectId>,
     implicit_existential_variables: Vec<GeneratedImplicitExistential>,
@@ -142,11 +148,40 @@ struct GeneratedScalarScaleDefinition {
     source: Option<crate::model::SemanticSource>,
 }
 
-#[invariant(visible_arguments.keys().all(|place| *place > 0))]
+#[invariant(true)]
 #[derive(Debug)]
-struct GeneratedTermAssignments {
+struct GeneratedTermAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     modal_terms: Vec<TaggedSumtiTermSyntax>,
+    formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedArgumentQuantifierScope<'syntax> {
+    sumti: &'syntax SumtiSyntax,
+    source: GeneratedArgumentQuantifierSource<'syntax>,
+    variable: SemanticObjectId,
+}
+
+#[invariant(::QuantifiedSumti(_) => true)]
+#[invariant(::NoGadriDescription(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedArgumentQuantifierSource<'syntax> {
+    QuantifiedSumti(&'syntax QuantifiedSumtiSyntax),
+    NoGadriDescription(&'syntax DescriptorWithoutGadriSumtiSyntax),
+}
+
+#[invariant(speaker.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(now.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[invariant(here.object_kind() == crate::model::SemanticObjectKind::Referent)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedDeicticRoles {
+    speaker: SemanticObjectId,
+    audience: SemanticObjectId,
+    now: SemanticObjectId,
+    here: SemanticObjectId,
 }
 
 #[invariant(::Description => true)]
@@ -202,6 +237,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             current_utterance: None,
             previous_utterance: None,
             next_utterance: None,
+            current_speaker: SemanticObjectId::speaker(),
+            current_audience: SemanticObjectId::addressee(),
+            current_now: SemanticObjectId::now(),
+            current_here: SemanticObjectId::here(),
+            scoped_argument_variables: BTreeMap::new(),
             argument_question_parameters: Vec::new(),
             relation_question_parameters: Vec::new(),
             implicit_existential_variables: Vec::new(),
@@ -264,6 +304,128 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Vec::new(),
             ),
         );
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_speaker(&self) -> SemanticObjectId {
+        self.current_speaker
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_audience(&self) -> SemanticObjectId {
+        self.current_audience
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+    fn current_now(&self) -> SemanticObjectId {
+        self.current_now
+    }
+
+    #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    fn current_here(&self) -> SemanticObjectId {
+        self.current_here
+    }
+
+    #[requires(true)]
+    #[ensures(ret.speaker == self.current_speaker)]
+    #[ensures(ret.audience == self.current_audience)]
+    #[ensures(ret.now == self.current_now)]
+    #[ensures(ret.here == self.current_here)]
+    fn current_deictic_roles(&self) -> GeneratedDeicticRoles {
+        GeneratedDeicticRoles::from_data(data!(GeneratedDeicticRoles {
+            speaker: self.current_speaker,
+            audience: self.current_audience,
+            now: self.current_now,
+            here: self.current_here,
+        }))
+    }
+
+    #[requires(roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(roles.audience.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(roles.now.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(roles.here.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(self.current_speaker == roles.speaker)]
+    #[ensures(self.current_audience == roles.audience)]
+    #[ensures(self.current_now == roles.now)]
+    #[ensures(self.current_here == roles.here)]
+    fn set_current_deictic_roles(&mut self, roles: GeneratedDeicticRoles) {
+        self.current_speaker = roles.speaker;
+        self.current_audience = roles.audience;
+        self.current_now = roles.now;
+        self.current_here = roles.here;
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|roles| roles.speaker.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_fresh_quote_deictic_roles(
+        &mut self,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<GeneratedDeicticRoles, SemanticsError> {
+        let speaker = self.next_referent_id();
+        self.insert(
+            speaker,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(IndexicalKind::Speaker),
+                None,
+                None,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let audience = self.next_referent_id();
+        self.insert(
+            audience,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(IndexicalKind::Audience),
+                None,
+                None,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let now = self.next_referent_with_sort_id(SemanticSort::eventuality());
+        self.insert(
+            now,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::eventuality(),
+                Some(IndexicalKind::Now),
+                None,
+                None,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let here = self.next_referent_id();
+        self.insert(
+            here,
+            SemanticObject::referent(
+                ReferentCategory::Indexical,
+                SemanticSort::Entity,
+                Some(IndexicalKind::Here),
+                None,
+                None,
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(GeneratedDeicticRoles::from_data(data!(
+            GeneratedDeicticRoles {
+                speaker,
+                audience,
+                now,
+                here,
+            }
+        )))
     }
 
     #[requires(true)]
@@ -467,8 +629,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 domain,
                 formula,
                 slots,
-                SemanticObjectId::speaker(),
-                SemanticObjectId::addressee(),
+                self.current_speaker(),
+                self.current_audience(),
                 source,
             ),
         )?;
@@ -530,10 +692,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 force,
                 locution,
                 content,
-                SemanticObjectId::speaker(),
-                SemanticObjectId::addressee(),
-                SemanticObjectId::now(),
-                SemanticObjectId::here(),
+                self.current_speaker(),
+                self.current_audience(),
+                self.current_now(),
+                self.current_here(),
                 source,
                 Vec::new(),
             ),
@@ -1149,9 +1311,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 if eventuality.is_some() || mode != PredicationMode::Asserted {
                     return Err(unsupported("scoped forethought selbri connection"));
                 }
-                let assignments = self
-                    .build_term_assignments_for_terms(terms, first_visible_place)?
-                    .into_data();
+                let assignments =
+                    self.build_term_assignments_for_terms(terms, first_visible_place)?;
                 let mut visible_arguments = assignments.visible_arguments;
                 if !visible_arguments.contains_key(&1) {
                     let referent = self.build_elided_referent("zo'e".to_owned())?;
@@ -1277,9 +1438,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let assignments = self
-            .build_term_assignments_for_terms(terms, first_visible_place)?
-            .into_data();
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in assignments.visible_arguments {
             let key = argument_key(visible_place);
@@ -1323,7 +1482,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, assignments.formula_scopes)
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
@@ -1359,9 +1518,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let assignments = self
-            .build_term_assignments_for_terms(terms, first_visible_place)?
-            .into_data();
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let modal_arguments =
             self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
         let mut arguments = BTreeMap::new();
@@ -1389,7 +1546,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             formula,
             SemanticObject::atom_formula(predication, source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, assignments.formula_scopes)
     }
 
     #[requires(child.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -1476,9 +1633,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 } else {
                     None
                 };
-            let assignments = self
-                .build_term_assignments_for_terms(terms, first_visible_place)?
-                .into_data();
+            let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
             let result = self.build_tanru_unit_formula_for_visible_arguments(
                 unit,
                 assignments.visible_arguments,
@@ -1487,7 +1642,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 leading_eventuality,
             )?;
             self.attach_generated_modal_terms_to_formula(result.formula, &assignments.modal_terms)?;
-            return Ok(result.formula);
+            return self.wrap_formula_with_generated_argument_scopes(
+                result.formula,
+                assignments.formula_scopes,
+            );
         }
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
@@ -1498,9 +1656,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped scalar grouped tanru unit"));
             }
-            let assignments = self
-                .build_term_assignments_for_terms(terms, first_visible_place)?
-                .into_data();
+            let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 assignments.visible_arguments,
                 &atom.conversions,
@@ -1520,17 +1676,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 scalar_negation_for_marker(&scalar_unit.nahe)
                     .with_argument_scope(vec!["x1".to_owned()]),
             )?;
-            return Ok(self
+            let formula = self
                 .detach_tanru_relation_formula_without_positive_head(formula)
-                .unwrap_or(formula));
+                .unwrap_or(formula);
+            return self
+                .wrap_formula_with_generated_argument_scopes(formula, assignments.formula_scopes);
         }
         if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped grouped tanru unit"));
             }
-            let assignments = self
-                .build_term_assignments_for_terms(terms, first_visible_place)?
-                .into_data();
+            let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 assignments.visible_arguments,
                 &atom.conversions,
@@ -1541,7 +1697,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 formula_source,
             )?;
             self.attach_generated_modal_terms_to_formula(formula, &assignments.modal_terms)?;
-            return Ok(formula);
+            return self
+                .wrap_formula_with_generated_argument_scopes(formula, assignments.formula_scopes);
         }
         let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
             atom.base.as_ref(),
@@ -1563,9 +1720,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let assignments = self
-            .build_term_assignments_for_terms(terms, first_visible_place)?
-            .into_data();
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let mut visible_arguments = assignments.visible_arguments;
         if let Some(linkargs) = linkargs {
             let (_, adjusted_arguments) =
@@ -1628,7 +1783,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             formula,
             SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
-        Ok(formula)
+        self.wrap_formula_with_generated_argument_scopes(formula, assignments.formula_scopes)
     }
 
     #[requires(true)]
@@ -1845,6 +2000,140 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(formula)
     }
 
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_formula_with_generated_argument_scopes<'syntax>(
+        &mut self,
+        formula: SemanticObjectId,
+        scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut body = formula;
+        for scope in scopes.into_iter().rev() {
+            body = self.wrap_formula_with_generated_argument_scope(body, scope)?;
+        }
+        Ok(body)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(scope.variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn wrap_formula_with_generated_argument_scope(
+        &mut self,
+        formula: SemanticObjectId,
+        scope: GeneratedArgumentQuantifierScope<'_>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let restrictions =
+            self.generated_argument_restrictions_for_scope_source(scope.source, scope.variable)?;
+        let restriction = self.combine_generated_restriction_formulas(restrictions)?;
+        let quantifier = generated_argument_scope_source_quantifier(scope.source);
+        let quantity = self.build_quantity_for_quantifier(quantifier)?;
+        let scoped = self.next_formula_id();
+        self.insert(
+            scoped,
+            SemanticObject::quantified_formula(
+                generated_quantifier_formula_operator(quantifier),
+                scope.variable,
+                restriction,
+                formula,
+                Some(quantity),
+                self.source_for_node(scope.sumti, "quantifier-scope"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(scoped)
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn generated_argument_restrictions_for_scope_source(
+        &mut self,
+        source: GeneratedArgumentQuantifierSource<'_>,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        match source {
+            GeneratedArgumentQuantifierSource::QuantifiedSumti(quantified) => {
+                self.generated_argument_restrictions_for_quantified_sumti(quantified, variable)
+            }
+            GeneratedArgumentQuantifierSource::NoGadriDescription(description) => self
+                .build_no_gadri_restriction_formula(description, variable)
+                .map(|restriction| vec![restriction]),
+        }
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn generated_argument_restrictions_for_quantified_sumti(
+        &mut self,
+        quantified: &QuantifiedSumtiSyntax,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        if generated_sumti_base_spine_cmavo(&quantified.inner_sumti)
+            .is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))
+        {
+            return Ok(Vec::new());
+        }
+        let base = self.build_sumti_base_referent(&quantified.inner_sumti)?;
+        self.build_membership_restriction_formula(variable, base)
+            .map(|restriction| vec![restriction])
+    }
+
+    #[requires(restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[ensures(ret.as_ref().is_ok_and(|restriction| restriction.is_none_or(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn combine_generated_restriction_formulas(
+        &mut self,
+        restrictions: Vec<SemanticObjectId>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match restrictions.as_slice() {
+            [] => Ok(None),
+            [restriction] => Ok(Some(*restriction)),
+            _ => {
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::connective_formula(
+                        FormulaOperator::And,
+                        restrictions,
+                        None,
+                        None,
+                        Vec::new(),
+                    ),
+                )?;
+                Ok(Some(formula))
+            }
+        }
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(crate::model::argument_object_kind_can_fill(base.object_kind()))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_membership_restriction_formula(
+        &mut self,
+        variable: SemanticObjectId,
+        base: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(base, None));
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "memberOf".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                None,
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, None, Vec::new()),
+        )?;
+        Ok(formula)
+    }
+
     #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_no_gadri_restriction_formula(
@@ -1855,23 +2144,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if description.relative_clauses.is_some() {
             return Err(unsupported("description relative clauses"));
         }
-        if let Some(sumti_selbri) = sumti_selbri_from_selbri(&description.selbri)? {
-            return self.build_sumti_selbri_formula_for_argument(
-                sumti_selbri,
-                ArgumentValue::filled(variable, None),
-                PredicationMode::Restrictive,
-                self.source_for_node(&description.selbri, "restrictive-predication"),
-            );
-        }
-        let relation = semantic_relation_label(relation_label_from_selbri(&description.selbri)?);
-        self.build_relation_formula_for_argument(
-            relation,
-            ArgumentValue::filled(variable, None),
-            None,
-            PredicationMode::Restrictive,
-            self.source_for_node(&description.selbri, "restrictive-predication"),
-            self.source_for_node(&description.selbri, "restrictive-predication"),
-        )
+        self.build_restrictive_formula(&description.selbri, variable)
     }
 
     #[requires(!tanru.additional_units.is_empty())]
@@ -1912,9 +2185,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             None
         };
-        let assignments = self
-            .build_term_assignments_for_terms(terms, first_visible_place)?
-            .into_data();
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let result = self
             .build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
                 tanru,
@@ -1923,7 +2194,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 source,
                 &assignments.modal_terms,
             )?;
-        Ok(result.formula)
+        self.wrap_formula_with_generated_argument_scopes(result.formula, assignments.formula_scopes)
     }
 
     #[requires(!tanru.additional_units.is_empty())]
@@ -2852,28 +3123,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    fn build_term_assignments_for_terms(
+    fn build_term_assignments_for_terms<'syntax>(
         &mut self,
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
-    ) -> Result<GeneratedTermAssignments, SemanticsError> {
+    ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
         let mut visible_arguments = BTreeMap::new();
         let mut modal_terms = Vec::new();
+        let mut formula_scopes = Vec::new();
         let mut next_visible_place = first_visible_place;
         for term in terms {
             self.insert_generated_term_assignment(
                 &mut visible_arguments,
                 &mut modal_terms,
+                &mut formula_scopes,
                 &mut next_visible_place,
                 term,
             )?;
         }
-        Ok(GeneratedTermAssignments::from_data(data!(
-            GeneratedTermAssignments {
-                visible_arguments,
-                modal_terms,
-            }
-        )))
+        Ok(GeneratedTermAssignments {
+            visible_arguments,
+            modal_terms,
+            formula_scopes,
+        })
     }
 
     #[requires(true)]
@@ -2888,9 +3160,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if sumti_selbri.moi_marker.is_some() {
             return Err(unsupported("MOI sumti selbri"));
         }
-        let assignments = self
-            .build_term_assignments_for_terms(terms, first_visible_place)?
-            .into_data();
+        let assignments = self.build_term_assignments_for_terms(terms, first_visible_place)?;
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in assignments.visible_arguments {
             arguments.insert(argument_key(visible_place), argument);
@@ -4674,7 +4944,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind: "scale".to_owned(),
                     word: word.to_owned(),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
                     relative_clauses: Vec::new(),
@@ -4895,12 +5165,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(*next_visible_place > 0)]
     #[ensures(ret.is_ok() || ret.is_err())]
-    fn insert_generated_term_assignment(
+    fn insert_generated_term_assignment<'syntax>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
+        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         next_visible_place: &mut usize,
-        term: &TermSyntax,
+        term: &'syntax TermSyntax,
     ) -> Result<(), SemanticsError> {
         let simple = match term {
             TermSyntax::SimpleTerm(simple) => simple,
@@ -4915,7 +5186,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 insert_visible_argument(
                     visible_arguments,
                     *next_visible_place,
-                    self.build_argument_for_generated_sumti(sumti)?,
+                    self.build_argument_for_generated_sumti_with_formula_scopes(
+                        sumti,
+                        formula_scopes,
+                    )?,
                 )?;
                 *next_visible_place += 1;
                 Ok(())
@@ -5076,15 +5350,20 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<ArgumentValue, SemanticsError> {
         let mut visible_arguments = BTreeMap::new();
         let mut modal_terms = Vec::new();
+        let mut formula_scopes = Vec::new();
         let mut next_visible_place = 1;
         self.insert_generated_term_assignment(
             &mut visible_arguments,
             &mut modal_terms,
+            &mut formula_scopes,
             &mut next_visible_place,
             term,
         )?;
         if !modal_terms.is_empty() {
             return Err(unsupported("modal term as referential argument"));
+        }
+        if !formula_scopes.is_empty() {
+            return Err(unsupported("scoped term as referential argument"));
         }
         let Some(argument) = visible_arguments.remove(&1) else {
             return Err(unsupported("non-referential term argument"));
@@ -5155,6 +5434,90 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         }
         Ok(argument)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_argument_for_generated_sumti_with_formula_scopes<'syntax>(
+        &mut self,
+        sumti: &'syntax SumtiSyntax,
+        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        if generated_sumti_is_deleted(sumti) {
+            return Ok(ArgumentValue::deleted(
+                "zi'o".to_owned(),
+                self.source_for_node(sumti, "deleted-place"),
+            ));
+        }
+        let scope_source =
+            if let Some(quantified_sumti) = generated_quantified_sumti_from_sumti(sumti) {
+                Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+                    quantified_sumti,
+                ))
+            } else {
+                no_gadri_description_from_sumti(sumti)?
+                    .map(GeneratedArgumentQuantifierSource::NoGadriDescription)
+            };
+        let Some(scope_source) = scope_source else {
+            return self.build_argument_for_generated_sumti(sumti);
+        };
+        let referent = self.build_scoped_argument_variable_for_generated_sumti(sumti)?;
+        let mut argument = if generated_sumti_is_elided(sumti) {
+            ArgumentValue::elided(
+                referent,
+                "zo'e".to_owned(),
+                self.source_for_node(sumti, "elided-place"),
+            )
+        } else {
+            ArgumentValue::filled(referent, None)
+        };
+        if generated_sumti_is_command_target(sumti) {
+            argument = argument.with_command_target(CommandTarget::new("ko".to_owned()));
+        }
+        if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) {
+            let relative_clauses =
+                self.lower_generated_relative_clause_list(relative_clauses, referent)?;
+            if !relative_clauses.is_empty() {
+                argument = argument.with_relative_clauses(relative_clauses);
+            }
+        }
+        formula_scopes.push(GeneratedArgumentQuantifierScope {
+            sumti,
+            source: scope_source,
+            variable: referent,
+        });
+        Ok(argument)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_scoped_argument_variable_for_generated_sumti(
+        &mut self,
+        sumti: &SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(key) = self.source_key_for_node(sumti)
+            && let Some(id) = self.scoped_argument_variables.get(&key)
+        {
+            return Ok(*id);
+        }
+        let sort = generated_sumti_quantified_variable_sort(sumti);
+        let id = self.next_referent_with_sort_id(sort);
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Variable,
+                sort,
+                None,
+                None,
+                None,
+                self.source_for_node(sumti, "bound-argument"),
+                Vec::new(),
+            ),
+        )?;
+        if let Some(key) = self.source_key_for_node(sumti) {
+            self.scoped_argument_variables.insert(key, id);
+        }
+        Ok(id)
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -5636,6 +5999,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.build_lerfu_string_sumti_referent(sumti)
             }
             SumtiBaseSyntax::LaheSumti(sumti) => self.build_lahe_sumti_referent(sumti),
+            SumtiBaseSyntax::QuotedSumti(sumti) => self.build_quoted_sumti_sign(sumti),
             _ => Err(unsupported("sumti base")),
         }
     }
@@ -5650,6 +6014,87 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             sumti,
             "letteral pro-sumti did not resolve to an antecedent",
         )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Sign)) || ret.is_err())]
+    fn build_quoted_sumti_sign(
+        &mut self,
+        sumti: &QuotedSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let source = self.source_for_node(sumti, "quotation");
+        let source_text = source.as_ref().and_then(|source| source.text.clone());
+        let quotation = match sumti.0.as_ref() {
+            QuoteSyntax::TextQuote(quote) => Quotation {
+                mode: "parsed".to_owned(),
+                utterance: self.build_generated_quoted_text_group(&quote.text, source.clone())?,
+                delimiter: None,
+                text: source_text,
+            },
+            _ => {
+                let delimiter = self.tokens_for_node(sumti).first().map(token_text);
+                Quotation {
+                    mode: "opaque".to_owned(),
+                    utterance: None,
+                    delimiter,
+                    text: source_text,
+                }
+            }
+        };
+        let id = self.next_sign_id();
+        self.insert(
+            id,
+            SemanticObject::sign(SignKind::Quotation, Some(quotation), source, Vec::new()),
+        )?;
+        Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence)) || ret.is_err())]
+    fn build_generated_quoted_text_group(
+        &mut self,
+        text: &TextSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let roots = semantic_roots_from_text(text)?;
+        if roots.is_empty() {
+            return Ok(None);
+        }
+        let previous_roles = self.current_deictic_roles();
+        let previous_current_utterance = self.current_utterance;
+        let previous_previous_utterance = self.previous_utterance;
+        let previous_next_utterance = self.next_utterance;
+        let quote_roles = self.build_fresh_quote_deictic_roles(source)?;
+        self.set_current_deictic_roles(quote_roles);
+        self.current_utterance = None;
+        self.previous_utterance = None;
+        self.next_utterance = None;
+        let result = if let [root] = roots.as_slice() {
+            let utterance_id = self.next_utterance_id();
+            self.current_utterance = Some(utterance_id);
+            self.build_utterance_for_generated_text_root(utterance_id, *root)
+        } else {
+            let mut items = Vec::with_capacity(roots.len());
+            for root in roots {
+                items.push(self.build_discourse_item_for_generated_text_root(root)?);
+            }
+            let sequence = self.next_sequence_id();
+            self.insert(
+                sequence,
+                SemanticObject::sequence(
+                    items,
+                    SequenceRelation::SameTopicContinuation,
+                    None,
+                    Vec::new(),
+                ),
+            )?;
+            Ok(sequence)
+        };
+        self.set_current_deictic_roles(previous_roles);
+        self.current_utterance = previous_current_utterance;
+        self.previous_utterance = previous_previous_utterance;
+        self.next_utterance = previous_next_utterance;
+        result.map(Some)
     }
 
     #[requires(true)]
@@ -5706,7 +6151,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
                     word,
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
                     relative_clauses: Vec::new(),
@@ -5846,7 +6291,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind: referent_qualifier_kind(sumti.lahe.value.cmavo()).to_owned(),
                     word: token_text(&sumti.lahe.value),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
                     relative_clauses: Vec::new(),
@@ -5958,9 +6403,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let word = token_text(&pro_sumti.0.value);
         match pro_sumti.0.value.cmavo() {
-            Some(Cmavo::Mi) => Ok(SemanticObjectId::speaker()),
-            Some(Cmavo::Do) => Ok(SemanticObjectId::addressee()),
-            Some(Cmavo::Ko) => Ok(SemanticObjectId::addressee()),
+            Some(Cmavo::Mi) => Ok(self.current_speaker()),
+            Some(Cmavo::Do) => Ok(self.current_audience()),
+            Some(Cmavo::Ko) => Ok(self.current_audience()),
             Some(Cmavo::Ma) => self.build_argument_question_parameter(pro_sumti),
             Some(Cmavo::Cehu) => {
                 self.build_generated_parameter(pro_sumti, ParameterRole::PropertySlot)
@@ -6087,7 +6532,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind: "typicalPlaceValue".to_owned(),
                     word: token_text(&pro_sumti.0.value),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
                     relative_clauses: Vec::new(),
@@ -6135,7 +6580,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Descriptor {
                 kind: "utteranceReference".to_owned(),
                 word,
-                speaker: Some(SemanticObjectId::speaker()),
+                speaker: Some(self.current_speaker()),
                 body: None,
                 veridical: None,
                 relative_clauses: Vec::new(),
@@ -6194,7 +6639,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind: name_description_kind_for_cmavo(name.la.value.cmavo()).to_owned(),
                     word: token_text(&name.la.value),
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
                     relative_clauses: Vec::new(),
@@ -6259,7 +6704,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Descriptor {
                     kind,
                     word,
-                    speaker: Some(SemanticObjectId::speaker()),
+                    speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: cmavo
                         .is_some_and(|cmavo| matches!(cmavo, Cmavo::Lohe | Cmavo::Lehe))
@@ -6390,6 +6835,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let cmavo = description.description.0.value.cmavo();
         let source = self.source_for_node(description, "description");
         let id = self.build_abstraction_output(abstraction, source.clone())?;
+        let speaker = self.current_speaker();
         let object = self.objects.get_mut(&id).ok_or_else(|| {
             invalid_graph(format!(
                 "semantic builder could not find abstraction description output {id}"
@@ -6398,7 +6844,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         object.descriptor = Some(Descriptor {
             kind,
             word,
-            speaker: Some(SemanticObjectId::speaker()),
+            speaker: Some(speaker),
             body: None,
             veridical: cmavo
                 .is_some_and(|cmavo| matches!(cmavo, Cmavo::Lohe | Cmavo::Lehe))
@@ -6426,12 +6872,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let mut arguments = BTreeMap::new();
         arguments.insert(
             "x1".to_owned(),
-            ArgumentValue::filled(SemanticObjectId::speaker(), None),
+            ArgumentValue::filled(self.current_speaker(), None),
         );
         arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
         arguments.insert(
             "x3".to_owned(),
-            ArgumentValue::filled(SemanticObjectId::addressee(), None),
+            ArgumentValue::filled(self.current_audience(), None),
         );
         arguments.insert("x4".to_owned(), ArgumentValue::filled(property, None));
         self.build_structural_formula_from_arguments(
@@ -6617,7 +7063,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Err(unsupported("empty quantifier"));
         }
         let text = token_list_text(words.iter());
-        let value = simple_pa_integer_from_tokens(&words)
+        let value = parse_generated_relational_pa_integer(&text)
+            .or_else(|| simple_pa_integer_from_tokens(&words))
             .map(QuantityValue::integer)
             .unwrap_or_else(|| QuantityValue::text(text.clone()));
         let quantity = self.next_quantity_id();
@@ -6930,6 +7377,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
+    #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.referent_sort() == Some(SemanticSort::Sign))]
+    fn next_sign_id(&mut self) -> SemanticObjectId {
+        let id = SemanticObjectId::sign(self.next_index);
+        self.next_index += 1;
+        id
+    }
+
+    #[requires(true)]
     #[ensures(ret.object_kind() == crate::model::SemanticObjectKind::Quantity)]
     fn next_quantity_id(&mut self) -> SemanticObjectId {
         let id = SemanticObjectId::quantity(self.next_index);
@@ -6957,6 +7413,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let spans =
             source_spans_with_following_cmevla_period(&visitor.spans, self.options.source_text);
         source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|(byte_start, byte_end)| byte_start <= byte_end))]
+    fn source_key_for_node<N: TreeNode>(&self, node: &N) -> Option<(usize, usize)> {
+        self.source_for_node(node, "source-key")
+            .map(|source| (source.span.byte_start, source.span.byte_end))
     }
 
     #[requires(true)]
@@ -8249,6 +8712,77 @@ fn simple_sumti_base_from_sumti(sumti: &SumtiSyntax) -> Result<&SumtiBaseSyntax,
         return Err(unsupported("quantified sumti"));
     };
     Ok(sumti_base)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_quantified_sumti_from_sumti(sumti: &SumtiSyntax) -> Option<&QuantifiedSumtiSyntax> {
+    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+        return None;
+    }
+    let afterthought = sumti.base_sumti.leading_sumti.as_ref();
+    if !afterthought.continuations.is_empty() || afterthought.leading_sumti.bound_tail.is_some() {
+        return None;
+    }
+    let SumtiForethoughtSyntax::SimpleSumti(simple) =
+        afterthought.leading_sumti.leading_sumti.as_ref()
+    else {
+        return None;
+    };
+    let SumtiAtomSyntax::QuantifiedSumti(quantified) = simple.base_sumti.as_ref() else {
+        return None;
+    };
+    Some(quantified)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_quantified_variable_sort(sumti: &SumtiSyntax) -> SemanticSort {
+    generated_quantified_sumti_from_sumti(sumti)
+        .map(|quantified| generated_sumti_base_variable_sort(&quantified.inner_sumti))
+        .unwrap_or(SemanticSort::Entity)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_base_variable_sort(sumti: &SumtiBaseSyntax) -> SemanticSort {
+    match sumti {
+        SumtiBaseSyntax::NumberSumti(_) => SemanticSort::Number,
+        SumtiBaseSyntax::QuotedSumti(_) => SemanticSort::Sign,
+        SumtiBaseSyntax::NameSumti(name) => gadri_name_sort(name.la.value.cmavo()),
+        SumtiBaseSyntax::LaheSumti(sumti) => referent_qualifier_sort(sumti.lahe.value.cmavo()),
+        SumtiBaseSyntax::DescriptorWithGadriSumti(description) => description
+            .description
+            .0
+            .value
+            .cmavo()
+            .map(description_sumti_sort_for_cmavo)
+            .unwrap_or(SemanticSort::Entity),
+        _ => SemanticSort::Entity,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_scope_source_quantifier<'syntax>(
+    source: GeneratedArgumentQuantifierSource<'syntax>,
+) -> &'syntax QuantifierSyntax {
+    match source {
+        GeneratedArgumentQuantifierSource::QuantifiedSumti(sumti) => &sumti.quantifier,
+        GeneratedArgumentQuantifierSource::NoGadriDescription(description) => {
+            &description.quantifier
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn description_sumti_sort_for_cmavo(cmavo: Cmavo) -> SemanticSort {
+    match cmavo {
+        Cmavo::Loi | Cmavo::Lei | Cmavo::Lai => SemanticSort::Mass,
+        Cmavo::Lohi | Cmavo::Lehi | Cmavo::Lahi => SemanticSort::Set,
+        _ => SemanticSort::Entity,
+    }
 }
 
 #[requires(true)]
@@ -9608,6 +10142,56 @@ fn simple_pa_integer_from_tokens(tokens: &[Token]) -> Option<i64> {
     Some(value)
 }
 
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn parse_generated_relational_pa_integer(text: &str) -> Option<i64> {
+    let (prefix, rest) = text.split_once(char::is_whitespace)?;
+    if !matches!(prefix, "su'o" | "su'e" | "za'u" | "me'i" | "su'a") {
+        return None;
+    }
+    let rest = rest.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    parse_generated_simple_pa_integer(rest)
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn parse_generated_simple_pa_integer(text: &str) -> Option<i64> {
+    let mut words = text.split_whitespace();
+    let first = words.next()?;
+    let (sign, first_digit) = match first {
+        "ni'u" => (-1_i64, words.next()?),
+        "ma'u" => (1_i64, words.next()?),
+        _ => (1_i64, first),
+    };
+    let mut value = i64::from(pa_digit_value_for_text(first_digit)?);
+    for word in words {
+        let digit = i64::from(pa_digit_value_for_text(word)?);
+        value = value.checked_mul(10)?.checked_add(digit)?;
+    }
+    Some(sign * value)
+}
+
+#[requires(!word.is_empty())]
+#[ensures(ret.is_none_or(|digit| digit <= 9))]
+fn pa_digit_value_for_text(word: &str) -> Option<u8> {
+    match word {
+        "no" => Some(0),
+        "pa" => Some(1),
+        "re" => Some(2),
+        "ci" => Some(3),
+        "vo" => Some(4),
+        "mu" => Some(5),
+        "xa" => Some(6),
+        "ze" => Some(7),
+        "bi" => Some(8),
+        "so" => Some(9),
+        _ => None,
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.is_none_or(|digit| (0..=9).contains(&digit)))]
 fn pa_digit_value(cmavo: Cmavo) -> Option<i64> {
@@ -9642,6 +10226,24 @@ fn quantity_form_for_text(text: &str) -> QuantityForm {
         "du'e" => QuantityForm::TooMany,
         _ => QuantityForm::Exact,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_quantifier_formula_operator(quantifier: &QuantifierSyntax) -> FormulaOperator {
+    match token_list_text(quantifier_tokens(quantifier).iter()).as_str() {
+        "ro" => FormulaOperator::Forall,
+        "no" => FormulaOperator::None,
+        _ => FormulaOperator::Cardinality,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn quantifier_tokens(quantifier: &QuantifierSyntax) -> Vec<Token> {
+    let mut visitor = GeneratedSpanCollector::default();
+    quantifier.visit_in_order(&mut visitor);
+    visitor.tokens
 }
 
 #[requires(true)]
