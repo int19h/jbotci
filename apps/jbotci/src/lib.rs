@@ -72,13 +72,13 @@ use jbotci_search::vlacku::{
     run_vlacku_requests,
 };
 use jbotci_semantics::{
-    SemanticBuildOptions, build_semantic_graph_with_dictionary_and_options,
+    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
     references::ReferenceAnalysis,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_with_source_and_options_attempt,
+    parse_syntax_tree_generated_model_with_source_and_options_attempt,
 };
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
@@ -4570,7 +4570,11 @@ fn render_tersmu(
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
         .with_trace_options(syntax_trace_options);
-    let parsed = parse_syntax_tree_with_source_and_options_attempt(&words, &text, &parse_options);
+    let parsed = parse_syntax_tree_generated_model_with_source_and_options_attempt(
+        &words,
+        &text,
+        &parse_options,
+    );
     let trace_stderr = render_cli_trace(
         parsed.trace.as_ref(),
         color_policy.stderr,
@@ -4617,7 +4621,7 @@ fn render_tersmu(
         glyphs,
         diagnostic_terminal_width,
     )?);
-    let graph = match build_semantic_graph_with_dictionary_and_options(
+    let graph = match build_generated_semantic_graph_with_dictionary_and_options(
         &parsed.parse_tree,
         SemanticBuildOptions {
             source_text: Some(&text),
