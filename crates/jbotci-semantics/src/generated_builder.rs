@@ -41,11 +41,11 @@ use crate::builder::{
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, ArgumentValueKind,
-    Composition, Connector, Descriptor, EventualityClass, EventualitySort, FormulaOperator,
-    IndexicalKind, ModalArgument, ParameterRole, PredicationMode, QuantityForm, QuantityScale,
-    QuantityValue, ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation,
-    ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
-    SemanticSort, TanruLink, UtteranceForce, diagnostic, source_from_spans,
+    CommandTarget, Composition, Connector, Descriptor, EventualityClass, EventualitySort,
+    FormulaOperator, IndexicalKind, ModalArgument, ParameterRole, PredicationMode, QuantityForm,
+    QuantityScale, QuantityValue, ReferentCategory, RelativeClause, RelativeClauseKind,
+    ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -220,11 +220,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let root = single_semantic_root_from_text(syntax)?;
         let utterance_id = self.next_utterance_id();
         let (force, content, source) = match root {
-            GeneratedTextRoot::Bridi(bridi) => (
-                UtteranceForce::Assert,
-                Some(self.build_bridi_formula(bridi)?),
-                self.source_for_node(bridi, "bridi"),
-            ),
+            GeneratedTextRoot::Bridi(bridi) => {
+                let force = if generated_node_contains_cmavo(bridi, Cmavo::Ko) {
+                    UtteranceForce::Command
+                } else {
+                    UtteranceForce::Assert
+                };
+                (
+                    force,
+                    Some(self.build_bridi_formula(bridi)?),
+                    self.source_for_node(bridi, "bridi"),
+                )
+            }
             GeneratedTextRoot::TermsFragment(fragment) => {
                 let referent = self.build_terms_fragment_referent(fragment)?;
                 (
@@ -399,7 +406,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let simple_tail = simple_tail_from_bridi_tail(&bridi.0)?;
-        let abstraction = if simple_tail.terms.is_empty() && eventuality.is_none() {
+        let terms: Vec<&TermSyntax> = simple_tail.terms.iter().collect();
+        let abstraction = if terms.is_empty() && eventuality.is_none() {
             self.single_abstraction_from_selbri(&simple_tail.selbri)?
                 .cloned()
         } else {
@@ -421,7 +429,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             return self.build_tanru_formula_for_terms(
                 tanru,
-                Vec::new(),
+                terms,
+                2,
                 self.source_for_node(bridi, "tanru-formula"),
             );
         }
@@ -431,7 +440,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             return self.build_sumti_selbri_formula_for_terms(
                 sumti_selbri,
-                Vec::new(),
+                terms,
+                2,
                 self.source_for_node(bridi, "tanru-formula"),
             );
         }
@@ -441,7 +451,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         {
             return self.build_relation_formula_for_generated_tanru_unit_terms(
                 &tanru.first_unit,
-                Vec::new(),
+                terms,
+                2,
                 eventuality,
                 mode,
                 self.source_for_node(bridi, "tanru-formula"),
@@ -450,7 +461,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         self.build_simple_tail_formula_with_options(
             simple_tail,
-            Vec::new(),
+            terms,
+            2,
             eventuality,
             mode,
             self.source_for_node(bridi, "predication"),
@@ -517,6 +529,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return self.build_tanru_formula_for_terms(
                 tanru,
                 terms,
+                1,
                 self.source_for_node(bridi, "tanru-formula"),
             );
         }
@@ -527,6 +540,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return self.build_sumti_selbri_formula_for_terms(
                 sumti_selbri,
                 terms,
+                1,
                 self.source_for_node(bridi, "tanru-formula"),
             );
         }
@@ -537,6 +551,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return self.build_relation_formula_for_generated_tanru_unit_terms(
                 &tanru.first_unit,
                 terms,
+                1,
                 eventuality,
                 mode,
                 self.source_for_node(bridi, "tanru-formula"),
@@ -546,6 +561,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.build_simple_tail_formula_with_options(
             simple_tail,
             terms,
+            1,
             eventuality,
             mode,
             self.source_for_node(bridi, "predication"),
@@ -559,6 +575,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         simple_tail: &SelbriSimpleBridiTailSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -567,6 +584,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.build_selbri_formula_with_options(
             &simple_tail.selbri,
             terms,
+            first_visible_place,
             eventuality,
             mode,
             false,
@@ -581,6 +599,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         selbri: &SelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         formula_scope_child: bool,
@@ -591,6 +610,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SelbriSyntax::TaggedSelbri(tagged) => self.build_tagged_selbri_formula_with_options(
                 tagged,
                 terms,
+                first_visible_place,
                 eventuality,
                 mode,
                 formula_scope_child,
@@ -601,6 +621,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .build_untagged_selbri_formula_with_options(
                     untagged,
                     terms,
+                    first_visible_place,
                     eventuality,
                     mode,
                     formula_scope_child,
@@ -616,6 +637,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         tagged: &jbotci_syntax::generated_model::TaggedSelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         formula_scope_child: bool,
@@ -629,6 +651,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             let child = self.build_untagged_selbri_formula_with_options(
                 tagged.inner_selbri.as_ref(),
                 terms,
+                first_visible_place,
                 None,
                 mode,
                 true,
@@ -655,6 +678,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.build_untagged_selbri_formula_with_options(
             tagged.inner_selbri.as_ref(),
             terms,
+            first_visible_place,
             eventuality,
             mode,
             formula_scope_child,
@@ -669,6 +693,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         selbri: &UntaggedSelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         formula_scope_child: bool,
@@ -682,6 +707,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 let child = self.build_selbri_formula_with_options(
                     negated.inner_selbri.as_ref(),
                     terms,
+                    first_visible_place,
                     eventuality,
                     mode,
                     true,
@@ -704,6 +730,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             UntaggedSelbriSyntax::CoSelbri(co_selbri) => self.build_co_selbri_formula_with_options(
                 co_selbri,
                 terms,
+                first_visible_place,
                 eventuality,
                 mode,
                 formula_scope_child,
@@ -714,7 +741,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 if eventuality.is_some() || mode != PredicationMode::Asserted {
                     return Err(unsupported("scoped forethought selbri connection"));
                 }
-                let mut visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+                let mut visible_arguments =
+                    self.build_visible_arguments_for_terms(terms, first_visible_place)?;
                 if !visible_arguments.contains_key(&1) {
                     let referent = self.build_elided_referent("zo'e".to_owned())?;
                     insert_visible_argument(
@@ -744,6 +772,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         selbri: &CoSelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         formula_scope_child: bool,
@@ -759,6 +788,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return self.build_tanru_formula_for_terms_with_head_eventuality_order(
                 tanru,
                 terms,
+                first_visible_place,
                 formula_scope_child,
                 formula_source,
             );
@@ -782,6 +812,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return self.build_relation_formula_for_generated_tanru_unit_terms(
                 &tanru.first_unit,
                 terms,
+                first_visible_place,
                 eventuality,
                 mode,
                 predication_source,
@@ -819,7 +850,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         };
         let mut arguments = BTreeMap::new();
-        let mut visible_place = 1usize;
+        let mut visible_place = first_visible_place;
         for term in terms {
             let referent = self.build_term_referent(term)?;
             arguments.insert(
@@ -923,6 +954,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         unit: &TanruUnitSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -943,7 +975,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 } else {
                     None
                 };
-            let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+            let visible_arguments =
+                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
             return self
                 .build_tanru_unit_formula_for_visible_arguments(
                     unit,
@@ -963,7 +996,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped scalar grouped tanru unit"));
             }
-            let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+            let visible_arguments =
+                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
                 &atom.conversions,
@@ -990,7 +1024,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped grouped tanru unit"));
             }
-            let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+            let visible_arguments =
+                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
                 &atom.conversions,
@@ -1021,7 +1056,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let mut visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+        let mut visible_arguments =
+            self.build_visible_arguments_for_terms(terms, first_visible_place)?;
         if let Some(linkargs) = linkargs {
             let (_, adjusted_arguments) =
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
@@ -1334,9 +1370,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         tanru: &TanruSelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.build_tanru_formula_for_terms_with_head_eventuality_order(tanru, terms, false, source)
+        self.build_tanru_formula_for_terms_with_head_eventuality_order(
+            tanru,
+            terms,
+            first_visible_place,
+            false,
+            source,
+        )
     }
 
     #[requires(!tanru.additional_units.is_empty())]
@@ -1345,6 +1388,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         tanru: &TanruSelbriSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         head_eventuality_before_terms: bool,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1358,7 +1402,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             None
         };
-        let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+        let visible_arguments =
+            self.build_visible_arguments_for_terms(terms, first_visible_place)?;
         self.build_tanru_formula_for_visible_arguments_with_head_eventuality(
             tanru,
             visible_arguments,
@@ -2240,9 +2285,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_visible_arguments_for_terms(
         &mut self,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
     ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        let mut next_visible_place = 1usize;
+        let mut next_visible_place = first_visible_place;
         for term in terms {
             self.insert_visible_argument_for_generated_term(
                 &mut arguments,
@@ -2259,13 +2305,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         sumti_selbri: &SumtiSelbriTanruUnitSyntax,
         terms: Vec<&TermSyntax>,
+        first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if sumti_selbri.moi_marker.is_some() {
             return Err(unsupported("MOI sumti selbri"));
         }
         let mut arguments = BTreeMap::new();
-        let mut visible_place = 1usize;
+        let mut visible_place = first_visible_place;
         for term in terms {
             let referent = self.build_term_referent(term)?;
             arguments.insert(
@@ -4352,6 +4399,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<ArgumentValue, SemanticsError> {
         let referent = self.build_sumti_referent(sumti)?;
         let mut argument = ArgumentValue::filled(referent, None);
+        if generated_sumti_is_command_target(sumti) {
+            argument = argument.with_command_target(CommandTarget::new("ko".to_owned()));
+        }
         if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) {
             let relative_clauses =
                 self.lower_generated_relative_clause_list(relative_clauses, referent)?;
@@ -6596,9 +6646,79 @@ fn generated_sumti_relative_clause_list(sumti: &SumtiSyntax) -> Option<&Relative
 
 #[requires(true)]
 #[ensures(true)]
+fn generated_sumti_is_command_target(sumti: &SumtiSyntax) -> bool {
+    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
+        return false;
+    }
+    generated_sumti_afterthought_is_command_target(&sumti.base_sumti.leading_sumti)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_afterthought_is_command_target(sumti: &SumtiAfterthoughtSyntax) -> bool {
+    if !sumti.continuations.is_empty() {
+        return false;
+    }
+    generated_sumti_bound_is_command_target(&sumti.leading_sumti)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_bound_is_command_target(sumti: &SumtiBoundSyntax) -> bool {
+    if sumti.bound_tail.is_some() {
+        return false;
+    }
+    generated_sumti_forethought_is_command_target(&sumti.leading_sumti)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_forethought_is_command_target(sumti: &SumtiForethoughtSyntax) -> bool {
+    match sumti {
+        SumtiForethoughtSyntax::SimpleSumti(simple) => {
+            generated_simple_sumti_is_command_target(simple)
+        }
+        SumtiForethoughtSyntax::ForethoughtSumti(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_simple_sumti_is_command_target(sumti: &SimpleSumtiSyntax) -> bool {
+    generated_sumti_atom_is_command_target(&sumti.base_sumti)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_atom_is_command_target(sumti: &SumtiAtomSyntax) -> bool {
+    match sumti {
+        SumtiAtomSyntax::SumtiBase(base) => generated_sumti_base_is_command_target(base),
+        SumtiAtomSyntax::QuantifiedSumti(sumti) => {
+            generated_sumti_base_is_command_target(&sumti.inner_sumti)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_sumti_base_is_command_target(sumti: &SumtiBaseSyntax) -> bool {
+    match sumti {
+        SumtiBaseSyntax::ProSumti(pro_sumti) => pro_sumti.0.value.cmavo() == Some(Cmavo::Ko),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_subbridi_contains_cmavo(subbridi: &SubbridiSyntax, cmavo: Cmavo) -> bool {
+    generated_node_contains_cmavo(subbridi, cmavo)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_node_contains_cmavo<N: TreeNode>(node: &N, cmavo: Cmavo) -> bool {
     let mut collector = GeneratedSpanCollector::default();
-    subbridi.visit_in_order(&mut collector);
+    node.visit_in_order(&mut collector);
     collector
         .tokens
         .iter()
