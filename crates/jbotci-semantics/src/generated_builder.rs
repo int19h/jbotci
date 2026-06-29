@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dictionary::Dictionary;
-use jbotci_morphology::{Cmavo, Word, strip_diacritics};
+use jbotci_morphology::{Cmavo, Selmaho, Word, strip_diacritics};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
     AbstractionTanruUnitSyntax, ArgumentConnectiveSyntax, AtomRef as GeneratedAtomRef,
@@ -28,7 +28,8 @@ use jbotci_syntax::generated_model::{
     StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
     SumtiAfterthoughtSyntax, SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax,
     SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax,
-    SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TanruSelbriSyntax,
+    SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiTermSyntax,
+    TanruSelbriSyntax,
     TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalSyntax, TermSyntax,
     TermsFragmentSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax,
     TreeNode, UntaggedSelbriSyntax, WordTanruUnitSyntax,
@@ -42,10 +43,11 @@ use crate::builder::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, ArgumentValueKind,
     CommandTarget, Composition, Connector, Descriptor, EventualityClass, EventualitySort,
-    FormulaOperator, IndexicalKind, ModalArgument, ParameterRole, PredicationMode, QuantityForm,
-    QuantityScale, QuantityValue, ReferentCategory, RelativeClause, RelativeClauseKind,
-    ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic, source_from_spans,
+    FormulaOperator, IndexicalKind, ModalArgument, ModalNegation, ModalNegationKind, ParameterRole,
+    PredicationMode, QuantityForm, QuantityScale, QuantityValue, ReferentCategory, RelativeClause,
+    RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph, SemanticObject,
+    SemanticObjectId, SemanticOperatorData, SemanticSort, TanruLink, UtteranceForce, diagnostic,
+    source_from_spans,
 };
 
 #[requires(true)]
@@ -108,6 +110,13 @@ struct GeneratedScalarScaleDefinition {
     value: SemanticObjectId,
     introduced_by: String,
     source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(visible_arguments.keys().all(|place| *place > 0))]
+#[derive(Debug)]
+struct GeneratedTermAssignments {
+    visible_arguments: BTreeMap<usize, ArgumentValue>,
+    modal_terms: Vec<TaggedSumtiTermSyntax>,
 }
 
 #[invariant(::Description => true)]
@@ -741,8 +750,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 if eventuality.is_some() || mode != PredicationMode::Asserted {
                     return Err(unsupported("scoped forethought selbri connection"));
                 }
-                let mut visible_arguments =
-                    self.build_visible_arguments_for_terms(terms, first_visible_place)?;
+                let assignments = self
+                    .build_term_assignments_for_terms(terms, first_visible_place)?
+                    .into_data();
+                let mut visible_arguments = assignments.visible_arguments;
                 if !visible_arguments.contains_key(&1) {
                     let referent = self.build_elided_referent("zo'e".to_owned())?;
                     insert_visible_argument(
@@ -751,7 +762,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         ArgumentValue::elided(referent, "zo'e".to_owned(), None),
                     )?;
                 }
-                self.build_forethought_selbri_connection_formula_for_visible_arguments(
+                let result = self.build_forethought_selbri_connection_formula_for_visible_arguments(
                     connection,
                     visible_arguments,
                     source_with_construct(
@@ -760,8 +771,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     ),
                     "selbri",
                     None,
-                )
-                .map(|result| result.formula)
+                )?;
+                self.attach_generated_modal_terms_to_formula(
+                    result.formula,
+                    &assignments.modal_terms,
+                )?;
+                Ok(result.formula)
             }
         }
     }
@@ -849,34 +864,49 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
+        let assignments = self
+            .build_term_assignments_for_terms(terms, first_visible_place)?
+            .into_data();
         let mut arguments = BTreeMap::new();
-        let mut visible_place = first_visible_place;
-        for term in terms {
-            let referent = self.build_term_referent(term)?;
-            arguments.insert(
-                argument_key(visible_place),
-                ArgumentValue::filled(referent, None),
-            );
-            visible_place += 1;
+        for (visible_place, argument) in assignments.visible_arguments {
+            let key = argument_key(visible_place);
+            if arguments.insert(key.clone(), argument).is_some() {
+                return Err(invalid_graph(format!(
+                    "multiple generated bridi arguments map to {key}"
+                )));
+            }
         }
-        for place in visible_place..=place_limit {
-            let referent = self.build_elided_referent("zo'e".to_owned())?;
-            arguments.insert(
-                argument_key(place),
-                ArgumentValue::elided(referent, "zo'e".to_owned(), None),
-            );
+        let highest_argument = arguments
+            .keys()
+            .filter_map(|place| place.strip_prefix('x'))
+            .filter_map(|place| place.parse::<usize>().ok())
+            .max()
+            .unwrap_or(0);
+        let modal_arguments =
+            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
+        for place in 1..=place_limit.max(highest_argument) {
+            let key = argument_key(place);
+            if !arguments.contains_key(&key) {
+                let referent = self.build_elided_referent("zo'e".to_owned())?;
+                arguments.insert(
+                    key,
+                    ArgumentValue::elided(referent, "zo'e".to_owned(), None),
+                );
+            }
         }
         let predication = self.next_predication_id();
+        let mut predication_object = SemanticObject::predication(
+            relation.clone(),
+            Some(eventuality),
+            arguments,
+            predication_mode_for_relation(&relation, mode),
+            predication_source,
+            diagnostics,
+        );
+        predication_object.modal_arguments = modal_arguments;
         self.insert(
             predication,
-            SemanticObject::predication(
-                relation.clone(),
-                Some(eventuality),
-                arguments,
-                predication_mode_for_relation(&relation, mode),
-                predication_source,
-                diagnostics,
-            ),
+            predication_object,
         )?;
         let formula = self.next_formula_id();
         self.insert(
@@ -975,17 +1005,21 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 } else {
                     None
                 };
-            let visible_arguments =
-                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
-            return self
-                .build_tanru_unit_formula_for_visible_arguments(
-                    unit,
-                    visible_arguments,
-                    formula_source,
-                    "selbri",
-                    leading_eventuality,
-                )
-                .map(|result| result.formula);
+            let assignments = self
+                .build_term_assignments_for_terms(terms, first_visible_place)?
+                .into_data();
+            let result = self.build_tanru_unit_formula_for_visible_arguments(
+                unit,
+                assignments.visible_arguments,
+                formula_source,
+                "selbri",
+                leading_eventuality,
+            )?;
+            self.attach_generated_modal_terms_to_formula(
+                result.formula,
+                &assignments.modal_terms,
+            )?;
+            return Ok(result.formula);
         }
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
@@ -996,10 +1030,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped scalar grouped tanru unit"));
             }
-            let visible_arguments =
-                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
+            let assignments = self
+                .build_term_assignments_for_terms(terms, first_visible_place)?
+                .into_data();
             let visible_arguments = map_visible_arguments_for_generated_conversions(
-                visible_arguments,
+                assignments.visible_arguments,
                 &atom.conversions,
             )?;
             let visible_arguments = map_visible_arguments_for_generated_conversions(
@@ -1010,6 +1045,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 &grouped.selbri,
                 visible_arguments,
                 formula_source,
+            )?;
+            self.attach_generated_modal_terms_to_formula(
+                formula,
+                &assignments.modal_terms,
             )?;
             self.apply_scalar_negation_to_tanru_links(
                 formula,
@@ -1024,17 +1063,23 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped grouped tanru unit"));
             }
-            let visible_arguments =
-                self.build_visible_arguments_for_terms(terms, first_visible_place)?;
+            let assignments = self
+                .build_term_assignments_for_terms(terms, first_visible_place)?
+                .into_data();
             let visible_arguments = map_visible_arguments_for_generated_conversions(
-                visible_arguments,
+                assignments.visible_arguments,
                 &atom.conversions,
             )?;
-            return self.build_tanru_formula_for_connected_selbri_with_visible_arguments(
+            let formula = self.build_tanru_formula_for_connected_selbri_with_visible_arguments(
                 &grouped.selbri,
                 visible_arguments,
                 formula_source,
-            );
+            )?;
+            self.attach_generated_modal_terms_to_formula(
+                formula,
+                &assignments.modal_terms,
+            )?;
+            return Ok(formula);
         }
         let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
             atom.base.as_ref(),
@@ -1056,8 +1101,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let mut visible_arguments =
-            self.build_visible_arguments_for_terms(terms, first_visible_place)?;
+        let assignments = self
+            .build_term_assignments_for_terms(terms, first_visible_place)?
+            .into_data();
+        let mut visible_arguments = assignments.visible_arguments;
         if let Some(linkargs) = linkargs {
             let (_, adjusted_arguments) =
                 self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
@@ -1079,6 +1126,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .filter_map(|place| place.parse::<usize>().ok())
             .max()
             .unwrap_or(0);
+        let modal_arguments =
+            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -1102,17 +1151,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let predication_mode = predication_mode_for_relation(&relation, mode);
         let predication = self.next_predication_id();
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                relation,
-                Some(eventuality),
-                arguments,
-                predication_mode,
-                predication_source,
-                diagnostics,
-            ),
-        )?;
+        let mut predication_object = SemanticObject::predication(
+            relation,
+            Some(eventuality),
+            arguments,
+            predication_mode,
+            predication_source,
+            diagnostics,
+        );
+        predication_object.modal_arguments = modal_arguments;
+        self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -1402,14 +1450,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             None
         };
-        let visible_arguments =
-            self.build_visible_arguments_for_terms(terms, first_visible_place)?;
-        self.build_tanru_formula_for_visible_arguments_with_head_eventuality(
+        let assignments = self
+            .build_term_assignments_for_terms(terms, first_visible_place)?
+            .into_data();
+        let result = self
+            .build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
             tanru,
-            visible_arguments,
+            assignments.visible_arguments,
             head_eventuality,
             source,
-        )
+            &assignments.modal_terms,
+        )?;
+        Ok(result.formula)
     }
 
     #[requires(!tanru.additional_units.is_empty())]
@@ -1457,14 +1509,35 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
+        self.build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
+            tanru,
+            visible_arguments,
+            head_eventuality,
+            source,
+            &[],
+        )
+    }
+
+    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
+        &mut self,
+        tanru: &TanruSelbriSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        head_eventuality: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+        modal_terms: &[TaggedSumtiTermSyntax],
+    ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some((trailing_unit, modifier_units)) = tanru.additional_units.split_last() else {
             return Err(unsupported("empty tanru continuation"));
         };
-        let head = self.build_tanru_head_relation_formula(
+        let head = self.build_tanru_head_relation_formula_with_modal_terms(
             trailing_unit,
             visible_arguments,
             head_eventuality,
             source.clone(),
+            modal_terms,
         )?;
         let modifier = self.build_property_abstraction_for_tanru_run(
             &tanru.first_unit,
@@ -1971,11 +2044,34 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
+        self.build_tanru_head_relation_formula_with_modal_terms(
+            unit,
+            visible_arguments,
+            eventuality,
+            source,
+            &[],
+        )
+    }
+
+    #[requires(true)]
+    #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_tanru_head_relation_formula_with_modal_terms(
+        &mut self,
+        unit: &TanruUnitSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        eventuality: Option<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+        modal_terms: &[TaggedSumtiTermSyntax],
+    ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !unit.0.links.is_empty() {
             if eventuality.is_some() {
                 return Err(unsupported(
                     "preallocated connected tanru unit head eventuality",
                 ));
+            }
+            if !modal_terms.is_empty() {
+                return Err(unsupported("modal terms on connected tanru unit head"));
             }
             return self.build_connected_tanru_unit_head_formula(
                 unit,
@@ -1993,8 +2089,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     visible_arguments,
                     eventuality,
                     source,
+                    modal_terms,
                 ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
+                if !modal_terms.is_empty() {
+                    return Err(unsupported("modal terms on BO-bound tanru head"));
+                }
                 if eventuality.is_some() {
                     return Err(unsupported("preallocated BO-bound tanru head eventuality"));
                 }
@@ -2124,6 +2224,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_arguments,
             eventuality,
             source,
+            &[],
         )
     }
 
@@ -2137,12 +2238,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
+        modal_terms: &[TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
         if let Some(scalar_unit) = scalar_unit
             && let Some((grouped, inner_conversions)) =
                 scalar_negated_tanru_unit_inner_grouped(scalar_unit)
         {
+            if !modal_terms.is_empty() {
+                return Err(unsupported("modal terms on grouped scalar tanru head"));
+            }
             if linkargs.is_some() {
                 return Err(unsupported("scoped scalar grouped tanru unit head"));
             }
@@ -2177,6 +2282,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )));
         }
         if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() {
+            if !modal_terms.is_empty() {
+                return Err(unsupported("modal terms on grouped tanru head"));
+            }
             if linkargs.is_some() {
                 return Err(unsupported("scoped grouped tanru unit head"));
             }
@@ -2240,6 +2348,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 highest_argument.max(1)
             }
         };
+        let modal_arguments = self.build_modal_arguments_for_generated_tagged_terms(modal_terms)?;
         for place in 1..=place_limit.max(highest_argument) {
             let key = argument_key(place);
             if arguments.contains_key(&key) {
@@ -2255,17 +2364,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .or_else(|| arguments.get("x1").cloned())
             .ok_or_else(|| unsupported("tanru without visible x1"))?;
         let predication = self.next_predication_id();
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                relation,
-                Some(eventuality),
-                arguments,
-                PredicationMode::Asserted,
-                source.clone(),
-                diagnostics,
-            ),
-        )?;
+        let mut predication_object = SemanticObject::predication(
+            relation,
+            Some(eventuality),
+            arguments,
+            PredicationMode::Asserted,
+            source.clone(),
+            diagnostics,
+        );
+        predication_object.modal_arguments = modal_arguments;
+        self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -2281,22 +2389,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    fn build_visible_arguments_for_terms(
+    #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
+    fn build_term_assignments_for_terms(
         &mut self,
         terms: Vec<&TermSyntax>,
         first_visible_place: usize,
-    ) -> Result<BTreeMap<usize, ArgumentValue>, SemanticsError> {
-        let mut arguments = BTreeMap::new();
+    ) -> Result<GeneratedTermAssignments, SemanticsError> {
+        let mut visible_arguments = BTreeMap::new();
+        let mut modal_terms = Vec::new();
         let mut next_visible_place = first_visible_place;
         for term in terms {
-            self.insert_visible_argument_for_generated_term(
-                &mut arguments,
+            self.insert_generated_term_assignment(
+                &mut visible_arguments,
+                &mut modal_terms,
                 &mut next_visible_place,
                 term,
             )?;
         }
-        Ok(arguments)
+        Ok(GeneratedTermAssignments::from_data(data!(
+            GeneratedTermAssignments {
+                visible_arguments,
+                modal_terms,
+            }
+        )))
     }
 
     #[requires(true)]
@@ -2311,15 +2426,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if sumti_selbri.moi_marker.is_some() {
             return Err(unsupported("MOI sumti selbri"));
         }
+        let assignments = self
+            .build_term_assignments_for_terms(terms, first_visible_place)?
+            .into_data();
         let mut arguments = BTreeMap::new();
-        let mut visible_place = first_visible_place;
-        for term in terms {
-            let referent = self.build_term_referent(term)?;
-            arguments.insert(
-                argument_key(visible_place),
-                ArgumentValue::filled(referent, None),
-            );
-            visible_place += 1;
+        for (visible_place, argument) in assignments.visible_arguments {
+            arguments.insert(argument_key(visible_place), argument);
         }
         let eventuality = self.next_eventuality_id();
         self.insert(
@@ -2336,17 +2448,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         arguments.insert("x2".to_owned(), ArgumentValue::filled(source_operand, None));
         let predication = self.next_predication_id();
-        self.insert(
-            predication,
-            SemanticObject::predication(
-                "referentOf".to_owned(),
-                Some(eventuality),
-                arguments,
-                PredicationMode::Asserted,
-                source.clone(),
-                Vec::new(),
-            ),
-        )?;
+        let mut predication_object = SemanticObject::predication(
+            "referentOf".to_owned(),
+            Some(eventuality),
+            arguments,
+            PredicationMode::Asserted,
+            source.clone(),
+            Vec::new(),
+        );
+        predication_object.modal_arguments =
+            self.build_modal_arguments_for_generated_tagged_terms(&assignments.modal_terms)?;
+        self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -4310,28 +4422,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .ok_or_else(|| unsupported("non-referential term argument"))
     }
 
-    #[requires(true)]
+    #[requires(*next_visible_place > 0)]
     #[ensures(ret.is_ok() || ret.is_err())]
-    fn insert_visible_argument_for_generated_term(
+    fn insert_generated_term_assignment(
         &mut self,
-        arguments: &mut BTreeMap<usize, ArgumentValue>,
+        visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
+        modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
         next_visible_place: &mut usize,
         term: &TermSyntax,
     ) -> Result<(), SemanticsError> {
-        let (place, argument) =
-            self.build_visible_place_and_argument_for_generated_term(*next_visible_place, term)?;
-        insert_visible_argument(arguments, place, argument)?;
-        *next_visible_place = (*next_visible_place).max(place + 1);
-        Ok(())
-    }
-
-    #[requires(next_visible_place > 0)]
-    #[ensures(ret.as_ref().is_ok_and(|(place, _)| *place > 0) || ret.is_err())]
-    fn build_visible_place_and_argument_for_generated_term(
-        &mut self,
-        next_visible_place: usize,
-        term: &TermSyntax,
-    ) -> Result<(usize, ArgumentValue), SemanticsError> {
         let simple = match term {
             TermSyntax::SimpleTerm(simple) => simple,
             TermSyntax::ConnectedTerm(ConnectedTermSyntax {
@@ -4341,16 +4440,160 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             _ => return Err(unsupported("non-simple term")),
         };
         match simple {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => Ok((
-                next_visible_place,
-                self.build_argument_for_generated_sumti(sumti)?,
-            )),
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Ok((
-                fa_place(&term.fa.value)?,
-                self.build_tagged_or_elided_sumti_argument(&term.sumti)?,
-            )),
+            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                insert_visible_argument(
+                    visible_arguments,
+                    *next_visible_place,
+                    self.build_argument_for_generated_sumti(sumti)?,
+                )?;
+                *next_visible_place += 1;
+                Ok(())
+            }
+            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                let place = fa_place(&term.fa.value)?;
+                insert_visible_argument(
+                    visible_arguments,
+                    place,
+                    self.build_tagged_or_elided_sumti_argument(&term.sumti)?,
+                )?;
+                *next_visible_place = (*next_visible_place).max(place + 1);
+                Ok(())
+            }
+            SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                modal_terms.push(term.clone());
+                Ok(())
+            }
             _ => Err(unsupported("non-sumti term")),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_modal_argument_for_generated_tagged_sumti(
+        &mut self,
+        term: &TaggedSumtiTermSyntax,
+    ) -> Result<ModalArgument, SemanticsError> {
+        let tense_modal = term.tense_modal.as_ref();
+        let Some((introduced_by, relation, visible_place)) =
+            generated_modal_relation_spec_for_tense_modal(tense_modal)
+        else {
+            return Err(unsupported("tagged sumti tense modal"));
+        };
+        let argument = self.build_tagged_or_elided_sumti_argument(&term.sumti)?;
+        let arguments = self.modal_argument_map_for_visible_place(
+            argument,
+            visible_place,
+            relation_place_count(self.dictionary, &relation),
+        )?;
+        Ok(ModalArgument::new_with_polarity(
+            relation,
+            introduced_by,
+            arguments,
+            generated_modal_negation_for_tense_modal(tense_modal),
+            generated_modal_scalar_negation_for_tense_modal(tense_modal),
+            self.source_for_node(tense_modal, "modal-argument"),
+        ))
+    }
+
+    #[requires(visible_x1_place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| !arguments.is_empty()) || ret.is_err())]
+    fn modal_argument_map_for_visible_place(
+        &mut self,
+        argument: ArgumentValue,
+        visible_x1_place: usize,
+        place_count: Option<usize>,
+    ) -> Result<BTreeMap<String, ArgumentValue>, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        arguments.insert(format!("x{visible_x1_place}"), argument);
+        let highest_place = place_count
+            .unwrap_or(visible_x1_place)
+            .max(visible_x1_place);
+        for place in 1..=highest_place {
+            let key = argument_key(place);
+            if !arguments.contains_key(&key) {
+                arguments.insert(key, self.build_elided_argument_for_place(place)?);
+            }
+        }
+        Ok(arguments)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_generated_modal_terms_to_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        modal_terms: &[TaggedSumtiTermSyntax],
+    ) -> Result<(), SemanticsError> {
+        for modal_term in modal_terms {
+            self.attach_generated_modal_term_to_formula(formula, modal_term)?;
+        }
+        Ok(())
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_generated_modal_term_to_formula(
+        &mut self,
+        formula: SemanticObjectId,
+        modal_term: &TaggedSumtiTermSyntax,
+    ) -> Result<(), SemanticsError> {
+        let object = self
+            .objects
+            .get(&formula)
+            .cloned()
+            .ok_or_else(|| invalid_graph(format!("missing generated formula {formula}")))?;
+        if let Some(predication) = object.predication {
+            self.attach_generated_modal_term_to_predication(predication, modal_term)?;
+        }
+        for child in object.children {
+            self.attach_generated_modal_term_to_formula(child, modal_term)?;
+        }
+        if let Some(body) = object.body {
+            self.attach_generated_modal_term_to_formula(body, modal_term)?;
+        }
+        Ok(())
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_generated_modal_term_to_predication(
+        &mut self,
+        predication: SemanticObjectId,
+        modal_term: &TaggedSumtiTermSyntax,
+    ) -> Result<(), SemanticsError> {
+        let (mode, eventuality) = {
+            let object = self.objects.get(&predication).ok_or_else(|| {
+                invalid_graph(format!("missing generated predication {predication}"))
+            })?;
+            (object.mode, object.eventuality)
+        };
+        if mode != Some(PredicationMode::Asserted) {
+            return Ok(());
+        }
+        let mut modal_argument = self.build_modal_argument_for_generated_tagged_sumti(modal_term)?;
+        if let Some(eventuality) = eventuality {
+            bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
+        }
+        let object = self
+            .objects
+            .get_mut(&predication)
+            .ok_or_else(|| invalid_graph(format!("missing generated predication {predication}")))?;
+        if !object.modal_arguments.contains(&modal_argument) {
+            object.modal_arguments.push(modal_argument);
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_modal_arguments_for_generated_tagged_terms(
+        &mut self,
+        modal_terms: &[TaggedSumtiTermSyntax],
+    ) -> Result<Vec<ModalArgument>, SemanticsError> {
+        modal_terms
+            .iter()
+            .map(|term| self.build_modal_argument_for_generated_tagged_sumti(term))
+            .collect()
     }
 
     #[requires(true)]
@@ -4359,8 +4602,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         term: &TermSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
-        let (_place, argument) =
-            self.build_visible_place_and_argument_for_generated_term(1, term)?;
+        let mut visible_arguments = BTreeMap::new();
+        let mut modal_terms = Vec::new();
+        let mut next_visible_place = 1;
+        self.insert_generated_term_assignment(
+            &mut visible_arguments,
+            &mut modal_terms,
+            &mut next_visible_place,
+            term,
+        )?;
+        if !modal_terms.is_empty() {
+            return Err(unsupported("modal term as referential argument"));
+        }
+        let Some(argument) = visible_arguments.remove(&1) else {
+            return Err(unsupported("non-referential term argument"));
+        };
+        if !visible_arguments.is_empty() {
+            return Err(unsupported("multi-place term as referential argument"));
+        }
         Ok(argument)
     }
 
@@ -5375,6 +5634,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         sort: SemanticSort,
     ) -> Result<ArgumentValue, SemanticsError> {
         let referent = self.build_elided_referent_with_sort(label.clone(), sort)?;
+        Ok(ArgumentValue::elided(referent, label, None))
+    }
+
+    #[requires(place > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.kind == ArgumentValueKind::Elided) || ret.is_err())]
+    fn build_elided_argument_for_place(
+        &mut self,
+        place: usize,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        let _ = place;
+        let label = "zo'e".to_owned();
+        let referent = self.build_elided_referent(label.clone())?;
         Ok(ArgumentValue::elided(referent, label, None))
     }
 
@@ -6889,9 +7160,59 @@ fn bridi_negation_source_construct(operator: FormulaOperator) -> &'static str {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|relation| !relation.is_empty()))]
 fn generated_time_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
+    generated_tense_relation_spec_for_tense_modal(tense_modal)
+        .map(|(_introduced_by, relation, _visible_place)| relation)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(introduced_by, relation, visible_place)| !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0))]
+fn generated_modal_relation_spec_for_tense_modal<N: TreeNode>(
+    tense_modal: &N,
+) -> Option<(String, String, usize)> {
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
-    collector.tokens.iter().find_map(time_relation_for_pu_token)
+    for (index, token) in collector.tokens.iter().enumerate() {
+        if !token.is_selmaho(Selmaho::Bai) {
+            continue;
+        }
+        let marker = token_text(token);
+        let conversion = index
+            .checked_sub(1)
+            .and_then(|previous| collector.tokens.get(previous))
+            .filter(|previous| previous.is_selmaho(Selmaho::Se));
+        let visible_place = conversion
+            .and_then(generated_se_token_conversion_place)
+            .unwrap_or(1);
+        let introduced_by = conversion
+            .map(|conversion| format!("{} {marker}", token_text(conversion)))
+            .unwrap_or_else(|| marker.clone());
+        return Some((introduced_by, modal_relation_for_marker(&marker), visible_place));
+    }
+    generated_tense_relation_spec_for_tokens(&collector.tokens)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(introduced_by, relation, visible_place)| !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0))]
+fn generated_tense_relation_spec_for_tense_modal<N: TreeNode>(
+    tense_modal: &N,
+) -> Option<(String, String, usize)> {
+    let mut collector = GeneratedSpanCollector::default();
+    tense_modal.visit_in_order(&mut collector);
+    generated_tense_relation_spec_for_tokens(&collector.tokens)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(introduced_by, relation, visible_place)| !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0))]
+fn generated_tense_relation_spec_for_tokens(tokens: &[Token]) -> Option<(String, String, usize)> {
+    for token in tokens {
+        if let Some(relation) = time_relation_for_pu_token(token)
+            .or_else(|| space_relation_for_faha_token(token))
+            .or_else(|| space_distance_for_va_token(token).map(|_| "distanceFrom".to_owned()))
+        {
+            return Some((token_text(token), relation, 1));
+        }
+    }
+    None
 }
 
 #[requires(true)]
@@ -6902,6 +7223,133 @@ fn time_relation_for_pu_token(token: &Token) -> Option<String> {
         Some(Cmavo::Ca) => Some("at".to_owned()),
         Some(Cmavo::Ba) => Some("after".to_owned()),
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|relation| !relation.is_empty()))]
+fn space_distance_for_va_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Vi) => Some("short".to_owned()),
+        Some(Cmavo::Va) => Some("medium".to_owned()),
+        Some(Cmavo::Vu) => Some("long".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|relation| !relation.is_empty()))]
+fn space_relation_for_faha_token(token: &Token) -> Option<String> {
+    match token.cmavo() {
+        Some(Cmavo::Buhu) => Some("coincidentWith".to_owned()),
+        Some(Cmavo::Cahu) => Some("inFrontOf".to_owned()),
+        Some(Cmavo::Tiha) => Some("behind".to_owned()),
+        Some(Cmavo::Zuha) => Some("leftOf".to_owned()),
+        Some(Cmavo::Rihu) => Some("rightOf".to_owned()),
+        Some(Cmavo::Gahu) => Some("above".to_owned()),
+        Some(Cmavo::Niha) => Some("below".to_owned()),
+        Some(Cmavo::Nehi) => Some("within".to_owned()),
+        Some(Cmavo::Ruhu) => Some("surrounding".to_owned()),
+        Some(Cmavo::Paho) => Some("through".to_owned()),
+        Some(Cmavo::Neha) => Some("nextTo".to_owned()),
+        Some(Cmavo::Tehe) => Some("bordering".to_owned()),
+        Some(Cmavo::Reho) => Some("adjacentTo".to_owned()),
+        Some(Cmavo::Faha) => Some("toward".to_owned()),
+        Some(Cmavo::Toho) => Some("awayFrom".to_owned()),
+        Some(Cmavo::Zohi) => Some("inwardFrom".to_owned()),
+        Some(Cmavo::Zeho) => Some("outwardFrom".to_owned()),
+        Some(Cmavo::Zoha) => Some("tangentialTo".to_owned()),
+        Some(Cmavo::Beha) => Some("northOf".to_owned()),
+        Some(Cmavo::Nehu) => Some("southOf".to_owned()),
+        Some(Cmavo::Duha) => Some("eastOf".to_owned()),
+        Some(Cmavo::Vuha) => Some("westOf".to_owned()),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| (2..=5).contains(&place)))]
+fn generated_se_token_conversion_place(se: &Token) -> Option<usize> {
+    match se.cmavo() {
+        Some(Cmavo::Se) => Some(2),
+        Some(Cmavo::Te) => Some(3),
+        Some(Cmavo::Ve) => Some(4),
+        Some(Cmavo::Xe) => Some(5),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn generated_modal_negation_for_tense_modal<N: TreeNode>(
+    tense_modal: &N,
+) -> Option<ModalNegation> {
+    let mut collector = GeneratedSpanCollector::default();
+    tense_modal.visit_in_order(&mut collector);
+    let mut previous_recurrence_marker = false;
+    for token in &collector.tokens {
+        if token.cmavo() == Some(Cmavo::Nai) {
+            if !previous_recurrence_marker {
+                return Some(ModalNegation::new(
+                    ModalNegationKind::Contradictory,
+                    token_text(token),
+                ));
+            }
+            previous_recurrence_marker = false;
+            continue;
+        }
+        previous_recurrence_marker = token_is_recurrence_interval_marker(token);
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn token_is_recurrence_interval_marker(token: &Token) -> bool {
+    matches!(
+        token.cmavo(),
+        Some(Cmavo::Roi | Cmavo::Rehu | Cmavo::Dihi | Cmavo::Naho | Cmavo::Ruhi | Cmavo::Tahe)
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn generated_modal_scalar_negation_for_tense_modal<N: TreeNode>(
+    tense_modal: &N,
+) -> Option<ScalarNegation> {
+    let mut collector = GeneratedSpanCollector::default();
+    tense_modal.visit_in_order(&mut collector);
+    collector.tokens.iter().find_map(|token| {
+        matches!(
+            token.cmavo(),
+            Some(Cmavo::Nahe | Cmavo::Tohe | Cmavo::Nohe | Cmavo::Jeha)
+        )
+        .then(|| scalar_negation_for_token(token))
+    })
+}
+
+#[requires(!marker.is_empty())]
+#[ensures(!ret.is_empty())]
+fn modal_relation_for_marker(marker: &str) -> String {
+    match marker {
+        "bai" => "bapli".to_owned(),
+        "bau" => "bangu".to_owned(),
+        "cu'u" => "cusku".to_owned(),
+        "do'e" => "unspecified-modal".to_owned(),
+        "du'i" => "dunli".to_owned(),
+        "fi'e" => "finti".to_owned(),
+        "ga'a" => "zgana".to_owned(),
+        "gau" => "gasnu".to_owned(),
+        "ka'a" => "klama".to_owned(),
+        "ki'u" => "krinu".to_owned(),
+        "ma'i" => "manri".to_owned(),
+        "mau" => "zmadu".to_owned(),
+        "me'a" => "mleca".to_owned(),
+        "mu'i" => "mukti".to_owned(),
+        "ni'i" => "nibli".to_owned(),
+        "pi'o" => "pilno".to_owned(),
+        "ri'a" => "rinka".to_owned(),
+        _ => marker.replace(' ', "-"),
     }
 }
 
@@ -7690,6 +8138,75 @@ fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
         Some(Cmavo::Nohe) => ScalarNegationKind::Neutral,
         Some(Cmavo::Jeha) => ScalarNegationKind::Affirmed,
         _ => ScalarNegationKind::OtherThan,
+    }
+}
+
+#[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
+#[ensures(true)]
+fn bind_generated_modal_argument_to_host_event(
+    modal_argument: &mut ModalArgument,
+    eventuality: SemanticObjectId,
+) {
+    if modal_argument.relation.is_none() {
+        return;
+    }
+    let Some(place) = generated_modal_relation_host_event_place_for_argument(modal_argument) else {
+        return;
+    };
+    let key = argument_key(place);
+    if modal_argument
+        .arguments
+        .get(&key)
+        .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)
+    {
+        return;
+    }
+    let mut data = modal_argument.clone().into_data();
+    data.arguments
+        .insert(key, ArgumentValue::filled(eventuality, None));
+    *modal_argument = ModalArgument::from_data(data);
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| place > 0))]
+fn generated_modal_relation_host_event_place_for_argument(
+    modal_argument: &ModalArgument,
+) -> Option<usize> {
+    let relation = modal_argument.relation.as_deref()?;
+    if generated_modal_relation_has_complementary_event_places(relation)
+        && generated_modal_argument_place_is_filled(modal_argument, 2)
+        && !generated_modal_argument_place_is_filled(modal_argument, 1)
+    {
+        return Some(1);
+    }
+    generated_modal_relation_host_event_place(relation)
+}
+
+#[requires(place > 0)]
+#[ensures(true)]
+fn generated_modal_argument_place_is_filled(
+    modal_argument: &ModalArgument,
+    place: usize,
+) -> bool {
+    modal_argument
+        .arguments
+        .get(&argument_key(place))
+        .is_some_and(|argument| argument.kind != ArgumentValueKind::Elided)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_modal_relation_has_complementary_event_places(relation: &str) -> bool {
+    matches!(relation, "krinu" | "mukti" | "nibli" | "rinka")
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|place| place > 0))]
+fn generated_modal_relation_host_event_place(relation: &str) -> Option<usize> {
+    match relation {
+        "bapli" | "gasnu" | "krinu" | "mukti" | "nibli" | "rinka" => Some(2),
+        "pilno" => Some(3),
+        _ => None,
     }
 }
 
