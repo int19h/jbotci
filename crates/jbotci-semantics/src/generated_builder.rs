@@ -20,22 +20,23 @@ use jbotci_syntax::generated_model::{
     IStatementConnectionTailSyntax, IStatementConnectiveSyntax, JoikConnectiveSyntax,
     LaheSumtiSyntax, LerfuStringSumtiSyntax, LinkargsSyntax, LinkedSumtiSyntax,
     LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax, OrdinalTanruUnitSyntax,
-    ParagraphSyntax, PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
-    QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, RegularTextSyntax,
-    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    ParagraphSyntax, PlainRelativeSumtiSyntax, PreposedIStatementConnectionSyntax,
+    ProBridiTanruUnitSyntax, ProSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
+    QuantifierSyntax, RegularTextSyntax, RelationAfterthoughtConnectiveSyntax,
+    RelationDescriptionTailSyntax, RelationOnlyBridiSyntax, RelativeClauseAtomSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
     RestrictiveBridiRelativeClauseSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
     ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSyntax, SimpleBridiTailSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
     StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
-    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAtomSyntax, SumtiBaseSyntax,
-    SumtiBoundSyntax, SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiSelbriSumtiSyntax,
-    SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiTermSyntax, TanruSelbriSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomSyntax,
-    TanruUnitSyntax, TenseModalSyntax, TermSyntax, TermsFragmentSyntax,
-    TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
-    UntaggedSelbriSyntax, WordTanruUnitSyntax,
+    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax,
+    SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiForethoughtSyntax, SumtiGroupedSyntax,
+    SumtiSelbriSumtiSyntax, SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax,
+    TaggedOrElidedSumtiSyntax, TaggedSumtiTermSyntax, TanruSelbriSyntax, TanruUnitAtomBaseSyntax,
+    TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalSyntax, TenseTaggedRelativeSumtiSyntax,
+    TermSyntax, TermsFragmentSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
+    TextSyntax, TreeNode, UntaggedSelbriSyntax, WordTanruUnitSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers};
 use jbotci_tree::TreeVisitor;
@@ -154,6 +155,13 @@ struct GeneratedTermAssignments {
 enum GeneratedPropertyTanruContext {
     Description,
     PropertyAbstraction,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedAnchorDomain {
+    Time,
+    Space,
 }
 
 impl GeneratedPropertyTanruContext {
@@ -1413,21 +1421,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         tense_modal: &TenseModalSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(relation) = generated_time_relation_for_tense_modal(tense_modal) else {
+        let Some((domain, relation)) = generated_anchor_relation_for_tense_modal(tense_modal)
+        else {
             return Ok(None);
         };
         let eventuality = self.next_eventuality_id();
         let mut object = SemanticObject::eventuality(EventualityClass::Event, None, source);
-        object.time = Some(new!(AnchorRelation {
-            relation: relation,
-            anchor: SemanticObjectId::now(),
-            sticky: false,
-            inherited: None,
-            distance: None,
-            magnitude: None,
-            scalar_negation: None,
-            motion: None,
-        }));
+        match domain {
+            GeneratedAnchorDomain::Time => object.time = Some(relation),
+            GeneratedAnchorDomain::Space => object.space = Some(relation),
+        }
         self.insert(eventuality, object)?;
         Ok(Some(eventuality))
     }
@@ -4875,10 +4878,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         term: &TermSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let argument = self.build_argument_for_generated_term(term)?;
-        argument
+        let argument = self.build_argument_for_generated_term(term)?.into_data();
+        let referent = argument
             .value
-            .ok_or_else(|| unsupported("non-referential term argument"))
+            .ok_or_else(|| unsupported("non-referential term argument"))?;
+        if !argument.relative_clauses.is_empty() {
+            let object = self.objects.get_mut(&referent).ok_or_else(|| {
+                invalid_graph(format!(
+                    "semantic builder could not find generated term referent {referent}"
+                ))
+            })?;
+            object.extend_relative_clauses(argument.relative_clauses);
+        }
+        Ok(referent)
     }
 
     #[requires(*next_visible_place > 0)]
@@ -5181,8 +5193,208 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             RelativeClauseAtomSyntax::BridiRelativeClause(clause) => self
                 .lower_generated_bridi_relative_clause(clause, head)
                 .map(Some),
-            RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(_) => {
-                Err(unsupported("sumti association relative clause"))
+            RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
+                self.lower_generated_sumti_association_relative_clause(clause, head)
+            }
+        }
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn lower_generated_descriptor_relative_clause_list(
+        &mut self,
+        relative_clauses: &RelativeClauseListSyntax,
+        head: SemanticObjectId,
+    ) -> Result<Vec<RelativeClause>, SemanticsError> {
+        let mut lowered = Vec::new();
+        if let RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) =
+            &relative_clauses.first
+            && let Some(clause) =
+                self.lower_generated_sumti_association_relative_clause(clause, head)?
+        {
+            lowered.push(clause);
+        }
+        for tail in &relative_clauses.additional {
+            let atom = match tail {
+                RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => tail.inner.as_ref(),
+                RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => tail.inner.as_ref(),
+            };
+            if let RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) = atom
+                && let Some(clause) =
+                    self.lower_generated_sumti_association_relative_clause(clause, head)?
+            {
+                lowered.push(clause);
+            }
+        }
+        Ok(lowered)
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn lower_generated_sumti_association_relative_clause(
+        &mut self,
+        clause: &SumtiAssociationRelativeClauseSyntax,
+        head: SemanticObjectId,
+    ) -> Result<Option<RelativeClause>, SemanticsError> {
+        let marker_text = token_text(&clause.association_marker.value);
+        if clause.association_marker.value.cmavo() == Some(Cmavo::Goi) {
+            return Ok(None);
+        }
+        let source = self.source_for_node(clause, "relative-phrase");
+        let marker = clause.association_marker.value.cmavo();
+        let kind = marker
+            .and_then(relative_phrase_kind_for_marker)
+            .unwrap_or(RelativeClauseKind::Restrictive);
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        if let RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) = clause.sumti.as_ref()
+            && let Some(clause) = self.build_generated_modal_sumti_association_clause(
+                sumti,
+                head,
+                kind,
+                marker_text.clone(),
+                source.clone(),
+            )?
+        {
+            return Ok(Some(clause));
+        }
+        let relation = marker
+            .and_then(relative_phrase_relation_for_marker)
+            .unwrap_or("relativePhrase")
+            .to_owned();
+        let mut diagnostics = Vec::new();
+        if marker
+            .and_then(relative_phrase_relation_for_marker)
+            .is_none()
+        {
+            diagnostics.push(diagnostic(
+                "GOI relative phrase marker is not semantically lowered yet",
+            ));
+        }
+        if matches!(
+            clause.sumti.as_ref(),
+            RelativeSumtiSyntax::TenseTaggedRelativeSumti(_)
+        ) {
+            diagnostics.push(diagnostic(
+                "modal relative phrase source relation is not semantically lowered yet",
+            ));
+        }
+        let associated_argument =
+            self.build_argument_for_generated_relative_sumti(&clause.sumti)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
+        arguments.insert("x2".to_owned(), associated_argument);
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                None,
+                arguments,
+                mode,
+                source.clone(),
+                diagnostics,
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(Some(RelativeClause::with_introducer(
+            kind,
+            formula,
+            marker_text,
+            source,
+        )))
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(!marker_text.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_generated_modal_sumti_association_clause(
+        &mut self,
+        sumti: &TenseTaggedRelativeSumtiSyntax,
+        head: SemanticObjectId,
+        kind: RelativeClauseKind,
+        marker_text: String,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<RelativeClause>, SemanticsError> {
+        let Some((introduced_by, relation, visible_place)) =
+            generated_modal_relation_spec_for_tense_modal(sumti.tense_modal.as_ref())
+        else {
+            return Ok(None);
+        };
+        let Some(head_place) = modal_relative_phrase_head_place(&relation, visible_place) else {
+            return Ok(None);
+        };
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        let associated_argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert(format!("x{head_place}"), ArgumentValue::filled(head, None));
+        arguments.insert(format!("x{visible_place}"), associated_argument);
+        let mut diagnostics = Vec::new();
+        match relation_place_count(self.dictionary, &relation) {
+            Some(place_count) => {
+                for place in 1..=place_count.max(head_place).max(visible_place) {
+                    let key = argument_key(place);
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+            }
+            None => {
+                for place in 1..=head_place.max(visible_place) {
+                    let key = argument_key(place);
+                    if !arguments.contains_key(&key) {
+                        arguments.insert(key, self.build_elided_argument_for_place(place)?);
+                    }
+                }
+                if !relation_has_open_place_structure(&relation) {
+                    diagnostics.push(diagnostic(
+                        "relation place structure is unavailable; only places required by explicit assignments are represented",
+                    ));
+                }
+            }
+        }
+        let predication = self.next_predication_id();
+        let mut object = SemanticObject::predication(
+            relation,
+            None,
+            arguments,
+            mode,
+            source.clone(),
+            diagnostics,
+        );
+        object.introduced_by = Some(introduced_by);
+        self.insert(predication, object)?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(Some(RelativeClause::with_introducer(
+            kind,
+            formula,
+            marker_text,
+            source,
+        )))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
+    fn build_argument_for_generated_relative_sumti(
+        &mut self,
+        sumti: &RelativeSumtiSyntax,
+    ) -> Result<ArgumentValue, SemanticsError> {
+        match sumti {
+            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
+                self.build_argument_for_generated_sumti(sumti)
+            }
+            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
+                self.build_tagged_or_elided_sumti_argument(&sumti.sumti)
+            }
+            RelativeSumtiSyntax::NaKuRelativeSumti(_) => {
+                Err(unsupported("negative relative phrase sumti"))
             }
         }
     }
@@ -6006,15 +6218,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         description: &DescriptorWithGadriSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if description.tail.leading_tail_elements.tail_sumti.is_some()
-            || description
-                .tail
-                .leading_tail_elements
-                .relative_clauses
-                .is_some()
-        {
-            return Err(unsupported("description leading tail elements"));
-        }
         let (selbri, relative_clauses, quantity) = match description.tail.tail.as_ref() {
             DescriptionTailBodySyntax::RelationDescriptionTail(RelationDescriptionTailSyntax {
                 selbri,
@@ -6029,6 +6232,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ) => (selbri.as_ref(), relative_clauses.as_ref(), Some(quantifier)),
             _ => return Err(unsupported("non-relation description tail")),
         };
+        let leading_tail_elements = &description.tail.leading_tail_elements;
+        let operand_sumti = leading_tail_elements
+            .tail_sumti
+            .as_ref()
+            .map(|tail_sumti| tail_sumti.0.as_ref());
         let cmavo = description.description.0.value.cmavo();
         let word = token_text(&description.description.0.value);
         let kind = description_kind_for_cmavo(cmavo).to_owned();
@@ -6077,10 +6285,39 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let quantity = quantity
             .map(|quantifier| self.build_quantity_for_quantifier(quantifier))
             .transpose()?;
-        let relative_clauses = relative_clauses
-            .map(|relative_clauses| self.lower_generated_relative_clause_list(relative_clauses, id))
-            .transpose()?
-            .unwrap_or_default();
+        let mut lowered_relative_clauses = Vec::new();
+        if operand_sumti.is_none()
+            && let Some(relative_clauses) = &leading_tail_elements.relative_clauses
+        {
+            lowered_relative_clauses.extend(
+                self.lower_generated_descriptor_relative_clause_list(relative_clauses, id)?,
+            );
+        }
+        lowered_relative_clauses.extend(
+            relative_clauses
+                .map(|relative_clauses| {
+                    self.lower_generated_relative_clause_list(relative_clauses, id)
+                })
+                .transpose()?
+                .unwrap_or_default(),
+        );
+        if let Some(operand_sumti) = operand_sumti {
+            let operand = self.build_sumti_base_referent(operand_sumti)?;
+            let operand_relative_clauses = leading_tail_elements
+                .relative_clauses
+                .as_ref()
+                .map(|relative_clauses| {
+                    self.lower_generated_relative_clause_list(relative_clauses, operand)
+                })
+                .transpose()?
+                .unwrap_or_default();
+            lowered_relative_clauses.push(self.build_generated_possessive_association_clause(
+                id,
+                operand,
+                operand_sumti,
+                operand_relative_clauses,
+            )?);
+        }
         let object = self.objects.get_mut(&id).ok_or_else(|| {
             invalid_graph(format!(
                 "semantic builder could not find description referent {id}"
@@ -6093,8 +6330,51 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         };
         descriptor.body = Some(body);
         descriptor.quantity = quantity;
-        descriptor.relative_clauses = relative_clauses;
+        descriptor.relative_clauses = lowered_relative_clauses;
         Ok(id)
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn build_generated_possessive_association_clause<N: TreeNode>(
+        &mut self,
+        head: SemanticObjectId,
+        operand: SemanticObjectId,
+        operand_sumti: &N,
+        operand_relative_clauses: Vec<RelativeClause>,
+    ) -> Result<RelativeClause, SemanticsError> {
+        let source = self.source_for_node(operand_sumti, "possessive-sumti");
+        let mut associated_argument = ArgumentValue::filled(operand, None);
+        if !operand_relative_clauses.is_empty() {
+            associated_argument =
+                associated_argument.with_relative_clauses(operand_relative_clauses);
+        }
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
+        arguments.insert("x2".to_owned(), associated_argument);
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                "associatedWith".to_owned(),
+                None,
+                arguments,
+                PredicationMode::Restrictive,
+                source.clone(),
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
+        )?;
+        Ok(RelativeClause::new(
+            RelativeClauseKind::Restrictive,
+            formula,
+            source,
+        ))
     }
 
     #[requires(!kind.is_empty())]
@@ -6231,6 +6511,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.source_for_node(selbri, "restrictive-formula"),
             );
         }
+        if matches!(selbri, SelbriSyntax::TaggedSelbri(_)) {
+            let SelbriSyntax::TaggedSelbri(tagged) = selbri else {
+                unreachable!("previous pattern requires a tagged selbri");
+            };
+            return self.build_restrictive_formula_for_tagged_selbri(tagged, referent);
+        }
         let relation = semantic_relation_label(relation_label_from_selbri(selbri)?);
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
@@ -6260,6 +6546,60 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::atom_formula(
                 predication,
                 self.source_for_node(selbri, "restrictive-formula"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent || referent.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_restrictive_formula_for_tagged_selbri(
+        &mut self,
+        tagged: &jbotci_syntax::generated_model::TaggedSelbriSyntax,
+        referent: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
+            return Err(unsupported("scoped tagged restrictive selbri"));
+        }
+        let UntaggedSelbriSyntax::CoSelbri(co_selbri) = tagged.inner_selbri.as_ref() else {
+            return Err(unsupported("non-CO tagged restrictive selbri"));
+        };
+        let relation = semantic_relation_label(relation_label_from_co_selbri(co_selbri)?);
+        let place_count = relation_place_count(self.dictionary, &relation).unwrap_or(1);
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        for place in 2..=place_count {
+            let key = argument_key(place);
+            let referent = self.build_elided_referent("zo'e".to_owned())?;
+            arguments.insert(
+                key,
+                ArgumentValue::elided(referent, "zo'e".to_owned(), None),
+            );
+        }
+        let predication_source = self.source_for_node(tagged, "restrictive-predication");
+        let eventuality = self.build_generated_tense_eventuality(
+            tagged.tense_modal.as_ref(),
+            predication_source.clone(),
+        )?;
+        let predication = self.next_predication_id();
+        self.insert(
+            predication,
+            SemanticObject::predication(
+                relation,
+                eventuality,
+                arguments,
+                PredicationMode::Restrictive,
+                predication_source,
+                Vec::new(),
+            ),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(
+                predication,
+                self.source_for_node(tagged, "restrictive-formula"),
                 Vec::new(),
             ),
         )?;
@@ -6881,9 +7221,6 @@ fn simple_tail_from_bridi_tail(
     let SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) = first.as_ref() else {
         return Err(unsupported("forethought simple bridi tail"));
     };
-    if simple_tail.vau.is_some() {
-        return Err(unsupported("explicit vau in generated semantic checkpoint"));
-    }
     Ok(simple_tail)
 }
 
@@ -8098,6 +8435,39 @@ fn predication_mode_for_relative_clause_kind(kind: RelativeClauseKind) -> Predic
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn relative_phrase_kind_for_marker(marker: Cmavo) -> Option<RelativeClauseKind> {
+    match marker {
+        Cmavo::Ne | Cmavo::Nohu => Some(RelativeClauseKind::Incidental),
+        Cmavo::Pe | Cmavo::Po | Cmavo::Pohe | Cmavo::Pohu => Some(RelativeClauseKind::Restrictive),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|relation| !relation.is_empty()))]
+fn relative_phrase_relation_for_marker(marker: Cmavo) -> Option<&'static str> {
+    match marker {
+        Cmavo::Pe | Cmavo::Ne => Some("associatedWith"),
+        Cmavo::Po => Some("specificallyAssociatedWith"),
+        Cmavo::Pohe => Some("intrinsicallyPossessedBy"),
+        Cmavo::Pohu | Cmavo::Nohu => Some("identity"),
+        _ => None,
+    }
+}
+
+#[requires(!relation.is_empty())]
+#[requires(visible_place > 0)]
+#[ensures(ret.is_none_or(|place| place > 0 && place != visible_place))]
+fn modal_relative_phrase_head_place(relation: &str, visible_place: usize) -> Option<usize> {
+    match (relation, visible_place) {
+        ("cusku" | "finti", 1) => Some(2),
+        ("zmadu" | "mleca", 2) => Some(1),
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
 fn argument_place_index(place: &str) -> Option<usize> {
     place
@@ -8140,6 +8510,63 @@ fn bridi_negation_source_construct(operator: FormulaOperator) -> &'static str {
 fn generated_time_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Option<String> {
     generated_tense_relation_spec_for_tense_modal(tense_modal)
         .map(|(_introduced_by, relation, _visible_place)| relation)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(_domain, relation)| !relation.relation.is_empty()))]
+fn generated_anchor_relation_for_tense_modal(
+    tense_modal: &TenseModalSyntax,
+) -> Option<(GeneratedAnchorDomain, AnchorRelation)> {
+    let mut collector = GeneratedSpanCollector::default();
+    tense_modal.visit_in_order(&mut collector);
+    for token in collector.tokens {
+        if let Some(relation) = time_relation_for_pu_token(&token) {
+            return Some((
+                GeneratedAnchorDomain::Time,
+                new!(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::now(),
+                    sticky: false,
+                    inherited: None,
+                    distance: None,
+                    magnitude: None,
+                    scalar_negation: None,
+                    motion: None,
+                }),
+            ));
+        }
+        if let Some(relation) = space_relation_for_faha_token(&token) {
+            return Some((
+                GeneratedAnchorDomain::Space,
+                new!(AnchorRelation {
+                    relation,
+                    anchor: SemanticObjectId::here(),
+                    sticky: false,
+                    inherited: None,
+                    distance: None,
+                    magnitude: None,
+                    scalar_negation: None,
+                    motion: None,
+                }),
+            ));
+        }
+        if let Some(distance) = space_distance_for_va_token(&token) {
+            return Some((
+                GeneratedAnchorDomain::Space,
+                new!(AnchorRelation {
+                    relation: "distanceFrom".to_owned(),
+                    anchor: SemanticObjectId::here(),
+                    sticky: false,
+                    inherited: None,
+                    distance: Some(distance),
+                    magnitude: None,
+                    scalar_negation: None,
+                    motion: None,
+                }),
+            ));
+        }
+    }
+    None
 }
 
 #[requires(true)]
