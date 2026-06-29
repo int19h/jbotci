@@ -9,11 +9,12 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, strip_diacritics};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
     AbstractionTanruUnitSyntax, ArgumentConnectiveSyntax, AtomRef as GeneratedAtomRef,
-    BoGroupedBridiTailSyntax, BoOrLinkedTanruUnitSyntax, BoundTanruUnitSyntax,
-    BridiRelativeClauseSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
-    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
-    CoSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax, DescriptionHeadSyntax,
-    DescriptionTailBodySyntax, DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
+    BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax, BoOrLinkedTanruUnitSyntax,
+    BoundTanruUnitSyntax, BridiRelativeClauseSyntax, BridiStatementSyntax, BridiSubbridiSyntax,
+    BridiSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CoSelbriSyntax, ConnectedSelbriSyntax,
+    ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
+    DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
     EkConnectiveSyntax, ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
@@ -104,6 +105,7 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     argument_question_parameters: Vec<SemanticObjectId>,
     relation_question_parameters: Vec<SemanticObjectId>,
     implicit_existential_variables: Vec<GeneratedImplicitExistential>,
+    abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
 }
 
 #[invariant(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -148,6 +150,14 @@ struct GeneratedScalarScaleDefinition {
     value: SemanticObjectId,
     introduced_by: String,
     source: Option<crate::model::SemanticSource>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedDescriptionAbstraction<'syntax> {
+    abstraction: &'syntax AbstractionTanruUnitSyntax,
+    output_sort: SemanticSort,
+    link_relation: &'static str,
 }
 
 #[invariant(true)]
@@ -249,6 +259,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             argument_question_parameters: Vec::new(),
             relation_question_parameters: Vec::new(),
             implicit_existential_variables: Vec::new(),
+            abstraction_parameter_stack: Vec::new(),
         };
         builder.insert_deictics();
         builder
@@ -969,6 +980,141 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Err(unsupported("connected abstraction"));
         }
         Ok(Some(abstraction))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_selbri(
+        selbri: &SelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        match selbri {
+            SelbriSyntax::TaggedSelbri(tagged) => {
+                Self::generated_description_abstraction_for_untagged_selbri(&tagged.inner_selbri)
+            }
+            SelbriSyntax::UntaggedSelbri(untagged) => {
+                Self::generated_description_abstraction_for_untagged_selbri(untagged)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_untagged_selbri(
+        selbri: &UntaggedSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        match selbri {
+            UntaggedSelbriSyntax::CoSelbri(co_selbri) if co_selbri.co_tail.is_none() => {
+                Self::generated_description_abstraction_for_connected_selbri(
+                    &co_selbri.leading_selbri,
+                )
+            }
+            UntaggedSelbriSyntax::NegatedSelbri(_)
+            | UntaggedSelbriSyntax::CoSelbri(_)
+            | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_connected_selbri(
+        selbri: &ConnectedSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        if !selbri.continuations.is_empty() {
+            return Ok(None);
+        }
+        Self::generated_description_abstraction_for_tanru_selbri(&selbri.leading_selbri)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_tanru_selbri(
+        selbri: &TanruSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        if !selbri.additional_units.is_empty() {
+            return Ok(None);
+        }
+        Self::generated_description_abstraction_for_tanru_unit(&selbri.first_unit)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_tanru_unit(
+        unit: &TanruUnitSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        if !unit.0.links.is_empty() {
+            return Ok(None);
+        }
+        Self::generated_description_abstraction_for_bo_or_linked_tanru_unit(&unit.0.first)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_bo_or_linked_tanru_unit(
+        unit: &BoOrLinkedTanruUnitSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        match unit {
+            BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) if unit.linkargs.is_none() => {
+                Self::generated_description_abstraction_for_tanru_atom(&unit.base)
+            }
+            BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(_)
+            | BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
+            | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
+            | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_) => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_tanru_atom(
+        atom: &TanruUnitAtomSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        match atom.base.as_ref() {
+            TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
+                Self::generated_description_abstraction_for_nu_with_conversions(
+                    abstraction,
+                    &atom.conversions,
+                )
+            }
+            TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) if atom.conversions.is_empty() => {
+                Self::generated_description_abstraction_for_connected_selbri(&grouped.selbri)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
+    fn generated_description_abstraction_for_nu_with_conversions<'syntax, F>(
+        abstraction: &'syntax AbstractionTanruUnitSyntax,
+        conversions: &[WithFreeModifiers<Token, F>],
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'syntax>>, SemanticsError> {
+        if abstraction.nai.is_some() {
+            return Err(unsupported("negated abstraction"));
+        }
+        if !abstraction.abstractor_connections.is_empty() {
+            return Err(unsupported("connected abstraction"));
+        }
+        let kind = abstraction_kind_for_nu(abstraction);
+        if conversions.is_empty() {
+            return Ok(Some(GeneratedDescriptionAbstraction {
+                abstraction,
+                output_sort: abstraction_output_sort(kind),
+                link_relation: abstraction_link_relation(kind),
+            }));
+        }
+        let [conversion] = conversions else {
+            return Ok(None);
+        };
+        if se_conversion_place(&conversion.value)? == Some(2)
+            && kind == AbstractionKind::Proposition
+        {
+            return Ok(Some(GeneratedDescriptionAbstraction {
+                abstraction,
+                output_sort: SemanticSort::Text,
+                link_relation: "sentenceExpresses",
+            }));
+        }
+        Ok(None)
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
@@ -5882,6 +6028,107 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(())
     }
 
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn replace_first_elided_generated_formula_argument(
+        &mut self,
+        formula: SemanticObjectId,
+        parameter: SemanticObjectId,
+        preferred_selbri: Option<&SelbriSyntax>,
+    ) -> Result<bool, SemanticsError> {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return Ok(false);
+        };
+        if let Some(predication) = object.predication
+            && self.replace_first_elided_generated_predication_argument(
+                predication,
+                parameter,
+                preferred_selbri,
+            )?
+        {
+            return Ok(true);
+        }
+        for child in object.children {
+            if self.replace_first_elided_generated_formula_argument(
+                child,
+                parameter,
+                preferred_selbri,
+            )? {
+                return Ok(true);
+            }
+        }
+        if let Some(restriction) = object.restriction
+            && self.replace_first_elided_generated_formula_argument(
+                restriction,
+                parameter,
+                preferred_selbri,
+            )?
+        {
+            return Ok(true);
+        }
+        if let Some(body) = object.body
+            && self.replace_first_elided_generated_formula_argument(
+                body,
+                parameter,
+                preferred_selbri,
+            )?
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn replace_first_elided_generated_predication_argument(
+        &mut self,
+        predication: SemanticObjectId,
+        parameter: SemanticObjectId,
+        preferred_selbri: Option<&SelbriSyntax>,
+    ) -> Result<bool, SemanticsError> {
+        let object = self.objects.get(&predication).ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder could not find abstraction predication {predication}"
+            ))
+        })?;
+        let mut selected_place: Option<(usize, usize, String)> = None;
+        for (place, argument) in &object.arguments {
+            if argument.kind != ArgumentValueKind::Elided {
+                continue;
+            }
+            let Some(index) = argument_place_index(place) else {
+                continue;
+            };
+            let visible_rank = preferred_selbri
+                .map(|selbri| generated_raw_place_visible_rank_for_selbri(selbri, index))
+                .transpose()?
+                .unwrap_or(index);
+            if selected_place
+                .as_ref()
+                .is_none_or(|(best_visible, best_index, _)| {
+                    (visible_rank, index) < (*best_visible, *best_index)
+                })
+            {
+                selected_place = Some((visible_rank, index, place.clone()));
+            }
+        }
+        let Some((_visible_rank, _index, place)) = selected_place else {
+            return Ok(false);
+        };
+        let object = self.objects.get_mut(&predication).ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder could not find abstraction predication {predication}"
+            ))
+        })?;
+        if let Some(argument) = object.arguments.get_mut(&place) {
+            let source = argument.source.clone();
+            *argument = ArgumentValue::filled(parameter, source);
+        }
+        Ok(true)
+    }
+
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(ret.is_ok() || ret.is_err())]
@@ -6295,12 +6542,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Err(unsupported("qualified sumti modifiers"));
         }
         let operand = self.build_sumti_referent(&sumti.inner_sumti)?;
-        let id = self.next_referent_id();
+        let sort = referent_qualifier_sort(sumti.lahe.value.cmavo());
+        let id = self.next_referent_with_sort_id(sort);
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                referent_qualifier_sort(sumti.lahe.value.cmavo()),
+                sort,
                 None,
                 Some(Descriptor {
                     kind: referent_qualifier_kind(sumti.lahe.value.cmavo()).to_owned(),
@@ -6487,6 +6735,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.source_for_node(pro_sumti, "parameter"),
             ),
         )?;
+        if role == ParameterRole::PropertySlot
+            && pro_sumti.0.value.cmavo() == Some(Cmavo::Cehu)
+            && let Some(parameters) = self.abstraction_parameter_stack.last_mut()
+        {
+            parameters.push(parameter);
+        }
         Ok(parameter)
     }
 
@@ -6729,27 +6983,32 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let word = token_text(&description_head.0.value);
         let kind = description_kind_for_cmavo(cmavo).to_owned();
         let abstraction = selbri
-            .map(|selbri| self.single_abstraction_from_selbri(selbri))
+            .map(Self::generated_description_abstraction_for_selbri)
             .transpose()?
-            .flatten()
-            .cloned();
+            .flatten();
         let description_source =
             self.source_for_gadri_description(description_head, tail, "description");
-        if let Some(abstraction) = abstraction {
+        if let Some(abstraction) = abstraction
+            && abstraction.link_relation
+                == abstraction_link_relation(abstraction_kind_for_nu(abstraction.abstraction))
+        {
             return self.build_abstraction_description_output(
                 description_source,
                 cmavo,
-                &abstraction,
+                abstraction.abstraction,
                 kind,
                 word,
             );
         }
-        let id = self.next_referent_id();
+        let sort = abstraction
+            .map(|abstraction| abstraction.output_sort)
+            .unwrap_or(SemanticSort::Entity);
+        let id = self.next_referent_with_sort_id(sort);
         self.insert(
             id,
             SemanticObject::referent(
                 ReferentCategory::Constant,
-                SemanticSort::Entity,
+                sort,
                 None,
                 Some(Descriptor {
                     kind,
@@ -6772,8 +7031,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ),
         )?;
         let body = selbri
-            .map(
-                |selbri| match description_characterization_for_cmavo(cmavo) {
+            .map(|selbri| {
+                if let Some(abstraction) = abstraction {
+                    return self.build_generated_abstraction_description_formula(
+                        selbri,
+                        id,
+                        abstraction,
+                    );
+                }
+                match description_characterization_for_cmavo(cmavo) {
                     DescriptionCharacterization::SpeakerDescribed => {
                         let source = self.source_for_gadri_description(
                             description_head,
@@ -6785,8 +7051,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     DescriptionCharacterization::Veridical => {
                         self.build_restrictive_formula(selbri, id)
                     }
-                },
-            )
+                }
+            })
             .transpose()?;
         let mut descriptor_operand = None;
         let mut lowered_relative_clauses = Vec::new();
@@ -6928,6 +7194,31 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         });
         object.source = source;
         Ok(id)
+    }
+
+    #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(!abstraction.link_relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_generated_abstraction_description_formula(
+        &mut self,
+        selbri: &SelbriSyntax,
+        referent: SemanticObjectId,
+        abstraction: GeneratedDescriptionAbstraction<'_>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let output = self.build_abstraction_output(
+            abstraction.abstraction,
+            self.source_for_node(abstraction.abstraction, "abstraction"),
+        )?;
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert("x2".to_owned(), ArgumentValue::filled(output, None));
+        self.build_structural_formula_from_arguments_with_formula_source(
+            abstraction.link_relation,
+            arguments,
+            PredicationMode::Restrictive,
+            self.source_for_node(selbri, "abstraction-description"),
+            self.source_for_node(selbri, "restrictive-formula"),
+        )
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -7156,9 +7447,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_structural_formula_from_arguments(
         &mut self,
         relation: &str,
-        mut arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<String, ArgumentValue>,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_structural_formula_from_arguments_with_formula_source(
+            relation,
+            arguments,
+            mode,
+            source.clone(),
+            source,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(arguments.keys().all(|place| place.starts_with('x')))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_structural_formula_from_arguments_with_formula_source(
+        &mut self,
+        relation: &str,
+        mut arguments: BTreeMap<String, ArgumentValue>,
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let highest_argument = arguments
             .keys()
@@ -7183,14 +7494,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 None,
                 arguments,
                 mode,
-                source.clone(),
+                predication_source,
                 Vec::new(),
             ),
         )?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
-            SemanticObject::atom_formula(predication, source, Vec::new()),
+            SemanticObject::atom_formula(predication, formula_source, Vec::new()),
         )?;
         Ok(formula)
     }
@@ -7242,21 +7553,93 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let kind = abstraction_kind_for_nu(abstraction);
         let sort = abstraction_output_sort(kind);
-        let Some(class) = abstraction_eventuality_class(kind) else {
-            return Err(unsupported("non-event abstraction"));
+        self.abstraction_parameter_stack.push(Vec::new());
+        let body_result = if let Some(class) = abstraction_eventuality_class(kind) {
+            let id = self.next_referent_with_sort_id(sort);
+            let body = self.build_subbridi_formula_with_eventuality(
+                &abstraction.subbridi,
+                id,
+                abstraction_body_mode(kind),
+            );
+            body.map(|body| (Some((id, class)), body))
+        } else {
+            self.build_generated_subbridi_formula(
+                &abstraction.subbridi,
+                abstraction_body_mode(kind),
+            )
+            .map(|body| (None, body))
         };
+        let (eventuality, body) = match body_result {
+            Ok(result) => result,
+            Err(error) => {
+                let _ = self.abstraction_parameter_stack.pop();
+                return Err(error);
+            }
+        };
+        let mut parameters = self
+            .abstraction_parameter_stack
+            .pop()
+            .expect("abstraction parameter stack was just pushed");
+        if kind == AbstractionKind::Property && parameters.is_empty() {
+            self.insert_implicit_generated_property_slot_parameter(
+                body,
+                &mut parameters,
+                self.source_for_node(abstraction, "implicit-property-slot"),
+                main_generated_selbri_for_subbridi(&abstraction.subbridi),
+            )?;
+        }
+        self.set_formula_predication_mode(body, abstraction_body_mode(kind));
+
+        if let Some((id, class)) = eventuality {
+            let mut object = SemanticObject::eventuality(class, None, source);
+            object.sort = Some(sort);
+            object.content = Some(body);
+            object.abstraction_kind = Some(kind);
+            object.parameters = parameters;
+            self.insert(id, object)?;
+            return Ok(id);
+        }
+
         let id = self.next_referent_with_sort_id(sort);
-        let body = self.build_subbridi_formula_with_eventuality(
-            &abstraction.subbridi,
+        self.insert(
             id,
-            abstraction_body_mode(kind),
+            SemanticObject::abstraction(kind, body, parameters, source, Vec::new()),
         )?;
-        let mut object = SemanticObject::eventuality(class, None, source);
-        object.sort = Some(sort);
-        object.content = Some(body);
-        object.abstraction_kind = Some(kind);
-        self.insert(id, object)?;
         Ok(id)
+    }
+
+    #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn insert_implicit_generated_property_slot_parameter(
+        &mut self,
+        body: SemanticObjectId,
+        parameters: &mut Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+        preferred_selbri: Option<&SelbriSyntax>,
+    ) -> Result<(), SemanticsError> {
+        if !parameters.is_empty() {
+            return Ok(());
+        }
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                ParameterRole::PropertySlot,
+                "implicit ce'u".to_owned(),
+                source,
+            ),
+        )?;
+        if self.replace_first_elided_generated_formula_argument(
+            body,
+            parameter,
+            preferred_selbri,
+        )? {
+            parameters.push(parameter);
+        } else {
+            self.objects.remove(&parameter);
+        }
+        Ok(())
     }
 
     #[requires(!label.is_empty())]
@@ -7730,6 +8113,53 @@ fn bridi_from_statement_after_i_connective(
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|selbri| generated_node_contains_cmavo(selbri, Cmavo::Se) || !generated_node_contains_cmavo(selbri, Cmavo::Se)))]
+fn main_generated_selbri_for_subbridi(subbridi: &SubbridiSyntax) -> Option<&SelbriSyntax> {
+    match subbridi {
+        SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) => {
+            main_generated_selbri_for_bridi(bridi)
+        }
+        SubbridiSyntax::PrenexSubbridi(prenex) => {
+            main_generated_selbri_for_subbridi(&prenex.inner_subbridi)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|selbri| generated_node_contains_cmavo(selbri, Cmavo::Se) || !generated_node_contains_cmavo(selbri, Cmavo::Se)))]
+fn main_generated_selbri_for_bridi(bridi: &BridiSyntax) -> Option<&SelbriSyntax> {
+    match bridi {
+        BridiSyntax::BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { bridi_tail, .. })
+        | BridiSyntax::BareCuBridi(BareCuBridiSyntax { bridi_tail, .. }) => {
+            main_generated_selbri_for_bridi_tail(bridi_tail)
+        }
+        BridiSyntax::BridiWithPostCuTerms(BridiWithPostCuTermsSyntax { bridi_tail, .. })
+        | BridiSyntax::BareCuTermsBridi(BareCuTermsBridiSyntax { bridi_tail, .. }) => {
+            main_generated_selbri_for_cu_terms_bridi_tail(bridi_tail)
+        }
+        BridiSyntax::RelationOnlyBridi(RelationOnlyBridiSyntax(bridi_tail)) => {
+            main_generated_selbri_for_bridi_tail(bridi_tail)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|selbri| generated_node_contains_cmavo(selbri, Cmavo::Se) || !generated_node_contains_cmavo(selbri, Cmavo::Se)))]
+fn main_generated_selbri_for_cu_terms_bridi_tail(
+    tail: &CuTermsBridiTailSyntax,
+) -> Option<&SelbriSyntax> {
+    main_generated_selbri_for_bridi_tail(&tail.bridi_tail)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|selbri| generated_node_contains_cmavo(selbri, Cmavo::Se) || !generated_node_contains_cmavo(selbri, Cmavo::Se)))]
+fn main_generated_selbri_for_bridi_tail(tail: &BridiTailSyntax) -> Option<&SelbriSyntax> {
+    simple_tail_from_bridi_tail(tail)
+        .ok()
+        .map(|simple_tail| simple_tail.selbri.as_ref())
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|(_connective, bridi)| generated_node_contains_cmavo(*bridi, Cmavo::Ko) || !generated_node_contains_cmavo(*bridi, Cmavo::Ko)) || ret.is_err())]
 fn statement_connection_tail_parts(
     tail: &IStatementConnectionTailSyntax,
@@ -8038,6 +8468,128 @@ fn generated_linked_tanru_unit_parts(
         return Err(unsupported("non-atomic tanru unit"));
     };
     Ok((&unit.base, unit.linkargs.as_ref()))
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_selbri(
+    selbri: &SelbriSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    match selbri {
+        SelbriSyntax::TaggedSelbri(tagged) => {
+            generated_raw_place_visible_rank_for_untagged_selbri(&tagged.inner_selbri, place)
+        }
+        SelbriSyntax::UntaggedSelbri(untagged) => {
+            generated_raw_place_visible_rank_for_untagged_selbri(untagged, place)
+        }
+    }
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_untagged_selbri(
+    selbri: &UntaggedSelbriSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    match selbri {
+        UntaggedSelbriSyntax::NegatedSelbri(negated) => {
+            generated_raw_place_visible_rank_for_selbri(&negated.inner_selbri, place)
+        }
+        UntaggedSelbriSyntax::CoSelbri(co_selbri) if co_selbri.co_tail.is_none() => {
+            generated_raw_place_visible_rank_for_connected_selbri(&co_selbri.leading_selbri, place)
+        }
+        UntaggedSelbriSyntax::CoSelbri(_)
+        | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => Ok(place),
+    }
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_connected_selbri(
+    selbri: &ConnectedSelbriSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    if !selbri.continuations.is_empty() {
+        return Ok(place);
+    }
+    generated_raw_place_visible_rank_for_tanru_selbri(&selbri.leading_selbri, place)
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_tanru_selbri(
+    selbri: &TanruSelbriSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    let unit = selbri.additional_units.last().unwrap_or(&selbri.first_unit);
+    generated_raw_place_visible_rank_for_tanru_unit(unit, place)
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_tanru_unit(
+    unit: &TanruUnitSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    if !unit.0.links.is_empty() {
+        return Ok(place);
+    }
+    generated_raw_place_visible_rank_for_bo_or_linked_tanru_unit(&unit.0.first, place)
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_bo_or_linked_tanru_unit(
+    unit: &BoOrLinkedTanruUnitSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    match unit {
+        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
+            generated_raw_place_visible_rank_for_tanru_unit_atom(&unit.base, place)
+        }
+        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) if unit.bo_connective.is_none() => {
+            generated_raw_place_visible_rank_for_bo_or_linked_tanru_unit(&unit.trailing_unit, place)
+        }
+        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
+        | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
+        | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_) => Ok(place),
+    }
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_tanru_unit_atom(
+    atom: &TanruUnitAtomSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    let place = match atom.base.as_ref() {
+        TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
+            generated_raw_place_visible_rank_for_connected_selbri(&grouped.selbri, place)?
+        }
+        TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
+            generated_raw_place_visible_rank_for_scalar_negated_tanru_unit(unit, place)?
+        }
+        _ => place,
+    };
+    mapped_place_for_generated_conversions(place, &atom.conversions)
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+fn generated_raw_place_visible_rank_for_scalar_negated_tanru_unit(
+    unit: &ScalarNegatedTanruUnitSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    match unit.inner_unit.as_ref() {
+        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
+            generated_raw_place_visible_rank_for_tanru_unit_atom(atom, place)
+        }
+        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(grouped) => {
+            generated_raw_place_visible_rank_for_connected_selbri(&grouped.inner_selbri, place)
+        }
+        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => Ok(place),
+    }
 }
 
 #[requires(place > 0)]
@@ -10763,6 +11315,22 @@ mod tests {
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_event_abstraction_description() {
         assert_generated_builder_matches_legacy("la .djan. cu djica le nu sonci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_converted_property_abstraction_description() {
+        assert_generated_builder_matches_legacy("la .djan. cu ckaji le ka se risna");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_converted_proposition_description() {
+        assert_generated_builder_matches_legacy(
+            "la .djan. cusku le se du'u la .djordj. klama le zarci",
+        );
     }
 
     #[requires(!source.is_empty())]
