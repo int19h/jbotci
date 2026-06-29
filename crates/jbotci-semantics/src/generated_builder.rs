@@ -16,7 +16,7 @@ use jbotci_syntax::generated_model::{
     ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
-    EkConnectiveSyntax, ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
+    ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
     IStatementConnectionTailSyntax, IStatementConnectiveSyntax, JoikConnectiveSyntax,
@@ -51,12 +51,12 @@ use crate::builder::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorRelation, ArgumentValue, ArgumentValueKind,
     CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness, EventualityClass,
-    EventualitySort, FormulaOperator, IndexicalKind, ModalArgument, ModalNegation,
-    ModalNegationKind, ParameterRole, PredicationMode, QuantityForm, QuantityScale, QuantityValue,
-    QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation, ReferentCategory,
-    RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, TanruLink, UtteranceForce, diagnostic, source_from_spans,
+    EventualitySort, FormulaOperator, IndexicalKind, IntervalEndpointInclusion, ModalArgument,
+    ModalNegation, ModalNegationKind, ParameterRole, PredicationMode, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    ReferentCategory, RelativeClause, RelativeClauseKind, ScalarNegation, ScalarNegationKind,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, TanruLink, UtteranceForce, diagnostic, source_from_spans,
 };
 
 #[requires(true)]
@@ -1273,7 +1273,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 tanru,
                 terms,
                 2,
-                self.source_for_node(bridi, "tanru-formula"),
+                self.source_for_node(bridi, generated_tanru_formula_source_construct(tanru)),
             );
         }
         if let Some(sumti_selbri) = sumti_selbri_from_selbri(&simple_tail.selbri)? {
@@ -1297,8 +1297,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 2,
                 eventuality,
                 mode,
-                self.source_for_node(bridi, "tanru-formula"),
-                self.source_for_node(bridi, "tanru-formula"),
+                self.source_for_node(
+                    bridi,
+                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                ),
+                self.source_for_node(
+                    bridi,
+                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                ),
             );
         }
         self.build_simple_tail_formula_with_options(
@@ -1352,7 +1358,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     self.source_for_node(bridi, "bridi-formula"),
                 );
             }
-            if let Some(afterthought) = afterthought_sumti_from_sumti(sumti)? {
+            if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti) {
                 return self.build_afterthought_sumti_argument_formula(
                     simple_tail,
                     afterthought,
@@ -1372,7 +1378,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 tanru,
                 terms,
                 1,
-                self.source_for_node(bridi, "tanru-formula"),
+                self.source_for_node(bridi, generated_tanru_formula_source_construct(tanru)),
             );
         }
         if let Some(sumti_selbri) = sumti_selbri_from_selbri(&simple_tail.selbri)? {
@@ -1396,8 +1402,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 1,
                 eventuality,
                 mode,
-                self.source_for_node(bridi, "tanru-formula"),
-                self.source_for_node(bridi, "tanru-formula"),
+                self.source_for_node(
+                    bridi,
+                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                ),
+                self.source_for_node(
+                    bridi,
+                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                ),
             );
         }
         self.build_simple_tail_formula_with_options(
@@ -7867,7 +7879,49 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connective: &ArgumentConnectiveSyntax,
         trailing: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let operator = generated_argument_connective_operator(connective)?;
+        let interval_connective = generated_argument_connective_is_interval(connective);
+        let logical_connective = generated_argument_connective_is_logical(connective);
+        let operator_parameter =
+            self.build_generated_connective_question_parameter_for_argument_connective(connective)?;
+        let right_negated = operator_parameter.is_none()
+            && generated_argument_connective_negates_right(connective)
+            && logical_connective;
+        let complement = (operator_parameter.is_none()
+            && interval_connective
+            && generated_argument_connective_negates_right(connective))
+        .then_some(true);
+        let scalar_negated = (operator_parameter.is_none()
+            && !logical_connective
+            && !interval_connective
+            && generated_argument_connective_negates_right(connective))
+        .then_some(true);
+        let operator = if operator_parameter.is_some() {
+            "connectiveQuestion".to_owned()
+        } else if logical_connective {
+            "joint".to_owned()
+        } else {
+            generated_nonlogical_argument_composition_operator(connective)?
+        };
+        let reverse_members =
+            generated_argument_connective_reverses_composition_members(connective);
+        let (first, second) = if reverse_members {
+            (trailing, source)
+        } else {
+            (source, trailing)
+        };
+        let members = if right_negated {
+            vec![source]
+        } else {
+            vec![first, second]
+        };
+        let excluded_members = if right_negated {
+            vec![trailing]
+        } else {
+            Vec::new()
+        };
+        let collective = (operator == "mass").then_some(true);
+        let endpoint_inclusion =
+            generated_argument_connective_endpoint_inclusion(connective, reverse_members);
         let id = self.next_referent_id();
         self.insert(
             id,
@@ -7878,13 +7932,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 None,
                 Some(new!(Composition {
                     operator,
-                    operator_parameter: None,
-                    members: vec![source, trailing],
-                    excluded_members: Vec::new(),
-                    collective: None,
-                    scalar_negated: None,
-                    complement: None,
-                    endpoint_inclusion: None,
+                    operator_parameter,
+                    members,
+                    excluded_members,
+                    collective,
+                    scalar_negated,
+                    complement,
+                    endpoint_inclusion,
                 })),
                 self.source_for_node(node, "connected-sumti"),
                 Vec::new(),
@@ -10509,6 +10563,37 @@ fn generated_tanru_unit_is_connected_selbri_formula(unit: &TanruUnitSyntax) -> b
 }
 
 #[requires(true)]
+#[ensures(!ret.is_empty())]
+fn generated_tanru_formula_source_construct(tanru: &TanruSelbriSyntax) -> &'static str {
+    if generated_tanru_unit_has_bo_connective_source(&tanru.first_unit)
+        || tanru
+            .additional_units
+            .iter()
+            .any(generated_tanru_unit_has_bo_connective_source)
+    {
+        "connected-selbri-formula"
+    } else {
+        "tanru-formula"
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn generated_tanru_unit_formula_source_construct(unit: &TanruUnitSyntax) -> &'static str {
+    if generated_tanru_unit_has_bo_connective_source(unit) {
+        "connected-selbri-formula"
+    } else {
+        "tanru-formula"
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == bo_or_linked_tanru_unit_has_bo_connective(unit.0.first.as_ref()))]
+fn generated_tanru_unit_has_bo_connective_source(unit: &TanruUnitSyntax) -> bool {
+    bo_or_linked_tanru_unit_has_bo_connective(unit.0.first.as_ref())
+}
+
+#[requires(true)]
 #[ensures(true)]
 fn generated_tanru_unit_preallocates_head_eventuality(unit: &TanruUnitSyntax) -> bool {
     generated_tanru_unit_is_connected_selbri_formula(unit)
@@ -10947,7 +11032,17 @@ fn generated_sumti_afterthought_for_distribution(
         return None;
     }
     let afterthought = sumti.base_sumti.leading_sumti.as_ref();
-    (!afterthought.continuations.is_empty()).then_some(afterthought)
+    if afterthought.continuations.is_empty() {
+        return None;
+    }
+    afterthought
+        .continuations
+        .iter()
+        .all(|continuation| {
+            generated_argument_connective_is_logical(&continuation.connective)
+                && !generated_argument_connective_is_interval(&continuation.connective)
+        })
+        .then_some(afterthought)
 }
 
 #[requires(true)]
@@ -11744,14 +11839,137 @@ fn gadri_name_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 fn generated_argument_connective_operator(
     connective: &ArgumentConnectiveSyntax,
 ) -> Result<String, SemanticsError> {
+    if generated_argument_connective_question_token(connective).is_some() {
+        return Ok("connectiveQuestion".to_owned());
+    }
+    if generated_argument_connective_is_logical(connective) {
+        Ok("joint".to_owned())
+    } else {
+        generated_nonlogical_argument_composition_operator(connective)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_connective_primary_cmavo(
+    connective: &ArgumentConnectiveSyntax,
+) -> Option<Cmavo> {
     match connective {
-        ArgumentConnectiveSyntax::EkConnective(EkConnectiveSyntax {
-            na: None,
-            se: None,
-            a,
-            nai: None,
-        }) if a.value.cmavo() == Some(Cmavo::E) => Ok("joint".to_owned()),
-        _ => Err(unsupported("generated argument connective")),
+        ArgumentConnectiveSyntax::CeheConnective(connective) => connective.cehe.value.cmavo(),
+        ArgumentConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
+        ArgumentConnectiveSyntax::JehiConnective(connective) => connective.jehi.value.cmavo(),
+        ArgumentConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_primary_cmavo(connective)
+        }
+        ArgumentConnectiveSyntax::VuhuNonlogicalConnective(connective) => {
+            connective.0.value.cmavo()
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_connective_is_logical(connective: &ArgumentConnectiveSyntax) -> bool {
+    if generated_argument_connective_question_token(connective).is_some() {
+        return true;
+    }
+    matches!(
+        generated_argument_connective_primary_cmavo(connective),
+        Some(
+            Cmavo::A
+                | Cmavo::E
+                | Cmavo::O
+                | Cmavo::U
+                | Cmavo::Ja
+                | Cmavo::Je
+                | Cmavo::Jo
+                | Cmavo::Ju
+                | Cmavo::Ge
+                | Cmavo::Ga
+                | Cmavo::Go
+                | Cmavo::Gu
+                | Cmavo::Jehi
+                | Cmavo::Gehi
+        )
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_connective_is_interval(connective: &ArgumentConnectiveSyntax) -> bool {
+    matches!(
+        generated_argument_connective_primary_cmavo(connective),
+        Some(Cmavo::Bihi | Cmavo::Biho | Cmavo::Mihi)
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+fn generated_nonlogical_argument_composition_operator(
+    connective: &ArgumentConnectiveSyntax,
+) -> Result<String, SemanticsError> {
+    match generated_argument_connective_primary_cmavo(connective) {
+        Some(Cmavo::Johu) => Ok("joint".to_owned()),
+        Some(Cmavo::Joi) => Ok("mass".to_owned()),
+        Some(Cmavo::Ce) => Ok("set".to_owned()),
+        Some(Cmavo::Ceho) => Ok("sequence".to_owned()),
+        Some(Cmavo::Fahu) => Ok("respectively".to_owned()),
+        Some(Cmavo::Johe) => Ok("union".to_owned()),
+        Some(Cmavo::Kuha) => Ok("intersection".to_owned()),
+        Some(Cmavo::Pihu) => Ok("crossProduct".to_owned()),
+        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
+        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
+        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
+        _ => Ok(format!(
+            "nonlogical:{}",
+            generated_argument_connective_source(connective)?
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret || generated_argument_connective_has_se(connective))]
+fn generated_argument_connective_reverses_composition_members(
+    connective: &ArgumentConnectiveSyntax,
+) -> bool {
+    generated_argument_connective_has_se(connective)
+        && matches!(
+            generated_argument_connective_primary_cmavo(connective),
+            Some(Cmavo::Ceho | Cmavo::Fahu | Cmavo::Pihu | Cmavo::Biho | Cmavo::Mihi)
+        )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || generated_argument_connective_is_interval(connective))]
+fn generated_argument_connective_endpoint_inclusion(
+    connective: &ArgumentConnectiveSyntax,
+    reverse_members: bool,
+) -> Option<IntervalEndpointInclusion> {
+    let ArgumentConnectiveSyntax::JoikConnective(JoikConnectiveSyntax::ClosedIntervalConnective(
+        connective,
+    )) = connective
+    else {
+        return None;
+    };
+    let left = endpoint_inclusion_for_generated_cmavo(connective.left_interval.cmavo()?)?;
+    let right = endpoint_inclusion_for_generated_cmavo(connective.right_interval.value.cmavo()?)?;
+    if reverse_members {
+        Some(IntervalEndpointInclusion {
+            left: right,
+            right: left,
+        })
+    } else {
+        Some(IntervalEndpointInclusion { left, right })
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, Some(crate::model::EndpointInclusion::Inclusive)) == (cmavo == Cmavo::Gaho))]
+fn endpoint_inclusion_for_generated_cmavo(cmavo: Cmavo) -> Option<crate::model::EndpointInclusion> {
+    match cmavo {
+        Cmavo::Gaho => Some(crate::model::EndpointInclusion::Inclusive),
+        Cmavo::Kehi => Some(crate::model::EndpointInclusion::Exclusive),
+        _ => None,
     }
 }
 
@@ -13155,6 +13373,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn generated_builder_matches_legacy_for_nonlogical_sumti_composition() {
+        assert_generated_builder_matches_legacy("la .anis. joi la .asun. bruna remei");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_builder_matches_legacy_for_linkargs_with_conversion_in_description() {
         assert_generated_builder_matches_legacy("ta me la'e le se cusku be do me'u cukta");
     }
@@ -13192,6 +13417,13 @@ mod tests {
     #[ensures(true)]
     fn generated_builder_matches_legacy_for_bo_grouped_tanru() {
         assert_generated_builder_matches_legacy("ta klama bo jubme");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_builder_matches_legacy_for_bo_connected_selbri_chain() {
+        assert_generated_builder_matches_legacy("melbi jebo cmalu jebo nixli jebo ckule");
     }
 
     #[test]
