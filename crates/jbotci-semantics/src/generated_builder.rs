@@ -920,9 +920,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .map(|result| result.formula);
         }
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
-        if linkargs.is_some() {
-            return Err(unsupported("simple bridi linkargs"));
-        }
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
         if let Some(scalar_unit) = scalar_unit
             && let Some((grouped, inner_conversions)) =
@@ -989,7 +986,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality
             }
         };
-        let visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+        let mut visible_arguments = self.build_visible_arguments_for_terms(terms)?;
+        if let Some(linkargs) = linkargs {
+            let (_, adjusted_arguments) =
+                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
+            visible_arguments = adjusted_arguments;
+        }
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in visible_arguments {
             let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
@@ -4264,7 +4266,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )),
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Ok((
                 fa_place(&term.fa.value)?,
-                self.build_argument_for_tagged_or_elided_sumti(&term.sumti)?,
+                self.build_tagged_or_elided_sumti_argument(&term.sumti)?,
             )),
             _ => Err(unsupported("non-sumti term")),
         }
@@ -4279,23 +4281,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let (_place, argument) =
             self.build_visible_place_and_argument_for_generated_term(1, term)?;
         Ok(argument)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
-    fn build_argument_for_tagged_or_elided_sumti(
-        &mut self,
-        sumti: &TaggedOrElidedSumtiSyntax,
-    ) -> Result<ArgumentValue, SemanticsError> {
-        match sumti {
-            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
-                Ok(ArgumentValue::filled(self.build_sumti_referent(sumti)?, None))
-            }
-            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {
-                let referent = self.build_elided_referent("zo'e".to_owned())?;
-                Ok(ArgumentValue::elided(referent, "zo'e".to_owned(), None))
-            }
-        }
     }
 
     #[requires(true)]
