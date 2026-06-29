@@ -17,7 +17,7 @@ use jbotci_syntax::generated_model::{
     ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
     FragmentStatementSyntax, FreeModifierSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
-    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitSyntax, NameSumtiSyntax,
+    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitSyntax, NameSumtiSyntax, NumberSumtiSyntax,
     OrdinalTanruUnitSyntax, ParagraphSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
     QuantifierRelationDescriptionTailSyntax, QuantifierSyntax, RegularTextSyntax,
     RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
@@ -4680,9 +4680,62 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.build_no_gadri_description_referent(description)
             }
             SumtiBaseSyntax::NameSumti(name) => self.build_name_sumti_referent(name),
+            SumtiBaseSyntax::NumberSumti(number) => self.build_number_sumti_referent(number),
             SumtiBaseSyntax::LaheSumti(sumti) => self.build_lahe_sumti_referent(sumti),
             _ => Err(unsupported("sumti base")),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
+    fn build_number_sumti_referent(
+        &mut self,
+        number: &NumberSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if number.li.value.cmavo() == Some(Cmavo::Meho) {
+            return Err(unsupported("MEhO number sumti"));
+        }
+        let words = self.tokens_for_node(number.expression.as_ref());
+        let Some(value) = simple_pa_integer_from_tokens(&words) else {
+            return Err(unsupported("complex number sumti"));
+        };
+        let text = token_list_text(words.iter());
+        let quantity = self.next_quantity_id();
+        self.insert(
+            quantity,
+            SemanticObject::quantity(
+                quantity_form_for_text(&text),
+                QuantityValue::integer(value),
+                QuantityScale::Count,
+                self.source_for_node(number, "quantity"),
+            ),
+        )?;
+        let id = self.next_referent_with_sort_id(SemanticSort::Number);
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Number,
+                None,
+                Some(Descriptor {
+                    kind: "number".to_owned(),
+                    word: token_text(&number.li.value),
+                    speaker: None,
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: Some(quantity),
+                    name: Some(text),
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(number, "number-sumti"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
     }
 
     #[requires(true)]
