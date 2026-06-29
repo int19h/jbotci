@@ -85,6 +85,9 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
     next_index: usize,
     relative_head: Option<SemanticObjectId>,
+    current_utterance: Option<SemanticObjectId>,
+    previous_utterance: Option<SemanticObjectId>,
+    next_utterance: Option<SemanticObjectId>,
 }
 
 #[invariant(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -162,6 +165,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             objects: BTreeMap::new(),
             next_index: 5,
             relative_head: None,
+            current_utterance: None,
+            previous_utterance: None,
+            next_utterance: None,
         };
         builder.insert_deictics();
         builder
@@ -231,9 +237,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .map(|_| self.next_utterance_id())
             .collect::<Vec<_>>();
         let mut items = Vec::new();
-        for (utterance_id, root) in utterance_ids.into_iter().zip(roots) {
+        for (index, (utterance_id, root)) in utterance_ids.iter().copied().zip(roots).enumerate() {
+            self.previous_utterance = index
+                .checked_sub(1)
+                .and_then(|previous| utterance_ids.get(previous).copied());
+            self.current_utterance = Some(utterance_id);
+            self.next_utterance = utterance_ids.get(index + 1).copied();
             items.push(self.build_utterance_for_generated_text_root(utterance_id, root)?);
         }
+        self.previous_utterance = None;
+        self.current_utterance = None;
+        self.next_utterance = None;
         let root = if let [single] = items.as_slice() {
             *single
         } else {
@@ -5184,6 +5198,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Some(Cmavo::Keha) => self
                 .relative_head
                 .ok_or_else(|| unsupported("relative head pro-sumti outside relative clause")),
+            Some(
+                Cmavo::Dei
+                | Cmavo::Dihu
+                | Cmavo::Dehu
+                | Cmavo::Dahu
+                | Cmavo::Dihe
+                | Cmavo::Dehe
+                | Cmavo::Dahe
+                | Cmavo::Dohi,
+            ) => self.build_utterance_reference_referent(pro_sumti),
             Some(Cmavo::Ti) => {
                 self.build_demonstrative_referent(pro_sumti, IndexicalKind::ProximalDemonstrative)
             }
@@ -5195,6 +5219,55 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             _ => Err(unsupported(&format!("pro-sumti {word}"))),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_utterance_reference_referent(
+        &mut self,
+        pro_sumti: &ProSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let token = &pro_sumti.0.value;
+        let word = token_text(token);
+        let target = match token.cmavo() {
+            Some(Cmavo::Dei) => self.current_utterance,
+            Some(Cmavo::Dihu) => self.previous_utterance,
+            Some(Cmavo::Dihe) => self.next_utterance,
+            Some(Cmavo::Dohi) => None,
+            Some(Cmavo::Dehu | Cmavo::Dahu | Cmavo::Dehe | Cmavo::Dahe) => None,
+            _ => return Err(unsupported(&format!("utterance pro-sumti {word}"))),
+        };
+        let mut diagnostics = Vec::new();
+        if target.is_none() && token.cmavo() != Some(Cmavo::Dohi) {
+            diagnostics.push(diagnostic(
+                "utterance pro-sumti did not resolve to a concrete discourse item",
+            ));
+        }
+        let id = self.next_referent_with_sort_id(SemanticSort::Sign);
+        let mut object = SemanticObject::referent(
+            ReferentCategory::Constant,
+            SemanticSort::Sign,
+            None,
+            Some(Descriptor {
+                kind: "utteranceReference".to_owned(),
+                word,
+                speaker: Some(SemanticObjectId::speaker()),
+                body: None,
+                veridical: None,
+                relative_clauses: Vec::new(),
+                quantity: None,
+                name: None,
+                scale: None,
+                definiteness: None,
+                operand: None,
+            }),
+            None,
+            self.source_for_node(pro_sumti, "sumti"),
+            diagnostics,
+        );
+        object.target = target;
+        self.insert(id, object)?;
+        Ok(id)
     }
 
     #[requires(true)]
