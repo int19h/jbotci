@@ -33,7 +33,7 @@ use jbotci_embeddings::{
 use jbotci_gentufa::{
     ElidedTerminator, EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions,
     GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout,
-    elided_terminators, generated_model_blocks_layout, render_gentufa_blocks_png,
+    elided_terminators, generated_model_blocks_layout_with_references, render_gentufa_blocks_png,
     render_gentufa_blocks_svg, rendered_leaves,
 };
 use jbotci_gimfihi::{
@@ -59,10 +59,11 @@ use jbotci_output::{
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, format_definition_or_notes_line_with_indexed_places,
-    ipa_morphology_text, pretty_generated_model_brackets_with_options,
-    pretty_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, reference_display_model_for_syntax_tree,
-    render_diagnostics, render_trace_report,
+    generated_reference_display_from_legacy, ipa_morphology_text,
+    pretty_generated_model_brackets_with_options,
+    pretty_generated_model_tree_with_legacy_references, pretty_generated_model_tree_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
@@ -79,6 +80,7 @@ use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_generated_model_with_source_and_options_attempt,
+    parse_syntax_tree_with_source_and_options,
 };
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
@@ -4441,6 +4443,7 @@ fn render_gentufa(
                 &generated_model,
                 &text,
                 words.as_slice(),
+                &parse_options,
                 phoneme_options,
                 output_type,
             )?;
@@ -4471,20 +4474,28 @@ fn render_gentufa(
             stdout.push_str(&debug_output_string(&generated_model, input.indent));
         }
         GentufaFormat::Tree => {
-            let rendered = pretty_generated_model_tree_with_options(
-                &generated_model,
-                &text,
-                TreeRenderOptions {
-                    color: color_policy.stdout,
-                    indent: input.indent.unwrap_or(2),
-                    phonemes: phoneme_options,
-                    glyphs,
-                    show_spans: input.show_spans,
-                    show_refs: false,
-                    decompose_lujvo: input.decompose_lujvo,
-                    show_elided: false,
-                },
-            )?;
+            let tree_options = TreeRenderOptions {
+                color: color_policy.stdout,
+                indent: input.indent.unwrap_or(2),
+                phonemes: phoneme_options,
+                glyphs,
+                show_spans: input.show_spans,
+                show_refs: input.show_refs,
+                decompose_lujvo: input.decompose_lujvo,
+                show_elided: false,
+            };
+            let rendered = if input.show_refs {
+                let legacy_parse =
+                    parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
+                pretty_generated_model_tree_with_legacy_references(
+                    &generated_model,
+                    &legacy_parse.parse_tree,
+                    &text,
+                    tree_options,
+                )?
+            } else {
+                pretty_generated_model_tree_with_options(&generated_model, &text, tree_options)?
+            };
             stdout.push_str(&rendered);
             stdout.push('\n');
         }
@@ -4723,6 +4734,7 @@ fn render_gentufa_generated_blocks_output(
     syntax: &jbotci_syntax::generated_model::TextSyntax,
     source: &str,
     words: &[WordLike],
+    parse_options: &ParseOptions,
     phoneme_options: PhonemeRenderOptions,
     output_type: GentufaImageOutputType,
 ) -> Result<Vec<u8>> {
@@ -4732,7 +4744,30 @@ fn render_gentufa_generated_blocks_output(
         phonemes: phoneme_options,
     };
     let annotations = gentufa_block_annotations(words);
-    let layout = generated_model_blocks_layout(syntax, source, &annotations, &block_options);
+    let legacy_parse = parse_syntax_tree_with_source_and_options(words, source, parse_options)?;
+    let reference_display = generated_reference_display_from_legacy(
+        syntax,
+        &legacy_parse.parse_tree,
+        source,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            phonemes: phoneme_options,
+            glyphs: GlyphStyle::Unicode,
+            show_spans: false,
+            show_refs: true,
+            decompose_lujvo: false,
+            show_elided: false,
+        },
+    )?;
+    let layout = generated_model_blocks_layout_with_references(
+        syntax,
+        source,
+        Some(&reference_display.syntax_index),
+        Some(&reference_display.references),
+        &annotations,
+        &block_options,
+    );
     let svg_options = GentufaSvgOptions {
         show_glosses: false,
         script: GentufaScript::Latin,

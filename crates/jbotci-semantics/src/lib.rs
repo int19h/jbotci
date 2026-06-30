@@ -8,8 +8,8 @@ pub mod references;
 pub use builder::{SemanticBuildOptions, SemanticsError, dictionary_relation_place_count};
 pub use generated_builder::{
     build_generated_semantic_graph_with_dictionary as build_semantic_graph_with_dictionary,
-    build_generated_semantic_graph_with_dictionary_and_options as build_semantic_graph_with_dictionary_and_options,
     build_generated_semantic_graph_with_dictionary,
+    build_generated_semantic_graph_with_dictionary_and_options as build_semantic_graph_with_dictionary_and_options,
     build_generated_semantic_graph_with_dictionary_and_options,
 };
 pub use model::{

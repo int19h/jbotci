@@ -1,6 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
@@ -8,7 +9,9 @@ use jbotci_morphology::{
     Cmavo, Phonemes, Selmaho, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike,
     WordLikeData,
 };
-use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxIndex};
+use jbotci_semantics::references::{
+    GeneratedSyntaxIndex, RawSyntaxNodeId, ReferenceAnalysis, SyntaxIndex,
+};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{
     AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxAstTreeNode,
@@ -26,6 +29,13 @@ use jbotci_syntax::{
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::references::ReferenceDisplayModel;
+
+#[derive(Debug)]
+#[invariant(true)]
+pub struct GeneratedReferenceDisplay<'tree> {
+    pub syntax_index: GeneratedSyntaxIndex<'tree>,
+    pub references: ReferenceDisplayModel,
+}
 use crate::{GlyphStyle, OutputError, TreeRenderOptions};
 
 thread_local! {
@@ -214,10 +224,86 @@ pub fn pretty_generated_model_tree_with_options(
             "generated-model syntax reference rendering is not wired yet".to_owned(),
         ));
     }
-    let value = legacy_generated_root_projection(legacy_generated_singular_text_field_projection(
-        collapse_value(generated_syntax_tree_value(tree, source, options)),
-    ));
+    let value = projected_generated_syntax_tree_value_with_index(tree, source, options, None);
     Ok(render_tree_value_with_options(&value, options, None))
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_legacy_references(
+    generated_tree: &GeneratedTextSyntax,
+    legacy_tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    let GeneratedReferenceDisplay {
+        syntax_index,
+        references,
+    } = generated_reference_display_from_legacy(generated_tree, legacy_tree, source, options)?;
+    let generated_value = projected_generated_syntax_tree_value_with_index(
+        generated_tree,
+        source,
+        options,
+        Some(&syntax_index),
+    );
+    Ok(render_tree_value_with_options(
+        &generated_value,
+        options,
+        Some(&references),
+    ))
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_reference_display(
+    generated_tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    display: &GeneratedReferenceDisplay<'_>,
+) -> Result<String, OutputError> {
+    let generated_value = projected_generated_syntax_tree_value_with_index(
+        generated_tree,
+        source,
+        options,
+        Some(&display.syntax_index),
+    );
+    Ok(render_tree_value_with_options(
+        &generated_value,
+        options,
+        Some(&display.references),
+    ))
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn generated_reference_display_from_legacy<'tree>(
+    generated_tree: &'tree GeneratedTextSyntax,
+    legacy_tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
+    let reference_analysis = ReferenceAnalysis::analyze(legacy_tree)
+        .map_err(|error| OutputError::References(error.to_string()))?;
+    let generated_index = GeneratedSyntaxIndex::new(generated_tree)
+        .map_err(|error| OutputError::References(error.to_string()))?;
+    let legacy_value = collapse_value(syntax_tree_value(
+        legacy_tree,
+        source,
+        options,
+        Some(&reference_analysis.syntax_index),
+    ));
+    let id_map =
+        syntax_id_translation_by_source_spans(&reference_analysis.syntax_index, &generated_index);
+    let references =
+        ReferenceDisplayModel::new(&reference_analysis, &legacy_value, source, options)
+            .translated_syntax_ids(&id_map);
+    Ok(GeneratedReferenceDisplay {
+        syntax_index: generated_index,
+        references,
+    })
 }
 
 #[doc(hidden)]
@@ -248,6 +334,88 @@ pub fn pretty_legacy_as_generated_model_tree_with_options(
     Ok(render_tree_value_with_options(&value, options, None))
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[invariant(true)]
+struct SyntaxSpanSignature(Vec<(usize, usize, usize, usize)>);
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_id_translation_by_source_spans(
+    legacy_index: &SyntaxIndex<'_>,
+    generated_index: &GeneratedSyntaxIndex<'_>,
+) -> HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>> {
+    let mut generated_by_signature = HashMap::<SyntaxSpanSignature, Vec<RawSyntaxNodeId>>::new();
+    for raw_index in 0..generated_index.node_count() {
+        let id = RawSyntaxNodeId(raw_index);
+        let Some(signature) = generated_index
+            .metadata(id)
+            .map(syntax_span_signature)
+            .filter(|signature| !signature.0.is_empty())
+        else {
+            continue;
+        };
+        generated_by_signature
+            .entry(signature)
+            .or_default()
+            .push(id);
+    }
+
+    let mut translated = HashMap::new();
+    for raw_index in 0..legacy_index.node_count() {
+        let id = RawSyntaxNodeId(raw_index);
+        let Some(signature) = legacy_index
+            .metadata(id)
+            .map(syntax_span_signature)
+            .filter(|signature| !signature.0.is_empty())
+        else {
+            continue;
+        };
+        if let Some(generated_ids) = generated_by_signature.get(&signature) {
+            translated.insert(id, generated_ids.clone());
+        }
+    }
+    translated
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_span_signature(
+    metadata: &jbotci_semantics::references::SyntaxNodeMetadata,
+) -> SyntaxSpanSignature {
+    SyntaxSpanSignature(
+        metadata
+            .source_spans
+            .iter()
+            .map(|span| {
+                (
+                    span.byte_start,
+                    span.byte_end,
+                    span.char_start,
+                    span.char_end,
+                )
+            })
+            .collect(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn projected_generated_syntax_tree_value_with_index(
+    tree: &GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+) -> TreeValue {
+    legacy_generated_root_projection(legacy_generated_singular_text_field_projection(
+        collapse_value(generated_syntax_tree_value(
+            tree,
+            source,
+            options,
+            syntax_index,
+        )),
+    ))
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub(crate) fn pretty_generated_model_raw_tree_with_options(
@@ -255,7 +423,7 @@ pub(crate) fn pretty_generated_model_raw_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    let value = collapse_value(raw_generated_syntax_tree_value(tree, source, options));
+    let value = collapse_value(raw_generated_syntax_tree_value(tree, source, options, None));
     Ok(render_tree_value_with_options(&value, options, None))
 }
 
@@ -479,8 +647,10 @@ fn generated_syntax_tree_value(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    let mut visitor =
+        SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, syntax_index);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
 }
@@ -491,9 +661,10 @@ fn raw_generated_syntax_tree_value(
     tree: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let mut visitor =
-        SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(source, options, None);
+        SyntaxTreeBuilder::<RawGeneratedSyntaxRenderModel>::new(source, options, syntax_index);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
 }
@@ -16747,6 +16918,7 @@ fn legacy_as_generated_single_composite_tense_token_tree_value(
 trait SyntaxRenderModel {
     type Node<'tree>: Copy;
     type Atom<'tree>: Copy;
+    type Index<'tree>;
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
@@ -16756,7 +16928,7 @@ trait SyntaxRenderModel {
     #[ensures(true)]
     fn syntax_id<'tree>(
         node: Self::Node<'tree>,
-        syntax_index: Option<&SyntaxIndex<'tree>>,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<RawSyntaxNodeId>;
 
     #[requires(true)]
@@ -16781,6 +16953,7 @@ trait SyntaxRenderModel {
         node: Self::Node<'tree>,
         source: &str,
         options: TreeRenderOptions,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue>;
 
     #[requires(!constructor.is_empty() && !label.is_empty())]
@@ -16795,6 +16968,7 @@ struct LegacySyntaxRenderModel;
 impl SyntaxRenderModel for LegacySyntaxRenderModel {
     type Node<'tree> = SyntaxNodeRef<'tree>;
     type Atom<'tree> = SyntaxAtomRef<'tree>;
+    type Index<'tree> = SyntaxIndex<'tree>;
 
     fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
         node.constructor_name()
@@ -16802,7 +16976,7 @@ impl SyntaxRenderModel for LegacySyntaxRenderModel {
 
     fn syntax_id<'tree>(
         node: Self::Node<'tree>,
-        syntax_index: Option<&SyntaxIndex<'tree>>,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<RawSyntaxNodeId> {
         syntax_index.and_then(|index| index.id_of(node))
     }
@@ -16839,6 +17013,7 @@ impl SyntaxRenderModel for LegacySyntaxRenderModel {
         _node: Self::Node<'tree>,
         _source: &str,
         _options: TreeRenderOptions,
+        _syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         None
     }
@@ -16855,6 +17030,7 @@ struct GeneratedSyntaxRenderModel;
 impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
     type Node<'tree> = GeneratedSyntaxNodeRef<'tree>;
     type Atom<'tree> = GeneratedSyntaxAtomRef<'tree>;
+    type Index<'tree> = GeneratedSyntaxIndex<'tree>;
 
     fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
         let constructor = node.constructor_name();
@@ -16884,10 +17060,10 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
     }
 
     fn syntax_id<'tree>(
-        _node: Self::Node<'tree>,
-        _syntax_index: Option<&SyntaxIndex<'tree>>,
+        node: Self::Node<'tree>,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<RawSyntaxNodeId> {
-        None
+        syntax_index.and_then(|index| index.id_of(node))
     }
 
     fn atom_tree_value<'tree>(
@@ -16920,26 +17096,37 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         node: Self::Node<'tree>,
         source: &str,
         options: TreeRenderOptions,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         match node {
             GeneratedSyntaxNodeRef::TextSyntaxRegularText(text) => {
-                generated_regular_text_tree_value(text, source, options)
+                generated_regular_text_tree_value(text, source, options, syntax_index)
             }
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(statement) => Some(
-                generated_multiple_na_fragment_tree_value(statement, source, options),
+                generated_multiple_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
             GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(statement) => Some(
-                generated_single_na_fragment_tree_value(statement, source, options),
+                generated_single_na_fragment_tree_value(statement, source, options, syntax_index),
             ),
-            GeneratedSyntaxNodeRef::FragmentStatementSyntaxLinkedSumtiFragment(statement) => Some(
-                generated_linked_sumti_fragment_tree_value(statement, source, options),
-            ),
+            GeneratedSyntaxNodeRef::FragmentStatementSyntaxLinkedSumtiFragment(statement) => {
+                Some(generated_linked_sumti_fragment_tree_value(
+                    statement,
+                    source,
+                    options,
+                    syntax_index,
+                ))
+            }
             GeneratedSyntaxNodeRef::StatementBaseSyntaxBridiStatement(statement) => Some(
-                generated_bridi_statement_tree_value(statement, source, options),
+                generated_bridi_statement_tree_value(statement, source, options, syntax_index),
             ),
-            GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement) => Some(
-                generated_i_statement_connection_tree_value(statement, source, options),
-            ),
+            GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement) => {
+                Some(generated_i_statement_connection_tree_value(
+                    statement,
+                    source,
+                    options,
+                    syntax_index,
+                ))
+            }
             _ => None,
         }
     }
@@ -16960,16 +17147,17 @@ struct RawGeneratedSyntaxRenderModel;
 impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
     type Node<'tree> = GeneratedSyntaxNodeRef<'tree>;
     type Atom<'tree> = GeneratedSyntaxAtomRef<'tree>;
+    type Index<'tree> = GeneratedSyntaxIndex<'tree>;
 
     fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
         node.constructor_name()
     }
 
     fn syntax_id<'tree>(
-        _node: Self::Node<'tree>,
-        _syntax_index: Option<&SyntaxIndex<'tree>>,
+        node: Self::Node<'tree>,
+        syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<RawSyntaxNodeId> {
-        None
+        syntax_index.and_then(|index| index.id_of(node))
     }
 
     fn atom_tree_value<'tree>(
@@ -16992,6 +17180,7 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         _node: Self::Node<'tree>,
         _source: &str,
         _options: TreeRenderOptions,
+        _syntax_index: Option<&Self::Index<'tree>>,
     ) -> Option<TreeValue> {
         None
     }
@@ -17028,11 +17217,13 @@ fn generated_syntax_subtree_value<T>(
     value: &T,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Option<TreeValue>
 where
     T: GeneratedSyntaxAstTreeNode,
 {
-    let mut visitor = SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, None);
+    let mut visitor =
+        SyntaxTreeBuilder::<GeneratedSyntaxRenderModel>::new(source, options, syntax_index);
     value.visit_in_order(&mut visitor);
     visitor.finish_optional()
 }
@@ -17077,7 +17268,21 @@ fn required_generated_syntax_subtree_value<T>(
 where
     T: GeneratedSyntaxAstTreeNode,
 {
-    generated_syntax_subtree_value(value, source, options)
+    required_generated_syntax_subtree_value_with_index(value, source, options, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn required_generated_syntax_subtree_value_with_index<T>(
+    value: &T,
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+) -> TreeValue
+where
+    T: GeneratedSyntaxAstTreeNode,
+{
+    generated_syntax_subtree_value(value, source, options, syntax_index)
         .expect("generated syntax atom tree walk produced a root")
 }
 
@@ -17087,6 +17292,7 @@ fn generated_regular_text_tree_value(
     text: &GeneratedTextSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Option<TreeValue> {
     let GeneratedTextSyntax::RegularText(regular_text) = text else {
         return None;
@@ -17123,29 +17329,59 @@ fn generated_regular_text_tree_value(
         "leading_indicators",
         leading_indicators
             .iter()
-            .map(|indicator| required_generated_syntax_subtree_value(indicator, source, options))
+            .map(|indicator| {
+                required_generated_syntax_subtree_value_with_index(
+                    indicator,
+                    source,
+                    options,
+                    syntax_index,
+                )
+            })
             .collect(),
     ) {
         entries.push(entry);
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "leading_free_modifiers",
-        generated_free_modifier_tree_values(leading_free_modifiers, source, options),
+        generated_free_modifier_tree_values_with_index(
+            leading_free_modifiers,
+            source,
+            options,
+            syntax_index,
+        ),
     ) {
         entries.push(entry);
     }
     if let Some(connective) = leading_connective {
         entries.push(TreeEntry {
             label: Some("leading_connective"),
-            value: generated_text_leading_connective_tree_value(connective, source, options),
+            value: generated_text_leading_connective_tree_value(
+                connective,
+                source,
+                options,
+                syntax_index,
+            ),
         });
     }
     let mut paragraph_values = paragraphs
         .iter()
-        .map(|paragraph| required_generated_syntax_subtree_value(paragraph, source, options))
+        .map(|paragraph| {
+            required_generated_syntax_subtree_value_with_index(
+                paragraph,
+                source,
+                options,
+                syntax_index,
+            )
+        })
         .collect::<Vec<_>>();
     for marker in leading_i_statements.iter().rev() {
-        prepend_generated_leading_i_statement_value(marker, &mut paragraph_values, source, options);
+        prepend_generated_leading_i_statement_value(
+            marker,
+            &mut paragraph_values,
+            source,
+            options,
+            syntax_index,
+        );
     }
     entries.extend(
         paragraph_values
@@ -17201,10 +17437,26 @@ fn generated_free_modifier_tree_values(
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<TreeValue> {
+    generated_free_modifier_tree_values_with_index(free_modifiers, source, options, None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_free_modifier_tree_values_with_index(
+    free_modifiers: &[generated_model::FreeModifierSyntax],
+    source: &str,
+    options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+) -> Vec<TreeValue> {
     free_modifiers
         .iter()
         .map(|free_modifier| {
-            required_generated_syntax_subtree_value(free_modifier, source, options)
+            required_generated_syntax_subtree_value_with_index(
+                free_modifier,
+                source,
+                options,
+                syntax_index,
+            )
         })
         .collect()
 }
@@ -17216,18 +17468,28 @@ fn prepend_generated_leading_i_statement_value(
     paragraph_values: &mut Vec<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) {
     if paragraph_values.is_empty() {
         paragraph_values.push(generated_paragraph_with_marker_value(
-            marker, None, source, options,
+            marker,
+            None,
+            source,
+            options,
+            syntax_index,
         ));
         return;
     }
 
     let first_paragraph =
         std::mem::replace(&mut paragraph_values[0], TreeValue::Collection(Vec::new()));
-    paragraph_values[0] =
-        generated_prepend_marker_to_paragraph_value(marker, first_paragraph, source, options);
+    paragraph_values[0] = generated_prepend_marker_to_paragraph_value(
+        marker,
+        first_paragraph,
+        source,
+        options,
+        syntax_index,
+    );
 }
 
 #[requires(true)]
@@ -17237,6 +17499,7 @@ fn generated_prepend_marker_to_paragraph_value(
     paragraph: TreeValue,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     match paragraph {
         TreeValue::Node(mut node)
@@ -17253,14 +17516,25 @@ fn generated_prepend_marker_to_paragraph_value(
                     &mut node.entries[position].value,
                     TreeValue::Collection(Vec::new()),
                 );
-                node.entries[position].value =
-                    generated_prepend_marker_to_paragraph_value(marker, value, source, options);
+                node.entries[position].value = generated_prepend_marker_to_paragraph_value(
+                    marker,
+                    value,
+                    source,
+                    options,
+                    syntax_index,
+                );
             }
             TreeValue::Node(node)
         }
         TreeValue::Node(mut node) if node.constructor == "Paragraph" => {
             if generated_paragraph_has_niho(&node) {
-                prepend_generated_marker_to_paragraph_node(marker, &mut node, source, options);
+                prepend_generated_marker_to_paragraph_node(
+                    marker,
+                    &mut node,
+                    source,
+                    options,
+                    syntax_index,
+                );
                 return TreeValue::Node(node);
             }
             let statement_position = node
@@ -17276,7 +17550,11 @@ fn generated_prepend_marker_to_paragraph_value(
                     TreeEntry {
                         label: None,
                         value: generated_paragraph_statement_with_marker_value(
-                            marker, None, source, options,
+                            marker,
+                            None,
+                            source,
+                            options,
+                            syntax_index,
                         ),
                     },
                 );
@@ -17288,6 +17566,7 @@ fn generated_prepend_marker_to_paragraph_value(
                 statement_value.as_ref().map(|entry| entry.value.clone()),
                 source,
                 options,
+                syntax_index,
             );
             match statement_position {
                 Some(position) => node.entries.insert(
@@ -17309,25 +17588,45 @@ fn generated_prepend_marker_to_paragraph_value(
         }
         TreeValue::Syntax { syntax_ids, value } => syntax_value(
             syntax_ids,
-            generated_prepend_marker_to_paragraph_value(marker, *value, source, options),
+            generated_prepend_marker_to_paragraph_value(
+                marker,
+                *value,
+                source,
+                options,
+                syntax_index,
+            ),
         ),
         TreeValue::Collection(mut items) => {
             if items.is_empty() {
                 items.push(generated_paragraph_with_marker_value(
-                    marker, None, source, options,
+                    marker,
+                    None,
+                    source,
+                    options,
+                    syntax_index,
                 ));
             } else {
                 let first_item = items.remove(0);
                 items.insert(
                     0,
                     generated_prepend_marker_to_paragraph_value(
-                        marker, first_item, source, options,
+                        marker,
+                        first_item,
+                        source,
+                        options,
+                        syntax_index,
                     ),
                 );
             }
             TreeValue::Collection(items)
         }
-        value => generated_paragraph_with_marker_value(marker, Some(value), source, options),
+        value => generated_paragraph_with_marker_value(
+            marker,
+            Some(value),
+            source,
+            options,
+            syntax_index,
+        ),
     }
 }
 
@@ -17344,6 +17643,7 @@ fn prepend_generated_marker_to_paragraph_node(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) {
     node.entries.insert(
         0,
@@ -17352,7 +17652,13 @@ fn prepend_generated_marker_to_paragraph_node(
             value: generated_token_tree_value(&marker.i, source, options),
         },
     );
-    attach_generated_marker_to_niho_paragraph_statement(marker, node, source, options);
+    attach_generated_marker_to_niho_paragraph_statement(
+        marker,
+        node,
+        source,
+        options,
+        syntax_index,
+    );
 }
 
 #[requires(true)]
@@ -17362,12 +17668,18 @@ fn attach_generated_marker_to_niho_paragraph_statement(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) {
     let Some(statement_position) = node.entries.iter().position(|entry| entry.label.is_none())
     else {
         node.entries.push(TreeEntry {
             label: None,
-            value: generated_niho_marker_paragraph_statement_value(marker, source, options),
+            value: generated_niho_marker_paragraph_statement_value(
+                marker,
+                source,
+                options,
+                syntax_index,
+            ),
         });
         return;
     };
@@ -17375,8 +17687,13 @@ fn attach_generated_marker_to_niho_paragraph_statement(
         &mut node.entries[statement_position].value,
         TreeValue::Collection(Vec::new()),
     );
-    node.entries[statement_position].value =
-        attach_generated_marker_to_paragraph_statement_value(marker, statement, source, options);
+    node.entries[statement_position].value = attach_generated_marker_to_paragraph_statement_value(
+        marker,
+        statement,
+        source,
+        options,
+        syntax_index,
+    );
 }
 
 #[requires(true)]
@@ -17385,10 +17702,16 @@ fn generated_niho_marker_paragraph_statement_value(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     TreeValue::Node(TreeNode {
         constructor: "ParagraphStatement",
-        entries: generated_niho_marker_paragraph_statement_entries(marker, source, options),
+        entries: generated_niho_marker_paragraph_statement_entries(
+            marker,
+            source,
+            options,
+            syntax_index,
+        ),
     })
 }
 
@@ -17398,19 +17721,28 @@ fn generated_niho_marker_paragraph_statement_entries(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Vec<TreeEntry> {
     let mut entries = Vec::new();
     if let Some(connective) = &marker.connective {
         entries.push(TreeEntry {
             label: Some("connective"),
             value: generated_paragraph_i_statement_connective_tree_value(
-                connective, source, options,
+                connective,
+                source,
+                options,
+                syntax_index,
             ),
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
-        generated_free_modifier_tree_values(&marker.free_modifiers, source, options),
+        generated_free_modifier_tree_values_with_index(
+            &marker.free_modifiers,
+            source,
+            options,
+            syntax_index,
+        ),
     ) {
         entries.push(entry);
     }
@@ -17424,22 +17756,43 @@ fn attach_generated_marker_to_paragraph_statement_value(
     statement: TreeValue,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     match statement {
         TreeValue::Node(mut node) if node.constructor == "ParagraphStatement" => {
-            set_generated_paragraph_statement_connective(marker, &mut node, source, options);
+            set_generated_paragraph_statement_connective(
+                marker,
+                &mut node,
+                source,
+                options,
+                syntax_index,
+            );
             prepend_generated_paragraph_statement_free_modifiers(
-                marker, &mut node, source, options,
+                marker,
+                &mut node,
+                source,
+                options,
+                syntax_index,
             );
             TreeValue::Node(node)
         }
         TreeValue::Syntax { syntax_ids, value } => syntax_value(
             syntax_ids,
-            attach_generated_marker_to_paragraph_statement_value(marker, *value, source, options),
+            attach_generated_marker_to_paragraph_statement_value(
+                marker,
+                *value,
+                source,
+                options,
+                syntax_index,
+            ),
         ),
         value => {
-            let mut entries =
-                generated_niho_marker_paragraph_statement_entries(marker, source, options);
+            let mut entries = generated_niho_marker_paragraph_statement_entries(
+                marker,
+                source,
+                options,
+                syntax_index,
+            );
             entries.push(TreeEntry { label: None, value });
             TreeValue::Node(TreeNode {
                 constructor: "ParagraphStatement",
@@ -17456,6 +17809,7 @@ fn set_generated_paragraph_statement_connective(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) {
     if let Some(position) = node
         .entries
@@ -17477,7 +17831,10 @@ fn set_generated_paragraph_statement_connective(
         TreeEntry {
             label: Some("connective"),
             value: generated_paragraph_i_statement_connective_tree_value(
-                connective, source, options,
+                connective,
+                source,
+                options,
+                syntax_index,
             ),
         },
     );
@@ -17490,9 +17847,14 @@ fn prepend_generated_paragraph_statement_free_modifiers(
     node: &mut TreeNode,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) {
-    let mut marker_free_modifiers =
-        generated_free_modifier_tree_values(&marker.free_modifiers, source, options);
+    let mut marker_free_modifiers = generated_free_modifier_tree_values_with_index(
+        &marker.free_modifiers,
+        source,
+        options,
+        syntax_index,
+    );
     if marker_free_modifiers.is_empty() {
         return;
     }
@@ -17556,13 +17918,18 @@ fn generated_paragraph_with_marker_value(
     statement: Option<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     TreeValue::Node(TreeNode {
         constructor: "Paragraph",
         entries: vec![TreeEntry {
             label: None,
             value: generated_paragraph_statement_with_marker_value(
-                marker, statement, source, options,
+                marker,
+                statement,
+                source,
+                options,
+                syntax_index,
             ),
         }],
     })
@@ -17575,8 +17942,9 @@ fn generated_paragraph_statement_with_marker_value(
     statement: Option<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    let mut entries = generated_leading_i_statement_entries(marker, source, options);
+    let mut entries = generated_leading_i_statement_entries(marker, source, options, syntax_index);
     match statement {
         Some(TreeValue::Node(node)) if node.constructor == "ParagraphStatement" => {
             entries.extend(node.entries);
@@ -17602,6 +17970,7 @@ fn generated_leading_i_statement_entries(
     marker: &generated_model::LeadingIStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> Vec<TreeEntry> {
     let mut entries = vec![TreeEntry {
         label: Some("i"),
@@ -17611,13 +17980,21 @@ fn generated_leading_i_statement_entries(
         entries.push(TreeEntry {
             label: Some("connective"),
             value: generated_paragraph_i_statement_connective_tree_value(
-                connective, source, options,
+                connective,
+                source,
+                options,
+                syntax_index,
             ),
         });
     }
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
-        generated_free_modifier_tree_values(&marker.free_modifiers, source, options),
+        generated_free_modifier_tree_values_with_index(
+            &marker.free_modifiers,
+            source,
+            options,
+            syntax_index,
+        ),
     ) {
         entries.push(entry);
     }
@@ -17630,9 +18007,15 @@ fn generated_multiple_na_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let generated_model::FragmentStatementSyntax::MultipleNaFragment(statement) = statement else {
-        return required_generated_syntax_subtree_value(statement, source, options);
+        return required_generated_syntax_subtree_value_with_index(
+            statement,
+            source,
+            options,
+            syntax_index,
+        );
     };
     let mut entries = vec![
         TreeEntry {
@@ -17660,9 +18043,15 @@ fn generated_single_na_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let generated_model::FragmentStatementSyntax::SingleNaFragment(statement) = statement else {
-        return required_generated_syntax_subtree_value(statement, source, options);
+        return required_generated_syntax_subtree_value_with_index(
+            statement,
+            source,
+            options,
+            syntax_index,
+        );
     };
     let statement = &statement.0;
     let mut entries = vec![TreeEntry {
@@ -17671,7 +18060,12 @@ fn generated_single_na_fragment_tree_value(
     }];
     if let Some(entry) = labelled_tree_collection_entry_from_values(
         "free_modifiers",
-        generated_free_modifier_tree_values(&statement.free_modifiers, source, options),
+        generated_free_modifier_tree_values_with_index(
+            &statement.free_modifiers,
+            source,
+            options,
+            syntax_index,
+        ),
     ) {
         entries.push(entry);
     }
@@ -17687,12 +18081,23 @@ fn generated_linked_sumti_fragment_tree_value(
     statement: &generated_model::FragmentStatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let generated_model::FragmentStatementSyntax::LinkedSumtiFragment(statement) = statement else {
-        return required_generated_syntax_subtree_value(statement, source, options);
+        return required_generated_syntax_subtree_value_with_index(
+            statement,
+            source,
+            options,
+            syntax_index,
+        );
     };
     rename_tree_constructor(
-        required_generated_syntax_subtree_value(&statement.0, source, options),
+        required_generated_syntax_subtree_value_with_index(
+            &statement.0,
+            source,
+            options,
+            syntax_index,
+        ),
         "Linkargs",
         "LinkedSumti",
     )
@@ -17719,12 +18124,22 @@ fn generated_bridi_statement_tree_value(
     statement: &generated_model::StatementBaseSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let generated_model::StatementBaseSyntax::BridiStatement(statement) = statement else {
-        return required_generated_syntax_subtree_value(statement, source, options);
+        return required_generated_syntax_subtree_value_with_index(
+            statement,
+            source,
+            options,
+            syntax_index,
+        );
     };
-    let mut value =
-        required_generated_syntax_subtree_value(statement.bridi.as_ref(), source, options);
+    let mut value = required_generated_syntax_subtree_value_with_index(
+        statement.bridi.as_ref(),
+        source,
+        options,
+        syntax_index,
+    );
     for continuation in &statement.continuations {
         value = TreeValue::Node(TreeNode {
             constructor: "ExperimentalBridiContinuation",
@@ -17739,6 +18154,7 @@ fn generated_bridi_statement_tree_value(
                         continuation,
                         source,
                         options,
+                        syntax_index,
                     ),
                 },
             ],
@@ -17753,6 +18169,7 @@ fn generated_bridi_statement_continuation_tree_value(
     continuation: &generated_model::BridiStatementContinuationSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     match continuation {
         generated_model::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
@@ -17765,15 +18182,17 @@ fn generated_bridi_statement_continuation_tree_value(
                     &continuation.connective,
                     source,
                     options,
+                    syntax_index,
                 ),
             }];
             if let Some(tense_modal) = &continuation.tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
-                    value: required_generated_syntax_subtree_value(
+                    value: required_generated_syntax_subtree_value_with_index(
                         tense_modal.as_ref(),
                         source,
                         options,
+                        syntax_index,
                     ),
                 });
             }
@@ -17787,10 +18206,11 @@ fn generated_bridi_statement_continuation_tree_value(
             });
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
-                value: required_generated_syntax_subtree_value(
+                value: required_generated_syntax_subtree_value_with_index(
                     continuation.trailing_subbridi.as_ref(),
                     source,
                     options,
+                    syntax_index,
                 ),
             });
             TreeValue::Node(TreeNode {
@@ -17808,15 +18228,17 @@ fn generated_bridi_statement_continuation_tree_value(
                     &continuation.connective,
                     source,
                     options,
+                    syntax_index,
                 ),
             }];
             if let Some(tense_modal) = &continuation.tense_modal {
                 entries.push(TreeEntry {
                     label: Some("tense_modal"),
-                    value: required_generated_syntax_subtree_value(
+                    value: required_generated_syntax_subtree_value_with_index(
                         tense_modal.as_ref(),
                         source,
                         options,
+                        syntax_index,
                     ),
                 });
             }
@@ -17843,10 +18265,11 @@ fn generated_bridi_statement_continuation_tree_value(
             });
             entries.push(TreeEntry {
                 label: Some("trailing_subbridi"),
-                value: required_generated_syntax_subtree_value(
+                value: required_generated_syntax_subtree_value_with_index(
                     continuation.trailing_subbridi.as_ref(),
                     source,
                     options,
+                    syntax_index,
                 ),
             });
             TreeValue::Node(TreeNode {
@@ -17872,21 +18295,28 @@ fn generated_i_statement_connection_tree_value(
     statement: &generated_model::StatementSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     let generated_model::StatementSyntax::IStatementConnection(i_statement_connection) = statement
     else {
-        return required_generated_syntax_subtree_value(statement, source, options);
+        return required_generated_syntax_subtree_value_with_index(
+            statement,
+            source,
+            options,
+            syntax_index,
+        );
     };
     let statement = i_statement_connection;
 
-    let mut statements = vec![required_generated_syntax_subtree_value(
+    let mut statements = vec![required_generated_syntax_subtree_value_with_index(
         statement.leading_statement.as_ref(),
         source,
         options,
+        syntax_index,
     )];
     let mut connectors = Vec::new();
     for continuation in &statement.continuations {
-        let part = generated_statement_connection_part(continuation, source, options);
+        let part = generated_statement_connection_part(continuation, source, options, syntax_index);
         statements.push(part.trailing_statement.clone());
         connectors.push(part);
     }
@@ -17933,6 +18363,7 @@ fn generated_statement_connection_part(
     continuation: &GeneratedIStatementConnectionTailSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> GeneratedStatementConnectionPart {
     match continuation {
         GeneratedIStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
@@ -17945,12 +18376,14 @@ fn generated_statement_connection_part(
                     &tail.connective,
                     source,
                     options,
+                    syntax_index,
                 ),
                 connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
-                trailing_statement: required_generated_syntax_subtree_value(
+                trailing_statement: required_generated_syntax_subtree_value_with_index(
                     tail.trailing_statement.as_ref(),
                     source,
                     options,
+                    syntax_index,
                 ),
             }
         }
@@ -17970,6 +18403,7 @@ fn generated_statement_connection_part(
                     &pending_connective.connective,
                     source,
                     options,
+                    syntax_index,
                 ));
             }
             extra.push(generated_token_tree_value(&tail.i, source, options));
@@ -17977,6 +18411,7 @@ fn generated_statement_connection_part(
                 &tail.connective,
                 source,
                 options,
+                syntax_index,
             ));
             GeneratedStatementConnectionPart {
                 i: generated_token_tree_value(&first_pending.i, source, options),
@@ -17985,12 +18420,14 @@ fn generated_statement_connection_part(
                     extra,
                     source,
                     options,
+                    syntax_index,
                 ),
                 connective_has_bo: generated_i_statement_connective_has_bo(&tail.connective),
-                trailing_statement: required_generated_syntax_subtree_value(
+                trailing_statement: required_generated_syntax_subtree_value_with_index(
                     tail.trailing_statement.as_ref(),
                     source,
                     options,
+                    syntax_index,
                 ),
             }
         }
@@ -18075,9 +18512,13 @@ fn generated_statement_connective_tree_value(
     connective: &generated_model::StatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value(
-        connective, source, options,
+    collapse_value(required_generated_syntax_subtree_value_with_index(
+        connective,
+        source,
+        options,
+        syntax_index,
     ))
 }
 
@@ -18087,9 +18528,13 @@ fn generated_text_leading_connective_tree_value(
     connective: &generated_model::TextLeadingConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value(
-        connective, source, options,
+    collapse_value(required_generated_syntax_subtree_value_with_index(
+        connective,
+        source,
+        options,
+        syntax_index,
     ))
 }
 
@@ -18099,9 +18544,13 @@ fn generated_relation_afterthought_connective_tree_value(
     connective: &generated_model::RelationAfterthoughtConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value(
-        connective, source, options,
+    collapse_value(required_generated_syntax_subtree_value_with_index(
+        connective,
+        source,
+        options,
+        syntax_index,
     ))
 }
 
@@ -18111,9 +18560,13 @@ fn generated_bridi_tail_connective_tree_value(
     connective: &generated_model::BridiTailConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value(
-        connective, source, options,
+    collapse_value(required_generated_syntax_subtree_value_with_index(
+        connective,
+        source,
+        options,
+        syntax_index,
     ))
 }
 
@@ -18123,6 +18576,7 @@ fn generated_paragraph_i_statement_connective_tree_value(
     connective: &generated_model::IParagraphStatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     match connective {
         generated_model::IParagraphStatementConnectiveSyntax::IStandardParagraphStatementConnective(
@@ -18142,11 +18596,18 @@ fn generated_paragraph_i_statement_connective_tree_value(
                 }
                 extra.push(generated_token_tree_value(bo, source, options));
                 generated_paragraph_standard_statement_connective_tree_value_with_extra_words(
-                    connective, extra, source, options,
+                    connective,
+                    extra,
+                    source,
+                    options,
+                    syntax_index,
                 )
             } else {
-                collapse_value(required_generated_syntax_subtree_value(
-                    connective, source, options,
+                collapse_value(required_generated_syntax_subtree_value_with_index(
+                    connective,
+                    source,
+                    options,
+                    syntax_index,
                 ))
             }
         }
@@ -18177,6 +18638,7 @@ fn generated_i_statement_connective_tree_value(
     connective: &generated_model::IStatementConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     match connective {
         generated_model::IStatementConnectiveSyntax::IStandardStatementConnective(
@@ -18196,11 +18658,18 @@ fn generated_i_statement_connective_tree_value(
                     bo, source, options,
                 ));
                 generated_statement_connective_tree_value_with_extra_words(
-                    connective, extra, source, options,
+                    connective,
+                    extra,
+                    source,
+                    options,
+                    syntax_index,
                 )
             } else {
-                collapse_value(required_generated_syntax_subtree_value(
-                    connective, source, options,
+                collapse_value(required_generated_syntax_subtree_value_with_index(
+                    connective,
+                    source,
+                    options,
+                    syntax_index,
                 ))
             }
         }
@@ -18280,6 +18749,7 @@ fn generated_statement_connective_tree_value_with_extra_words(
     extra_words: Vec<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     generated_connective_tree_value_with_extra_words(
         connective,
@@ -18287,6 +18757,7 @@ fn generated_statement_connective_tree_value_with_extra_words(
         extra_words,
         source,
         options,
+        syntax_index,
     )
 }
 
@@ -18297,6 +18768,7 @@ fn generated_paragraph_standard_statement_connective_tree_value_with_extra_words
     extra_words: Vec<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue {
     generated_connective_tree_value_with_extra_words(
         connective,
@@ -18304,6 +18776,7 @@ fn generated_paragraph_standard_statement_connective_tree_value_with_extra_words
         extra_words,
         source,
         options,
+        syntax_index,
     )
 }
 
@@ -18315,13 +18788,17 @@ fn generated_connective_tree_value_with_extra_words<T>(
     extra_words: Vec<TreeValue>,
     source: &str,
     options: TreeRenderOptions,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
 ) -> TreeValue
 where
     T: GeneratedSyntaxAstTreeNode,
 {
     append_primary_tree_values(
-        collapse_value(required_generated_syntax_subtree_value(
-            connective, source, options,
+        collapse_value(required_generated_syntax_subtree_value_with_index(
+            connective,
+            source,
+            options,
+            syntax_index,
         )),
         constructor,
         extra_words,
@@ -18503,7 +18980,7 @@ enum SyntaxFrame<'tree, M: SyntaxRenderModel> {
 struct SyntaxTreeBuilder<'source, 'index, 'tree, M: SyntaxRenderModel> {
     source: &'source str,
     options: TreeRenderOptions,
-    syntax_index: Option<&'index SyntaxIndex<'tree>>,
+    syntax_index: Option<&'index M::Index<'tree>>,
     stack: Vec<SyntaxFrame<'tree, M>>,
     last_position: Option<RenderedPosition>,
     root: Option<TreeValue>,
@@ -18519,7 +18996,7 @@ where
     fn new(
         source: &'source str,
         options: TreeRenderOptions,
-        syntax_index: Option<&'index SyntaxIndex<'tree>>,
+        syntax_index: Option<&'index M::Index<'tree>>,
     ) -> Self {
         Self {
             source,
@@ -18662,12 +19139,12 @@ where
         else {
             panic!("syntax tree walker exited a node without entering it");
         };
-        let value = M::custom_node_tree_value(node_ref, self.source, self.options).unwrap_or(
-            TreeValue::Node(TreeNode {
-                constructor,
-                entries,
-            }),
-        );
+        let value =
+            M::custom_node_tree_value(node_ref, self.source, self.options, self.syntax_index)
+                .unwrap_or(TreeValue::Node(TreeNode {
+                    constructor,
+                    entries,
+                }));
         self.push_value(match syntax_id {
             Some(id) => syntax_value(vec![id], value),
             None => value,
@@ -19730,7 +20207,9 @@ mod tests {
     use jbotci_morphology::{
         GlideMark, PhonemeRenderOptions, StressMark, segment_words_with_modifiers,
     };
-    use jbotci_syntax::parse_syntax_tree;
+    use jbotci_syntax::{
+        ParseOptions, parse_syntax_tree, parse_syntax_tree_generated_model_with_source_and_options,
+    };
 
     #[test]
     #[requires(true)]
@@ -19846,6 +20325,17 @@ mod tests {
         assert!(output.contains("\x1b[36mk\x1b[39m\x1b[96m₁\x1b[39m"));
         assert!(output.contains("\x1b[90m⟨\x1b[39m\x1b[97m1\x1b[39m\x1b[90m⟩\x1b[39m"));
         assert!(output.contains("\x1b[90m→\x1b[39m"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn renders_translated_references_on_generated_tree_output() {
+        let output = render_generated_refs("mi klama do i do klama mi");
+
+        assert!(output.contains("k₁⟨1⟩→ Cmavo \"mi\""));
+        assert!(output.contains("Gismu \"kláma\" →k₁"));
+        assert!(output.contains("k₂⟨2⟩→ Cmavo \"mi\""));
     }
 
     #[test]
@@ -20084,6 +20574,34 @@ mod tests {
             let words = segment_words_with_modifiers(&text).expect("morphology");
             let parsed = parse_syntax_tree(&words).expect("syntax");
             pretty_tree_with_options(&parsed.parse_tree, &text, options).expect("tree render")
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn render_generated_refs(text: &str) -> String {
+        let text = text.to_owned();
+        run_on_normal_stack(move || {
+            let words = segment_words_with_modifiers(&text).expect("morphology");
+            let legacy = parse_syntax_tree(&words).expect("legacy syntax");
+            let generated = parse_syntax_tree_generated_model_with_source_and_options(
+                &words,
+                &text,
+                &ParseOptions::default(),
+            )
+            .expect("generated syntax");
+            pretty_generated_model_tree_with_legacy_references(
+                &generated,
+                &legacy.parse_tree,
+                &text,
+                TreeRenderOptions {
+                    color: false,
+                    indent: 2,
+                    show_refs: true,
+                    ..TreeRenderOptions::default()
+                },
+            )
+            .expect("generated tree refs render")
         })
     }
 

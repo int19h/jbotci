@@ -207,6 +207,26 @@ impl ReferenceDisplayModel {
 
     #[requires(true)]
     #[ensures(true)]
+    pub(crate) fn translated_syntax_ids(
+        &self,
+        id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+    ) -> Self {
+        Self {
+            incoming_by_node: translate_reference_name_map(&self.incoming_by_node, id_map),
+            outgoing_by_node: translate_reference_name_map(&self.outgoing_by_node, id_map),
+            rich_incoming_by_node: translate_rich_reference_map(
+                &self.rich_incoming_by_node,
+                id_map,
+            ),
+            rich_outgoing_by_node: translate_rich_reference_map(
+                &self.rich_outgoing_by_node,
+                id_map,
+            ),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn add_place_annotations(
         &mut self,
         analysis: &ReferenceAnalysis<'_>,
@@ -325,6 +345,123 @@ impl ReferenceDisplayModel {
                 .insert(name);
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn translate_reference_name_map(
+    source: &BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>>,
+    id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+) -> BTreeMap<RawSyntaxNodeId, BTreeSet<ReferenceName>> {
+    let mut translated = BTreeMap::<RawSyntaxNodeId, BTreeSet<ReferenceName>>::new();
+    for (source_id, names) in source {
+        for target_id in translated_ids(*source_id, id_map) {
+            translated
+                .entry(target_id)
+                .or_default()
+                .extend(names.iter().cloned());
+        }
+    }
+    translated
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn translate_rich_reference_map(
+    source: &BTreeMap<RawSyntaxNodeId, Vec<RichReferenceAnnotation>>,
+    id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+) -> BTreeMap<RawSyntaxNodeId, Vec<RichReferenceAnnotation>> {
+    let mut translated = BTreeMap::<RawSyntaxNodeId, Vec<RichReferenceAnnotation>>::new();
+    for (source_id, annotations) in source {
+        for target_id in translated_ids(*source_id, id_map) {
+            let translated_annotations = annotations
+                .iter()
+                .cloned()
+                .map(|annotation| translate_rich_reference_annotation(annotation, id_map));
+            let entry = translated.entry(target_id).or_default();
+            extend_unique_rich_annotations(entry, translated_annotations);
+        }
+    }
+    translated
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn translated_ids(
+    source_id: RawSyntaxNodeId,
+    id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+) -> Vec<RawSyntaxNodeId> {
+    id_map
+        .get(&source_id)
+        .cloned()
+        .unwrap_or_else(|| vec![source_id])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn translate_rich_reference_annotation(
+    annotation: RichReferenceAnnotation,
+    id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+) -> RichReferenceAnnotation {
+    let source = match annotation.source.as_data() {
+        data!(ReferenceAnnotationSource::PlaceFrame {
+            frame,
+            source_node,
+            display_word,
+            lookup_word,
+        }) => new!(ReferenceAnnotationSource::PlaceFrame {
+            frame: *frame,
+            source_node: first_translated_id(*source_node, id_map),
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        }),
+        data!(ReferenceAnnotationSource::PlaceAssignment {
+            frame,
+            assignment,
+            source_node,
+            target_node,
+            display_word,
+            lookup_word,
+        }) => new!(ReferenceAnnotationSource::PlaceAssignment {
+            frame: *frame,
+            assignment: *assignment,
+            source_node: first_translated_id(*source_node, id_map),
+            target_node: first_translated_id(*target_node, id_map),
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        }),
+        data!(ReferenceAnnotationSource::DiscourseEdge {
+            edge,
+            kind,
+            source_node,
+            target_node,
+            display_word,
+            lookup_word,
+        }) => new!(ReferenceAnnotationSource::DiscourseEdge {
+            edge: *edge,
+            kind: kind.clone(),
+            source_node: first_translated_id(*source_node, id_map),
+            target_node: first_translated_id(*target_node, id_map),
+            display_word: display_word.clone(),
+            lookup_word: lookup_word.clone(),
+        }),
+    };
+    new!(RichReferenceAnnotation {
+        name: annotation.name.clone(),
+        source,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn first_translated_id(
+    source_id: RawSyntaxNodeId,
+    id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
+) -> RawSyntaxNodeId {
+    id_map
+        .get(&source_id)
+        .and_then(|ids| ids.first().copied())
+        .unwrap_or(source_id)
 }
 
 #[requires(true)]

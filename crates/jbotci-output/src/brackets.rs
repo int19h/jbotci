@@ -11,9 +11,7 @@ use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
-use jbotci_syntax::{
-    Indicator, Token, WithIndicators, elidable_terminator_for_absent_field_ref,
-};
+use jbotci_syntax::{Indicator, Token, WithIndicators, elidable_terminator_for_absent_field_ref};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{

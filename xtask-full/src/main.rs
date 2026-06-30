@@ -7125,10 +7125,7 @@ fn fixture_rewrite_paths(
         } else if gentufa_output_only {
             if let Some(after) = refresh_gentufa_output_expectations_text(&fixture, &before)
                 .with_context(|| {
-                    format!(
-                        "refreshing gentufa output fixture `{}`",
-                        path.display()
-                    )
+                    format!("refreshing gentufa output fixture `{}`", path.display())
                 })?
             {
                 fs::write(&path, after)
@@ -8300,16 +8297,17 @@ fn refresh_fixture_expectations(
                             },
                         )?,
                     ));
-                    gentufa.tree = Some(text_expectation(pretty_generated_model_tree_with_options(
-                        generated_model,
-                        &fixture.test_case.lojban,
-                        TreeRenderOptions {
-                            color: false,
-                            indent: 2,
-                            show_spans: true,
-                            ..TreeRenderOptions::default()
-                        },
-                    )?));
+                    gentufa.tree =
+                        Some(text_expectation(pretty_generated_model_tree_with_options(
+                            generated_model,
+                            &fixture.test_case.lojban,
+                            TreeRenderOptions {
+                                color: false,
+                                indent: 2,
+                                show_spans: true,
+                                ..TreeRenderOptions::default()
+                            },
+                        )?));
                 }
                 if refresh_tree
                     && let Some(output) = &mut fixture.test_case.expectations.output

@@ -20,7 +20,9 @@ use jbotci_output::{
     ReferenceName as OutputReferenceName, ReferenceSlotName as OutputReferenceSlotName,
     RichReferenceAnnotation,
 };
-use jbotci_semantics::references::{RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata};
+use jbotci_semantics::references::{
+    GeneratedSyntaxIndex, RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata,
+};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax};
 use jbotci_syntax::generated_model::{
@@ -351,7 +353,21 @@ pub fn generated_model_blocks_layout<Tooltip: Clone>(
     annotations: &[GentufaBlockAnnotation<Tooltip>],
     options: &GentufaBlockOptions,
 ) -> GentufaBlocksLayout<Tooltip> {
-    let mut collector = GeneratedBlockCollector::new(source, options);
+    generated_model_blocks_layout_with_references(syntax, source, None, None, annotations, options)
+}
+
+#[requires(true)]
+#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+pub fn generated_model_blocks_layout_with_references<Tooltip: Clone>(
+    syntax: &GeneratedTextSyntax,
+    source: &str,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+    reference_model: Option<&ReferenceDisplayModel>,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+    options: &GentufaBlockOptions,
+) -> GentufaBlocksLayout<Tooltip> {
+    let mut collector =
+        GeneratedBlockCollector::new(source, options, syntax_index, reference_model);
     syntax.visit_in_order(&mut collector);
     let Some(root) = collector.finish() else {
         return GentufaBlocksLayout {
@@ -595,6 +611,7 @@ impl GeneratedBlockPayload {
 struct GeneratedNodeFrame {
     id: RawSyntaxNodeId,
     label: String,
+    ref_markers: Vec<ReferenceMarker>,
     payload: GeneratedBlockPayload,
 }
 
@@ -631,24 +648,35 @@ impl GeneratedBlockFrame {
 
 #[derive(Debug)]
 #[invariant(true)]
-struct GeneratedBlockCollector<'source, 'options> {
+struct GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
     source: &'source str,
     options: &'options GentufaBlockOptions,
+    syntax_index: Option<&'index GeneratedSyntaxIndex<'tree>>,
+    reference_model: Option<&'index ReferenceDisplayModel>,
     stack: Vec<GeneratedBlockFrame>,
     root: Option<BlockTreeNode>,
     next_id: usize,
 }
 
-impl<'source, 'options> GeneratedBlockCollector<'source, 'options> {
+impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
     #[requires(true)]
     #[ensures(ret.source == source)]
-    fn new(source: &'source str, options: &'options GentufaBlockOptions) -> Self {
+    fn new(
+        source: &'source str,
+        options: &'options GentufaBlockOptions,
+        syntax_index: Option<&'index GeneratedSyntaxIndex<'tree>>,
+        reference_model: Option<&'index ReferenceDisplayModel>,
+    ) -> Self {
         Self {
             source,
             options,
+            syntax_index,
+            reference_model,
             stack: Vec::new(),
             root: None,
-            next_id: 0,
+            next_id: syntax_index
+                .map(GeneratedSyntaxIndex::node_count)
+                .unwrap_or(0),
         }
     }
 
@@ -664,6 +692,22 @@ impl<'source, 'options> GeneratedBlockCollector<'source, 'options> {
         let id = RawSyntaxNodeId(self.next_id);
         self.next_id = self.next_id.saturating_add(1);
         id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn id_for_node(&mut self, node: GeneratedSyntaxNodeRef<'tree>) -> RawSyntaxNodeId {
+        self.syntax_index
+            .and_then(|index| index.id_of(node))
+            .unwrap_or_else(|| self.allocate_id())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn reference_markers_for_id(&self, id: RawSyntaxNodeId) -> Vec<ReferenceMarker> {
+        self.reference_model
+            .map(|model| reference_markers_for_node(model, id))
+            .unwrap_or_default()
     }
 
     #[requires(true)]
@@ -780,18 +824,20 @@ impl<'source, 'options> GeneratedBlockCollector<'source, 'options> {
     }
 }
 
-impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_> {
+impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
     type Node = GeneratedSyntaxNodeRef<'tree>;
     type Atom = GeneratedSyntaxAtomRef<'tree>;
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
-        let id = self.allocate_id();
+        let id = self.id_for_node(node);
+        let ref_markers = self.reference_markers_for_id(id);
         self.stack
             .push(GeneratedBlockFrame::Node(GeneratedNodeFrame {
                 id,
                 label: syntax_constructor_name(node.constructor_name()).to_owned(),
+                ref_markers,
                 payload: GeneratedBlockPayload::default(),
             }));
     }
@@ -884,7 +930,12 @@ fn generated_block_tree_node_from_frame(
     frame: GeneratedNodeFrame,
     source: &str,
 ) -> Option<BlockTreeNode> {
-    let GeneratedNodeFrame { id, label, payload } = frame;
+    let GeneratedNodeFrame {
+        id,
+        label,
+        ref_markers,
+        payload,
+    } = frame;
     generated_block_tree_node_from_parts(
         id,
         None,
@@ -892,7 +943,7 @@ fn generated_block_tree_node_from_frame(
         label.clone(),
         false,
         None,
-        Vec::new(),
+        ref_markers,
         vec![label],
         payload.children,
         payload.leaf_parts,

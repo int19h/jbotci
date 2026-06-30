@@ -24,7 +24,7 @@ pub use jbotci_gentufa::{
 };
 use jbotci_gentufa::{
     ElidedTerminator, RenderedLeaf, display_text_for_spans as gentufa_display_text_for_spans,
-    generated_model_blocks_layout as generated_syntax_blocks_layout,
+    generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
     range_from_spans as gentufa_range_from_spans,
     reference_markers_for_node as gentufa_reference_markers_for_node,
     reference_slot_label_from_output, syntax_constructor_name as gentufa_syntax_constructor_name,
@@ -49,9 +49,10 @@ use jbotci_morphology::{
 use jbotci_output::{
     BracketSourceFragment, BracketSourceRange, GlyphStyle, ReferenceDisplayModel,
     TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
-    indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
-    phoneme_render_options_for_script, pretty_generated_model_tree_with_options,
-    reference_slot_name_for_place_slot, render_lojban_text_for_script_with_options,
+    generated_reference_display_from_legacy, indexed_place_spans_for_definition_or_notes_line,
+    ipa_morphology_text, phoneme_render_options_for_script,
+    pretty_generated_model_tree_with_reference_display, reference_slot_name_for_place_slot,
+    render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -64,7 +65,10 @@ use jbotci_semantics::references::{
     PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
 };
 use jbotci_source::SourceId;
-use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+use jbotci_syntax::{
+    ParseOptions, parse_syntax_tree_generated_model_with_source_and_options,
+    parse_syntax_tree_with_source_and_options,
+};
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -452,19 +456,48 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let tree_text = match pretty_generated_model_tree_with_options(
+    let legacy_parse =
+        match parse_syntax_tree_with_source_and_options(&words, source, &parse_options) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                diagnostics.push(error.to_diagnostic(source_id, source));
+                return GentufaWebResult::Error(GentufaError {
+                    phase: Some(DiagnosticPhase::Syntax),
+                    message: error.to_string(),
+                    diagnostics,
+                });
+            }
+        };
+    let tree_options = TreeRenderOptions {
+        color: false,
+        indent: 2,
+        phonemes: render_options.phonemes,
+        glyphs: GlyphStyle::Unicode,
+        show_spans: true,
+        show_refs: true,
+        decompose_lujvo: false,
+        show_elided: false,
+    };
+    let reference_display = match generated_reference_display_from_legacy(
+        &generated_model,
+        &legacy_parse.parse_tree,
+        source,
+        tree_options,
+    ) {
+        Ok(display) => display,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            });
+        }
+    };
+    let tree_text = match pretty_generated_model_tree_with_reference_display(
         &generated_model,
         source,
-        TreeRenderOptions {
-            color: false,
-            indent: 2,
-            phonemes: render_options.phonemes,
-            glyphs: GlyphStyle::Unicode,
-            show_spans: true,
-            show_refs: false,
-            decompose_lujvo: false,
-            show_elided: false,
-        },
+        tree_options,
+        &reference_display,
     ) {
         Ok(text) => text,
         Err(error) => {
@@ -477,13 +510,16 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     };
     let block_options = gentufa_block_options(&request.options);
     let generated_annotations = Vec::<GentufaBlockAnnotation<DictionaryTooltipCard>>::new();
-    let blocks_layout =
-        generated_blocks_layout_with_empty_reference_tooltips(generated_syntax_blocks_layout(
+    let blocks_layout = generated_blocks_layout_with_empty_reference_tooltips(
+        generated_syntax_blocks_layout_with_references(
             &generated_model,
             source,
+            Some(&reference_display.syntax_index),
+            Some(&reference_display.references),
             &generated_annotations,
             &block_options,
-        ));
+        ),
+    );
     let tree_rows = generated_model_tree_rows_from_text(&tree_text);
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
     let brackets_text = tree_text;

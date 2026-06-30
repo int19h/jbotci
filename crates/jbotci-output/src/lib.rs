@@ -16,10 +16,11 @@ pub use diagnostics::{
     DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
 };
 pub use jbotci_diagnostics::DiagnosticDetailMode;
-pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 use jbotci_morphology::{Cmavo, Phonemes, WordLike};
+pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::ast::TextSyntax;
+use jbotci_tree::FieldRef;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
     indexed_place_spans_for_definition_or_notes_line,
@@ -29,7 +30,6 @@ pub use references::{
     ReferenceDisplayModel, ReferenceName, ReferenceSlotName, RichReferenceAnnotation,
     RichReferenceAnnotations, reference_slot_name_for_place_slot,
 };
-use jbotci_tree::FieldRef;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 pub use surface::{
@@ -38,7 +38,9 @@ pub use surface::{
 };
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
+pub use tree::pretty_generated_model_tree_with_reference_display;
 pub use tree::reference_display_model_for_syntax_tree;
+pub use tree::{GeneratedReferenceDisplay, generated_reference_display_from_legacy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -455,8 +457,7 @@ fn insert_generated_model_elided_terminator_fields(
             continue;
         }
         let field_ref = FieldRef::new(Some(field), index, false);
-        let Some(cmavo) = jbotci_syntax::elidable_terminator_for_absent_field_ref(field_ref)
-        else {
+        let Some(cmavo) = jbotci_syntax::elidable_terminator_for_absent_field_ref(field_ref) else {
             continue;
         };
         let Some(char_end) = previous_end else {
@@ -494,7 +495,10 @@ fn json_value_char_end_position(value: &Value) -> Option<usize> {
             {
                 return usize::try_from(end).ok();
             }
-            object.values().filter_map(json_value_char_end_position).max()
+            object
+                .values()
+                .filter_map(json_value_char_end_position)
+                .max()
         }
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
     }
@@ -599,6 +603,18 @@ pub fn pretty_generated_model_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_generated_model_tree_with_options(tree, source, options)
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn pretty_generated_model_tree_with_legacy_references(
+    tree: &jbotci_syntax::generated_model::TextSyntax,
+    legacy_tree: &TextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    tree::pretty_generated_model_tree_with_legacy_references(tree, legacy_tree, source, options)
 }
 
 #[doc(hidden)]

@@ -41681,4 +41681,3 @@ fn unsupported(what: &str) -> SemanticsError {
         message: format!("generated semantic builder does not yet support {what}"),
     }
 }
-

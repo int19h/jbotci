@@ -621,19 +621,20 @@ impl SyntaxGrammar {
                         fields: &[#(#fields,)*],
                     })
                 });
-        let variant_field_order_items = variant_struct_outputs
-            .iter()
-            .filter_map(|(constructor, output)| {
-                let model = structs.get(output)?;
-                if model.fields.len() <= 1 {
-                    return None;
-                }
-                let fields = model.fields.iter().map(|field| field.name.to_string());
-                Some(quote!(GeneratedModelFieldOrder {
-                    constructor: #constructor,
-                    fields: &[#(#fields,)*],
-                }))
-            });
+        let variant_field_order_items =
+            variant_struct_outputs
+                .iter()
+                .filter_map(|(constructor, output)| {
+                    let model = structs.get(output)?;
+                    if model.fields.len() <= 1 {
+                        return None;
+                    }
+                    let fields = model.fields.iter().map(|field| field.name.to_string());
+                    Some(quote!(GeneratedModelFieldOrder {
+                        constructor: #constructor,
+                        fields: &[#(#fields,)*],
+                    }))
+                });
         let field_order_items = struct_field_order_items.chain(variant_field_order_items);
         let support_items = vec![quote! {
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
