@@ -28,23 +28,22 @@ use jbotci_syntax::generated_model::{
     FollowingParagraphStatementSyntax, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionWithoutTailTermsSyntax, ForethoughtCallMeksoSyntax,
     ForethoughtMeksoOperandSyntax, ForethoughtMeksoOperatorSyntax,
-    ForethoughtSelbriConnectionSyntax,
-    ForethoughtSelbriGroupTanruUnitSyntax, ForethoughtSumtiSyntax, ForethoughtTermsetSyntax,
-    FragmentStatementSyntax, FreeModifierSyntax, GihekConnectiveSyntax, GihekFragmentSyntax,
-    GikConnectiveSyntax, GohaWordTanruUnitSyntax, GroupedForethoughtBridiConnectionSyntax,
-    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
-    IStatementConnectionTailSyntax, IStatementConnectiveSyntax, InfixMeksoSyntax,
-    JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
-    LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax,
-    LerfuStringSumtiSyntax, LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax,
-    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax,
-    MeksoBaseSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax,
-    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax,
-    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
-    NumberWordContinuationSyntax, NumberWordsSyntax, OperatorSelbriTanruUnitSyntax,
-    OrdinalTanruUnitSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
-    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
-    PlainLinkedSumtiSyntax,
+    ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
+    ForethoughtSumtiSyntax, ForethoughtTermsetSyntax, FragmentStatementSyntax, FreeModifierSyntax,
+    GihekConnectiveSyntax, GihekFragmentSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
+    GroupedForethoughtBridiConnectionSyntax, GroupedTanruUnitSyntax, GuhekConnectiveSyntax,
+    IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
+    InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JoikConnectiveSyntax,
+    LaheSumtiSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
+    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
+    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiSyntax,
+    LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax, MeksoOperandSyntax,
+    MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax, NameSumtiSyntax,
+    NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
+    NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax, NumberWordContinuationSyntax,
+    NumberWordsSyntax, OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
+    ParagraphStatementSequenceSyntax, ParagraphSyntax, ParenthesizedMeksoOperandSyntax,
+    PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax, PlainLinkedSumtiSyntax,
     PlainRelativeSumtiSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
     PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
     QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
@@ -80,24 +79,24 @@ use crate::builder::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::model::{
-    AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation,
-    AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName,
-    AssignedNameData, CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness,
+    AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
+    ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName, AssignedNameData,
+    CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness,
     DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
-    DisplayedContentPolarity,
-    DisplayedContentTargetFocus, EventualityClass, EventualitySort, FormulaOperator, IndexicalKind,
-    IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
-    LetteralUnitKind, MathLiteral, MixedRadixComponent, ModalArgument, ModalNegation,
-    ModalNegationKind, NonlogicalConnection, ParameterRole, PlaceQuestionBinding, PredicationMode,
-    QuantifierBinding, QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode,
-    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
-    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
-    RelationExpansion, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject, SemanticObjectId,
-    SemanticOperatorData, SemanticSort, SequenceRelation, SignKind, SourceByteSpan, SpaceInterval,
-    SpatialMotion, SpatialMotionKind, Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce,
-    diagnostic, displayed_content_target_kind_is_allowed, source_from_spans,
+    DisplayedContentPolarity, DisplayedContentTargetFocus, EventualityClass, EventualitySort,
+    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
+    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, MixedRadixComponent,
+    ModalArgument, ModalNegation, ModalNegationKind, NonlogicalConnection, ParameterRole,
+    PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
+    TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
+    displayed_content_target_kind_is_allowed, source_from_spans,
 };
 
 #[requires(true)]
@@ -150,6 +149,7 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     relation_question_parameters: Vec<SemanticObjectId>,
     tense_question_parameters: Vec<SemanticObjectId>,
     connective_question_parameters: Vec<SemanticObjectId>,
+    math_operator_question_parameters: Vec<SemanticObjectId>,
     relation_variable_parameters: BTreeMap<(usize, usize), SemanticObjectId>,
     implicit_existential_variables: Vec<GeneratedImplicitExistential>,
     recorded_implicit_existential_variables: HashSet<SemanticObjectId>,
@@ -180,6 +180,11 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     math_variable_referents: BTreeMap<String, SemanticObjectId>,
     assigned_pro_bridi_bindings: BTreeMap<String, GeneratedAssignedProBridiBinding>,
     pending_asides: Vec<SemanticObjectId>,
+    defer_active_prenex_implicit_existentials: usize,
+    deferred_active_prenex_implicit_existentials: Vec<GeneratedImplicitExistential>,
+    pending_negated_selbri_argument_scope_reservations: usize,
+    suppress_prenex_bound_implicit_existential_recording: usize,
+    pending_after_eventuality_reservations: usize,
 }
 
 #[invariant(!relation.is_empty(), "modal relation must be named")]
@@ -1012,6 +1017,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             relation_question_parameters: Vec::new(),
             tense_question_parameters: Vec::new(),
             connective_question_parameters: Vec::new(),
+            math_operator_question_parameters: Vec::new(),
             relation_variable_parameters: BTreeMap::new(),
             implicit_existential_variables: Vec::new(),
             recorded_implicit_existential_variables: HashSet::new(),
@@ -1041,6 +1047,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             math_variable_referents: BTreeMap::new(),
             assigned_pro_bridi_bindings: BTreeMap::new(),
             pending_asides: Vec::new(),
+            defer_active_prenex_implicit_existentials: 0,
+            deferred_active_prenex_implicit_existentials: Vec::new(),
+            pending_negated_selbri_argument_scope_reservations: 0,
+            suppress_prenex_bound_implicit_existential_recording: 0,
+            pending_after_eventuality_reservations: 0,
         };
         builder.insert_deictics();
         builder
@@ -2244,17 +2255,38 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connective: Option<&StatementConnectiveSyntax>,
         force_assertion_effect_none: bool,
     ) -> Result<(), SemanticsError> {
+        self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
+            item,
+            i,
+            connective,
+            force_assertion_effect_none,
+            None,
+        )
+    }
+
+    #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
+    #[requires(target_override.is_none_or(|target| displayed_content_target_kind_is_allowed(target.object_kind())))]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn attach_generated_statement_separator_indicators_to_discourse_item_with_target(
+        &mut self,
+        item: SemanticObjectId,
+        i: &Token,
+        connective: Option<&StatementConnectiveSyntax>,
+        force_assertion_effect_none: bool,
+        target_override: Option<SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
         if item.object_kind() == crate::model::SemanticObjectKind::Sequence {
             let first_item = self
                 .objects
                 .get(&item)
                 .and_then(|object| object.items.first().copied());
             if let Some(first_item) = first_item {
-                self.attach_generated_statement_separator_indicators_to_discourse_item(
+                self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
                     first_item,
                     i,
                     connective,
                     force_assertion_effect_none,
+                    target_override,
                 )?;
             }
             return Ok(());
@@ -2266,7 +2298,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if parts.is_empty() {
             return Ok(());
         }
-        let Some(target) = self.displayed_content_target_for_generated_utterance(item) else {
+        let Some(target) =
+            target_override.or_else(|| self.displayed_content_target_for_generated_utterance(item))
+        else {
             return Ok(());
         };
         self.attach_generated_indicator_displays_with_target_focus(
@@ -2334,6 +2368,74 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             data!(SemanticOperator::Formula(_)) | data!(SemanticOperator::Math(_)) => None,
         }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|eventualities| eventualities.iter().all(|id| semantic_id_is_eventuality(*id))) || ret.is_err())]
+    fn eventualities_for_generated_formula_predications(
+        &self,
+        formula: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let mut eventualities = Vec::new();
+        let mut seen = BTreeSet::new();
+        self.collect_eventualities_for_generated_formula_predications(
+            formula,
+            &mut eventualities,
+            &mut seen,
+        )?;
+        if eventualities.is_empty() {
+            eventualities.push(self.eventuality_for_generated_formula(formula)?);
+        }
+        Ok(eventualities)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(eventualities.iter().all(|id| semantic_id_is_eventuality(*id)))]
+    #[requires(seen.iter().all(|id| semantic_id_is_eventuality(*id)))]
+    #[ensures(eventualities.iter().all(|id| semantic_id_is_eventuality(*id)))]
+    #[ensures(seen.iter().all(|id| semantic_id_is_eventuality(*id)))]
+    fn collect_eventualities_for_generated_formula_predications(
+        &self,
+        formula: SemanticObjectId,
+        eventualities: &mut Vec<SemanticObjectId>,
+        seen: &mut BTreeSet<SemanticObjectId>,
+    ) -> Result<(), SemanticsError> {
+        let object = self.objects.get(&formula).ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder could not find formula {formula} for eventuality traversal"
+            ))
+        })?;
+        if let Some(predication) = object.predication
+            && let Some(eventuality) = self
+                .objects
+                .get(&predication)
+                .and_then(|object| object.eventuality)
+            && seen.insert(eventuality)
+        {
+            eventualities.push(eventuality);
+        }
+        for child in &object.children {
+            self.collect_eventualities_for_generated_formula_predications(
+                *child,
+                eventualities,
+                seen,
+            )?;
+        }
+        if let Some(restriction) = object.restriction {
+            self.collect_eventualities_for_generated_formula_predications(
+                restriction,
+                eventualities,
+                seen,
+            )?;
+        }
+        if let Some(body) = object.body {
+            self.collect_eventualities_for_generated_formula_predications(
+                body,
+                eventualities,
+                seen,
+            )?;
+        }
+        Ok(())
     }
 
     #[requires(matches!(
@@ -3075,6 +3177,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let relation_question_start = self.relation_question_parameters.len();
         let tense_question_start = self.tense_question_parameters.len();
         let connective_question_start = self.connective_question_parameters.len();
+        let math_operator_question_start = self.math_operator_question_parameters.len();
         let existential_start = self.implicit_existential_variables.len();
         let previous_asides = std::mem::take(&mut self.pending_asides);
         let previous_da_series_bindings = std::mem::take(&mut self.implicit_da_series_bindings);
@@ -3113,11 +3216,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let connective_question_parameters = self
             .connective_question_parameters
             .split_off(connective_question_start);
+        let math_operator_question_parameters = self
+            .math_operator_question_parameters
+            .split_off(math_operator_question_start);
         let (force, content) = if question_parameters.is_empty()
             && place_question_parameters.is_empty()
             && relation_question_parameters.is_empty()
             && tense_question_parameters.is_empty()
             && connective_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             if force == UtteranceForce::Ask {
                 (
@@ -3137,6 +3244,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && place_question_parameters.is_empty()
             && tense_question_parameters.is_empty()
             && connective_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             (
                 UtteranceForce::Ask,
@@ -3152,6 +3260,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && relation_question_parameters.is_empty()
             && tense_question_parameters.is_empty()
             && connective_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             (
                 UtteranceForce::Ask,
@@ -3167,6 +3276,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && relation_question_parameters.is_empty()
             && tense_question_parameters.is_empty()
             && connective_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             (
                 UtteranceForce::Ask,
@@ -3182,6 +3292,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && place_question_parameters.is_empty()
             && relation_question_parameters.is_empty()
             && connective_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             (
                 UtteranceForce::Ask,
@@ -3197,6 +3308,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && place_question_parameters.is_empty()
             && relation_question_parameters.is_empty()
             && tense_question_parameters.is_empty()
+            && math_operator_question_parameters.is_empty()
         {
             (
                 UtteranceForce::Ask,
@@ -3205,6 +3317,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::Connective,
                     formula,
                     connective_question_parameters,
+                    self.source_for_node(bridi, "question"),
+                )?,
+            )
+        } else if question_parameters.is_empty()
+            && place_question_parameters.is_empty()
+            && relation_question_parameters.is_empty()
+            && tense_question_parameters.is_empty()
+            && connective_question_parameters.is_empty()
+        {
+            (
+                UtteranceForce::Ask,
+                self.build_direct_question(
+                    QuestionKind::MathOperator,
+                    SemanticSort::MathOperator,
+                    formula,
+                    math_operator_question_parameters,
                     self.source_for_node(bridi, "question"),
                 )?,
             )
@@ -4323,8 +4451,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let tail =
             self.build_generated_statement_connection_tail_operand(continuation, left.last_item)?;
-        let (right, index) =
-            self.build_generated_statement_bo_connection_group(connection, tail.operand.clone(), start + 1)?;
+        let (right, index) = self.build_generated_statement_bo_connection_group(
+            connection,
+            tail.operand.clone(),
+            start + 1,
+        )?;
         let combined = self.combine_generated_statement_connection_operands(
             left,
             tail.i,
@@ -4355,13 +4486,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 trailing_statement,
                 UtteranceForce::Assert,
             )?;
-        let connective_core = generated_i_statement_connective_core(connective)?;
-        self.attach_generated_statement_separator_indicators_to_discourse_item(
-            trailing_item,
-            i,
-            connective_core,
-            false,
-        )?;
         Ok(GeneratedStatementConnectionTail {
             i,
             connective,
@@ -4398,12 +4522,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             generated_i_statement_connective_has_logical_component(connective);
         let content = if has_logical_component {
             if let (Some(left_formula), Some(right_formula)) = (left.formula, right.formula) {
-                Some(self.build_binary_formula_for_generated_statement_connective(
-                    connective,
-                    left_formula,
-                    right_formula,
-                    source.clone(),
-                )?)
+                Some(
+                    self.build_binary_formula_for_generated_statement_connective(
+                        connective,
+                        left_formula,
+                        right_formula,
+                        source.clone(),
+                    )?,
+                )
             } else {
                 diagnostics.push(diagnostic(
                     "logical generated statement connection could not find formula-bearing statements to connect",
@@ -4417,13 +4543,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let claim_spec = generated_modal_statement_connection_spec(connective)
             .map(|spec| (spec, source.clone()))
             .or_else(|| {
-                generated_text_group_statement_connection_spec(trailing_statement)
-                    .map(|(tense_modal, spec)| {
+                generated_text_group_statement_connection_spec(trailing_statement).map(
+                    |(tense_modal, spec)| {
                         (
                             spec,
                             self.source_for_node(tense_modal, "statement-connection-claim"),
                         )
-                    })
+                    },
+                )
             });
         if let Some((spec, claim_source)) = claim_spec {
             match self.build_generated_modal_statement_connection_claim(
@@ -4451,6 +4578,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             nonlogical_connection,
             source,
             diagnostics,
+        )?;
+        self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
+            right.last_item,
+            _i,
+            generated_i_statement_connective_core(connective)?,
+            false,
+            content,
         )?;
         Ok(new!(GeneratedStatementConnectionOperand {
             item,
@@ -4552,8 +4686,47 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
     #[ensures(true)]
     fn mark_generated_discourse_item_subordinated(&mut self, item: SemanticObjectId) {
-        if let Some(object) = self.objects.get_mut(&item) {
+        let content = if let Some(object) = self.objects.get_mut(&item) {
             object.force = Some(UtteranceForce::Subordinated);
+            object.content
+        } else {
+            None
+        };
+        if let Some(content) = content
+            && content.object_kind() == crate::model::SemanticObjectKind::Formula
+        {
+            self.set_generated_pro_bridi_formula_predication_mode(content, PredicationMode::Inert);
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(true)]
+    fn set_generated_pro_bridi_formula_predication_mode(
+        &mut self,
+        formula: SemanticObjectId,
+        mode: PredicationMode,
+    ) {
+        let Some(object) = self.objects.get(&formula).cloned() else {
+            return;
+        };
+        if let Some(predication) = object.predication
+            && self
+                .objects
+                .get(&predication)
+                .and_then(|object| object.relation.as_deref())
+                .is_some_and(generated_relation_is_pro_bridi_label)
+            && let Some(object) = self.objects.get_mut(&predication)
+        {
+            object.mode = Some(mode);
+        }
+        for child in object.children {
+            self.set_generated_pro_bridi_formula_predication_mode(child, mode);
+        }
+        if let Some(restriction) = object.restriction {
+            self.set_generated_pro_bridi_formula_predication_mode(restriction, mode);
+        }
+        if let Some(body) = object.body {
+            self.set_generated_pro_bridi_formula_predication_mode(body, mode);
         }
     }
 
@@ -5611,8 +5784,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        if generated_modal_forethought_connective_primary_cmavo(&termset.gek) != Some(Cmavo::Fahu)
-        {
+        if generated_modal_forethought_connective_primary_cmavo(&termset.gek) != Some(Cmavo::Fahu) {
             return Ok(None);
         }
         let leading_assignments =
@@ -5625,10 +5797,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Err(unsupported("scoped generated fa'u termset branch"));
         }
 
-        let Some((composite, members)) =
-            self.generated_first_respectively_composite_argument_in_assignments(
-                &leading_assignments,
-            )
+        let Some((composite, members)) = self
+            .generated_first_respectively_composite_argument_in_assignments(&leading_assignments)
         else {
             return Ok(None);
         };
@@ -5653,24 +5823,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .max()
                 .unwrap_or(1)
         });
-        let leading_replaced =
-            self.build_generated_fahu_termset_branch_formula_from_assignments(
-                &relation,
-                &leading_assignments,
-                &BTreeMap::from([(composite, first)]),
-                place_limit,
-                mode,
-                source.clone(),
-            )?;
-        let trailing_replaced =
-            self.build_generated_fahu_termset_branch_formula_from_assignments(
-                &relation,
-                &trailing_assignments,
-                &BTreeMap::from([(composite, second)]),
-                place_limit,
-                mode,
-                source.clone(),
-            )?;
+        let leading_replaced = self.build_generated_fahu_termset_branch_formula_from_assignments(
+            &relation,
+            &leading_assignments,
+            &BTreeMap::from([(composite, first)]),
+            place_limit,
+            mode,
+            source.clone(),
+        )?;
+        let trailing_replaced = self.build_generated_fahu_termset_branch_formula_from_assignments(
+            &relation,
+            &trailing_assignments,
+            &BTreeMap::from([(composite, second)]),
+            place_limit,
+            mode,
+            source.clone(),
+        )?;
         let body = self.next_formula_id();
         self.insert(
             body,
@@ -6717,8 +6885,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             None => self.build_generated_predication_eventuality(predication_source.clone())?,
         };
         self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
-        let local_first_visible_place =
-            first_unfilled_visible_place_after_generated_prefix_terms(prefix_terms, first_visible_place)?;
+        let local_first_visible_place = first_unfilled_visible_place_after_generated_prefix_terms(
+            prefix_terms,
+            first_visible_place,
+        )?;
         let assignments = self.with_temporal_context(eventuality, |builder| {
             builder.build_term_assignments_for_terms_with_shared_tail_source(
                 terms.clone(),
@@ -6736,7 +6906,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let mut place_question_assignments = shared_head_assignments.place_questions.clone();
         place_question_assignments.extend(assignments.place_questions.clone());
-        let mut visible_arguments_for_modal_terms = shared_head_assignments.visible_arguments.clone();
+        let mut visible_arguments_for_modal_terms =
+            shared_head_assignments.visible_arguments.clone();
         visible_arguments_for_modal_terms.extend(assignments.visible_arguments.clone());
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in &shared_head_assignments.visible_arguments {
@@ -6756,8 +6927,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .filter_map(|place| place.parse::<usize>().ok())
             .max()
             .unwrap_or(0);
-        let modal_arguments =
-            self.build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+        let modal_arguments = self
+            .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&visible_arguments_for_modal_terms),
@@ -6921,13 +7092,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             branch.visible_place,
             relation_place_count(self.dictionary, &branch.relation),
         )?;
-        let mut branch_modal_argument = ModalArgument::new_with_polarity(
+        let mut branch_modal_argument = self.generated_modal_argument_with_tense_modal_modifiers(
+            &branch.tense_modal,
             branch.relation.clone(),
             branch.introduced_by.clone(),
             modal_arguments_for_relation,
             generated_modal_negation_for_tense_modal(&branch.tense_modal),
             generated_modal_scalar_negation_for_tense_modal(&branch.tense_modal),
-            self.source_for_node(&branch.tense_modal, "modal-argument"),
+            "modal-argument",
         );
         let eventuality =
             self.build_generated_predication_eventuality(predication_source.clone())?;
@@ -7404,11 +7576,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         replacement_operator: &MeksoOperatorSyntax,
         number: &NumberSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let (math, replaced) = self.build_generated_math_expression_with_connected_operator_replacement(
-            expression,
-            replacement_operator,
-            self.source_for_node(number, "math-expression"),
-        )?;
+        let (math, replaced) = self
+            .build_generated_math_expression_with_connected_operator_replacement(
+                expression,
+                replacement_operator,
+                self.source_for_node(number, "math-expression"),
+            )?;
         let name = generated_mekso_surface_text_with_connected_operator_replacement(
             expression,
             replacement_operator,
@@ -9293,40 +9466,42 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         );
         self.deferred_event_modifier_flush_depth -= 1;
         let formula = formula_result?;
-        let host_eventuality = if tagged_tense_modifies_event {
+        let host_eventualities = if tagged_tense_modifies_event {
             match child_eventuality {
-                Some(eventuality) => Some(eventuality),
-                None => Some(self.eventuality_for_generated_formula(formula)?),
+                Some(eventuality) => vec![eventuality],
+                None => self.eventualities_for_generated_formula_predications(formula)?,
             }
         } else {
-            child_eventuality
+            Vec::new()
         };
-        if let Some(eventuality) = host_eventuality
-            && tagged_tense_modifies_event
-            && !preapply_tagged_event_modifier
-        {
+        if tagged_tense_modifies_event && !preapply_tagged_event_modifier {
             if self.options.story_time && tagged_temporal_modifier {
                 self.story_time_anchor = previous_story_time_anchor;
-                if let Some(event) = self.objects.get_mut(&eventuality) {
-                    clear_generated_event_time_path(event);
+                for eventuality in &host_eventualities {
+                    if let Some(event) = self.objects.get_mut(eventuality) {
+                        clear_generated_event_time_path(event);
+                    }
                 }
             }
-            self.record_generated_tense_modal_event_modifier(
-                eventuality,
-                tagged.tense_modal.as_ref(),
-                None,
-            )?;
-            if self.objects.contains_key(&eventuality) {
-                self.flush_generated_event_modifiers_with_recurrence_quantity_promotion(
-                    eventuality,
+            for eventuality in &host_eventualities {
+                self.record_generated_tense_modal_event_modifier(
+                    *eventuality,
+                    tagged.tense_modal.as_ref(),
+                    None,
                 )?;
+                if self.objects.contains_key(eventuality) {
+                    self.flush_generated_event_modifiers_with_recurrence_quantity_promotion(
+                        *eventuality,
+                    )?;
+                }
             }
             if self.options.story_time
                 && tagged_temporal_modifier
                 && (generated_tense_modal_makes_tense_sticky(tagged.tense_modal.as_ref())
                     || previous_story_time_anchor.is_none())
+                && let Some(eventuality) = host_eventualities.first()
             {
-                self.story_time_anchor = Some(eventuality);
+                self.story_time_anchor = Some(*eventuality);
             }
         }
         if let Some(modal_argument) = &tagged_modal_argument {
@@ -9358,6 +9533,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             UntaggedSelbriSyntax::NegatedSelbri(negated) => {
                 let operator = generated_bridi_negation_operator(&negated.na);
                 let source_construct = bridi_negation_source_construct(operator);
+                let deferred_start = self.deferred_active_prenex_implicit_existentials.len();
+                let reservation_start = self.pending_negated_selbri_argument_scope_reservations;
+                self.defer_active_prenex_implicit_existentials += 1;
+                self.pending_negated_selbri_argument_scope_reservations += 1;
                 let child = self.build_selbri_formula_with_options(
                     negated.inner_selbri.as_ref(),
                     terms,
@@ -9367,7 +9546,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     true,
                     formula_source.clone(),
                     formula_source.clone(),
-                )?;
+                );
+                self.defer_active_prenex_implicit_existentials -= 1;
+                if self.pending_negated_selbri_argument_scope_reservations > reservation_start {
+                    self.pending_negated_selbri_argument_scope_reservations -= 1;
+                }
+                let child = child?;
+                let deferred_existentials = self
+                    .deferred_active_prenex_implicit_existentials
+                    .split_off(deferred_start);
                 let formula = self.next_formula_id();
                 self.insert(
                     formula,
@@ -9379,7 +9566,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         Vec::new(),
                     ),
                 )?;
-                Ok(formula)
+                self.wrap_formula_with_implicit_existentials(formula, deferred_existentials)
             }
             UntaggedSelbriSyntax::CoSelbri(co_selbri) => self.build_co_selbri_formula_with_options(
                 co_selbri,
@@ -9449,12 +9636,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if eventuality.is_some() || mode != PredicationMode::Asserted {
                 return Err(unsupported("scoped CO selbri"));
             }
-            let source = source_with_construct(
+            let source = if formula_scope_child {
                 formula_source
                     .clone()
-                    .or_else(|| predication_source.clone()),
-                "tanru-inversion-formula",
-            );
+                    .or_else(|| predication_source.clone())
+            } else {
+                source_with_construct(
+                    formula_source
+                        .clone()
+                        .or_else(|| predication_source.clone()),
+                    "tanru-inversion-formula",
+                )
+            };
             let (head_terms, modifier_terms, modifier_first_visible_place) =
                 split_generated_co_terms(terms, first_visible_place);
             let leading_eventuality = if !head_terms.is_empty() {
@@ -9571,6 +9764,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 first_visible_place,
                 eventuality,
                 mode,
+                None,
                 predication_source.clone(),
                 formula_source.clone(),
             )?;
@@ -9683,8 +9877,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .filter_map(|place| place.parse::<usize>().ok())
             .max()
             .unwrap_or(0);
-        let modal_arguments =
-            self.build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
+        let modal_arguments = self
+            .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
                 &assignments.modal_terms,
                 Some(&visible_arguments_for_modal_terms),
@@ -10739,6 +10933,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             connective.is_some_and(generated_distributed_sumti_connective_is_pure_modal);
         let mut children = Vec::new();
         let mut reserved_deferred_event_compatibility_id = false;
+        let mut reserved_scalar_branch_compatibility_id = false;
         for mut branch in prebuilt_branches {
             let eventuality = self.build_generated_branch_eventuality_from_template(
                 event_template.as_ref(),
@@ -10748,6 +10943,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if event_template.is_some() && !reserved_deferred_event_compatibility_id {
                 self.reserve_generated_semantic_id();
                 reserved_deferred_event_compatibility_id = true;
+            }
+            if event_template.is_none() && !reserved_scalar_branch_compatibility_id {
+                self.reserve_generated_semantic_id();
+                reserved_scalar_branch_compatibility_id = true;
             }
             for place in 1..=fill_through {
                 if !branch.contains_key(&place) {
@@ -11308,19 +11507,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if len == 0 {
                 continue;
             }
-            prebuilt.insert(
-                place,
-                std::iter::repeat_with(|| None).take(len).collect(),
-            );
+            prebuilt.insert(place, std::iter::repeat_with(|| None).take(len).collect());
             for (index, source) in values.into_iter().enumerate() {
                 let source_order =
                     self.source_order_for_generated_alternative_argument_source(&source);
                 slots.push((source_order, place, index, source));
             }
         }
-        slots.sort_by_key(|(source_order, place, index, _source)| {
-            (*source_order, *place, *index)
-        });
+        slots.sort_by_key(|(source_order, place, index, _source)| (*source_order, *place, *index));
         for (_source_order, place, index, source) in slots {
             let value = self.build_generated_alternative_argument_source(source)?;
             let values = prebuilt.get_mut(&place).ok_or_else(|| {
@@ -12046,6 +12240,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let mut object = SemanticObject::eventuality(EventualityClass::Event, None, source);
         self.apply_generated_inherited_sticky_paths_to_event(&mut object);
         self.insert(eventuality, object)?;
+        if self.pending_after_eventuality_reservations > 0 {
+            self.reserve_generated_semantic_id();
+            self.pending_after_eventuality_reservations -= 1;
+        }
         Ok(eventuality)
     }
 
@@ -12578,18 +12776,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             let connected_formula = generated_tanru_unit_is_connected_selbri_formula(unit);
             let connected_source = connected_formula.then(|| {
                 source_with_construct(
-                    formula_source.clone().or_else(|| predication_source.clone()),
+                    formula_source
+                        .clone()
+                        .or_else(|| predication_source.clone()),
                     "connected-selbri-formula",
                 )
             });
             let leading_eventuality =
                 if !terms.is_empty() && generated_tanru_unit_preallocates_head_eventuality(unit) {
-                    Some(self.build_eventuality(
-                        connected_source
-                            .clone()
-                            .flatten()
-                            .or_else(|| predication_source.clone()),
-                    )?)
+                    Some(
+                        self.build_eventuality(
+                            connected_source
+                                .clone()
+                                .flatten()
+                                .or_else(|| predication_source.clone()),
+                        )?,
+                    )
                 } else {
                     None
                 };
@@ -12601,13 +12803,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             let result = self.build_tanru_unit_formula_for_visible_arguments(
                 unit,
                 assignments.visible_arguments,
-                connected_source.clone().flatten().or_else(|| formula_source.clone()),
+                connected_source
+                    .clone()
+                    .flatten()
+                    .or_else(|| formula_source.clone()),
                 "selbri",
                 leading_eventuality,
             )?;
             self.set_semantic_object_source(
                 result.head_predication,
-                connected_source.flatten().or_else(|| predication_source.clone()),
+                connected_source
+                    .flatten()
+                    .or_else(|| predication_source.clone()),
             )?;
             self.attach_generated_modal_terms_to_formula(result.formula, &assignments.modal_terms)?;
             return self.wrap_formula_with_generated_assignment_scopes(
@@ -12620,6 +12827,37 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let (atom, linkargs) = generated_linked_tanru_unit_parts(unit)?;
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
+        if let Some(scalar_unit) = scalar_unit
+            && linkargs.is_none()
+            && atom.conversions.is_empty()
+            && let Some(cmavo) =
+                resolvable_generated_pro_bridi_cmavo_from_scalar_negated_tanru_unit(scalar_unit)
+        {
+            let predication_source = source_with_construct(
+                predication_source
+                    .clone()
+                    .or_else(|| formula_source.clone()),
+                "predication",
+            );
+            let formula_source = source_with_construct(
+                formula_source
+                    .clone()
+                    .or_else(|| predication_source.clone()),
+                "bridi-formula",
+            );
+            if let Some(formula) = self.build_resolved_generated_pro_bridi_formula_for_terms(
+                cmavo,
+                terms.clone(),
+                first_visible_place,
+                eventuality,
+                mode,
+                Some(scalar_negation_for_marker(&scalar_unit.nahe)),
+                predication_source,
+                formula_source,
+            )? {
+                return Ok(formula);
+            }
+        }
         if let Some(scalar_unit) = scalar_unit
             && let Some((grouped, inner_conversions)) =
                 scalar_negated_tanru_unit_inner_grouped(scalar_unit)
@@ -12772,7 +13010,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Ok(formula);
         }
         let prebuild_linkarg_assignments = match linkargs {
-            Some(linkargs) => linkargs_assign_visible_place_before(linkargs, 2)?,
+            Some(linkargs) => !generated_linkargs_visible_places(linkargs, 2)?.is_empty(),
             None => false,
         };
         let (eventuality, prebuilt_linkarg_assignments, assignments) = match eventuality {
@@ -12998,11 +13236,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         predication_object.place_questions = place_questions;
         self.insert(predication, predication_object)?;
         if let Some(scalar_unit) = scalar_unit {
+            let scalar_negation_scope =
+                if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
+                    GeneratedScalarNegationScope::MarkerOnly
+                } else {
+                    GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
+                };
             let scalar_negation = scalar_negation_for_generated_scalar_tanru_unit_atom(
                 atom,
                 scalar_unit,
                 linkargs,
-                GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs,
+                scalar_negation_scope,
             )?;
             self.set_scalar_negation(predication, scalar_negation)?;
         }
@@ -13339,6 +13583,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         implicit_existentials: Vec<GeneratedImplicitExistential>,
         term_scopes: Vec<GeneratedTermFormulaScope>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if self.pending_negated_selbri_argument_scope_reservations > 0
+            && !argument_scopes.is_empty()
+        {
+            self.reserve_generated_semantic_id();
+            self.pending_negated_selbri_argument_scope_reservations -= 1;
+        }
         let mut scopes = argument_scopes
             .into_iter()
             .map(|scope| {
@@ -13361,17 +13611,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .unwrap_or(usize::MAX);
             (order, GeneratedOrderedFormulaScope::Bundle(scope))
         }));
-        scopes.extend(implicit_existentials.into_iter().map(|existential| {
+        for existential in implicit_existentials {
+            if self.defer_active_prenex_implicit_existentials > 0
+                && self.generated_variable_has_active_prenex_binding(existential.variable)
+            {
+                self.deferred_active_prenex_implicit_existentials
+                    .push(existential);
+                continue;
+            }
             let order = existential
                 .source
                 .as_ref()
                 .map(|source| source.span.byte_start)
                 .unwrap_or(usize::MAX);
-            (
+            scopes.push((
                 order,
                 GeneratedOrderedFormulaScope::ImplicitExistential(existential),
-            )
-        }));
+            ));
+        }
         scopes.extend(term_scopes.into_iter().map(|scope| {
             let order = generated_term_formula_scope_source(&scope)
                 .map(|source| source.span.byte_start)
@@ -13384,13 +13641,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for (_order, scope) in scopes {
             prepared_scopes.push(match scope {
                 GeneratedOrderedFormulaScope::Argument(scope) => {
-                    let mut restrictions = self.generated_argument_restrictions_for_scope_source(
-                        scope.source,
-                        scope.variable,
-                    )?;
+                    let mut restrictions = self
+                        .generated_argument_restrictions_for_scope_source_in_formula_context(
+                            formula,
+                            scope.source,
+                            scope.variable,
+                        )?;
                     restrictions.extend(
-                        self.lower_generated_argument_scope_node_relative_restrictions(
-                            &scope.source_restriction_nodes,
+                        self.lower_generated_argument_scope_source_restriction_nodes(
+                            &scope,
                             scope.variable,
                         )?,
                     );
@@ -13429,13 +13688,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     let mut prepared = Vec::with_capacity(scopes.len());
                     for scope in scopes {
                         let mut restrictions = self
-                            .generated_argument_restrictions_for_scope_source(
+                            .generated_argument_restrictions_for_scope_source_in_formula_context(
+                                formula,
                                 scope.source,
                                 scope.variable,
                             )?;
                         restrictions.extend(
-                            self.lower_generated_argument_scope_node_relative_restrictions(
-                                &scope.source_restriction_nodes,
+                            self.lower_generated_argument_scope_source_restriction_nodes(
+                                &scope,
                                 scope.variable,
                             )?,
                         );
@@ -13526,10 +13786,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let mut prepared_scopes = Vec::with_capacity(scopes.len());
         for scope in scopes {
             let mut restrictions = self
-                .generated_argument_restrictions_for_scope_source(scope.source, scope.variable)?;
+                .generated_argument_restrictions_for_scope_source_in_formula_context(
+                    formula,
+                    scope.source,
+                    scope.variable,
+                )?;
             restrictions.extend(
-                self.lower_generated_argument_scope_node_relative_restrictions(
-                    &scope.source_restriction_nodes,
+                self.lower_generated_argument_scope_source_restriction_nodes(
+                    &scope,
                     scope.variable,
                 )?,
             );
@@ -13542,10 +13806,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             restrictions.extend(scope.relative_clause_restrictions.iter().copied());
             self.record_generated_quantified_da_series_binding(&scope, &restrictions);
             let quantifier = generated_argument_scope_source_quantifier(scope.source);
-            let quantity_connection = self.connected_quantifier_quantity_scope_for_generated_quantifier(
-                quantifier,
-                "mekso-operand",
-            )?;
+            let quantity_connection = self
+                .connected_quantifier_quantity_scope_for_generated_quantifier(
+                    quantifier,
+                    "mekso-operand",
+                )?;
             let quantity = if let Some(connection) = quantity_connection {
                 new!(GeneratedPreparedArgumentQuantity::Connected(connection))
             } else {
@@ -13580,8 +13845,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         quantity: GeneratedPreparedArgumentQuantity,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let quantifier = generated_argument_scope_source_quantifier(scope.source);
-        let source =
-            self.source_for_generated_argument_quantifier_scope(scope.source, scope.node, "quantifier-scope");
+        let source = self.source_for_generated_argument_quantifier_scope(
+            scope.source,
+            scope.node,
+            "quantifier-scope",
+        );
         let distribution_quantity = match quantity.as_data() {
             data!(GeneratedPreparedArgumentQuantity::Single(quantity)) => Some(*quantity),
             data!(GeneratedPreparedArgumentQuantity::Connected(_)) => None,
@@ -13733,18 +14001,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let restriction = restriction
             .map(|restriction| {
                 let replacements = BTreeMap::from([(variable, witness_slot)]);
-                self.clone_generated_formula_with_argument_replacements(
-                    restriction,
-                    &replacements,
-                )
-                .and_then(|cloned| {
-                    cloned.ok_or_else(|| {
-                        invalid_graph(
-                            "generated respectively witness restriction could not be templated"
-                                .to_owned(),
-                        )
+                self.clone_generated_formula_with_argument_replacements(restriction, &replacements)
+                    .and_then(|cloned| {
+                        cloned.ok_or_else(|| {
+                            invalid_graph(
+                                "generated respectively witness restriction could not be templated"
+                                    .to_owned(),
+                            )
+                        })
                     })
-                })
             })
             .transpose()?;
 
@@ -13914,12 +14179,38 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ),
             ));
         }
+        self.reserve_generated_argument_bundle_scope_ids(bindings.len());
         let scoped = self.next_formula_id();
         self.insert(
             scoped,
             SemanticObject::quantifier_bundle_formula(bindings, formula, source, Vec::new()),
         )?;
         Ok(scoped)
+    }
+
+    #[requires(scope_count > 1)]
+    #[ensures(self.next_index == old(self.next_index) + scope_count * 2 + 1)]
+    fn reserve_generated_argument_bundle_scope_ids(&mut self, scope_count: usize) {
+        for _ in 0..(scope_count * 2 + 1) {
+            self.reserve_generated_semantic_id();
+        }
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn generated_argument_restrictions_for_scope_source_in_formula_context(
+        &mut self,
+        formula: SemanticObjectId,
+        source: GeneratedArgumentQuantifierSource<'_>,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        let Some(eventuality) = self.primary_eventuality_for_generated_formula(formula) else {
+            return self.generated_argument_restrictions_for_scope_source(source, variable);
+        };
+        self.with_temporal_context(eventuality, |builder| {
+            builder.generated_argument_restrictions_for_scope_source(source, variable)
+        })
     }
 
     #[requires(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
@@ -15065,9 +15356,32 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?);
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
+        let linkarg_visible_places = match linkargs {
+            Some(linkargs) => generated_linkargs_visible_places(linkargs, 2)?,
+            None => BTreeSet::new(),
+        };
+        let should_prebuild_linkarg_assignments =
+            eventuality.is_none() && !linkarg_visible_places.is_empty();
+        let should_prebuild_linkarg_assignments_before_event =
+            should_prebuild_linkarg_assignments && linkarg_visible_places.contains(&2);
+        let prebuilt_linkarg_assignments = match linkargs {
+            Some(linkargs) if should_prebuild_linkarg_assignments_before_event => {
+                Some(self.build_linkargs_assignments(linkargs, 2)?)
+            }
+            _ => None,
+        };
         let eventuality = match eventuality {
             Some(eventuality) => eventuality,
             None => self.build_generated_predication_eventuality(source.clone())?,
+        };
+        let prebuilt_linkarg_assignments = match linkargs {
+            Some(linkargs)
+                if should_prebuild_linkarg_assignments
+                    && !should_prebuild_linkarg_assignments_before_event =>
+            {
+                Some(self.build_linkargs_assignments(linkargs, 2)?)
+            }
+            _ => prebuilt_linkarg_assignments,
         };
         apply_generated_bare_jai_visible_argument(
             self,
@@ -15077,8 +15391,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let visible_x1_argument = visible_arguments.get(&1).cloned();
         let mut linkarg_modal_arguments = Vec::new();
         if let Some(linkargs) = linkargs {
-            let adjusted =
-                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?;
+            let adjusted = if let Some(linkarg_assignments) = prebuilt_linkarg_assignments {
+                Self::visible_arguments_adjusted_for_linkarg_assignments(
+                    visible_arguments,
+                    linkarg_assignments,
+                    2,
+                )?
+            } else {
+                self.visible_arguments_adjusted_for_linkargs(visible_arguments, linkargs, 2)?
+            };
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
         }
@@ -15156,11 +15477,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         predication_object.relation_metadata = relation_metadata;
         self.insert(predication, predication_object)?;
         if let Some(scalar_unit) = scalar_unit {
+            let scalar_negation_scope =
+                if linkargs.is_some_and(generated_linkargs_provide_scalar_scale_context) {
+                    GeneratedScalarNegationScope::MarkerOnly
+                } else {
+                    GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
+                };
             let scalar_negation = scalar_negation_for_generated_scalar_tanru_unit_atom(
                 atom,
                 scalar_unit,
                 linkargs,
-                GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs,
+                scalar_negation_scope,
             )?;
             self.set_scalar_negation(predication, scalar_negation)?;
         }
@@ -15442,7 +15769,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         sumti: &SumtiSelbriSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match sumti {
-            SumtiSelbriSumtiSyntax::Sumti(sumti) => self.build_sumti_referent(sumti),
+            SumtiSelbriSumtiSyntax::Sumti(sumti) => {
+                if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
+                    Ok(sign)
+                } else {
+                    self.build_sumti_referent(sumti)
+                }
+            }
             SumtiSelbriSumtiSyntax::MeLerfuSumti(_) => Err(unsupported("ME lerfu sumti")),
         }
     }
@@ -15739,28 +16072,41 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_property_formula_for_selbri_with_context(
+            selbri,
+            parameter,
+            source,
+            GeneratedPropertyTanruContext::Description,
+        )
+    }
+
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_property_formula_for_selbri_with_context(
+        &mut self,
+        selbri: &SelbriSyntax,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+        context: GeneratedPropertyTanruContext,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         if let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri
             && co_selbri.co_tail.is_some()
         {
-            return self.build_property_formula_for_co_selbri(
-                co_selbri,
-                parameter,
-                source,
-                GeneratedPropertyTanruContext::Description,
-            );
+            return self
+                .build_property_formula_for_co_selbri(co_selbri, parameter, source, context);
         }
         if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
             && !tanru.additional_units.is_empty()
         {
-            return self.build_property_formula_for_tanru_selbri(
-                tanru,
-                parameter,
-                source,
-                GeneratedPropertyTanruContext::Description,
-            );
+            return self.build_property_formula_for_tanru_selbri(tanru, parameter, source, context);
         }
         let relation = semantic_relation_label(relation_label_from_selbri(selbri)?);
-        self.build_property_atom_for_relation(relation, parameter, source)
+        self.build_property_atom_for_relation_with_eventuality(
+            relation,
+            parameter,
+            source,
+            context.predication_eventuality(None),
+        )
     }
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
@@ -17590,13 +17936,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(ModalArgument::new_with_polarity(
+        Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+            tense_modal,
             relation,
             introduced_by,
             arguments,
             generated_modal_negation_for_tense_modal(tense_modal),
             generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, "modal-argument"),
+            "modal-argument",
         ))
     }
 
@@ -17617,14 +17964,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
     ) -> Result<ArgumentValue, SemanticsError> {
         match sumti {
-            TaggedOrElidedSumtiSyntax::Sumti(sumti) => match visible_arguments
-                .and_then(|visible_arguments| {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                match visible_arguments.and_then(|visible_arguments| {
                     generated_voha_place_for_sumti(sumti)
                         .and_then(|place| visible_arguments.get(&place).cloned())
                 }) {
-                Some(argument) => Ok(argument),
-                None => self.build_argument_for_generated_sumti(sumti),
-            },
+                    Some(argument) => Ok(argument),
+                    None => self.build_argument_for_generated_sumti(sumti),
+                }
+            }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(sumti) => {
                 let source = self.source_for_node(sumti, "elided-sumti");
                 let referent =
@@ -17670,6 +18018,26 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_property_atom_for_relation_with_eventuality(
+            relation,
+            parameter,
+            source,
+            GeneratedPredicationEventuality::from_data(data!(
+                GeneratedPredicationEventuality::Absent
+            )),
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_property_atom_for_relation_with_eventuality(
+        &mut self,
+        relation: String,
+        parameter: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+        eventuality: GeneratedPredicationEventuality,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
@@ -17685,6 +18053,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         };
         let mut arguments = BTreeMap::new();
         arguments.insert("x1".to_owned(), ArgumentValue::filled(parameter, None));
+        let eventuality = eventuality.resolve(self, source.clone())?;
         for place in 2..=place_limit {
             let elided = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
@@ -17697,7 +18066,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             predication,
             SemanticObject::predication(
                 relation,
-                None,
+                eventuality,
                 arguments,
                 PredicationMode::Restrictive,
                 source.clone(),
@@ -18797,14 +19166,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
-            relation,
-            introduced_by,
-            arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
-            generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, "modal-argument"),
-        )))
+        Ok(Some(
+            self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                "modal-argument",
+            ),
+        ))
     }
 
     #[requires(true)]
@@ -18846,14 +19218,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
-            relation,
-            introduced_by,
-            arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
-            generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, "modal-argument"),
-        )))
+        Ok(Some(
+            self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                "modal-argument",
+            ),
+        ))
     }
 
     #[requires(!construct.is_empty())]
@@ -18876,11 +19251,73 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             None,
         )?;
         self.set_formula_predication_mode(lowered.formula, PredicationMode::Incidental);
-        Ok(ModalArgument::body(
-            "fi'o".to_owned(),
-            lowered.formula,
-            source,
-        ))
+        let mut modal_argument = ModalArgument::body("fi'o".to_owned(), lowered.formula, source);
+        let modifiers = self.modal_argument_modifiers_for_generated_tense_modal(tense_modal);
+        if !modifiers.is_empty() {
+            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+        }
+        Ok(modal_argument)
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(!introduced_by.is_empty())]
+    #[requires(arguments.keys().all(|place| crate::model::is_numbered_argument_place(place)))]
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn generated_modal_argument_with_tense_modal_modifiers<N: TreeNode>(
+        &self,
+        tense_modal: &N,
+        relation: String,
+        introduced_by: String,
+        arguments: BTreeMap<String, ArgumentValue>,
+        negation: Option<ModalNegation>,
+        scalar_negation: Option<ScalarNegation>,
+        construct: &str,
+    ) -> ModalArgument {
+        let mut modal_argument = ModalArgument::new_with_polarity(
+            relation,
+            introduced_by,
+            arguments,
+            negation,
+            scalar_negation,
+            self.source_for_node(tense_modal, construct),
+        );
+        let modifiers = self.modal_argument_modifiers_for_generated_tense_modal(tense_modal);
+        if !modifiers.is_empty() {
+            modal_argument = modal_argument.with_data(data! { modifiers: modifiers });
+        }
+        modal_argument
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn modal_argument_modifiers_for_generated_tense_modal<N: TreeNode>(
+        &self,
+        tense_modal: &N,
+    ) -> Vec<DisplayedContentModifier> {
+        indicator_display_drafts(indicator_parts_for_generated_node(tense_modal))
+            .into_iter()
+            .map(|draft| {
+                let source = if draft.source_tokens.is_empty() {
+                    None
+                } else {
+                    self.source_for_tokens(&draft.source_tokens, "modal-indicator")
+                }
+                .or_else(|| self.source_for_node(tense_modal, "modal-indicator"));
+                new!(DisplayedContentModifier {
+                    relation: if draft.question {
+                        attitude_question_relation(&draft.relation)
+                    } else {
+                        draft.relation
+                    },
+                    family: Some(draft.family),
+                    polarity: Some(draft.polarity),
+                    intensity: draft.intensity,
+                    assertion_effect: Some(draft.assertion_effect),
+                    source,
+                })
+            })
+            .collect()
     }
 
     #[requires(visible_x1_place > 0)]
@@ -18942,13 +19379,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(key, self.build_elided_argument_for_place(place)?);
             }
         }
-        Ok(ModalArgument::new_with_polarity(
+        Ok(self.generated_modal_argument_with_tense_modal_modifiers(
+            tense_modal,
             relation,
             introduced_by,
             arguments,
             generated_modal_negation_for_tense_modal(tense_modal),
             generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, "modal-argument"),
+            "modal-argument",
         ))
     }
 
@@ -18975,14 +19413,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
-            relation,
-            introduced_by,
-            arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
-            generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, "modal-argument"),
-        )))
+        Ok(Some(
+            self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                "modal-argument",
+            ),
+        ))
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -19089,14 +19530,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_place,
             relation_place_count(self.dictionary, &relation),
         )?;
-        Ok(Some(ModalArgument::new_with_polarity(
-            relation,
-            introduced_by,
-            arguments,
-            generated_modal_negation_for_tense_modal(tense_modal),
-            generated_modal_scalar_negation_for_tense_modal(tense_modal),
-            self.source_for_node(tense_modal, construct),
-        )))
+        Ok(Some(
+            self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                construct,
+            ),
+        ))
     }
 
     #[requires(true)]
@@ -19264,12 +19708,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         modal_argument: &mut ModalArgument,
         eventuality: SemanticObjectId,
     ) {
-        if let Some(elision) =
-            bind_generated_modal_argument_to_host_event_preserving_elision(
-                modal_argument,
-                eventuality,
-            )
-        {
+        if let Some(elision) = bind_generated_modal_argument_to_host_event_preserving_elision(
+            modal_argument,
+            eventuality,
+        ) {
             self.host_event_modal_elisions
                 .entry(eventuality)
                 .or_default()
@@ -19349,8 +19791,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
         for term in modal_terms {
-            if let Some(mut argument) =
-                self.build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
+            if let Some(mut argument) = self
+                .build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
                     term,
                     visible_arguments,
                 )?
@@ -19382,10 +19824,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
         for term in modal_terms {
-            if let Some(mut argument) =
-                self.build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
-                    term,
-                    arguments,
+            if let Some(mut argument) = self
+                .build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
+                    term, arguments,
                 )?
             {
                 self.record_generated_sticky_modal_argument_if_needed(
@@ -19513,6 +19954,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
+        scalar_negation: Option<ScalarNegation>,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
@@ -19572,6 +20014,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             eventuality,
             &assignments.modal_terms,
         )?;
+        let mut diagnostics = target.diagnostics.clone();
+        if target.place_count.is_none() && !relation_has_open_place_structure(&target.relation) {
+            diagnostics.push(diagnostic(
+                "relation place structure is unavailable; only places required by explicit assignments are represented",
+            ));
+        }
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
             target.relation.clone(),
@@ -19579,11 +20027,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             arguments,
             predication_mode_for_relation(&target.relation, mode),
             predication_source,
-            target.diagnostics.clone(),
+            diagnostics,
         );
         predication_object.modal_arguments = modal_arguments;
         predication_object.place_questions = place_questions;
         self.insert(predication, predication_object)?;
+        if let Some(scalar_negation) = scalar_negation {
+            self.set_scalar_negation(predication, scalar_negation)?;
+        }
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -20005,11 +20456,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<Option<GeneratedGovernedTermset>, SemanticsError> {
         let mut anchor = None;
         let mut magnitude = None;
-        self.collect_generated_governed_termset_members(
-            termset,
-            &mut anchor,
-            &mut magnitude,
-        )?;
+        self.collect_generated_governed_termset_members(termset, &mut anchor, &mut magnitude)?;
         if anchor.is_none() && magnitude.is_none() {
             Ok(None)
         } else {
@@ -20070,7 +20517,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 if magnitude.is_none()
                     && generated_tense_modal_is_lahu_modal(term.tense_modal.as_ref()) =>
             {
-                if let Some(value) = self.build_tagged_or_elided_sumti_argument(&term.sumti)?.value {
+                if let Some(value) = self
+                    .build_tagged_or_elided_sumti_argument(&term.sumti)?
+                    .value
+                {
                     *magnitude = Some(AnchorMagnitude::new(
                         value,
                         "la'u".to_owned(),
@@ -20235,20 +20685,21 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     let cache_key = format!("{kind:?}:{introduced_by}:{text}:{connection:?}");
                     let value = parse_generated_recurrence_integer(&number_tokens, &text);
                     let quantity = if let Some(value) = value {
-                        let quantity = if let Some(quantity) = quantity_cache.get(&cache_key).copied()
+                        let quantity = if let Some(quantity) =
+                            quantity_cache.get(&cache_key).copied()
                         {
                             quantity
                         } else {
-                            let quantity = self.build_recurrence_quantity_for_generated_integer(
-                                &text,
-                                value,
-                            )?;
+                            let quantity =
+                                self.build_recurrence_quantity_for_generated_integer(&text, value)?;
                             quantity_cache.insert(cache_key, quantity);
                             quantity
                         };
                         new!(GeneratedRecurrenceQuantity::Object(quantity))
                     } else {
-                        new!(GeneratedRecurrenceQuantity::Value(QuantityValue::text(text)))
+                        new!(GeneratedRecurrenceQuantity::Value(QuantityValue::text(
+                            text
+                        )))
                     };
                     Some(quantity)
                 };
@@ -20316,7 +20767,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     modifiers.spatial_interval_modifiers.push(interval_modifier);
                 } else {
                     modifiers.temporal_aspects.push(aspect);
-                    modifiers.temporal_interval_modifiers.push(interval_modifier);
+                    modifiers
+                        .temporal_interval_modifiers
+                        .push(interval_modifier);
                 }
                 pending_number_is_spatial = false;
                 next_property_is_spatial = false;
@@ -20541,13 +20994,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             {
                 event.space_interval = Some(space_interval);
             }
-            let recurrence_modifiers =
-                self.build_generated_recurrence_event_modifiers(
-                    tense_modal,
-                    anchor,
-                    anchor,
-                    scalar_negation,
-                )?;
+            let recurrence_modifiers = self.build_generated_recurrence_event_modifiers(
+                tense_modal,
+                anchor,
+                anchor,
+                scalar_negation,
+            )?;
             apply_generated_aspects_to_event(
                 &mut event,
                 recurrence_modifiers.temporal_aspects,
@@ -20565,7 +21017,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             event
                 .spatial_interval_modifiers
                 .extend(recurrence_modifiers.spatial_interval_modifiers);
-            apply_generated_aspects_to_event(&mut event, recurrence_modifiers.spatial_aspects, true);
+            apply_generated_aspects_to_event(
+                &mut event,
+                recurrence_modifiers.spatial_aspects,
+                true,
+            );
         } else if let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
         {
@@ -20575,14 +21031,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 visible_place,
                 relation_place_count(self.dictionary, &relation),
             )?;
-            event.modal_arguments.push(ModalArgument::new_with_polarity(
-                relation,
-                introduced_by,
-                arguments,
-                generated_modal_negation_for_tense_modal(tense_modal),
-                generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                self.source_for_node(tense_modal, "modal-fragment"),
-            ));
+            event
+                .modal_arguments
+                .push(self.generated_modal_argument_with_tense_modal_modifiers(
+                    tense_modal,
+                    relation,
+                    introduced_by,
+                    arguments,
+                    generated_modal_negation_for_tense_modal(tense_modal),
+                    generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                    "modal-fragment",
+                ));
         } else {
             event.diagnostics.push(diagnostic(
                 "tense/modal fragment has no implemented semantic value",
@@ -20729,11 +21188,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             if let Some(space_interval) = space_interval {
                 event.space_interval = Some(space_interval);
             }
-            apply_generated_aspects_to_event(
-                event,
-                recurrence_modifiers.temporal_aspects,
-                false,
-            );
+            apply_generated_aspects_to_event(event, recurrence_modifiers.temporal_aspects, false);
             event
                 .recurrence
                 .extend(recurrence_modifiers.temporal_recurrences);
@@ -21440,8 +21895,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         binding: &GeneratedDaSeriesScopeBinding<'_>,
         variable: SemanticObjectId,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
-        self.lower_generated_argument_scope_node_relative_restrictions(
+        let reservation_start = self.pending_after_eventuality_reservations;
+        if !binding.restriction_nodes.is_empty() {
+            self.pending_after_eventuality_reservations += 1;
+        }
+        let restrictions = self.lower_generated_argument_scope_node_relative_restrictions(
             &binding.restriction_nodes,
+            variable,
+        );
+        if self.pending_after_eventuality_reservations > reservation_start {
+            self.pending_after_eventuality_reservations -= 1;
+        }
+        restrictions
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn lower_generated_argument_scope_source_restriction_nodes(
+        &mut self,
+        scope: &GeneratedArgumentQuantifierScope<'_>,
+        variable: SemanticObjectId,
+    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+        self.lower_generated_argument_scope_node_relative_restrictions(
+            &scope.source_restriction_nodes,
             variable,
         )
     }
@@ -21500,7 +21976,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ));
         };
         let mut cloned = BTreeMap::new();
-        restriction_formulas
+        let reservation_start = self.pending_after_eventuality_reservations;
+        self.pending_after_eventuality_reservations += 1;
+        let formulas = restriction_formulas
             .iter()
             .map(|formula| {
                 self.clone_generated_formula_replacing_referent(
@@ -21510,7 +21988,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     &mut cloned,
                 )
             })
-            .collect()
+            .collect();
+        if self.pending_after_eventuality_reservations > reservation_start {
+            self.pending_after_eventuality_reservations -= 1;
+        }
+        formulas
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -21529,8 +22011,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 let Some(predication) = object.predication else {
                     return Ok(None);
                 };
-                let Some(cloned_predication) =
-                    self.clone_generated_predication_with_argument_replacements(
+                let Some(cloned_predication) = self
+                    .clone_generated_predication_with_argument_replacements(
                         predication,
                         replacements,
                     )?
@@ -21556,11 +22038,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )) => {
                 let mut children = Vec::with_capacity(object.children.len());
                 for child in object.children {
-                    let Some(cloned_child) =
-                        self.clone_generated_formula_with_argument_replacements(
-                            child,
-                            replacements,
-                        )?
+                    let Some(cloned_child) = self
+                        .clone_generated_formula_with_argument_replacements(child, replacements)?
                     else {
                         return Ok(None);
                     };
@@ -21804,6 +22283,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let sort = object.sort.unwrap_or_else(SemanticSort::eventuality);
         let cloned_eventuality = self.next_referent_with_sort_id(sort);
         self.insert(cloned_eventuality, object)?;
+        if self.pending_after_eventuality_reservations > 0 {
+            self.reserve_generated_semantic_id();
+            self.pending_after_eventuality_reservations -= 1;
+        }
         Ok(cloned_eventuality)
     }
 
@@ -23241,7 +23724,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         {
             return Ok(*referent);
         }
-        let text = generated_mekso_surface_text(number.expression.as_ref())?;
+        let text = generated_number_descriptor_mekso_surface_text(number.expression.as_ref())?;
         let quantity = self.build_quantity_for_generated_mekso(
             number.expression.as_ref(),
             self.source_for_node(number, "quantity"),
@@ -23431,17 +23914,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 source,
             );
         }
-        let mut expression =
-            self.build_generated_mekso_precedence(&infix.first_expression, None)?;
-        let mut replaced = false;
+        let (mut expression, mut replaced) = self
+            .build_generated_mekso_precedence_with_connected_operator_replacement(
+                &infix.first_expression,
+                replacement_operator,
+                None,
+            )?;
         let last_index = infix.continuations.len() - 1;
         for (index, continuation) in infix.continuations.iter().enumerate() {
-            let right =
-                self.build_generated_mekso_precedence(&continuation.right_expression, None)?;
             let expression_source = (index == last_index).then(|| source.clone()).flatten();
-            if !replaced
-                && connected_generated_mekso_operator(&continuation.operator)?.is_some()
-            {
+            if !replaced && connected_generated_mekso_operator(&continuation.operator)?.is_some() {
+                let right =
+                    self.build_generated_mekso_precedence(&continuation.right_expression, None)?;
                 expression = self.build_generated_math_operator_expression_for_operator(
                     replacement_operator,
                     vec![expression, right],
@@ -23449,11 +23933,27 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )?;
                 replaced = true;
             } else {
+                let (right, right_replaced) = if replaced {
+                    (
+                        self.build_generated_mekso_precedence(
+                            &continuation.right_expression,
+                            None,
+                        )?,
+                        false,
+                    )
+                } else {
+                    self.build_generated_mekso_precedence_with_connected_operator_replacement(
+                        &continuation.right_expression,
+                        replacement_operator,
+                        None,
+                    )?
+                };
                 expression = self.build_generated_math_operator_expression_for_operator(
                     &continuation.operator,
                     vec![expression, right],
                     expression_source,
                 )?;
+                replaced |= right_replaced;
             }
         }
         Ok((expression, replaced))
@@ -23594,10 +24094,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         &link.trailing_expression,
                         None,
                     )?;
-                    let expression_source =
-                        (index == last_index).then(|| source.clone()).flatten();
-                    expression.0 = self.build_generated_math_operator_expression(
-                        generated_operand_connective_math_operator(&link.operand_connective),
+                    let expression_source = (index == last_index).then(|| source.clone()).flatten();
+                    expression.0 = self.build_generated_operand_connective_math_expression(
+                        &link.operand_connective,
                         vec![expression.0, right],
                         expression_source,
                     )?;
@@ -23669,8 +24168,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 None,
             )?
         };
-        self.build_generated_math_operator_expression(
-            generated_operand_connective_math_operator(&operand.operand_connective),
+        self.build_generated_operand_connective_math_expression(
+            &operand.operand_connective,
             vec![left, right],
             source,
         )
@@ -23722,19 +24221,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe));
                 Ok((id, replaced))
             }
-            SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
-                self.build_generated_math_expression_with_connected_operator_replacement(
+            SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => self
+                .build_generated_math_expression_with_connected_operator_replacement(
                     &operand.inner_expression,
                     replacement_operator,
                     source,
-                )
-            }
+                ),
             SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
                 let mut built_expressions = Vec::with_capacity(operand.expressions.len());
                 let mut replaced = false;
                 for expression in &operand.expressions {
                     if replaced {
-                        built_expressions.push(self.build_generated_math_expression(expression, None)?);
+                        built_expressions
+                            .push(self.build_generated_math_expression(expression, None)?);
                     } else {
                         let (id, expression_replaced) = self
                             .build_generated_math_expression_with_connected_operator_replacement(
@@ -23844,8 +24343,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         None,
                     )?;
                     let expression_source = (index == last_index).then(|| source.clone()).flatten();
-                    expression = self.build_generated_math_operator_expression(
-                        generated_operand_connective_math_operator(&link.operand_connective),
+                    expression = self.build_generated_operand_connective_math_expression(
+                        &link.operand_connective,
                         vec![expression, right],
                         expression_source,
                     )?;
@@ -23887,8 +24386,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let left = self.build_generated_simple_mekso_operand(&operand.left_expression, None)?;
         let right = self.build_generated_mekso_operand(&operand.right_expression, None)?;
-        self.build_generated_math_operator_expression(
-            generated_operand_connective_math_operator(&operand.operand_connective),
+        self.build_generated_operand_connective_math_expression(
+            &operand.operand_connective,
             vec![left, right],
             source,
         )
@@ -23964,7 +24463,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         operand: &SumtiMeksoOperandSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let denotation = self.build_sumti_referent(&operand.sumti)?;
+        let denotation = self.build_generated_sumti_operand_denotation(&operand.sumti)?;
         let source = source.or_else(|| self.source_for_node(operand, "sumti-operand"));
         let id = self.next_math_id();
         self.insert(
@@ -23975,14 +24474,107 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| argument_object_kind_can_fill(id.object_kind())) || ret.is_err())]
+    fn build_generated_sumti_operand_denotation(
+        &mut self,
+        sumti: &SumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let scope_source =
+            if let Some(quantified_sumti) = generated_quantified_sumti_from_sumti(sumti) {
+                Some(GeneratedArgumentQuantifierSource::QuantifiedSumti(
+                    quantified_sumti,
+                ))
+            } else if let Some(description) = outer_quantified_description_from_sumti(sumti) {
+                Some(GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description))
+            } else {
+                no_gadri_description_from_sumti(sumti)?
+                    .map(GeneratedArgumentQuantifierSource::NoGadriDescription)
+            };
+        let Some(scope_source) = scope_source else {
+            return self.build_sumti_referent(sumti);
+        };
+
+        let variable = self.build_scoped_argument_variable_for_generated_sumti(sumti)?;
+        let mut restrictions =
+            self.generated_argument_restrictions_for_scope_source(scope_source, variable)?;
+        if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) {
+            restrictions.extend(
+                self.lower_generated_relative_clause_list(relative_clauses, variable)?
+                    .into_iter()
+                    .map(|clause| clause.body),
+            );
+        }
+        let body = self.generated_sumti_operand_body_formula(variable, &restrictions)?;
+        let restriction = self.combine_generated_restriction_formulas(restrictions)?;
+        let quantifier = generated_argument_scope_source_quantifier(scope_source);
+        let quantity_connection = self
+            .connected_quantifier_quantity_scope_for_generated_quantifier(
+                quantifier,
+                "mekso-operand",
+            )?;
+        let quantity = if let Some(connection) = quantity_connection {
+            new!(GeneratedPreparedArgumentQuantity::Connected(connection))
+        } else {
+            new!(GeneratedPreparedArgumentQuantity::Single(
+                self.build_quantity_for_quantifier(quantifier)?,
+            ))
+        };
+        let scope = GeneratedArgumentQuantifierScope {
+            node: GeneratedArgumentQuantifierScopeNode::Sumti(sumti),
+            source: scope_source,
+            variable,
+            source_variable: None,
+            selection_source: None,
+            source_restriction_nodes: Vec::new(),
+            source_restriction_formulas: Vec::new(),
+            inherited_restrictions: Vec::new(),
+            relative_clause_restrictions: Vec::new(),
+        };
+        self.wrap_formula_with_generated_argument_scope(body, scope, restriction, quantity)
+    }
+
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn generated_sumti_operand_body_formula(
+        &mut self,
+        variable: SemanticObjectId,
+        restrictions: &[SemanticObjectId],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(body) = self.combine_generated_restriction_formulas(restrictions.to_vec())? {
+            return Ok(body);
+        }
+        let mut arguments = BTreeMap::new();
+        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
+        self.build_structural_formula_from_arguments(
+            "sumtiOperand",
+            arguments,
+            PredicationMode::Restrictive,
+            None,
+        )
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     fn build_generated_selbri_mekso_operand(
         &mut self,
         operand: &SelbriMeksoOperandSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let denotation = self.build_description_property_abstraction_for_selbri(&operand.selbri)?;
         let source = source.or_else(|| self.source_for_node(operand, "selbri-operand"));
+        let Some(abstraction) = self.single_abstraction_from_selbri(&operand.selbri)? else {
+            return self.build_generated_math_literal(
+                MathLiteral::text(
+                    "selbriOperand".to_owned(),
+                    generated_selbri_surface_text(&operand.selbri)?,
+                ),
+                source,
+            );
+        };
+        let denotation = self.build_abstraction_output(
+            abstraction,
+            self.source_for_node(abstraction, "abstraction"),
+        )?;
         let id = self.next_math_id();
         self.insert(
             id,
@@ -24074,15 +24666,157 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let operands = generated_math_operands_for_operator(operator, operands);
-        let id = self.build_generated_math_operator_expression(
-            generated_math_operator_label(operator)?,
-            operands,
-            source,
-        )?;
+        let id = if let Some(parameter) =
+            self.generated_math_operator_question_parameter_for_operator(operator)?
+        {
+            let id = self.next_math_id();
+            self.insert(
+                id,
+                SemanticObject::math_expression_with_operator_parameter(
+                    parameter,
+                    operands,
+                    source,
+                    Vec::new(),
+                ),
+            )?;
+            id
+        } else {
+            self.build_generated_math_operator_expression(
+                generated_math_operator_label(operator)?,
+                operands,
+                source,
+            )?
+        };
         if let Some(scalar_negation) = scalar_negation_for_generated_mekso_operator(operator) {
             self.set_math_scalar_negation(id, scalar_negation);
         }
+        if let Some(denotation) = self.generated_math_operator_denotation_for_operator(operator)? {
+            self.set_math_operator_denotation(id, denotation);
+        }
         Ok(id)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
+    fn generated_math_operator_question_parameter_for_operator(
+        &mut self,
+        operator: &MeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(token) = generated_math_operator_question_token_for_operator(operator)? else {
+            return Ok(None);
+        };
+        self.build_generated_math_operator_question_parameter_for_token(token)
+            .map(Some)
+    }
+
+    #[requires(token.cmavo() == Some(Cmavo::Mo))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter) || ret.is_err())]
+    fn build_generated_math_operator_question_parameter_for_token(
+        &mut self,
+        token: &Token,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::MathOperator,
+                ParameterRole::MathOperatorQuestion,
+                token_text(token),
+                self.source_for_token(token, "parameter"),
+            ),
+        )?;
+        self.math_operator_question_parameters.push(parameter);
+        Ok(parameter)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    fn generated_math_operator_denotation_for_operator(
+        &mut self,
+        operator: &MeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator {
+            MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
+                if !operator.0.links.is_empty() {
+                    return Ok(None);
+                }
+                self.generated_math_operator_denotation_for_bound_or_atom(operator.0.first.as_ref())
+            }
+            MeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+            MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_simple_operator(operator)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    fn generated_math_operator_denotation_for_bound_or_atom(
+        &mut self,
+        operator: &BoundOrAtomMeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator {
+            BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+            BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_simple_operator(operator)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    fn generated_math_operator_denotation_for_simple_operator(
+        &mut self,
+        operator: &SimpleMeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator {
+            SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+                if generated_math_operator_question_token_for_selbri(&operator.selbri)?.is_some() {
+                    return Ok(None);
+                }
+                self.build_generated_math_operator_property_abstraction_for_selbri(
+                    &operator.selbri,
+                    self.source_for_node(operator.selbri.as_ref(), "math-operator-denotation"),
+                )
+                .map(Some)
+            }
+            SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
+            }
+            SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
+            }
+            SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Relation)) || ret.is_err())]
+    fn build_generated_math_operator_property_abstraction_for_selbri(
+        &mut self,
+        selbri: &SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let parameter = self.next_parameter_id();
+        self.insert(
+            parameter,
+            SemanticObject::parameter(
+                SemanticSort::Entity,
+                ParameterRole::PropertySlot,
+                "ce'u".to_owned(),
+                source.clone(),
+            ),
+        )?;
+        let body = self.build_property_formula_for_selbri_with_context(
+            selbri,
+            parameter,
+            source.clone(),
+            GeneratedPropertyTanruContext::PropertyAbstraction,
+        )?;
+        self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
     #[requires(!operator.is_empty())]
@@ -24099,6 +24833,55 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             id,
             SemanticObject::math_expression(Some(operator), operands, None, source, Vec::new()),
+        )?;
+        Ok(id)
+    }
+
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_operand_connective_math_expression(
+        &mut self,
+        connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
+        operands: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if generated_operand_connective_is_interval(connective) {
+            return self.build_generated_math_interval_expression(
+                generated_operand_connective_interval_operator(connective)?,
+                operands,
+                generated_operand_connective_endpoint_inclusion(connective, false),
+                source,
+            );
+        }
+        self.build_generated_math_operator_expression(
+            generated_operand_connective_math_operator(connective),
+            operands,
+            source,
+        )
+    }
+
+    #[requires(operator.ends_with("Interval"))]
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_math_interval_expression(
+        &mut self,
+        operator: String,
+        operands: Vec<SemanticObjectId>,
+        endpoint_inclusion: Option<IntervalEndpointInclusion>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let id = self.next_math_id();
+        self.insert(
+            id,
+            SemanticObject::math_interval_expression(
+                operator,
+                operands,
+                endpoint_inclusion,
+                source,
+                Vec::new(),
+            ),
         )?;
         Ok(id)
     }
@@ -24128,6 +24911,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if let Some(object) = self.objects.get_mut(&math_expression) {
             object.scalar_negation = Some(scalar_negation);
         };
+    }
+
+    #[requires(math_expression.object_kind() == crate::model::SemanticObjectKind::MathExpression)]
+    #[requires(argument_object_kind_can_fill(denotation.object_kind()))]
+    #[ensures(true)]
+    fn set_math_operator_denotation(
+        &mut self,
+        math_expression: SemanticObjectId,
+        denotation: SemanticObjectId,
+    ) {
+        if let Some(object) = self.objects.get_mut(&math_expression) {
+            object.operator_denotes = Some(denotation);
+        }
     }
 
     #[requires(matches!(
@@ -24573,10 +25369,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .and_then(|bindings| bindings.get(index))
             .and_then(|binding| binding.variable)
         {
-            self.record_generated_implicit_existential_once(
-                variable,
-                self.source_for_node(pro_sumti, "quantifier-scope"),
-            );
+            if self.suppress_prenex_bound_implicit_existential_recording == 0 {
+                self.record_generated_implicit_existential_once(
+                    variable,
+                    self.source_for_node(pro_sumti, "quantifier-scope"),
+                );
+            }
             return Ok(Some(variable));
         }
         let (word, source, scope_key) = {
@@ -24626,10 +25424,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         bindings[index] = bindings[index]
             .clone()
             .with_data(data! { variable: Some(variable) });
-        self.record_generated_implicit_existential_once(
-            variable,
-            self.source_for_node(pro_sumti, "quantifier-scope"),
-        );
+        if self.suppress_prenex_bound_implicit_existential_recording == 0 {
+            self.record_generated_implicit_existential_once(
+                variable,
+                self.source_for_node(pro_sumti, "quantifier-scope"),
+            );
+        }
         Ok(Some(variable))
     }
 
@@ -25236,18 +26036,21 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if let Some(relative_clauses) = relative_clauses {
             self.push_generated_goi_assigned_names_to_referent(id, relative_clauses)?;
         }
-        let body = selbri
-            .map(|selbri| {
-                self.build_generated_description_body_formula_for_cmavo(
-                    description_node,
-                    selbri,
-                    id,
-                    cmavo,
-                    abstraction,
-                    description_source.clone(),
-                )
-            })
-            .transpose()?;
+        let body = if let Some(selbri) = selbri {
+            self.suppress_prenex_bound_implicit_existential_recording += 1;
+            let body = self.build_generated_description_body_formula_for_cmavo(
+                description_node,
+                selbri,
+                id,
+                cmavo,
+                abstraction,
+                description_source.clone(),
+            );
+            self.suppress_prenex_bound_implicit_existential_recording -= 1;
+            Some(body?)
+        } else {
+            None
+        };
         let mut descriptor_operand = None;
         let mut lowered_relative_clauses = Vec::new();
         let quantity_before_descriptor_relative_clauses =
@@ -25274,7 +26077,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .unwrap_or_default(),
         );
         if let Some(operand_sumti) = leading_operand_sumti {
-            let operand = self.build_sumti_base_referent(operand_sumti)?;
+            self.suppress_prenex_bound_implicit_existential_recording += 1;
+            let operand = self.build_sumti_base_referent(operand_sumti);
+            self.suppress_prenex_bound_implicit_existential_recording -= 1;
+            let operand = operand?;
             let operand_relative_clauses = leading_tail_elements
                 .relative_clauses
                 .as_ref()
@@ -25927,7 +26733,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             "cmene",
             arguments,
             PredicationMode::Incidental,
-            self.source_for_node(description_node, "name-description"),
+            self.exact_source_for_node(description_node, "name-description"),
         )
     }
 
@@ -26341,7 +27147,25 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         quantifier: &QuantifierSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.build_quantity_for_generated_node(quantifier, "quantity")
+        match quantifier {
+            QuantifierSyntax::PaRunQuantifier(quantifier) => {
+                let words = self.tokens_for_node(&quantifier.number);
+                if words.is_empty() {
+                    return Err(unsupported("empty quantifier"));
+                }
+                let text = token_list_text(words.iter());
+                self.build_quantity_for_generated_tokens(
+                    &words,
+                    &text,
+                    self.source_for_node(quantifier, "quantity"),
+                )
+            }
+            QuantifierSyntax::MeksoQuantifier(quantifier) => self
+                .build_quantity_for_generated_mekso(
+                    quantifier.mekso.as_ref(),
+                    self.source_for_node(quantifier, "quantity"),
+                ),
+        }
     }
 
     #[requires(!locus.is_empty())]
@@ -26487,21 +27311,20 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_bound_or_simple_mekso_operand_surface_text(operand)?;
-        let value =
-            generated_simple_pa_quantity_value_for_bound_or_simple_mekso_operand(operand)
-                .map_or_else(
-                    || {
-                        self.build_generated_bound_or_simple_mekso_operand(
-                            operand,
-                            source.clone().map(|source| crate::model::SemanticSource {
-                                construct: Some("math-expression".to_owned()),
-                                ..source
-                            }),
-                        )
-                        .map(QuantityValue::math_expression)
-                    },
-                    Ok,
-                )?;
+        let value = generated_simple_pa_quantity_value_for_bound_or_simple_mekso_operand(operand)
+            .map_or_else(
+            || {
+                self.build_generated_bound_or_simple_mekso_operand(
+                    operand,
+                    source.clone().map(|source| crate::model::SemanticSource {
+                        construct: Some("math-expression".to_owned()),
+                        ..source
+                    }),
+                )
+                .map(QuantityValue::math_expression)
+            },
+            Ok,
+        )?;
         let quantity = self.next_quantity_id();
         self.insert(
             quantity,
@@ -27984,6 +28807,12 @@ fn generated_cmavo_is_resolvable_pro_bridi(cmavo: Cmavo) -> bool {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn generated_relation_is_pro_bridi_label(relation: &str) -> bool {
+    matches!(relation, "go'i" | "go'e" | "nei" | "no'a")
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|relation| relation.as_ref().is_none_or(|relation| !relation.is_empty())) || ret.is_err())]
 fn generated_pro_bridi_target_relation_label(
     selbri: &SelbriSyntax,
@@ -28303,6 +29132,22 @@ fn resolvable_generated_pro_bridi_cmavo_from_tanru_unit(
     Ok(generated_relation_parameter_token(parameter)
         .cmavo()
         .filter(|cmavo| generated_cmavo_is_resolvable_pro_bridi(*cmavo)))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(generated_cmavo_is_resolvable_pro_bridi))]
+fn resolvable_generated_pro_bridi_cmavo_from_scalar_negated_tanru_unit(
+    unit: &ScalarNegatedTanruUnitSyntax,
+) -> Option<Cmavo> {
+    let ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) = unit.inner_unit.as_ref()
+    else {
+        return None;
+    };
+    pro_bridi
+        .goha
+        .value
+        .cmavo()
+        .filter(|cmavo| generated_cmavo_is_resolvable_pro_bridi(*cmavo))
 }
 
 #[requires(true)]
@@ -29279,6 +30124,19 @@ fn scalar_negation_for_generated_scalar_tanru_unit_atom(
             )?);
         }
     }
+    if let Some((grouped, _)) = scalar_negated_tanru_unit_inner_grouped(unit) {
+        let mut grouped_places = BTreeSet::new();
+        add_generated_connected_selbri_visible_linkarg_places(
+            &mut grouped_places,
+            &grouped.selbri,
+            2,
+        )?;
+        for place in grouped_places {
+            places.insert(mapped_visible_place_for_generated_scalar_tanru_unit_atom(
+                atom, unit, place,
+            )?);
+        }
+    }
     Ok(scalar_negation_for_marker(&unit.nahe)
         .with_argument_scope(places.into_iter().map(argument_key).collect()))
 }
@@ -29318,6 +30176,211 @@ fn generated_linkargs_visible_places(
         )?;
     }
     Ok(places)
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_selbri_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    selbri: &SelbriSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    match selbri {
+        SelbriSyntax::TaggedSelbri(tagged) => add_generated_untagged_selbri_visible_linkarg_places(
+            places,
+            tagged.inner_selbri.as_ref(),
+            first_visible_place,
+        ),
+        SelbriSyntax::UntaggedSelbri(untagged) => {
+            add_generated_untagged_selbri_visible_linkarg_places(
+                places,
+                untagged,
+                first_visible_place,
+            )
+        }
+    }
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_untagged_selbri_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    selbri: &UntaggedSelbriSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    match selbri {
+        UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
+            add_generated_co_selbri_visible_linkarg_places(places, co_selbri, first_visible_place)
+        }
+        UntaggedSelbriSyntax::NegatedSelbri(negated) => {
+            add_generated_selbri_visible_linkarg_places(
+                places,
+                negated.inner_selbri.as_ref(),
+                first_visible_place,
+            )
+        }
+        UntaggedSelbriSyntax::ForethoughtSelbriConnection(connection) => {
+            add_generated_selbri_visible_linkarg_places(
+                places,
+                connection.leading_selbri.as_ref(),
+                first_visible_place,
+            )?;
+            add_generated_selbri_visible_linkarg_places(
+                places,
+                connection.trailing_selbri.as_ref(),
+                first_visible_place,
+            )
+        }
+    }
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_co_selbri_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    selbri: &CoSelbriSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    add_generated_connected_selbri_visible_linkarg_places(
+        places,
+        selbri.leading_selbri.as_ref(),
+        first_visible_place,
+    )?;
+    if let Some(co_tail) = &selbri.co_tail {
+        add_generated_co_selbri_visible_linkarg_places(
+            places,
+            co_tail.trailing_selbri.as_ref(),
+            first_visible_place,
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_connected_selbri_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    selbri: &ConnectedSelbriSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    add_generated_tanru_selbri_visible_linkarg_places(
+        places,
+        &selbri.leading_selbri,
+        first_visible_place,
+    )?;
+    for continuation in &selbri.continuations {
+        add_generated_tanru_selbri_visible_linkarg_places(
+            places,
+            &continuation.trailing_selbri,
+            first_visible_place,
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_tanru_selbri_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    selbri: &TanruSelbriSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    add_generated_tanru_unit_visible_linkarg_places(
+        places,
+        &selbri.first_unit,
+        first_visible_place,
+    )?;
+    for unit in &selbri.additional_units {
+        add_generated_tanru_unit_visible_linkarg_places(places, unit, first_visible_place)?;
+    }
+    Ok(())
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_tanru_unit_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    unit: &TanruUnitSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    add_generated_bo_or_linked_tanru_unit_visible_linkarg_places(
+        places,
+        unit.0.first.as_ref(),
+        first_visible_place,
+    )?;
+    for link in &unit.0.links {
+        add_generated_bo_or_linked_tanru_unit_visible_linkarg_places(
+            places,
+            link.trailing_unit.as_ref(),
+            first_visible_place,
+        )?;
+    }
+    Ok(())
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_bo_or_linked_tanru_unit_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    unit: &BoOrLinkedTanruUnitSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    match unit {
+        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
+            add_generated_linked_tanru_unit_visible_linkarg_places(
+                places,
+                unit,
+                first_visible_place,
+            )
+        }
+        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
+        | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
+        | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_) => Ok(()),
+    }
+}
+
+#[requires(places.iter().all(|place| *place > 0))]
+#[requires(first_visible_place > 0)]
+#[ensures(places.iter().all(|place| *place > 0))]
+fn add_generated_linked_tanru_unit_visible_linkarg_places(
+    places: &mut BTreeSet<usize>,
+    unit: &LinkedTanruUnitSyntax,
+    first_visible_place: usize,
+) -> Result<(), SemanticsError> {
+    if let Some(linkargs) = &unit.linkargs {
+        places.extend(generated_linkargs_visible_places(
+            linkargs,
+            first_visible_place,
+        )?);
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_linkargs_provide_scalar_scale_context(linkargs: &LinkargsSyntax) -> bool {
+    generated_linked_sumti_provides_scalar_scale_context(&linkargs.first_link)
+        || linkargs
+            .bei_links
+            .iter()
+            .any(|link| generated_linked_sumti_provides_scalar_scale_context(&link.link))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_linked_sumti_provides_scalar_scale_context(link: &LinkedSumtiSyntax) -> bool {
+    let LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) = link else {
+        return false;
+    };
+    generated_modal_relation_spec_for_tense_modal(sumti.tense_modal.as_ref())
+        .is_some_and(|(_, relation, _)| matches!(relation.as_str(), "ci'u" | "ci'e" | "le'a"))
 }
 
 #[requires(*next_visible_place > 0)]
@@ -29670,6 +30733,109 @@ fn generated_simple_mekso_operator_label(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_mekso_operator_surface_label(
+    operator: &MeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
+            generated_afterthought_mekso_operator_surface_label(operator)
+        }
+        MeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+            generated_bound_mekso_operator_surface_label(operator)
+        }
+        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated_simple_mekso_operator_surface_label(operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_afterthought_mekso_operator_surface_label(
+    operator: &AfterthoughtMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    let mut label =
+        generated_bound_or_atom_mekso_operator_surface_label(operator.0.first.as_ref())?;
+    for link in &operator.0.links {
+        label = format!(
+            "{} {} {}",
+            label,
+            generated_statement_connective_core_source(&statement_connective_from_standard(
+                &link.connective,
+            ))?,
+            generated_bound_or_atom_mekso_operator_surface_label(&link.trailing_operator)?
+        );
+    }
+    Ok(label)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_bound_or_atom_mekso_operator_surface_label(
+    operator: &BoundOrAtomMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+            generated_bound_mekso_operator_surface_label(operator)
+        }
+        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated_simple_mekso_operator_surface_label(operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_bound_mekso_operator_surface_label(
+    operator: &BoundMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    Ok(format!(
+        "{} {} bo {}",
+        generated_simple_mekso_operator_surface_label(&operator.left_operator)?,
+        generated_statement_connective_core_source(&statement_connective_from_standard(
+            &operator.connective,
+        ))?,
+        generated_mekso_operator_surface_label(&operator.right_operator)?
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_simple_mekso_operator_surface_label(
+    operator: &SimpleMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(operator) => {
+            Ok(token_text(&operator.0.value))
+        }
+        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            token_text(&operator.se.value),
+            generated_mekso_operator_surface_label(&operator.inner_operator)?
+        )),
+        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            token_text(&operator.nahe.value),
+            generated_mekso_operator_surface_label(&operator.inner_operator)?
+        )),
+        SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+            generated_mekso_operator_surface_label(&operator.inner_operator)
+        }
+        SimpleMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => Ok(format!(
+            "{} {} {}",
+            generated_guhek_gik_connective_source(&operator.guhek, &operator.gik),
+            generated_mekso_operator_surface_label(&operator.left_operator)?,
+            generated_mekso_operator_surface_label(&operator.right_operator)?
+        )),
+        SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+            relation_label_from_selbri(&operator.selbri)
+        }
+        SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn generated_mekso_surface_text(expression: &MeksoSyntax) -> Result<String, SemanticsError> {
     match expression {
@@ -29709,24 +30875,48 @@ fn generated_infix_mekso_surface_text_with_connected_operator_replacement(
             replacement_operator,
         );
     }
-    let mut text = generated_mekso_precedence_surface_text(&infix.first_expression)?;
     let mut replaced = false;
+    let mut text = if let Some(first) =
+        generated_mekso_precedence_surface_text_with_connected_operator_replacement(
+            &infix.first_expression,
+            replacement_operator,
+        )? {
+        replaced = true;
+        first
+    } else {
+        generated_mekso_precedence_surface_text(&infix.first_expression)?
+    };
     for continuation in &infix.continuations {
-        let right = generated_mekso_precedence_surface_text(&continuation.right_expression)?;
-        let operator = if !replaced
-            && connected_generated_mekso_operator(&continuation.operator)?.is_some()
-        {
+        if !replaced && connected_generated_mekso_operator(&continuation.operator)?.is_some() {
             replaced = true;
-            replacement_operator
+            let right = generated_mekso_precedence_surface_text(&continuation.right_expression)?;
+            text = format!(
+                "{} {} {}",
+                text,
+                generated_mekso_operator_surface_label(replacement_operator)?,
+                right
+            );
         } else {
-            &continuation.operator
-        };
-        text = format!(
-            "{} {} {}",
-            text,
-            generated_mekso_operator_label(operator)?,
-            right
-        );
+            let right = if replaced {
+                generated_mekso_precedence_surface_text(&continuation.right_expression)?
+            } else if let Some(right) =
+                generated_mekso_precedence_surface_text_with_connected_operator_replacement(
+                    &continuation.right_expression,
+                    replacement_operator,
+                )?
+            {
+                replaced = true;
+                right
+            } else {
+                generated_mekso_precedence_surface_text(&continuation.right_expression)?
+            };
+            text = format!(
+                "{} {} {}",
+                text,
+                generated_mekso_operator_surface_label(&continuation.operator)?,
+                right
+            );
+        }
     }
     Ok(replaced.then_some(text))
 }
@@ -29747,7 +30937,7 @@ fn generated_mekso_precedence_surface_text_with_connected_operator_replacement(
         return Ok(Some(format!(
             "{} {} {}",
             generated_mekso_base_surface_text(&expression.left_expression)?,
-            generated_mekso_operator_label(replacement_operator)?,
+            generated_mekso_operator_surface_label(replacement_operator)?,
             generated_mekso_precedence_surface_text(&tail.right_expression)?
         )));
     }
@@ -29758,7 +30948,7 @@ fn generated_mekso_precedence_surface_text_with_connected_operator_replacement(
         return Ok(Some(format!(
             "{} {} {}",
             left,
-            generated_mekso_operator_label(&tail.operator)?,
+            generated_mekso_operator_surface_label(&tail.operator)?,
             generated_mekso_precedence_surface_text(&tail.right_expression)?
         )));
     }
@@ -29770,7 +30960,7 @@ fn generated_mekso_precedence_surface_text_with_connected_operator_replacement(
         Ok(format!(
             "{} {} {}",
             generated_mekso_base_surface_text(&expression.left_expression)?,
-            generated_mekso_operator_label(&tail.operator)?,
+            generated_mekso_operator_surface_label(&tail.operator)?,
             right
         ))
     })
@@ -29793,14 +30983,16 @@ fn generated_mekso_base_surface_text_with_connected_operator_replacement(
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
             if connected_generated_mekso_operator(&call.operator)?.is_some() {
                 let mut parts = Vec::with_capacity(call.operands.len() + 1);
-                parts.push(generated_mekso_operator_label(replacement_operator)?);
+                parts.push(generated_mekso_operator_surface_label(
+                    replacement_operator,
+                )?);
                 for operand in &call.operands {
                     parts.push(generated_mekso_base_surface_text(operand)?);
                 }
                 return Ok(Some(parts.join(" ")));
             }
             let mut parts = Vec::with_capacity(call.operands.len() + 1);
-            parts.push(generated_mekso_operator_label(&call.operator)?);
+            parts.push(generated_mekso_operator_surface_label(&call.operator)?);
             let mut replaced = false;
             for operand in &call.operands {
                 if replaced {
@@ -29831,8 +31023,7 @@ fn generated_mekso_operand_surface_text_with_connected_operator_replacement(
     match operand {
         MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
             let chain = &operand.0;
-            let mut text =
-                generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
+            let mut text = generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
             let mut replaced = false;
             if let Some(first) =
                 generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
@@ -29949,10 +31140,12 @@ fn generated_simple_mekso_operand_surface_text_with_connected_operator_replaceme
 ) -> Result<Option<String>, SemanticsError> {
     match operand {
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => {
-            if let Some(left) = generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                &operand.left_expression,
-                replacement_operator,
-            )? {
+            if let Some(left) =
+                generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                    &operand.left_expression,
+                    replacement_operator,
+                )?
+            {
                 return Ok(Some(format!(
                     "{} {} {}",
                     generated_modal_forethought_connective_source(&operand.gek),
@@ -30025,6 +31218,96 @@ fn generated_subscript_mekso_surface_text(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_mekso_surface_text(
+    expression: &MeksoSyntax,
+) -> Result<String, SemanticsError> {
+    match expression {
+        MeksoSyntax::InfixMekso(infix) => {
+            generated_number_descriptor_infix_mekso_surface_text(infix)
+        }
+        MeksoSyntax::ReversePolishMekso(reverse_polish) => {
+            if generated_reverse_polish_parts_contains_operand_connection(&reverse_polish.parts) {
+                Ok("mekso".to_owned())
+            } else {
+                generated_reverse_polish_surface_text(reverse_polish)
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_infix_mekso_surface_text(
+    infix: &InfixMeksoSyntax,
+) -> Result<String, SemanticsError> {
+    let mut text =
+        generated_number_descriptor_mekso_precedence_surface_text(&infix.first_expression)?;
+    for continuation in &infix.continuations {
+        text = format!(
+            "{} {} {}",
+            text,
+            generated_mekso_operator_surface_label(&continuation.operator)?,
+            generated_number_descriptor_mekso_precedence_surface_text(
+                &continuation.right_expression,
+            )?
+        );
+    }
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_mekso_precedence_surface_text(
+    expression: &MeksoPrecedenceSyntax,
+) -> Result<String, SemanticsError> {
+    let mut text =
+        generated_number_descriptor_mekso_base_surface_text(&expression.left_expression)?;
+    if let Some(tail) = &expression.tail {
+        text = format!(
+            "{} {} {}",
+            text,
+            generated_mekso_operator_surface_label(&tail.operator)?,
+            generated_number_descriptor_mekso_precedence_surface_text(&tail.right_expression)?
+        );
+    }
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_mekso_base_surface_text(
+    expression: &MeksoBaseSyntax,
+) -> Result<String, SemanticsError> {
+    match expression {
+        MeksoBaseSyntax::MeksoOperand(operand) => {
+            generated_number_descriptor_mekso_operand_surface_text(operand)
+        }
+        MeksoBaseSyntax::ForethoughtCallMekso(call) => {
+            let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
+            for operand in call.operands.iter() {
+                parts.push(generated_number_descriptor_mekso_base_surface_text(
+                    operand,
+                )?);
+            }
+            Ok(parts.join(" "))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_mekso_operand_surface_text(
+    operand: &MeksoOperandSyntax,
+) -> Result<String, SemanticsError> {
+    if generated_mekso_operand_contains_operand_connection(operand) {
+        Ok("mekso".to_owned())
+    } else {
+        generated_mekso_operand_surface_text(operand)
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
 fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
@@ -30051,9 +31334,9 @@ fn first_generated_connected_mekso_operator_in_infix(
         return Ok(Some(expansion));
     }
     for continuation in &infix.continuations {
-        if let Some(expansion) = first_generated_connected_mekso_operator_in_precedence(
-            &continuation.right_expression,
-        )? {
+        if let Some(expansion) =
+            first_generated_connected_mekso_operator_in_precedence(&continuation.right_expression)?
+        {
             return Ok(Some(expansion));
         }
     }
@@ -30172,7 +31455,11 @@ fn first_generated_connected_mekso_operator_in_simple_operand(
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.left_expression)?
                 .map_or_else(
-                    || first_generated_connected_mekso_operator_in_operand(&operand.right_expression),
+                    || {
+                        first_generated_connected_mekso_operator_in_operand(
+                            &operand.right_expression,
+                        )
+                    },
                     |expansion| Ok(Some(expansion)),
                 )
         }
@@ -30492,7 +31779,7 @@ fn generated_infix_mekso_surface_text(infix: &InfixMeksoSyntax) -> Result<String
         text = format!(
             "{} {} {}",
             text,
-            generated_mekso_operator_label(&continuation.operator)?,
+            generated_mekso_operator_surface_label(&continuation.operator)?,
             generated_mekso_precedence_surface_text(&continuation.right_expression)?
         );
     }
@@ -30509,7 +31796,7 @@ fn generated_mekso_precedence_surface_text(
         text = format!(
             "{} {} {}",
             text,
-            generated_mekso_operator_label(&tail.operator)?,
+            generated_mekso_operator_surface_label(&tail.operator)?,
             generated_mekso_precedence_surface_text(&tail.right_expression)?
         );
     }
@@ -30524,7 +31811,7 @@ fn generated_mekso_base_surface_text(
     match expression {
         MeksoBaseSyntax::MeksoOperand(operand) => generated_mekso_operand_surface_text(operand),
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            let mut parts = vec![generated_mekso_operator_label(&call.operator)?];
+            let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
             for operand in call.operands.iter() {
                 parts.push(generated_mekso_base_surface_text(operand)?);
             }
@@ -30611,8 +31898,12 @@ fn generated_simple_mekso_operand_surface_text(
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(operand) => {
             let mut visitor = GeneratedSpanCollector::default();
-            operand.visit_in_order(&mut visitor);
-            Ok(token_list_text(visitor.tokens.iter()))
+            operand.sumti.visit_in_order(&mut visitor);
+            Ok(format!(
+                "{} {}",
+                token_text(&operand.mohe.value),
+                token_list_text(visitor.tokens.iter())
+            ))
         }
         SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => Ok(format!(
             "{} {}",
@@ -31007,9 +32298,7 @@ fn generated_simple_mekso_operand_number_words_text(
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_number_words_text(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
-            generated_mekso_operand_number_words_text(&operand.inner_expression)
-        }
+        SimpleMeksoOperandSyntax::QualifiedMeksoOperand(_) => None,
         _ => None,
     }
 }
@@ -31186,6 +32475,97 @@ fn generated_math_operator_label(operator: &MeksoOperatorSyntax) -> Result<Strin
     Ok(label.to_owned())
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_operator(
+    operator: &MeksoOperatorSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match operator {
+        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_afterthought_operator(operator)
+        }
+        MeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_simple_operator(operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_afterthought_operator(
+    operator: &AfterthoughtMeksoOperatorSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    if !operator.0.links.is_empty() {
+        return Ok(None);
+    }
+    generated_math_operator_question_token_for_bound_or_atom(operator.0.first.as_ref())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_bound_or_atom(
+    operator: &BoundOrAtomMeksoOperatorSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match operator {
+        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_simple_operator(operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_simple_operator(
+    operator: &SimpleMeksoOperatorSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match operator {
+        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_operator(&operator.inner_operator)
+        }
+        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_operator(&operator.inner_operator)
+        }
+        SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_operator(&operator.inner_operator)
+        }
+        SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_selbri(&operator.selbri)
+        }
+        _ => Ok(None),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_selbri(
+    selbri: &SelbriSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match selbri {
+        SelbriSyntax::TaggedSelbri(tagged) => {
+            generated_math_operator_question_token_for_untagged_selbri(&tagged.inner_selbri)
+        }
+        SelbriSyntax::UntaggedSelbri(untagged) => {
+            generated_math_operator_question_token_for_untagged_selbri(untagged)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+fn generated_math_operator_question_token_for_untagged_selbri(
+    selbri: &UntaggedSelbriSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match selbri {
+        UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
+            relation_question_syntax_from_co_selbri(co_selbri)
+                .map(|question| question.map(generated_relation_question_token))
+        }
+        _ => Ok(None),
+    }
+}
+
 #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
 #[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
 fn generated_math_operands_for_operator(
@@ -31193,6 +32573,10 @@ fn generated_math_operands_for_operator(
     operands: Vec<SemanticObjectId>,
 ) -> Vec<SemanticObjectId> {
     match operator {
+        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) if operator.0.links.is_empty() => {
+            generated_math_operands_for_bound_or_atom_operator(operator.0.first.as_ref(), operands)
+        }
+        MeksoOperatorSyntax::BoundMeksoOperator(_) => operands,
         MeksoOperatorSyntax::SimpleMeksoOperator(
             SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator),
         ) => converted_math_operands_for_generated(operator.se.value.cmavo(), operands),
@@ -31206,18 +32590,85 @@ fn generated_math_operands_for_operator(
     }
 }
 
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+fn generated_math_operands_for_bound_or_atom_operator(
+    operator: &BoundOrAtomMeksoOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator {
+        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => operands,
+        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated_math_operands_for_simple_operator(operator, operands)
+        }
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+fn generated_math_operands_for_simple_operator(
+    operator: &SimpleMeksoOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator {
+        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            converted_math_operands_for_generated(operator.se.value.cmavo(), operands)
+        }
+        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            generated_math_operands_for_operator(&operator.inner_operator, operands)
+        }
+        SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+            generated_math_operands_for_operator(&operator.inner_operator, operands)
+        }
+        _ => operands,
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
 fn scalar_negation_for_generated_mekso_operator(
     operator: &MeksoOperatorSyntax,
 ) -> Option<ScalarNegation> {
     match operator {
+        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) if operator.0.links.is_empty() => {
+            scalar_negation_for_generated_bound_or_atom_mekso_operator(operator.0.first.as_ref())
+        }
+        MeksoOperatorSyntax::BoundMeksoOperator(_) => None,
         MeksoOperatorSyntax::SimpleMeksoOperator(
             SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator),
         ) => Some(scalar_negation_for_token(&operator.nahe.value)),
         MeksoOperatorSyntax::SimpleMeksoOperator(
             SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator),
         ) => scalar_negation_for_generated_mekso_operator(&operator.inner_operator),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn scalar_negation_for_generated_bound_or_atom_mekso_operator(
+    operator: &BoundOrAtomMeksoOperatorSyntax,
+) -> Option<ScalarNegation> {
+    match operator {
+        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => None,
+        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            scalar_negation_for_generated_simple_mekso_operator(operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+fn scalar_negation_for_generated_simple_mekso_operator(
+    operator: &SimpleMeksoOperatorSyntax,
+) -> Option<ScalarNegation> {
+    match operator {
+        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            Some(scalar_negation_for_token(&operator.nahe.value))
+        }
+        SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+            scalar_negation_for_generated_mekso_operator(&operator.inner_operator)
+        }
         _ => None,
     }
 }
@@ -31408,6 +32859,43 @@ fn generated_operand_connective_math_operator(
     connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
 ) -> String {
     generated_operand_connective_source(connective)
+}
+
+#[requires(generated_operand_connective_is_interval(connective))]
+#[ensures(ret.as_ref().is_ok_and(|operator| operator.ends_with("Interval")) || ret.is_err())]
+fn generated_operand_connective_interval_operator(
+    connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
+) -> Result<String, SemanticsError> {
+    match generated_operand_connective_primary_cmavo(connective) {
+        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
+        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
+        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
+        _ => Err(unsupported("non-interval operand connective")),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || generated_operand_connective_is_interval(connective))]
+fn generated_operand_connective_endpoint_inclusion(
+    connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
+    reverse_members: bool,
+) -> Option<IntervalEndpointInclusion> {
+    let jbotci_syntax::generated_model::OperandConnectiveSyntax::JoikConnective(
+        JoikConnectiveSyntax::ClosedIntervalConnective(connective),
+    ) = connective
+    else {
+        return None;
+    };
+    let left = endpoint_inclusion_for_generated_cmavo(connective.left_interval.cmavo()?)?;
+    let right = endpoint_inclusion_for_generated_cmavo(connective.right_interval.value.cmavo()?)?;
+    if reverse_members {
+        Some(IntervalEndpointInclusion {
+            left: right,
+            right: left,
+        })
+    } else {
+        Some(IntervalEndpointInclusion { left, right })
+    }
 }
 
 #[requires(true)]
@@ -32912,9 +34400,7 @@ fn generated_nearest_following_governed_termset_index(
         .iter()
         .enumerate()
         .skip(start)
-        .find_map(|(index, term)| {
-            generated_term_is_governed_termset(term).then_some(index)
-        })
+        .find_map(|(index, term)| generated_term_is_governed_termset(term).then_some(index))
 }
 
 #[requires(true)]
@@ -36512,7 +37998,9 @@ fn apply_generated_recurrence_negation(
     let modifier = if spatial {
         modifiers.spatial_interval_modifiers.get_mut(modifier_index)
     } else {
-        modifiers.temporal_interval_modifiers.get_mut(modifier_index)
+        modifiers
+            .temporal_interval_modifiers
+            .get_mut(modifier_index)
     };
     if let Some(modifier) = modifier {
         *modifier = new!(IntervalModifier::Recurrence(recurrence.clone()));
@@ -36558,7 +38046,9 @@ fn attach_generated_magnitude_to_event_modifier<N: TreeNode>(
                 .space_path
                 .push(step.with_data(data! { magnitude: Some(magnitude) }));
         } else if let Some(space) = event.space.as_mut() {
-            let updated = space.clone().with_data(data! { magnitude: Some(magnitude) });
+            let updated = space
+                .clone()
+                .with_data(data! { magnitude: Some(magnitude) });
             event.space = Some(updated);
         }
         return;
@@ -39227,7 +40717,10 @@ fn generated_guhek_gik_connective_source(
     guhek: &GuhekConnectiveSyntax,
     gik: &GikConnectiveSyntax,
 ) -> String {
-    let mut parts = vec![generated_guhek_connective_source(guhek), token_text(&gik.gi.value)];
+    let mut parts = vec![
+        generated_guhek_connective_source(guhek),
+        token_text(&gik.gi.value),
+    ];
     if let Some(nai) = &gik.nai {
         parts.push(token_text(&nai.value));
     }
@@ -40045,10 +41538,8 @@ fn bind_generated_modal_argument_to_host_event(
     modal_argument: &mut ModalArgument,
     eventuality: SemanticObjectId,
 ) {
-    let _ = bind_generated_modal_argument_to_host_event_preserving_elision(
-        modal_argument,
-        eventuality,
-    );
+    let _ =
+        bind_generated_modal_argument_to_host_event_preserving_elision(modal_argument, eventuality);
 }
 
 #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
