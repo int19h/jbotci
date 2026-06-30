@@ -35,28 +35,32 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥35) {
-  Bridi @[0‥11) {
+ParagraphStatementSequence @[0‥35) {
+  BridiWithLeadingTerms @[0‥11) {
     leading_terms: [
       Cmavo @[0‥2) "mi",
     ],
-    Negated @[3‥11) {
+    bridi_tail: NegatedSelbri @[3‥11) {
       na: Cmavo @[3‥5) "na",
-      Gismu @[6‥11) "dícra",
+      inner_selbri: Gismu @[6‥11) "dícra",
     },
   },
-  ParagraphStatement @[13‥35) {
-    i: Cmavo @[13‥14) "i",
-    Bridi @[15‥35) {
-      leading_terms: [
-        Cmavo @[15‥17) "mi",
-      ],
-      Tanru @[18‥35) {
-        Gismu @[18‥23) "dícra",
-        Gismu @[24‥29) "fónxa",
-        Gismu @[30‥35) "prénu",
+  following: [
+    ParagraphStatement @[13‥35) {
+      i: Cmavo @[13‥14) "i",
+      BridiWithLeadingTerms @[15‥35) {
+        leading_terms: [
+          Cmavo @[15‥17) "mi",
+        ],
+        bridi_tail: TanruSelbri @[18‥35) {
+          first_unit: Gismu @[18‥23) "dícra",
+          additional_units: [
+            Gismu @[24‥29) "fónxa",
+            Gismu @[30‥35) "prénu",
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dícra","span":[6,11]}}}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[15,17]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dícra","span":[18,23]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónxa","span":[24,29]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[30,35]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dícra","span":[6,11]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[15,17]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dícra","span":[18,23]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónxa","span":[24,29]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[30,35]}}}}}}}}}]}}}}}}}}}}}}}}}}}}]}}}}}}'

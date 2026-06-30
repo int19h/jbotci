@@ -33,16 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"a'o","span":[1,4]}}},{"PlainWord":
 tree = """
 Text @[1‥15) {
   leading_indicators: [
-    Indicator @[1‥4) {
-      indicator: Cmavo @[1‥4) "a'o",
-    },
+    Cmavo @[1‥4) "a'o",
   ],
-  Negated @[5‥15) {
+  NegatedSelbri @[5‥15) {
     na: Cmavo @[5‥7) "na",
-    TaggedSelbri @[7‥15) {
-      tense_modal: Cmavo @[7‥9) "ca",
-      Gismu @[10‥15) "spófu",
+    inner_selbri: TaggedSelbri @[7‥15) {
+      tense_modal: [
+        Cmavo @[7‥9) "ca",
+      ],
+      inner_selbri: Gismu @[10‥15) "spófu",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[5,7]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[7,9]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[10,15]}}}}}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'o","span":[1,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[5,7]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[7,9]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'o","span":[1,4]}}}}}]}}"""

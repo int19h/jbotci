@@ -28,18 +28,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[3‥16) {
-  terms: [
-    PlaceTaggedSumti @[3‥16) {
-      fa: Cmavo @[3‥5) "fa",
-      Description @[6‥16) {
-        description: Cmavo @[6‥8) "le",
-        selbri: ConvertedSelbri @[9‥16) {
-          se: Cmavo @[9‥11) "se",
-          Cmavo @[12‥16) "go'i",
-        },
+PlaceTaggedSumtiTerm @[3‥16) {
+  fa: Cmavo @[3‥5) "fa",
+  sumti: DescriptorWithGadriSumti @[6‥16) {
+    description: Cmavo @[6‥8) "le",
+    tail: DescriptionTail @[9‥16) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruUnitAtom @[9‥16) {
+        conversions: [
+          Cmavo @[9‥11) "se",
+        ],
+        base: Cmavo @[12‥16) "go'i",
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[3,5]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[12,16]}}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[3,5]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}}],"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[12,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

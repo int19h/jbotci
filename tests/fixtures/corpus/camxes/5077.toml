@@ -36,11 +36,11 @@ ParagraphStatement @[0‥14) {
     Cmavo @[0‥1) "i",
     indicator: Cmavo @[1‥5) "ku'i",
   },
-  Bridi @[6‥14) {
+  BridiWithLeadingTerms @[6‥14) {
     leading_terms: [
       Cmavo @[6‥8) "ko",
     ],
-    Gismu @[9‥14) "dénpa",
+    bridi_tail: Gismu @[9‥14) "dénpa",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[1,5]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[6,8]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dénpa","span":[9,14]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[1,5]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[6,8]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dénpa","span":[9,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

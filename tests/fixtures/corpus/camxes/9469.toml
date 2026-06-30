@@ -34,19 +34,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[1‥17) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥17) {
+  BridiWithLeadingTerms @[3‥17) {
     leading_terms: [
-      SumtiWithRelativeClauses @[3‥11) {
+      SimpleSumti @[3‥11) {
         base_sumti: Cmavo @[3‥5) "ma",
-        relative_clauses: [
-          SumtiAssociationPhrase @[6‥11) {
-            association_marker: Cmavo @[6‥8) "pe",
-            Cmavo @[9‥11) "do",
-          },
-        ],
+        relative_clauses: SumtiAssociationRelativeClause @[6‥11) {
+          association_marker: Cmavo @[6‥8) "pe",
+          sumti: Cmavo @[9‥11) "do",
+        },
       },
     ],
-    Gismu @[12‥17) "fásnu",
+    bridi_tail: Gismu @[12‥17) "fásnu",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[3,5]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[6,8]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fásnu","span":[12,17]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[3,5]}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[6,8]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fásnu","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

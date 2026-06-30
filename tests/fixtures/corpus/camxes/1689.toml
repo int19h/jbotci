@@ -31,12 +31,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥18) {
-  Abstraction @[0‥12) {
+TanruSelbri @[0‥18) {
+  first_unit: AbstractionTanruUnit @[0‥12) {
     nu: Cmavo @[0‥2) "nu",
-    Gismu @[3‥8) "sónci",
+    subbridi: Gismu @[3‥8) "sónci",
     kei: Cmavo @[9‥12) "keĭ",
   },
-  Gismu @[13‥18) "djíca",
+  additional_units: [
+    Gismu @[13‥18) "djíca",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[0,2]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sónci","span":[3,8]}}}}}}}}}}}},"kei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"keĭ","span":[9,12]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djíca","span":[13,18]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[0,2]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sónci","span":[3,8]}}}}}}}}}}}}}}}}}}}}}},"kei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"keĭ","span":[9,12]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djíca","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

@@ -33,18 +33,18 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[0,5]}}},{"PlainWor
 [expectations.output.gentufa]
 tree = """
 AfterthoughtBridiTail @[0‥28) {
-  Tanru @[0‥11) {
-    Gismu @[0‥5) "mílxe",
-    Gismu @[6‥11) "cínmi",
+  TanruSelbri @[0‥11) {
+    first_unit: Gismu @[0‥5) "mílxe",
+    additional_units: [
+      Gismu @[6‥11) "cínmi",
+    ],
   },
-  continuations: [
-    BridiTailConnection @[12‥28) {
-      connective: Cmavo @[12‥16) "gi'e",
-      Tanru @[17‥28) {
-        Gismu @[17‥22) "mílxe",
-        Gismu @[23‥28) "pénsi",
-      },
-    },
-  ],
+  Cmavo @[12‥16) "gi'e",
+  TanruSelbri @[17‥28) {
+    first_unit: Gismu @[17‥22) "mílxe",
+    additional_units: [
+      Gismu @[23‥28) "pénsi",
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínmi","span":[6,11]}}}}}]}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[12,16]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[17,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénsi","span":[23,28]}}}}}]}}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínmi","span":[6,11]}}}}}}}}}]}}}}}}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[12,16]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[17,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénsi","span":[23,28]}}}}}}}}}]}}}}}}}}}]}}}}}}}}}}}}}}"""

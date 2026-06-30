@@ -31,16 +31,8 @@ json = '[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[4,5]
 
 [expectations.output.gentufa]
 tree = """
-Terms @[4‥7) {
-  terms: [
-    LerfuStringSumti @[4‥7) {
-      letter: [
-        LerfuWord @[4‥7) {
-          Cmavo @[4‥5) "a",
-          bu: Cmavo @[5‥7) "bu",
-        },
-      ],
-    },
-  ],
+LerfuWord @[4‥7) {
+  Cmavo @[4‥5) "a",
+  bu: Cmavo @[5‥7) "bu",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

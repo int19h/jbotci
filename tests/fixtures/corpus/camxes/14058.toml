@@ -31,20 +31,16 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"císka","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥15) {
-  Gismu @[0‥5) "císka",
+SelbriSimpleBridiTail @[0‥15) {
+  selbri: Gismu @[0‥5) "císka",
   terms: [
-    TaggedSumti @[6‥15) {
-      tense_modal: Modal @[6‥12) {
+    TaggedSumtiTerm @[6‥15) {
+      tense_modal: ModalTense @[6‥12) {
         se: Cmavo @[6‥8) "se",
         bai: Cmavo @[8‥12) "ra'a",
       },
-      LerfuStringSumti @[13‥15) {
-        letter: [
-          Cmavo @[13‥15) "by",
-        ],
-      },
+      sumti: Cmavo @[13‥15) "by",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"císka","span":[0,5]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra'a","span":[8,12]}}}}}},"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[13,15]}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"císka","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra'a","span":[8,12]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[13,15]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

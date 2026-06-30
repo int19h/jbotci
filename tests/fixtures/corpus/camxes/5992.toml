@@ -31,18 +31,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥17) {
-  terms: [
-    PlaceTaggedSumti @[0‥17) {
-      fa: Cmavo @[0‥2) "fi",
-      Description @[3‥17) {
-        description: Cmavo @[3‥5) "la",
-        selbri: Tanru @[6‥17) {
-          Gismu @[6‥11) "bésna",
+PlaceTaggedSumtiTerm @[0‥17) {
+  fa: Cmavo @[0‥2) "fi",
+  sumti: DescriptorWithGadriSumti @[3‥17) {
+    description: Cmavo @[3‥5) "la",
+    tail: DescriptionTail @[6‥17) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[6‥17) {
+        first_unit: Gismu @[6‥11) "bésna",
+        additional_units: [
           Gismu @[12‥17) "vécnu",
-        },
+        ],
       },
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[6,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[12,17]}}}}}]}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[6,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[12,17]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

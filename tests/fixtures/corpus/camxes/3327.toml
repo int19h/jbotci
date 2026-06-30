@@ -31,12 +31,16 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cuk"},{"Rafsi":"mak"},{"Hyphe
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥28) {
-  Lujvo @[0‥13) "cukmakyvélveĭ",
-  Gismu @[14‥19) "rénro",
-  ConvertedTanruUnit @[20‥28) {
-    se: Cmavo @[20‥22) "te",
-    Gismu @[23‥28) "jívna",
-  },
+TanruSelbri @[0‥28) {
+  first_unit: Lujvo @[0‥13) "cukmakyvélveĭ",
+  additional_units: [
+    Gismu @[14‥19) "rénro",
+    TanruUnitAtom @[20‥28) {
+      conversions: [
+        Cmavo @[20‥22) "te",
+      ],
+      base: Gismu @[23‥28) "jívna",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cuk"},{"Rafsi":"mak"},{"Hyphen":"y"},{"Rafsi":"vél"},{"Rafsi":"veĭ"}],"span":[0,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rénro","span":[14,19]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[20,22]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jívna","span":[23,28]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cuk"},{"Rafsi":"mak"},{"Hyphen":"y"},{"Rafsi":"vél"},{"Rafsi":"veĭ"}],"span":[0,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rénro","span":[14,19]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[20,22]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jívna","span":[23,28]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

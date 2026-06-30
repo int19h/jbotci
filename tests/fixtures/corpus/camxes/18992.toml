@@ -42,38 +42,38 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[1‥42) {
   i: Cmavo @[1‥2) "i",
-  BridiConnection @[3‥42) {
+  DirectForethoughtBridiConnection @[3‥42) {
     gek: Cmavo @[3‥5) "ge",
-    first: Bridi @[6‥20) {
+    first: BridiWithLeadingTerms @[6‥20) {
       leading_terms: [
         Cmavo @[6‥8) "da",
       ],
-      SelbriBridiTail @[9‥20) {
-        Gismu @[9‥14) "xláli",
+      bridi_tail: SelbriSimpleBridiTail @[9‥20) {
+        selbri: Gismu @[9‥14) "xláli",
         terms: [
-          PlaceTaggedSumti @[15‥20) {
+          PlaceTaggedSumtiTerm @[15‥20) {
             fa: Cmavo @[15‥17) "fi",
-            Cmavo @[18‥20) "de",
+            sumti: Cmavo @[18‥20) "de",
           },
         ],
       },
     },
     gik: Cmavo @[21‥23) "gi",
-    second: Bridi @[24‥42) {
+    second: BridiWithLeadingTerms @[24‥42) {
       leading_terms: [
         Cmavo @[24‥26) "da",
       ],
-      SelbriBridiTail @[27‥42) {
-        Gismu @[27‥32) "xámgu",
+      bridi_tail: SelbriSimpleBridiTail @[27‥42) {
+        selbri: Gismu @[27‥32) "xámgu",
         terms: [
-          PlaceTaggedSumti @[33‥42) {
+          PlaceTaggedSumtiTerm @[33‥42) {
             fa: Cmavo @[33‥35) "fi",
-            ProSumti @[36‥42) {
+            sumti: ProSumti @[36‥42) {
               Cmavo @[36‥38) "da",
               free_modifiers: [
-                Subscript @[38‥42) {
+                XiNumberFreeModifier @[38‥42) {
                   xi: Cmavo @[38‥40) "xi",
-                  Cmavo @[40‥42) "re",
+                  expression: Cmavo @[40‥42) "re",
                 },
               ],
             },
@@ -83,4 +83,4 @@ ParagraphStatement @[1‥42) {
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"ForethoughtBridiTailConnection":{"BridiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[3,5]}}}}]}},"first":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[6,8]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xláli","span":[9,14]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[15,17]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[18,20]}}}}}}}]}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[21,23]}}}}]}},"second":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[24,26]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[27,32]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[33,35]}}}},"sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[36,38]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[38,40]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[40,42]}}}}]}}}}}]}}}]}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"ForethoughtSimpleBridiTail":{"DirectForethoughtBridiConnection":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[3,5]}}}}}},"first":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[6,8]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xláli","span":[9,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[15,17]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[18,20]}}}}}}}}}}}}}}}}}]}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[21,23]}}}}},"second":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[24,26]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[27,32]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[33,35]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[36,38]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[38,40]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[40,42]}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}'

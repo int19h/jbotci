@@ -40,17 +40,19 @@ ParagraphStatement @[0‥26) {
     Cmavo @[0‥1) "i",
     indicator: Cmavo @[1‥5) "ku'i",
   },
-  Bridi @[6‥26) {
+  BridiWithLeadingTerms @[6‥26) {
     leading_terms: [
       QuotedWord @[6‥15) {
         zo: Cmavo @[6‥8) "zo",
         Cmevla @[9‥15) "bancus",
       },
     ],
-    TaggedSelbri @[16‥26) {
-      tense_modal: Cmavo @[16‥20) "za'o",
-      Gismu @[21‥26) "zásti",
+    bridi_tail: TaggedSelbri @[16‥26) {
+      tense_modal: [
+        Cmavo @[16‥20) "za'o",
+      ],
+      inner_selbri: Gismu @[21‥26) "zásti",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[1,5]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmevla":{"phonemes":"bancus","span":[9,15]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'o","span":[16,20]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zásti","span":[21,26]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[1,5]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmevla":{"phonemes":"bancus","span":[9,15]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'o","span":[16,20]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zásti","span":[21,26]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

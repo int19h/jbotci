@@ -27,14 +27,5 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}}]'
 
 [expectations.output.gentufa]
-tree = """
-Terms @[0‥2) {
-  terms: [
-    LerfuStringSumti @[0‥2) {
-      letter: [
-        Cmavo @[0‥2) "my",
-      ],
-    },
-  ],
-}"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}}}]}}}]}}}}]}]}'
+tree = 'Cmavo @[0‥2) "my"'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

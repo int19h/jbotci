@@ -32,17 +32,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi'a","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥25) {
+BridiWithLeadingTerms @[0‥25) {
   leading_terms: [
     Cmavo @[0‥4) "mi'a",
   ],
-  Tanru @[5‥25) {
-    Gismu @[5‥10) "cásnu",
-    BoundTanruUnitConnection @[11‥25) {
-      leading_unit: Gismu @[11‥16) "skámi",
-      bo: Cmavo @[17‥19) "bo",
-      trailing_unit: Gismu @[20‥25) "bángu",
-    },
+  bridi_tail: TanruSelbri @[5‥25) {
+    first_unit: Gismu @[5‥10) "cásnu",
+    additional_units: [
+      BoundTanruUnit @[11‥25) {
+        leading_unit: Gismu @[11‥16) "skámi",
+        bo: Cmavo @[17‥19) "bo",
+        trailing_unit: Gismu @[20‥25) "bángu",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'a","span":[0,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[5,10]}}}}},{"BoundTanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[11,16]}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[17,19]}}}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bángu","span":[20,25]}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'a","span":[0,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[5,10]}}}}}}}}},"additional_units":[{"first":{"BoundTanruUnit":{"leading_unit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[11,16]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[17,19]}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bángu","span":[20,25]}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

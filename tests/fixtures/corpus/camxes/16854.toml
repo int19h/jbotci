@@ -31,10 +31,6 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[0‥4) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥4) {
-    terms: [
-      Cmavo @[2‥4) "do",
-    ],
-  },
+  Cmavo @[2‥4) "do",
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[2,4]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[2,4]}}}}}}}}}}}}}}}]}}}}}}}}}'

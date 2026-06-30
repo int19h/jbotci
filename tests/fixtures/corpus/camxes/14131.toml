@@ -38,29 +38,32 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥39) {
+BridiWithLeadingTerms @[0‥39) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥39) {
-    Gismu @[3‥8) "tcídu",
+  bridi_tail: SelbriSimpleBridiTail @[3‥39) {
+    selbri: Gismu @[3‥8) "tcídu",
     terms: [
-      Description @[9‥39) {
+      DescriptorWithGadriSumti @[9‥39) {
         description: Cmavo @[9‥11) "lo",
-        selbri: Gismu @[12‥17) "vríci",
-        relative_clauses: [
-          SumtiAssociationPhrase @[18‥39) {
-            association_marker: Cmavo @[18‥20) "pe",
-            DelimitedNonLojbanQuote @[21‥39) {
-              zoi: Cmavo @[21‥24) "zoĭ",
-              opening_delimiter: Cmavo @[25‥27) "gy",
-              quoted_text: Verbatim @[28‥36) "Internet",
-              closing_delimiter: Cmavo @[37‥39) "gy",
+        tail: DescriptionTail @[12‥39) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: RelationDescriptionTail @[12‥39) {
+            selbri: Gismu @[12‥17) "vríci",
+            relative_clauses: SumtiAssociationRelativeClause @[18‥39) {
+              association_marker: Cmavo @[18‥20) "pe",
+              sumti: DelimitedNonLojbanQuote @[21‥39) {
+                zoi: Cmavo @[21‥24) "zoĭ",
+                opening_delimiter: Cmavo @[25‥27) "gy",
+                quoted_text: Verbatim @[28‥36) "Internet",
+                closing_delimiter: Cmavo @[37‥39) "gy",
+              },
             },
           },
-        ],
+        },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcídu","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[9,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vríci","span":[12,17]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[18,20]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[21,24]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[25,27]}},"quoted_text":{"span":[28,36],"text":"Internet"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcídu","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vríci","span":[12,17]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[18,20]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[21,24]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[25,27]}},"quoted_text":{"span":[28,36],"text":"Internet"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

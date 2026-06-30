@@ -34,19 +34,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}},{"PlainWord":{"
 tree = """
 Text @[0‥23) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "ŭi",
-    },
+    Cmavo @[0‥2) "ŭi",
   ],
-  Tanru @[3‥23) {
-    Gismu @[3‥8) "gláre",
-    GroupedTanruUnit @[9‥23) {
-      ke: Cmavo @[9‥11) "ke",
-      Tanru @[12‥23) {
-        Gismu @[12‥17) "lítka",
-        Gismu @[18‥23) "cákla",
+  TanruSelbri @[3‥23) {
+    first_unit: Gismu @[3‥8) "gláre",
+    additional_units: [
+      GroupedTanruUnit @[9‥23) {
+        ke: Cmavo @[9‥11) "ke",
+        selbri: TanruSelbri @[12‥23) {
+          first_unit: Gismu @[12‥17) "lítka",
+          additional_units: [
+            Gismu @[18‥23) "cákla",
+          ],
+        },
       },
-    },
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gláre","span":[3,8]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lítka","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cákla","span":[18,23]}}}}}]}}}]}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gláre","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lítka","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cákla","span":[18,23]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}}}}]}}'

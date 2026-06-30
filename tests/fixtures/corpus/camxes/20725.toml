@@ -32,28 +32,34 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[3‥40) {
-  terms: [
-    Description @[3‥40) {
-      description: Cmavo @[3‥5) "le",
-      selbri: ConvertedSelbri @[6‥14) {
-        se: Cmavo @[6‥8) "se",
-        Gismu @[9‥14) "prámi",
+DescriptorWithGadriSumti @[3‥40) {
+  description: Cmavo @[3‥5) "le",
+  tail: DescriptionTail @[6‥40) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: RelationDescriptionTail @[6‥40) {
+      selbri: TanruUnitAtom @[6‥14) {
+        conversions: [
+          Cmavo @[6‥8) "se",
+        ],
+        base: Gismu @[9‥14) "prámi",
       },
-      relative_clauses: [
-        SumtiAssociationPhrase @[15‥40) {
-          association_marker: Cmavo @[15‥17) "po",
-          Description @[18‥40) {
-            description: Cmavo @[18‥22) "le'e",
-            selbri: Tanru @[23‥40) {
-              Gismu @[23‥28) "rímni",
-              Gismu @[29‥34) "sánga",
-              Gismu @[35‥40) "nánmu",
+      relative_clauses: SumtiAssociationRelativeClause @[15‥40) {
+        association_marker: Cmavo @[15‥17) "po",
+        sumti: DescriptorWithGadriSumti @[18‥40) {
+          description: Cmavo @[18‥22) "le'e",
+          tail: DescriptionTail @[23‥40) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: TanruSelbri @[23‥40) {
+              first_unit: Gismu @[23‥28) "rímni",
+              additional_units: [
+                Gismu @[29‥34) "sánga",
+                Gismu @[35‥40) "nánmu",
+              ],
             },
           },
         },
-      ],
+      },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[9,14]}}}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[15,17]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le'e","span":[18,22]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rímni","span":[23,28]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánga","span":[29,34]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[35,40]}}}}}]}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[9,14]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[15,17]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le'e","span":[18,22]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rímni","span":[23,28]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánga","span":[29,34]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[35,40]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

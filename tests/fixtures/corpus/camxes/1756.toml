@@ -31,17 +31,17 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"rícfu","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriConnection @[0‥32) {
-  leading_selbri: Gismu @[0‥5) "rícfu",
-  connective: Cmavo @[6‥8) "je",
-  trailing_selbri: GroupedSelbri @[9‥32) {
+TanruUnit @[0‥32) {
+  Gismu @[0‥5) "rícfu",
+  Cmavo @[6‥8) "je",
+  GroupedTanruUnit @[9‥32) {
     ke: Cmavo @[9‥11) "ke",
-    SelbriConnection @[12‥26) {
-      leading_selbri: Gismu @[12‥17) "blánu",
-      connective: Cmavo @[18‥20) "ja",
-      trailing_selbri: Gismu @[21‥26) "críno",
+    selbri: TanruUnit @[12‥26) {
+      Gismu @[12‥17) "blánu",
+      Cmavo @[18‥20) "ja",
+      Gismu @[21‥26) "críno",
     },
     kehe: Cmavo @[28‥32) "ke'e",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rícfu","span":[0,5]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}]}},"trailing_selbri":{"GroupedSelbri":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[12,17]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[18,20]}}}}]}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críno","span":[21,26]}}}}}}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[28,32]}}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rícfu","span":[0,5]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[12,17]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[18,20]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críno","span":[21,26]}}}}}}}}}]}}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[28,32]}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

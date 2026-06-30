@@ -35,30 +35,28 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}},{"PlainWord":{"Cmevla":{"phonemes":"bab","span":[9,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[15,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}},{"PlainWord":{"Cmevla":{"phonemes":"noras","span":[21,26]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(co'o [{la .bab.} .e {la .noras.}])"
+brackets = "(co'o [{la .bab.} {.e (la .noras.)}])"
 tree = """
-Text @[0‥26) {
-  leading_free_modifiers: [
-    Vocative @[0‥26) {
-      vocative_markers: [
-        Cmavo @[0‥4) "co'o",
+VocativeFreeModifier @[0‥26) {
+  vocative_markers: Cmavo @[0‥4) "co'o",
+  sumti: SumtiAfterthought @[5‥26) {
+    leading_sumti: NameSumti @[5‥12) {
+      la: Cmavo @[5‥7) "la",
+      names: [
+        Cmevla @[9‥12) "bab",
       ],
-      sumti: SumtiConnection @[5‥26) {
-        leading_sumti: NameDescription @[5‥12) {
-          la: Cmavo @[5‥7) "la",
-          names: [
-            Cmevla @[9‥12) "bab",
-          ],
-        },
+    },
+    continuations: [
+      SumtiAfterthoughtTail @[15‥26) {
         connective: Cmavo @[15‥16) "e",
-        trailing_sumti: NameDescription @[17‥26) {
+        sumti: NameSumti @[17‥26) {
           la: Cmavo @[17‥19) "la",
           names: [
             Cmevla @[21‥26) "noras",
           ],
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}],"sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bab","span":[9,12]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[15,16]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"noras","span":[21,26]}}}}]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[0,4]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bab","span":[9,12]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[15,16]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"noras","span":[21,26]}}}}]}}}}}}}]}}}}}}]}}"""

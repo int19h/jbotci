@@ -33,18 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥16) {
-  terms: [
-    NumberSumti @[0‥16) {
-      li: Cmavo @[0‥2) "li",
-      NumberQuantifier @[3‥16) {
-        Cmavo @[3‥7) "ji'i",
-        Cmavo @[8‥10) "pa",
-        Cmavo @[10‥12) "pi",
-        Cmavo @[12‥14) "xa",
-        Cmavo @[14‥16) "mu",
-      },
-    },
-  ],
+NumberSumti @[0‥16) {
+  li: Cmavo @[0‥2) "li",
+  NumberWords @[3‥16) {
+    first_number: Cmavo @[3‥7) "ji'i",
+    continuations: [
+      Cmavo @[8‥10) "pa",
+      Cmavo @[10‥12) "pi",
+      Cmavo @[12‥14) "xa",
+      Cmavo @[14‥16) "mu",
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[3,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,14]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[14,16]}}}}]}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[3,7]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[8,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[10,12]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,14]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[14,16]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

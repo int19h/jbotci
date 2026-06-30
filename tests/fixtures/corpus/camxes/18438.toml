@@ -32,23 +32,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥21) {
-  leading_free_modifiers: [
-    Vocative @[0‥21) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: Description @[4‥21) {
-        description: Cmavo @[4‥6) "le",
-        tail_elements: [
-          Cmavo @[7‥9) "mi",
-        ],
-        selbri: Tanru @[10‥21) {
-          Gismu @[10‥15) "génto",
+VocativeFreeModifier @[0‥21) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: DescriptorWithGadriSumti @[4‥21) {
+    description: Cmavo @[4‥6) "le",
+    tail: DescriptionTail @[7‥21) {
+      leading_tail_elements: Cmavo @[7‥9) "mi",
+      tail: TanruSelbri @[10‥21) {
+        first_unit: Gismu @[10‥15) "génto",
+        additional_units: [
           Gismu @[16‥21) "péndo",
-        },
+        ],
       },
     },
-  ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"génto","span":[10,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[16,21]}}}}}]}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"génto","span":[10,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[16,21]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}'

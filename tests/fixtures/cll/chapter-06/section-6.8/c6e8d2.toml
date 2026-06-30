@@ -40,25 +40,30 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(mi [pónse {(su'o ci) lo cútci}])"
 tree = """
-Bridi @[0‥25) {
+BridiWithLeadingTerms @[0‥25) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥25) {
-    Gismu @[3‥8) "pónse",
+  bridi_tail: SelbriSimpleBridiTail @[3‥25) {
+    selbri: Gismu @[3‥8) "pónse",
     terms: [
-      Description @[9‥25) {
-        outer_quantifier: NumberQuantifier @[9‥16) {
-          Cmavo @[9‥13) "su'o",
-          Cmavo @[14‥16) "ci",
+      DescriptorWithOuterQuantifierSumti @[9‥25) {
+        outer_quantifier: NumberWords @[9‥16) {
+          first_number: Cmavo @[9‥13) "su'o",
+          continuations: [
+            Cmavo @[14‥16) "ci",
+          ],
         },
         description: Cmavo @[17‥19) "lo",
-        selbri: Gismu @[20‥25) "cútci",
+        tail: DescriptionTail @[20‥25) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[20‥25) "cútci",
+        },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[9,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[17,19]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cútci","span":[20,25]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[9,13]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}]}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[17,19]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cútci","span":[20,25]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:20","content":"formula:19","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":25},"text":"mi ponse su'o ci lo cutci","construct":"bridi"}},"predication:9":{"type":"predication","eventuality":"eventuality:6","relation":"ponse","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":25},"text":"mi ponse su'o ci lo cutci","construct":"predication"}},"predication:14":{"type":"predication","relation":"cutci","arguments":{"x1":{"kind":"filled","value":"entity:11"},"x2":{"kind":"elided","value":"entity:12","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:13","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":20,"byteEnd":25},"text":"cutci","construct":"restrictive-predication"}},"predication:16":{"type":"predication","relation":"memberOf","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:11"}},"mode":"restrictive"},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":0,"byteEnd":25},"text":"mi ponse su'o ci lo cutci","construct":"bridi-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":20,"byteEnd":25},"text":"cutci","construct":"restrictive-formula"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16"},"formula:19":{"type":"formula","operator":"cardinality","variable":"entity:7","restriction":"formula:17","body":"formula:10","quantity":"quantity:18","source":{"span":{"byteStart":9,"byteEnd":25},"text":"su'o ci lo cutci","construct":"quantifier-scope"}},"quantity:18":{"type":"quantity","form":"atLeast","value":{"integer":3},"scale":"count","source":{"span":{"byteStart":9,"byteEnd":16},"text":"su'o ci","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"variable","sort":"entity","source":{"span":{"byteStart":9,"byteEnd":25},"text":"su'o ci lo cutci","construct":"bound-argument"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:15"},"source":{"span":{"byteStart":17,"byteEnd":25},"text":"lo cutci","construct":"description"}},"entity:12":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":25},"text":"mi ponse su'o ci lo cutci","construct":"predication"}},"eventuality/locution:20":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":25},"text":"mi ponse su'o ci lo cutci","construct":"bridi"}}}}'''

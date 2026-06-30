@@ -36,21 +36,25 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[1,3]}}},{"PlainWord":
 tree = """
 Text @[1‥32) {
   leading_indicators: [
-    Indicator @[1‥6) {
+    LeadingIndicator @[1‥6) {
       indicator: Cmavo @[1‥3) "ŭo",
       nai: Cmavo @[3‥6) "naĭ",
     },
   ],
-  Tanru @[7‥32) {
-    GroupedTanruUnit @[7‥26) {
+  TanruSelbri @[7‥32) {
+    first_unit: GroupedTanruUnit @[7‥26) {
       ke: Cmavo @[7‥9) "ke",
-      Tanru @[10‥21) {
-        Gismu @[10‥15) "jmíve",
-        Gismu @[16‥21) "vánbi",
+      selbri: TanruSelbri @[10‥21) {
+        first_unit: Gismu @[10‥15) "jmíve",
+        additional_units: [
+          Gismu @[16‥21) "vánbi",
+        ],
       },
       kehe: Cmavo @[22‥26) "ke'e",
     },
-    Gismu @[27‥32) "vórme",
+    additional_units: [
+      Gismu @[27‥32) "vórme",
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[7,9]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jmíve","span":[10,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vánbi","span":[16,21]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[22,26]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[27,32]}}}}}]}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[1,3]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[3,6]}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[7,9]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jmíve","span":[10,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vánbi","span":[16,21]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[22,26]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[27,32]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[1,3]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[3,6]}}}}}]}}"""

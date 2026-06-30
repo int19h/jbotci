@@ -34,9 +34,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[0‥19) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥19) {
+  BridiWithLeadingTerms @[2‥19) {
     leading_terms: [
-      NameDescription @[2‥10) {
+      NameSumti @[2‥10) {
         la: Cmavo @[2‥4) "la",
         names: [
           Cmevla @[5‥10) "tikis",
@@ -44,7 +44,7 @@ ParagraphStatement @[0‥19) {
       },
     ],
     cu: Cmavo @[11‥13) "cu",
-    Gismu @[14‥19) "spófu",
+    bridi_tail: Gismu @[14‥19) "spófu",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"tikis","span":[5,10]}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[14,19]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"tikis","span":[5,10]}}}}]}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[14,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

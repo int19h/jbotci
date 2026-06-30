@@ -38,22 +38,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥29) {
   i: Cmavo @[1‥2) "i",
-  SelbriBridiTail @[3‥29) {
-    Gismu @[3‥8) "détri",
+  SelbriSimpleBridiTail @[3‥29) {
+    selbri: Gismu @[3‥8) "détri",
     terms: [
-      PlaceTaggedSumti @[9‥29) {
+      PlaceTaggedSumtiTerm @[9‥29) {
         fa: Cmavo @[9‥11) "fa",
-        NumberSumti @[12‥29) {
+        sumti: NumberSumti @[12‥29) {
           li: Cmavo @[12‥14) "li",
-          MeksoConnection @[15‥29) {
-            left_expression: NumberQuantifier @[15‥19) {
-              Cmavo @[15‥17) "re",
-              Cmavo @[17‥19) "mu",
+          AfterthoughtMeksoOperand @[15‥29) {
+            NumberWords @[15‥19) {
+              first_number: Cmavo @[15‥17) "re",
+              continuations: [
+                Cmavo @[17‥19) "mu",
+              ],
             },
-            connective: Cmavo @[20‥24) "bi'o",
-            right_expression: NumberQuantifier @[25‥29) {
-              Cmavo @[25‥27) "re",
-              Cmavo @[27‥29) "bi",
+            Cmavo @[20‥24) "bi'o",
+            NumberWords @[25‥29) {
+              first_number: Cmavo @[25‥27) "re",
+              continuations: [
+                Cmavo @[27‥29) "bi",
+              ],
             },
           },
         },
@@ -61,4 +65,4 @@ ParagraphStatement @[1‥29) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"détri","span":[3,8]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[9,11]}}}},"sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[12,14]}}}},"expression":{"MeksoConnection":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[15,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[17,19]}}}}]}}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[20,24]}}}}]}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[25,27]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[27,29]}}}}]}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"détri","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[9,11]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[12,14]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[15,17]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[17,19]}}}}}]}}}},"links":[{"operand_connective":{"JoikConnective":{"SimpleIntervalConnective":{"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[20,24]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[25,27]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[27,29]}}}}}]}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

@@ -32,19 +32,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥22) {
+BridiWithLeadingTerms @[0‥22) {
   leading_terms: [
-    NameDescription @[0‥6) {
+    NameSumti @[0‥6) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[3‥6) "prl",
       ],
     },
   ],
-  SelbriConnection @[8‥22) {
-    leading_selbri: Gismu @[8‥13) "kúkte",
-    connective: Cmavo @[14‥16) "je",
-    trailing_selbri: Gismu @[17‥22) "mélbi",
+  bridi_tail: TanruUnit @[8‥22) {
+    Gismu @[8‥13) "kúkte",
+    Cmavo @[14‥16) "je",
+    Gismu @[17‥22) "mélbi",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"prl","span":[3,6]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kúkte","span":[8,13]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[14,16]}}}}]}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[17,22]}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"prl","span":[3,6]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kúkte","span":[8,13]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[14,16]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[17,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}'

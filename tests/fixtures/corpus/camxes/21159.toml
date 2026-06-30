@@ -35,20 +35,23 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥24) {
   i: Cmavo @[1‥2) "i",
-  SelbriBridiTail @[3‥24) {
-    Gismu @[3‥8) "távla",
+  SelbriSimpleBridiTail @[3‥24) {
+    selbri: Gismu @[3‥8) "távla",
     terms: [
-      TaggedSumti @[9‥24) {
-        tense_modal: Modal @[9‥15) {
+      TaggedSumtiTerm @[9‥24) {
+        tense_modal: ModalTense @[9‥15) {
           se: Cmavo @[9‥11) "se",
           bai: Cmavo @[11‥15) "pi'o",
         },
-        Description @[16‥24) {
+        sumti: DescriptorWithGadriSumti @[16‥24) {
           description: Cmavo @[16‥18) "le",
-          selbri: Gismu @[19‥24) "gánxo",
+          tail: DescriptionTail @[19‥24) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[19‥24) "gánxo",
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[3,8]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'o","span":[11,15]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[16,18]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gánxo","span":[19,24]}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'o","span":[11,15]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[16,18]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gánxo","span":[19,24]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

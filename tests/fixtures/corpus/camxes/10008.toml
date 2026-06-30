@@ -37,38 +37,45 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[3‥46) {
-  Bridi @[3‥22) {
+ParagraphStatementSequence @[3‥46) {
+  BridiWithLeadingTerms @[3‥22) {
     leading_terms: [
-      Description @[3‥11) {
+      DescriptorWithGadriSumti @[3‥11) {
         description: Cmavo @[3‥5) "le",
-        selbri: Gismu @[6‥11) "múnje",
+        tail: DescriptionTail @[6‥11) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[6‥11) "múnje",
+        },
       },
     ],
-    TaggedSelbri @[12‥22) {
-      tense_modal: Cmavo @[12‥16) "ca'o",
-      Gismu @[17‥22) "fánmo",
+    bridi_tail: TaggedSelbri @[12‥22) {
+      tense_modal: [
+        Cmavo @[12‥16) "ca'o",
+      ],
+      inner_selbri: Gismu @[17‥22) "fánmo",
     },
   },
-  ParagraphStatement @[24‥46) {
-    i: Cmavo @[24‥25) "i",
-    Bridi @[26‥46) {
-      leading_terms: [
-        Cmavo @[26‥28) "ko",
-      ],
-      SelbriBridiTail @[29‥46) {
-        Gismu @[29‥34) "bándu",
-        terms: [
-          Description @[35‥46) {
-            description: Cmavo @[35‥37) "le",
-            tail_elements: [
-              Cmavo @[38‥40) "do",
-            ],
-            selbri: Gismu @[41‥46) "vréji",
-          },
+  following: [
+    ParagraphStatement @[24‥46) {
+      i: Cmavo @[24‥25) "i",
+      BridiWithLeadingTerms @[26‥46) {
+        leading_terms: [
+          Cmavo @[26‥28) "ko",
         ],
+        bridi_tail: SelbriSimpleBridiTail @[29‥46) {
+          selbri: Gismu @[29‥34) "bándu",
+          terms: [
+            DescriptorWithGadriSumti @[35‥46) {
+              description: Cmavo @[35‥37) "le",
+              tail: DescriptionTail @[38‥46) {
+                leading_tail_elements: Cmavo @[38‥40) "do",
+                tail: Gismu @[41‥46) "vréji",
+              },
+            },
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múnje","span":[6,11]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[12,16]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánmo","span":[17,22]}}}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[24,25]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[26,28]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bándu","span":[29,34]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[35,37]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[38,40]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vréji","span":[41,46]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múnje","span":[6,11]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[12,16]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánmo","span":[17,22]}}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[24,25]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[26,28]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bándu","span":[29,34]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[35,37]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[38,40]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vréji","span":[41,46]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}"""

@@ -36,16 +36,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"PlainWord":{
 tree = """
 Text @[0‥22) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  SelbriBridiTail @[3‥22) {
-    Cmavo @[3‥7) "go'i",
+  SelbriSimpleBridiTail @[3‥22) {
+    selbri: Cmavo @[3‥7) "go'i",
     terms: [
-      PlaceTaggedSumti @[8‥22) {
+      PlaceTaggedSumtiTerm @[8‥22) {
         fa: Cmavo @[8‥10) "fu",
-        QuotedWord @[11‥22) {
+        sumti: QuotedWord @[11‥22) {
           zo: Cmavo @[11‥13) "zo",
           Lujvo @[14‥22) "nilcúnso",
         },
@@ -53,4 +51,4 @@ Text @[0‥22) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[8,10]}}}},"sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[11,13]}},"word":{"Lujvo":{"parts":[{"Rafsi":"nil"},{"Rafsi":"cúnso"}],"span":[14,22]}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[8,10]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[11,13]}},"word":{"Lujvo":{"parts":[{"Rafsi":"nil"},{"Rafsi":"cúnso"}],"span":[14,22]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}"""

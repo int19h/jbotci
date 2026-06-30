@@ -35,9 +35,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥41) {
+BridiWithLeadingTerms @[0‥41) {
   leading_terms: [
-    NameDescription @[0‥10) {
+    NameSumti @[0‥10) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[3‥10) "rymysys",
@@ -45,16 +45,23 @@ Bridi @[0‥41) {
     },
   ],
   cu: Cmavo @[11‥13) "cu",
-  LinkedSumtiTanruUnit @[14‥41) {
-    Gismu @[14‥19) "ckápe",
-    be: Cmavo @[20‥22) "be",
-    first_sumti: Description @[23‥41) {
-      description: Cmavo @[23‥25) "le",
-      selbri: Tanru @[26‥41) {
-        Gismu @[26‥31) "zífre",
-        Lujvo @[32‥41) "samsélpla",
+  bridi_tail: LinkedTanruUnit @[14‥41) {
+    base: Gismu @[14‥19) "ckápe",
+    linkargs: Linkargs @[20‥41) {
+      be: Cmavo @[20‥22) "be",
+      first_link: DescriptorWithGadriSumti @[23‥41) {
+        description: Cmavo @[23‥25) "le",
+        tail: DescriptionTail @[26‥41) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[26‥41) {
+            first_unit: Gismu @[26‥31) "zífre",
+            additional_units: [
+              Lujvo @[32‥41) "samsélpla",
+            ],
+          },
+        },
       },
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rymysys","span":[3,10]}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckápe","span":[14,19]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[20,22]}}}},"first_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zífre","span":[26,31]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[32,41]}}}}}]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rymysys","span":[3,10]}}}}]}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckápe","span":[14,19]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[20,22]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zífre","span":[26,31]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[32,41]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

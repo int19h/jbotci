@@ -32,11 +32,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 tree = """
 TaggedSelbri @[0‥13) {
-  tense_modal: Composite @[0‥7) {
-    Cmavo @[0‥2) "ca",
-    Cmavo @[2‥4) "je",
-    Cmavo @[4‥7) "gaŭ",
+  tense_modal: ConnectedTenseModal @[0‥7) {
+    first: [
+      Cmavo @[0‥2) "ca",
+    ],
+    continuations: [
+      ConnectedTenseModalContinuation @[2‥7) {
+        connective: Cmavo @[2‥4) "je",
+        tense_modal: Cmavo @[4‥7) "gaŭ",
+      },
+    ],
   },
-  Gismu @[8‥13) "bróda",
+  inner_selbri: Gismu @[8‥13) "bróda",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[4,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[8,13]}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"ConnectedTenseModal":{"first":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}}}}}}},"continuations":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}}}}},"tense_modal":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[4,7]}}}}}}}]}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[8,13]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

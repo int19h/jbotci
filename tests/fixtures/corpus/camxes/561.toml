@@ -35,22 +35,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥25) {
+BridiWithLeadingTerms @[0‥25) {
   leading_terms: [
     Cmavo @[0‥3) "deĭ",
   ],
-  Tanru @[4‥25) {
-    Gismu @[4‥9) "júfra",
-    OrdinalSelbri @[10‥25) {
-      number: [
-        Cmavo @[10‥12) "pa",
-        Cmavo @[12‥14) "no",
-        Cmavo @[14‥18) "pi'e",
-        Cmavo @[18‥20) "pa",
-        Cmavo @[20‥22) "pa",
-      ],
-      moi: Cmavo @[22‥25) "moĭ",
-    },
+  bridi_tail: TanruSelbri @[4‥25) {
+    first_unit: Gismu @[4‥9) "júfra",
+    additional_units: [
+      OrdinalTanruUnit @[10‥25) {
+        number: NumberWords @[10‥22) {
+          first_number: Cmavo @[10‥12) "pa",
+          continuations: [
+            Cmavo @[12‥14) "no",
+            Cmavo @[14‥18) "pi'e",
+            Cmavo @[18‥20) "pa",
+            Cmavo @[20‥22) "pa",
+          ],
+        },
+        moi: Cmavo @[22‥25) "moĭ",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júfra","span":[4,9]}}}}},{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[14,18]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[18,20]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[20,22]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[22,25]}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júfra","span":[4,9]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[10,12]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[14,18]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[18,20]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[20,22]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[22,25]}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

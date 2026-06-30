@@ -30,13 +30,11 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement @[0‥9) {
-  i: WithIndicator @[0‥9) {
-    WithIndicator @[0‥6) {
-      Cmavo @[0‥1) "i",
-      indicator: Cmavo @[2‥6) "zo'o",
-    },
-    indicator: Cmavo @[6‥9) "peĭ",
+WithIndicator @[0‥9) {
+  WithIndicator @[0‥6) {
+    Cmavo @[0‥1) "i",
+    indicator: Cmavo @[2‥6) "zo'o",
   },
+  indicator: Cmavo @[6‥9) "peĭ",
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[2,6]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[6,9]}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[2,6]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[6,9]}}}}}]}}"""

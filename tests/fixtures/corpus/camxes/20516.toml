@@ -32,15 +32,13 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"sódva","span":[0,5]}}},{"PlainWor
 [expectations.output.gentufa]
 tree = """
 AfterthoughtBridiTail @[0‥23) {
-  Tanru @[0‥12) {
-    Gismu @[0‥5) "sódva",
-    Lujvo @[6‥12) "vénzmi",
+  TanruSelbri @[0‥12) {
+    first_unit: Gismu @[0‥5) "sódva",
+    additional_units: [
+      Lujvo @[6‥12) "vénzmi",
+    ],
   },
-  continuations: [
-    BridiTailConnection @[13‥23) {
-      connective: Cmavo @[13‥17) "gi'e",
-      Gismu @[18‥23) "zábna",
-    },
-  ],
+  Cmavo @[13‥17) "gi'e",
+  Gismu @[18‥23) "zábna",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sódva","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"vén"},{"Rafsi":"zmi"}],"span":[6,12]}}}}}]}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[13,17]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zábna","span":[18,23]}}}}}}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sódva","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"vén"},{"Rafsi":"zmi"}],"span":[6,12]}}}}}}}}}]}}}}}}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[13,17]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zábna","span":[18,23]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}"""

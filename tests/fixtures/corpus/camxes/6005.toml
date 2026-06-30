@@ -32,19 +32,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥18) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥18) {
-      to: Cmavo @[0‥2) "to",
-      TaggedSelbri @[3‥14) {
-        tense_modal: Composite @[3‥8) {
-          Cmavo @[3‥5) "xa",
-          Cmavo @[5‥8) "roĭ",
-        },
-        Gismu @[9‥14) "júfra",
+ParentheticalText @[0‥18) {
+  to: Cmavo @[0‥2) "to",
+  text: TaggedSelbri @[3‥14) {
+    tense_modal: [
+      NumberedIntervalPropertyTense @[3‥8) {
+        number: Cmavo @[3‥5) "xa",
+        roi: Cmavo @[5‥8) "roĭ",
       },
-      toi: Cmavo @[15‥18) "toĭ",
-    },
-  ],
+    ],
+    inner_selbri: Gismu @[9‥14) "júfra",
+  },
+  toi: Cmavo @[15‥18) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[5,8]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júfra","span":[9,14]}}}}}}}}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[15,18]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[3,5]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[5,8]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júfra","span":[9,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[15,18]}}}}}}]}}'

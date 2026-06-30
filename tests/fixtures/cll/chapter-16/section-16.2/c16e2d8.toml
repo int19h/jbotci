@@ -39,24 +39,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"da","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(da zo'u [{la .ralf.} gérku])"
 tree = """
-Prenex @[0‥22) {
+PrenexStatement @[0‥22) {
   prenex_terms: [
     Cmavo @[0‥2) "da",
   ],
   zohu: Cmavo @[3‥7) "zo'u",
-  Bridi @[8‥22) {
+  BridiWithLeadingTerms @[8‥22) {
     leading_terms: [
-      NameDescription @[8‥15) {
+      NameSumti @[8‥15) {
         la: Cmavo @[8‥10) "la",
         names: [
           Cmevla @[11‥15) "ralf",
         ],
       },
     ],
-    Gismu @[17‥22) "gérku",
+    bridi_tail: Gismu @[17‥22) "gérku",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[0,2]}}}}}}],"zohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zo'u","span":[3,7]}}}},"inner_statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[8,10]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ralf","span":[11,15]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[17,22]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"PrenexStatement":{"prenex_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[0,2]}}}}}}}}}}}}}}}],"zohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zo'u","span":[3,7]}}}},"inner_statement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[8,10]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ralf","span":[11,15]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[17,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:11","content":"formula:13","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":8,"byteEnd":22},"text":"la ralf. gerku","construct":"bridi"}},"predication:9":{"type":"predication","eventuality":"eventuality:6","relation":"gerku","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":8,"byteEnd":22},"text":"la ralf. gerku","construct":"predication"}},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":8,"byteEnd":22},"text":"la ralf. gerku","construct":"bridi-formula"}},"formula:13":{"type":"formula","operator":"exists","variable":"entity:12","body":"formula:10","source":{"span":{"byteStart":0,"byteEnd":2},"text":"da","construct":"quantifier-scope"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"ralf"},"source":{"span":{"byteStart":8,"byteEnd":16},"text":"la ralf.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:12":{"type":"referent","category":"variable","sort":"entity","descriptor":{"kind":"proSumti","word":"da"},"source":{"span":{"byteStart":0,"byteEnd":2},"text":"da","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":8,"byteEnd":22},"text":"la ralf. gerku","construct":"predication"}},"eventuality/locution:11":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":8,"byteEnd":22},"text":"la ralf. gerku","construct":"bridi"}}}}'''

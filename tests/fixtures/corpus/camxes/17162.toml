@@ -33,27 +33,32 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[0,1]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥31) {
+BridiWithLeadingTerms @[0‥31) {
   leading_terms: [
-    Description @[0‥19) {
-      outer_quantifier: NumberQuantifier @[0‥3) {
-        Cmavo @[0‥1) "ze",
-        Cmavo @[1‥2) "pi",
-        Cmavo @[2‥3) "so",
+    DescriptorWithOuterQuantifierSumti @[0‥19) {
+      outer_quantifier: NumberWords @[0‥3) {
+        first_number: Cmavo @[0‥1) "ze",
+        continuations: [
+          Cmavo @[1‥2) "pi",
+          Cmavo @[2‥3) "so",
+        ],
       },
       description: Cmavo @[6‥8) "le",
-      selbri: WithIndicator @[9‥19) {
-        Gismu @[9‥14) "cúkta",
-        indicator: Cmavo @[15‥19) "be'u",
+      tail: DescriptionTail @[9‥19) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: WithIndicator @[9‥19) {
+          Gismu @[9‥14) "cúkta",
+          indicator: Cmavo @[15‥19) "be'u",
+        },
       },
     },
   ],
   cu: Cmavo @[20‥22) "cu",
-  SelbriBridiTail @[23‥31) {
-    Gismu @[23‥28) "zváti",
+  bridi_tail: SelbriSimpleBridiTail @[23‥31) {
+    selbri: Gismu @[23‥28) "zváti",
     terms: [
       Cmavo @[29‥31) "ma",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[0,1]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[2,3]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúkta","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"be'u","span":[15,19]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[23,28]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[29,31]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[0,1]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[2,3]}}}}}]}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúkta","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"be'u","span":[15,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[23,28]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[29,31]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

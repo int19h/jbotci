@@ -35,20 +35,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}},{"PlainWord"
 tree = """
 AfterthoughtBridiTail @[0‥26) {
   TaggedSelbri @[0‥14) {
-    tense_modal: Composite @[0‥8) {
-      Cmavo @[0‥4) "na'e",
-      Cmavo @[4‥8) "ka'e",
+    tense_modal: PrefixedTimeSpaceCahaTense @[0‥8) {
+      nahe: Cmavo @[0‥4) "na'e",
+      tense: Cmavo @[4‥8) "ka'e",
     },
-    Gismu @[9‥14) "jínga",
+    inner_selbri: Gismu @[9‥14) "jínga",
   },
-  continuations: [
-    BridiTailConnection @[16‥26) {
-      connective: Cmavo @[16‥17) "o",
-      Negated @[18‥26) {
-        na: Cmavo @[18‥20) "na",
-        Gismu @[21‥26) "kélci",
-      },
-    },
-  ],
+  Cmavo @[16‥17) "o",
+  NegatedSelbri @[18‥26) {
+    na: Cmavo @[18‥20) "na",
+    inner_selbri: Gismu @[21‥26) "kélci",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[4,8]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jínga","span":[9,14]}}}}}}}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[16,17]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[18,20]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[21,26]}}}}}}}}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"PrefixedTimeSpaceCahaTense":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}}},"tense":{"CahaTense":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[4,8]}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jínga","span":[9,14]}}}}}}}}}}}}}}}}}},"links":[{"connective":{"RelationConnectiveAsBridiTail":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[16,17]}}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[18,20]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[21,26]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}"""

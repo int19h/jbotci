@@ -12,12 +12,8 @@ raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥5) {
-  terms: [
-    QuotedWord @[0‥5) {
-      zo: Cmavo @[0‥2) "zo",
-      Cmavo @[3‥5) "mi",
-    },
-  ],
+QuotedWord @[0‥5) {
+  zo: Cmavo @[0‥2) "zo",
+  Cmavo @[3‥5) "mi",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}}}]}}}}}}}}}'

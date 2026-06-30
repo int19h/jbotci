@@ -31,16 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥15) {
+BridiWithLeadingTerms @[0‥15) {
   leading_terms: [
     QuantifiedSumti @[0‥9) {
       quantifier: Cmavo @[0‥2) "no",
-      WithIndicator @[2‥9) {
+      inner_sumti: WithIndicator @[2‥9) {
         Cmavo @[2‥4) "da",
         indicator: Cmavo @[5‥9) "pe'a",
       },
     },
   ],
-  Gismu @[10‥15) "pápri",
+  bridi_tail: Gismu @[10‥15) "pápri",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}]}},"inner_sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[5,9]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pápri","span":[10,15]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}}}},"inner_sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[5,9]}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pápri","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

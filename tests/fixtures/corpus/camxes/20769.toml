@@ -31,14 +31,8 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ji'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥7) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ji'a",
-    },
+    Cmavo @[0‥4) "ji'a",
   ],
-  Terms @[5‥7) {
-    terms: [
-      Cmavo @[5‥7) "mi",
-    ],
-  },
+  Cmavo @[5‥7) "mi",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'a","span":[0,4]}}}}}]}}"""

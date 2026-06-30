@@ -33,18 +33,23 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥30) {
+BridiWithLeadingTerms @[0‥30) {
   leading_terms: [
-    Description @[0‥9) {
+    DescriptorWithGadriSumti @[0‥9) {
       description: Cmavo @[0‥3) "loĭ",
-      selbri: Gismu @[4‥9) "rémna",
+      tail: DescriptionTail @[4‥9) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Gismu @[4‥9) "rémna",
+      },
     },
   ],
   cu: Cmavo @[10‥12) "cu",
-  Tanru @[13‥30) {
-    Gismu @[13‥18) "vlíle",
-    Gismu @[19‥24) "dánlu",
-    Gismu @[25‥30) "mútce",
+  bridi_tail: TanruSelbri @[13‥30) {
+    first_unit: Gismu @[13‥18) "vlíle",
+    additional_units: [
+      Gismu @[19‥24) "dánlu",
+      Gismu @[25‥30) "mútce",
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[4,9]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlíle","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dánlu","span":[19,24]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[25,30]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[4,9]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlíle","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dánlu","span":[19,24]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[25,30]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

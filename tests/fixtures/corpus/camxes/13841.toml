@@ -39,14 +39,16 @@ Paragraph @[0‥22) {
       indicator: Cmavo @[5‥7) "xu",
     },
   ],
-  Bridi @[8‥22) {
+  BridiWithLeadingTerms @[8‥22) {
     leading_terms: [
       Cmavo @[8‥10) "do",
     ],
-    Tanru @[11‥22) {
-      Gismu @[11‥16) "rémna",
-      Gismu @[17‥22) "cítka",
+    bridi_tail: TanruSelbri @[11‥22) {
+      first_unit: Gismu @[11‥16) "rémna",
+      additional_units: [
+        Gismu @[17‥22) "cítka",
+      ],
     },
   },
 }"""
-json = """{"paragraphs":[{"niho":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[5,7]}}}}],"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[8,10]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[11,16]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[17,22]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[5,7]}}}}],"statements":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[8,10]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[11,16]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[17,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}]}}}"""

@@ -33,24 +33,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥28) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥28) {
-      to: Cmavo @[0‥2) "to",
-      Bridi @[3‥24) {
-        leading_terms: [
-          Cmavo @[3‥5) "do",
-        ],
-        Tanru @[6‥24) {
-          Lujvo @[6‥14) "malglétu",
-          ModalConversion @[15‥24) {
-            jai: Cmavo @[15‥18) "jaĭ",
-            Gismu @[19‥24) "sátci",
-          },
+ParentheticalText @[0‥28) {
+  to: Cmavo @[0‥2) "to",
+  text: BridiWithLeadingTerms @[3‥24) {
+    leading_terms: [
+      Cmavo @[3‥5) "do",
+    ],
+    bridi_tail: TanruSelbri @[6‥24) {
+      first_unit: Lujvo @[6‥14) "malglétu",
+      additional_units: [
+        JaiModalTanruUnit @[15‥24) {
+          jai: Cmavo @[15‥18) "jaĭ",
+          inner_unit: Gismu @[19‥24) "sátci",
         },
-      },
-      toi: Cmavo @[25‥28) "toĭ",
+      ],
     },
-  ],
+  },
+  toi: Cmavo @[25‥28) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glétu"}],"span":[6,14]}}}}},{"ModalConversion":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[15,18]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sátci","span":[19,24]}}}}}}}]}}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[25,28]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glétu"}],"span":[6,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"JaiModalTanruUnit":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[15,18]}}}},"inner_unit":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sátci","span":[19,24]}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[25,28]}}}}}}]}}'

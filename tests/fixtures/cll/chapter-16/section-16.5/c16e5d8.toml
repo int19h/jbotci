@@ -41,28 +41,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(ti [xárci {(di [poĭ prénu ku'o]) di}])"
 tree = """
-Bridi @[0‥29) {
+BridiWithLeadingTerms @[0‥29) {
   leading_terms: [
     Cmavo @[0‥2) "ti",
   ],
-  SelbriBridiTail @[3‥29) {
-    Gismu @[3‥8) "xárci",
+  bridi_tail: SelbriSimpleBridiTail @[3‥29) {
+    selbri: Gismu @[3‥8) "xárci",
     terms: [
-      SumtiWithRelativeClauses @[9‥26) {
+      SimpleSumti @[9‥26) {
         base_sumti: Cmavo @[9‥11) "di",
-        relative_clauses: [
-          RestrictiveRelativeBridi @[12‥26) {
-            poi: Cmavo @[12‥15) "poĭ",
-            Gismu @[16‥21) "prénu",
-            kuho: Cmavo @[22‥26) "ku'o",
-          },
-        ],
+        relative_clauses: RestrictiveBridiRelativeClause @[12‥26) {
+          poi: Cmavo @[12‥15) "poĭ",
+          subbridi: Gismu @[16‥21) "prénu",
+          kuho: Cmavo @[22‥26) "ku'o",
+        },
       },
       Cmavo @[27‥29) "di",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xárci","span":[3,8]}}}}},"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di","span":[9,11]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[12,15]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[16,21]}}}}}}}}}}}},"kuho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku'o","span":[22,26]}}}}}}]}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di","span":[27,29]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xárci","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di","span":[9,11]}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[12,15]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[16,21]}}}}}}}}}}}}}}}}}}}}}},"kuho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku'o","span":[22,26]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di","span":[27,29]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:16","content":"formula:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":29},"text":"ti xarci di poi prenu ku'o di","construct":"bridi"}},"predication:11":{"type":"predication","eventuality":"eventuality:9","relation":"prenu","arguments":{"x1":{"kind":"filled","value":"entity:8"}},"mode":"restrictive","source":{"span":{"byteStart":16,"byteEnd":21},"text":"prenu","construct":"predication"}},"predication:13":{"type":"predication","eventuality":"eventuality:6","relation":"xarci","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:8","relativeClauses":[{"kind":"restrictive","body":"formula:12","source":{"span":{"byteStart":16,"byteEnd":21},"text":"prenu","construct":"relative-clause"}}]},"x3":{"kind":"filled","value":"entity:8"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":29},"text":"ti xarci di poi prenu ku'o di","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":16,"byteEnd":21},"text":"prenu","construct":"bridi-formula"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":0,"byteEnd":29},"text":"ti xarci di poi prenu ku'o di","construct":"bridi-formula"}},"formula:15":{"type":"formula","operator":"exists","variable":"entity:8","restriction":"formula:12","body":"formula:14","source":{"span":{"byteStart":9,"byteEnd":11},"text":"di","construct":"quantifier-scope"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"indexical","sort":"entity","indexical":"proximalDemonstrative","source":{"span":{"byteStart":0,"byteEnd":2},"text":"ti","construct":"sumti"}},"entity:8":{"type":"referent","category":"variable","sort":"entity","descriptor":{"kind":"proSumti","word":"di"},"source":{"span":{"byteStart":9,"byteEnd":11},"text":"di","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":29},"text":"ti xarci di poi prenu ku'o di","construct":"predication"}},"eventuality:9":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":16,"byteEnd":21},"text":"prenu","construct":"predication"}},"eventuality/locution:16":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":29},"text":"ti xarci di poi prenu ku'o di","construct":"bridi"}}}}'''

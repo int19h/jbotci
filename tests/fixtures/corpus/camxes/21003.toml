@@ -38,25 +38,28 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥42) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ru'a",
-    },
+    Cmavo @[0‥4) "ru'a",
   ],
-  Bridi @[5‥42) {
+  BridiWithLeadingTerms @[5‥42) {
     leading_terms: [
-      Description @[5‥19) {
+      DescriptorWithGadriSumti @[5‥19) {
         description: Cmavo @[5‥7) "le",
-        selbri: Tanru @[8‥19) {
-          Gismu @[8‥13) "dráta",
-          Gismu @[14‥19) "prénu",
+        tail: DescriptionTail @[8‥19) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[8‥19) {
+            first_unit: Gismu @[8‥13) "dráta",
+            additional_units: [
+              Gismu @[14‥19) "prénu",
+            ],
+          },
         },
       },
     ],
     cu: Cmavo @[20‥22) "cu",
-    SelbriBridiTail @[23‥42) {
-      ScalarNegatedTanruUnit @[23‥33) {
+    bridi_tail: SelbriSimpleBridiTail @[23‥42) {
+      selbri: ScalarNegatedTanruUnit @[23‥33) {
         nahe: Cmavo @[23‥27) "to'e",
-        Gismu @[28‥33) "gléki",
+        inner_unit: Gismu @[28‥33) "gléki",
       },
       vau: WithIndicator @[34‥42) {
         Cmavo @[34‥37) "vaŭ",
@@ -65,4 +68,4 @@ Text @[0‥42) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráta","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[14,19]}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[23,27]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gléki","span":[28,33]}}}}}}}]},"vau":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaŭ","span":[34,37]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[38,42]}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráta","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[23,27]}}}},"inner_unit":{"TanruUnitAtom":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gléki","span":[28,33]}}}}}}}}}}}}}}}}}},"vau":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaŭ","span":[34,37]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[38,42]}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}}"""

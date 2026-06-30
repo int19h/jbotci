@@ -28,14 +28,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"me","span":[2,4]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[2‥16) {
-  SumtiSelbri @[2‥7) {
+TanruSelbri @[2‥16) {
+  first_unit: SumtiSelbriTanruUnit @[2‥7) {
     me: Cmavo @[2‥4) "me",
-    Cmavo @[5‥7) "mi",
+    sumti: Cmavo @[5‥7) "mi",
   },
-  ConvertedTanruUnit @[8‥16) {
-    se: Cmavo @[8‥10) "se",
-    Gismu @[11‥16) "gídva",
-  },
+  additional_units: [
+    TanruUnitAtom @[8‥16) {
+      conversions: [
+        Cmavo @[8‥10) "se",
+      ],
+      base: Gismu @[11‥16) "gídva",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[2,4]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[8,10]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gídva","span":[11,16]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[2,4]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[8,10]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gídva","span":[11,16]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

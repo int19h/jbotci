@@ -35,16 +35,12 @@ Text @[0‥12) {
   leading_cmevla: [
     Cmevla @[0‥2) "or",
   ],
-  Terms @[3‥12) {
-    terms: [
-      TaggedSumti @[3‥9) {
-        tense_modal: Modal @[3‥6) {
-          bai: Cmavo @[3‥6) "baĭ",
-        },
-        Cmavo @[7‥9) "ri",
-      },
-      Cmavo @[10‥12) "mi",
-    ],
+  TermsFragment @[3‥12) {
+    TaggedSumtiTerm @[3‥9) {
+      tense_modal: Cmavo @[3‥6) "baĭ",
+      sumti: Cmavo @[7‥9) "ri",
+    },
+    Cmavo @[10‥12) "mi",
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baĭ","span":[3,6]}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[7,9]}}}}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baĭ","span":[3,6]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[7,9]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}}}}}}}}}}]}}}}}}}}}'

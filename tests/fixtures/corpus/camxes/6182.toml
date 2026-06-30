@@ -40,15 +40,15 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥23) {
+BridiWithLeadingTerms @[0‥23) {
   leading_terms: [
     QuotedWord @[0‥5) {
       zo: Cmavo @[0‥2) "zo",
       Cmavo @[3‥5) "xa",
     },
   ],
-  SelbriBridiTail @[6‥23) {
-    Gismu @[6‥11) "súmji",
+  bridi_tail: SelbriSimpleBridiTail @[6‥23) {
+    selbri: Gismu @[6‥11) "súmji",
     terms: [
       QuotedWord @[12‥17) {
         zo: Cmavo @[12‥14) "zo",
@@ -61,4 +61,4 @@ Bridi @[0‥23) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"xa","span":[3,5]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súmji","span":[6,11]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[12,14]}},"word":{"Cmavo":{"phonemes":"ci","span":[15,17]}}}}}}}},{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[18,20]}},"word":{"Cmavo":{"phonemes":"ci","span":[21,23]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"xa","span":[3,5]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súmji","span":[6,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[12,14]}},"word":{"Cmavo":{"phonemes":"ci","span":[15,17]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[18,20]}},"word":{"Cmavo":{"phonemes":"ci","span":[21,23]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

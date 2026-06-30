@@ -20,7 +20,8 @@ use jbotci_syntax::generated_model::{
     TreeNode as GeneratedSyntaxAstTreeNode,
 };
 use jbotci_syntax::{
-    Token, WithIndicators, elidable_terminator_for_absent_field, tree::WithFreeModifiers,
+    Token, WithIndicators, elidable_terminator_for_absent_field,
+    elidable_terminator_for_absent_field_ref, tree::WithFreeModifiers,
 };
 use jbotci_tree::{FieldRef, TreeVisitor};
 
@@ -16911,8 +16912,8 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
         }
     }
 
-    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, _field: FieldRef) -> Option<Cmavo> {
-        None
+    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, field: FieldRef) -> Option<Cmavo> {
+        elidable_terminator_for_absent_field_ref(field)
     }
 
     fn custom_node_tree_value<'tree>(
@@ -16983,8 +16984,8 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         GeneratedSyntaxRenderModel::atom_end_position(atom)
     }
 
-    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, _field: FieldRef) -> Option<Cmavo> {
-        None
+    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, field: FieldRef) -> Option<Cmavo> {
+        elidable_terminator_for_absent_field_ref(field)
     }
 
     fn custom_node_tree_value<'tree>(

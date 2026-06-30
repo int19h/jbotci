@@ -34,7 +34,7 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}},{"LerfuWord"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥18) {
+BridiWithLeadingTerms @[0‥18) {
   leading_terms: [
     NumberSumti @[0‥9) {
       li: Cmavo @[0‥4) "me'o",
@@ -45,6 +45,6 @@ Bridi @[0‥18) {
     },
   ],
   cu: Cmavo @[10‥12) "cu",
-  Gismu @[13‥18) "lérfu",
+  bridi_tail: Gismu @[13‥18) "lérfu",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}}},"expression":{"LerfuStringMekso":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[6,7]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[7,9]}}}}}]}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[13,18]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[6,7]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[7,9]}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

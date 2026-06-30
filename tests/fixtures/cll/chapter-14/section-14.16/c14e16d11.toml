@@ -44,33 +44,37 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[12,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[17,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}},{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[27,29]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}},{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[33,39]}}},{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[41,43]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[44,46]}}},{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[47,56]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(mi [{ca sánli} {(ke'i bi'i ga'o gi) (la .drezdn.) gi (la .frankfurt.)}])"
+brackets = "(mi [{ca sánli} {([ke'i bi'i ga'o] gi) (la .drezdn.) gi (la .frankfurt.)}])"
 tree = """
-Bridi @[0‥56) {
+BridiWithLeadingTerms @[0‥56) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥56) {
-    TaggedSelbri @[3‥11) {
-      tense_modal: Cmavo @[3‥5) "ca",
-      Gismu @[6‥11) "sánli",
+  bridi_tail: SelbriSimpleBridiTail @[3‥56) {
+    selbri: TaggedSelbri @[3‥11) {
+      tense_modal: [
+        Cmavo @[3‥5) "ca",
+      ],
+      inner_selbri: Gismu @[6‥11) "sánli",
     },
     terms: [
-      ForethoughtSumtiConnection @[12‥56) {
-        gek: Interval @[12‥29) {
-          Cmavo @[12‥16) "ke'i",
-          Cmavo @[17‥21) "bi'i",
-          Cmavo @[22‥26) "ga'o",
-          Cmavo @[27‥29) "gi",
+      ForethoughtSumti @[12‥56) {
+        gek: JoikJekGiForethoughtConnective @[12‥29) {
+          connective: Interval @[12‥26) {
+            Cmavo @[12‥16) "ke'i",
+            Cmavo @[17‥21) "bi'i",
+            Cmavo @[22‥26) "ga'o",
+          },
+          gi: Cmavo @[27‥29) "gi",
         },
-        leading_sumti: NameDescription @[30‥39) {
+        leading_sumti: NameSumti @[30‥39) {
           la: Cmavo @[30‥32) "la",
           names: [
             Cmevla @[33‥39) "drezdn",
           ],
         },
         gik: Cmavo @[41‥43) "gi",
-        trailing_sumti: NameDescription @[44‥56) {
+        trailing_sumti: NameSumti @[44‥56) {
           la: Cmavo @[44‥46) "la",
           names: [
             Cmevla @[47‥56) "frankfurt",
@@ -80,7 +84,7 @@ Bridi @[0‥56) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}},"terms":[{"Sumti":{"ForethoughtSumtiConnection":{"gek":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[12,16]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[17,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[27,29]}}}}]}},"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[33,39]}}}}]}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[41,43]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[44,46]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[47,56]}}}}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"ForethoughtSumti":{"gek":{"JoikJekGiForethoughtConnective":{"connective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[12,16]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[17,21]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}}}}},"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[27,29]}}}}}},"leading_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[33,39]}}}}]}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[41,43]}}}}},"trailing_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[44,46]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[47,56]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:13","content":"formula:12","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"bridi"}},"predication:11":{"type":"predication","eventuality":"eventuality:6","relation":"sanli","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:9"},"x3":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"drezdn"},"source":{"span":{"byteStart":30,"byteEnd":40},"text":"la drezdn.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"frankfurt"},"source":{"span":{"byteStart":44,"byteEnd":57},"text":"la frankfurt.","construct":"sumti"}},"entity:9":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"unorderedInterval","members":["entity:7","entity:8"],"endpointInclusion":{"left":"exclusive","right":"inclusive"}},"source":{"span":{"byteStart":12,"byteEnd":57},"text":"ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"connected-sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"at","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"predication"}},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi ca sanli ke'i bi'i ga'o gi la drezdn. gi la frankfurt.","construct":"bridi"}}}}'''

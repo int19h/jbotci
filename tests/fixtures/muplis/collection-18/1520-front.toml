@@ -39,24 +39,22 @@ brackets = "(.i [mi {pónse ([no sa'e] jdíni)}])"
 tree = """
 ParagraphStatement @[1‥25) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥25) {
+  BridiWithLeadingTerms @[3‥25) {
     leading_terms: [
       Cmavo @[3‥5) "mi",
     ],
-    SelbriBridiTail @[6‥25) {
-      Gismu @[6‥11) "pónse",
+    bridi_tail: SelbriSimpleBridiTail @[6‥25) {
+      selbri: Gismu @[6‥11) "pónse",
       terms: [
-        Description @[12‥25) {
-          tail_elements: [
-            WithIndicator @[12‥19) {
-              Cmavo @[12‥14) "no",
-              indicator: Cmavo @[15‥19) "sa'e",
-            },
-          ],
-          selbri: Gismu @[20‥25) "jdíni",
+        DescriptorWithoutGadriSumti @[12‥25) {
+          quantifier: WithIndicator @[12‥19) {
+            Cmavo @[12‥14) "no",
+            indicator: Cmavo @[15‥19) "sa'e",
+          },
+          Gismu @[20‥25) "jdíni",
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[6,11]}}}}},"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}},"indicator":{"Cmavo":{"phonemes":"sa'e","span":[15,19]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jdíni","span":[20,25]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[6,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}},"indicator":{"Cmavo":{"phonemes":"sa'e","span":[15,19]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jdíni","span":[20,25]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

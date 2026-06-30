@@ -34,25 +34,31 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥29) {
-  terms: [
-    Description @[0‥8) {
-      description: Cmavo @[0‥2) "le",
-      selbri: Gismu @[3‥8) "kágni",
+TermsFragment @[0‥29) {
+  DescriptorWithGadriSumti @[0‥8) {
+    description: Cmavo @[0‥2) "le",
+    tail: DescriptionTail @[3‥8) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[3‥8) "kágni",
     },
-    PlaceTaggedSumti @[9‥29) {
-      fa: Cmavo @[9‥11) "fi",
-      Description @[12‥29) {
-        description: Cmavo @[12‥14) "le",
-        selbri: Abstraction @[15‥29) {
+  },
+  PlaceTaggedSumtiTerm @[9‥29) {
+    fa: Cmavo @[9‥11) "fi",
+    sumti: DescriptorWithGadriSumti @[12‥29) {
+      description: Cmavo @[12‥14) "le",
+      tail: DescriptionTail @[15‥29) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: AbstractionTanruUnit @[15‥29) {
           nu: Cmavo @[15‥17) "nu",
-          Tanru @[18‥29) {
-            Gismu @[18‥23) "skína",
-            Gismu @[24‥29) "gálfi",
+          subbridi: TanruSelbri @[18‥29) {
+            first_unit: Gismu @[18‥23) "skína",
+            additional_units: [
+              Gismu @[24‥29) "gálfi",
+            ],
           },
         },
       },
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[3,8]}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[15,17]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skína","span":[18,23]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gálfi","span":[24,29]}}}}}]}}}}}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[3,8]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[15,17]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skína","span":[18,23]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gálfi","span":[24,29]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

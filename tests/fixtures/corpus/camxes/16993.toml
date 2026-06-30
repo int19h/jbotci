@@ -29,16 +29,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥5) {
-  terms: [
-    PlaceTaggedSumti @[0‥2) {
-      fa: Cmavo @[0‥2) "fi",
-      ElidedSumti {},
-    },
-    PlaceTaggedSumti @[3‥5) {
-      fa: Cmavo @[3‥5) "fe",
-      ElidedSumti {},
-    },
-  ],
+TermsFragment @[0‥5) {
+  PlaceTaggedSumtiTerm @[0‥2) {
+    fa: Cmavo @[0‥2) "fi",
+    sumti: TaggedElidedSumti {},
+  },
+  PlaceTaggedSumtiTerm @[3‥5) {
+    fa: Cmavo @[3‥5) "fe",
+    sumti: TaggedElidedSumti {},
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}}},"sumti":{"ElidedSumti":{}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[3,5]}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[0,2]}}}},"sumti":{}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[3,5]}}}},"sumti":{}}}}}]}}}}}}}}}'

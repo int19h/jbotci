@@ -39,18 +39,23 @@ ParagraphStatement @[1‥32) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[4‥6) "eĭ",
   },
-  SelbriBridiTail @[7‥32) {
-    Gismu @[7‥12) "cpácu",
+  SelbriSimpleBridiTail @[7‥32) {
+    selbri: Gismu @[7‥12) "cpácu",
     terms: [
-      Description @[13‥32) {
+      DescriptorWithGadriSumti @[13‥32) {
         description: Cmavo @[13‥15) "lo",
-        selbri: Tanru @[16‥32) {
-          Gismu @[16‥21) "cníno",
-          Gismu @[22‥27) "sánce",
-          Cmavo @[28‥32) "co'e",
+        tail: DescriptionTail @[16‥32) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[16‥32) {
+            first_unit: Gismu @[16‥21) "cníno",
+            additional_units: [
+              Gismu @[22‥27) "sánce",
+              Cmavo @[28‥32) "co'e",
+            ],
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[4,6]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpácu","span":[7,12]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[13,15]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[16,21]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánce","span":[22,27]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'e","span":[28,32]}}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[4,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpácu","span":[7,12]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[13,15]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[16,21]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánce","span":[22,27]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'e","span":[28,32]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

@@ -34,17 +34,13 @@ json = """[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥24) {
-  terms: [
-    WithIndicator @[0‥24) {
-      DelimitedNonLojbanQuote @[0‥20) {
-        zoi: Cmavo @[0‥4) "la'o",
-        opening_delimiter: Cmavo @[5‥7) "gy",
-        quoted_text: Verbatim @[8‥17) "seperanto",
-        closing_delimiter: Cmavo @[18‥20) "gy",
-      },
-      indicator: Cmavo @[21‥24) "u'i",
-    },
-  ],
+WithIndicator @[0‥24) {
+  DelimitedNonLojbanQuote @[0‥20) {
+    zoi: Cmavo @[0‥4) "la'o",
+    opening_delimiter: Cmavo @[5‥7) "gy",
+    quoted_text: Verbatim @[8‥17) "seperanto",
+    closing_delimiter: Cmavo @[18‥20) "gy",
+  },
+  indicator: Cmavo @[21‥24) "u'i",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"WithIndicator":{"base":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[8,17],"text":"seperanto"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[21,24]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"WithIndicator":{"base":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[0,4]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[5,7]}},"quoted_text":{"span":[8,17],"text":"seperanto"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[18,20]}}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[21,24]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

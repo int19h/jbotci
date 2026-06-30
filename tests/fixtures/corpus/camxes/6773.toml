@@ -36,15 +36,17 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"kárni","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥53) {
-  Gismu @[0‥5) "kárni",
-  Gismu @[6‥11) "pájni",
-  Gismu @[12‥17) "cídni",
-  Gismu @[18‥23) "lázni",
-  Gismu @[24‥29) "cláni",
-  Gismu @[30‥35) "núkni",
-  Gismu @[36‥41) "nákni",
-  Gismu @[42‥47) "spéni",
-  Gismu @[48‥53) "smúni",
+TanruSelbri @[0‥53) {
+  first_unit: Gismu @[0‥5) "kárni",
+  additional_units: [
+    Gismu @[6‥11) "pájni",
+    Gismu @[12‥17) "cídni",
+    Gismu @[18‥23) "lázni",
+    Gismu @[24‥29) "cláni",
+    Gismu @[30‥35) "núkni",
+    Gismu @[36‥41) "nákni",
+    Gismu @[42‥47) "spéni",
+    Gismu @[48‥53) "smúni",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárni","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pájni","span":[6,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cídni","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lázni","span":[18,23]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cláni","span":[24,29]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núkni","span":[30,35]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nákni","span":[36,41]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spéni","span":[42,47]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smúni","span":[48,53]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárni","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pájni","span":[6,11]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cídni","span":[12,17]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lázni","span":[18,23]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cláni","span":[24,29]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núkni","span":[30,35]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nákni","span":[36,41]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spéni","span":[42,47]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smúni","span":[48,53]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

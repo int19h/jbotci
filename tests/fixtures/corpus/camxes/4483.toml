@@ -32,27 +32,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥22) {
-  terms: [
-    SumtiWithRelativeClauses @[0‥22) {
-      base_sumti: LerfuStringSumti @[0‥2) {
-        letter: [
-          Cmavo @[0‥2) "xy",
-        ],
-      },
-      relative_clauses: [
-        SumtiAssociationPhrase @[4‥22) {
-          association_marker: Cmavo @[4‥7) "goĭ",
-          Description @[8‥22) {
-            description: Cmavo @[8‥10) "le",
-            selbri: Tanru @[11‥22) {
-              Gismu @[11‥16) "xrábo",
-              Gismu @[17‥22) "bángu",
-            },
-          },
+SimpleSumti @[0‥22) {
+  base_sumti: Cmavo @[0‥2) "xy",
+  relative_clauses: SumtiAssociationRelativeClause @[4‥22) {
+    association_marker: Cmavo @[4‥7) "goĭ",
+    sumti: DescriptorWithGadriSumti @[8‥22) {
+      description: Cmavo @[8‥10) "le",
+      tail: DescriptionTail @[11‥22) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TanruSelbri @[11‥22) {
+          first_unit: Gismu @[11‥16) "xrábo",
+          additional_units: [
+            Gismu @[17‥22) "bángu",
+          ],
         },
-      ],
+      },
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrábo","span":[11,16]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bángu","span":[17,22]}}}}}]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrábo","span":[11,16]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bángu","span":[17,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

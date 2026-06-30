@@ -30,11 +30,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"za'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥18) {
-  Emphasized @[0‥12) {
+TanruSelbri @[0‥18) {
+  first_unit: Emphasized @[0‥12) {
     bahe: Cmavo @[0‥4) "za'e",
     Lujvo @[5‥12) "cmarí'a",
   },
-  Gismu @[13‥18) "sáske",
+  additional_units: [
+    Gismu @[13‥18) "sáske",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[0,4]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"rí'a"}],"span":[5,12]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[13,18]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[0,4]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cma"},{"Rafsi":"rí'a"}],"span":[5,12]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

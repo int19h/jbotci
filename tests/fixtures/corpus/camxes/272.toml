@@ -37,24 +37,24 @@ json = '[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y","span":[3,4]
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[3‥35) {
+BridiWithLeadingTerms @[3‥35) {
   leading_terms: [
-    SumtiConnection @[3‥25) {
-      leading_sumti: LerfuStringSumti @[3‥8) {
-        letter: [
-          LerfuWord @[3‥8) {
-            Cmavo @[3‥4) "y",
-            bu: Cmavo @[6‥8) "bu",
+    SumtiAfterthought @[3‥25) {
+      leading_sumti: LerfuWord @[3‥8) {
+        Cmavo @[3‥4) "y",
+        bu: Cmavo @[6‥8) "bu",
+      },
+      continuations: [
+        SumtiAfterthoughtTail @[14‥25) {
+          connective: Cmavo @[14‥15) "e",
+          sumti: QuotedWord @[16‥25) {
+            zo: Cmavo @[16‥18) "zo",
+            Cmavo @[23‥25) "cu",
           },
-        ],
-      },
-      connective: Cmavo @[14‥15) "e",
-      trailing_sumti: QuotedWord @[16‥25) {
-        zo: Cmavo @[16‥18) "zo",
-        Cmavo @[23‥25) "cu",
-      },
+        },
+      ],
     },
   ],
-  Gismu @[30‥35) "válsi",
+  bridi_tail: Gismu @[30‥35) "válsi",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y","span":[3,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[14,15]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Cmavo":{"phonemes":"cu","span":[23,25]}}}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[30,35]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y","span":[3,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[14,15]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Cmavo":{"phonemes":"cu","span":[23,25]}}}}}}}}}}}}]}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[30,35]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

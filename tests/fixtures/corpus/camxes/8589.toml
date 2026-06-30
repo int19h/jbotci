@@ -32,9 +32,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥22) {
+BridiWithLeadingTerms @[0‥22) {
   leading_terms: [
-    NameDescription @[0‥9) {
+    NameSumti @[0‥9) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[3‥9) "ĭusris",
@@ -42,9 +42,9 @@ Bridi @[0‥22) {
     },
   ],
   cu: Cmavo @[10‥12) "cu",
-  WithIndicator @[13‥22) {
+  bridi_tail: WithIndicator @[13‥22) {
     Gismu @[13‥18) "djúno",
     indicator: Cmavo @[19‥22) "caĭ",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ĭusris","span":[3,9]}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djúno","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[19,22]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ĭusris","span":[3,9]}}}}]}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djúno","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[19,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

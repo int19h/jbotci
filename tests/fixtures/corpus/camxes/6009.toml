@@ -31,17 +31,23 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥8) {
-  terms: [
-    TaggedSumti @[0‥8) {
-      tense_modal: Composite @[0‥8) {
-        Cmavo @[0‥2) "vi",
+TaggedSumtiTerm @[0‥8) {
+  tense_modal: ConnectedTenseModal @[0‥8) {
+    first: SpaceThenTimeCahaTense @[0‥4) {
+      space: Cmavo @[0‥2) "vi",
+      time: [
         Cmavo @[2‥4) "ca",
-        Cmavo @[4‥6) "ja",
-        Cmavo @[6‥8) "pu",
-      },
-      ElidedSumti {},
+      ],
     },
-  ],
+    continuations: [
+      ConnectedTenseModalContinuation @[4‥8) {
+        connective: Cmavo @[4‥6) "ja",
+        tense_modal: [
+          Cmavo @[6‥8) "pu",
+        ],
+      },
+    ],
+  },
+  sumti: TaggedElidedSumti {},
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[2,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[4,6]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[6,8]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"ConnectedTenseModal":{"first":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}}}}},"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[2,4]}}}}}]}}}}}}},"continuations":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[4,6]}}}}}},"tense_modal":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[6,8]}}}}}]}}}}}}}}]}}},"sumti":{}}}}}]}}}}}}}}}'

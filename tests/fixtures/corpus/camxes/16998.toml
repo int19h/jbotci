@@ -31,18 +31,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥14) {
-  terms: [
-    NameDescription @[0‥14) {
-      la: Cmavo @[0‥2) "la",
-      names: [
-        WithIndicator @[3‥14) {
-          Cmevla @[3‥6) "byc",
-          indicator: Cmavo @[9‥11) "ĭu",
-          nai: Cmavo @[11‥14) "naĭ",
-        },
-      ],
+NameSumti @[0‥14) {
+  la: Cmavo @[0‥2) "la",
+  names: [
+    WithIndicator @[3‥14) {
+      Cmevla @[3‥6) "byc",
+      indicator: Cmavo @[9‥11) "ĭu",
+      nai: Cmavo @[11‥14) "naĭ",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"byc","span":[3,6]}}}},"indicator":{"Cmavo":{"phonemes":"ĭu","span":[9,11]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"byc","span":[3,6]}}}},"indicator":{"Cmavo":{"phonemes":"ĭu","span":[9,11]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}}}]}}}}}}}}}}}}]}}}}}}}}}'

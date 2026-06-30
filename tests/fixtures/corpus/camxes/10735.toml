@@ -32,13 +32,13 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"L
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥15) {
+BridiWithLeadingTerms @[0‥15) {
   leading_terms: [
     QuotedWord @[0‥9) {
       zo: Cmavo @[0‥2) "zo",
       Lujvo @[3‥9) "máljbe",
     },
   ],
-  Gismu @[10‥15) "bánzu",
+  bridi_tail: Gismu @[10‥15) "bánzu",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"mál"},{"Rafsi":"jbe"}],"span":[3,9]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bánzu","span":[10,15]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"mál"},{"Rafsi":"jbe"}],"span":[3,9]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bánzu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

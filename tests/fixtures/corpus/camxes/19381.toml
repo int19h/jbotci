@@ -33,10 +33,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥18) {
   i: Cmavo @[1‥2) "i",
-  SelbriBridiTail @[3‥18) {
-    Cmavo @[3‥7) "go'i",
+  SelbriSimpleBridiTail @[3‥18) {
+    selbri: Cmavo @[3‥7) "go'i",
     terms: [
-      NameDescription @[8‥18) {
+      NameSumti @[8‥18) {
         la: Cmavo @[8‥10) "la",
         names: [
           Cmevla @[11‥18) "cikagos",
@@ -45,4 +45,4 @@ ParagraphStatement @[1‥18) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[8,10]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cikagos","span":[11,18]}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[3,7]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[8,10]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cikagos","span":[11,18]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

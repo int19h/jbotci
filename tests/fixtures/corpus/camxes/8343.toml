@@ -33,18 +33,18 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[2‥22) {
+BridiWithLeadingTerms @[2‥22) {
   leading_terms: [
     QuotedWord @[2‥12) {
       zo: Cmavo @[2‥4) "zo",
       Lujvo @[5‥12) "kastá'a",
     },
   ],
-  SelbriBridiTail @[13‥22) {
-    Lujvo @[13‥19) "brívla",
+  bridi_tail: SelbriSimpleBridiTail @[13‥22) {
+    selbri: Lujvo @[13‥19) "brívla",
     terms: [
       Cmavo @[20‥22) "ma",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Lujvo":{"parts":[{"Rafsi":"kas"},{"Rafsi":"tá'a"}],"span":[5,12]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"brí"},{"Rafsi":"vla"}],"span":[13,19]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[20,22]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Lujvo":{"parts":[{"Rafsi":"kas"},{"Rafsi":"tá'a"}],"span":[5,12]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"brí"},{"Rafsi":"vla"}],"span":[13,19]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[20,22]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

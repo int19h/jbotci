@@ -43,28 +43,32 @@ Paragraph @[0‥39) {
       indicator: Cmavo @[5‥9) "ta'o",
     },
   ],
-  Bridi @[10‥39) {
+  BridiWithLeadingTerms @[10‥39) {
     leading_terms: [
       Cmavo @[10‥12) "mi",
     ],
-    SelbriBridiTail @[13‥39) {
-      TaggedSelbri @[13‥21) {
-        tense_modal: Cmavo @[13‥15) "ca",
-        Gismu @[16‥21) "pílno",
+    bridi_tail: SelbriSimpleBridiTail @[13‥39) {
+      selbri: TaggedSelbri @[13‥21) {
+        tense_modal: [
+          Cmavo @[13‥15) "ca",
+        ],
+        inner_selbri: Gismu @[16‥21) "pílno",
       },
       terms: [
-        Description @[22‥39) {
+        DescriptorWithGadriSumti @[22‥39) {
           description: Cmavo @[22‥24) "le",
-          tail_elements: [
-            Cmavo @[25‥27) "mi",
-          ],
-          selbri: Tanru @[28‥39) {
-            Gismu @[28‥33) "tánko",
-            Gismu @[34‥39) "túbnu",
+          tail: DescriptionTail @[25‥39) {
+            leading_tail_elements: Cmavo @[25‥27) "mi",
+            tail: TanruSelbri @[28‥39) {
+              first_unit: Gismu @[28‥33) "tánko",
+              additional_units: [
+                Gismu @[34‥39) "túbnu",
+              ],
+            },
           },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"niho":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ta'o","span":[5,9]}}}}],"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[13,15]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[16,21]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[22,24]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[25,27]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tánko","span":[28,33]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túbnu","span":[34,39]}}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ta'o","span":[5,9]}}}}],"statements":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[13,15]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[16,21]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[22,24]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[25,27]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tánko","span":[28,33]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túbnu","span":[34,39]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}]}}}"""

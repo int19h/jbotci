@@ -17,36 +17,36 @@ raw = '{"frames":[{"index":0,"node":{"offset":33,"length":5},"kind":"base-selbri
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥41) {
+BridiWithLeadingTerms @[0‥41) {
   leading_terms: [
-    SumtiWithRelativeClauses @[0‥28) {
-      base_sumti: NameDescription @[0‥15) {
+    SimpleSumti @[0‥28) {
+      base_sumti: NameSumti @[0‥15) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[4‥15) "apasĭonatas",
         ],
       },
-      relative_clauses: [
-        SumtiAssociationPhrase @[16‥28) {
-          association_marker: Cmavo @[16‥18) "ne",
-          NameDescription @[19‥28) {
-            la: Cmavo @[19‥21) "la",
-            names: [
-              Cmevla @[22‥28) "betovn",
-            ],
-          },
+      relative_clauses: SumtiAssociationRelativeClause @[16‥28) {
+        association_marker: Cmavo @[16‥18) "ne",
+        sumti: NameSumti @[19‥28) {
+          la: Cmavo @[19‥21) "la",
+          names: [
+            Cmevla @[22‥28) "betovn",
+          ],
         },
-      ],
+      },
     },
   ],
-  SelbriBridiTail @[30‥41) {
-    ConvertedSelbri @[30‥38) {
-      se: Cmavo @[30‥32) "se",
-      Gismu @[33‥38) "nélci",
+  bridi_tail: SelbriSimpleBridiTail @[30‥41) {
+    selbri: TanruUnitAtom @[30‥38) {
+      conversions: [
+        Cmavo @[30‥32) "se",
+      ],
+      base: Gismu @[33‥38) "nélci",
     },
     terms: [
       Cmavo @[39‥41) "mi",
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"apasĭonatas","span":[4,15]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[16,18]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"betovn","span":[22,28]}}}}]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[30,32]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[33,38]}}}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[39,41]}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"apasĭonatas","span":[4,15]}}}}]}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[16,18]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"betovn","span":[22,28]}}}}]}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[30,32]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[33,38]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[39,41]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

@@ -29,17 +29,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Negated @[3‥21) {
+NegatedSelbri @[3‥21) {
   na: Cmavo @[3‥5) "na",
-  TaggedSelbri @[6‥21) {
-    tense_modal: Composite @[6‥10) {
-      Cmavo @[6‥8) "pu",
-      Cmavo @[8‥10) "zi",
-    },
-    WithIndicator @[11‥21) {
+  inner_selbri: TaggedSelbri @[6‥21) {
+    tense_modal: [
+      PuTimeOffsetTense @[6‥10) {
+        pu: Cmavo @[6‥8) "pu",
+        distance: Cmavo @[8‥10) "zi",
+      },
+    ],
+    inner_selbri: WithIndicator @[11‥21) {
       Gismu @[11‥16) "zváti",
       indicator: Cmavo @[17‥21) "zo'o",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[6,8]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[8,10]}}}}}]}},"inner_selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[17,21]}}}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[6,8]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[8,10]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[17,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

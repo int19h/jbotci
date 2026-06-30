@@ -34,21 +34,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"PlainWord":{"C
 tree = """
 Text @[0‥14) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  Terms @[3‥14) {
-    terms: [
-      SumtiConnection @[3‥14) {
-        leading_sumti: Cmavo @[3‥5) "da",
+  SumtiAfterthought @[3‥14) {
+    leading_sumti: Cmavo @[3‥5) "da",
+    continuations: [
+      SumtiAfterthoughtTail @[7‥14) {
         connective: Afterthought @[7‥11) {
           Cmavo @[7‥8) "o",
           nai: Cmavo @[8‥11) "naĭ",
         },
-        trailing_sumti: Cmavo @[12‥14) "de",
+        sumti: Cmavo @[12‥14) "de",
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[3,5]}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[7,8]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}}},"trailing_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[12,14]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[3,5]}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[7,8]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[12,14]}}}}}}}}}}]}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}'

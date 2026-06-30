@@ -39,36 +39,32 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "([tu'o {mo (ceĭ bróda)}] zo'u [{la .emilin.} bróda])"
 tree = """
-Prenex @[0‥39) {
+PrenexStatement @[0‥39) {
   prenex_terms: [
-    Description @[0‥17) {
-      tail_elements: [
-        Cmavo @[0‥4) "tu'o",
-      ],
-      selbri: AssignedProBridi @[5‥17) {
-        ProBridi @[5‥7) {
-          goha: Cmavo @[5‥7) "mo",
-        },
+    DescriptorWithoutGadriSumti @[0‥17) {
+      quantifier: Cmavo @[0‥4) "tu'o",
+      AssignedProBridiTanruUnit @[5‥17) {
+        base: Cmavo @[5‥7) "mo",
         assignments: [
-          ProBridiAssignment @[8‥17) {
+          ProBridiTanruUnitAssignment @[8‥17) {
             cei: Cmavo @[8‥11) "ceĭ",
-            Gismu @[12‥17) "bróda",
+            tanru_unit: Gismu @[12‥17) "bróda",
           },
         ],
       },
     },
   ],
   zohu: Cmavo @[18‥22) "zo'u",
-  Bridi @[23‥39) {
+  BridiWithLeadingTerms @[23‥39) {
     leading_terms: [
-      NameDescription @[23‥32) {
+      NameSumti @[23‥32) {
         la: Cmavo @[23‥25) "la",
         names: [
           Cmevla @[26‥32) "emilin",
         ],
       },
     ],
-    Gismu @[34‥39) "bróda",
+    bridi_tail: Gismu @[34‥39) "bróda",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Prenex":{"prenex_terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[0,4]}}}}]}}}],"selbri":{"Tanru":[{"AssignedProBridi":{"base":{"ProBridi":{"goha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[5,7]}}}}}},"assignments":[{"cei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ceĭ","span":[8,11]}}}},"tanru_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[12,17]}}}}}}]}}]}}}}],"zohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zo'u","span":[18,22]}}}},"inner_statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"emilin","span":[26,32]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[34,39]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"PrenexStatement":{"prenex_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[0,4]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"AssignedProBridiTanruUnit":{"base":{"base":{"base":{"ProBridiTanruUnit":{"goha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[5,7]}}}}}}}},"assignments":[{"cei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ceĭ","span":[8,11]}}}},"tanru_unit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[12,17]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"zohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zo'u","span":[18,22]}}}},"inner_statement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"emilin","span":[26,32]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[34,39]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

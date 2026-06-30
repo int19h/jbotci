@@ -34,19 +34,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥19) {
-  terms: [
-    Description @[0‥19) {
-      description: Cmavo @[0‥2) "le",
-      selbri: LinkedSumtiTanruUnit @[3‥19) {
-        Lujvo @[3‥10) "selmá'o",
+DescriptorWithGadriSumti @[0‥19) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[3‥19) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: LinkedTanruUnit @[3‥19) {
+      base: Lujvo @[3‥10) "selmá'o",
+      linkargs: Linkargs @[11‥19) {
         be: Cmavo @[11‥13) "be",
-        first_sumti: QuotedWord @[14‥19) {
+        first_link: QuotedWord @[14‥19) {
           zo: Cmavo @[14‥16) "zo",
           Cmavo @[17‥19) "nu",
         },
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"má'o"}],"span":[3,10]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[11,13]}}}},"first_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[14,16]}},"word":{"Cmavo":{"phonemes":"nu","span":[17,19]}}}}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"má'o"}],"span":[3,10]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[11,13]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[14,16]}},"word":{"Cmavo":{"phonemes":"nu","span":[17,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -12,13 +12,13 @@ raw = '{"frames":[{"index":0,"node":{"offset":6,"length":5},"kind":"base-selbri"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥11) {
+BridiWithLeadingTerms @[0‥11) {
   leading_terms: [
-    PlaceTaggedSumti @[0‥5) {
+    PlaceTaggedSumtiTerm @[0‥5) {
       fa: Cmavo @[0‥2) "fa",
-      Cmavo @[3‥5) "do",
+      sumti: Cmavo @[3‥5) "do",
     },
   ],
-  Gismu @[6‥11) "bróda",
+  bridi_tail: Gismu @[6‥11) "bróda",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[0,2]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[6,11]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[0,2]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[6,11]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

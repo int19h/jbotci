@@ -33,26 +33,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"taĭ","span":[8,11]}}},{"PlainWord
 
 [expectations.output.gentufa]
 tree = """
-Terms @[8‥39) {
-  terms: [
-    TaggedSumti @[8‥39) {
-      tense_modal: Modal @[8‥11) {
-        bai: Cmavo @[8‥11) "taĭ",
-      },
-      Description @[12‥39) {
-        description: Cmavo @[12‥14) "lo",
+TaggedSumtiTerm @[8‥39) {
+  tense_modal: Cmavo @[8‥11) "taĭ",
+  sumti: DescriptorWithGadriSumti @[12‥39) {
+    description: Cmavo @[12‥14) "lo",
+    tail: DescriptionTail @[15‥39) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: RelationDescriptionTail @[15‥39) {
         selbri: Lujvo @[15‥23) "malnínmu",
-        relative_clauses: [
-          SumtiAssociationPhrase @[24‥39) {
-            association_marker: Cmavo @[24‥26) "pe",
-            Description @[27‥39) {
-              description: Cmavo @[27‥29) "lo",
-              selbri: Lujvo @[30‥39) "ca'irná'e",
+        relative_clauses: SumtiAssociationRelativeClause @[24‥39) {
+          association_marker: Cmavo @[24‥26) "pe",
+          sumti: DescriptorWithGadriSumti @[27‥39) {
+            description: Cmavo @[27‥29) "lo",
+            tail: DescriptionTail @[30‥39) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: Lujvo @[30‥39) "ca'irná'e",
             },
           },
-        ],
+        },
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"taĭ","span":[8,11]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[12,14]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"nínmu"}],"span":[15,23]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[24,26]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ca'ir"},{"Rafsi":"ná'e"}],"span":[30,39]}}}}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"taĭ","span":[8,11]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"nínmu"}],"span":[15,23]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[24,26]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ca'ir"},{"Rafsi":"ná'e"}],"span":[30,39]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

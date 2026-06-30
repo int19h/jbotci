@@ -48,33 +48,29 @@ tree = """
 json = """[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[1,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}},{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[13,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[17,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"zy","span":[20,22]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[26,28]}}}},{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[29,31]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([y'y bu] [.a bu] ny vo zy [.i bu] vo)"
+brackets = "([y'y bu] [{.a bu} ny vo zy {.i bu} vo])"
 tree = """
-Terms @[1‥31) {
-  terms: [
-    LerfuStringSumti @[1‥31) {
-      letter: [
-        LerfuWord @[1‥7) {
-          Cmavo @[1‥4) "y'y",
-          bu: Cmavo @[5‥7) "bu",
-        },
-        LerfuWord @[9‥12) {
-          Cmavo @[9‥10) "a",
-          bu: Cmavo @[10‥12) "bu",
-        },
-        Cmavo @[13‥15) "ny",
-        Cmavo @[17‥19) "vo",
-        Cmavo @[20‥22) "zy",
-        LerfuWord @[25‥28) {
-          Cmavo @[25‥26) "i",
-          bu: Cmavo @[26‥28) "bu",
-        },
-        Cmavo @[29‥31) "vo",
-      ],
+LetterString @[1‥31) {
+  first_letter: LerfuWord @[1‥7) {
+    Cmavo @[1‥4) "y'y",
+    bu: Cmavo @[5‥7) "bu",
+  },
+  continuations: [
+    LerfuWord @[9‥12) {
+      Cmavo @[9‥10) "a",
+      bu: Cmavo @[10‥12) "bu",
     },
+    Cmavo @[13‥15) "ny",
+    Cmavo @[17‥19) "vo",
+    Cmavo @[20‥22) "zy",
+    LerfuWord @[25‥28) {
+      Cmavo @[25‥26) "i",
+      bu: Cmavo @[26‥28) "bu",
+    },
+    Cmavo @[29‥31) "vo",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[1,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[13,15]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[17,19]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zy","span":[20,22]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[26,28]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[29,31]}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[1,4]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[13,15]}}}}}},{"LetterStringPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[17,19]}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zy","span":[20,22]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[26,28]}}}}}}},{"LetterStringPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[29,31]}}}}}]}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:7","content":"sign:6","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":1,"byteEnd":31},"text":"y'y.bu .abu ny. vo zy. .ibu vo","construct":"fragment"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:7":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":1,"byteEnd":31},"text":"y'y.bu .abu ny. vo zy. .ibu vo","construct":"fragment"}},"sign:6":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"han4zi4","letterals":[{"kind":"glyph","sourceWords":["y'y","bu"],"text":"cmavo:y'y-cmavo:bu","value":"h","buDepth":1},{"kind":"glyph","sourceWords":["a","bu"],"text":"cmavo:a-cmavo:bu","value":"a","buDepth":1},{"kind":"glyph","sourceWords":["ny"],"text":"ny","value":"n"},{"kind":"digit","sourceWords":["vo"],"text":"vo","value":"4"},{"kind":"glyph","sourceWords":["zy"],"text":"zy","value":"z"},{"kind":"glyph","sourceWords":["i","bu"],"text":"cmavo:i-cmavo:bu","value":"i","buDepth":1},{"kind":"digit","sourceWords":["vo"],"text":"vo","value":"4"}],"source":{"span":{"byteStart":1,"byteEnd":31},"text":"y'y.bu .abu ny. vo zy. .ibu vo","construct":"letteral"}}}}'''

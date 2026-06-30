@@ -31,20 +31,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥15) {
+BridiWithLeadingTerms @[0‥15) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  TanruUnitWord @[3‥15) {
+  bridi_tail: WordTanruUnit @[3‥15) {
     Gismu @[3‥8) "tcídu",
     free_modifiers: [
-      UtteranceOrdinal @[9‥15) {
-        number: [
-          Cmavo @[9‥11) "pa",
-        ],
+      MaiFreeModifier @[9‥15) {
+        number: Cmavo @[9‥11) "pa",
         mai: Cmavo @[11‥15) "mo'o",
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcídu","span":[3,8]}}}},{"UtteranceOrdinal":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[9,11]}}}}],"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'o","span":[11,15]}}}}}}]}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcídu","span":[3,8]}}}},{"MaiFreeModifier":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[9,11]}}}}}},"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'o","span":[11,15]}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

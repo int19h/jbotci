@@ -50,41 +50,45 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥78) {
+BridiWithLeadingTerms @[0‥78) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥78) {
-    Gismu @[3‥8) "djúno",
+  bridi_tail: SelbriSimpleBridiTail @[3‥78) {
+    selbri: Gismu @[3‥8) "djúno",
     terms: [
-      PlaceTaggedSumti @[9‥78) {
+      PlaceTaggedSumtiTerm @[9‥78) {
         fa: Cmavo @[9‥11) "fi",
-        SumtiConnection @[12‥78) {
-          leading_sumti: SumtiConnection @[12‥58) {
-            leading_sumti: DelimitedNonLojbanQuote @[12‥33) {
-              zoi: Cmavo @[12‥15) "zoĭ",
-              opening_delimiter: Cmavo @[16‥18) "ry",
-              quoted_text: Verbatim @[19‥30) "zdrastvuche",
-              closing_delimiter: Cmavo @[31‥33) "ry",
-            },
-            connective: Cmavo @[34‥37) "joĭ",
-            trailing_sumti: DelimitedNonLojbanQuote @[38‥58) {
-              zoi: Cmavo @[38‥41) "zoĭ",
-              opening_delimiter: Cmavo @[42‥44) "ry",
-              quoted_text: Verbatim @[45‥55) "daswidania",
-              closing_delimiter: Cmavo @[56‥58) "ry",
-            },
+        sumti: SumtiAfterthought @[12‥78) {
+          leading_sumti: DelimitedNonLojbanQuote @[12‥33) {
+            zoi: Cmavo @[12‥15) "zoĭ",
+            opening_delimiter: Cmavo @[16‥18) "ry",
+            quoted_text: Verbatim @[19‥30) "zdrastvuche",
+            closing_delimiter: Cmavo @[31‥33) "ry",
           },
-          connective: Cmavo @[59‥62) "joĭ",
-          trailing_sumti: DelimitedNonLojbanQuote @[63‥78) {
-            zoi: Cmavo @[63‥66) "zoĭ",
-            opening_delimiter: Cmavo @[67‥69) "ry",
-            quoted_text: Verbatim @[70‥75) "sraka",
-            closing_delimiter: Cmavo @[76‥78) "ry",
-          },
+          continuations: [
+            SumtiAfterthoughtTail @[34‥58) {
+              connective: Cmavo @[34‥37) "joĭ",
+              sumti: DelimitedNonLojbanQuote @[38‥58) {
+                zoi: Cmavo @[38‥41) "zoĭ",
+                opening_delimiter: Cmavo @[42‥44) "ry",
+                quoted_text: Verbatim @[45‥55) "daswidania",
+                closing_delimiter: Cmavo @[56‥58) "ry",
+              },
+            },
+            SumtiAfterthoughtTail @[59‥78) {
+              connective: Cmavo @[59‥62) "joĭ",
+              sumti: DelimitedNonLojbanQuote @[63‥78) {
+                zoi: Cmavo @[63‥66) "zoĭ",
+                opening_delimiter: Cmavo @[67‥69) "ry",
+                quoted_text: Verbatim @[70‥75) "sraka",
+                closing_delimiter: Cmavo @[76‥78) "ry",
+              },
+            },
+          ],
         },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djúno","span":[3,8]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[12,15]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[16,18]}},"quoted_text":{"span":[19,30],"text":"zdrastvuche"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[31,33]}}}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[34,37]}}}}]}},"trailing_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[38,41]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[42,44]}},"quoted_text":{"span":[45,55],"text":"daswidania"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[56,58]}}}}}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[59,62]}}}}]}},"trailing_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[63,66]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[67,69]}},"quoted_text":{"span":[70,75],"text":"sraka"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[76,78]}}}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djúno","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[12,15]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[16,18]}},"quoted_text":{"span":[19,30],"text":"zdrastvuche"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[31,33]}}}}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[34,37]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[38,41]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[42,44]}},"quoted_text":{"span":[45,55],"text":"daswidania"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[56,58]}}}}}}}}}}}},{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[59,62]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[63,66]}},"opening_delimiter":{"Cmavo":{"phonemes":"ry","span":[67,69]}},"quoted_text":{"span":[70,75],"text":"sraka"},"closing_delimiter":{"Cmavo":{"phonemes":"ry","span":[76,78]}}}}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}'

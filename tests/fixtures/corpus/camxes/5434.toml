@@ -32,15 +32,17 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"míntu","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥25) {
-  Gismu @[0‥5) "míntu",
-  TanruUnitConnection @[6‥25) {
-    leading_unit: Lujvo @[6‥14) "nuncásnu",
-    connective: Selbri @[15‥19) {
-      se: Cmavo @[15‥17) "se",
-      Cmavo @[17‥19) "ju",
+TanruSelbri @[0‥25) {
+  first_unit: Gismu @[0‥5) "míntu",
+  additional_units: [
+    TanruUnit @[6‥25) {
+      Lujvo @[6‥14) "nuncásnu",
+      Selbri @[15‥19) {
+        se: Cmavo @[15‥17) "se",
+        Cmavo @[17‥19) "ju",
+      },
+      Gismu @[20‥25) "másno",
     },
-    trailing_unit: Gismu @[20‥25) "másno",
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"míntu","span":[0,5]}}}}},{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nun"},{"Rafsi":"cásnu"}],"span":[6,14]}}}}},"connective":{"Selbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[15,17]}}}},"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[17,19]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"másno","span":[20,25]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"míntu","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nun"},{"Rafsi":"cásnu"}],"span":[6,14]}}}}}}}},"links":[{"connective":{"JekConnective":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[15,17]}}}},"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[17,19]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"másno","span":[20,25]}}}}}}}}}]}]}}}}}}}}}}}}}}}}}}}}}}'

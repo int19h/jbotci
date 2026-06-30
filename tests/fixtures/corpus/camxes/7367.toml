@@ -39,32 +39,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}},{"PlainWord":
 tree = """
 Text @[1‥32) {
   leading_indicators: [
-    Indicator @[1‥6) {
-      indicator: WithIndicator @[1‥6) {
-        Cmavo @[1‥3) "ŭa",
-        indicator: Cmavo @[4‥6) "xu",
-      },
+    WithIndicator @[1‥6) {
+      Cmavo @[1‥3) "ŭa",
+      indicator: Cmavo @[4‥6) "xu",
     },
   ],
-  Terms @[7‥32) {
-    terms: [
-      TextQuote @[7‥32) {
-        lu: Cmavo @[7‥9) "lu",
-        Terms @[10‥27) {
-          terms: [
-            QuotedWord @[10‥21) {
-              zo: Cmavo @[10‥12) "zo",
-              Lujvo @[13‥21) "nalslábu",
-            },
-          ],
-          vau: WithIndicator @[22‥27) {
-            Cmavo @[22‥25) "vaŭ",
-            indicator: Cmavo @[25‥27) "xu",
-          },
-        },
-        lihu: Cmavo @[28‥32) "li'u",
+  TextQuote @[7‥32) {
+    lu: Cmavo @[7‥9) "lu",
+    text: TermsFragment @[10‥27) {
+      QuotedWord @[10‥21) {
+        zo: Cmavo @[10‥12) "zo",
+        Lujvo @[13‥21) "nalslábu",
       },
-    ],
+      vau: WithIndicator @[22‥27) {
+        Cmavo @[22‥25) "vaŭ",
+        indicator: Cmavo @[25‥27) "xu",
+      },
+    },
+    lihu: Cmavo @[28‥32) "li'u",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[7,9]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"slábu"}],"span":[13,21]}}}}}}}}],"vau":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaŭ","span":[22,25]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[25,27]}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[28,32]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[4,6]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[7,9]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"slábu"}],"span":[13,21]}}}}}}}}}}}}}}}}}],"vau":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaŭ","span":[22,25]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[25,27]}}}}}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[28,32]}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[4,6]}}}}}]}}"""

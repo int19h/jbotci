@@ -32,13 +32,19 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥19) {
-  LinkedSumtiTanruUnit @[0‥13) {
-    Gismu @[0‥5) "dúkse",
-    be: Cmavo @[6‥8) "be",
-    fa: Cmavo @[8‥10) "fi",
-    first_sumti: Cmavo @[11‥13) "mi",
+TanruSelbri @[0‥19) {
+  first_unit: LinkedTanruUnit @[0‥13) {
+    base: Gismu @[0‥5) "dúkse",
+    linkargs: Linkargs @[6‥13) {
+      be: Cmavo @[6‥8) "be",
+      first_link: PlaceTaggedLinkedSumti @[8‥13) {
+        fa: Cmavo @[8‥10) "fi",
+        sumti: Cmavo @[11‥13) "mi",
+      },
+    },
   },
-  Gismu @[14‥19) "xríso",
+  additional_units: [
+    Gismu @[14‥19) "xríso",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[0,5]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[8,10]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xríso","span":[14,19]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[0,5]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"first_link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[8,10]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xríso","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

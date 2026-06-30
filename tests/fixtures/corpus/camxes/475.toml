@@ -38,29 +38,34 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ba'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥35) {
   leading_indicators: [
-    Indicator @[0‥8) {
-      indicator: WithIndicator @[0‥8) {
-        Cmavo @[0‥4) "ba'a",
-        indicator: Cmavo @[4‥8) "cu'i",
-      },
+    WithIndicator @[0‥8) {
+      Cmavo @[0‥4) "ba'a",
+      indicator: Cmavo @[4‥8) "cu'i",
     },
   ],
-  Bridi @[9‥35) {
+  BridiWithLeadingTerms @[9‥35) {
     leading_terms: [
-      Description @[9‥23) {
+      DescriptorWithGadriSumti @[9‥23) {
         description: Cmavo @[9‥11) "le",
-        selbri: LinkedSumtiTanruUnit @[12‥23) {
-          Gismu @[12‥17) "túple",
-          be: Cmavo @[18‥20) "be",
-          first_sumti: Cmavo @[21‥23) "mi",
+        tail: DescriptionTail @[12‥23) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: LinkedTanruUnit @[12‥23) {
+            base: Gismu @[12‥17) "túple",
+            linkargs: Linkargs @[18‥23) {
+              be: Cmavo @[18‥20) "be",
+              first_link: Cmavo @[21‥23) "mi",
+            },
+          },
         },
       },
     ],
     cu: Cmavo @[24‥26) "cu",
-    ConvertedSelbri @[27‥35) {
-      se: Cmavo @[27‥29) "se",
-      Gismu @[30‥35) "córtu",
+    bridi_tail: TanruUnitAtom @[27‥35) {
+      conversions: [
+        Cmavo @[27‥29) "se",
+      ],
+      base: Gismu @[30‥35) "córtu",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túple","span":[12,17]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[18,20]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[21,23]}}}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[24,26]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"córtu","span":[30,35]}}}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba'a","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[4,8]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túple","span":[12,17]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[18,20]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[21,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[24,26]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"córtu","span":[30,35]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba'a","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[4,8]}}}}}]}}"""

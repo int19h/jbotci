@@ -32,17 +32,23 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥18) {
-  OrdinalSelbri @[0‥9) {
-    number: [
-      Cmavo @[0‥4) "ni'u",
-      Cmavo @[4‥6) "pa",
-    ],
+TanruSelbri @[0‥18) {
+  first_unit: OrdinalTanruUnit @[0‥9) {
+    number: NumberWords @[0‥6) {
+      first_number: Cmavo @[0‥4) "ni'u",
+      continuations: [
+        Cmavo @[4‥6) "pa",
+      ],
+    },
     moi: Cmavo @[6‥9) "moĭ",
   },
-  ConvertedTanruUnit @[10‥18) {
-    se: Cmavo @[10‥12) "se",
-    Gismu @[13‥18) "gásnu",
-  },
+  additional_units: [
+    TanruUnitAtom @[10‥18) {
+      conversions: [
+        Cmavo @[10‥12) "se",
+      ],
+      base: Gismu @[13‥18) "gásnu",
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[4,6]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[6,9]}}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[10,12]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gásnu","span":[13,18]}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[4,6]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[6,9]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[10,12]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gásnu","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

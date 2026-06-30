@@ -43,42 +43,42 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥50) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "pe'i",
-    },
+    Cmavo @[0‥4) "pe'i",
   ],
-  Terms @[5‥50) {
-    terms: [
-      TaggedSumti @[5‥12) {
-        tense_modal: Modal @[5‥9) {
-          bai: Cmavo @[5‥9) "cu'u",
-        },
-        LerfuStringSumti @[10‥12) {
-          letter: [
-            Cmavo @[10‥12) "py",
+  TermsFragment @[5‥50) {
+    TaggedSumtiTerm @[5‥12) {
+      tense_modal: Cmavo @[5‥9) "cu'u",
+      sumti: Cmavo @[10‥12) "py",
+    },
+    DescriptorWithGadriSumti @[14‥37) {
+      description: Cmavo @[14‥16) "le",
+      tail: DescriptionTail @[17‥37) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TanruSelbri @[17‥37) {
+          first_unit: LinkedTanruUnit @[17‥31) {
+            base: Gismu @[17‥22) "cmávo",
+            linkargs: Linkargs @[23‥31) {
+              be: Cmavo @[23‥25) "be",
+              first_link: QuotedWord @[26‥31) {
+                zo: Cmavo @[26‥28) "zo",
+                Cmavo @[29‥31) "ŭi",
+              },
+            },
+          },
+          additional_units: [
+            Gismu @[32‥37) "fríca",
           ],
         },
       },
-      Description @[14‥37) {
-        description: Cmavo @[14‥16) "le",
-        selbri: Tanru @[17‥37) {
-          LinkedSumtiTanruUnit @[17‥31) {
-            Gismu @[17‥22) "cmávo",
-            be: Cmavo @[23‥25) "be",
-            first_sumti: QuotedWord @[26‥31) {
-              zo: Cmavo @[26‥28) "zo",
-              Cmavo @[29‥31) "ŭi",
-            },
-          },
-          Gismu @[32‥37) "fríca",
-        },
+    },
+    DescriptorWithGadriSumti @[38‥47) {
+      description: Cmavo @[38‥40) "le",
+      tail: DescriptionTail @[41‥47) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Lujvo @[41‥47) "brívla",
       },
-      Description @[38‥47) {
-        description: Cmavo @[38‥40) "le",
-        selbri: Lujvo @[41‥47) "brívla",
-      },
-      Cmavo @[48‥50) "da",
-    ],
+    },
+    Cmavo @[48‥50) "da",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[5,9]}}}}}},"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"py","span":[10,12]}}}}]}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmávo","span":[17,22]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[23,25]}}}},"first_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[26,28]}},"word":{"Cmavo":{"phonemes":"ŭi","span":[29,31]}}}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[32,37]}}}}}]}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[38,40]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"brí"},{"Rafsi":"vla"}],"span":[41,47]}}}}}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[48,50]}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[5,9]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"py","span":[10,12]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmávo","span":[17,22]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[23,25]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[26,28]}},"word":{"Cmavo":{"phonemes":"ŭi","span":[29,31]}}}}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[32,37]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[38,40]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"brí"},{"Rafsi":"vla"}],"span":[41,47]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[48,50]}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}}"""

@@ -17,33 +17,31 @@ raw = '{"frames":[{"index":0,"node":{"offset":12,"length":11},"kind":"base-selbr
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥43) {
-  Terms @[0‥23) {
-    terms: [
-      SumtiWithRelativeClauses @[0‥23) {
-        base_sumti: Cmavo @[0‥4) "fo'a",
-        relative_clauses: [
-          SumtiAssociationPhrase @[5‥23) {
-            association_marker: Cmavo @[5‥8) "goĭ",
-            Description @[9‥23) {
-              description: Cmavo @[9‥11) "le",
-              selbri: Fuhivla @[12‥23) "kulnrsŭómi",
-            },
-          },
-        ],
-      },
-    ],
-  },
-  ParagraphStatement @[25‥43) {
-    i: Cmavo @[25‥26) "i",
-    Terms @[27‥43) {
-      terms: [
-        Description @[27‥43) {
-          description: Cmavo @[27‥29) "lo",
-          selbri: Lujvo @[30‥43) "fo'arselsánga",
+ParagraphStatementSequence @[0‥43) {
+  SimpleSumti @[0‥23) {
+    base_sumti: Cmavo @[0‥4) "fo'a",
+    relative_clauses: SumtiAssociationRelativeClause @[5‥23) {
+      association_marker: Cmavo @[5‥8) "goĭ",
+      sumti: DescriptorWithGadriSumti @[9‥23) {
+        description: Cmavo @[9‥11) "le",
+        tail: DescriptionTail @[12‥23) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Fuhivla @[12‥23) "kulnrsŭómi",
         },
-      ],
+      },
     },
   },
+  following: [
+    ParagraphStatement @[25‥43) {
+      i: Cmavo @[25‥26) "i",
+      DescriptorWithGadriSumti @[27‥43) {
+        description: Cmavo @[27‥29) "lo",
+        tail: DescriptionTail @[30‥43) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[30‥43) "fo'arselsánga",
+        },
+      },
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo'a","span":[0,4]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"kulnrsŭómi","span":[12,23]}}}}}}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fo'ar"},{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[30,43]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo'a","span":[0,4]}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"kulnrsŭómi","span":[12,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fo'ar"},{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[30,43]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}]}}}}}}"""

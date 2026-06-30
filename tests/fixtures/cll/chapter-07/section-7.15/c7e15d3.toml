@@ -41,36 +41,34 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fo'a","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "([fo'a {goĭ (le kulnrsu'ómi)}] [.i {lo fo'arselsánga}])"
 tree = """
-Paragraph @[0‥43) {
-  Terms @[0‥23) {
-    terms: [
-      SumtiWithRelativeClauses @[0‥23) {
-        base_sumti: Cmavo @[0‥4) "fo'a",
-        relative_clauses: [
-          SumtiAssociationPhrase @[5‥23) {
-            association_marker: Cmavo @[5‥8) "goĭ",
-            Description @[9‥23) {
-              description: Cmavo @[9‥11) "le",
-              selbri: Fuhivla @[12‥23) "kulnrsu'ómi",
-            },
-          },
-        ],
-      },
-    ],
-  },
-  ParagraphStatement @[25‥43) {
-    i: Cmavo @[25‥26) "i",
-    Terms @[27‥43) {
-      terms: [
-        Description @[27‥43) {
-          description: Cmavo @[27‥29) "lo",
-          selbri: Lujvo @[30‥43) "fo'arselsánga",
+ParagraphStatementSequence @[0‥43) {
+  SimpleSumti @[0‥23) {
+    base_sumti: Cmavo @[0‥4) "fo'a",
+    relative_clauses: SumtiAssociationRelativeClause @[5‥23) {
+      association_marker: Cmavo @[5‥8) "goĭ",
+      sumti: DescriptorWithGadriSumti @[9‥23) {
+        description: Cmavo @[9‥11) "le",
+        tail: DescriptionTail @[12‥23) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Fuhivla @[12‥23) "kulnrsu'ómi",
         },
-      ],
+      },
     },
   },
+  following: [
+    ParagraphStatement @[25‥43) {
+      i: Cmavo @[25‥26) "i",
+      DescriptorWithGadriSumti @[27‥43) {
+        description: Cmavo @[27‥29) "lo",
+        tail: DescriptionTail @[30‥43) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[30‥43) "fo'arselsánga",
+        },
+      },
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo'a","span":[0,4]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"kulnrsu'ómi","span":[12,23]}}}}}}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fo'ar"},{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[30,43]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo'a","span":[0,4]}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"kulnrsu'ómi","span":[12,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fo'ar"},{"Rafsi":"sel"},{"Rafsi":"sánga"}],"span":[30,43]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}]}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:21","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:15","content":"entity:7","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":23},"text":"fo'a goi le kulnrsu'omi","construct":"fragment"}},"utterance:6":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:20","content":"entity:16","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":27,"byteEnd":43},"text":"lo fo'arselsanga","construct":"fragment"}},"sequence:21":{"type":"sequence","items":["utterance:5","utterance:6"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":43},"text":"fo'a goi le kulnrsu'omi .i lo fo'arselsanga","construct":"text"}},"parameter:8":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":12,"byteEnd":23},"text":"kulnrsu'omi","construct":"speaker-description-property"}},"predication:10":{"type":"predication","relation":"kulnrsu'omi","arguments":{"x1":{"kind":"filled","value":"parameter:8"},"x2":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":12,"byteEnd":23},"text":"kulnrsu'omi","construct":"restrictive-predication"}},"predication:13":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:12"}},"mode":"incidental","source":{"span":{"byteStart":9,"byteEnd":23},"text":"le kulnrsu'omi","construct":"speaker-description"}},"predication:18":{"type":"predication","relation":"fo'arselsanga","arguments":{"x1":{"kind":"filled","value":"entity:16"}},"mode":"restrictive","relationMetadata":"relationMetadata:17","source":{"span":{"byteStart":30,"byteEnd":43},"text":"fo'arselsanga","construct":"restrictive-predication"},"diagnostics":[{"severity":"warning","message":"relation place structure is unavailable; only places required by explicit assignments are represented"}]},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":12,"byteEnd":23},"text":"kulnrsu'omi","construct":"restrictive-formula"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":9,"byteEnd":23},"text":"le kulnrsu'omi","construct":"speaker-description"}},"formula:19":{"type":"formula","operator":"atom","predication":"predication:18","source":{"span":{"byteStart":30,"byteEnd":43},"text":"fo'arselsanga","construct":"restrictive-formula"}},"relationMetadata:17":{"type":"relationMetadata","relation":"fo'arselsanga","sourceWords":["fo'a","se","sanga"],"expansion":{"kind":"lujvo","sourceWords":["fo'ar","sel","sanga"],"rafsiBindings":[{"rafsi":"fo'ar","sourceWord":"fo'a","referent":"entity:7"}]},"source":{"span":{"byteStart":30,"byteEnd":43},"text":"fo'arselsanga","construct":"restrictive-predication"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:14"},"assignedNames":[{"name":"fo'a","word":"fo'a","introducedBy":"goi","source":{"span":{"byteStart":5,"byteEnd":23},"text":"goi le kulnrsu'omi","construct":"assigned-name"}}],"source":{"span":{"byteStart":9,"byteEnd":23},"text":"le kulnrsu'omi","construct":"description"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:19"},"source":{"span":{"byteStart":27,"byteEnd":43},"text":"lo fo'arselsanga","construct":"description"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:15":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":23},"text":"fo'a goi le kulnrsu'omi","construct":"fragment"}},"eventuality/locution:20":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":27,"byteEnd":43},"text":"lo fo'arselsanga","construct":"fragment"}},"relation:12":{"type":"referent","category":"constant","sort":"relation","body":"formula:11","parameters":["parameter:8"],"arity":1,"source":{"span":{"byteStart":12,"byteEnd":23},"text":"kulnrsu'omi","construct":"speaker-description-property"}}}}'''

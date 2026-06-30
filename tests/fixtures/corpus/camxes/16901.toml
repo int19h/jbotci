@@ -33,18 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i'i","span":[1,4]}}},{"PlainWord":
 tree = """
 Text @[1‥17) {
   leading_indicators: [
-    Indicator @[1‥8) {
-      indicator: WithIndicator @[1‥8) {
-        Cmavo @[1‥4) "i'i",
-        indicator: Cmavo @[4‥8) "be'u",
-      },
+    WithIndicator @[1‥8) {
+      Cmavo @[1‥4) "i'i",
+      indicator: Cmavo @[4‥8) "be'u",
     },
   ],
-  Bridi @[9‥17) {
+  BridiWithLeadingTerms @[9‥17) {
     leading_terms: [
       Cmavo @[9‥11) "do",
     ],
-    Gismu @[12‥17) "clíva",
+    bridi_tail: Gismu @[12‥17) "clíva",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[12,17]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i'i","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"be'u","span":[4,8]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i'i","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"be'u","span":[4,8]}}}}}]}}"""

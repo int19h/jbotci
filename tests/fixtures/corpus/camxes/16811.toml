@@ -33,20 +33,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥22) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ru'a",
-    },
+    Cmavo @[0‥4) "ru'a",
   ],
-  Bridi @[5‥22) {
+  BridiWithLeadingTerms @[5‥22) {
     leading_terms: [
-      NameDescription @[5‥16) {
+      NameSumti @[5‥16) {
         la: Cmavo @[5‥7) "la",
         names: [
           Cmevla @[8‥16) "jadenban",
         ],
       },
     ],
-    Gismu @[17‥22) "sípna",
+    bridi_tail: Gismu @[17‥22) "sípna",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jadenban","span":[8,16]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sípna","span":[17,22]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jadenban","span":[8,16]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sípna","span":[17,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}}"""

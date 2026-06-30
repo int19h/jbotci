@@ -30,19 +30,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥10) {
+BridiWithLeadingTerms @[0‥10) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  ProBridi @[3‥10) {
+  bridi_tail: ProBridiTanruUnit @[3‥10) {
     goha: Cmavo @[3‥5) "mo",
     free_modifiers: [
-      Vocative @[6‥10) {
-        vocative_markers: [
-          Cmavo @[6‥10) "je'e",
-        ],
-      },
+      Cmavo @[6‥10) "je'e",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ProBridi":{"goha":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[6,10]}}}}]}}]}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ProBridiTanruUnit":{"goha":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[3,5]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[6,10]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

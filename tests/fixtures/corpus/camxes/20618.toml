@@ -48,38 +48,45 @@ ParagraphStatement @[1‥65) {
   free_modifiers: [
     ParentheticalText @[3‥65) {
       to: Cmavo @[3‥5) "to",
-      SelbriBridiTail @[6‥61) {
-        Gismu @[6‥11) "símsa",
+      text: SelbriSimpleBridiTail @[6‥61) {
+        selbri: Gismu @[6‥11) "símsa",
         terms: [
-          Description @[12‥61) {
+          DescriptorWithGadriSumti @[12‥61) {
             description: Cmavo @[12‥14) "le",
-            selbri: Gismu @[15‥20) "tádji",
-            relative_clauses: [
-              RestrictiveRelativeBridi @[21‥36) {
-                poi: Cmavo @[21‥24) "poĭ",
-                Bridi @[25‥36) {
-                  leading_terms: [
-                    Cmavo @[25‥27) "do",
+            tail: DescriptionTail @[15‥61) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: RelationDescriptionTail @[15‥61) {
+                selbri: Gismu @[15‥20) "tádji",
+                relative_clauses: RelativeClauseList @[21‥61) {
+                  first: RestrictiveBridiRelativeClause @[21‥36) {
+                    poi: Cmavo @[21‥24) "poĭ",
+                    subbridi: BridiWithLeadingTerms @[25‥36) {
+                      leading_terms: [
+                        Cmavo @[25‥27) "do",
+                      ],
+                      bridi_tail: SelbriSimpleBridiTail @[28‥36) {
+                        selbri: Gismu @[28‥33) "skícu",
+                        terms: [
+                          Cmavo @[34‥36) "mi",
+                        ],
+                      },
+                    },
+                  },
+                  additional: [
+                    JoinedRelativeClauseTail @[37‥61) {
+                      zihe: Cmavo @[37‥41) "zi'e",
+                      inner: SumtiAssociationRelativeClause @[42‥61) {
+                        association_marker: Cmavo @[42‥44) "po",
+                        sumti: DelimitedWordQuote @[45‥61) {
+                          marker: Cmavo @[45‥50) "la'oĭ",
+                          Verbatim @[51‥61) "PostgresQL",
+                        },
+                      },
+                    },
                   ],
-                  SelbriBridiTail @[28‥36) {
-                    Gismu @[28‥33) "skícu",
-                    terms: [
-                      Cmavo @[34‥36) "mi",
-                    ],
-                  },
                 },
               },
-              JoinedRelativeClauses @[37‥61) {
-                zihe: Cmavo @[37‥41) "zi'e",
-                SumtiAssociationPhrase @[42‥61) {
-                  association_marker: Cmavo @[42‥44) "po",
-                  DelimitedWordQuote @[45‥61) {
-                    marker: Cmavo @[45‥50) "la'oĭ",
-                    Verbatim @[51‥61) "PostgresQL",
-                  },
-                },
-              },
-            ],
+            },
           },
         ],
       },
@@ -87,4 +94,4 @@ ParagraphStatement @[1‥65) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[6,11]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tádji","span":[15,20]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[21,24]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skícu","span":[28,33]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[34,36]}}}}}}]}}}}}}}}},{"JoinedRelativeClauses":{"zihe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi'e","span":[37,41]}}}},"inner":{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[42,44]}}}},"sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[45,50]}},"quoted_text":{"span":[51,61],"text":"PostgresQL"}}}}}}}}}}]}}}]}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[62,65]}}}}}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[6,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tádji","span":[15,20]}}}}}}}}}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[21,24]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skícu","span":[28,33]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[34,36]}}}}}}}}}}}}}}}]}}}}}}}}}}}},"additional":[{"JoinedRelativeClauseTail":{"zihe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi'e","span":[37,41]}}}},"inner":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[42,44]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"ExperimentalZohoiCompoundQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[45,50]}},"quoted_text":{"span":[51,61],"text":"PostgresQL"}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[62,65]}}}}}}]}]}}"""

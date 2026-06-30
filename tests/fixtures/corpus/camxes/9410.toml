@@ -35,10 +35,12 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥30) {
-  TaggedSelbri @[0‥10) {
-    tense_modal: Cmavo @[0‥2) "ca",
-    Lujvo @[3‥10) "tinjú'i",
+SelbriSimpleBridiTail @[0‥30) {
+  selbri: TaggedSelbri @[0‥10) {
+    tense_modal: [
+      Cmavo @[0‥2) "ca",
+    ],
+    inner_selbri: Lujvo @[3‥10) "tinjú'i",
   },
   terms: [
     DelimitedNonLojbanQuote @[11‥30) {
@@ -49,4 +51,4 @@ SelbriBridiTail @[0‥30) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tin"},{"Rafsi":"jú'i"}],"span":[3,10]}}}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[11,14]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[15,18]}},"quoted_text":{"span":[20,25],"text":"magma"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[27,30]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tin"},{"Rafsi":"jú'i"}],"span":[3,10]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[11,14]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[15,18]}},"quoted_text":{"span":[20,25],"text":"magma"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[27,30]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

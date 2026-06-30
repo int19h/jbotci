@@ -34,17 +34,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[0,3]}}},{"PlainWord":
 tree = """
 Text @[0‥26) {
   leading_indicators: [
-    Indicator @[0‥6) {
-      indicator: WithIndicator @[0‥6) {
-        Cmavo @[0‥3) "u'i",
-        indicator: Cmavo @[3‥6) "saĭ",
-      },
+    WithIndicator @[0‥6) {
+      Cmavo @[0‥3) "u'i",
+      indicator: Cmavo @[3‥6) "saĭ",
     },
   ],
-  Tanru @[7‥26) {
-    Gismu @[7‥12) "xájmi",
-    Gismu @[13‥18) "vécnu",
-    Lujvo @[19‥26) "sámymri",
+  TanruSelbri @[7‥26) {
+    first_unit: Gismu @[7‥12) "xájmi",
+    additional_units: [
+      Gismu @[13‥18) "vécnu",
+      Lujvo @[19‥26) "sámymri",
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xájmi","span":[7,12]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Hyphen":"y"},{"Rafsi":"mri"}],"span":[19,26]}}}}}]}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[3,6]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xájmi","span":[7,12]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[13,18]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Hyphen":"y"},{"Rafsi":"mri"}],"span":[19,26]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[3,6]}}}}}]}}"""

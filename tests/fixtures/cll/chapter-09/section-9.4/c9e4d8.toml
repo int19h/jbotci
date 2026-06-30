@@ -41,18 +41,22 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(mi [{se (ke [blánu zdáni] ke'e)} ti])"
 tree = """
-Bridi @[0‥28) {
+BridiWithLeadingTerms @[0‥28) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥28) {
-    ConvertedSelbri @[3‥25) {
-      se: Cmavo @[3‥5) "se",
-      GroupedSelbri @[6‥25) {
+  bridi_tail: SelbriSimpleBridiTail @[3‥28) {
+    selbri: TanruUnitAtom @[3‥25) {
+      conversions: [
+        Cmavo @[3‥5) "se",
+      ],
+      base: GroupedTanruUnit @[6‥25) {
         ke: Cmavo @[6‥8) "ke",
-        Tanru @[9‥20) {
-          Gismu @[9‥14) "blánu",
-          Gismu @[15‥20) "zdáni",
+        selbri: TanruSelbri @[9‥20) {
+          first_unit: Gismu @[9‥14) "blánu",
+          additional_units: [
+            Gismu @[15‥20) "zdáni",
+          ],
         },
         kehe: Cmavo @[21‥25) "ke'e",
       },
@@ -62,7 +66,7 @@ Bridi @[0‥28) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[3,5]}}}},"inner_selbri":{"GroupedSelbri":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[9,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[15,20]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[21,25]}}}}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[26,28]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[3,5]}}}}],"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[9,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[15,20]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[21,25]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[26,28]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:18","content":"formula:17","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"bridi"}},"parameter:10":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"predication:8":{"type":"predication","eventuality":"eventuality:7","relation":"zdani","arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"filled","value":"entity:1"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"predication:12":{"type":"predication","eventuality":"eventuality:11","relation":"blanu","arguments":{"x1":{"kind":"filled","value":"parameter:10"}},"mode":"restrictive","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"predication:15":{"type":"predication","relation":"tanru","tanruLink":{"head":"predication:8","modifier":"relation:14","relationLabel":"blanu-zdani"},"arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"filled","value":"relation:14"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"formula:16":{"type":"formula","operator":"atom","predication":"predication:15","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"formula:17":{"type":"formula","operator":"and","children":["formula:9","formula:16"],"connector":{"source":"tanru","locus":"selbri"},"source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"indexical","sort":"entity","indexical":"proximalDemonstrative","source":{"span":{"byteStart":26,"byteEnd":28},"text":"ti","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:7":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"eventuality:11":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}},"eventuality/locution:18":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"bridi"}},"relation:14":{"type":"referent","category":"constant","sort":"relation","body":"formula:13","parameters":["parameter:10"],"arity":1,"source":{"span":{"byteStart":0,"byteEnd":28},"text":"mi se ke blanu zdani ke'e ti","construct":"tanru-formula"}}}}'''

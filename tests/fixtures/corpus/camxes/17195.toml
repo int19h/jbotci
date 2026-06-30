@@ -44,24 +44,29 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥68) {
   i: Cmavo @[0‥1) "i",
-  SelbriBridiTail @[2‥68) {
-    Gismu @[2‥7) "fánva",
+  SelbriSimpleBridiTail @[2‥68) {
+    selbri: Gismu @[2‥7) "fánva",
     terms: [
       TextQuote @[8‥32) {
         lu: Cmavo @[8‥10) "lu",
-        Tanru @[11‥27) {
-          Lujvo @[11‥21) "turnycúxna",
-          Gismu @[22‥27) "sáske",
+        text: TanruSelbri @[11‥27) {
+          first_unit: Lujvo @[11‥21) "turnycúxna",
+          additional_units: [
+            Gismu @[22‥27) "sáske",
+          ],
         },
         lihu: Cmavo @[28‥32) "li'u",
       },
-      Description @[33‥41) {
+      DescriptorWithGadriSumti @[33‥41) {
         description: Cmavo @[33‥35) "le",
-        selbri: Gismu @[36‥41) "glíco",
+        tail: DescriptionTail @[36‥41) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[36‥41) "glíco",
+        },
       },
-      PlaceTaggedSumti @[42‥68) {
+      PlaceTaggedSumtiTerm @[42‥68) {
         fa: Cmavo @[42‥44) "fu",
-        DelimitedNonLojbanQuote @[45‥68) {
+        sumti: DelimitedNonLojbanQuote @[45‥68) {
           zoi: Cmavo @[45‥48) "zoĭ",
           opening_delimiter: Cmavo @[49‥51) "gy",
           quoted_text: Verbatim @[52‥65) "Voting Theory",
@@ -71,4 +76,4 @@ ParagraphStatement @[0‥68) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[2,7]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[8,10]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"turn"},{"Hyphen":"y"},{"Rafsi":"cúxna"}],"span":[11,21]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[22,27]}}}}}]}}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[28,32]}}}}}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[36,41]}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[42,44]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[45,48]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[49,51]}},"quoted_text":{"span":[52,65],"text":"Voting Theory"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[66,68]}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[2,7]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[8,10]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"turn"},{"Hyphen":"y"},{"Rafsi":"cúxna"}],"span":[11,21]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[22,27]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[28,32]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[36,41]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[42,44]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[45,48]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[49,51]}},"quoted_text":{"span":[52,65],"text":"Voting Theory"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[66,68]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

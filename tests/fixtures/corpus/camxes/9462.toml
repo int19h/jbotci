@@ -41,14 +41,16 @@ ParagraphStatement @[1‥23) {
     },
     indicator: Cmavo @[5‥8) "kaŭ",
   },
-  Bridi @[9‥23) {
+  BridiWithLeadingTerms @[9‥23) {
     leading_terms: [
       Cmavo @[9‥11) "ma",
     ],
-    Tanru @[12‥23) {
-      Gismu @[12‥17) "gúgde",
-      Gismu @[18‥23) "cmíma",
+    bridi_tail: TanruSelbri @[12‥23) {
+      first_unit: Gismu @[12‥17) "gúgde",
+      additional_units: [
+        Gismu @[18‥23) "cmíma",
+      ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[5,8]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúgde","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmíma","span":[18,23]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[5,8]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúgde","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmíma","span":[18,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

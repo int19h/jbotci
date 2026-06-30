@@ -33,16 +33,16 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"bílga","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriConnection @[0‥26) {
-  leading_selbri: Gismu @[0‥5) "bílga",
-  connective: Cmavo @[6‥8) "je",
-  trailing_selbri: ScalarNegatedTanruUnit @[9‥26) {
+TanruUnit @[0‥26) {
+  Gismu @[0‥5) "bílga",
+  Cmavo @[6‥8) "je",
+  ScalarNegatedTanruUnit @[9‥26) {
     nahe: Cmavo @[9‥13) "na'e",
-    WithIndicator @[14‥26) {
+    inner_unit: WithIndicator @[14‥26) {
       Gismu @[14‥19) "zúkte",
       indicator: Cmavo @[21‥23) "ŭi",
       nai: Cmavo @[23‥26) "naĭ",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bílga","span":[0,5]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}]}},"trailing_selbri":{"Tanru":[{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[9,13]}}}},"inner_unit":{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[14,19]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[21,23]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[23,26]}}}}}}}]}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bílga","span":[0,5]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[9,13]}}}},"inner_unit":{"TanruUnitAtom":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[14,19]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[21,23]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[23,26]}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

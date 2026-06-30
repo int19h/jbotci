@@ -37,34 +37,34 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord"
 tree = """
 Text @[0‥31) {
   leading_free_modifiers: [
-    Vocative @[0‥10) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: LerfuStringSumti @[4‥10) {
-        letter: [
-          Cmavo @[4‥6) "xy",
+    VocativeFreeModifier @[0‥10) {
+      vocative_markers: Cmavo @[0‥3) "doĭ",
+      sumti: LetterString @[4‥10) {
+        first_letter: Cmavo @[4‥6) "xy",
+        continuations: [
           Cmavo @[8‥10) "xo",
         ],
       },
     },
   ],
-  Bridi @[11‥31) {
+  BridiWithLeadingTerms @[11‥31) {
     leading_terms: [
       Cmavo @[11‥13) "do",
     ],
-    SelbriBridiTail @[14‥31) {
-      TaggedSelbri @[14‥24) {
-        tense_modal: Cmavo @[14‥18) "ca'o",
-        Gismu @[19‥24) "cílre",
+    bridi_tail: SelbriSimpleBridiTail @[14‥31) {
+      selbri: TaggedSelbri @[14‥24) {
+        tense_modal: [
+          Cmavo @[14‥18) "ca'o",
+        ],
+        inner_selbri: Gismu @[19‥24) "cílre",
       },
       terms: [
-        PlaceTaggedSumti @[25‥31) {
+        PlaceTaggedSumtiTerm @[25‥31) {
           fa: Cmavo @[25‥27) "fi",
-          Cmavo @[28‥31) "deĭ",
+          sumti: Cmavo @[28‥31) "deĭ",
         },
       ],
     },
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[4,6]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[8,10]}}}}]}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[11,13]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[14,18]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cílre","span":[19,24]}}}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[25,27]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[28,31]}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[4,6]}}}}},"continuations":[{"LetterStringPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[8,10]}}}}}]}}}}}}}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[11,13]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[14,18]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cílre","span":[19,24]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[25,27]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[28,31]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

@@ -36,29 +36,32 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"eĭ","span":[4,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi'aĭ","span":[7,12]}}},{"PlainWord":{"Gismu":{"phonemes":"pénsi","span":[13,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[19,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[23,27]}}},{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[28,33]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([.i .eĭ] [mi'aĭ {pénsi (leĭ za'u péndo)}])"
+brackets = "([.i .eĭ] [mi'aĭ {pénsi (leĭ [za'u péndo])}])"
 tree = """
 ParagraphStatement @[1‥33) {
   i: WithIndicator @[1‥6) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[4‥6) "eĭ",
   },
-  Bridi @[7‥33) {
+  BridiWithLeadingTerms @[7‥33) {
     leading_terms: [
       Cmavo @[7‥12) "mi'aĭ",
     ],
-    SelbriBridiTail @[13‥33) {
-      Gismu @[13‥18) "pénsi",
+    bridi_tail: SelbriSimpleBridiTail @[13‥33) {
+      selbri: Gismu @[13‥18) "pénsi",
       terms: [
-        Description @[19‥33) {
+        DescriptorWithGadriSumti @[19‥33) {
           description: Cmavo @[19‥22) "leĭ",
-          tail_elements: [
-            Cmavo @[23‥27) "za'u",
-          ],
-          selbri: Gismu @[28‥33) "péndo",
+          tail: DescriptionTail @[23‥33) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: QuantifierRelationDescriptionTail @[23‥33) {
+              quantifier: Cmavo @[23‥27) "za'u",
+              selbri: Gismu @[28‥33) "péndo",
+            },
+          },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[4,6]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'aĭ","span":[7,12]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénsi","span":[13,18]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[19,22]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[23,27]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[28,33]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[4,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'aĭ","span":[7,12]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénsi","span":[13,18]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[19,22]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[23,27]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[28,33]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

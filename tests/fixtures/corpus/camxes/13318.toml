@@ -35,22 +35,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥27) {
+BridiWithLeadingTerms @[0‥27) {
   leading_terms: [
-    TaggedSumti @[0‥5) {
+    TaggedSumtiTerm @[0‥5) {
       tense_modal: Cmavo @[0‥2) "vi",
-      Cmavo @[3‥5) "mi",
+      sumti: Cmavo @[3‥5) "mi",
     },
     NumberSumti @[6‥21) {
       li: Cmavo @[6‥8) "li",
-      NumberQuantifier @[9‥21) {
-        Cmavo @[9‥11) "bi",
-        Cmavo @[12‥16) "pi'e",
-        Cmavo @[17‥19) "ci",
-        Cmavo @[19‥21) "ci",
+      NumberWords @[9‥21) {
+        first_number: Cmavo @[9‥11) "bi",
+        continuations: [
+          Cmavo @[12‥16) "pi'e",
+          Cmavo @[17‥19) "ci",
+          Cmavo @[19‥21) "ci",
+        ],
       },
     },
   ],
-  Gismu @[22‥27) "tcíka",
+  bridi_tail: Gismu @[22‥27) "tcíka",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}}}}]}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}},{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[6,8]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[9,11]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[12,16]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[17,19]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[19,21]}}}}]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcíka","span":[22,27]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[0,2]}}}}}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[6,8]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[9,11]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[12,16]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[17,19]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[19,21]}}}}}]}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcíka","span":[22,27]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

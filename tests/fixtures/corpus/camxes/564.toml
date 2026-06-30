@@ -31,14 +31,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"di'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥22) {
+BridiWithLeadingTerms @[0‥22) {
   leading_terms: [
     Cmavo @[0‥4) "di'e",
   ],
-  SelbriBridiTail @[5‥22) {
-    Lujvo @[5‥14) "jdasélsku",
+  bridi_tail: SelbriSimpleBridiTail @[5‥22) {
+    selbri: Lujvo @[5‥14) "jdasélsku",
     terms: [
-      NameDescription @[15‥22) {
+      NameSumti @[15‥22) {
         la: Cmavo @[15‥17) "la",
         names: [
           Cmevla @[18‥22) "dong",
@@ -47,4 +47,4 @@ Bridi @[0‥22) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'e","span":[0,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jda"},{"Rafsi":"sél"},{"Rafsi":"sku"}],"span":[5,14]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dong","span":[18,22]}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'e","span":[0,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jda"},{"Rafsi":"sél"},{"Rafsi":"sku"}],"span":[5,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dong","span":[18,22]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

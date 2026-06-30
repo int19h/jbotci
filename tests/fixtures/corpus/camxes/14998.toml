@@ -33,40 +33,24 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥14) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥14) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[2‥14) {
-        terms: [
-          ProSumti @[2‥14) {
-            Cmavo @[2‥4) "ra",
-            free_modifiers: [
-              ParentheticalText @[5‥14) {
-                to: Cmavo @[5‥7) "to",
-                Terms @[7‥14) {
-                  terms: [
-                    ProSumti @[7‥14) {
-                      Cmavo @[7‥9) "ra",
-                      free_modifiers: [
-                        ParentheticalText @[10‥14) {
-                          to: Cmavo @[10‥12) "to",
-                          Terms @[12‥14) {
-                            terms: [
-                              Cmavo @[12‥14) "ra",
-                            ],
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        ],
+ParentheticalText @[0‥14) {
+  to: Cmavo @[0‥2) "to",
+  text: ProSumti @[2‥14) {
+    Cmavo @[2‥4) "ra",
+    free_modifiers: [
+      ParentheticalText @[5‥14) {
+        to: Cmavo @[5‥7) "to",
+        text: ProSumti @[7‥14) {
+          Cmavo @[7‥9) "ra",
+          free_modifiers: [
+            ParentheticalText @[10‥14) {
+              to: Cmavo @[10‥12) "to",
+              text: Cmavo @[12‥14) "ra",
+            },
+          ],
+        },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[2,4]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[7,9]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[10,12]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[12,14]}}}}}}]}}}}]}]}}}]}}]}}}}]}]}}}]}}]}}}}]}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[2,4]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[7,9]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[10,12]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[12,14]}}}}}}}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}]}}'

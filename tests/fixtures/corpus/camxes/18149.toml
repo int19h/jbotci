@@ -50,57 +50,56 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥100) {
-  ParagraphStatement @[1‥51) {
-    i: Cmavo @[1‥2) "i",
-    Terms @[3‥51) {
-      terms: [
-        TaggedSumti @[3‥10) {
-          tense_modal: Modal @[3‥7) {
-            bai: Cmavo @[3‥7) "du'o",
-          },
-          Cmavo @[8‥10) "mi",
+ParagraphStatement @[1‥100) {
+  i: Cmavo @[1‥2) "i",
+  ParagraphStatementSequence @[3‥100) {
+    TermsFragment @[3‥51) {
+      TaggedSumtiTerm @[3‥10) {
+        tense_modal: Cmavo @[3‥7) "du'o",
+        sumti: Cmavo @[8‥10) "mi",
+      },
+      DescriptorWithGadriSumti @[11‥24) {
+        description: Cmavo @[11‥13) "lo",
+        tail: DescriptionTail @[14‥24) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[14‥24) "sodnynánba",
         },
-        Description @[11‥24) {
-          description: Cmavo @[11‥13) "lo",
-          selbri: Lujvo @[14‥24) "sodnynánba",
-        },
-        Cmavo @[25‥27) "do",
-        DelimitedNonLojbanQuote @[28‥51) {
-          zoi: Cmavo @[28‥32) "la'o",
-          opening_delimiter: Cmavo @[33‥35) "gy",
-          quoted_text: Verbatim @[37‥47) "soda bread",
-          closing_delimiter: Cmavo @[49‥51) "gy",
-        },
-      ],
-    },
-  },
-  ParagraphStatement @[53‥100) {
-    i: WithIndicator @[53‥59) {
-      Cmavo @[53‥54) "i",
-      indicator: Cmavo @[55‥59) "za'a",
-    },
-    Bridi @[60‥100) {
-      leading_terms: [
-        TaggedSumti @[60‥67) {
-          tense_modal: Modal @[60‥64) {
-            bai: Cmavo @[60‥64) "du'o",
-          },
-          Cmavo @[65‥67) "do",
-        },
-      ],
-      SelbriBridiTail @[68‥100) {
-        Cmavo @[68‥70) "du",
-        terms: [
-          DelimitedNonLojbanQuote @[71‥100) {
-            zoi: Cmavo @[71‥75) "la'o",
-            opening_delimiter: Cmavo @[76‥78) "gy",
-            quoted_text: Verbatim @[78‥97) ", salt-rising bread",
-            closing_delimiter: Cmavo @[98‥100) "gy",
-          },
-        ],
+      },
+      Cmavo @[25‥27) "do",
+      DelimitedNonLojbanQuote @[28‥51) {
+        zoi: Cmavo @[28‥32) "la'o",
+        opening_delimiter: Cmavo @[33‥35) "gy",
+        quoted_text: Verbatim @[37‥47) "soda bread",
+        closing_delimiter: Cmavo @[49‥51) "gy",
       },
     },
+    following: [
+      ParagraphStatement @[53‥100) {
+        i: WithIndicator @[53‥59) {
+          Cmavo @[53‥54) "i",
+          indicator: Cmavo @[55‥59) "za'a",
+        },
+        BridiWithLeadingTerms @[60‥100) {
+          leading_terms: [
+            TaggedSumtiTerm @[60‥67) {
+              tense_modal: Cmavo @[60‥64) "du'o",
+              sumti: Cmavo @[65‥67) "do",
+            },
+          ],
+          bridi_tail: SelbriSimpleBridiTail @[68‥100) {
+            selbri: Cmavo @[68‥70) "du",
+            terms: [
+              DelimitedNonLojbanQuote @[71‥100) {
+                zoi: Cmavo @[71‥75) "la'o",
+                opening_delimiter: Cmavo @[76‥78) "gy",
+                quoted_text: Verbatim @[78‥97) ", salt-rising bread",
+                closing_delimiter: Cmavo @[98‥100) "gy",
+              },
+            ],
+          },
+        },
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'o","span":[3,7]}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[11,13]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sodn"},{"Hyphen":"y"},{"Rafsi":"nánba"}],"span":[14,24]}}}}}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}},{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[28,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[33,35]}},"quoted_text":{"span":[37,47],"text":"soda bread"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[49,51]}}}}}}}}]}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[53,54]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[55,59]}}}},"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'o","span":[60,64]}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[65,67]}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[68,70]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[71,75]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[76,78]}},"quoted_text":{"span":[78,97],"text":", salt-rising bread"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[98,100]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'o","span":[3,7]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[8,10]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[11,13]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sodn"},{"Hyphen":"y"},{"Rafsi":"nánba"}],"span":[14,24]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[28,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[33,35]}},"quoted_text":{"span":[37,47],"text":"soda bread"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[49,51]}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[53,54]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[55,59]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'o","span":[60,64]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[65,67]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[68,70]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[71,75]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[76,78]}},"quoted_text":{"span":[78,97],"text":", salt-rising bread"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[98,100]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}"""

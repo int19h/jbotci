@@ -36,21 +36,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}},{"QuotedWord
 tree = """
 Text @[0‥23) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "pe'i",
-    },
+    Cmavo @[0‥4) "pe'i",
   ],
-  Bridi @[5‥23) {
+  BridiWithLeadingTerms @[5‥23) {
     leading_terms: [
       QuotedWord @[5‥13) {
         zo: Cmavo @[5‥7) "zo",
         Gismu @[8‥13) "cúnso",
       },
     ],
-    Negated @[14‥23) {
+    bridi_tail: NegatedSelbri @[14‥23) {
       na: Cmavo @[14‥16) "na",
-      Lujvo @[17‥23) "mríste",
+      inner_selbri: Lujvo @[17‥23) "mríste",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Gismu":{"phonemes":"cúnso","span":[8,13]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[14,16]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mrí"},{"Rafsi":"ste"}],"span":[17,23]}}}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Gismu":{"phonemes":"cúnso","span":[8,13]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[14,16]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mrí"},{"Rafsi":"ste"}],"span":[17,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}}"""

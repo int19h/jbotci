@@ -46,49 +46,56 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[9,12]}}},{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[13,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"zi'e","span":[19,23]}}},{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[24,27]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}},{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[34,39]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}},{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[43,48]}}},{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[49,53]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[54,56]}}},{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[57,62]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([le gérku {(poĭ blábi) (zi'e [noĭ {(le mi péndo) cu (pónse ke'a)}])}] cu kláma)"
+brackets = "([le {gérku ([poĭ blábi] [zi'e {noĭ ([le {mi péndo}] cu [pónse ke'a])}])}] cu kláma)"
 tree = """
-Bridi @[0‥62) {
+BridiWithLeadingTerms @[0‥62) {
   leading_terms: [
-    Description @[0‥53) {
+    DescriptorWithGadriSumti @[0‥53) {
       description: Cmavo @[0‥2) "le",
-      selbri: Gismu @[3‥8) "gérku",
-      relative_clauses: [
-        RestrictiveRelativeBridi @[9‥18) {
-          poi: Cmavo @[9‥12) "poĭ",
-          Gismu @[13‥18) "blábi",
-        },
-        JoinedRelativeClauses @[19‥53) {
-          zihe: Cmavo @[19‥23) "zi'e",
-          IncidentalRelativeBridi @[24‥53) {
-            noi: Cmavo @[24‥27) "noĭ",
-            Bridi @[28‥53) {
-              leading_terms: [
-                Description @[28‥39) {
-                  description: Cmavo @[28‥30) "le",
-                  tail_elements: [
-                    Cmavo @[31‥33) "mi",
-                  ],
-                  selbri: Gismu @[34‥39) "péndo",
-                },
-              ],
-              cu: Cmavo @[40‥42) "cu",
-              SelbriBridiTail @[43‥53) {
-                Gismu @[43‥48) "pónse",
-                terms: [
-                  Cmavo @[49‥53) "ke'a",
-                ],
-              },
+      tail: DescriptionTail @[3‥53) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: RelationDescriptionTail @[3‥53) {
+          selbri: Gismu @[3‥8) "gérku",
+          relative_clauses: RelativeClauseList @[9‥53) {
+            first: RestrictiveBridiRelativeClause @[9‥18) {
+              poi: Cmavo @[9‥12) "poĭ",
+              subbridi: Gismu @[13‥18) "blábi",
             },
+            additional: [
+              JoinedRelativeClauseTail @[19‥53) {
+                zihe: Cmavo @[19‥23) "zi'e",
+                inner: IncidentalBridiRelativeClause @[24‥53) {
+                  noi: Cmavo @[24‥27) "noĭ",
+                  subbridi: BridiWithLeadingTerms @[28‥53) {
+                    leading_terms: [
+                      DescriptorWithGadriSumti @[28‥39) {
+                        description: Cmavo @[28‥30) "le",
+                        tail: DescriptionTail @[31‥39) {
+                          leading_tail_elements: Cmavo @[31‥33) "mi",
+                          tail: Gismu @[34‥39) "péndo",
+                        },
+                      },
+                    ],
+                    cu: Cmavo @[40‥42) "cu",
+                    bridi_tail: SelbriSimpleBridiTail @[43‥53) {
+                      selbri: Gismu @[43‥48) "pónse",
+                      terms: [
+                        Cmavo @[49‥53) "ke'a",
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
           },
         },
-      ],
+      },
     },
   ],
   cu: Cmavo @[54‥56) "cu",
-  Gismu @[57‥62) "kláma",
+  bridi_tail: Gismu @[57‥62) "kláma",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[3,8]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[9,12]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[13,18]}}}}}}}}}}}}}},{"JoinedRelativeClauses":{"zihe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi'e","span":[19,23]}}}},"inner":{"IncidentalRelativeBridi":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[24,27]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[34,39]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[43,48]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[49,53]}}}}}}]}}}}}}}}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[54,56]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[57,62]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[3,8]}}}}}}}}}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[9,12]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}},"additional":[{"JoinedRelativeClauseTail":{"zihe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi'e","span":[19,23]}}}},"inner":{"BridiRelativeClause":{"IncidentalBridiRelativeClause":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[24,27]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[34,39]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[43,48]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[49,53]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[54,56]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[57,62]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:39","content":"formula:38","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":62},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a cu klama","construct":"bridi"}},"parameter:8":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":3,"byteEnd":8},"text":"gerku","construct":"speaker-description-property"}},"parameter:21":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":34,"byteEnd":39},"text":"pendo","construct":"speaker-description-property"}},"predication:10":{"type":"predication","relation":"gerku","arguments":{"x1":{"kind":"filled","value":"parameter:8"},"x2":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":8},"text":"gerku","construct":"restrictive-predication"}},"predication:13":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:12"}},"mode":"incidental","source":{"span":{"byteStart":0,"byteEnd":53},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a","construct":"speaker-description"}},"predication:17":{"type":"predication","eventuality":"eventuality:15","relation":"blabi","arguments":{"x1":{"kind":"filled","value":"entity:7"}},"mode":"restrictive","source":{"span":{"byteStart":13,"byteEnd":18},"text":"blabi","construct":"predication"}},"predication:23":{"type":"predication","relation":"pendo","arguments":{"x1":{"kind":"filled","value":"parameter:21"},"x2":{"kind":"elided","value":"entity:22","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":34,"byteEnd":39},"text":"pendo","construct":"restrictive-predication"}},"predication:26":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:20"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:25"}},"mode":"incidental","source":{"span":{"byteStart":28,"byteEnd":39},"text":"le mi pendo","construct":"speaker-description"}},"predication:28":{"type":"predication","relation":"associatedWith","arguments":{"x1":{"kind":"filled","value":"entity:20"},"x2":{"kind":"filled","value":"entity:1"}},"mode":"restrictive","source":{"span":{"byteStart":31,"byteEnd":33},"text":"mi","construct":"possessive-sumti"}},"predication:31":{"type":"predication","eventuality":"eventuality:19","relation":"ponse","arguments":{"x1":{"kind":"filled","value":"entity:20"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"elided","value":"entity:30","introducedBy":"zo'e"}},"mode":"incidental","source":{"span":{"byteStart":28,"byteEnd":53},"text":"le mi pendo cu ponse ke'a","construct":"predication"}},"predication:37":{"type":"predication","eventuality":"eventuality:6","relation":"klama","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:33","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:34","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:35","introducedBy":"zo'e"},"x5":{"kind":"elided","value":"entity:36","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":62},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a cu klama","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":3,"byteEnd":8},"text":"gerku","construct":"restrictive-formula"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":0,"byteEnd":53},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a","construct":"speaker-description"}},"formula:18":{"type":"formula","operator":"atom","predication":"predication:17","source":{"span":{"byteStart":13,"byteEnd":18},"text":"blabi","construct":"bridi-formula"}},"formula:24":{"type":"formula","operator":"atom","predication":"predication:23","source":{"span":{"byteStart":34,"byteEnd":39},"text":"pendo","construct":"restrictive-formula"}},"formula:27":{"type":"formula","operator":"atom","predication":"predication:26","source":{"span":{"byteStart":28,"byteEnd":39},"text":"le mi pendo","construct":"speaker-description"}},"formula:29":{"type":"formula","operator":"atom","predication":"predication:28","source":{"span":{"byteStart":31,"byteEnd":33},"text":"mi","construct":"possessive-sumti"}},"formula:32":{"type":"formula","operator":"atom","predication":"predication:31","source":{"span":{"byteStart":28,"byteEnd":53},"text":"le mi pendo cu ponse ke'a","construct":"bridi-formula"}},"formula:38":{"type":"formula","operator":"atom","predication":"predication:37","source":{"span":{"byteStart":0,"byteEnd":62},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a cu klama","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:14","relativeClauses":[{"kind":"restrictive","body":"formula:18","source":{"span":{"byteStart":13,"byteEnd":18},"text":"blabi","construct":"relative-clause"}},{"kind":"incidental","body":"formula:32","source":{"span":{"byteStart":28,"byteEnd":53},"text":"le mi pendo cu ponse ke'a","construct":"relative-clause"}}]},"source":{"span":{"byteStart":0,"byteEnd":53},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a","construct":"description"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:20":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:27","relativeClauses":[{"kind":"restrictive","body":"formula:29","source":{"span":{"byteStart":31,"byteEnd":33},"text":"mi","construct":"possessive-sumti"}}]},"source":{"span":{"byteStart":28,"byteEnd":39},"text":"le mi pendo","construct":"description"}},"entity:22":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:30":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:33":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:34":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:35":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:36":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":62},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a cu klama","construct":"predication"}},"eventuality:15":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":13,"byteEnd":18},"text":"blabi","construct":"predication"}},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":28,"byteEnd":53},"text":"le mi pendo cu ponse ke'a","construct":"predication"}},"eventuality/locution:39":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":62},"text":"le gerku poi blabi zi'e noi le mi pendo cu ponse ke'a cu klama","construct":"bridi"}},"relation:12":{"type":"referent","category":"constant","sort":"relation","body":"formula:11","parameters":["parameter:8"],"arity":1,"source":{"span":{"byteStart":3,"byteEnd":8},"text":"gerku","construct":"speaker-description-property"}},"relation:25":{"type":"referent","category":"constant","sort":"relation","body":"formula:24","parameters":["parameter:21"],"arity":1,"source":{"span":{"byteStart":34,"byteEnd":39},"text":"pendo","construct":"speaker-description-property"}}}}'''

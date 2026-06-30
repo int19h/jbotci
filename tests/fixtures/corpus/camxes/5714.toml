@@ -36,15 +36,15 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"L
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥29) {
+BridiWithLeadingTerms @[0‥29) {
   leading_terms: [
     QuotedWord @[0‥11) {
       zo: Cmavo @[0‥2) "zo",
       Lujvo @[3‥11) "selnírna",
     },
   ],
-  SelbriBridiTail @[12‥29) {
-    Gismu @[12‥17) "símsa",
+  bridi_tail: SelbriSimpleBridiTail @[12‥29) {
+    selbri: Gismu @[12‥17) "símsa",
     terms: [
       QuotedWord @[18‥29) {
         zo: Cmavo @[18‥20) "zo",
@@ -53,4 +53,4 @@ Bridi @[0‥29) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"nírna"}],"span":[3,11]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[12,17]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[18,20]}},"word":{"Lujvo":{"parts":[{"Rafsi":"xel"},{"Rafsi":"bénji"}],"span":[21,29]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"nírna"}],"span":[3,11]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[12,17]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[18,20]}},"word":{"Lujvo":{"parts":[{"Rafsi":"xel"},{"Rafsi":"bénji"}],"span":[21,29]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

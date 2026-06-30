@@ -37,30 +37,39 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥41) {
+BridiWithLeadingTerms @[0‥41) {
   leading_terms: [
-    Description @[0‥17) {
+    DescriptorWithGadriSumti @[0‥17) {
       description: Cmavo @[0‥2) "lo",
-      selbri: Tanru @[3‥17) {
-        ConvertedTanruUnit @[3‥11) {
-          se: Cmavo @[3‥5) "se",
-          Gismu @[6‥11) "pémci",
+      tail: DescriptionTail @[3‥17) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TanruSelbri @[3‥17) {
+          first_unit: TanruUnitAtom @[3‥11) {
+            conversions: [
+              Cmavo @[3‥5) "se",
+            ],
+            base: Gismu @[6‥11) "pémci",
+          },
+          additional_units: [
+            Gismu @[12‥17) "prénu",
+          ],
         },
-        Gismu @[12‥17) "prénu",
       },
     },
   ],
   cu: Cmavo @[18‥20) "cu",
-  SelbriConnection @[21‥41) {
-    leading_selbri: Gismu @[21‥26) "jbéna",
-    connective: Selbri @[27‥32) {
+  bridi_tail: TanruUnit @[21‥41) {
+    Gismu @[21‥26) "jbéna",
+    Selbri @[27‥32) {
       Cmavo @[27‥29) "je",
       nai: Cmavo @[29‥32) "naĭ",
     },
-    trailing_selbri: ConvertedSelbri @[33‥41) {
-      se: Cmavo @[33‥35) "se",
-      Gismu @[36‥41) "ctúca",
+    TanruUnitAtom @[33‥41) {
+      conversions: [
+        Cmavo @[33‥35) "se",
+      ],
+      base: Gismu @[36‥41) "ctúca",
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"selbri":{"Tanru":[{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[3,5]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pémci","span":[6,11]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[12,17]}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jbéna","span":[21,26]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[27,29]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[29,32]}}}}}},"trailing_selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[33,35]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ctúca","span":[36,41]}}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[3,5]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pémci","span":[6,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[12,17]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jbéna","span":[21,26]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[27,29]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[29,32]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[33,35]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ctúca","span":[36,41]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}'

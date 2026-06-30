@@ -31,10 +31,5 @@ json = '[{"PlainWord":{"Cmevla":{"phonemes":"g","span":[0,1]}}}]'
 
 [expectations.output.gentufa]
 brackets = ".g."
-tree = """
-Text @[0‥1) {
-  leading_cmevla: [
-    Cmevla @[0‥1) "g",
-  ],
-}"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"g","span":[0,1]}}}}]}'
+tree = 'Cmevla @[0‥1) "g"'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"g","span":[0,1]}}}}]}}'

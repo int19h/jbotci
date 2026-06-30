@@ -43,36 +43,36 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"go","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "([go naĭ] [{la .djan.} nánmu] gi [{la .djeĭmyz.} nínmu])"
 tree = """
-BridiConnection @[0‥41) {
+DirectForethoughtBridiConnection @[0‥41) {
   gek: Forethought @[0‥5) {
     Cmavo @[0‥2) "go",
     nai: Cmavo @[2‥5) "naĭ",
   },
-  first: Bridi @[6‥20) {
+  first: BridiWithLeadingTerms @[6‥20) {
     leading_terms: [
-      NameDescription @[6‥13) {
+      NameSumti @[6‥13) {
         la: Cmavo @[6‥8) "la",
         names: [
           Cmevla @[9‥13) "djan",
         ],
       },
     ],
-    Gismu @[15‥20) "nánmu",
+    bridi_tail: Gismu @[15‥20) "nánmu",
   },
   gik: Cmavo @[21‥23) "gi",
-  second: Bridi @[24‥41) {
+  second: BridiWithLeadingTerms @[24‥41) {
     leading_terms: [
-      NameDescription @[24‥34) {
+      NameSumti @[24‥34) {
         la: Cmavo @[24‥26) "la",
         names: [
           Cmevla @[27‥34) "djeĭmyz",
         ],
       },
     ],
-    Gismu @[36‥41) "nínmu",
+    bridi_tail: Gismu @[36‥41) "nínmu",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"ForethoughtBridiTailConnection":{"BridiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go","span":[0,2]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}}}}},"first":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[9,13]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[15,20]}}}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[21,23]}}}}]}},"second":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[27,34]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nínmu","span":[36,41]}}}}}}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"ForethoughtSimpleBridiTail":{"DirectForethoughtBridiConnection":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go","span":[0,2]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}}}}},"first":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[9,13]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[21,23]}}}}},"second":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[27,34]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nínmu","span":[36,41]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:16","content":"formula:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":41},"text":"gonai la djan. nanmu gi la djeimyz. ninmu","construct":"bridi"}},"predication:8":{"type":"predication","eventuality":"eventuality:6","relation":"nanmu","arguments":{"x1":{"kind":"filled","value":"entity:7"}},"mode":"asserted","source":{"span":{"byteStart":6,"byteEnd":20},"text":"la djan. nanmu","construct":"predication"}},"predication:12":{"type":"predication","eventuality":"eventuality:10","relation":"ninmu","arguments":{"x1":{"kind":"filled","value":"entity:11"}},"mode":"asserted","source":{"span":{"byteStart":24,"byteEnd":41},"text":"la djeimyz. ninmu","construct":"predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":6,"byteEnd":20},"text":"la djan. nanmu","construct":"bridi-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":24,"byteEnd":41},"text":"la djeimyz. ninmu","construct":"bridi-formula"}},"formula:14":{"type":"formula","operator":"not","children":["formula:9"]},"formula:15":{"type":"formula","operator":"iff","children":["formula:14","formula:13"],"connector":{"source":"go nai gi","locus":"bridi","truthTable":"FTTF"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":6,"byteEnd":14},"text":"la djan.","construct":"sumti"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djeimyz"},"source":{"span":{"byteStart":24,"byteEnd":35},"text":"la djeimyz.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":6,"byteEnd":20},"text":"la djan. nanmu","construct":"predication"}},"eventuality:10":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":24,"byteEnd":41},"text":"la djeimyz. ninmu","construct":"predication"}},"eventuality/locution:16":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":41},"text":"gonai la djan. nanmu gi la djeimyz. ninmu","construct":"bridi"}}}}'''

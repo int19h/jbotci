@@ -35,22 +35,25 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥23) {
-  terms: [
-    SumtiConnection @[0‥23) {
-      leading_sumti: QuotedWord @[0‥8) {
-        zo: Cmavo @[0‥2) "zo",
-        Gismu @[3‥8) "pórpi",
-      },
+SumtiAfterthought @[0‥23) {
+  leading_sumti: QuotedWord @[0‥8) {
+    zo: Cmavo @[0‥2) "zo",
+    Gismu @[3‥8) "pórpi",
+  },
+  continuations: [
+    SumtiAfterthoughtTail @[10‥23) {
       connective: Afterthought @[10‥14) {
         Cmavo @[10‥11) "e",
         nai: Cmavo @[11‥14) "naĭ",
       },
-      trailing_sumti: Description @[15‥23) {
+      sumti: DescriptorWithGadriSumti @[15‥23) {
         description: Cmavo @[15‥17) "la",
-        selbri: Gismu @[18‥23) "pórpi",
+        tail: DescriptionTail @[18‥23) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[18‥23) "pórpi",
+        },
       },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"pórpi","span":[3,8]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[10,11]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}}}}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pórpi","span":[18,23]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"pórpi","span":[3,8]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[10,11]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[11,14]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pórpi","span":[18,23]}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}]}}}}}}}}}'

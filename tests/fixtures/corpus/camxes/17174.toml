@@ -28,18 +28,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[3‥19) {
-  terms: [
-    PlaceTaggedSumti @[3‥19) {
-      fa: Cmavo @[3‥5) "fo",
-      Description @[6‥19) {
-        description: Cmavo @[6‥8) "le",
-        selbri: WithIndicator @[9‥19) {
-          Gismu @[9‥14) "lójbo",
-          indicator: Cmavo @[15‥19) "li'o",
-        },
+PlaceTaggedSumtiTerm @[3‥19) {
+  fa: Cmavo @[3‥5) "fo",
+  sumti: DescriptorWithGadriSumti @[6‥19) {
+    description: Cmavo @[6‥8) "le",
+    tail: DescriptionTail @[9‥19) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: WithIndicator @[9‥19) {
+        Gismu @[9‥14) "lójbo",
+        indicator: Cmavo @[15‥19) "li'o",
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[15,19]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[15,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -36,7 +36,7 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥32) {
+BridiWithLeadingTerms @[0‥32) {
   leading_terms: [
     DelimitedNonLojbanQuote @[0‥19) {
       zoi: Cmavo @[0‥3) "zoĭ",
@@ -45,12 +45,14 @@ Bridi @[0‥32) {
       closing_delimiter: Cmavo @[17‥19) "zo",
     },
   ],
-  Negated @[21‥32) {
+  bridi_tail: NegatedSelbri @[21‥32) {
     na: Cmavo @[21‥23) "na",
-    ConvertedSelbri @[24‥32) {
-      se: Cmavo @[24‥26) "se",
-      Gismu @[27‥32) "slábu",
+    inner_selbri: TanruUnitAtom @[24‥32) {
+      conversions: [
+        Cmavo @[24‥26) "se",
+      ],
+      base: Gismu @[27‥32) "slábu",
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[8,15],"text":"colobus"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[17,19]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[21,23]}}}},"inner_selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[24,26]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"slábu","span":[27,32]}}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[8,15],"text":"colobus"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[17,19]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[21,23]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[24,26]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"slábu","span":[27,32]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

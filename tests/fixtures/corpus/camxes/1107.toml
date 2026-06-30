@@ -42,43 +42,55 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥51) {
+BridiWithLeadingTerms @[0‥51) {
   leading_terms: [
     NumberSumti @[0‥40) {
       li: Cmavo @[0‥2) "li",
-      ReversePolish @[3‥40) {
+      ReversePolishMekso @[3‥40) {
         fuha: Cmavo @[3‥7) "fu'a",
-        operands: [
-          NumberQuantifier @[8‥13) {
-            Cmavo @[8‥10) "re",
+        parts: ReversePolishParts @[8‥40) {
+          first_operand: PaRunQuantifier @[8‥13) {
+            number: Cmavo @[8‥10) "re",
             boi: Cmavo @[10‥13) "boĭ",
           },
-          Cmavo @[14‥16) "ci",
-          NumberQuantifier @[22‥27) {
-            Cmavo @[22‥24) "vo",
-            boi: Cmavo @[24‥27) "boĭ",
-          },
-          Cmavo @[28‥30) "mu",
-        ],
-        operators: [
-          Cmavo @[17‥21) "pi'i",
-          Cmavo @[31‥35) "pi'i",
-          Cmavo @[36‥40) "su'i",
-        ],
+          tails: [
+            ReversePolishPartsTail @[14‥21) {
+              right_parts: Cmavo @[14‥16) "ci",
+              operator: Cmavo @[17‥21) "pi'i",
+            },
+            ReversePolishPartsTail @[22‥40) {
+              right_parts: ReversePolishParts @[22‥35) {
+                first_operand: PaRunQuantifier @[22‥27) {
+                  number: Cmavo @[22‥24) "vo",
+                  boi: Cmavo @[24‥27) "boĭ",
+                },
+                tails: [
+                  ReversePolishPartsTail @[28‥35) {
+                    right_parts: Cmavo @[28‥30) "mu",
+                    operator: Cmavo @[31‥35) "pi'i",
+                  },
+                ],
+              },
+              operator: Cmavo @[36‥40) "su'i",
+            },
+          ],
+        },
       },
     },
   ],
-  SelbriBridiTail @[41‥51) {
-    Cmavo @[41‥43) "du",
+  bridi_tail: SelbriSimpleBridiTail @[41‥51) {
+    selbri: Cmavo @[41‥43) "du",
     terms: [
       NumberSumti @[44‥51) {
         li: Cmavo @[44‥46) "li",
-        NumberQuantifier @[47‥51) {
-          Cmavo @[47‥49) "re",
-          Cmavo @[49‥51) "xa",
+        NumberWords @[47‥51) {
+          first_number: Cmavo @[47‥49) "re",
+          continuations: [
+            Cmavo @[49‥51) "xa",
+          ],
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolish":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"operands":[{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[22,24]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[24,27]}}}}}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[28,30]}}}}]}}}],"operators":[{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'i","span":[17,21]}}}}},{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'i","span":[31,35]}}}}},{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[36,40]}}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[41,43]}}}}},"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[44,46]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[47,49]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[49,51]}}}}]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolishMekso":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}}}},"tails":[{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}}}}}}},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'i","span":[17,21]}}}}}}}}},{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[22,24]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[24,27]}}}}}}}}},"tails":[{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[28,30]}}}}}}}}}}},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'i","span":[31,35]}}}}}}}}}]},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[36,40]}}}}}}}}}]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[41,43]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[44,46]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[47,49]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[49,51]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

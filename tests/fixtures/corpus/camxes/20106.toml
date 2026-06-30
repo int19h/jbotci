@@ -19,36 +19,38 @@ raw = '{"frames":[{"index":0,"node":{"offset":8,"length":5},"kind":"base-selbri"
 tree = """
 Text @[0‥50) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ji'a",
-    },
+    Cmavo @[0‥4) "ji'a",
   ],
-  SelbriBridiTail @[5‥50) {
-    Negated @[5‥13) {
+  SelbriSimpleBridiTail @[5‥50) {
+    selbri: NegatedSelbri @[5‥13) {
       na: Cmavo @[5‥7) "na",
-      Gismu @[8‥13) "bénji",
+      inner_selbri: Gismu @[8‥13) "bénji",
     },
     terms: [
-      PlaceTaggedSumti @[14‥19) {
+      PlaceTaggedSumtiTerm @[14‥19) {
         fa: Cmavo @[14‥16) "fi",
-        Cmavo @[17‥19) "mi",
+        sumti: Cmavo @[17‥19) "mi",
       },
-      SumtiConnection @[20‥50) {
-        leading_sumti: NameDescription @[20‥35) {
+      SumtiAfterthought @[20‥50) {
+        leading_sumti: NameSumti @[20‥35) {
           la: Cmavo @[20‥22) "la",
           names: [
             Cmevla @[24‥35) "kalifornĭas",
           ],
         },
-        connective: Cmavo @[38‥39) "a",
-        trailing_sumti: NameDescription @[40‥50) {
-          la: Cmavo @[40‥42) "la",
-          names: [
-            Cmevla @[44‥50) "teksis",
-          ],
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[38‥50) {
+            connective: Cmavo @[38‥39) "a",
+            sumti: NameSumti @[40‥50) {
+              la: Cmavo @[40‥42) "la",
+              names: [
+                Cmevla @[44‥50) "teksis",
+              ],
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[5,7]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bénji","span":[8,13]}}}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}},{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[20,22]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kalifornĭas","span":[24,35]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[38,39]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[40,42]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"teksis","span":[44,50]}}}}]}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[5,7]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bénji","span":[8,13]}}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[20,22]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kalifornĭas","span":[24,35]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[38,39]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[40,42]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"teksis","span":[44,50]}}}}]}}}}}}}]}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'a","span":[0,4]}}}}}]}}"""

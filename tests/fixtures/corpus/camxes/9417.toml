@@ -30,21 +30,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    SumtiWithRelativeClauses @[0‥10) {
-      base_sumti: LerfuStringSumti @[0‥2) {
-        letter: [
-          Cmavo @[0‥2) "my",
-        ],
-      },
-      relative_clauses: [
-        SumtiAssociationPhrase @[4‥10) {
-          association_marker: Cmavo @[4‥7) "goĭ",
-          Cmavo @[8‥10) "ma",
-        },
-      ],
-    },
-  ],
+SimpleSumti @[0‥10) {
+  base_sumti: Cmavo @[0‥2) "my",
+  relative_clauses: SumtiAssociationRelativeClause @[4‥10) {
+    association_marker: Cmavo @[4‥7) "goĭ",
+    sumti: Cmavo @[8‥10) "ma",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[8,10]}}}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"my","span":[0,2]}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[8,10]}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

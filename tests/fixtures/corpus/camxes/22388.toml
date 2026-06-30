@@ -35,12 +35,16 @@ tree = """
 ParagraphStatement @[0‥18) {
   i: Cmavo @[0‥1) "i",
   TaggedSelbri @[2‥18) {
-    tense_modal: Composite @[2‥12) {
-      Cmavo @[2‥4) "pu",
-      Cmavo @[5‥7) "zu",
-      Cmavo @[8‥12) "ca'a",
+    tense_modal: TimeThenSpaceCahaTense @[2‥12) {
+      time: [
+        PuTimeOffsetTense @[2‥7) {
+          pu: Cmavo @[2‥4) "pu",
+          distance: Cmavo @[5‥7) "zu",
+        },
+      ],
+      caha: Cmavo @[8‥12) "ca'a",
     },
-    Gismu @[13‥18) "víska",
+    inner_selbri: Gismu @[13‥18) "víska",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[2,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu","span":[5,7]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'a","span":[8,12]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[13,18]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[2,4]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu","span":[5,7]}}}}}]}},"caha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'a","span":[8,12]}}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

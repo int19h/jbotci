@@ -50,61 +50,71 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[14,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}},{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[20,26]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[28,32]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[33,35]}}},{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[36,41]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[43,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[45,47]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[48,50]}}},{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[51,57]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[59,61]}}},{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[62,67]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[68,70]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[71,73]}}},{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[73,76]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([{(la .djeĭmyz.) ce bo (la .djordj.)} pi'u {(la .meris.) ce bo (la .martas.)}] cu [prámi {se (re meĭ)}])"
+brackets = "([{(la .djeĭmyz.) (ce bo [la .djordj.])} {pi'u ([la .meris.] [ce bo {la .martas.}])}] cu [prámi {se (re meĭ)}])"
 tree = """
-Bridi @[0‥76) {
+BridiWithLeadingTerms @[0‥76) {
   leading_terms: [
-    SumtiConnection @[0‥57) {
-      leading_sumti: BoundSumtiConnection @[0‥26) {
-        leading_sumti: NameDescription @[0‥10) {
+    SumtiAfterthought @[0‥57) {
+      leading_sumti: SumtiBound @[0‥26) {
+        leading_sumti: NameSumti @[0‥10) {
           la: Cmavo @[0‥2) "la",
           names: [
             Cmevla @[3‥10) "djeĭmyz",
           ],
         },
-        bo_connective: Cmavo @[12‥14) "ce",
-        bo: Cmavo @[14‥16) "bo",
-        trailing_sumti: NameDescription @[17‥26) {
-          la: Cmavo @[17‥19) "la",
-          names: [
-            Cmevla @[20‥26) "djordj",
-          ],
+        bound_tail: BoundSumtiTail @[12‥26) {
+          connective: Cmavo @[12‥14) "ce",
+          bo: Cmavo @[14‥16) "bo",
+          trailing_sumti: NameSumti @[17‥26) {
+            la: Cmavo @[17‥19) "la",
+            names: [
+              Cmevla @[20‥26) "djordj",
+            ],
+          },
         },
       },
-      connective: Cmavo @[28‥32) "pi'u",
-      trailing_sumti: BoundSumtiConnection @[33‥57) {
-        leading_sumti: NameDescription @[33‥41) {
-          la: Cmavo @[33‥35) "la",
-          names: [
-            Cmevla @[36‥41) "meris",
-          ],
+      continuations: [
+        SumtiAfterthoughtTail @[28‥57) {
+          connective: Cmavo @[28‥32) "pi'u",
+          sumti: SumtiBound @[33‥57) {
+            leading_sumti: NameSumti @[33‥41) {
+              la: Cmavo @[33‥35) "la",
+              names: [
+                Cmevla @[36‥41) "meris",
+              ],
+            },
+            bound_tail: BoundSumtiTail @[43‥57) {
+              connective: Cmavo @[43‥45) "ce",
+              bo: Cmavo @[45‥47) "bo",
+              trailing_sumti: NameSumti @[48‥57) {
+                la: Cmavo @[48‥50) "la",
+                names: [
+                  Cmevla @[51‥57) "martas",
+                ],
+              },
+            },
+          },
         },
-        bo_connective: Cmavo @[43‥45) "ce",
-        bo: Cmavo @[45‥47) "bo",
-        trailing_sumti: NameDescription @[48‥57) {
-          la: Cmavo @[48‥50) "la",
-          names: [
-            Cmevla @[51‥57) "martas",
-          ],
-        },
-      },
+      ],
     },
   ],
   cu: Cmavo @[59‥61) "cu",
-  Tanru @[62‥76) {
-    Gismu @[62‥67) "prámi",
-    ConvertedTanruUnit @[68‥76) {
-      se: Cmavo @[68‥70) "se",
-      OrdinalSelbri @[71‥76) {
-        number: [
-          Cmavo @[71‥73) "re",
+  bridi_tail: TanruSelbri @[62‥76) {
+    first_unit: Gismu @[62‥67) "prámi",
+    additional_units: [
+      TanruUnitAtom @[68‥76) {
+        conversions: [
+          Cmavo @[68‥70) "se",
         ],
-        moi: Cmavo @[73‥76) "meĭ",
+        base: OrdinalTanruUnit @[71‥76) {
+          number: Cmavo @[71‥73) "re",
+          moi: Cmavo @[73‥76) "meĭ",
+        },
       },
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"BoundSumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}},"bo_connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}}}]}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[14,16]}}}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[20,26]}}}}]}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[28,32]}}}}]}},"trailing_sumti":{"BoundSumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[33,35]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[36,41]}}}}]}},"bo_connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[43,45]}}}}]}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[45,47]}}}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[48,50]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[51,57]}}}}]}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[59,61]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[62,67]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[68,70]}}}},"inner_unit":{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[71,73]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[73,76]}}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}}}}},"bound_tail":{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[14,16]}}}},"trailing_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[20,26]}}}}]}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[28,32]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[33,35]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[36,41]}}}}]}}}}},"bound_tail":{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[43,45]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[45,47]}}}},"trailing_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[48,50]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[51,57]}}}}]}}}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[59,61]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[62,67]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[68,70]}}}}],"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[71,73]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[73,76]}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:27","content":"formula:26","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"bridi"}},"parameter:18":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"predication:16":{"type":"predication","eventuality":"eventuality:13","relation":"re mei","arguments":{"x1":{"kind":"elided","value":"entity:14","introducedBy":"zo'e"},"x2":{"kind":"filled","value":"entity:12"},"x3":{"kind":"elided","value":"entity:15","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"predication:21":{"type":"predication","eventuality":"eventuality:19","relation":"prami","arguments":{"x1":{"kind":"filled","value":"parameter:18"},"x2":{"kind":"elided","value":"entity:20","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"predication:24":{"type":"predication","relation":"tanru","tanruLink":{"head":"predication:16","modifier":"relation:23","relationLabel":"prami-re mei"},"arguments":{"x1":{"kind":"filled","value":"entity:12"},"x2":{"kind":"filled","value":"relation:23"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"formula:22":{"type":"formula","operator":"atom","predication":"predication:21","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"formula:25":{"type":"formula","operator":"atom","predication":"predication:24","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"formula:26":{"type":"formula","operator":"and","children":["formula:17","formula:25"],"connector":{"source":"tanru","locus":"selbri"},"source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djeimyz"},"source":{"span":{"byteStart":0,"byteEnd":11},"text":"la djeimyz.","construct":"sumti"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djordj"},"source":{"span":{"byteStart":17,"byteEnd":27},"text":"la djordj.","construct":"sumti"}},"entity:8":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"set","members":["entity:6","entity:7"]},"source":{"span":{"byteStart":0,"byteEnd":27},"text":"la djeimyz. cebo la djordj.","construct":"connected-sumti"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"meris"},"source":{"span":{"byteStart":33,"byteEnd":42},"text":"la meris.","construct":"sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"martas"},"source":{"span":{"byteStart":48,"byteEnd":58},"text":"la martas.","construct":"sumti"}},"entity:11":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"set","members":["entity:9","entity:10"]},"source":{"span":{"byteStart":33,"byteEnd":58},"text":"la meris. cebo la martas.","construct":"connected-sumti"}},"entity:12":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"crossProduct","members":["entity:8","entity:11"]},"source":{"span":{"byteStart":0,"byteEnd":58},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas.","construct":"connected-sumti"}},"entity:14":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:20":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:13":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}},"eventuality/locution:27":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"bridi"}},"relation:23":{"type":"referent","category":"constant","sort":"relation","body":"formula:22","parameters":["parameter:18"],"arity":1,"source":{"span":{"byteStart":0,"byteEnd":76},"text":"la djeimyz. cebo la djordj. pi'u la meris. cebo la martas. cu prami se remei","construct":"tanru-formula"}}}}'''

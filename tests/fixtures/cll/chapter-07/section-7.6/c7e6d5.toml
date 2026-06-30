@@ -51,84 +51,84 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"smúci","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[10,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[12,14]}}},{"PlainWord":{"Gismu":{"phonemes":"fórca","span":[15,20]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[22,23]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}},{"PlainWord":{"Cmevla":{"phonemes":"rik","span":[28,31]}}},{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[33,38]}}},{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[39,41]}}},{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[41,43]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[43,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[47,48]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[49,51]}}},{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[53,57]}}},{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[59,64]}}},{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[65,67]}}},{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[67,69]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[69,71]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([lo smúci] [.i {lo fórca}] [.i {(la .rik.) (pílno [ri {xi re}])}] [.i {(la .alis.) (pílno [ri {xi mu}])}])"
+brackets = "([lo smúci] [{.i (lo fórca)} {.i ([la .rik.] [pílno {ri (xi re)}])} {.i ([la .alis.] [pílno {ri (xi mu)}])}])"
 tree = """
-Paragraph @[0‥71) {
-  Terms @[0‥8) {
-    terms: [
-      Description @[0‥8) {
-        description: Cmavo @[0‥2) "lo",
-        selbri: Gismu @[3‥8) "smúci",
-      },
-    ],
-  },
-  ParagraphStatement @[10‥20) {
-    i: Cmavo @[10‥11) "i",
-    Terms @[12‥20) {
-      terms: [
-        Description @[12‥20) {
-          description: Cmavo @[12‥14) "lo",
-          selbri: Gismu @[15‥20) "fórca",
-        },
-      ],
+ParagraphStatementSequence @[0‥71) {
+  DescriptorWithGadriSumti @[0‥8) {
+    description: Cmavo @[0‥2) "lo",
+    tail: DescriptionTail @[3‥8) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[3‥8) "smúci",
     },
   },
-  ParagraphStatement @[22‥45) {
-    i: Cmavo @[22‥23) "i",
-    Bridi @[24‥45) {
-      leading_terms: [
-        NameDescription @[24‥31) {
-          la: Cmavo @[24‥26) "la",
-          names: [
-            Cmevla @[28‥31) "rik",
-          ],
+  following: [
+    ParagraphStatement @[10‥20) {
+      i: Cmavo @[10‥11) "i",
+      DescriptorWithGadriSumti @[12‥20) {
+        description: Cmavo @[12‥14) "lo",
+        tail: DescriptionTail @[15‥20) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[15‥20) "fórca",
         },
-      ],
-      SelbriBridiTail @[33‥45) {
-        Gismu @[33‥38) "pílno",
-        terms: [
-          ProSumti @[39‥45) {
-            Cmavo @[39‥41) "ri",
-            free_modifiers: [
-              Subscript @[41‥45) {
-                xi: Cmavo @[41‥43) "xi",
-                Cmavo @[43‥45) "re",
-              },
+      },
+    },
+    ParagraphStatement @[22‥45) {
+      i: Cmavo @[22‥23) "i",
+      BridiWithLeadingTerms @[24‥45) {
+        leading_terms: [
+          NameSumti @[24‥31) {
+            la: Cmavo @[24‥26) "la",
+            names: [
+              Cmevla @[28‥31) "rik",
             ],
           },
         ],
-      },
-    },
-  },
-  ParagraphStatement @[47‥71) {
-    i: Cmavo @[47‥48) "i",
-    Bridi @[49‥71) {
-      leading_terms: [
-        NameDescription @[49‥57) {
-          la: Cmavo @[49‥51) "la",
-          names: [
-            Cmevla @[53‥57) "alis",
+        bridi_tail: SelbriSimpleBridiTail @[33‥45) {
+          selbri: Gismu @[33‥38) "pílno",
+          terms: [
+            ProSumti @[39‥45) {
+              Cmavo @[39‥41) "ri",
+              free_modifiers: [
+                XiNumberFreeModifier @[41‥45) {
+                  xi: Cmavo @[41‥43) "xi",
+                  expression: Cmavo @[43‥45) "re",
+                },
+              ],
+            },
           ],
         },
-      ],
-      SelbriBridiTail @[59‥71) {
-        Gismu @[59‥64) "pílno",
-        terms: [
-          ProSumti @[65‥71) {
-            Cmavo @[65‥67) "ri",
-            free_modifiers: [
-              Subscript @[67‥71) {
-                xi: Cmavo @[67‥69) "xi",
-                Cmavo @[69‥71) "mu",
-              },
+      },
+    },
+    ParagraphStatement @[47‥71) {
+      i: Cmavo @[47‥48) "i",
+      BridiWithLeadingTerms @[49‥71) {
+        leading_terms: [
+          NameSumti @[49‥57) {
+            la: Cmavo @[49‥51) "la",
+            names: [
+              Cmevla @[53‥57) "alis",
             ],
           },
         ],
+        bridi_tail: SelbriSimpleBridiTail @[59‥71) {
+          selbri: Gismu @[59‥64) "pílno",
+          terms: [
+            ProSumti @[65‥71) {
+              Cmavo @[65‥67) "ri",
+              free_modifiers: [
+                XiNumberFreeModifier @[67‥71) {
+                  xi: Cmavo @[67‥69) "xi",
+                  expression: Cmavo @[69‥71) "mu",
+                },
+              ],
+            },
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smúci","span":[3,8]}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[10,11]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[12,14]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fórca","span":[15,20]}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[22,23]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rik","span":[28,31]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[33,38]}}}}},"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[39,41]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[41,43]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[43,45]}}}}]}}}}}]}}]}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[47,48]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[49,51]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[53,57]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[59,64]}}}}},"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[65,67]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[67,69]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[69,71]}}}}]}}}}}]}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smúci","span":[3,8]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[10,11]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fórca","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[22,23]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rik","span":[28,31]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[33,38]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[39,41]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[41,43]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[43,45]}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[47,48]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[49,51]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[53,57]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[59,64]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[65,67]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[67,69]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[69,71]}}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:34","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:14","content":"entity:9","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":8},"text":"lo smuci","construct":"fragment"}},"utterance:6":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:21","content":"entity:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":12,"byteEnd":20},"text":"lo forca","construct":"fragment"}},"utterance:7":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:27","content":"formula:26","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":24,"byteEnd":45},"text":"la .rik. pilno rixire","construct":"bridi"}},"utterance:8":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:33","content":"formula:32","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":49,"byteEnd":71},"text":"la .alis. pilno riximu","construct":"bridi"}},"sequence:34":{"type":"sequence","items":["utterance:5","utterance:6","utterance:7","utterance:8"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":71},"text":"lo smuci .i lo forca .i la .rik. pilno rixire .i la .alis. pilno riximu","construct":"text"}},"predication:12":{"type":"predication","relation":"smuci","arguments":{"x1":{"kind":"filled","value":"entity:9"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":8},"text":"smuci","construct":"restrictive-predication"}},"predication:19":{"type":"predication","relation":"forca","arguments":{"x1":{"kind":"filled","value":"entity:15"},"x2":{"kind":"elided","value":"entity:16","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:17","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:18","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":15,"byteEnd":20},"text":"forca","construct":"restrictive-predication"}},"predication:25":{"type":"predication","eventuality":"eventuality:22","relation":"pilno","arguments":{"x1":{"kind":"filled","value":"entity:23"},"x2":{"kind":"filled","value":"entity:15"},"x3":{"kind":"elided","value":"entity:24","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":24,"byteEnd":45},"text":"la .rik. pilno rixire","construct":"predication"}},"predication:31":{"type":"predication","eventuality":"eventuality:28","relation":"pilno","arguments":{"x1":{"kind":"filled","value":"entity:29"},"x2":{"kind":"filled","value":"entity:9"},"x3":{"kind":"elided","value":"entity:30","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":49,"byteEnd":71},"text":"la .alis. pilno riximu","construct":"predication"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":3,"byteEnd":8},"text":"smuci","construct":"restrictive-formula"}},"formula:20":{"type":"formula","operator":"atom","predication":"predication:19","source":{"span":{"byteStart":15,"byteEnd":20},"text":"forca","construct":"restrictive-formula"}},"formula:26":{"type":"formula","operator":"atom","predication":"predication:25","source":{"span":{"byteStart":24,"byteEnd":45},"text":"la .rik. pilno rixire","construct":"bridi-formula"}},"formula:32":{"type":"formula","operator":"atom","predication":"predication:31","source":{"span":{"byteStart":49,"byteEnd":71},"text":"la .alis. pilno riximu","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:13"},"source":{"span":{"byteStart":0,"byteEnd":8},"text":"lo smuci","construct":"description"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:20"},"source":{"span":{"byteStart":12,"byteEnd":20},"text":"lo forca","construct":"description"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:17":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:18":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:23":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"rik"},"source":{"span":{"byteStart":24,"byteEnd":32},"text":"la .rik.","construct":"sumti"}},"entity:24":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:29":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"alis"},"source":{"span":{"byteStart":49,"byteEnd":58},"text":"la .alis.","construct":"sumti"}},"entity:30":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:22":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":24,"byteEnd":45},"text":"la .rik. pilno rixire","construct":"predication"}},"eventuality:28":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":49,"byteEnd":71},"text":"la .alis. pilno riximu","construct":"predication"}},"eventuality/locution:14":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":8},"text":"lo smuci","construct":"fragment"}},"eventuality/locution:21":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":12,"byteEnd":20},"text":"lo forca","construct":"fragment"}},"eventuality/locution:27":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":24,"byteEnd":45},"text":"la .rik. pilno rixire","construct":"bridi"}},"eventuality/locution:33":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":49,"byteEnd":71},"text":"la .alis. pilno riximu","construct":"bridi"}}}}'''

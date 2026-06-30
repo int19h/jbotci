@@ -38,14 +38,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "(do [du {la .djan.}])"
 tree = """
-Bridi @[0‥14) {
+BridiWithLeadingTerms @[0‥14) {
   leading_terms: [
     Cmavo @[0‥2) "do",
   ],
-  SelbriBridiTail @[3‥14) {
-    Cmavo @[3‥5) "du",
+  bridi_tail: SelbriSimpleBridiTail @[3‥14) {
+    selbri: Cmavo @[3‥5) "du",
     terms: [
-      NameDescription @[6‥14) {
+      NameSumti @[6‥14) {
         la: Cmavo @[6‥8) "la",
         names: [
           Cmevla @[10‥14) "djan",
@@ -54,7 +54,7 @@ Bridi @[0‥14) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[3,5]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[10,14]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[3,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[10,14]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:10","content":"formula:9","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":15},"text":"do du la .djan.","construct":"bridi"}},"predication:8":{"type":"predication","eventuality":"eventuality:6","relation":"identity","arguments":{"x1":{"kind":"filled","value":"entity:2"},"x2":{"kind":"filled","value":"entity:7"}},"mode":"definitional","source":{"span":{"byteStart":0,"byteEnd":15},"text":"do du la .djan.","construct":"predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":0,"byteEnd":15},"text":"do du la .djan.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":6,"byteEnd":15},"text":"la .djan.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":15},"text":"do du la .djan.","construct":"predication"}},"eventuality/locution:10":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":15},"text":"do du la .djan.","construct":"bridi"}}}}'''

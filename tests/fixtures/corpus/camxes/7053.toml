@@ -34,23 +34,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥16) {
-  terms: [
-    Description @[0‥16) {
-      description: Cmavo @[0‥2) "le",
-      selbri: Abstraction @[2‥16) {
-        nu: Cmavo @[2‥4) "nu",
-        SelbriBridiTail @[5‥16) {
-          Gismu @[5‥10) "vímcu",
-          terms: [
-            QuotedWord @[11‥16) {
-              zo: Cmavo @[11‥13) "zo",
-              Cmavo @[14‥16) "cu",
-            },
-          ],
-        },
+DescriptorWithGadriSumti @[0‥16) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[2‥16) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: AbstractionTanruUnit @[2‥16) {
+      nu: Cmavo @[2‥4) "nu",
+      subbridi: SelbriSimpleBridiTail @[5‥16) {
+        selbri: Gismu @[5‥10) "vímcu",
+        terms: [
+          QuotedWord @[11‥16) {
+            zo: Cmavo @[11‥13) "zo",
+            Cmavo @[14‥16) "cu",
+          },
+        ],
       },
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[2,4]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vímcu","span":[5,10]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[11,13]}},"word":{"Cmavo":{"phonemes":"cu","span":[14,16]}}}}}}}}]}}}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[2,4]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vímcu","span":[5,10]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[11,13]}},"word":{"Cmavo":{"phonemes":"cu","span":[14,16]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

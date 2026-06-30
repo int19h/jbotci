@@ -35,24 +35,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥28) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ta'o",
-    },
+    Cmavo @[0‥4) "ta'o",
   ],
   leading_free_modifiers: [
-    Vocative @[5‥13) {
-      vocative_markers: [
-        Cmavo @[5‥9) "mi'e",
+    VocativeFreeModifier @[5‥13) {
+      vocative_markers: Cmavo @[5‥9) "mi'e",
+      sumti: [
+        Cmevla @[10‥13) "dyg",
       ],
-      sumti: Cmevla @[10‥13) "dyg",
     },
   ],
   ParagraphStatement @[15‥28) {
     i: Cmavo @[15‥16) "i",
-    Tanru @[17‥28) {
-      Gismu @[17‥22) "xámgu",
-      Gismu @[23‥28) "pénmi",
+    TanruSelbri @[17‥28) {
+      first_unit: Gismu @[17‥22) "xámgu",
+      additional_units: [
+        Gismu @[23‥28) "pénmi",
+      ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[15,16]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[17,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénmi","span":[23,28]}}}}}]}}}}}}}}}]}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[5,9]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dyg","span":[10,13]}}}}]}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[17,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pénmi","span":[23,28]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[5,9]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dyg","span":[10,13]}}}}]}}}}],"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[15,16]}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}}"""

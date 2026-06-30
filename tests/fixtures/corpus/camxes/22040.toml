@@ -37,26 +37,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-BridiConnection @[0‥43) {
+DirectForethoughtBridiConnection @[0‥43) {
   gek: Forethought @[0‥5) {
     Cmavo @[0‥2) "ga",
     nai: Cmavo @[2‥5) "naĭ",
   },
   first: ScalarNegatedTanruUnit @[6‥16) {
     nahe: Cmavo @[6‥10) "na'e",
-    Gismu @[11‥16) "jítfa",
+    inner_unit: Gismu @[11‥16) "jítfa",
   },
   gik: Cmavo @[17‥19) "gi",
-  second: Bridi @[20‥43) {
+  second: BridiWithLeadingTerms @[20‥43) {
     leading_terms: [
       Cmavo @[20‥22) "mi",
     ],
-    SelbriBridiTail @[23‥43) {
-      Gismu @[23‥28) "cúxna",
+    bridi_tail: SelbriSimpleBridiTail @[23‥43) {
+      selbri: Gismu @[23‥28) "cúxna",
       terms: [
         QuantifiedSumti @[29‥43) {
           quantifier: Cmavo @[29‥31) "pa",
-          NameDescription @[32‥43) {
+          inner_sumti: NameSumti @[32‥43) {
             la: Cmavo @[32‥34) "la",
             names: [
               Cmevla @[35‥43) "demokrat",
@@ -67,4 +67,4 @@ BridiConnection @[0‥43) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"ForethoughtBridiTailConnection":{"BridiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}}}}},"first":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[6,10]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jítfa","span":[11,16]}}}}}}}]}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[17,19]}}}}]}},"second":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúxna","span":[23,28]}}}}},"terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[29,31]}}}}]}},"inner_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"demokrat","span":[35,43]}}}}]}}}}}]}}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"ForethoughtSimpleBridiTail":{"DirectForethoughtBridiConnection":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}}}}},"first":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[6,10]}}}},"inner_unit":{"TanruUnitAtom":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jítfa","span":[11,16]}}}}}}}}}}}}}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[17,19]}}}}},"second":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúxna","span":[23,28]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[29,31]}}}}}}},"inner_sumti":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"demokrat","span":[35,43]}}}}]}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

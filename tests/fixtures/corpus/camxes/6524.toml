@@ -31,16 +31,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥12) {
+BridiWithLeadingTerms @[0‥12) {
   leading_terms: [
     QuantifiedSumti @[0‥6) {
-      quantifier: NumberQuantifier @[0‥4) {
-        Cmavo @[0‥2) "pa",
-        Cmavo @[2‥4) "re",
+      quantifier: NumberWords @[0‥4) {
+        first_number: Cmavo @[0‥2) "pa",
+        continuations: [
+          Cmavo @[2‥4) "re",
+        ],
       },
-      Cmavo @[4‥6) "da",
+      inner_sumti: Cmavo @[4‥6) "da",
     },
   ],
-  Gismu @[7‥12) "sípna",
+  bridi_tail: Gismu @[7‥12) "sípna",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[2,4]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[4,6]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sípna","span":[7,12]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[2,4]}}}}}]}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[4,6]}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sípna","span":[7,12]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

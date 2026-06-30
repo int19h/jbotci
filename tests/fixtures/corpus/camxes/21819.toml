@@ -31,16 +31,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"so","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥19) {
+ParagraphStatementSequence @[0‥19) {
   Cmavo @[0‥2) "so",
-  ParagraphStatement @[8‥19) {
-    i: Cmavo @[8‥9) "i",
-    Bridi @[9‥19) {
-      leading_terms: [
-        Cmavo @[9‥11) "ko",
-      ],
-      Lujvo @[12‥19) "narbá'u",
+  following: [
+    ParagraphStatement @[8‥19) {
+      i: Cmavo @[8‥9) "i",
+      BridiWithLeadingTerms @[9‥19) {
+        leading_terms: [
+          Cmavo @[9‥11) "ko",
+        ],
+        bridi_tail: Lujvo @[12‥19) "narbá'u",
+      },
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[0,2]}}}}]}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nar"},{"Rafsi":"bá'u"}],"span":[12,19]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[0,2]}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[8,9]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nar"},{"Rafsi":"bá'u"}],"span":[12,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}"""

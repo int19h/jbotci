@@ -30,17 +30,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥10) {
-  leading_free_modifiers: [
-    Vocative @[0‥10) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: WithIndicator @[4‥10) {
-        Cmavo @[4‥6) "mi",
-        indicator: Cmavo @[8‥10) "ĭo",
-      },
-    },
-  ],
+VocativeFreeModifier @[0‥10) {
+  vocative_markers: Cmavo @[0‥3) "doĭ",
+  sumti: WithIndicator @[4‥10) {
+    Cmavo @[4‥6) "mi",
+    indicator: Cmavo @[8‥10) "ĭo",
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[8,10]}}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[8,10]}}}}}}}}}}}}}}}]}}'

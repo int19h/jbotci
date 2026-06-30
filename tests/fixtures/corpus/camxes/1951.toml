@@ -30,19 +30,13 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥9) {
-  terms: [
-    LerfuStringSumti @[0‥9) {
-      letter: [
-        Cmavo @[0‥2) "xy",
-      ],
-      free_modifiers: [
-        Subscript @[4‥9) {
-          xi: Cmavo @[4‥6) "xi",
-          Cmavo @[7‥9) "ky",
-        },
-      ],
+LerfuStringSumti @[0‥9) {
+  words: Cmavo @[0‥2) "xy",
+  free_modifiers: [
+    XiLerfuStringFreeModifier @[4‥9) {
+      xi: Cmavo @[4‥6) "xi",
+      expression: Cmavo @[7‥9) "ky",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}],{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[4,6]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ky","span":[7,9]}}}}]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}}},"free_modifiers":[{"XiFreeModifier":{"XiLerfuStringFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[4,6]}}}},"expression":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ky","span":[7,9]}}}}}}}}}}]}}}}}}}}}}}}]}}}}}}}}}'

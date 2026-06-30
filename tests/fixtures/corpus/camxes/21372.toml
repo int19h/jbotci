@@ -41,16 +41,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥36) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ta'o",
-    },
+    Cmavo @[0‥4) "ta'o",
   ],
-  Bridi @[5‥36) {
+  BridiWithLeadingTerms @[5‥36) {
     leading_terms: [
       Cmavo @[5‥7) "do",
     ],
-    SelbriBridiTail @[8‥36) {
-      Lujvo @[8‥14) "sélcme",
+    bridi_tail: SelbriSimpleBridiTail @[8‥36) {
+      selbri: Lujvo @[8‥14) "sélcme",
       terms: [
         QuotedWord @[15‥23) {
           zo: Cmavo @[15‥17) "zo",
@@ -58,7 +56,7 @@ Text @[0‥36) {
         },
         QuantifiedSumti @[24‥36) {
           quantifier: Cmavo @[24‥28) "ji'i",
-          QuotedWord @[29‥36) {
+          inner_sumti: QuotedWord @[29‥36) {
             zo: Cmavo @[29‥31) "zo",
             Cmevla @[32‥36) "rabn",
           },
@@ -67,4 +65,4 @@ Text @[0‥36) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sél"},{"Rafsi":"cme"}],"span":[8,14]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[15,17]}},"word":{"Cmevla":{"phonemes":"robin","span":[18,23]}}}}}}}},{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[24,28]}}}}]}},"inner_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[29,31]}},"word":{"Cmevla":{"phonemes":"rabn","span":[32,36]}}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sél"},{"Rafsi":"cme"}],"span":[8,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[15,17]}},"word":{"Cmevla":{"phonemes":"robin","span":[18,23]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[24,28]}}}}}}},"inner_sumti":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[29,31]}},"word":{"Cmevla":{"phonemes":"rabn","span":[32,36]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}}"""

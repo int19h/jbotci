@@ -33,18 +33,15 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[0‥10) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥10) {
-    terms: [
-      Description @[2‥10) {
-        description: Cmavo @[2‥4) "le",
-        selbri: OrdinalSelbri @[5‥10) {
-          number: [
-            Cmavo @[5‥7) "no",
-          ],
-          moi: Cmavo @[7‥10) "meĭ",
-        },
+  DescriptorWithGadriSumti @[2‥10) {
+    description: Cmavo @[2‥4) "le",
+    tail: DescriptionTail @[5‥10) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: OrdinalTanruUnit @[5‥10) {
+        number: Cmavo @[5‥7) "no",
+        moi: Cmavo @[7‥10) "meĭ",
       },
-    ],
+    },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[2,4]}}}},"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[5,7]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[7,10]}}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[2,4]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[5,7]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[7,10]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

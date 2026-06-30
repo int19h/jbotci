@@ -42,9 +42,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "([la {.mon. .repós.}] [zdáni {la .spat.}])"
 tree = """
-Bridi @[0‥30) {
+BridiWithLeadingTerms @[0‥30) {
   leading_terms: [
-    NameDescription @[0‥15) {
+    NameSumti @[0‥15) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[4‥7) "mon",
@@ -52,10 +52,10 @@ Bridi @[0‥30) {
       ],
     },
   ],
-  SelbriBridiTail @[17‥30) {
-    Gismu @[17‥22) "zdáni",
+  bridi_tail: SelbriSimpleBridiTail @[17‥30) {
+    selbri: Gismu @[17‥22) "zdáni",
     terms: [
-      NameDescription @[23‥30) {
+      NameSumti @[23‥30) {
         la: Cmavo @[23‥25) "la",
         names: [
           Cmevla @[26‥30) "spat",
@@ -64,5 +64,5 @@ Bridi @[0‥30) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"mon","span":[4,7]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"repós","span":[10,15]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[17,22]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"spat","span":[26,30]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"mon","span":[4,7]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"repós","span":[10,15]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[17,22]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"spat","span":[26,30]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 

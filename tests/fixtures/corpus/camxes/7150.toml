@@ -32,19 +32,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥17) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ki'a",
-    },
+    Cmavo @[0‥4) "ki'a",
   ],
   leading_free_modifiers: [
-    Vocative @[5‥17) {
-      vocative_markers: [
-        Cmavo @[5‥8) "doĭ",
-      ],
-      sumti: SelbriVocative @[9‥17) {
-        selbri: Lujvo @[9‥17) "zirbólci",
-      },
+    VocativeFreeModifier @[5‥17) {
+      vocative_markers: Cmavo @[5‥8) "doĭ",
+      sumti: Lujvo @[9‥17) "zirbólci",
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[5,8]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zir"},{"Rafsi":"bólci"}],"span":[9,17]}}}}}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[5,8]}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zir"},{"Rafsi":"bólci"}],"span":[9,17]}}}}}}}}}}}}}}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[0,4]}}}}}]}}"""

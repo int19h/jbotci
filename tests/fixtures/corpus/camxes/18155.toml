@@ -33,16 +33,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥18) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥18) {
-    terms: [
-      Description @[2‥18) {
-        description: Cmavo @[2‥4) "lo",
-        selbri: WithIndicator @[5‥18) {
-          Lujvo @[5‥13) "terclíra",
-          indicator: Cmavo @[14‥18) "ki'a",
-        },
+  DescriptorWithGadriSumti @[2‥18) {
+    description: Cmavo @[2‥4) "lo",
+    tail: DescriptionTail @[5‥18) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: WithIndicator @[5‥18) {
+        Lujvo @[5‥13) "terclíra",
+        indicator: Cmavo @[14‥18) "ki'a",
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[2,4]}}}},"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"clíra"}],"span":[5,13]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[14,18]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[2,4]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"clíra"}],"span":[5,13]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[14,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

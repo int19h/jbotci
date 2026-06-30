@@ -33,20 +33,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥23) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ru'a",
-    },
+    Cmavo @[0‥4) "ru'a",
   ],
-  Terms @[5‥23) {
-    terms: [
-      Description @[5‥23) {
-        description: Cmavo @[5‥7) "le",
-        selbri: Tanru @[8‥23) {
-          Gismu @[8‥13) "cnáno",
+  DescriptorWithGadriSumti @[5‥23) {
+    description: Cmavo @[5‥7) "le",
+    tail: DescriptionTail @[8‥23) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[8‥23) {
+        first_unit: Gismu @[8‥13) "cnáno",
+        additional_units: [
           Lujvo @[14‥23) "samsélpla",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cnáno","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[14,23]}}}}}]}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cnáno","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[14,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'a","span":[0,4]}}}}}]}}"""

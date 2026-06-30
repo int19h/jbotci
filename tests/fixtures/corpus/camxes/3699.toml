@@ -32,19 +32,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ke'u","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥14) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ke'u",
-    },
+    Cmavo @[0‥4) "ke'u",
   ],
   leading_free_modifiers: [
-    Vocative @[5‥14) {
-      vocative_markers: [
-        Cmavo @[5‥8) "doĭ",
-      ],
-      sumti: SelbriVocative @[9‥14) {
-        selbri: Gismu @[9‥14) "skámi",
-      },
+    VocativeFreeModifier @[5‥14) {
+      vocative_markers: Cmavo @[5‥8) "doĭ",
+      sumti: Gismu @[9‥14) "skámi",
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[5,8]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[9,14]}}}}}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'u","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[5,8]}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[9,14]}}}}}}}}}}}}}}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'u","span":[0,4]}}}}}]}}"""

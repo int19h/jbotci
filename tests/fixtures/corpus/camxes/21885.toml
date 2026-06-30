@@ -29,15 +29,11 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"se","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥6) {
-  terms: [
-    TaggedSumti @[0‥6) {
-      tense_modal: Modal @[0‥6) {
-        se: Cmavo @[0‥2) "se",
-        bai: Cmavo @[2‥6) "zu'e",
-      },
-      ElidedSumti {},
-    },
-  ],
+TaggedSumtiTerm @[0‥6) {
+  tense_modal: ModalTense @[0‥6) {
+    se: Cmavo @[0‥2) "se",
+    bai: Cmavo @[2‥6) "zu'e",
+  },
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu'e","span":[2,6]}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu'e","span":[2,6]}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

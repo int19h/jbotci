@@ -34,19 +34,21 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥26) {
+BridiWithLeadingTerms @[0‥26) {
   leading_terms: [
     QuotedWord @[0‥6) {
       zo: Cmavo @[0‥2) "zo",
       Cmevla @[3‥6) "xod",
     },
   ],
-  Negated @[7‥26) {
+  bridi_tail: NegatedSelbri @[7‥26) {
     na: Cmavo @[7‥9) "na",
-    Tanru @[10‥26) {
-      Fuhivla @[10‥20) "bangrnórge",
-      Gismu @[21‥26) "cméne",
+    inner_selbri: TanruSelbri @[10‥26) {
+      first_unit: Fuhivla @[10‥20) "bangrnórge",
+      additional_units: [
+        Gismu @[21‥26) "cméne",
+      ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmevla":{"phonemes":"xod","span":[3,6]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[7,9]}}}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"bangrnórge","span":[10,20]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[21,26]}}}}}]}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmevla":{"phonemes":"xod","span":[3,6]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[7,9]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"bangrnórge","span":[10,20]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[21,26]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}'

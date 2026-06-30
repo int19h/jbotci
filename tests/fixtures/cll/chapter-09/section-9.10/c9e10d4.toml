@@ -42,39 +42,39 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "([{la .apasonatas.} {ne (la .betovn.)}] [{se nélci} mi])"
 tree = """
-Bridi @[0‥42) {
+BridiWithLeadingTerms @[0‥42) {
   leading_terms: [
-    SumtiWithRelativeClauses @[0‥29) {
-      base_sumti: NameDescription @[0‥14) {
+    SimpleSumti @[0‥29) {
+      base_sumti: NameSumti @[0‥14) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[4‥14) "apasonatas",
         ],
       },
-      relative_clauses: [
-        SumtiAssociationPhrase @[16‥29) {
-          association_marker: Cmavo @[16‥18) "ne",
-          NameDescription @[19‥29) {
-            la: Cmavo @[19‥21) "la",
-            names: [
-              Cmevla @[23‥29) "betovn",
-            ],
-          },
+      relative_clauses: SumtiAssociationRelativeClause @[16‥29) {
+        association_marker: Cmavo @[16‥18) "ne",
+        sumti: NameSumti @[19‥29) {
+          la: Cmavo @[19‥21) "la",
+          names: [
+            Cmevla @[23‥29) "betovn",
+          ],
         },
-      ],
+      },
     },
   ],
-  SelbriBridiTail @[31‥42) {
-    ConvertedSelbri @[31‥39) {
-      se: Cmavo @[31‥33) "se",
-      Gismu @[34‥39) "nélci",
+  bridi_tail: SelbriSimpleBridiTail @[31‥42) {
+    selbri: TanruUnitAtom @[31‥39) {
+      conversions: [
+        Cmavo @[31‥33) "se",
+      ],
+      base: Gismu @[34‥39) "nélci",
     },
     terms: [
       Cmavo @[40‥42) "mi",
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"apasonatas","span":[4,14]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[16,18]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"betovn","span":[23,29]}}}}]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[31,33]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[34,39]}}}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[40,42]}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"apasonatas","span":[4,14]}}}}]}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne","span":[16,18]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[19,21]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"betovn","span":[23,29]}}}}]}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[31,33]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[34,39]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[40,42]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:13","content":"formula:12","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":42},"text":"la .apasonatas. ne la .betovn. se nelci mi","construct":"bridi"}},"predication:9":{"type":"predication","relation":"associatedWith","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:8"}},"mode":"incidental","source":{"span":{"byteStart":16,"byteEnd":29},"text":"ne la .betovn","construct":"relative-phrase"}},"predication:11":{"type":"predication","eventuality":"eventuality:6","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7","relativeClauses":[{"kind":"incidental","body":"formula:10","introducedBy":"ne","source":{"span":{"byteStart":16,"byteEnd":29},"text":"ne la .betovn","construct":"relative-phrase"}}]}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":42},"text":"la .apasonatas. ne la .betovn. se nelci mi","construct":"predication"}},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":16,"byteEnd":29},"text":"ne la .betovn","construct":"relative-phrase"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":0,"byteEnd":42},"text":"la .apasonatas. ne la .betovn. se nelci mi","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"apasonatas"},"source":{"span":{"byteStart":0,"byteEnd":15},"text":"la .apasonatas.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"betovn"},"source":{"span":{"byteStart":19,"byteEnd":30},"text":"la .betovn.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":42},"text":"la .apasonatas. ne la .betovn. se nelci mi","construct":"predication"}},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":42},"text":"la .apasonatas. ne la .betovn. se nelci mi","construct":"bridi"}}}}'''

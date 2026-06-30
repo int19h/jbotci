@@ -37,14 +37,18 @@ Text @[0‥18) {
     Cmevla @[0‥1) "b",
   ],
   TaggedSelbri @[2‥18) {
-    tense_modal: Composite @[2‥6) {
-      Cmavo @[2‥4) "pu",
-      Cmavo @[4‥6) "za",
-    },
-    Tanru @[7‥18) {
-      Gismu @[7‥12) "vécnu",
-      Gismu @[13‥18) "tróci",
+    tense_modal: [
+      PuTimeOffsetTense @[2‥6) {
+        pu: Cmavo @[2‥4) "pu",
+        distance: Cmavo @[4‥6) "za",
+      },
+    ],
+    inner_selbri: TanruSelbri @[7‥18) {
+      first_unit: Gismu @[7‥12) "vécnu",
+      additional_units: [
+        Gismu @[13‥18) "tróci",
+      ],
     },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"b","span":[0,1]}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[2,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[4,6]}}}}}]}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[7,12]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[13,18]}}}}}]}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"b","span":[0,1]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[2,4]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[4,6]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[7,12]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

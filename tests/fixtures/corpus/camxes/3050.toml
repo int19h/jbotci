@@ -35,20 +35,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ĭi","span":[0,2]}}},{"PlainWord":
 tree = """
 Text @[0‥37) {
   leading_indicators: [
-    Indicator @[0‥5) {
-      indicator: WithIndicator @[0‥5) {
-        Cmavo @[0‥2) "ĭi",
-        indicator: Cmavo @[2‥5) "daĭ",
-      },
+    WithIndicator @[0‥5) {
+      Cmavo @[0‥2) "ĭi",
+      indicator: Cmavo @[2‥5) "daĭ",
     },
   ],
-  Terms @[6‥37) {
-    terms: [
-      QuotedWord @[6‥37) {
-        zo: Cmavo @[6‥8) "zo",
-        Lujvo @[9‥37) "ki'orgratretrefrinynidysnídu",
-      },
-    ],
+  QuotedWord @[6‥37) {
+    zo: Cmavo @[6‥8) "zo",
+    Lujvo @[9‥37) "ki'orgratretrefrinynidysnídu",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Lujvo":{"parts":[{"Rafsi":"ki'or"},{"Rafsi":"gra"},{"Rafsi":"tre"},{"Rafsi":"tre"},{"Rafsi":"frin"},{"Hyphen":"y"},{"Rafsi":"nid"},{"Hyphen":"y"},{"Rafsi":"snídu"}],"span":[9,37]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭi","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[2,5]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Lujvo":{"parts":[{"Rafsi":"ki'or"},{"Rafsi":"gra"},{"Rafsi":"tre"},{"Rafsi":"tre"},{"Rafsi":"frin"},{"Hyphen":"y"},{"Rafsi":"nid"},{"Hyphen":"y"},{"Rafsi":"snídu"}],"span":[9,37]}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭi","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[2,5]}}}}}]}}"""

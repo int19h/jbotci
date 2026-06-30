@@ -34,23 +34,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}},{"QuotedWord
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥16) {
-  terms: [
-    ReferentSumti @[0‥16) {
-      lahe: Cmavo @[0‥4) "la'e",
-      WordQuote @[5‥16) {
-        QuotedWord @[5‥10) {
-          zo: Cmavo @[5‥7) "zo",
-          Cmavo @[8‥10) "nu",
-        },
-        free_modifiers: [
-          Subscript @[11‥16) {
-            xi: Cmavo @[11‥13) "xi",
-            Cmavo @[14‥16) "ci",
-          },
-        ],
-      },
+LaheSumti @[0‥16) {
+  lahe: Cmavo @[0‥4) "la'e",
+  GenericCompoundQuote @[5‥16) {
+    QuotedWord @[5‥10) {
+      zo: Cmavo @[5‥7) "zo",
+      Cmavo @[8‥10) "nu",
     },
-  ],
+    free_modifiers: [
+      XiNumberFreeModifier @[11‥16) {
+        xi: Cmavo @[11‥13) "xi",
+        expression: Cmavo @[14‥16) "ci",
+      },
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}}},"inner_sumti":{"QuotedSumti":{"WordQuote":[{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Cmavo":{"phonemes":"nu","span":[8,10]}}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[11,13]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}}}}}]}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":[{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[5,7]}},"word":{"Cmavo":{"phonemes":"nu","span":[8,10]}}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[11,13]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

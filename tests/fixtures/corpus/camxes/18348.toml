@@ -36,19 +36,19 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥22) {
-  terms: [
-    SumtiConnection @[0‥22) {
-      leading_sumti: QuotedWord @[0‥8) {
-        zo: Cmavo @[0‥2) "zo",
-        Gismu @[3‥8) "smúni",
-      },
+SumtiAfterthought @[0‥22) {
+  leading_sumti: QuotedWord @[0‥8) {
+    zo: Cmavo @[0‥2) "zo",
+    Gismu @[3‥8) "smúni",
+  },
+  continuations: [
+    SumtiAfterthoughtTail @[9‥22) {
       connective: Cmavo @[9‥13) "jo'u",
-      trailing_sumti: QuotedWord @[14‥22) {
+      sumti: QuotedWord @[14‥22) {
         zo: Cmavo @[14‥16) "zo",
         Gismu @[17‥22) "sínxa",
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"smúni","span":[3,8]}}}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo'u","span":[9,13]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[14,16]}},"word":{"Gismu":{"phonemes":"sínxa","span":[17,22]}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Gismu":{"phonemes":"smúni","span":[3,8]}}}}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo'u","span":[9,13]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[14,16]}},"word":{"Gismu":{"phonemes":"sínxa","span":[17,22]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}"""

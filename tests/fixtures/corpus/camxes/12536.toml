@@ -39,15 +39,15 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"QuotedWord":{"z
 tree = """
 ParagraphStatement @[0‥24) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[1‥24) {
+  BridiWithLeadingTerms @[1‥24) {
     leading_terms: [
       QuotedWord @[1‥9) {
         zo: Cmavo @[1‥3) "zo",
         Gismu @[4‥9) "bróva",
       },
     ],
-    SelbriBridiTail @[10‥24) {
-      Gismu @[10‥15) "símsa",
+    bridi_tail: SelbriSimpleBridiTail @[10‥24) {
+      selbri: Gismu @[10‥15) "símsa",
       terms: [
         QuotedWord @[16‥24) {
           zo: Cmavo @[16‥18) "zo",
@@ -57,4 +57,4 @@ ParagraphStatement @[0‥24) {
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[1,3]}},"word":{"Gismu":{"phonemes":"bróva","span":[4,9]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[10,15]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Gismu":{"phonemes":"bróda","span":[19,24]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[1,3]}},"word":{"Gismu":{"phonemes":"bróva","span":[4,9]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[10,15]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Gismu":{"phonemes":"bróda","span":[19,24]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

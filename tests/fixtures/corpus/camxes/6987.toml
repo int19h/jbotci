@@ -30,17 +30,13 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥6) {
-  terms: [
-    TaggedSumti @[0‥6) {
-      tense_modal: Composite @[0‥4) {
-        Cmavo @[0‥2) "ba",
-        Cmavo @[2‥4) "zi",
-      },
-      ElidedSumti @[4‥6) {
-        maybe_ku: Cmavo @[4‥6) "ku",
-      },
+TaggedSumtiTerm @[0‥6) {
+  tense_modal: [
+    PuTimeOffsetTense @[0‥4) {
+      pu: Cmavo @[0‥2) "ba",
+      distance: Cmavo @[2‥4) "zi",
     },
   ],
+  sumti: Cmavo @[4‥6) "ku",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[0,2]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[2,4]}}}}}]}},"sumti":{"ElidedSumti":{"maybe_ku":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[4,6]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[0,2]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[2,4]}}}}}]}}}}}}}}},"sumti":{"TaggedElidedSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[4,6]}}}}}}}}}]}}}}}}}}}'

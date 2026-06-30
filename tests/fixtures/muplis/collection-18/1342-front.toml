@@ -40,43 +40,46 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}},{"PlainWord":{"Cmevla":{"phonemes":"tom","span":[7,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[15,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[19,22]}}},{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[23,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[29,32]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}},{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[36,38]}}},{"PlainWord":{"Gismu":{"phonemes":"cánko","span":[39,44]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(.i [{la .tom.} {(pu [jaĭ gaŭ spófu]) (faĭ [le pa cánko])}])"
+brackets = "(.i [{la .tom.} {(pu [jaĭ gaŭ spófu]) (faĭ [le {pa cánko}])}])"
 tree = """
 ParagraphStatement @[1‥44) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥44) {
+  BridiWithLeadingTerms @[3‥44) {
     leading_terms: [
-      NameDescription @[3‥10) {
+      NameSumti @[3‥10) {
         la: Cmavo @[3‥5) "la",
         names: [
           Cmevla @[7‥10) "tom",
         ],
       },
     ],
-    SelbriBridiTail @[12‥44) {
-      TaggedSelbri @[12‥28) {
-        tense_modal: Cmavo @[12‥14) "pu",
-        ModalConversion @[15‥28) {
+    bridi_tail: SelbriSimpleBridiTail @[12‥44) {
+      selbri: TaggedSelbri @[12‥28) {
+        tense_modal: [
+          Cmavo @[12‥14) "pu",
+        ],
+        inner_selbri: JaiModalTanruUnit @[15‥28) {
           jai: Cmavo @[15‥18) "jaĭ",
-          tense_modal: Modal @[19‥22) {
-            bai: Cmavo @[19‥22) "gaŭ",
-          },
-          Gismu @[23‥28) "spófu",
+          tense_modal: Cmavo @[19‥22) "gaŭ",
+          inner_unit: Gismu @[23‥28) "spófu",
         },
       },
       terms: [
-        PlaceTaggedSumti @[29‥44) {
+        PlaceTaggedSumtiTerm @[29‥44) {
           fa: Cmavo @[29‥32) "faĭ",
-          Description @[33‥44) {
+          sumti: DescriptorWithGadriSumti @[33‥44) {
             description: Cmavo @[33‥35) "le",
-            tail_elements: [
-              Cmavo @[36‥38) "pa",
-            ],
-            selbri: Gismu @[39‥44) "cánko",
+            tail: DescriptionTail @[36‥44) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: QuantifierRelationDescriptionTail @[36‥44) {
+                quantifier: Cmavo @[36‥38) "pa",
+                selbri: Gismu @[39‥44) "cánko",
+              },
+            },
           },
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"tom","span":[7,10]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[12,14]}}}}}]}},"inner_selbri":{"Tanru":[{"ModalConversion":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[15,18]}}}},"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[19,22]}}}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[23,28]}}}}}}}]}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[29,32]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[36,38]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cánko","span":[39,44]}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"tom","span":[7,10]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[12,14]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"JaiModalTanruUnit":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[15,18]}}}},"tense_modal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[19,22]}}}}}}},"inner_unit":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[23,28]}}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[29,32]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[36,38]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cánko","span":[39,44]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

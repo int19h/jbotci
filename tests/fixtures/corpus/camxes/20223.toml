@@ -19,37 +19,42 @@ raw = '{"frames":[{"index":0,"node":{"offset":19,"length":5},"kind":"base-selbri
 tree = """
 Text @[0‥54) {
   leading_indicators: [
-    Indicator @[0‥9) {
-      indicator: WithIndicator @[0‥9) {
-        Cmavo @[0‥4) "ta'o",
-        indicator: Cmavo @[5‥9) "ji'a",
-      },
+    WithIndicator @[0‥9) {
+      Cmavo @[0‥4) "ta'o",
+      indicator: Cmavo @[5‥9) "ji'a",
     },
   ],
-  Bridi @[10‥54) {
+  BridiWithLeadingTerms @[10‥54) {
     leading_terms: [
       Cmavo @[10‥12) "mi",
     ],
-    SelbriBridiTail @[13‥54) {
-      TaggedSelbri @[13‥24) {
-        tense_modal: Composite @[13‥18) {
-          Cmavo @[13‥15) "pu",
-          Cmavo @[16‥18) "za",
-        },
-        Gismu @[19‥24) "gúnka",
+    bridi_tail: SelbriSimpleBridiTail @[13‥54) {
+      selbri: TaggedSelbri @[13‥24) {
+        tense_modal: [
+          PuTimeOffsetTense @[13‥18) {
+            pu: Cmavo @[13‥15) "pu",
+            distance: Cmavo @[16‥18) "za",
+          },
+        ],
+        inner_selbri: Gismu @[19‥24) "gúnka",
       },
       terms: [
-        Description @[25‥54) {
+        DescriptorWithOuterQuantifierSumti @[25‥54) {
           outer_quantifier: Cmavo @[25‥29) "tu'o",
           description: Cmavo @[30‥32) "le",
-          selbri: Tanru @[33‥54) {
-            Gismu @[33‥38) "lójbo",
-            Fuhivla @[39‥48) "samrxŭébe",
-            Gismu @[49‥54) "págbu",
+          tail: DescriptionTail @[33‥54) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: TanruSelbri @[33‥54) {
+              first_unit: Gismu @[33‥38) "lójbo",
+              additional_units: [
+                Fuhivla @[39‥48) "samrxŭébe",
+                Gismu @[49‥54) "págbu",
+              ],
+            },
           },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[13,15]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[16,18]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[19,24]}}}}}}},"terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[25,29]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[30,32]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[33,38]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"samrxŭébe","span":[39,48]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[49,54]}}}}}]}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[5,9]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[13,15]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[16,18]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[19,24]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[25,29]}}}}}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[30,32]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[33,38]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"samrxŭébe","span":[39,48]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[49,54]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[5,9]}}}}}]}}"""

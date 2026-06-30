@@ -31,16 +31,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥19) {
+BridiWithLeadingTerms @[0‥19) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  Tanru @[3‥19) {
-    Gismu @[3‥8) "skámi",
-    WithIndicator @[9‥19) {
-      Gismu @[9‥14) "cúsku",
-      indicator: Cmavo @[15‥19) "zo'o",
-    },
+  bridi_tail: TanruSelbri @[3‥19) {
+    first_unit: Gismu @[3‥8) "skámi",
+    additional_units: [
+      WithIndicator @[9‥19) {
+        Gismu @[9‥14) "cúsku",
+        indicator: Cmavo @[15‥19) "zo'o",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[15,19]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[15,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

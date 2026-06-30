@@ -39,24 +39,27 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(mi [nélci {le (si'o go'i)}])"
 tree = """
-Bridi @[0‥21) {
+BridiWithLeadingTerms @[0‥21) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥21) {
-    Gismu @[3‥8) "nélci",
+  bridi_tail: SelbriSimpleBridiTail @[3‥21) {
+    selbri: Gismu @[3‥8) "nélci",
     terms: [
-      Description @[9‥21) {
+      DescriptorWithGadriSumti @[9‥21) {
         description: Cmavo @[9‥11) "le",
-        selbri: Abstraction @[12‥21) {
-          nu: Cmavo @[12‥16) "si'o",
-          Cmavo @[17‥21) "go'i",
+        tail: DescriptionTail @[12‥21) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: AbstractionTanruUnit @[12‥21) {
+            nu: Cmavo @[12‥16) "si'o",
+            subbridi: Cmavo @[17‥21) "go'i",
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"si'o","span":[12,16]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[17,21]}}}}}}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"si'o","span":[12,16]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[17,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:14","content":"formula:13","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":21},"text":"mi nelci le si'o go'i","construct":"bridi"}},"predication:9":{"type":"predication","eventuality":"eventuality:7","relation":"go'i","arguments":{"x1":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"}},"mode":"inert","source":{"span":{"byteStart":17,"byteEnd":21},"text":"go'i","construct":"predication"},"diagnostics":[{"severity":"warning","message":"relation place structure is unavailable; only places required by explicit assignments are represented"}]},"predication:12":{"type":"predication","eventuality":"eventuality:6","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"concept:11"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":21},"text":"mi nelci le si'o go'i","construct":"predication"}},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":17,"byteEnd":21},"text":"go'i","construct":"bridi-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":0,"byteEnd":21},"text":"mi nelci le si'o go'i","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":21},"text":"mi nelci le si'o go'i","construct":"predication"}},"eventuality:7":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":17,"byteEnd":21},"text":"go'i","construct":"predication"}},"eventuality/locution:14":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":21},"text":"mi nelci le si'o go'i","construct":"bridi"}},"concept:11":{"type":"referent","category":"constant","sort":"concept","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1"},"body":"formula:10","source":{"span":{"byteStart":9,"byteEnd":21},"text":"le si'o go'i","construct":"description"}}}}'''

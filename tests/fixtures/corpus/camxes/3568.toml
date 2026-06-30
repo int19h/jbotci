@@ -29,21 +29,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[3‥21) {
+BridiWithLeadingTerms @[3‥21) {
   leading_terms: [
     Cmavo @[3‥5) "mi",
   ],
-  SelbriBridiTail @[6‥21) {
-    Gismu @[6‥11) "xágji",
+  bridi_tail: SelbriSimpleBridiTail @[6‥21) {
+    selbri: Gismu @[6‥11) "xágji",
     terms: [
-      TaggedSumti @[12‥21) {
-        tense_modal: Modal @[12‥18) {
+      TaggedSumtiTerm @[12‥21) {
+        tense_modal: ModalTense @[12‥18) {
           se: Cmavo @[12‥14) "se",
           bai: Cmavo @[14‥18) "pa'a",
         },
-        Cmavo @[19‥21) "do",
+        sumti: Cmavo @[19‥21) "do",
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xágji","span":[6,11]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[12,14]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa'a","span":[14,18]}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xágji","span":[6,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[12,14]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa'a","span":[14,18]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

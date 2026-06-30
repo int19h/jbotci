@@ -39,46 +39,46 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥56) {
-  ParagraphStatement @[1‥29) {
-    i: Cmavo @[1‥2) "i",
-    Bridi @[3‥29) {
+ParagraphStatement @[1‥56) {
+  i: Cmavo @[1‥2) "i",
+  ParagraphStatementSequence @[3‥56) {
+    BridiWithLeadingTerms @[3‥29) {
       leading_terms: [
-        ReferentSumti @[3‥12) {
+        LaheSumti @[3‥12) {
           lahe: Cmavo @[3‥7) "la'e",
           Cmavo @[8‥12) "di'u",
         },
       ],
-      Tanru @[13‥29) {
-        Gismu @[13‥18) "cínri",
-        WithIndicator @[19‥29) {
-          Gismu @[19‥24) "símsa",
-          indicator: Cmavo @[25‥29) "ju'o",
-        },
-      },
-    },
-  },
-  ParagraphStatement @[30‥56) {
-    i: Cmavo @[30‥31) "i",
-    Bridi @[32‥56) {
-      leading_terms: [
-        NameDescription @[32‥39) {
-          la: Cmavo @[32‥34) "la",
-          names: [
-            Cmevla @[35‥39) "alis",
-          ],
-        },
-      ],
-      AfterthoughtBridiTail @[40‥56) {
-        Gismu @[40‥45) "tórni",
-        continuations: [
-          BridiTailConnection @[46‥56) {
-            connective: Cmavo @[46‥50) "gi'e",
-            Gismu @[51‥56) "xrúti",
+      bridi_tail: TanruSelbri @[13‥29) {
+        first_unit: Gismu @[13‥18) "cínri",
+        additional_units: [
+          WithIndicator @[19‥29) {
+            Gismu @[19‥24) "símsa",
+            indicator: Cmavo @[25‥29) "ju'o",
           },
         ],
       },
     },
+    following: [
+      ParagraphStatement @[30‥56) {
+        i: Cmavo @[30‥31) "i",
+        BridiWithLeadingTerms @[32‥56) {
+          leading_terms: [
+            NameSumti @[32‥39) {
+              la: Cmavo @[32‥34) "la",
+              names: [
+                Cmevla @[35‥39) "alis",
+              ],
+            },
+          ],
+          bridi_tail: AfterthoughtBridiTail @[40‥56) {
+            Gismu @[40‥45) "tórni",
+            Cmavo @[46‥50) "gi'e",
+            Gismu @[51‥56) "xrúti",
+          },
+        },
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[3,7]}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[8,12]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínri","span":[13,18]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[19,24]}}}},"indicator":{"Cmavo":{"phonemes":"ju'o","span":[25,29]}}}}}]}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[30,31]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[35,39]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tórni","span":[40,45]}}}}}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[46,50]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrúti","span":[51,56]}}}}}}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[3,7]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[8,12]}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínri","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[19,24]}}}},"indicator":{"Cmavo":{"phonemes":"ju'o","span":[25,29]}}}}}}}}}]}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[30,31]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[35,39]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tórni","span":[40,45]}}}}}}}}}}}}}}}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[46,50]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrúti","span":[51,56]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}]}}}}}}"""

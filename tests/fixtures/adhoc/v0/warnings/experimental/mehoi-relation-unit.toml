@@ -13,13 +13,11 @@ raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥14) {
-  terms: [
-    Cmavo @[0‥2) "mi",
-    DelimitedWordQuote @[3‥14) {
-      marker: Cmavo @[3‥8) "me'oĭ",
-      Verbatim @[9‥14) "broda",
-    },
-  ],
+TermsFragment @[0‥14) {
+  Cmavo @[0‥2) "mi",
+  DelimitedWordQuote @[3‥14) {
+    marker: Cmavo @[3‥8) "me'oĭ",
+    Verbatim @[9‥14) "broda",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"me'oĭ","span":[3,8]}},"quoted_text":{"span":[9,14],"text":"broda"}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"ExperimentalMehoiCompoundQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"me'oĭ","span":[3,8]}},"quoted_text":{"span":[9,14],"text":"broda"}}}}}}}}}}}}}}}}]}}}}}}}}}"""

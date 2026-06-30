@@ -34,17 +34,17 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}},{"QuotedWord
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥18) {
-  Gismu @[0‥5) "pílno",
+SelbriSimpleBridiTail @[0‥18) {
+  selbri: Gismu @[0‥5) "pílno",
   terms: [
     QuotedWord @[6‥12) {
       zo: Cmavo @[6‥8) "zo",
       Cmavo @[9‥12) "kaŭ",
     },
-    PlaceTaggedSumti @[13‥18) {
+    PlaceTaggedSumtiTerm @[13‥18) {
       fa: Cmavo @[13‥15) "fi",
-      Cmavo @[16‥18) "ma",
+      sumti: Cmavo @[16‥18) "ma",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"kaŭ","span":[9,12]}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[13,15]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[16,18]}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"kaŭ","span":[9,12]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[13,15]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[16,18]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

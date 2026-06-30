@@ -41,16 +41,17 @@ ParagraphStatement @[1‥23) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[4‥7) "e'o",
   },
-  Terms @[8‥23) {
-    terms: [
-      Description @[8‥23) {
-        description: Cmavo @[8‥11) "leĭ",
-        selbri: Tanru @[12‥23) {
-          Gismu @[12‥17) "blábi",
+  DescriptorWithGadriSumti @[8‥23) {
+    description: Cmavo @[8‥11) "leĭ",
+    tail: DescriptionTail @[12‥23) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[12‥23) {
+        first_unit: Gismu @[12‥17) "blábi",
+        additional_units: [
           Gismu @[18‥23) "nánba",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"e'o","span":[4,7]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[8,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[18,23]}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"e'o","span":[4,7]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[8,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[18,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

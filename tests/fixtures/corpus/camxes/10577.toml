@@ -31,17 +31,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥12) {
-  terms: [
-    Cmavo @[0‥2) "mi",
-    TaggedSumti @[3‥12) {
-      tense_modal: Composite @[3‥12) {
-        Cmavo @[3‥5) "ba",
-        Cmavo @[5‥7) "zi",
-        Cmavo @[8‥12) "ze'e",
-      },
-      ElidedSumti {},
+TermsFragment @[0‥12) {
+  Cmavo @[0‥2) "mi",
+  TaggedSumtiTerm @[3‥12) {
+    tense_modal: TimeTenseWithOffset @[3‥12) {
+      offsets: [
+        PuTimeOffsetTense @[3‥7) {
+          pu: Cmavo @[3‥5) "ba",
+          distance: Cmavo @[5‥7) "zi",
+        },
+      ],
+      zeha: Cmavo @[8‥12) "ze'e",
     },
-  ],
+    sumti: TaggedElidedSumti {},
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'e","span":[8,12]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}],"zeha":{"zeha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'e","span":[8,12]}}}}}}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

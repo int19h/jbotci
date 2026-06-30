@@ -35,14 +35,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"daŭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-NumberQuantifier @[0‥29) {
-  Cmavo @[0‥3) "daŭ",
-  Cmavo @[4‥6) "re",
-  Cmavo @[7‥9) "ci",
-  Cmavo @[10‥13) "vaĭ",
-  Cmavo @[14‥17) "vaĭ",
-  Cmavo @[18‥21) "vaĭ",
-  Cmavo @[22‥25) "vaĭ",
-  Cmavo @[26‥29) "vaĭ",
+NumberWords @[0‥29) {
+  first_number: Cmavo @[0‥3) "daŭ",
+  continuations: [
+    Cmavo @[4‥6) "re",
+    Cmavo @[7‥9) "ci",
+    Cmavo @[10‥13) "vaĭ",
+    Cmavo @[14‥17) "vaĭ",
+    Cmavo @[18‥21) "vaĭ",
+    Cmavo @[22‥25) "vaĭ",
+    Cmavo @[26‥29) "vaĭ",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daŭ","span":[0,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[4,6]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[7,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[10,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[14,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[18,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[22,25]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[26,29]}}}}]}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daŭ","span":[0,3]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[4,6]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[7,9]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[10,13]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[14,17]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[18,21]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[22,25]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[26,29]}}}}}]}}}}}}}}}}}'

@@ -37,10 +37,11 @@ Text @[0‥10) {
   leading_free_modifiers: [
     ParentheticalText @[5‥10) {
       to: Cmavo @[5‥7) "to",
-      LinkedSumti @[8‥10) {
+      text: LinkedSumti @[8‥10) {
         be: Cmavo @[8‥10) "be",
+        first_link: EmptyLinkedSumti {},
       },
     },
   ],
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}}}],"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"LinkedSumti":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}}}}}}}]}]}}}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"used","span":[0,4]}}}}],"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[5,7]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiFragment":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[8,10]}}}},"first_link":{"EmptyLinkedSumti":{}}}}}}}}}}}}}]}}'

@@ -40,29 +40,29 @@ brackets = "(.i [{la .judis.} {(ta'e xéndo) (ro prénu)}])"
 tree = """
 ParagraphStatement @[0‥30) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥30) {
+  BridiWithLeadingTerms @[2‥30) {
     leading_terms: [
-      NameDescription @[2‥10) {
+      NameSumti @[2‥10) {
         la: Cmavo @[2‥4) "la",
         names: [
           Cmevla @[5‥10) "judis",
         ],
       },
     ],
-    SelbriBridiTail @[11‥30) {
-      TaggedSelbri @[11‥21) {
-        tense_modal: Cmavo @[11‥15) "ta'e",
-        Gismu @[16‥21) "xéndo",
+    bridi_tail: SelbriSimpleBridiTail @[11‥30) {
+      selbri: TaggedSelbri @[11‥21) {
+        tense_modal: [
+          Cmavo @[11‥15) "ta'e",
+        ],
+        inner_selbri: Gismu @[16‥21) "xéndo",
       },
       terms: [
-        Description @[22‥30) {
-          tail_elements: [
-            Cmavo @[22‥24) "ro",
-          ],
-          selbri: Gismu @[25‥30) "prénu",
+        DescriptorWithoutGadriSumti @[22‥30) {
+          quantifier: Cmavo @[22‥24) "ro",
+          Gismu @[25‥30) "prénu",
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"judis","span":[5,10]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'e","span":[11,15]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xéndo","span":[16,21]}}}}}}},"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[22,24]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[25,30]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"judis","span":[5,10]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"TaheIntervalPropertyTense":{"tahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'e","span":[11,15]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xéndo","span":[16,21]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[22,24]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[25,30]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

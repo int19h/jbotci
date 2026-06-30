@@ -37,36 +37,42 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥51) {
+BridiWithLeadingTerms @[0‥51) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥51) {
-    TaggedSelbri @[3‥11) {
-      tense_modal: Cmavo @[3‥5) "ca",
-      Gismu @[6‥11) "sánli",
+  bridi_tail: SelbriSimpleBridiTail @[3‥51) {
+    selbri: TaggedSelbri @[3‥11) {
+      tense_modal: [
+        Cmavo @[3‥5) "ca",
+      ],
+      inner_selbri: Gismu @[6‥11) "sánli",
     },
     terms: [
-      SumtiConnection @[12‥51) {
-        leading_sumti: NameDescription @[12‥21) {
+      SumtiAfterthought @[12‥51) {
+        leading_sumti: NameSumti @[12‥21) {
           la: Cmavo @[12‥14) "la",
           names: [
             Cmevla @[15‥21) "drezdn",
           ],
         },
-        connective: Interval @[24‥38) {
-          Cmavo @[24‥28) "ga'o",
-          Cmavo @[29‥33) "bi'i",
-          Cmavo @[34‥38) "ga'o",
-        },
-        trailing_sumti: NameDescription @[39‥51) {
-          la: Cmavo @[39‥41) "la",
-          names: [
-            Cmevla @[42‥51) "frankfurt",
-          ],
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[24‥51) {
+            connective: Interval @[24‥38) {
+              Cmavo @[24‥28) "ga'o",
+              Cmavo @[29‥33) "bi'i",
+              Cmavo @[34‥38) "ga'o",
+            },
+            sumti: NameSumti @[39‥51) {
+              la: Cmavo @[39‥41) "la",
+              names: [
+                Cmevla @[42‥51) "frankfurt",
+              ],
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[15,21]}}}}]}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[24,28]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[29,33]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[34,38]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[39,41]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[42,51]}}}}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[15,21]}}}}]}}}}}},"continuations":[{"connective":{"JoikConnective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[24,28]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[29,33]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[34,38]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[39,41]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[42,51]}}}}]}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}"""

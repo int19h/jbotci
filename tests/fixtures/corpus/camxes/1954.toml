@@ -34,29 +34,23 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥22) {
-  terms: [
-    LerfuStringSumti @[0‥22) {
-      letter: [
-        Cmavo @[0‥2) "xy",
-      ],
-      boi: Cmavo @[3‥6) "boĭ",
-      free_modifiers: [
-        Subscript @[7‥22) {
-          xi: Cmavo @[7‥9) "xi",
-          NumberQuantifier @[10‥22) {
-            Cmavo @[10‥12) "by",
-            boi: Cmavo @[13‥16) "boĭ",
-            free_modifiers: [
-              Subscript @[17‥22) {
-                xi: Cmavo @[17‥19) "xi",
-                Cmavo @[20‥22) "vo",
-              },
-            ],
+LerfuStringSumti @[0‥22) {
+  words: Cmavo @[0‥2) "xy",
+  boi: Cmavo @[3‥6) "boĭ",
+  free_modifiers: [
+    XiLerfuStringFreeModifier @[7‥22) {
+      xi: Cmavo @[7‥9) "xi",
+      expression: LerfuStringMekso @[10‥22) {
+        letters: Cmavo @[10‥12) "by",
+        boi: Cmavo @[13‥16) "boĭ",
+        free_modifiers: [
+          XiNumberFreeModifier @[17‥22) {
+            xi: Cmavo @[17‥19) "xi",
+            expression: Cmavo @[20‥22) "vo",
           },
-        },
-      ],
+        ],
+      },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[3,6]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[7,9]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[10,12]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[13,16]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[17,19]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[20,22]}}}}]}}}}}]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[3,6]}}}},"free_modifiers":[{"XiFreeModifier":{"XiLerfuStringFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[7,9]}}}},"expression":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[10,12]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[13,16]}}}},"free_modifiers":[{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[17,19]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[20,22]}}}}}}}}}]}}}}]}}}}}}}}}}}}]}}}}}}}}}'

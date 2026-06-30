@@ -30,17 +30,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"va'o","span":[7,11]}}},{"PlainWord
 
 [expectations.output.gentufa]
 tree = """
-Terms @[7‥20) {
-  terms: [
-    TaggedSumti @[7‥20) {
-      tense_modal: Modal @[7‥11) {
-        bai: Cmavo @[7‥11) "va'o",
-      },
-      Description @[12‥20) {
-        description: Cmavo @[12‥14) "le",
-        selbri: Gismu @[15‥20) "fágri",
-      },
+TaggedSumtiTerm @[7‥20) {
+  tense_modal: Cmavo @[7‥11) "va'o",
+  sumti: DescriptorWithGadriSumti @[12‥20) {
+    description: Cmavo @[12‥14) "le",
+    tail: DescriptionTail @[15‥20) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[15‥20) "fágri",
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'o","span":[7,11]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fágri","span":[15,20]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'o","span":[7,11]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fágri","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

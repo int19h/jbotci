@@ -34,23 +34,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}},{"PlainWord":{
 tree = """
 Text @[0‥21) {
   leading_indicators: [
-    Indicator @[0‥3) {
-      indicator: Cmavo @[0‥3) "peĭ",
-    },
+    Cmavo @[0‥3) "peĭ",
   ],
-  Terms @[4‥21) {
-    terms: [
-      Description @[4‥21) {
-        description: Cmavo @[4‥6) "le",
-        tail_elements: [
-          Cmavo @[7‥9) "do",
-        ],
-        selbri: Tanru @[10‥21) {
-          Gismu @[10‥15) "cníno",
+  DescriptorWithGadriSumti @[4‥21) {
+    description: Cmavo @[4‥6) "le",
+    tail: DescriptionTail @[7‥21) {
+      leading_tail_elements: Cmavo @[7‥9) "do",
+      tail: TanruSelbri @[10‥21) {
+        first_unit: Gismu @[10‥15) "cníno",
+        additional_units: [
           Gismu @[16‥21) "skári",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[10,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skári","span":[16,21]}}}}}]}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[10,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skári","span":[16,21]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}}}}]}}'

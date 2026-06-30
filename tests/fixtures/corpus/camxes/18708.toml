@@ -39,21 +39,25 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥66) {
+BridiWithLeadingTerms @[0‥66) {
   leading_terms: [
     TextQuote @[0‥25) {
       lu: Cmavo @[0‥2) "lu",
-      Tanru @[3‥20) {
-        Lujvo @[3‥11) "relténfa",
-        Lujvo @[12‥20) "dubmékso",
+      text: TanruSelbri @[3‥20) {
+        first_unit: Lujvo @[3‥11) "relténfa",
+        additional_units: [
+          Lujvo @[12‥20) "dubmékso",
+        ],
       },
       lihu: Cmavo @[21‥25) "li'u",
     },
   ],
-  SelbriBridiTail @[26‥66) {
-    ConvertedSelbri @[26‥34) {
-      se: Cmavo @[26‥28) "xe",
-      Gismu @[29‥34) "fánva",
+  bridi_tail: SelbriSimpleBridiTail @[26‥66) {
+    selbri: TanruUnitAtom @[26‥34) {
+      conversions: [
+        Cmavo @[26‥28) "xe",
+      ],
+      base: Gismu @[29‥34) "fánva",
     },
     terms: [
       DelimitedNonLojbanQuote @[35‥66) {
@@ -65,4 +69,4 @@ Bridi @[0‥66) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"ténfa"}],"span":[3,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dub"},{"Rafsi":"mékso"}],"span":[12,20]}}}}}]}}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[21,25]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[26,28]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[29,34]}}}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[35,38]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[38,41]}},"quoted_text":{"span":[43,61],"text":"quadratic equation"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[63,66]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"ténfa"}],"span":[3,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dub"},{"Rafsi":"mékso"}],"span":[12,20]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[21,25]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[26,28]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[29,34]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[35,38]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[38,41]}},"quoted_text":{"span":[43,61],"text":"quadratic equation"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[63,66]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

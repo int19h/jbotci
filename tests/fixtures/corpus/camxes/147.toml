@@ -44,31 +44,39 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥109) {
+BridiWithLeadingTerms @[0‥109) {
   leading_terms: [
-    SumtiConnection @[0‥91) {
+    SumtiAfterthought @[0‥91) {
       leading_sumti: DelimitedNonLojbanQuote @[0‥17) {
         zoi: Cmavo @[0‥3) "zoĭ",
         opening_delimiter: Cmavo @[4‥7) "doĭ",
         quoted_text: Verbatim @[8‥13) "moooo",
         closing_delimiter: Cmavo @[14‥17) "doĭ",
       },
-      connective: Cmavo @[19‥20) "e",
-      trailing_sumti: DelimitedNonLojbanQuote @[64‥91) {
-        zoi: Cmavo @[64‥67) "zoĭ",
-        opening_delimiter: Cmavo @[68‥71) "zoĭ",
-        quoted_text: Verbatim @[72‥87) "Katamari Damacy",
-        closing_delimiter: Cmavo @[88‥91) "zoĭ",
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[19‥91) {
+          connective: Cmavo @[19‥20) "e",
+          sumti: DelimitedNonLojbanQuote @[64‥91) {
+            zoi: Cmavo @[64‥67) "zoĭ",
+            opening_delimiter: Cmavo @[68‥71) "zoĭ",
+            quoted_text: Verbatim @[72‥87) "Katamari Damacy",
+            closing_delimiter: Cmavo @[88‥91) "zoĭ",
+          },
+        },
+      ],
     },
   ],
   cu: Cmavo @[92‥94) "cu",
-  Tanru @[95‥109) {
-    Gismu @[95‥100) "cízra",
-    ConvertedTanruUnit @[101‥109) {
-      se: Cmavo @[101‥103) "se",
-      Gismu @[104‥109) "kélci",
-    },
+  bridi_tail: TanruSelbri @[95‥109) {
+    first_unit: Gismu @[95‥100) "cízra",
+    additional_units: [
+      TanruUnitAtom @[101‥109) {
+        conversions: [
+          Cmavo @[101‥103) "se",
+        ],
+        base: Gismu @[104‥109) "kélci",
+      },
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}},"quoted_text":{"span":[8,13],"text":"moooo"},"closing_delimiter":{"Cmavo":{"phonemes":"doĭ","span":[14,17]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[19,20]}}}}]}},"trailing_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[64,67]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[68,71]}},"quoted_text":{"span":[72,87],"text":"Katamari Damacy"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[88,91]}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[92,94]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cízra","span":[95,100]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[101,103]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[104,109]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}},"quoted_text":{"span":[8,13],"text":"moooo"},"closing_delimiter":{"Cmavo":{"phonemes":"doĭ","span":[14,17]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[19,20]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[64,67]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[68,71]}},"quoted_text":{"span":[72,87],"text":"Katamari Damacy"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[88,91]}}}}}}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[92,94]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cízra","span":[95,100]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[101,103]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[104,109]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

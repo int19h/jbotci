@@ -35,12 +35,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(ke [zirsméla pésxu] ke'e)"
 tree = """
-GroupedSelbri @[0‥22) {
+GroupedTanruUnit @[0‥22) {
   ke: Cmavo @[0‥2) "ke",
-  Tanru @[3‥17) {
-    Lujvo @[3‥11) "zirsméla",
-    Gismu @[12‥17) "pésxu",
+  selbri: TanruSelbri @[3‥17) {
+    first_unit: Lujvo @[3‥11) "zirsméla",
+    additional_units: [
+      Gismu @[12‥17) "pésxu",
+    ],
   },
   kehe: Cmavo @[18‥22) "ke'e",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"GroupedSelbri":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zir"},{"Rafsi":"sméla"}],"span":[3,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pésxu","span":[12,17]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zir"},{"Rafsi":"sméla"}],"span":[3,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pésxu","span":[12,17]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

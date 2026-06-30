@@ -37,12 +37,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥31) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "pe'a",
-    },
+    Cmavo @[0‥4) "pe'a",
   ],
-  SelbriBridiTail @[5‥31) {
-    Gismu @[5‥10) "zváti",
+  SelbriSimpleBridiTail @[5‥31) {
+    selbri: Gismu @[5‥10) "zváti",
     terms: [
       DelimitedNonLojbanQuote @[11‥31) {
         zoi: Cmavo @[11‥15) "la'o",
@@ -53,4 +51,4 @@ Text @[0‥31) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[5,10]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[11,15]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[16,18]}},"quoted_text":{"span":[19,28],"text":"Lambdamoo"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[29,31]}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[5,10]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[11,15]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[16,18]}},"quoted_text":{"span":[19,28],"text":"Lambdamoo"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[29,31]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}}}]}}"""

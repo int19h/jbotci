@@ -27,14 +27,5 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}]'
 
 [expectations.output.gentufa]
-tree = """
-Text @[6‥9) {
-  leading_free_modifiers: [
-    Vocative @[6‥9) {
-      vocative_markers: [
-        Cmavo @[6‥9) "coĭ",
-      ],
-    },
-  ],
-}"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}]}}]}'
+tree = 'Cmavo @[6‥9) "coĭ"'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}}}}}]}}'

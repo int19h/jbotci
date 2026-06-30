@@ -30,18 +30,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥12) {
-  TaggedSelbri @[0‥8) {
-    tense_modal: Cmavo @[0‥2) "ca",
-    Gismu @[3‥8) "fárvi",
+SelbriSimpleBridiTail @[0‥12) {
+  selbri: TaggedSelbri @[0‥8) {
+    tense_modal: [
+      Cmavo @[0‥2) "ca",
+    ],
+    inner_selbri: Gismu @[3‥8) "fárvi",
   },
   terms: [
-    TaggedSumti @[9‥12) {
-      tense_modal: Modal @[9‥12) {
-        bai: Cmavo @[9‥12) "gaŭ",
-      },
-      ElidedSumti {},
+    TaggedSumtiTerm @[9‥12) {
+      tense_modal: Cmavo @[9‥12) "gaŭ",
+      sumti: TaggedElidedSumti {},
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fárvi","span":[3,8]}}}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[9,12]}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fárvi","span":[3,8]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[9,12]}}}}}}}},"sumti":{}}}}}]}}}}}}}}}}}}}}}}}'

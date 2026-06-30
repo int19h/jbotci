@@ -43,50 +43,51 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[5,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[9,12]}}},{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[13,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[19,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}},{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[26,31]}}},{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[32,34]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[35,37]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[38,40]}}},{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[41,44]}}},{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[45,47]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dét"},{"Hyphen":"y"},{"Rafsi":"deĭ"}],"span":[48,55]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(.i [mi {(jaĭ gaŭ cítka) ([faĭ {le gérku (pe mi)}] [{re roĭ} {ro détydeĭ}])}])"
+brackets = "(.i [mi {(jaĭ gaŭ cítka) ([faĭ {le (gérku [pe mi])}] [{re roĭ} {ro détydeĭ}])}])"
 tree = """
 ParagraphStatement @[0‥55) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥55) {
+  BridiWithLeadingTerms @[2‥55) {
     leading_terms: [
       Cmavo @[2‥4) "mi",
     ],
-    SelbriBridiTail @[5‥55) {
-      ModalConversion @[5‥18) {
+    bridi_tail: SelbriSimpleBridiTail @[5‥55) {
+      selbri: JaiModalTanruUnit @[5‥18) {
         jai: Cmavo @[5‥8) "jaĭ",
-        tense_modal: Modal @[9‥12) {
-          bai: Cmavo @[9‥12) "gaŭ",
-        },
-        Gismu @[13‥18) "cítka",
+        tense_modal: Cmavo @[9‥12) "gaŭ",
+        inner_unit: Gismu @[13‥18) "cítka",
       },
       terms: [
-        PlaceTaggedSumti @[19‥37) {
+        PlaceTaggedSumtiTerm @[19‥37) {
           fa: Cmavo @[19‥22) "faĭ",
-          Description @[23‥37) {
+          sumti: DescriptorWithGadriSumti @[23‥37) {
             description: Cmavo @[23‥25) "le",
-            selbri: Gismu @[26‥31) "gérku",
-            relative_clauses: [
-              SumtiAssociationPhrase @[32‥37) {
-                association_marker: Cmavo @[32‥34) "pe",
-                Cmavo @[35‥37) "mi",
+            tail: DescriptionTail @[26‥37) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: RelationDescriptionTail @[26‥37) {
+                selbri: Gismu @[26‥31) "gérku",
+                relative_clauses: SumtiAssociationRelativeClause @[32‥37) {
+                  association_marker: Cmavo @[32‥34) "pe",
+                  sumti: Cmavo @[35‥37) "mi",
+                },
               },
-            ],
+            },
           },
         },
-        TaggedSumti @[38‥55) {
-          tense_modal: Composite @[38‥44) {
-            Cmavo @[38‥40) "re",
-            Cmavo @[41‥44) "roĭ",
-          },
-          Description @[45‥55) {
-            tail_elements: [
-              Cmavo @[45‥47) "ro",
-            ],
-            selbri: Lujvo @[48‥55) "détydeĭ",
+        TaggedSumtiTerm @[38‥55) {
+          tense_modal: [
+            NumberedIntervalPropertyTense @[38‥44) {
+              number: Cmavo @[38‥40) "re",
+              roi: Cmavo @[41‥44) "roĭ",
+            },
+          ],
+          sumti: DescriptorWithoutGadriSumti @[45‥55) {
+            quantifier: Cmavo @[45‥47) "ro",
+            Lujvo @[48‥55) "détydeĭ",
           },
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ModalConversion":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[5,8]}}}},"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[9,12]}}}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[13,18]}}}}}}}]},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[19,22]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[26,31]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[32,34]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[35,37]}}}}}}}]}}}},{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[38,40]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[41,44]}}}}}]}},"sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[45,47]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dét"},{"Hyphen":"y"},{"Rafsi":"deĭ"}],"span":[48,55]}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"JaiModalTanruUnit":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[5,8]}}}},"tense_modal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[9,12]}}}}}}},"inner_unit":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[13,18]}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"faĭ","span":[19,22]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[26,31]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[32,34]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[35,37]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[38,40]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[41,44]}}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[45,47]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dét"},{"Hyphen":"y"},{"Rafsi":"deĭ"}],"span":[48,55]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

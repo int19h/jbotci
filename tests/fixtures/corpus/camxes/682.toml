@@ -31,12 +31,8 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    QuotedWord @[0‥10) {
-      zo: Cmavo @[0‥2) "zo",
-      Cmavo @[2‥10) "ki'e'u'e",
-    },
-  ],
+QuotedWord @[0‥10) {
+  zo: Cmavo @[0‥2) "zo",
+  Cmavo @[2‥10) "ki'e'u'e",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"ki'e'u'e","span":[2,10]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"ki'e'u'e","span":[2,10]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

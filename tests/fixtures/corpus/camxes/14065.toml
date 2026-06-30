@@ -30,17 +30,15 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"by","span":[12,14]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[12‥28) {
+BridiWithLeadingTerms @[12‥28) {
   leading_terms: [
-    LerfuStringSumti @[12‥14) {
-      letter: [
-        Cmavo @[12‥14) "by",
-      ],
-    },
+    Cmavo @[12‥14) "by",
   ],
-  Tanru @[16‥28) {
-    Lujvo @[16‥22) "jbóste",
-    Gismu @[23‥28) "mrílu",
+  bridi_tail: TanruSelbri @[16‥28) {
+    first_unit: Lujvo @[16‥22) "jbóste",
+    additional_units: [
+      Gismu @[23‥28) "mrílu",
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[12,14]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"ste"}],"span":[16,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[23,28]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[12,14]}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"ste"}],"span":[16,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[23,28]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

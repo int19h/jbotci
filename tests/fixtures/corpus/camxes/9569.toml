@@ -40,16 +40,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"bi'u","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥36) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "bi'u",
-    },
+    Cmavo @[0‥4) "bi'u",
   ],
-  Bridi @[5‥36) {
+  BridiWithLeadingTerms @[5‥36) {
     leading_terms: [
       Cmavo @[5‥7) "mi",
     ],
-    SelbriBridiTail @[8‥36) {
-      Lujvo @[8‥14) "zmáneĭ",
+    bridi_tail: SelbriSimpleBridiTail @[8‥36) {
+      selbri: Lujvo @[8‥14) "zmáneĭ",
       terms: [
         QuotedWord @[15‥24) {
           zo: Cmavo @[15‥17) "zo",
@@ -63,4 +61,4 @@ Text @[0‥36) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zmá"},{"Rafsi":"neĭ"}],"span":[8,14]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[15,17]}},"word":{"Lujvo":{"parts":[{"Rafsi":"rál"},{"Rafsi":"cku"}],"span":[18,24]}}}}}}}},{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[25,27]}},"word":{"Lujvo":{"parts":[{"Rafsi":"bal"},{"Rafsi":"cúkta"}],"span":[28,36]}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'u","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zmá"},{"Rafsi":"neĭ"}],"span":[8,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[15,17]}},"word":{"Lujvo":{"parts":[{"Rafsi":"rál"},{"Rafsi":"cku"}],"span":[18,24]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[25,27]}},"word":{"Lujvo":{"parts":[{"Rafsi":"bal"},{"Rafsi":"cúkta"}],"span":[28,36]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'u","span":[0,4]}}}}}]}}"""

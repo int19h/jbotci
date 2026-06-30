@@ -30,13 +30,16 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cmál"},{"Hyphen":"y"},{"Rafs
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥21) {
-  Lujvo @[0‥8) "cmálymaŭ",
+SelbriSimpleBridiTail @[0‥21) {
+  selbri: Lujvo @[0‥8) "cmálymaŭ",
   terms: [
-    Description @[9‥21) {
+    DescriptorWithGadriSumti @[9‥21) {
       description: Cmavo @[9‥12) "loĭ",
-      selbri: Lujvo @[13‥21) "sélcykaĭ",
+      tail: DescriptionTail @[13‥21) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Lujvo @[13‥21) "sélcykaĭ",
+      },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cmál"},{"Hyphen":"y"},{"Rafsi":"maŭ"}],"span":[0,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[9,12]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sélc"},{"Hyphen":"y"},{"Rafsi":"kaĭ"}],"span":[13,21]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cmál"},{"Hyphen":"y"},{"Rafsi":"maŭ"}],"span":[0,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[9,12]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sélc"},{"Hyphen":"y"},{"Rafsi":"kaĭ"}],"span":[13,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

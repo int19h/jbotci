@@ -30,9 +30,11 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cro"},{"Rafsi":"vú'i"}],"s
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥19) {
-  Lujvo @[0‥7) "crovú'i",
-  Gismu @[8‥13) "xíndo",
-  Gismu @[14‥19) "cídja",
+TanruSelbri @[0‥19) {
+  first_unit: Lujvo @[0‥7) "crovú'i",
+  additional_units: [
+    Gismu @[8‥13) "xíndo",
+    Gismu @[14‥19) "cídja",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cro"},{"Rafsi":"vú'i"}],"span":[0,7]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xíndo","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cídja","span":[14,19]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cro"},{"Rafsi":"vú'i"}],"span":[0,7]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xíndo","span":[8,13]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cídja","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

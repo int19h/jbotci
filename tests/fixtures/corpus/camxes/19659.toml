@@ -38,28 +38,30 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥40) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "pe'i",
-    },
+    Cmavo @[0‥4) "pe'i",
   ],
-  SelbriBridiTail @[5‥40) {
-    TaggedSelbri @[5‥24) {
-      tense_modal: Composite @[5‥12) {
-        Cmavo @[5‥9) "mo'a",
-        Cmavo @[9‥12) "roĭ",
-      },
-      Tanru @[13‥24) {
-        Gismu @[13‥18) "lójbo",
-        Gismu @[19‥24) "cásnu",
+  SelbriSimpleBridiTail @[5‥40) {
+    selbri: TaggedSelbri @[5‥24) {
+      tense_modal: [
+        NumberedIntervalPropertyTense @[5‥12) {
+          number: Cmavo @[5‥9) "mo'a",
+          roi: Cmavo @[9‥12) "roĭ",
+        },
+      ],
+      inner_selbri: TanruSelbri @[13‥24) {
+        first_unit: Gismu @[13‥18) "lójbo",
+        additional_units: [
+          Gismu @[19‥24) "cásnu",
+        ],
       },
     },
     terms: [
-      TaggedSumti @[25‥40) {
-        tense_modal: Modal @[25‥31) {
+      TaggedSumtiTerm @[25‥40) {
+        tense_modal: ModalTense @[25‥31) {
           se: Cmavo @[25‥27) "ve",
           bai: Cmavo @[27‥31) "cu'u",
         },
-        ReferentSumti @[32‥40) {
+        sumti: LaheSumti @[32‥40) {
           lahe: Cmavo @[32‥36) "tu'a",
           Cmavo @[37‥40) "deĭ",
         },
@@ -67,4 +69,4 @@ Text @[0‥40) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'a","span":[5,9]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[9,12]}}}}}]}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[19,24]}}}}}]}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[25,27]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[27,31]}}}}}},"sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[32,36]}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[37,40]}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'a","span":[5,9]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[9,12]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[19,24]}}}}}}}}}]}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[25,27]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[27,31]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[32,36]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[37,40]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'i","span":[0,4]}}}}}]}}"""

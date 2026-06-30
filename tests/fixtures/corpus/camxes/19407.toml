@@ -30,17 +30,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ne'i","span":[19,23]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-Terms @[19‥37) {
-  terms: [
-    TaggedSumti @[19‥37) {
-      tense_modal: Cmavo @[19‥23) "ne'i",
-      NameDescription @[24‥37) {
-        la: Cmavo @[24‥26) "la",
-        names: [
-          Cmevla @[27‥37) "bolingbruk",
-        ],
-      },
-    },
+TaggedSumtiTerm @[19‥37) {
+  tense_modal: [
+    Cmavo @[19‥23) "ne'i",
   ],
+  sumti: NameSumti @[24‥37) {
+    la: Cmavo @[24‥26) "la",
+    names: [
+      Cmevla @[27‥37) "bolingbruk",
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne'i","span":[19,23]}}}}}]}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bolingbruk","span":[27,37]}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithOffset":{"offsets":[{"faha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ne'i","span":[19,23]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bolingbruk","span":[27,37]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -42,27 +42,30 @@ brackets = "(.i [{(fe [so'i de]) (fa [le {za'u da}])} pínxe])"
 tree = """
 ParagraphStatement @[1‥33) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥33) {
+  BridiWithLeadingTerms @[3‥33) {
     leading_terms: [
-      PlaceTaggedSumti @[3‥13) {
+      PlaceTaggedSumtiTerm @[3‥13) {
         fa: Cmavo @[3‥5) "fe",
-        QuantifiedSumti @[6‥13) {
+        sumti: QuantifiedSumti @[6‥13) {
           quantifier: Cmavo @[6‥10) "so'i",
-          Cmavo @[11‥13) "de",
+          inner_sumti: Cmavo @[11‥13) "de",
         },
       },
-      PlaceTaggedSumti @[14‥27) {
+      PlaceTaggedSumtiTerm @[14‥27) {
         fa: Cmavo @[14‥16) "fa",
-        Description @[17‥27) {
+        sumti: DescriptorWithGadriSumti @[17‥27) {
           description: Cmavo @[17‥19) "le",
-          tail_elements: [
-            Cmavo @[20‥24) "za'u",
-            Cmavo @[25‥27) "da",
-          ],
+          tail: DescriptionTail @[20‥27) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: QuantifierSumtiDescriptionTail @[20‥27) {
+              quantifier: Cmavo @[20‥24) "za'u",
+              sumti: Cmavo @[25‥27) "da",
+            },
+          },
         },
       },
     ],
-    Gismu @[28‥33) "pínxe",
+    bridi_tail: Gismu @[28‥33) "pínxe",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[3,5]}}}},"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'i","span":[6,10]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[11,13]}}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[14,16]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[20,24]}}}}]}}},{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[25,27]}}}}}}]}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pínxe","span":[28,33]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[3,5]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'i","span":[6,10]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[11,13]}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierSumtiDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[20,24]}}}}}}},"sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[25,27]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pínxe","span":[28,33]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

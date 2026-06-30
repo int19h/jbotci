@@ -35,30 +35,29 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥32) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥32) {
-      to: Cmavo @[0‥2) "to",
-      Bridi @[3‥28) {
-        leading_terms: [
-          Description @[3‥19) {
-            description: Cmavo @[3‥7) "lo'e",
-            selbri: Tanru @[8‥19) {
-              OrdinalSelbri @[8‥13) {
-                number: [
-                  Cmavo @[8‥10) "ci",
-                ],
-                moi: Cmavo @[10‥13) "moĭ",
-              },
-              Gismu @[14‥19) "tróci",
+ParentheticalText @[0‥32) {
+  to: Cmavo @[0‥2) "to",
+  text: BridiWithLeadingTerms @[3‥28) {
+    leading_terms: [
+      DescriptorWithGadriSumti @[3‥19) {
+        description: Cmavo @[3‥7) "lo'e",
+        tail: DescriptionTail @[8‥19) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[8‥19) {
+            first_unit: OrdinalTanruUnit @[8‥13) {
+              number: Cmavo @[8‥10) "ci",
+              moi: Cmavo @[10‥13) "moĭ",
             },
+            additional_units: [
+              Gismu @[14‥19) "tróci",
+            ],
           },
-        ],
-        cu: Cmavo @[20‥22) "cu",
-        Gismu @[23‥28) "xámgu",
+        },
       },
-      toi: Cmavo @[29‥32) "toĭ",
-    },
-  ],
+    ],
+    cu: Cmavo @[20‥22) "cu",
+    bridi_tail: Gismu @[23‥28) "xámgu",
+  },
+  toi: Cmavo @[29‥32) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[3,7]}}}},"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[8,10]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[10,13]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[14,19]}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[23,28]}}}}}}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[29,32]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[3,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[8,10]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[10,13]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[23,28]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[29,32]}}}}}}]}}"""

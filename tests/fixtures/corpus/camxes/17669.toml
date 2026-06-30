@@ -34,13 +34,12 @@ Text @[0‥10) {
   leading_cmevla: [
     Cmevla @[0‥2) "ór",
   ],
-  Terms @[3‥10) {
-    terms: [
-      Description @[3‥10) {
-        description: Cmavo @[3‥5) "la",
-        selbri: Cmavo @[6‥10) "go'i",
-      },
-    ],
+  DescriptorWithGadriSumti @[3‥10) {
+    description: Cmavo @[3‥5) "la",
+    tail: DescriptionTail @[6‥10) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Cmavo @[6‥10) "go'i",
+    },
   },
 }"""
-json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ór","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ór","span":[0,2]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[6,10]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -32,23 +32,23 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"mámta","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥32) {
-  Gismu @[0‥5) "mámta",
-  TanruUnitWord @[6‥32) {
-    Lujvo @[6‥14) "malglétu",
-    free_modifiers: [
-      Vocative @[15‥32) {
-        vocative_markers: [
-          Cmavo @[15‥18) "doĭ",
-        ],
-        sumti: SelbriVocative @[19‥32) {
-          selbri: Tanru @[19‥32) {
-            Lujvo @[19‥26) "samrú'e",
-            Gismu @[27‥32) "fínti",
+TanruSelbri @[0‥32) {
+  first_unit: Gismu @[0‥5) "mámta",
+  additional_units: [
+    WordTanruUnit @[6‥32) {
+      Lujvo @[6‥14) "malglétu",
+      free_modifiers: [
+        VocativeFreeModifier @[15‥32) {
+          vocative_markers: Cmavo @[15‥18) "doĭ",
+          sumti: TanruSelbri @[19‥32) {
+            first_unit: Lujvo @[19‥26) "samrú'e",
+            additional_units: [
+              Gismu @[27‥32) "fínti",
+            ],
           },
         },
-      },
-    ],
-  },
+      ],
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mámta","span":[0,5]}}}}},{"TanruUnitWord":[{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glétu"}],"span":[6,14]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[15,18]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"rú'e"}],"span":[19,26]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fínti","span":[27,32]}}}}}]}}}}}]}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mámta","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glétu"}],"span":[6,14]}}}},{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[15,18]}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"rú'e"}],"span":[19,26]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fínti","span":[27,32]}}}}}}}}}]}}}}}}}}}]}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

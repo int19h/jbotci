@@ -37,25 +37,30 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥38) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ta'o",
-    },
+    Cmavo @[0‥4) "ta'o",
   ],
-  Bridi @[5‥38) {
+  BridiWithLeadingTerms @[5‥38) {
     leading_terms: [
-      Description @[5‥16) {
+      DescriptorWithGadriSumti @[5‥16) {
         description: Cmavo @[5‥7) "lo",
-        selbri: Lujvo @[8‥16) "jindégji",
+        tail: DescriptionTail @[8‥16) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[8‥16) "jindégji",
+        },
       },
     ],
     cu: Cmavo @[17‥19) "cu",
-    SelbriBridiTail @[20‥38) {
-      Tanru @[20‥35) {
-        Lujvo @[20‥26) "tcétce",
-        ConvertedTanruUnit @[27‥35) {
-          se: Cmavo @[27‥29) "se",
-          Gismu @[30‥35) "nélci",
-        },
+    bridi_tail: SelbriSimpleBridiTail @[20‥38) {
+      selbri: TanruSelbri @[20‥35) {
+        first_unit: Lujvo @[20‥26) "tcétce",
+        additional_units: [
+          TanruUnitAtom @[27‥35) {
+            conversions: [
+              Cmavo @[27‥29) "se",
+            ],
+            base: Gismu @[30‥35) "nélci",
+          },
+        ],
       },
       terms: [
         Cmavo @[36‥38) "mi",
@@ -63,4 +68,4 @@ Text @[0‥38) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[5,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jin"},{"Rafsi":"dégji"}],"span":[8,16]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[17,19]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tcé"},{"Rafsi":"tce"}],"span":[20,26]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[30,35]}}}}}}}]},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[36,38]}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jin"},{"Rafsi":"dégji"}],"span":[8,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[17,19]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tcé"},{"Rafsi":"tce"}],"span":[20,26]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[30,35]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[36,38]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'o","span":[0,4]}}}}}]}}"""

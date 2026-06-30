@@ -34,21 +34,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥25) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "va'i",
-    },
+    Cmavo @[0‥4) "va'i",
   ],
-  Terms @[5‥25) {
-    terms: [
-      Description @[5‥25) {
-        description: Cmavo @[5‥7) "le",
-        selbri: Tanru @[8‥25) {
-          Gismu @[8‥13) "súmti",
+  DescriptorWithGadriSumti @[5‥25) {
+    description: Cmavo @[5‥7) "le",
+    tail: DescriptionTail @[8‥25) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[8‥25) {
+        first_unit: Gismu @[8‥13) "súmti",
+        additional_units: [
           Gismu @[14‥19) "stúzi",
           Gismu @[20‥25) "sídbo",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súmti","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stúzi","span":[14,19]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídbo","span":[20,25]}}}}}]}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súmti","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stúzi","span":[14,19]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídbo","span":[20,25]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[0,4]}}}}}]}}"""

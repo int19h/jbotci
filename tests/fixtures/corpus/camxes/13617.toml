@@ -42,33 +42,35 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"PlainWord":{"C
 tree = """
 Text @[0‥38) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  Bridi @[3‥38) {
+  BridiWithLeadingTerms @[3‥38) {
     leading_terms: [
       Cmavo @[3‥5) "do",
     ],
-    SelbriBridiTail @[6‥38) {
-      Lujvo @[6‥12) "djísku",
+    bridi_tail: SelbriSimpleBridiTail @[6‥38) {
+      selbri: Lujvo @[6‥12) "djísku",
       terms: [
-        SumtiConnection @[13‥38) {
+        SumtiAfterthought @[13‥38) {
           leading_sumti: QuotedWord @[13‥22) {
             zo: Cmavo @[13‥15) "zo",
             Lujvo @[16‥22) "lívgaŭ",
           },
-          connective: Afterthought @[24‥28) {
-            Cmavo @[24‥25) "e",
-            nai: Cmavo @[25‥28) "naĭ",
-          },
-          trailing_sumti: QuotedWord @[29‥38) {
-            zo: Cmavo @[29‥31) "zo",
-            Lujvo @[32‥38) "cúvgaŭ",
-          },
+          continuations: [
+            SumtiAfterthoughtTail @[24‥38) {
+              connective: Afterthought @[24‥28) {
+                Cmavo @[24‥25) "e",
+                nai: Cmavo @[25‥28) "naĭ",
+              },
+              sumti: QuotedWord @[29‥38) {
+                zo: Cmavo @[29‥31) "zo",
+                Lujvo @[32‥38) "cúvgaŭ",
+              },
+            },
+          ],
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"djí"},{"Rafsi":"sku"}],"span":[6,12]}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Lujvo":{"parts":[{"Rafsi":"lív"},{"Rafsi":"gaŭ"}],"span":[16,22]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[24,25]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}}}}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[29,31]}},"word":{"Lujvo":{"parts":[{"Rafsi":"cúv"},{"Rafsi":"gaŭ"}],"span":[32,38]}}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"djí"},{"Rafsi":"sku"}],"span":[6,12]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Lujvo":{"parts":[{"Rafsi":"lív"},{"Rafsi":"gaŭ"}],"span":[16,22]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[24,25]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[29,31]}},"word":{"Lujvo":{"parts":[{"Rafsi":"cúv"},{"Rafsi":"gaŭ"}],"span":[32,38]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}'

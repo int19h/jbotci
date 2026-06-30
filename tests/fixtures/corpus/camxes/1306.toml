@@ -40,49 +40,54 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥59) {
+BridiWithLeadingTerms @[0‥59) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  BridiTail @[3‥59) {
-    SelbriBridiTail @[3‥17) {
-      Gismu @[3‥8) "bévri",
+  bridi_tail: BridiTailWithPossibleTailTerms @[3‥59) {
+    first: SelbriSimpleBridiTail @[3‥17) {
+      selbri: Gismu @[3‥8) "bévri",
       terms: [
-        Description @[9‥17) {
+        DescriptorWithGadriSumti @[9‥17) {
           description: Cmavo @[9‥11) "le",
-          selbri: Gismu @[12‥17) "dákli",
+          tail: DescriptionTail @[12‥17) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[12‥17) "dákli",
+          },
         },
       ],
     },
-    ke_continuation: GroupedBridiTailConnection @[18‥59) {
+    ke_continuation: GihekBridiTailKeContinuation @[18‥59) {
       connective: Cmavo @[18‥22) "gi'e",
       ke: Cmavo @[22‥24) "ke",
-      AfterthoughtBridiTail @[25‥59) {
-        SelbriBridiTail @[25‥39) {
-          Gismu @[25‥30) "bévri",
+      bridi_tail: AfterthoughtBridiTail @[25‥59) {
+        SelbriSimpleBridiTail @[25‥39) {
+          selbri: Gismu @[25‥30) "bévri",
           terms: [
-            Description @[31‥39) {
+            DescriptorWithGadriSumti @[31‥39) {
               description: Cmavo @[31‥33) "le",
-              selbri: Gismu @[34‥39) "gérku",
+              tail: DescriptionTail @[34‥39) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: Gismu @[34‥39) "gérku",
+              },
             },
           ],
         },
-        continuations: [
-          BridiTailConnection @[40‥59) {
-            connective: Cmavo @[40‥44) "gi'a",
-            SelbriBridiTail @[45‥59) {
-              Gismu @[45‥50) "bévri",
-              terms: [
-                Description @[51‥59) {
-                  description: Cmavo @[51‥53) "le",
-                  selbri: Gismu @[54‥59) "mlátu",
-                },
-              ],
+        Cmavo @[40‥44) "gi'a",
+        SelbriSimpleBridiTail @[45‥59) {
+          selbri: Gismu @[45‥50) "bévri",
+          terms: [
+            DescriptorWithGadriSumti @[51‥59) {
+              description: Cmavo @[51‥53) "le",
+              tail: DescriptionTail @[54‥59) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: Gismu @[54‥59) "mlátu",
+              },
             },
-          },
-        ],
+          ],
+        },
       },
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dákli","span":[12,17]}}}}}}}}]}}}},"ke_continuation":{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[18,22]}}}}]}},"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[22,24]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[25,30]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[31,33]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[34,39]}}}}}}}}]}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'a","span":[40,44]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[45,50]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[51,53]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[54,59]}}}}}}}}]}}}}]}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dákli","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}},"ke_continuation":{"connective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[18,22]}}}}},"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[22,24]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[25,30]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[31,33]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[34,39]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'a","span":[40,44]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bévri","span":[45,50]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[51,53]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[54,59]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}]}}}}}}}}}}}}}}}}}}"""

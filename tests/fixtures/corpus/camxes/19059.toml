@@ -31,16 +31,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ĭe","span":[0,2]}}},{"PlainWord":
 tree = """
 Text @[0‥7) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "ĭe",
-    },
+    Cmavo @[0‥2) "ĭe",
   ],
   leading_free_modifiers: [
-    Vocative @[3‥7) {
-      vocative_markers: [
-        Cmavo @[3‥7) "ki'e",
-      ],
-    },
+    Cmavo @[3‥7) "ki'e",
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[3,7]}}}}]}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭe","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[3,7]}}}}}}}}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭe","span":[0,2]}}}}}]}}"""

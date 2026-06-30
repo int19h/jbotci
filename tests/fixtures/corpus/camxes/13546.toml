@@ -32,13 +32,15 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"ménli","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥26) {
-  Gismu @[0‥5) "ménli",
-  TanruUnitConnection @[6‥20) {
-    leading_unit: Gismu @[6‥11) "plúka",
-    connective: Cmavo @[12‥14) "ju",
-    trailing_unit: Gismu @[15‥20) "ránji",
-  },
-  Gismu @[21‥26) "kákne",
+TanruSelbri @[0‥26) {
+  first_unit: Gismu @[0‥5) "ménli",
+  additional_units: [
+    TanruUnit @[6‥20) {
+      Gismu @[6‥11) "plúka",
+      Cmavo @[12‥14) "ju",
+      Gismu @[15‥20) "ránji",
+    },
+    Gismu @[21‥26) "kákne",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ménli","span":[0,5]}}}}},{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"plúka","span":[6,11]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[12,14]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránji","span":[15,20]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kákne","span":[21,26]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ménli","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"plúka","span":[6,11]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[12,14]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránji","span":[15,20]}}}}}}}}}]},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kákne","span":[21,26]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

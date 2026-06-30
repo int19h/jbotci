@@ -47,45 +47,60 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"cúmki","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥88) {
-  Gismu @[0‥5) "cúmki",
+SelbriSimpleBridiTail @[0‥88) {
+  selbri: Gismu @[0‥5) "cúmki",
   terms: [
-    PlaceTaggedSumti @[6‥88) {
+    PlaceTaggedSumtiTerm @[6‥88) {
       fa: Cmavo @[6‥8) "fa",
-      Description @[9‥88) {
+      sumti: DescriptorWithGadriSumti @[9‥88) {
         description: Cmavo @[9‥11) "le",
-        selbri: Abstraction @[12‥88) {
-          nu: Cmavo @[12‥14) "nu",
-          Bridi @[15‥88) {
-            leading_terms: [
-              Description @[15‥35) {
-                description: Cmavo @[15‥17) "le",
-                selbri: Tanru @[18‥35) {
-                  Gismu @[18‥23) "zífre",
-                  Gismu @[24‥29) "prámi",
-                  Gismu @[30‥35) "prénu",
-                },
-              },
-            ],
-            cu: Cmavo @[36‥38) "cu",
-            SelbriBridiTail @[39‥88) {
-              Gismu @[39‥44) "nélci",
-              terms: [
-                Description @[45‥88) {
-                  description: Cmavo @[45‥47) "le",
-                  selbri: LinkedSumtiTanruUnit @[48‥88) {
-                    Gismu @[48‥53) "cúkta",
-                    be: Cmavo @[54‥56) "be",
-                    fa: Cmavo @[57‥59) "fi",
-                    first_sumti: DelimitedNonLojbanQuote @[60‥88) {
-                      zoi: Cmavo @[60‥64) "la'o",
-                      opening_delimiter: Cmavo @[65‥67) "gy",
-                      quoted_text: Verbatim @[69‥84) "Boston T. Party",
-                      closing_delimiter: Cmavo @[86‥88) "gy",
+        tail: DescriptionTail @[12‥88) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: AbstractionTanruUnit @[12‥88) {
+            nu: Cmavo @[12‥14) "nu",
+            subbridi: BridiWithLeadingTerms @[15‥88) {
+              leading_terms: [
+                DescriptorWithGadriSumti @[15‥35) {
+                  description: Cmavo @[15‥17) "le",
+                  tail: DescriptionTail @[18‥35) {
+                    leading_tail_elements: LeadingDescriptionTailElements {},
+                    tail: TanruSelbri @[18‥35) {
+                      first_unit: Gismu @[18‥23) "zífre",
+                      additional_units: [
+                        Gismu @[24‥29) "prámi",
+                        Gismu @[30‥35) "prénu",
+                      ],
                     },
                   },
                 },
               ],
+              cu: Cmavo @[36‥38) "cu",
+              bridi_tail: SelbriSimpleBridiTail @[39‥88) {
+                selbri: Gismu @[39‥44) "nélci",
+                terms: [
+                  DescriptorWithGadriSumti @[45‥88) {
+                    description: Cmavo @[45‥47) "le",
+                    tail: DescriptionTail @[48‥88) {
+                      leading_tail_elements: LeadingDescriptionTailElements {},
+                      tail: LinkedTanruUnit @[48‥88) {
+                        base: Gismu @[48‥53) "cúkta",
+                        linkargs: Linkargs @[54‥88) {
+                          be: Cmavo @[54‥56) "be",
+                          first_link: PlaceTaggedLinkedSumti @[57‥88) {
+                            fa: Cmavo @[57‥59) "fi",
+                            sumti: DelimitedNonLojbanQuote @[60‥88) {
+                              zoi: Cmavo @[60‥64) "la'o",
+                              opening_delimiter: Cmavo @[65‥67) "gy",
+                              quoted_text: Verbatim @[69‥84) "Boston T. Party",
+                              closing_delimiter: Cmavo @[86‥88) "gy",
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
             },
           },
         },
@@ -93,4 +108,4 @@ SelbriBridiTail @[0‥88) {
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúmki","span":[0,5]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[6,8]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[12,14]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zífre","span":[18,23]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[24,29]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[30,35]}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[36,38]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[39,44]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[45,47]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúkta","span":[48,53]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[54,56]}}}},"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[57,59]}}}},"first_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[60,64]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[65,67]}},"quoted_text":{"span":[69,84],"text":"Boston T. Party"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[86,88]}}}}}}}}}]}}}}]}}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúmki","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[6,8]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[12,14]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zífre","span":[18,23]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[24,29]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[30,35]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[36,38]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[39,44]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[45,47]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúkta","span":[48,53]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[54,56]}}}},"first_link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[57,59]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[60,64]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[65,67]}},"quoted_text":{"span":[69,84],"text":"Boston T. Party"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[86,88]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

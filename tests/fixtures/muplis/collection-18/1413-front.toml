@@ -36,31 +36,34 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"e'o","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[7,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}},{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[16,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"be","span":[22,24]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.e'o [do {cúsku (le [cméne be do])}])"
+brackets = "(.e'o [do {cúsku (le [cméne {be do}])}])"
 tree = """
 Text @[0‥27) {
   leading_indicators: [
-    Indicator @[0‥3) {
-      indicator: Cmavo @[0‥3) "e'o",
-    },
+    Cmavo @[0‥3) "e'o",
   ],
-  Bridi @[4‥27) {
+  BridiWithLeadingTerms @[4‥27) {
     leading_terms: [
       Cmavo @[4‥6) "do",
     ],
-    SelbriBridiTail @[7‥27) {
-      Gismu @[7‥12) "cúsku",
+    bridi_tail: SelbriSimpleBridiTail @[7‥27) {
+      selbri: Gismu @[7‥12) "cúsku",
       terms: [
-        Description @[13‥27) {
+        DescriptorWithGadriSumti @[13‥27) {
           description: Cmavo @[13‥15) "le",
-          selbri: LinkedSumtiTanruUnit @[16‥27) {
-            Gismu @[16‥21) "cméne",
-            be: Cmavo @[22‥24) "be",
-            first_sumti: Cmavo @[25‥27) "do",
+          tail: DescriptionTail @[16‥27) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: LinkedTanruUnit @[16‥27) {
+              base: Gismu @[16‥21) "cméne",
+              linkargs: Linkargs @[22‥27) {
+                be: Cmavo @[22‥24) "be",
+                first_link: Cmavo @[25‥27) "do",
+              },
+            },
           },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[7,12]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[16,21]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[22,24]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}}}]}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e'o","span":[0,3]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[7,12]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[16,21]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[22,24]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[25,27]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e'o","span":[0,3]}}}}}]}}"""

@@ -34,21 +34,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥21) {
   i: Cmavo @[1‥2) "i",
-  Terms @[3‥21) {
-    terms: [
-      TaggedSumti @[3‥21) {
-        tense_modal: Composite @[3‥12) {
-          Cmavo @[3‥7) "ze'i",
-          Cmavo @[8‥12) "ca'o",
-        },
-        Description @[13‥21) {
-          tail_elements: [
-            Cmavo @[13‥15) "pa",
-          ],
-          selbri: Gismu @[16‥21) "jéftu",
-        },
-      },
-    ],
+  TaggedSumtiTerm @[3‥21) {
+    tense_modal: TimeTenseWithInterval @[3‥12) {
+      zeha: Cmavo @[3‥7) "ze'i",
+      properties: [
+        Cmavo @[8‥12) "ca'o",
+      ],
+    },
+    sumti: DescriptorWithoutGadriSumti @[13‥21) {
+      quantifier: Cmavo @[13‥15) "pa",
+      Gismu @[16‥21) "jéftu",
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'i","span":[3,7]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[8,12]}}}}}]}},"sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[13,15]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jéftu","span":[16,21]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithInterval":{"zeha":{"zeha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'i","span":[3,7]}}}}},"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[8,12]}}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[13,15]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jéftu","span":[16,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

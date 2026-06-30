@@ -34,19 +34,13 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(coĭ [se térdi])"
 tree = """
-Text @[0‥12) {
-  leading_free_modifiers: [
-    Vocative @[0‥12) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: SelbriVocative @[4‥12) {
-        selbri: ConvertedSelbri @[4‥12) {
-          se: Cmavo @[4‥6) "se",
-          Gismu @[7‥12) "térdi",
-        },
-      },
-    },
-  ],
+VocativeFreeModifier @[0‥12) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: TanruUnitAtom @[4‥12) {
+    conversions: [
+      Cmavo @[4‥6) "se",
+    ],
+    base: Gismu @[7‥12) "térdi",
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[4,6]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[7,12]}}}}}}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[4,6]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[7,12]}}}}}}}}}}}}}}}}}}]}}'

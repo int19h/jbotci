@@ -37,7 +37,7 @@ json = """[{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"qu
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥35) {
+BridiWithLeadingTerms @[0‥35) {
   leading_terms: [
     QuotedWords @[0‥17) {
       lohu: Cmavo @[0‥4) "lo'u",
@@ -47,12 +47,16 @@ Bridi @[0‥35) {
     },
   ],
   cu: Cmavo @[18‥20) "cu",
-  Tanru @[21‥35) {
-    Gismu @[21‥26) "xámgu",
-    ConvertedTanruUnit @[27‥35) {
-      se: Cmavo @[27‥29) "se",
-      Gismu @[30‥35) "pílno",
-    },
+  bridi_tail: TanruSelbri @[21‥35) {
+    first_unit: Gismu @[21‥26) "xámgu",
+    additional_units: [
+      TanruUnitAtom @[27‥35) {
+        conversions: [
+          Cmavo @[27‥29) "se",
+        ],
+        base: Gismu @[30‥35) "pílno",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordsQuote":{"Plain":{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"se","span":[5,7]}},{"Cmavo":{"phonemes":"ra'a","span":[8,12]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[13,17]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[21,26]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[30,35]}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"se","span":[5,7]}},{"Cmavo":{"phonemes":"ra'a","span":[8,12]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[13,17]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[21,26]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[27,29]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[30,35]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

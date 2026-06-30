@@ -30,20 +30,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥8) {
-  terms: [
-    PlaceTaggedSumti @[0‥2) {
-      fa: Cmavo @[0‥2) "fo",
-      ElidedSumti {},
-    },
-    PlaceTaggedSumti @[3‥5) {
-      fa: Cmavo @[3‥5) "fo",
-      ElidedSumti {},
-    },
-    PlaceTaggedSumti @[6‥8) {
-      fa: Cmavo @[6‥8) "fo",
-      ElidedSumti {},
-    },
-  ],
+TermsFragment @[0‥8) {
+  PlaceTaggedSumtiTerm @[0‥2) {
+    fa: Cmavo @[0‥2) "fo",
+    sumti: TaggedElidedSumti {},
+  },
+  PlaceTaggedSumtiTerm @[3‥5) {
+    fa: Cmavo @[3‥5) "fo",
+    sumti: TaggedElidedSumti {},
+  },
+  PlaceTaggedSumtiTerm @[6‥8) {
+    fa: Cmavo @[6‥8) "fo",
+    sumti: TaggedElidedSumti {},
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[0,2]}}}},"sumti":{"ElidedSumti":{}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}},"sumti":{"ElidedSumti":{}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[6,8]}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[0,2]}}}},"sumti":{}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}},"sumti":{}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[6,8]}}}},"sumti":{}}}}}]}}}}}}}}}'

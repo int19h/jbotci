@@ -48,33 +48,45 @@ ParagraphStatement @[1‥49) {
     Cmavo @[2‥6) "ja'e",
     Cmavo @[6‥8) "bo",
   },
-  Bridi @[9‥49) {
+  BridiWithLeadingTerms @[9‥49) {
     leading_terms: [
-      Description @[9‥18) {
+      DescriptorWithGadriSumti @[9‥18) {
         description: Cmavo @[9‥11) "le",
-        selbri: Lujvo @[12‥18) "cábdeĭ",
+        tail: DescriptionTail @[12‥18) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[12‥18) "cábdeĭ",
+        },
       },
     ],
     cu: Cmavo @[19‥21) "cu",
-    LinkedSumtiTanruUnit @[22‥49) {
-      OrdinalSelbri @[22‥29) {
-        number: [
-          Cmavo @[22‥23) "mu",
-          Cmavo @[23‥24) "bi",
-          Cmavo @[24‥25) "bi",
-          Cmavo @[25‥26) "vo",
-        ],
+    bridi_tail: LinkedTanruUnit @[22‥49) {
+      base: OrdinalTanruUnit @[22‥29) {
+        number: NumberWords @[22‥26) {
+          first_number: Cmavo @[22‥23) "mu",
+          continuations: [
+            Cmavo @[23‥24) "bi",
+            Cmavo @[24‥25) "bi",
+            Cmavo @[25‥26) "vo",
+          ],
+        },
         moi: Cmavo @[26‥29) "moĭ",
       },
-      be: Cmavo @[30‥32) "be",
-      first_sumti: Description @[33‥49) {
-        description: Cmavo @[33‥37) "lo'i",
-        selbri: Tanru @[38‥49) {
-          Gismu @[38‥43) "lójbo",
-          Gismu @[44‥49) "djédi",
+      linkargs: Linkargs @[30‥49) {
+        be: Cmavo @[30‥32) "be",
+        first_link: DescriptorWithGadriSumti @[33‥49) {
+          description: Cmavo @[33‥37) "lo'i",
+          tail: DescriptionTail @[38‥49) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: TanruSelbri @[38‥49) {
+              first_unit: Gismu @[38‥43) "lójbo",
+              additional_units: [
+                Gismu @[44‥49) "djédi",
+              ],
+            },
+          },
         },
       },
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja'e","span":[2,6]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[6,8]}}}}]}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cáb"},{"Rafsi":"deĭ"}],"span":[12,18]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[19,21]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[22,23]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[23,24]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[24,25]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[25,26]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[26,29]}}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[30,32]}}}},"first_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'i","span":[33,37]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[38,43]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djédi","span":[44,49]}}}}}]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"ITagBoParagraphStatementConnective":{"tense_modal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja'e","span":[2,6]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[6,8]}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cáb"},{"Rafsi":"deĭ"}],"span":[12,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[19,21]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[22,23]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[23,24]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi","span":[24,25]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[25,26]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[26,29]}}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[30,32]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'i","span":[33,37]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[38,43]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djédi","span":[44,49]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

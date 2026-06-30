@@ -41,38 +41,38 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}},{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[9,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"na","span":[17,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"jo","span":[19,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[22,24]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[25,32]}}},{"PlainWord":{"Gismu":{"phonemes":"nínmu","span":[34,39]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{la .djan.} nánmu] .i [na jo] [{la .djeĭmyz.} nínmu])"
+brackets = "([{la .djan.} nánmu] [.i {na jo} {(la .djeĭmyz.) nínmu}])"
 tree = """
 StatementConnection @[0‥39) {
-  leading_statement: Bridi @[0‥14) {
+  leading_statement: BridiWithLeadingTerms @[0‥14) {
     leading_terms: [
-      NameDescription @[0‥7) {
+      NameSumti @[0‥7) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[3‥7) "djan",
         ],
       },
     ],
-    Gismu @[9‥14) "nánmu",
+    bridi_tail: Gismu @[9‥14) "nánmu",
   },
   i: Cmavo @[16‥17) "i",
   connective: Selbri @[17‥21) {
     na: Cmavo @[17‥19) "na",
     Cmavo @[19‥21) "jo",
   },
-  trailing_statement: Bridi @[22‥39) {
+  trailing_statement: BridiWithLeadingTerms @[22‥39) {
     leading_terms: [
-      NameDescription @[22‥32) {
+      NameSumti @[22‥32) {
         la: Cmavo @[22‥24) "la",
         names: [
           Cmevla @[25‥32) "djeĭmyz",
         ],
       },
     ],
-    Gismu @[34‥39) "nínmu",
+    bridi_tail: Gismu @[34‥39) "nínmu",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"StatementConnection":{"leading_statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[9,14]}}}}}}}}}}}},"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"connective":{"Selbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[17,19]}}}},"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo","span":[19,21]}}}}]}},"trailing_statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[22,24]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[25,32]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nínmu","span":[34,39]}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"IStatementConnection":{"leading_statement":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánmu","span":[9,14]}}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"SimpleIConnectiveStatementTail":{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"connective":{"IStandardStatementConnective":{"connective":{"JekConnective":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[17,19]}}}},"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo","span":[19,21]}}}}}}}},"trailing_statement":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[22,24]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[25,32]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nínmu","span":[34,39]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:19","objects":{"utterance:5":{"type":"utterance","force":"subordinated","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:10","content":"formula:9","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":14},"text":"la djan. nanmu","construct":"bridi"}},"utterance:11":{"type":"utterance","force":"subordinated","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:16","content":"formula:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":22,"byteEnd":39},"text":"la djeimyz. ninmu","construct":"bridi"}},"sequence:19":{"type":"sequence","content":"formula:18","items":["utterance:5","utterance:11"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":39},"text":"la djan. nanmu .inajo la djeimyz. ninmu","construct":"statement-connection"}},"predication:8":{"type":"predication","eventuality":"eventuality:6","relation":"nanmu","arguments":{"x1":{"kind":"filled","value":"entity:7"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":14},"text":"la djan. nanmu","construct":"predication"}},"predication:14":{"type":"predication","eventuality":"eventuality:12","relation":"ninmu","arguments":{"x1":{"kind":"filled","value":"entity:13"}},"mode":"asserted","source":{"span":{"byteStart":22,"byteEnd":39},"text":"la djeimyz. ninmu","construct":"predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":0,"byteEnd":14},"text":"la djan. nanmu","construct":"bridi-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":22,"byteEnd":39},"text":"la djeimyz. ninmu","construct":"bridi-formula"}},"formula:17":{"type":"formula","operator":"not","children":["formula:9"],"source":{"span":{"byteStart":0,"byteEnd":39},"text":"la djan. nanmu .inajo la djeimyz. ninmu","construct":"statement-connection"}},"formula:18":{"type":"formula","operator":"iff","children":["formula:17","formula:15"],"connector":{"source":"na jo","locus":"statement","truthTable":"FTTF"},"source":{"span":{"byteStart":0,"byteEnd":39},"text":"la djan. nanmu .inajo la djeimyz. ninmu","construct":"statement-connection"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":0,"byteEnd":8},"text":"la djan.","construct":"sumti"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djeimyz"},"source":{"span":{"byteStart":22,"byteEnd":33},"text":"la djeimyz.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":14},"text":"la djan. nanmu","construct":"predication"}},"eventuality:12":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":22,"byteEnd":39},"text":"la djeimyz. ninmu","construct":"predication"}},"eventuality/locution:10":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":14},"text":"la djan. nanmu","construct":"bridi"}},"eventuality/locution:16":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":22,"byteEnd":39},"text":"la djeimyz. ninmu","construct":"bridi"}}}}'''

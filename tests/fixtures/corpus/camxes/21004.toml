@@ -31,19 +31,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥19) {
-  TaggedSelbri @[0‥14) {
-    tense_modal: Composite @[0‥8) {
-      Cmavo @[0‥4) "na'e",
-      Cmavo @[4‥8) "ka'e",
+SelbriSimpleBridiTail @[0‥19) {
+  selbri: TaggedSelbri @[0‥14) {
+    tense_modal: PrefixedTimeSpaceCahaTense @[0‥8) {
+      nahe: Cmavo @[0‥4) "na'e",
+      tense: Cmavo @[4‥8) "ka'e",
     },
-    Gismu @[9‥14) "cpáre",
+    inner_selbri: Gismu @[9‥14) "cpáre",
   },
   terms: [
-    TaggedSumti @[15‥19) {
+    TaggedSumtiTerm @[15‥19) {
       tense_modal: Cmavo @[15‥19) "ze'i",
-      ElidedSumti {},
+      sumti: TaggedElidedSumti {},
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[4,8]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpáre","span":[9,14]}}}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'i","span":[15,19]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"PrefixedTimeSpaceCahaTense":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}}},"tense":{"CahaTense":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[4,8]}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpáre","span":[9,14]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithInterval":{"zeha":{"zeha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'i","span":[15,19]}}}}}}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}}}}}}}}}"""

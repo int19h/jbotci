@@ -29,8 +29,10 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-NumberQuantifier @[0‥4) {
-  Cmavo @[0‥2) "xa",
-  Cmavo @[2‥4) "xa",
+NumberWords @[0‥4) {
+  first_number: Cmavo @[0‥2) "xa",
+  continuations: [
+    Cmavo @[2‥4) "xa",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[2,4]}}}}]}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[2,4]}}}}}]}}}}}}}}}}}'

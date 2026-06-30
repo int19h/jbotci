@@ -43,52 +43,56 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥55) {
+BridiWithLeadingTerms @[0‥55) {
   leading_terms: [
     NumberSumti @[0‥16) {
       li: Cmavo @[0‥2) "li",
       LerfuStringMekso @[3‥16) {
-        Cmavo @[3‥5) "xy",
+        letters: Cmavo @[3‥5) "xy",
         boi: Cmavo @[7‥10) "boĭ",
         free_modifiers: [
-          Subscript @[11‥16) {
+          XiNumberFreeModifier @[11‥16) {
             xi: Cmavo @[11‥13) "xi",
-            Cmavo @[14‥16) "ci",
+            expression: Cmavo @[14‥16) "ci",
           },
         ],
       },
     },
   ],
-  SelbriBridiTail @[17‥55) {
-    Cmavo @[17‥19) "du",
+  bridi_tail: SelbriSimpleBridiTail @[17‥55) {
+    selbri: Cmavo @[17‥19) "du",
     terms: [
       NumberSumti @[20‥55) {
         li: Cmavo @[20‥22) "li",
-        Infix @[23‥55) {
-          left_expression: LerfuStringMekso @[23‥36) {
-            Cmavo @[23‥25) "xy",
+        InfixMekso @[23‥55) {
+          first_expression: LerfuStringMekso @[23‥36) {
+            letters: Cmavo @[23‥25) "xy",
             boi: Cmavo @[27‥30) "boĭ",
             free_modifiers: [
-              Subscript @[31‥36) {
+              XiNumberFreeModifier @[31‥36) {
                 xi: Cmavo @[31‥33) "xi",
-                Cmavo @[34‥36) "pa",
+                expression: Cmavo @[34‥36) "pa",
               },
             ],
           },
-          operator: Cmavo @[37‥41) "su'i",
-          right_expression: LerfuStringMekso @[42‥55) {
-            Cmavo @[42‥44) "xy",
-            boi: Cmavo @[46‥49) "boĭ",
-            free_modifiers: [
-              Subscript @[50‥55) {
-                xi: Cmavo @[50‥52) "xi",
-                Cmavo @[53‥55) "re",
+          continuations: [
+            InfixMeksoContinuation @[37‥55) {
+              operator: Cmavo @[37‥41) "su'i",
+              right_expression: LerfuStringMekso @[42‥55) {
+                letters: Cmavo @[42‥44) "xy",
+                boi: Cmavo @[46‥49) "boĭ",
+                free_modifiers: [
+                  XiNumberFreeModifier @[50‥55) {
+                    xi: Cmavo @[50‥52) "xi",
+                    expression: Cmavo @[53‥55) "re",
+                  },
+                ],
               },
-            ],
-          },
+            },
+          ],
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[3,5]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[7,10]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[11,13]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[17,19]}}}}},"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[20,22]}}}},"expression":{"Infix":{"left_expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[23,25]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[27,30]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[31,33]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[34,36]}}}}]}}}}}]}},"operator":{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[37,41]}}}}},"right_expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[42,44]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[46,49]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[50,52]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[53,55]}}}}]}}}}}]}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[3,5]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[7,10]}}}},"free_modifiers":[{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[11,13]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[17,19]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[20,22]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[23,25]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[27,30]}}}},"free_modifiers":[{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[31,33]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[34,36]}}}}}}}}}]}}}}}}},"continuations":[{"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[37,41]}}}}}}}},"right_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[42,44]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[46,49]}}}},"free_modifiers":[{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[50,52]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[53,55]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

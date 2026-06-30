@@ -42,41 +42,47 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[16,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[24,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[29,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[34,38]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[39,41]}}},{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[43,52]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(mi [{ca sánli} {(la .drezdn.) (ga'o bi'i ga'o) (la .frankfurt.)}])"
+brackets = "(mi [{ca sánli} {(la .drezdn.) ([ga'o bi'i ga'o] [la .frankfurt.])}])"
 tree = """
-Bridi @[0‥52) {
+BridiWithLeadingTerms @[0‥52) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥52) {
-    TaggedSelbri @[3‥11) {
-      tense_modal: Cmavo @[3‥5) "ca",
-      Gismu @[6‥11) "sánli",
+  bridi_tail: SelbriSimpleBridiTail @[3‥52) {
+    selbri: TaggedSelbri @[3‥11) {
+      tense_modal: [
+        Cmavo @[3‥5) "ca",
+      ],
+      inner_selbri: Gismu @[6‥11) "sánli",
     },
     terms: [
-      SumtiConnection @[12‥52) {
-        leading_sumti: NameDescription @[12‥22) {
+      SumtiAfterthought @[12‥52) {
+        leading_sumti: NameSumti @[12‥22) {
           la: Cmavo @[12‥14) "la",
           names: [
             Cmevla @[16‥22) "drezdn",
           ],
         },
-        connective: Interval @[24‥38) {
-          Cmavo @[24‥28) "ga'o",
-          Cmavo @[29‥33) "bi'i",
-          Cmavo @[34‥38) "ga'o",
-        },
-        trailing_sumti: NameDescription @[39‥52) {
-          la: Cmavo @[39‥41) "la",
-          names: [
-            Cmevla @[43‥52) "frankfurt",
-          ],
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[24‥52) {
+            connective: Interval @[24‥38) {
+              Cmavo @[24‥28) "ga'o",
+              Cmavo @[29‥33) "bi'i",
+              Cmavo @[34‥38) "ga'o",
+            },
+            sumti: NameSumti @[39‥52) {
+              la: Cmavo @[39‥41) "la",
+              names: [
+                Cmevla @[43‥52) "frankfurt",
+              ],
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[16,22]}}}}]}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[24,28]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[29,33]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[34,38]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[39,41]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[43,52]}}}}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sánli","span":[6,11]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"drezdn","span":[16,22]}}}}]}}}}}},"continuations":[{"connective":{"JoikConnective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[24,28]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'i","span":[29,33]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[34,38]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[39,41]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frankfurt","span":[43,52]}}}}]}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:13","content":"formula:12","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":53},"text":"mi ca sanli la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"bridi"}},"predication:11":{"type":"predication","eventuality":"eventuality:6","relation":"sanli","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:9"},"x3":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":53},"text":"mi ca sanli la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":0,"byteEnd":53},"text":"mi ca sanli la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"drezdn"},"source":{"span":{"byteStart":12,"byteEnd":23},"text":"la .drezdn.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"frankfurt"},"source":{"span":{"byteStart":39,"byteEnd":53},"text":"la .frankfurt.","construct":"sumti"}},"entity:9":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"unorderedInterval","members":["entity:7","entity:8"],"endpointInclusion":{"left":"inclusive","right":"inclusive"}},"source":{"span":{"byteStart":12,"byteEnd":53},"text":"la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"connected-sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"at","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":53},"text":"mi ca sanli la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"predication"}},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":53},"text":"mi ca sanli la .drezdn. ga'o bi'i ga'o la .frankfurt.","construct":"bridi"}}}}'''

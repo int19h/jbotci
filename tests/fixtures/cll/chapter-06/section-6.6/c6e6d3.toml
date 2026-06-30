@@ -39,26 +39,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(mi [pónse {(su'o ci) cútci}])"
 tree = """
-Bridi @[0‥22) {
+BridiWithLeadingTerms @[0‥22) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥22) {
-    Gismu @[3‥8) "pónse",
+  bridi_tail: SelbriSimpleBridiTail @[3‥22) {
+    selbri: Gismu @[3‥8) "pónse",
     terms: [
-      Description @[9‥22) {
-        tail_elements: [
-          NumberQuantifier @[9‥16) {
-            Cmavo @[9‥13) "su'o",
+      DescriptorWithoutGadriSumti @[9‥22) {
+        quantifier: NumberWords @[9‥16) {
+          first_number: Cmavo @[9‥13) "su'o",
+          continuations: [
             Cmavo @[14‥16) "ci",
-          },
-        ],
-        selbri: Gismu @[17‥22) "cútci",
+          ],
+        },
+        Gismu @[17‥22) "cútci",
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[9,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cútci","span":[17,22]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[9,13]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cútci","span":[17,22]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:17","content":"formula:16","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":22},"text":"mi ponse su'o ci cutci","construct":"bridi"}},"predication:9":{"type":"predication","eventuality":"eventuality:6","relation":"ponse","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":22},"text":"mi ponse su'o ci cutci","construct":"predication"}},"predication:13":{"type":"predication","relation":"cutci","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:12","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":17,"byteEnd":22},"text":"cutci","construct":"restrictive-predication"}},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":0,"byteEnd":22},"text":"mi ponse su'o ci cutci","construct":"bridi-formula"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":17,"byteEnd":22},"text":"cutci","construct":"restrictive-formula"}},"formula:16":{"type":"formula","operator":"cardinality","variable":"entity:7","restriction":"formula:14","body":"formula:10","quantity":"quantity:15","source":{"span":{"byteStart":9,"byteEnd":22},"text":"su'o ci cutci","construct":"quantifier-scope"}},"quantity:15":{"type":"quantity","form":"atLeast","value":{"integer":3},"scale":"count","source":{"span":{"byteStart":9,"byteEnd":16},"text":"su'o ci","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"variable","sort":"entity","source":{"span":{"byteStart":9,"byteEnd":22},"text":"su'o ci cutci","construct":"bound-argument"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:12":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":22},"text":"mi ponse su'o ci cutci","construct":"predication"}},"eventuality/locution:17":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":22},"text":"mi ponse su'o ci cutci","construct":"bridi"}}}}'''

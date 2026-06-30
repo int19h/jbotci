@@ -29,12 +29,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[3,5]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[3‥8) {
-  terms: [
-    WithIndicator @[3‥8) {
-      Cmavo @[3‥5) "ma",
-      indicator: Cmavo @[5‥8) "kaŭ",
-    },
-  ],
+WithIndicator @[3‥8) {
+  Cmavo @[3‥5) "ma",
+  indicator: Cmavo @[5‥8) "kaŭ",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[5,8]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[5,8]}}}}}}}}}}}}}}}]}}}}}}}}}'

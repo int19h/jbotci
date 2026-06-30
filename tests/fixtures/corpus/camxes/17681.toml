@@ -42,17 +42,17 @@ ParagraphStatement @[0‥22) {
     },
     indicator: Cmavo @[6‥8) "xu",
   },
-  Bridi @[9‥22) {
+  BridiWithLeadingTerms @[9‥22) {
     leading_terms: [
-      TaggedSumti @[9‥19) {
+      TaggedSumtiTerm @[9‥19) {
         tense_modal: Cmavo @[9‥13) "cu'e",
-        QuantifiedSumti @[14‥19) {
+        sumti: QuantifiedSumti @[14‥19) {
           quantifier: Cmavo @[14‥16) "xo",
-          Cmavo @[17‥19) "ma",
+          inner_sumti: Cmavo @[17‥19) "ma",
         },
       },
     ],
-    Cmavo @[20‥22) "mo",
+    bridi_tail: Cmavo @[20‥22) "mo",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[2,5]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[6,8]}}}},"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'e","span":[9,13]}}}}}]}},"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[14,16]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[20,22]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[2,5]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[6,8]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"CuheTense":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'e","span":[9,13]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[14,16]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[20,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

@@ -37,36 +37,46 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥44) {
-  Bridi @[0‥8) {
+ParagraphStatementSequence @[0‥44) {
+  BridiWithLeadingTerms @[0‥8) {
     leading_terms: [
       Cmavo @[0‥2) "mi",
     ],
-    Gismu @[3‥8) "jímpe",
+    bridi_tail: Gismu @[3‥8) "jímpe",
   },
-  ParagraphStatement @[10‥44) {
-    i: Cmavo @[10‥11) "i",
-    Terms @[12‥44) {
-      terms: [
-        SumtiConnection @[12‥44) {
-          leading_sumti: Description @[12‥21) {
-            description: Cmavo @[12‥15) "loĭ",
-            selbri: Gismu @[16‥21) "gústa",
-          },
-          connective: Afterthought @[23‥27) {
-            Cmavo @[23‥24) "e",
-            nai: Cmavo @[24‥27) "naĭ",
-          },
-          trailing_sumti: Description @[28‥44) {
-            description: Cmavo @[28‥31) "loĭ",
-            selbri: Tanru @[32‥44) {
-              Lujvo @[32‥38) "ctístu",
-              Gismu @[39‥44) "vécnu",
-            },
+  following: [
+    ParagraphStatement @[10‥44) {
+      i: Cmavo @[10‥11) "i",
+      SumtiAfterthought @[12‥44) {
+        leading_sumti: DescriptorWithGadriSumti @[12‥21) {
+          description: Cmavo @[12‥15) "loĭ",
+          tail: DescriptionTail @[16‥21) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[16‥21) "gústa",
           },
         },
-      ],
+        continuations: [
+          SumtiAfterthoughtTail @[23‥44) {
+            connective: Afterthought @[23‥27) {
+              Cmavo @[23‥24) "e",
+              nai: Cmavo @[24‥27) "naĭ",
+            },
+            sumti: DescriptorWithGadriSumti @[28‥44) {
+              description: Cmavo @[28‥31) "loĭ",
+              tail: DescriptionTail @[32‥44) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: TanruSelbri @[32‥44) {
+                  first_unit: Lujvo @[32‥38) "ctístu",
+                  additional_units: [
+                    Gismu @[39‥44) "vécnu",
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jímpe","span":[3,8]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[10,11]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[12,15]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gústa","span":[16,21]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[23,24]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[24,27]}}}}}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[28,31]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ctí"},{"Rafsi":"stu"}],"span":[32,38]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[39,44]}}}}}]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jímpe","span":[3,8]}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[10,11]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[12,15]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gústa","span":[16,21]}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[23,24]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[24,27]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[28,31]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ctí"},{"Rafsi":"stu"}],"span":[32,38]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vécnu","span":[39,44]}}}}}}}}}]}}}}}}}}}}}}}}}]}}}}}}]}}}}]}}}}}}'

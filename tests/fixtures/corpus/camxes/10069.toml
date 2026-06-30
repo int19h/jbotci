@@ -30,15 +30,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥8) {
-  leading_indicators: [
-    Indicator @[0‥5) {
-      indicator: Cmavo @[0‥2) "ŭi",
-      nai: Cmavo @[2‥5) "naĭ",
-    },
-    Indicator @[5‥8) {
-      indicator: Cmavo @[5‥8) "caĭ",
-    },
-  ],
-}"""
-json = '{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}},{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"caĭ","span":[5,8]}}}}}]}'
+[
+  LeadingIndicator @[0‥5) {
+    indicator: Cmavo @[0‥2) "ŭi",
+    nai: Cmavo @[2‥5) "naĭ",
+  },
+  Cmavo @[5‥8) "caĭ",
+]"""
+json = '{"RegularText":{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[2,5]}}}}},{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"caĭ","span":[5,8]}}}}}]}}'

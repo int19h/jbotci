@@ -19,24 +19,25 @@ raw = '{"frames":[{"index":0,"node":{"offset":16,"length":9},"kind":"tanru-unit"
 tree = """
 Text @[0‥37) {
   leading_free_modifiers: [
-    Vocative @[0‥12) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
+    VocativeFreeModifier @[0‥12) {
+      vocative_markers: Cmavo @[0‥3) "doĭ",
+      sumti: [
+        Cmevla @[4‥12) "talĭesin",
       ],
-      sumti: Cmevla @[4‥12) "talĭesin",
     },
   ],
-  Terms @[13‥37) {
-    terms: [
-      Description @[13‥37) {
-        description: Cmavo @[13‥15) "la",
-        selbri: Tanru @[16‥37) {
-          Lujvo @[16‥25) "jbovláste",
+  DescriptorWithGadriSumti @[13‥37) {
+    description: Cmavo @[13‥15) "la",
+    tail: DescriptionTail @[16‥37) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[16‥37) {
+        first_unit: Lujvo @[16‥25) "jbovláste",
+        additional_units: [
           Gismu @[26‥31) "spófu",
           Gismu @[32‥37) "mílxe",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"talĭesin","span":[4,12]}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[13,15]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbo"},{"Rafsi":"vlá"},{"Rafsi":"ste"}],"span":[16,25]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[26,31]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[32,37]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"talĭesin","span":[4,12]}}}}]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[13,15]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbo"},{"Rafsi":"vlá"},{"Rafsi":"ste"}],"span":[16,25]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[26,31]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[32,37]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

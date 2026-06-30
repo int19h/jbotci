@@ -36,31 +36,33 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥38) {
-  Terms @[0‥7) {
-    terms: [
-      WithIndicator @[0‥5) {
-        Cmavo @[0‥2) "do",
-        indicator: Cmavo @[3‥5) "éĭ",
-      },
-      Cmavo @[5‥7) "mi",
-    ],
-  },
-  ParagraphStatement @[9‥38) {
-    i: WithIndicator @[9‥13) {
-      Cmavo @[9‥10) "i",
-      indicator: Cmavo @[11‥13) "xu",
+ParagraphStatementSequence @[0‥38) {
+  TermsFragment @[0‥7) {
+    WithIndicator @[0‥5) {
+      Cmavo @[0‥2) "do",
+      indicator: Cmavo @[3‥5) "éĭ",
     },
-    Bridi @[14‥38) {
-      leading_terms: [
-        Cmavo @[14‥16) "do",
-      ],
-      Tanru @[17‥38) {
-        Gismu @[17‥22) "císka",
-        Lujvo @[23‥32) "samtrósku",
-        Gismu @[33‥38) "lójbo",
+    Cmavo @[5‥7) "mi",
+  },
+  following: [
+    ParagraphStatement @[9‥38) {
+      i: WithIndicator @[9‥13) {
+        Cmavo @[9‥10) "i",
+        indicator: Cmavo @[11‥13) "xu",
+      },
+      BridiWithLeadingTerms @[14‥38) {
+        leading_terms: [
+          Cmavo @[14‥16) "do",
+        ],
+        bridi_tail: TanruSelbri @[17‥38) {
+          first_unit: Gismu @[17‥22) "císka",
+          additional_units: [
+            Lujvo @[23‥32) "samtrósku",
+            Gismu @[33‥38) "lójbo",
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"éĭ","span":[3,5]}}}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}]}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[11,13]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[14,16]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"císka","span":[17,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"tró"},{"Rafsi":"sku"}],"span":[23,32]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[33,38]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"éĭ","span":[3,5]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}]}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[11,13]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[14,16]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"císka","span":[17,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"tró"},{"Rafsi":"sku"}],"span":[23,32]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[33,38]}}}}}}}}}]}}}}}}}}}}}}}}}}}}]}}}}}}'

@@ -36,12 +36,12 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(ra [zváti {(ma ba'a) daĭ}])"
 tree = """
-Bridi @[0‥20) {
+BridiWithLeadingTerms @[0‥20) {
   leading_terms: [
     Cmavo @[0‥2) "ra",
   ],
-  SelbriBridiTail @[3‥20) {
-    Gismu @[3‥8) "zváti",
+  bridi_tail: SelbriSimpleBridiTail @[3‥20) {
+    selbri: Gismu @[3‥8) "zváti",
     terms: [
       WithIndicator @[9‥20) {
         WithIndicator @[9‥16) {
@@ -53,4 +53,4 @@ Bridi @[0‥20) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[3,8]}}}}},"terms":[{"Sumti":{"ProSumti":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"ba'a","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[17,20]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"ba'a","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[17,20]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

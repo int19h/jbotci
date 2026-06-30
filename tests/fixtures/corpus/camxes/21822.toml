@@ -35,30 +35,30 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥33) {
-  Gismu @[0‥5) "mrílu",
+SelbriSimpleBridiTail @[0‥33) {
+  selbri: Gismu @[0‥5) "mrílu",
   terms: [
-    SumtiWithRelativeClauses @[6‥33) {
+    SimpleSumti @[6‥33) {
       base_sumti: QuantifiedSumti @[6‥20) {
-        quantifier: NumberQuantifier @[6‥17) {
-          Cmavo @[6‥10) "su'o",
-          Cmavo @[11‥13) "ci",
-          Cmavo @[13‥17) "ki'o",
+        quantifier: NumberWords @[6‥17) {
+          first_number: Cmavo @[6‥10) "su'o",
+          continuations: [
+            Cmavo @[11‥13) "ci",
+            Cmavo @[13‥17) "ki'o",
+          ],
         },
-        Cmavo @[18‥20) "da",
+        inner_sumti: Cmavo @[18‥20) "da",
       },
-      relative_clauses: [
-        RestrictiveRelativeBridi @[21‥33) {
-          poi: Cmavo @[21‥24) "voĭ",
-          SelbriBridiTail @[25‥33) {
-            Gismu @[25‥30) "fésti",
-            terms: [
-              Cmavo @[31‥33) "mi",
-            ],
-          },
+      relative_clauses: RestrictiveBridiRelativeClause @[21‥33) {
+        poi: Cmavo @[21‥24) "voĭ",
+        subbridi: SelbriSimpleBridiTail @[25‥33) {
+          selbri: Gismu @[25‥30) "fésti",
+          terms: [
+            Cmavo @[31‥33) "mi",
+          ],
         },
-      ],
+      },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[0,5]}}}}},"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[6,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[11,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[13,17]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[18,20]}}}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"voĭ","span":[21,24]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fésti","span":[25,30]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}]}}}}}}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[6,10]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[11,13]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[13,17]}}}}}]}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[18,20]}}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"voĭ","span":[21,24]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fésti","span":[25,30]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

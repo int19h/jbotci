@@ -27,10 +27,5 @@ tree = """
 json = '[{"PlainWord":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}]'
 
 [expectations.output.gentufa]
-tree = """
-Text @[1‥5) {
-  leading_cmevla: [
-    Cmevla @[1‥5) "iván",
-  ],
-}"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}}]}'
+tree = 'Cmevla @[1‥5) "iván"'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"iván","span":[1,5]}}}}]}}'

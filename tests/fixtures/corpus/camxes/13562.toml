@@ -47,42 +47,44 @@ Paragraph @[0‥63) {
   niho: [
     Cmavo @[0‥4) "ni'o",
   ],
-  Bridi @[5‥63) {
+  BridiWithLeadingTerms @[5‥63) {
     leading_terms: [
       Cmavo @[5‥7) "mi",
     ],
-    SelbriBridiTail @[8‥63) {
-      Tanru @[8‥19) {
-        Gismu @[8‥13) "mútce",
-        Gismu @[14‥19) "nélci",
+    bridi_tail: SelbriSimpleBridiTail @[8‥63) {
+      selbri: TanruSelbri @[8‥19) {
+        first_unit: Gismu @[8‥13) "mútce",
+        additional_units: [
+          Gismu @[14‥19) "nélci",
+        ],
       },
       terms: [
-        Description @[20‥63) {
+        DescriptorWithGadriSumti @[20‥63) {
           description: Cmavo @[20‥22) "la",
-          tail_elements: [
-            LerfuStringSumti @[23‥29) {
-              letter: [
-                Cmavo @[23‥25) "vy",
+          tail: DescriptionTail @[23‥63) {
+            leading_tail_elements: LetterString @[23‥29) {
+              first_letter: Cmavo @[23‥25) "vy",
+              continuations: [
                 Cmavo @[25‥27) "ny",
                 Cmavo @[27‥29) "vy",
               ],
             },
-          ],
-          selbri: Gismu @[30‥35) "nátmi",
-          relative_clauses: [
-            SumtiAssociationPhrase @[36‥63) {
-              association_marker: Cmavo @[36‥40) "po'u",
-              DelimitedNonLojbanQuote @[41‥63) {
-                zoi: Cmavo @[41‥45) "la'o",
-                opening_delimiter: Cmavo @[46‥48) "gy",
-                quoted_text: Verbatim @[50‥60) "VNV Nation",
-                closing_delimiter: Cmavo @[61‥63) "gy",
+            tail: RelationDescriptionTail @[30‥63) {
+              selbri: Gismu @[30‥35) "nátmi",
+              relative_clauses: SumtiAssociationRelativeClause @[36‥63) {
+                association_marker: Cmavo @[36‥40) "po'u",
+                sumti: DelimitedNonLojbanQuote @[41‥63) {
+                  zoi: Cmavo @[41‥45) "la'o",
+                  opening_delimiter: Cmavo @[46‥48) "gy",
+                  quoted_text: Verbatim @[50‥60) "VNV Nation",
+                  closing_delimiter: Cmavo @[61‥63) "gy",
+                },
               },
             },
-          ],
+          },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}],"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[14,19]}}}}}]},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[20,22]}}}},"tail_elements":[{"DescriptionTailSumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[23,25]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[25,27]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[27,29]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nátmi","span":[30,35]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po'u","span":[36,40]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[41,45]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[46,48]}},"quoted_text":{"span":[50,60],"text":"VNV Nation"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[61,63]}}}}}}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}],"statements":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[14,19]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[20,22]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[23,25]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[25,27]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[27,29]}}}}}}]}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nátmi","span":[30,35]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po'u","span":[36,40]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[41,45]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[46,48]}},"quoted_text":{"span":[50,60],"text":"VNV Nation"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[61,63]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}]}}}"""

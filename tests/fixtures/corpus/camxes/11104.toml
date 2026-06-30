@@ -40,31 +40,48 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-LinkedSumtiTanruUnit @[0‥52) {
-  Gismu @[0‥5) "bróde",
-  be: Cmavo @[6‥8) "be",
-  fa: Cmavo @[9‥11) "fa",
-  first_sumti: Description @[12‥20) {
-    description: Cmavo @[12‥14) "le",
-    selbri: Gismu @[15‥20) "bróda",
+LinkedTanruUnit @[0‥52) {
+  base: Gismu @[0‥5) "bróde",
+  linkargs: Linkargs @[6‥52) {
+    be: Cmavo @[6‥8) "be",
+    first_link: PlaceTaggedLinkedSumti @[9‥20) {
+      fa: Cmavo @[9‥11) "fa",
+      sumti: DescriptorWithGadriSumti @[12‥20) {
+        description: Cmavo @[12‥14) "le",
+        tail: DescriptionTail @[15‥20) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[15‥20) "bróda",
+        },
+      },
+    },
+    bei_links: [
+      BeiLink @[21‥36) {
+        bei: Cmavo @[21‥24) "beĭ",
+        link: PlaceTaggedLinkedSumti @[25‥36) {
+          fa: Cmavo @[25‥27) "fe",
+          sumti: DescriptorWithGadriSumti @[28‥36) {
+            description: Cmavo @[28‥30) "le",
+            tail: DescriptionTail @[31‥36) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: Gismu @[31‥36) "bródi",
+            },
+          },
+        },
+      },
+      BeiLink @[37‥52) {
+        bei: Cmavo @[37‥40) "beĭ",
+        link: PlaceTaggedLinkedSumti @[41‥52) {
+          fa: Cmavo @[41‥43) "fi",
+          sumti: DescriptorWithGadriSumti @[44‥52) {
+            description: Cmavo @[44‥46) "le",
+            tail: DescriptionTail @[47‥52) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: Gismu @[47‥52) "bródo",
+            },
+          },
+        },
+      },
+    ],
   },
-  bei_links: [
-    AdditionalLinkedSumti @[21‥36) {
-      bei: Cmavo @[21‥24) "beĭ",
-      fa: Cmavo @[25‥27) "fe",
-      sumti: Description @[28‥36) {
-        description: Cmavo @[28‥30) "le",
-        selbri: Gismu @[31‥36) "bródi",
-      },
-    },
-    AdditionalLinkedSumti @[37‥52) {
-      bei: Cmavo @[37‥40) "beĭ",
-      fa: Cmavo @[41‥43) "fi",
-      sumti: Description @[44‥52) {
-        description: Cmavo @[44‥46) "le",
-        selbri: Gismu @[47‥52) "bródo",
-      },
-    },
-  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[0,5]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[9,11]}}}},"first_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[15,20]}}}}}}},"bei_links":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[21,24]}}}},"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[25,27]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródi","span":[31,36]}}}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[37,40]}}}},"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[41,43]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[44,46]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródo","span":[47,52]}}}}}}}}]}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[0,5]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"first_link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[9,11]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"bei_links":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[21,24]}}}},"link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[25,27]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródi","span":[31,36]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[37,40]}}}},"link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[41,43]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[44,46]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródo","span":[47,52]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}'

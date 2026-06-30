@@ -31,14 +31,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[33,36]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-AdditionalLinkedSumti @[33‥48) {
+BeiLink @[33‥48) {
   bei: Cmavo @[33‥36) "beĭ",
-  sumti: Description @[37‥48) {
+  link: DescriptorWithGadriSumti @[37‥48) {
     description: Cmavo @[37‥39) "le",
-    selbri: Abstraction @[40‥48) {
-      nu: Cmavo @[40‥42) "nu",
-      Gismu @[43‥48) "kláma",
+    tail: DescriptionTail @[40‥48) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: AbstractionTanruUnit @[40‥48) {
+        nu: Cmavo @[40‥42) "nu",
+        subbridi: Gismu @[43‥48) "kláma",
+      },
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"LinkedSumtiContinuation":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[33,36]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[37,39]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[40,42]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[43,48]}}}}}}}}}}}}}}}}}]}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiContinuationFragment":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[33,36]}}}},"link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[37,39]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[40,42]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[43,48]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}'

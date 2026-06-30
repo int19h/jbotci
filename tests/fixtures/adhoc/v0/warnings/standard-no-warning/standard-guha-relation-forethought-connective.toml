@@ -12,10 +12,10 @@ raw = '{"frames":[{"index":0,"node":{"offset":5,"length":5},"kind":"base-selbri"
 
 [expectations.output.gentufa]
 tree = """
-ForethoughtSelbriConnection @[0‥23) {
+ForethoughtSelbriGroupTanruUnit @[0‥23) {
   guhek: Cmavo @[0‥4) "gu'e",
-  leading_bridi: Gismu @[5‥10) "mélbi",
+  leading_selbri: Gismu @[5‥10) "mélbi",
   gik: Cmavo @[11‥13) "gi",
-  trailing_bridi: Lujvo @[14‥23) "kargydú'e",
+  trailing_unit: Lujvo @[14‥23) "kargydú'e",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ForethoughtSelbriConnection":{"guhek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gu'e","span":[0,4]}}}}]}},"leading_bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[5,10]}}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[11,13]}}}}]}},"trailing_bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"karg"},{"Hyphen":"y"},{"Rafsi":"dú'e"}],"span":[14,23]}}}}}}}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"ForethoughtSelbriGroupTanruUnit":{"guhek":{"guha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gu'e","span":[0,4]}}}}},"leading_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[5,10]}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[11,13]}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"karg"},{"Hyphen":"y"},{"Rafsi":"dú'e"}],"span":[14,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

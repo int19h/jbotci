@@ -40,21 +40,23 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ve'a","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"be'a","span":[7,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"fe'e","span":[12,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[17,21]}}},{"PlainWord":{"Gismu":{"phonemes":"rókci","span":[22,27]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(tu [{ve'a be'a fe'e co'a} rókci])"
+brackets = "(tu [{ve'a be'a (fe'e co'a)} rókci])"
 tree = """
-Bridi @[0‥27) {
+BridiWithLeadingTerms @[0‥27) {
   leading_terms: [
     Cmavo @[0‥2) "tu",
   ],
-  TaggedSelbri @[3‥27) {
-    tense_modal: Composite @[3‥21) {
-      Cmavo @[3‥7) "ve'a",
-      Cmavo @[7‥11) "be'a",
-      Cmavo @[12‥16) "fe'e",
-      Cmavo @[17‥21) "co'a",
+  bridi_tail: TaggedSelbri @[3‥27) {
+    tense_modal: SpaceIntervalWithExtentTense @[3‥21) {
+      extent: Cmavo @[3‥7) "ve'a",
+      direction: Cmavo @[7‥11) "be'a",
+      properties: FeheIntervalPropertyTense @[12‥21) {
+        fehe: Cmavo @[12‥16) "fe'e",
+        property: Cmavo @[17‥21) "co'a",
+      },
     },
-    Gismu @[22‥27) "rókci",
+    inner_selbri: Gismu @[22‥27) "rókci",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve'a","span":[3,7]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be'a","span":[7,11]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe'e","span":[12,16]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[17,21]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rókci","span":[22,27]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithInterval":{"interval":{"SpaceIntervalWithExtentTense":{"extent":{"VehaSpaceIntervalTense":{"veha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve'a","span":[3,7]}}}}}},"direction":{"faha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be'a","span":[7,11]}}}}},"properties":{"first":{"fehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe'e","span":[12,16]}}}},"property":{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[17,21]}}}}}}}}}}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rókci","span":[22,27]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 

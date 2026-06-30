@@ -34,15 +34,9 @@ Text @[0‥16) {
   leading_cmevla: [
     Cmevla @[0‥5) "jilks",
   ],
-  Terms @[7‥16) {
-    terms: [
-      Description @[7‥16) {
-        tail_elements: [
-          Cmavo @[7‥9) "no",
-        ],
-        selbri: Lujvo @[10‥16) "sélbri",
-      },
-    ],
+  DescriptorWithoutGadriSumti @[7‥16) {
+    quantifier: Cmavo @[7‥9) "no",
+    Lujvo @[10‥16) "sélbri",
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jilks","span":[0,5]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sél"},{"Rafsi":"bri"}],"span":[10,16]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jilks","span":[0,5]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sél"},{"Rafsi":"bri"}],"span":[10,16]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

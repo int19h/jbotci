@@ -33,14 +33,10 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[4
 
 [expectations.output.gentufa]
 tree = """
-Terms @[40‥52) {
-  terms: [
-    DelimitedNonLojbanQuote @[40‥52) {
-      zoi: Cmavo @[40‥43) "zoĭ",
-      opening_delimiter: Cmavo @[44‥46) "dy",
-      quoted_text: Verbatim @[47‥49) "da",
-      closing_delimiter: Cmavo @[50‥52) "dy",
-    },
-  ],
+DelimitedNonLojbanQuote @[40‥52) {
+  zoi: Cmavo @[40‥43) "zoĭ",
+  opening_delimiter: Cmavo @[44‥46) "dy",
+  quoted_text: Verbatim @[47‥49) "da",
+  closing_delimiter: Cmavo @[50‥52) "dy",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[40,43]}},"opening_delimiter":{"Cmavo":{"phonemes":"dy","span":[44,46]}},"quoted_text":{"span":[47,49],"text":"da"},"closing_delimiter":{"Cmavo":{"phonemes":"dy","span":[50,52]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[40,43]}},"opening_delimiter":{"Cmavo":{"phonemes":"dy","span":[44,46]}},"quoted_text":{"span":[47,49],"text":"da"},"closing_delimiter":{"Cmavo":{"phonemes":"dy","span":[50,52]}}}}}}}}}}}}}}}}}]}}}}}}}}}'

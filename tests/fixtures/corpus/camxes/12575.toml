@@ -41,36 +41,45 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥61) {
+BridiWithLeadingTerms @[0‥61) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥61) {
-    TaggedSelbri @[3‥13) {
-      tense_modal: Composite @[3‥7) {
-        Cmavo @[3‥5) "ca",
-        Cmavo @[5‥7) "zi",
-      },
-      Gismu @[8‥13) "gálfi",
+  bridi_tail: SelbriSimpleBridiTail @[3‥61) {
+    selbri: TaggedSelbri @[3‥13) {
+      tense_modal: [
+        PuTimeOffsetTense @[3‥7) {
+          pu: Cmavo @[3‥5) "ca",
+          distance: Cmavo @[5‥7) "zi",
+        },
+      ],
+      inner_selbri: Gismu @[8‥13) "gálfi",
     },
     terms: [
-      Description @[14‥61) {
+      DescriptorWithGadriSumti @[14‥61) {
         description: Cmavo @[14‥16) "le",
-        selbri: LinkedSumtiTanruUnit @[17‥61) {
-          ConvertedTanruUnit @[17‥25) {
-            se: Cmavo @[17‥19) "xe",
-            Gismu @[20‥25) "fánva",
-          },
-          be: Cmavo @[26‥28) "be",
-          first_sumti: DelimitedNonLojbanQuote @[29‥61) {
-            zoi: Cmavo @[29‥33) "la'o",
-            opening_delimiter: Cmavo @[34‥36) "zo",
-            quoted_text: Verbatim @[38‥57) "litany against fear",
-            closing_delimiter: Cmavo @[59‥61) "zo",
+        tail: DescriptionTail @[17‥61) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: LinkedTanruUnit @[17‥61) {
+            base: TanruUnitAtom @[17‥25) {
+              conversions: [
+                Cmavo @[17‥19) "xe",
+              ],
+              base: Gismu @[20‥25) "fánva",
+            },
+            linkargs: Linkargs @[26‥61) {
+              be: Cmavo @[26‥28) "be",
+              first_link: DelimitedNonLojbanQuote @[29‥61) {
+                zoi: Cmavo @[29‥33) "la'o",
+                opening_delimiter: Cmavo @[34‥36) "zo",
+                quoted_text: Verbatim @[38‥57) "litany against fear",
+                closing_delimiter: Cmavo @[59‥61) "zo",
+              },
+            },
           },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gálfi","span":[8,13]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[17,19]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[20,25]}}}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[26,28]}}}},"first_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[34,36]}},"quoted_text":{"span":[38,57],"text":"litany against fear"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[59,61]}}}}}}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gálfi","span":[8,13]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[17,19]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[20,25]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[26,28]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[34,36]}},"quoted_text":{"span":[38,57],"text":"litany against fear"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[59,61]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

@@ -36,21 +36,28 @@ tree = """
 json = '[{"PlainWord":{"Gismu":{"phonemes":"vánbi","span":[0,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}},{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"be","span":[15,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[18,20]}}},{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[21,23]}}},{"PlainWord":{"Gismu":{"phonemes":"cílre","span":[24,29]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(vánbi co [xámgu be {lo (ka cílre)}])"
+brackets = "(vánbi [co {xámgu (be [lo {ka cílre}])}])"
 tree = """
-InvertedTanru @[0‥29) {
+CoSelbri @[0‥29) {
   leading_selbri: Gismu @[0‥5) "vánbi",
-  co: Cmavo @[6‥8) "co",
-  trailing_selbri: LinkedSumtiTanruUnit @[9‥29) {
-    Gismu @[9‥14) "xámgu",
-    be: Cmavo @[15‥17) "be",
-    first_sumti: Description @[18‥29) {
-      description: Cmavo @[18‥20) "lo",
-      selbri: Abstraction @[21‥29) {
-        nu: Cmavo @[21‥23) "ka",
-        Gismu @[24‥29) "cílre",
+  co_tail: CoSelbriTail @[6‥29) {
+    co: Cmavo @[6‥8) "co",
+    trailing_selbri: LinkedTanruUnit @[9‥29) {
+      base: Gismu @[9‥14) "xámgu",
+      linkargs: Linkargs @[15‥29) {
+        be: Cmavo @[15‥17) "be",
+        first_link: DescriptorWithGadriSumti @[18‥29) {
+          description: Cmavo @[18‥20) "lo",
+          tail: DescriptionTail @[21‥29) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: AbstractionTanruUnit @[21‥29) {
+              nu: Cmavo @[21‥23) "ka",
+              subbridi: Gismu @[24‥29) "cílre",
+            },
+          },
+        },
       },
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vánbi","span":[0,5]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[15,17]}}}},"first_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[18,20]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[21,23]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cílre","span":[24,29]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vánbi","span":[0,5]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xámgu","span":[9,14]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[15,17]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[18,20]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[21,23]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cílre","span":[24,29]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

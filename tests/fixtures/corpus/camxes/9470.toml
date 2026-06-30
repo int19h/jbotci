@@ -35,34 +35,32 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥25) {
-  Terms @[0‥5) {
-    terms: [
-      QuantifiedSumti @[0‥5) {
-        quantifier: Cmavo @[0‥2) "no",
-        Cmavo @[3‥5) "da",
-      },
-    ],
+ParagraphStatementSequence @[0‥25) {
+  QuantifiedSumti @[0‥5) {
+    quantifier: Cmavo @[0‥2) "no",
+    inner_sumti: Cmavo @[3‥5) "da",
   },
-  ParagraphStatement @[7‥25) {
-    i: Cmavo @[7‥8) "i",
-    Bridi @[9‥25) {
-      leading_terms: [
-        Cmavo @[9‥11) "mi",
-      ],
-      SelbriBridiTail @[12‥25) {
-        Gismu @[12‥17) "zúkte",
-        terms: [
-          PlaceTaggedSumti @[18‥25) {
-            fa: Cmavo @[18‥20) "fi",
-            QuantifiedSumti @[21‥25) {
-              quantifier: Cmavo @[21‥23) "no",
-              Cmavo @[23‥25) "da",
-            },
-          },
+  following: [
+    ParagraphStatement @[7‥25) {
+      i: Cmavo @[7‥8) "i",
+      BridiWithLeadingTerms @[9‥25) {
+        leading_terms: [
+          Cmavo @[9‥11) "mi",
         ],
+        bridi_tail: SelbriSimpleBridiTail @[12‥25) {
+          selbri: Gismu @[12‥17) "zúkte",
+          terms: [
+            PlaceTaggedSumtiTerm @[18‥25) {
+              fa: Cmavo @[18‥20) "fi",
+              sumti: QuantifiedSumti @[21‥25) {
+                quantifier: Cmavo @[21‥23) "no",
+                inner_sumti: Cmavo @[23‥25) "da",
+              },
+            },
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[3,5]}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[12,17]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[18,20]}}}},"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[21,23]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[23,25]}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[3,5]}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[12,17]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[18,20]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[21,23]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[23,25]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}'

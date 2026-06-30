@@ -31,14 +31,18 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥17) {
-  Gismu @[0‥5) "mútce",
-  GroupedTanruUnit @[6‥17) {
-    ke: Cmavo @[6‥8) "ke",
-    ConvertedSelbri @[9‥17) {
-      se: Cmavo @[9‥11) "se",
-      Gismu @[12‥17) "pílno",
+TanruSelbri @[0‥17) {
+  first_unit: Gismu @[0‥5) "mútce",
+  additional_units: [
+    GroupedTanruUnit @[6‥17) {
+      ke: Cmavo @[6‥8) "ke",
+      selbri: TanruUnitAtom @[9‥17) {
+        conversions: [
+          Cmavo @[9‥11) "se",
+        ],
+        base: Gismu @[12‥17) "pílno",
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[0,5]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[12,17]}}}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[12,17]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

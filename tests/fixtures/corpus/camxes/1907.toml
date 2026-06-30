@@ -34,13 +34,11 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥25) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ti'e",
-    },
+    Cmavo @[0‥4) "ti'e",
   ],
-  Bridi @[5‥25) {
+  BridiWithLeadingTerms @[5‥25) {
     leading_terms: [
-      NameDescription @[5‥15) {
+      NameSumti @[5‥15) {
         la: Cmavo @[5‥7) "la",
         names: [
           Cmevla @[9‥15) "ŭengas",
@@ -48,7 +46,7 @@ Text @[0‥25) {
       },
     ],
     cu: Cmavo @[16‥18) "cu",
-    Lujvo @[19‥25) "zérgaŭ",
+    bridi_tail: Lujvo @[19‥25) "zérgaŭ",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭengas","span":[9,15]}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zér"},{"Rafsi":"gaŭ"}],"span":[19,25]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭengas","span":[9,15]}}}}]}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zér"},{"Rafsi":"gaŭ"}],"span":[19,25]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}}}}]}}"""

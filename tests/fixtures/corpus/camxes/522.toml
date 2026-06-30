@@ -32,13 +32,17 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-InvertedTanru @[0‥23) {
+CoSelbri @[0‥23) {
   leading_selbri: Gismu @[0‥5) "ckúle",
-  co: Cmavo @[6‥8) "co",
-  trailing_selbri: InvertedTanru @[9‥23) {
-    leading_selbri: Gismu @[9‥14) "níxli",
-    co: Cmavo @[15‥17) "co",
-    trailing_selbri: Gismu @[18‥23) "cmálu",
+  co_tail: CoSelbriTail @[6‥23) {
+    co: Cmavo @[6‥8) "co",
+    trailing_selbri: CoSelbri @[9‥23) {
+      leading_selbri: Gismu @[9‥14) "níxli",
+      co_tail: CoSelbriTail @[15‥23) {
+        co: Cmavo @[15‥17) "co",
+        trailing_selbri: Gismu @[18‥23) "cmálu",
+      },
+    },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níxli","span":[9,14]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[15,17]}}}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmálu","span":[18,23]}}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níxli","span":[9,14]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[15,17]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmálu","span":[18,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

@@ -43,29 +43,34 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"G
 [expectations.output.gentufa]
 brackets = "(mi [nélci {do (ba [le {nu (do [nélci mi])}])}])"
 tree = """
-Bridi @[0‥32) {
+BridiWithLeadingTerms @[0‥32) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥32) {
-    Gismu @[3‥8) "nélci",
+  bridi_tail: SelbriSimpleBridiTail @[3‥32) {
+    selbri: Gismu @[3‥8) "nélci",
     terms: [
       Cmavo @[9‥11) "do",
-      TaggedSumti @[12‥32) {
-        tense_modal: Cmavo @[12‥14) "ba",
-        Description @[15‥32) {
+      TaggedSumtiTerm @[12‥32) {
+        tense_modal: [
+          Cmavo @[12‥14) "ba",
+        ],
+        sumti: DescriptorWithGadriSumti @[15‥32) {
           description: Cmavo @[15‥17) "le",
-          selbri: Abstraction @[18‥32) {
-            nu: Cmavo @[18‥20) "nu",
-            Bridi @[21‥32) {
-              leading_terms: [
-                Cmavo @[21‥23) "do",
-              ],
-              SelbriBridiTail @[24‥32) {
-                Gismu @[24‥29) "nélci",
-                terms: [
-                  Cmavo @[30‥32) "mi",
+          tail: DescriptionTail @[18‥32) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: AbstractionTanruUnit @[18‥32) {
+              nu: Cmavo @[18‥20) "nu",
+              subbridi: BridiWithLeadingTerms @[21‥32) {
+                leading_terms: [
+                  Cmavo @[21‥23) "do",
                 ],
+                bridi_tail: SelbriSimpleBridiTail @[24‥32) {
+                  selbri: Gismu @[24‥29) "nélci",
+                  terms: [
+                    Cmavo @[30‥32) "mi",
+                  ],
+                },
               },
             },
           },
@@ -74,7 +79,7 @@ Bridi @[0‥32) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}},{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[12,14]}}}}}]}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[18,20]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[21,23]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[24,29]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[30,32]}}}}}}]}}}}}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[12,14]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[18,20]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[21,23]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[24,29]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[30,32]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"formula:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":32},"text":"mi nelci do ba le nu do nelci mi","construct":"bridi"}},"predication:8":{"type":"predication","eventuality":"eventuality:7","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:2"},"x2":{"kind":"filled","value":"entity:1"}},"mode":"inert","source":{"span":{"byteStart":21,"byteEnd":32},"text":"do nelci mi","construct":"predication"}},"predication:10":{"type":"predication","eventuality":"eventuality:6","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:2"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":32},"text":"mi nelci do ba le nu do nelci mi","construct":"predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":21,"byteEnd":32},"text":"do nelci mi","construct":"bridi-formula"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":0,"byteEnd":32},"text":"mi nelci do ba le nu do nelci mi","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"after","anchor":"eventuality:7"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":32},"text":"mi nelci do ba le nu do nelci mi","construct":"predication"}},"eventuality:7":{"type":"referent","content":"formula:9","category":"constant","sort":"eventuality","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1"},"source":{"span":{"byteStart":15,"byteEnd":32},"text":"le nu do nelci mi","construct":"description"}},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":32},"text":"mi nelci do ba le nu do nelci mi","construct":"bridi"}}}}'''

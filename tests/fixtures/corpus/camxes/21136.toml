@@ -32,19 +32,19 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"púrci","span":[4,9]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[4‥26) {
-  Gismu @[4‥9) "púrci",
+SelbriSimpleBridiTail @[4‥26) {
+  selbri: Gismu @[4‥9) "púrci",
   terms: [
-    Description @[10‥26) {
-      tail_elements: [
-        NumberQuantifier @[10‥20) {
-          Cmavo @[10‥14) "ji'i",
+    DescriptorWithoutGadriSumti @[10‥26) {
+      quantifier: NumberWords @[10‥20) {
+        first_number: Cmavo @[10‥14) "ji'i",
+        continuations: [
           Cmavo @[15‥17) "pa",
           Cmavo @[18‥20) "no",
-        },
-      ],
-      selbri: Gismu @[21‥26) "nánca",
+        ],
+      },
+      Gismu @[21‥26) "nánca",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"púrci","span":[4,9]}}}}},"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[10,14]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[15,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[18,20]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[21,26]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"púrci","span":[4,9]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[10,14]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[15,17]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[18,20]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[21,26]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

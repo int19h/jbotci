@@ -13,16 +13,18 @@ raw = '{"frames":[{"index":0,"node":{"offset":3,"length":11},"kind":"tanru-unit"
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥20) {
+BridiWithLeadingTerms @[0‥20) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  Tanru @[3‥20) {
-    WithIndicator @[3‥14) {
+  bridi_tail: TanruSelbri @[3‥20) {
+    first_unit: WithIndicator @[3‥14) {
       Gismu @[3‥8) "kláma",
       indicator: Cmavo @[9‥14) "no'oĭ",
     },
-    Gismu @[15‥20) "bájra",
+    additional_units: [
+      Gismu @[15‥20) "bájra",
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}},"indicator":{"Cmavo":{"phonemes":"no'oĭ","span":[9,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bájra","span":[15,20]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[3,8]}}}},"indicator":{"Cmavo":{"phonemes":"no'oĭ","span":[9,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bájra","span":[15,20]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

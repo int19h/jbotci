@@ -31,23 +31,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥11) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥11) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥7) {
-        terms: [
-          TaggedSumti @[3‥7) {
-            tense_modal: Composite @[3‥7) {
-              Cmavo @[3‥5) "ba",
-              Cmavo @[5‥7) "zi",
-            },
-            ElidedSumti {},
-          },
-        ],
+ParentheticalText @[0‥11) {
+  to: Cmavo @[0‥2) "to",
+  text: TaggedSumtiTerm @[3‥7) {
+    tense_modal: [
+      PuTimeOffsetTense @[3‥7) {
+        pu: Cmavo @[3‥5) "ba",
+        distance: Cmavo @[5‥7) "zi",
       },
-      toi: Cmavo @[8‥11) "toĭ",
-    },
-  ],
+    ],
+    sumti: TaggedElidedSumti {},
+  },
+  toi: Cmavo @[8‥11) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[8,11]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}}}}}}}}},"sumti":{}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[8,11]}}}}}}]}}'

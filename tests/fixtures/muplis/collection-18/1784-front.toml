@@ -39,31 +39,28 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Gismu":{"phonemes":"zmádu","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[15,17]}}},{"PlainWord":{"Gismu":{"phonemes":"sútra","span":[18,23]}}},{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[24,28]}}},{"PlainWord":{"Gismu":{"phonemes":"gáltu","span":[29,34]}}},{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[35,39]}}},{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[40,45]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i [zmádu {fi (le [ka {sútra ([gi'e gáltu] [gi'e tsáli])}])}])"
+brackets = "(.i [zmádu {fi (le [ka {sútra (gi'e gáltu) (gi'e tsáli)}])}])"
 tree = """
 ParagraphStatement @[1‥45) {
   i: Cmavo @[1‥2) "i",
-  SelbriBridiTail @[3‥45) {
-    Gismu @[3‥8) "zmádu",
+  SelbriSimpleBridiTail @[3‥45) {
+    selbri: Gismu @[3‥8) "zmádu",
     terms: [
-      PlaceTaggedSumti @[9‥45) {
+      PlaceTaggedSumtiTerm @[9‥45) {
         fa: Cmavo @[9‥11) "fi",
-        Description @[12‥45) {
+        sumti: DescriptorWithGadriSumti @[12‥45) {
           description: Cmavo @[12‥14) "le",
-          selbri: Abstraction @[15‥45) {
-            nu: Cmavo @[15‥17) "ka",
-            AfterthoughtBridiTail @[18‥45) {
-              Gismu @[18‥23) "sútra",
-              continuations: [
-                BridiTailConnection @[24‥34) {
-                  connective: Cmavo @[24‥28) "gi'e",
-                  Gismu @[29‥34) "gáltu",
-                },
-                BridiTailConnection @[35‥45) {
-                  connective: Cmavo @[35‥39) "gi'e",
-                  Gismu @[40‥45) "tsáli",
-                },
-              ],
+          tail: DescriptionTail @[15‥45) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: AbstractionTanruUnit @[15‥45) {
+              nu: Cmavo @[15‥17) "ka",
+              subbridi: AfterthoughtBridiTail @[18‥45) {
+                Gismu @[18‥23) "sútra",
+                Cmavo @[24‥28) "gi'e",
+                Gismu @[29‥34) "gáltu",
+                Cmavo @[35‥39) "gi'e",
+                Gismu @[40‥45) "tsáli",
+              },
             },
           },
         },
@@ -71,4 +68,4 @@ ParagraphStatement @[1‥45) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zmádu","span":[3,8]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[15,17]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sútra","span":[18,23]}}}}}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[24,28]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gáltu","span":[29,34]}}}}}}}}},{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[35,39]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[40,45]}}}}}}}}}]}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zmádu","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[9,11]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[12,14]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka","span":[15,17]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sútra","span":[18,23]}}}}}}}}}}}}}}}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[24,28]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gáltu","span":[29,34]}}}}}}}}}}}}}}}}}},{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[35,39]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[40,45]}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

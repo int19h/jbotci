@@ -42,45 +42,39 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ru'e","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"a'i","span":[8,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"ro'o","span":[16,20]}}},{"PlainWord":{"Cmavo":{"phonemes":"bu'o","span":[21,25]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[26,29]}}},{"PlainWord":{"Cmavo":{"phonemes":"a'i","span":[30,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"ru'e","span":[34,38]}}},{"PlainWord":{"Cmavo":{"phonemes":"saĭ","span":[39,42]}}},{"PlainWord":{"Cmavo":{"phonemes":"ro'e","span":[43,47]}}},{"PlainWord":{"Cmavo":{"phonemes":"bu'o","span":[48,52]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[53,56]}}}]"""
 
 [expectations.output.gentufa]
-brackets = ".ŭo-ru'e.a'i-saĭ-ro'o-bu'o-naĭ.a'i-ru'e-saĭ-ro'e-bu'o-naĭ"
+brackets = "([{([{([{(.ŭo ru'e) .a'i} saĭ] ro'o) bu'o naĭ} .a'i] ru'e) saĭ} ro'e] bu'o naĭ)"
 tree = """
-Text @[0‥56) {
-  leading_indicators: [
-    Indicator @[0‥56) {
-      indicator: WithIndicator @[0‥56) {
-        WithIndicator @[0‥47) {
-          WithIndicator @[0‥42) {
-            WithIndicator @[0‥38) {
-              WithIndicator @[0‥33) {
-                WithIndicator @[0‥29) {
-                  WithIndicator @[0‥20) {
-                    WithIndicator @[0‥15) {
-                      WithIndicator @[0‥11) {
-                        WithIndicator @[0‥7) {
-                          Cmavo @[0‥2) "ŭo",
-                          indicator: Cmavo @[3‥7) "ru'e",
-                        },
-                        indicator: Cmavo @[8‥11) "a'i",
-                      },
-                      indicator: Cmavo @[12‥15) "saĭ",
-                    },
-                    indicator: Cmavo @[16‥20) "ro'o",
+WithIndicator @[0‥56) {
+  WithIndicator @[0‥47) {
+    WithIndicator @[0‥42) {
+      WithIndicator @[0‥38) {
+        WithIndicator @[0‥33) {
+          WithIndicator @[0‥29) {
+            WithIndicator @[0‥20) {
+              WithIndicator @[0‥15) {
+                WithIndicator @[0‥11) {
+                  WithIndicator @[0‥7) {
+                    Cmavo @[0‥2) "ŭo",
+                    indicator: Cmavo @[3‥7) "ru'e",
                   },
-                  indicator: Cmavo @[21‥25) "bu'o",
-                  nai: Cmavo @[26‥29) "naĭ",
+                  indicator: Cmavo @[8‥11) "a'i",
                 },
-                indicator: Cmavo @[30‥33) "a'i",
+                indicator: Cmavo @[12‥15) "saĭ",
               },
-              indicator: Cmavo @[34‥38) "ru'e",
+              indicator: Cmavo @[16‥20) "ro'o",
             },
-            indicator: Cmavo @[39‥42) "saĭ",
+            indicator: Cmavo @[21‥25) "bu'o",
+            nai: Cmavo @[26‥29) "naĭ",
           },
-          indicator: Cmavo @[43‥47) "ro'e",
+          indicator: Cmavo @[30‥33) "a'i",
         },
-        indicator: Cmavo @[48‥52) "bu'o",
-        nai: Cmavo @[53‥56) "naĭ",
+        indicator: Cmavo @[34‥38) "ru'e",
       },
+      indicator: Cmavo @[39‥42) "saĭ",
     },
-  ],
+    indicator: Cmavo @[43‥47) "ro'e",
+  },
+  indicator: Cmavo @[48‥52) "bu'o",
+  nai: Cmavo @[53‥56) "naĭ",
 }"""
-json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"a'i","span":[8,11]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[16,20]}}}},"indicator":{"Cmavo":{"phonemes":"bu'o","span":[21,25]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[26,29]}}}},"indicator":{"Cmavo":{"phonemes":"a'i","span":[30,33]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[34,38]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[39,42]}}}},"indicator":{"Cmavo":{"phonemes":"ro'e","span":[43,47]}}}},"indicator":{"Cmavo":{"phonemes":"bu'o","span":[48,52]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[53,56]}}}}}]}"""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭo","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"a'i","span":[8,11]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[12,15]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[16,20]}}}},"indicator":{"Cmavo":{"phonemes":"bu'o","span":[21,25]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[26,29]}}}},"indicator":{"Cmavo":{"phonemes":"a'i","span":[30,33]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[34,38]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[39,42]}}}},"indicator":{"Cmavo":{"phonemes":"ro'e","span":[43,47]}}}},"indicator":{"Cmavo":{"phonemes":"bu'o","span":[48,52]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[53,56]}}}}}]}}"""

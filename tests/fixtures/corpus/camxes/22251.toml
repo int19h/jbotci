@@ -36,29 +36,27 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥39) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥39) {
-      to: Cmavo @[0‥2) "to",
-      Bridi @[3‥35) {
-        leading_terms: [
-          Cmavo @[3‥5) "mi",
+ParentheticalText @[0‥39) {
+  to: Cmavo @[0‥2) "to",
+  text: BridiWithLeadingTerms @[3‥35) {
+    leading_terms: [
+      Cmavo @[3‥5) "mi",
+    ],
+    bridi_tail: SelbriSimpleBridiTail @[6‥35) {
+      selbri: TanruSelbri @[6‥17) {
+        first_unit: Gismu @[6‥11) "dúkse",
+        additional_units: [
+          Gismu @[12‥17) "nélci",
         ],
-        SelbriBridiTail @[6‥35) {
-          Tanru @[6‥17) {
-            Gismu @[6‥11) "dúkse",
-            Gismu @[12‥17) "nélci",
-          },
-          terms: [
-            DelimitedWordQuote @[18‥35) {
-              marker: Cmavo @[18‥23) "la'oĭ",
-              Verbatim @[24‥35) "hydrocodone",
-            },
-          ],
-        },
       },
-      toi: Cmavo @[36‥39) "toĭ",
+      terms: [
+        DelimitedWordQuote @[18‥35) {
+          marker: Cmavo @[18‥23) "la'oĭ",
+          Verbatim @[24‥35) "hydrocodone",
+        },
+      ],
     },
-  ],
+  },
+  toi: Cmavo @[36‥39) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[6,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[12,17]}}}}}]},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[18,23]}},"quoted_text":{"span":[24,35],"text":"hydrocodone"}}}}}}}]}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[36,39]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[6,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[12,17]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"ExperimentalZohoiCompoundQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[18,23]}},"quoted_text":{"span":[24,35],"text":"hydrocodone"}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[36,39]}}}}}}]}}"""

@@ -30,17 +30,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥12) {
-  terms: [
-    TaggedSumti @[0‥12) {
-      tense_modal: Modal @[0‥3) {
-        bai: Cmavo @[0‥3) "gaŭ",
-      },
-      Description @[4‥12) {
-        description: Cmavo @[4‥6) "le",
-        selbri: Gismu @[7‥12) "gásnu",
-      },
+TaggedSumtiTerm @[0‥12) {
+  tense_modal: Cmavo @[0‥3) "gaŭ",
+  sumti: DescriptorWithGadriSumti @[4‥12) {
+    description: Cmavo @[4‥6) "le",
+    tail: DescriptionTail @[7‥12) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[7‥12) "gásnu",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[0,3]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gásnu","span":[7,12]}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[0,3]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gásnu","span":[7,12]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

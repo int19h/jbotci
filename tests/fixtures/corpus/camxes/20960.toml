@@ -30,15 +30,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-Terms @[13‥30) {
-  terms: [
-    ReferentSumti @[13‥30) {
-      lahe: Cmavo @[13‥17) "tu'a",
-      Description @[18‥30) {
-        description: Cmavo @[18‥20) "le",
-        selbri: Lujvo @[21‥30) "bavlámdeĭ",
-      },
+LaheSumti @[13‥30) {
+  lahe: Cmavo @[13‥17) "tu'a",
+  DescriptorWithGadriSumti @[18‥30) {
+    description: Cmavo @[18‥20) "le",
+    tail: DescriptionTail @[21‥30) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Lujvo @[21‥30) "bavlámdeĭ",
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}}},"inner_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[18,20]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[13,17]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[18,20]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"bav"},{"Rafsi":"lám"},{"Rafsi":"deĭ"}],"span":[21,30]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

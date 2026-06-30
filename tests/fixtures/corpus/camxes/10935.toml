@@ -34,23 +34,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[1,4]}}},{"PlainWord":
 tree = """
 Text @[1‥15) {
   leading_indicators: [
-    Indicator @[1‥7) {
-      indicator: WithIndicator @[1‥7) {
-        Cmavo @[1‥4) "u'i",
-        indicator: Cmavo @[4‥7) "saĭ",
-      },
+    WithIndicator @[1‥7) {
+      Cmavo @[1‥4) "u'i",
+      indicator: Cmavo @[4‥7) "saĭ",
     },
   ],
-  Terms @[8‥15) {
-    terms: [
-      NumberSumti @[8‥15) {
-        li: Cmavo @[8‥10) "li",
-        NumberQuantifier @[11‥15) {
-          Cmavo @[11‥13) "re",
-          Cmavo @[13‥15) "xa",
-        },
-      },
-    ],
+  NumberSumti @[8‥15) {
+    li: Cmavo @[8‥10) "li",
+    NumberWords @[11‥15) {
+      first_number: Cmavo @[11‥13) "re",
+      continuations: [
+        Cmavo @[13‥15) "xa",
+      ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[8,10]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[11,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[13,15]}}}}]}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[4,7]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[8,10]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[11,13]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[13,15]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'i","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[4,7]}}}}}]}}"""

@@ -30,15 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥24) {
-  terms: [
-    Description @[0‥24) {
-      description: Cmavo @[0‥2) "le",
-      selbri: Tanru @[3‥24) {
-        Gismu @[3‥8) "kónju",
+DescriptorWithGadriSumti @[0‥24) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[3‥24) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruSelbri @[3‥24) {
+      first_unit: Gismu @[3‥8) "kónju",
+      additional_units: [
         Lujvo @[9‥24) "lektitladykrúji",
-      },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kónju","span":[3,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"lek"},{"Rafsi":"tit"},{"Rafsi":"lad"},{"Hyphen":"y"},{"Rafsi":"krúji"}],"span":[9,24]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kónju","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"lek"},{"Rafsi":"tit"},{"Rafsi":"lad"},{"Hyphen":"y"},{"Rafsi":"krúji"}],"span":[9,24]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

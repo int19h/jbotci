@@ -36,19 +36,15 @@ Text @[0‥12) {
   leading_free_modifiers: [
     ParentheticalText @[0‥10) {
       to: Cmavo @[0‥2) "to",
-      LinkedSumti @[3‥10) {
+      text: LinkedSumti @[3‥10) {
         be: Cmavo @[3‥5) "be",
-        first_sumti: QuantifiedSumti @[6‥10) {
+        first_link: QuantifiedSumti @[6‥10) {
           quantifier: Cmavo @[6‥8) "no",
-          Cmavo @[8‥10) "ma",
+          inner_sumti: Cmavo @[8‥10) "ma",
         },
       },
     },
   ],
-  Terms @[10‥12) {
-    terms: [
-      Cmavo @[10‥12) "de",
-    ],
-  },
+  Cmavo @[10‥12) "de",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"LinkedSumti":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[3,5]}}}},"first_sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[6,8]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[8,10]}}}}}}}}}}}]}]}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[10,12]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiFragment":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[3,5]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[6,8]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[8,10]}}}}}}}}}}}}}}}}}}}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[10,12]}}}}}}}}}}}}}}}]}}}}}}}}}'

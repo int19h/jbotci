@@ -29,15 +29,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[1,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[1‥29) {
-  GroupedTanruUnit @[1‥22) {
+TanruSelbri @[1‥29) {
+  first_unit: GroupedTanruUnit @[1‥22) {
     ke: Cmavo @[1‥3) "ke",
-    Tanru @[5‥16) {
-      Gismu @[5‥10) "bákni",
-      Gismu @[11‥16) "réctu",
+    selbri: TanruSelbri @[5‥16) {
+      first_unit: Gismu @[5‥10) "bákni",
+      additional_units: [
+        Gismu @[11‥16) "réctu",
+      ],
     },
     kehe: Cmavo @[18‥22) "ke'e",
   },
-  Gismu @[24‥29) "pánlo",
+  additional_units: [
+    Gismu @[24‥29) "pánlo",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[1,3]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bákni","span":[5,10]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"réctu","span":[11,16]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pánlo","span":[24,29]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[1,3]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bákni","span":[5,10]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"réctu","span":[11,16]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pánlo","span":[24,29]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

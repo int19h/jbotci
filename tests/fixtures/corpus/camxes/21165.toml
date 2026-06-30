@@ -33,18 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"la'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥17) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "la'a",
-    },
+    Cmavo @[0‥4) "la'a",
   ],
-  Bridi @[5‥17) {
+  BridiWithLeadingTerms @[5‥17) {
     leading_terms: [
       Cmavo @[5‥7) "mi",
     ],
-    ProBridi @[8‥17) {
+    bridi_tail: ProBridiTanruUnit @[8‥17) {
       goha: Cmavo @[8‥12) "go'a",
       raho: Cmavo @[13‥17) "ra'o",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ProBridi":{"goha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'a","span":[8,12]}}}},"raho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra'o","span":[13,17]}}}}}}]}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ProBridiTanruUnit":{"goha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'a","span":[8,12]}}}},"raho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra'o","span":[13,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'a","span":[0,4]}}}}}]}}"""

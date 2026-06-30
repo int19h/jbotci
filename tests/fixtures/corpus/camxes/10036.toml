@@ -34,9 +34,11 @@ Text @[0‥22) {
   leading_cmevla: [
     Cmevla @[0‥4) "from",
   ],
-  Tanru @[5‥22) {
-    Gismu @[5‥10) "tánru",
-    Lujvo @[11‥22) "perspectíve",
+  TanruSelbri @[5‥22) {
+    first_unit: Gismu @[5‥10) "tánru",
+    additional_units: [
+      Lujvo @[11‥22) "perspectíve",
+    ],
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"from","span":[0,4]}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tánru","span":[5,10]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"per"},{"Rafsi":"spe"},{"Rafsi":"ctíve"}],"span":[11,22]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"from","span":[0,4]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tánru","span":[5,10]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"per"},{"Rafsi":"spe"},{"Rafsi":"ctíve"}],"span":[11,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

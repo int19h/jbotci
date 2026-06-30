@@ -41,35 +41,40 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥42) {
+BridiWithLeadingTerms @[0‥42) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥42) {
-    TaggedSelbri @[3‥13) {
-      tense_modal: Composite @[3‥7) {
-        Cmavo @[3‥5) "pu",
-        Cmavo @[5‥7) "zi",
-      },
-      Gismu @[8‥13) "xrúti",
+  bridi_tail: SelbriSimpleBridiTail @[3‥42) {
+    selbri: TaggedSelbri @[3‥13) {
+      tense_modal: [
+        PuTimeOffsetTense @[3‥7) {
+          pu: Cmavo @[3‥5) "pu",
+          distance: Cmavo @[5‥7) "zi",
+        },
+      ],
+      inner_selbri: Gismu @[8‥13) "xrúti",
     },
     terms: [
-      PlaceTaggedSumti @[14‥42) {
+      PlaceTaggedSumtiTerm @[14‥42) {
         fa: Cmavo @[14‥16) "fo",
-        Description @[17‥42) {
+        sumti: DescriptorWithGadriSumti @[17‥42) {
           description: Cmavo @[17‥19) "le",
-          selbri: Abstraction @[19‥42) {
-            nu: Cmavo @[19‥21) "nu",
-            SelbriBridiTail @[22‥42) {
-              Gismu @[22‥27) "kélci",
-              terms: [
-                DelimitedNonLojbanQuote @[28‥42) {
-                  zoi: Cmavo @[28‥32) "la'o",
-                  opening_delimiter: Cmavo @[33‥35) "gy",
-                  quoted_text: Verbatim @[36‥39) "DDR",
-                  closing_delimiter: Cmavo @[40‥42) "gy",
-                },
-              ],
+          tail: DescriptionTail @[19‥42) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: AbstractionTanruUnit @[19‥42) {
+              nu: Cmavo @[19‥21) "nu",
+              subbridi: SelbriSimpleBridiTail @[22‥42) {
+                selbri: Gismu @[22‥27) "kélci",
+                terms: [
+                  DelimitedNonLojbanQuote @[28‥42) {
+                    zoi: Cmavo @[28‥32) "la'o",
+                    opening_delimiter: Cmavo @[33‥35) "gy",
+                    quoted_text: Verbatim @[36‥39) "DDR",
+                    closing_delimiter: Cmavo @[40‥42) "gy",
+                  },
+                ],
+              },
             },
           },
         },
@@ -77,4 +82,4 @@ Bridi @[0‥42) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrúti","span":[8,13]}}}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[14,16]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[19,21]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[22,27]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[28,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[33,35]}},"quoted_text":{"span":[36,39],"text":"DDR"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[40,42]}}}}}}}}]}}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[3,5]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[5,7]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xrúti","span":[8,13]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[19,21]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kélci","span":[22,27]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[28,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[33,35]}},"quoted_text":{"span":[36,39],"text":"DDR"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[40,42]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

@@ -43,40 +43,48 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"PlainWord":{
 tree = """
 Text @[0‥48) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  Terms @[3‥48) {
-    terms: [
-      Description @[3‥27) {
-        description: Cmavo @[3‥5) "le",
-        selbri: Tanru @[6‥27) {
-          OrdinalSelbri @[6‥15) {
-            number: [
-              Cmavo @[6‥8) "ze",
-              Cmavo @[8‥10) "pi",
-              Cmavo @[10‥12) "mu",
-            ],
+  TermsFragment @[3‥48) {
+    DescriptorWithGadriSumti @[3‥27) {
+      description: Cmavo @[3‥5) "le",
+      tail: DescriptionTail @[6‥27) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TanruSelbri @[6‥27) {
+          first_unit: OrdinalTanruUnit @[6‥15) {
+            number: NumberWords @[6‥12) {
+              first_number: Cmavo @[6‥8) "ze",
+              continuations: [
+                Cmavo @[8‥10) "pi",
+                Cmavo @[10‥12) "mu",
+              ],
+            },
             moi: Cmavo @[12‥15) "moĭ",
           },
-          Gismu @[16‥21) "cácra",
-          Gismu @[22‥27) "dúnli",
+          additional_units: [
+            Gismu @[16‥21) "cácra",
+            Gismu @[22‥27) "dúnli",
+          ],
         },
       },
-      Description @[28‥48) {
-        description: Cmavo @[28‥30) "le",
-        tail_elements: [
-          NumberQuantifier @[31‥42) {
-            Cmavo @[31‥33) "ze",
-            Cmavo @[34‥36) "ze",
-            Cmavo @[36‥40) "pi'e",
-            Cmavo @[40‥42) "ci",
+    },
+    DescriptorWithGadriSumti @[28‥48) {
+      description: Cmavo @[28‥30) "le",
+      tail: DescriptionTail @[31‥48) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: QuantifierRelationDescriptionTail @[31‥48) {
+          quantifier: NumberWords @[31‥42) {
+            first_number: Cmavo @[31‥33) "ze",
+            continuations: [
+              Cmavo @[34‥36) "ze",
+              Cmavo @[36‥40) "pi'e",
+              Cmavo @[40‥42) "ci",
+            ],
           },
-        ],
-        selbri: Gismu @[43‥48) "cácra",
+          selbri: Gismu @[43‥48) "cácra",
+        },
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[6,8]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[10,12]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[12,15]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cácra","span":[16,21]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúnli","span":[22,27]}}}}}]}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[31,33]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[34,36]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[36,40]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[40,42]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cácra","span":[43,48]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[6,8]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[8,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[10,12]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[12,15]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cácra","span":[16,21]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúnli","span":[22,27]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[31,33]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[34,36]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[36,40]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[40,42]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cácra","span":[43,48]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}"""

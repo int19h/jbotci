@@ -31,14 +31,10 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"e'e","span":[1,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}]"""
 
 [expectations.output.gentufa]
-brackets = ".e'e-naĭ"
+brackets = "(.e'e naĭ)"
 tree = """
-Text @[1‥8) {
-  leading_indicators: [
-    Indicator @[1‥8) {
-      indicator: Cmavo @[1‥4) "e'e",
-      nai: Cmavo @[5‥8) "naĭ",
-    },
-  ],
+LeadingIndicator @[1‥8) {
+  indicator: Cmavo @[1‥4) "e'e",
+  nai: Cmavo @[5‥8) "naĭ",
 }"""
-json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e'e","span":[1,4]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}]}"""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e'e","span":[1,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}}}]}}"""

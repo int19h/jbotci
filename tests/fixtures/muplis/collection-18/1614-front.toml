@@ -39,12 +39,12 @@ brackets = "(.i [mi'aĭ {ci'érkeĭ ([ma .aŭ] daĭ)}])"
 tree = """
 ParagraphStatement @[1‥27) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥27) {
+  BridiWithLeadingTerms @[3‥27) {
     leading_terms: [
       Cmavo @[3‥8) "mi'aĭ",
     ],
-    SelbriBridiTail @[9‥27) {
-      Lujvo @[9‥17) "ci'érkeĭ",
+    bridi_tail: SelbriSimpleBridiTail @[9‥27) {
+      selbri: Lujvo @[9‥17) "ci'érkeĭ",
       terms: [
         WithIndicator @[18‥27) {
           WithIndicator @[18‥23) {
@@ -57,4 +57,4 @@ ParagraphStatement @[1‥27) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'aĭ","span":[3,8]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ci'ér"},{"Rafsi":"keĭ"}],"span":[9,17]}}}}},"terms":[{"Sumti":{"ProSumti":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[18,20]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[21,23]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[24,27]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'aĭ","span":[3,8]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ci'ér"},{"Rafsi":"keĭ"}],"span":[9,17]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[18,20]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[21,23]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[24,27]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

@@ -37,10 +37,10 @@ ParagraphStatement @[0‥20) {
     Cmavo @[0‥1) "i",
     indicator: Cmavo @[2‥4) "xu",
   },
-  SelbriBridiTail @[5‥20) {
-    Lujvo @[5‥11) "kéĭdji",
+  SelbriSimpleBridiTail @[5‥20) {
+    selbri: Lujvo @[5‥11) "kéĭdji",
     terms: [
-      NameDescription @[12‥20) {
+      NameSumti @[12‥20) {
         la: Cmavo @[12‥14) "la",
         names: [
           Cmevla @[15‥20) "mumym",
@@ -49,4 +49,4 @@ ParagraphStatement @[0‥20) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[2,4]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kéĭ"},{"Rafsi":"dji"}],"span":[5,11]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"mumym","span":[15,20]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[2,4]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kéĭ"},{"Rafsi":"dji"}],"span":[5,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"mumym","span":[15,20]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

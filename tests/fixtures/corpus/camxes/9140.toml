@@ -36,23 +36,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"so'i","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥44) {
-  Bridi @[0‥36) {
+ParagraphStatementSequence @[0‥44) {
+  BridiWithLeadingTerms @[0‥36) {
     leading_terms: [
-      Description @[0‥10) {
-        tail_elements: [
-          Cmavo @[0‥4) "so'i",
-        ],
-        selbri: Gismu @[5‥10) "prénu",
+      DescriptorWithoutGadriSumti @[0‥10) {
+        quantifier: Cmavo @[0‥4) "so'i",
+        Gismu @[5‥10) "prénu",
       },
     ],
     cu: Cmavo @[11‥13) "cu",
-    SelbriBridiTail @[14‥36) {
-      Gismu @[14‥19) "lúnbe",
+    bridi_tail: SelbriSimpleBridiTail @[14‥36) {
+      selbri: Gismu @[14‥19) "lúnbe",
       terms: [
-        TaggedSumti @[20‥36) {
+        TaggedSumtiTerm @[20‥36) {
           tense_modal: Cmavo @[20‥22) "vi",
-          NameDescription @[23‥36) {
+          sumti: NameSumti @[23‥36) {
             la: Cmavo @[23‥25) "la",
             names: [
               Cmevla @[27‥36) "ŭorldykon",
@@ -62,11 +60,11 @@ Paragraph @[0‥44) {
       ],
     },
   },
-  ParagraphStatement @[39‥44) {
-    i: WithIndicator @[39‥44) {
+  following: [
+    WithIndicator @[39‥44) {
       Cmavo @[39‥40) "i",
       indicator: Cmavo @[42‥44) "ŭi",
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'i","span":[0,4]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[5,10]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lúnbe","span":[14,19]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[20,22]}}}}}]}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭorldykon","span":[27,36]}}}}]}}}}]}}}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[39,40]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[42,44]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'i","span":[0,4]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[5,10]}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[11,13]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lúnbe","span":[14,19]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[20,22]}}}}}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭorldykon","span":[27,36]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[39,40]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[42,44]}}}}}]}}}}}}"""

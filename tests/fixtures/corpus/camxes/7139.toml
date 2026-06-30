@@ -30,20 +30,12 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥10) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥10) {
-      to: Cmavo @[0‥2) "to",
-      free_modifiers: [
-        Vocative @[3‥6) {
-          vocative_markers: [
-            Cmavo @[3‥6) "coĭ",
-          ],
-        },
-      ],
-      Text {},
-      toi: Cmavo @[7‥10) "toĭ",
-    },
+ParentheticalText @[0‥10) {
+  to: Cmavo @[0‥2) "to",
+  free_modifiers: [
+    Cmavo @[3‥6) "coĭ",
   ],
+  text: Text {},
+  toi: Cmavo @[7‥10) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}]}}],"text":{},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[7,10]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}}}}}],"text":{"RegularText":{}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[7,10]}}}}}}]}}'

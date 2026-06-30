@@ -33,22 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥15) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ti'e",
-    },
+    Cmavo @[0‥4) "ti'e",
   ],
-  Terms @[5‥15) {
-    terms: [
-      Description @[5‥15) {
-        tail_elements: [
-          NumberQuantifier @[5‥9) {
-            Cmavo @[5‥7) "mu",
-            Cmavo @[7‥9) "no",
-          },
-        ],
-        selbri: Gismu @[10‥15) "nánca",
-      },
-    ],
+  DescriptorWithoutGadriSumti @[5‥15) {
+    quantifier: NumberWords @[5‥9) {
+      first_number: Cmavo @[5‥7) "mu",
+      continuations: [
+        Cmavo @[7‥9) "no",
+      ],
+    },
+    Gismu @[10‥15) "nánca",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[10,15]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'e","span":[0,4]}}}}}]}}"""

@@ -38,27 +38,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥21) {
-  leading_free_modifiers: [
-    Vocative @[0‥21) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: LerfuStringSumti @[4‥21) {
-        letter: [
-          Cmavo @[4‥6) "ty",
-          LerfuWord @[7‥13) {
-            Cmavo @[7‥10) "y'y",
-            bu: Cmavo @[11‥13) "bu",
-          },
-          Cmavo @[14‥16) "fy",
-          LerfuWord @[17‥21) {
-            Cmavo @[17‥18) "y",
-            bu: Cmavo @[19‥21) "bu",
-          },
-        ],
+VocativeFreeModifier @[0‥21) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: LetterString @[4‥21) {
+    first_letter: Cmavo @[4‥6) "ty",
+    continuations: [
+      LerfuWord @[7‥13) {
+        Cmavo @[7‥10) "y'y",
+        bu: Cmavo @[11‥13) "bu",
       },
-    },
-  ],
+      Cmavo @[14‥16) "fy",
+      LerfuWord @[17‥21) {
+        Cmavo @[17‥18) "y",
+        bu: Cmavo @[19‥21) "bu",
+      },
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ty","span":[4,6]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[7,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[11,13]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[14,16]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y","span":[17,18]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[19,21]}}}}}]}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ty","span":[4,6]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[7,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[11,13]}}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[14,16]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"y","span":[17,18]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[19,21]}}}}}}}]}}}}}}}}}}}}}]}}"""

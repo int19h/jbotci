@@ -40,29 +40,39 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"cpácu","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥57) {
-  Gismu @[0‥5) "cpácu",
+SelbriSimpleBridiTail @[0‥57) {
+  selbri: Gismu @[0‥5) "cpácu",
   terms: [
-    SumtiConnection @[6‥57) {
-      leading_sumti: SumtiConnection @[6‥39) {
-        leading_sumti: Description @[6‥15) {
-          description: Cmavo @[6‥9) "leĭ",
-          selbri: Gismu @[10‥15) "sódva",
-        },
-        connective: Cmavo @[17‥18) "e",
-        trailing_sumti: DelimitedNonLojbanQuote @[19‥39) {
-          zoi: Cmavo @[19‥23) "la'o",
-          opening_delimiter: Cmavo @[24‥26) "gy",
-          quoted_text: Verbatim @[28‥35) "cookies",
-          closing_delimiter: Cmavo @[37‥39) "gy",
+    SumtiAfterthought @[6‥57) {
+      leading_sumti: DescriptorWithGadriSumti @[6‥15) {
+        description: Cmavo @[6‥9) "leĭ",
+        tail: DescriptionTail @[10‥15) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[10‥15) "sódva",
         },
       },
-      connective: Cmavo @[42‥43) "e",
-      trailing_sumti: Description @[44‥57) {
-        description: Cmavo @[44‥47) "leĭ",
-        selbri: Lujvo @[48‥57) "cersáĭgru",
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[17‥39) {
+          connective: Cmavo @[17‥18) "e",
+          sumti: DelimitedNonLojbanQuote @[19‥39) {
+            zoi: Cmavo @[19‥23) "la'o",
+            opening_delimiter: Cmavo @[24‥26) "gy",
+            quoted_text: Verbatim @[28‥35) "cookies",
+            closing_delimiter: Cmavo @[37‥39) "gy",
+          },
+        },
+        SumtiAfterthoughtTail @[42‥57) {
+          connective: Cmavo @[42‥43) "e",
+          sumti: DescriptorWithGadriSumti @[44‥57) {
+            description: Cmavo @[44‥47) "leĭ",
+            tail: DescriptionTail @[48‥57) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: Lujvo @[48‥57) "cersáĭgru",
+            },
+          },
+        },
+      ],
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpácu","span":[0,5]}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[6,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sódva","span":[10,15]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}]}},"trailing_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[19,23]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[24,26]}},"quoted_text":{"span":[28,35],"text":"cookies"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[42,43]}}}}]}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[44,47]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cer"},{"Rafsi":"sáĭ"},{"Rafsi":"gru"}],"span":[48,57]}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpácu","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[6,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sódva","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[19,23]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[24,26]}},"quoted_text":{"span":[28,35],"text":"cookies"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}}}}},{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[42,43]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[44,47]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cer"},{"Rafsi":"sáĭ"},{"Rafsi":"gru"}],"span":[48,57]}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}"""

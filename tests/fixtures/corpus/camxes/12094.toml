@@ -31,14 +31,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-RestrictiveRelativeBridi @[0‥18) {
+RestrictiveBridiRelativeClause @[0‥18) {
   poi: Cmavo @[0‥3) "poĭ",
-  TaggedSelbri @[4‥18) {
-    tense_modal: Cmavo @[4‥6) "ca",
-    Tanru @[7‥18) {
-      Gismu @[7‥12) "spéni",
-      Gismu @[13‥18) "mílxe",
+  subbridi: TaggedSelbri @[4‥18) {
+    tense_modal: [
+      Cmavo @[4‥6) "ca",
+    ],
+    inner_selbri: TanruSelbri @[7‥18) {
+      first_unit: Gismu @[7‥12) "spéni",
+      additional_units: [
+        Gismu @[13‥18) "mílxe",
+      ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[4,6]}}}}}]}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spéni","span":[7,12]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[13,18]}}}}}]}}}}}}}}}}}}]}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"RelativeClauseFragment":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[0,3]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[4,6]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spéni","span":[7,12]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mílxe","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}'

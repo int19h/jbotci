@@ -40,11 +40,11 @@ ParagraphStatement @[4‥20) {
     Cmavo @[7‥9) "ju",
     Cmavo @[9‥11) "bo",
   },
-  Bridi @[12‥20) {
+  BridiWithLeadingTerms @[12‥20) {
     leading_terms: [
       Cmavo @[12‥14) "do",
     ],
-    Gismu @[15‥20) "mínji",
+    bridi_tail: Gismu @[15‥20) "mínji",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[4,5]}}}},"connective":{"Selbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[5,7]}}}},"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[7,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[9,11]}}}}]}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mínji","span":[15,20]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[4,5]}}}},"connective":{"IStandardParagraphStatementConnective":{"connective":{"ParagraphJekConnective":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[5,7]}}}},"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[7,9]}}}}}},"tag_bo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[9,11]}}}}]}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mínji","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

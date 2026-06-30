@@ -19,17 +19,14 @@ raw = '{"frames":[{"index":0,"node":{"offset":8,"length":11},"kind":"base-selbri
 tree = """
 Text @[0‥19) {
   leading_indicators: [
-    Indicator @[0‥4) {
-      indicator: Cmavo @[0‥4) "ki'a",
-    },
+    Cmavo @[0‥4) "ki'a",
   ],
-  Terms @[5‥19) {
-    terms: [
-      Description @[5‥19) {
-        description: Cmavo @[5‥7) "le",
-        selbri: Fuhivla @[8‥19) "gugdrsférĭe",
-      },
-    ],
+  DescriptorWithGadriSumti @[5‥19) {
+    description: Cmavo @[5‥7) "le",
+    tail: DescriptionTail @[8‥19) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Fuhivla @[8‥19) "gugdrsférĭe",
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"gugdrsférĭe","span":[8,19]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[0,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"gugdrsférĭe","span":[8,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'a","span":[0,4]}}}}}]}}"""

@@ -35,22 +35,24 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"círla"}],"sp
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥44) {
-  TanruUnitConnection @[0‥29) {
-    leading_unit: TanruUnitConnection @[0‥17) {
-      leading_unit: Lujvo @[0‥8) "nalcírla",
-      connective: Cmavo @[9‥11) "je",
-      trailing_unit: Gismu @[12‥17) "ránti",
-    },
-    connective: Cmavo @[18‥20) "je",
-    trailing_unit: Lujvo @[21‥29) "nalsílna",
+TanruSelbri @[0‥44) {
+  first_unit: TanruUnit @[0‥29) {
+    Lujvo @[0‥8) "nalcírla",
+    Cmavo @[9‥11) "je",
+    Gismu @[12‥17) "ránti",
+    Cmavo @[18‥20) "je",
+    Lujvo @[21‥29) "nalsílna",
   },
-  GroupedTanruUnit @[30‥44) {
-    ke: Cmavo @[30‥32) "ke",
-    Tanru @[33‥44) {
-      Gismu @[33‥38) "jgéna",
-      Gismu @[39‥44) "nánba",
+  additional_units: [
+    GroupedTanruUnit @[30‥44) {
+      ke: Cmavo @[30‥32) "ke",
+      selbri: TanruSelbri @[33‥44) {
+        first_unit: Gismu @[33‥38) "jgéna",
+        additional_units: [
+          Gismu @[39‥44) "nánba",
+        ],
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitConnection":{"leading_unit":{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"círla"}],"span":[0,8]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[9,11]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránti","span":[12,17]}}}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[18,20]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sílna"}],"span":[21,29]}}}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[30,32]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jgéna","span":[33,38]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[39,44]}}}}}]}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"círla"}],"span":[0,8]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[9,11]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránti","span":[12,17]}}}}}}}}},{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[18,20]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"sílna"}],"span":[21,29]}}}}}}}}}]},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[30,32]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jgéna","span":[33,38]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[39,44]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

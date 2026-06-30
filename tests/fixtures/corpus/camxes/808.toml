@@ -38,43 +38,51 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥55) {
+BridiWithLeadingTerms @[0‥55) {
   leading_terms: [
-    SumtiConnection @[0‥24) {
-      leading_sumti: NameDescription @[0‥10) {
+    SumtiAfterthought @[0‥24) {
+      leading_sumti: NameSumti @[0‥10) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[3‥10) "djeĭmyz",
         ],
       },
-      connective: Cmavo @[13‥14) "e",
-      trailing_sumti: NameDescription @[15‥24) {
-        la: Cmavo @[15‥17) "la",
-        names: [
-          Cmevla @[18‥24) "djordj",
-        ],
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[13‥24) {
+          connective: Cmavo @[13‥14) "e",
+          sumti: NameSumti @[15‥24) {
+            la: Cmavo @[15‥17) "la",
+            names: [
+              Cmevla @[18‥24) "djordj",
+            ],
+          },
+        },
+      ],
     },
   ],
-  SelbriBridiTail @[27‥55) {
-    Gismu @[27‥32) "prámi",
+  bridi_tail: SelbriSimpleBridiTail @[27‥55) {
+    selbri: Gismu @[27‥32) "prámi",
     terms: [
-      SumtiConnection @[33‥55) {
-        leading_sumti: NameDescription @[33‥41) {
+      SumtiAfterthought @[33‥55) {
+        leading_sumti: NameSumti @[33‥41) {
           la: Cmavo @[33‥35) "la",
           names: [
             Cmevla @[36‥41) "meris",
           ],
         },
-        connective: Cmavo @[44‥45) "e",
-        trailing_sumti: NameDescription @[46‥55) {
-          la: Cmavo @[46‥48) "la",
-          names: [
-            Cmevla @[49‥55) "martas",
-          ],
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[44‥55) {
+            connective: Cmavo @[44‥45) "e",
+            sumti: NameSumti @[46‥55) {
+              la: Cmavo @[46‥48) "la",
+              names: [
+                Cmevla @[49‥55) "martas",
+              ],
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[18,24]}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[27,32]}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[33,35]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[36,41]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[46,48]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[49,55]}}}}]}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[18,24]}}}}]}}}}}}}]}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[27,32]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[33,35]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[36,41]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[44,45]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[46,48]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[49,55]}}}}]}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}'

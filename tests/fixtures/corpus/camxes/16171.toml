@@ -35,20 +35,18 @@ tree = """
 ParagraphStatement @[1‥22) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative @[3‥22) {
-      vocative_markers: [
-        Cmavo @[3‥6) "doĭ",
-      ],
-      sumti: SelbriVocative @[7‥22) {
-        selbri: Tanru @[7‥22) {
-          WithIndicator @[7‥17) {
-            Gismu @[7‥12) "tsáli",
-            indicator: Cmavo @[14‥17) "a'o",
-          },
-          Cmavo @[18‥22) "go'i",
+    VocativeFreeModifier @[3‥22) {
+      vocative_markers: Cmavo @[3‥6) "doĭ",
+      sumti: TanruSelbri @[7‥22) {
+        first_unit: WithIndicator @[7‥17) {
+          Gismu @[7‥12) "tsáli",
+          indicator: Cmavo @[14‥17) "a'o",
         },
+        additional_units: [
+          Cmavo @[18‥22) "go'i",
+        ],
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[7,12]}}}},"indicator":{"Cmavo":{"phonemes":"a'o","span":[14,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}}}}]}}}}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[7,12]}}}},"indicator":{"Cmavo":{"phonemes":"a'o","span":[14,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[18,22]}}}}}}}}}]}}}}}}}}}]}]}}"""

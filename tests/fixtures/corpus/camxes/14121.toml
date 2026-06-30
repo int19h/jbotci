@@ -35,30 +35,32 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"sídju","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥30) {
-  SelbriBridiTail @[0‥14) {
-    Gismu @[0‥5) "sídju",
+ParagraphStatementSequence @[0‥30) {
+  SelbriSimpleBridiTail @[0‥14) {
+    selbri: Gismu @[0‥5) "sídju",
     terms: [
-      TaggedSumti @[6‥14) {
-        tense_modal: Modal @[6‥11) {
+      TaggedSumtiTerm @[6‥14) {
+        tense_modal: ModalTense @[6‥11) {
           se: Cmavo @[6‥8) "se",
           bai: Cmavo @[8‥11) "gaŭ",
         },
-        Cmavo @[12‥14) "ma",
+        sumti: Cmavo @[12‥14) "ma",
       },
     ],
   },
-  ParagraphStatement @[16‥30) {
-    i: WithIndicator @[16‥21) {
-      Cmavo @[16‥17) "i",
-      indicator: Cmavo @[19‥21) "aĭ",
+  following: [
+    ParagraphStatement @[16‥30) {
+      i: WithIndicator @[16‥21) {
+        Cmavo @[16‥17) "i",
+        indicator: Cmavo @[19‥21) "aĭ",
+      },
+      BridiWithLeadingTerms @[22‥30) {
+        leading_terms: [
+          Cmavo @[22‥24) "mi",
+        ],
+        bridi_tail: Gismu @[25‥30) "cmíma",
+      },
     },
-    Bridi @[22‥30) {
-      leading_terms: [
-        Cmavo @[22‥24) "mi",
-      ],
-      Gismu @[25‥30) "cmíma",
-    },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídju","span":[0,5]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[8,11]}}}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[12,14]}}}}}}}]}}}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"indicator":{"Cmavo":{"phonemes":"aĭ","span":[19,21]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[22,24]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmíma","span":[25,30]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídju","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[6,8]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[8,11]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[12,14]}}}}}}}}}}}}}}}}}]}}}}}}}}}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"indicator":{"Cmavo":{"phonemes":"aĭ","span":[19,21]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[22,24]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cmíma","span":[25,30]}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}'

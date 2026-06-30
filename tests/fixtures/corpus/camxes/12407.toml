@@ -37,32 +37,27 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥25) {
-  terms: [
-    TextQuote @[0‥25) {
-      lu: Cmavo @[0‥2) "lu",
-      Terms @[3‥19) {
-        terms: [
-          Description @[3‥19) {
-            description: Cmavo @[3‥5) "la",
-            selbri: SumtiSelbri @[6‥19) {
-              me: Cmavo @[6‥8) "me",
-              LerfuStringSumti @[9‥19) {
-                letter: [
-                  LerfuWord @[9‥12) {
-                    Cmavo @[9‥10) "i",
-                    bu: Cmavo @[10‥12) "bu",
-                  },
-                  Cmavo @[13‥15) "ry",
-                  Cmavo @[17‥19) "cy",
-                ],
-              },
-            },
+TextQuote @[0‥25) {
+  lu: Cmavo @[0‥2) "lu",
+  text: DescriptorWithGadriSumti @[3‥19) {
+    description: Cmavo @[3‥5) "la",
+    tail: DescriptionTail @[6‥19) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: SumtiSelbriTanruUnit @[6‥19) {
+        me: Cmavo @[6‥8) "me",
+        sumti: LetterString @[9‥19) {
+          first_letter: LerfuWord @[9‥12) {
+            Cmavo @[9‥10) "i",
+            bu: Cmavo @[10‥12) "bu",
           },
-        ],
+          continuations: [
+            Cmavo @[13‥15) "ry",
+            Cmavo @[17‥19) "cy",
+          ],
+        },
       },
-      lihu: Cmavo @[21‥25) "li'u",
     },
-  ],
+  },
+  lihu: Cmavo @[21‥25) "li'u",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[6,8]}}}},"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ry","span":[13,15]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[17,19]}}}}]}}}}]}}}}]}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[21,25]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[6,8]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[10,12]}}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ry","span":[13,15]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[17,19]}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[21,25]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

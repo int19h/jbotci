@@ -41,8 +41,8 @@ json = """[{"ZeiCompound":{"left":{"ZeiCompound":{"left":{"ZeiCompound":{"left":
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥42) {
-  ZeiCompound @[0‥27) {
+TanruSelbri @[0‥42) {
+  first_unit: ZeiCompound @[0‥27) {
     left: ZeiCompound @[0‥20) {
       left: ZeiCompound @[0‥11) {
         left: Cmavo @[0‥4) "na'e",
@@ -55,6 +55,8 @@ Tanru @[0‥42) {
     zei: Cmavo @[21‥24) "zeĭ",
     Cmavo @[25‥27) "by",
   },
-  Lujvo @[29‥42) "livgyterbílma",
+  additional_units: [
+    Lujvo @[29‥42) "livgyterbílma",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"ZeiCompound":{"left":{"ZeiCompound":{"left":{"ZeiCompound":{"left":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[5,8]}},"right":{"Cmavo":{"phonemes":"a","span":[10,11]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Cmavo":{"phonemes":"na'e","span":[16,20]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[21,24]}},"right":{"Cmavo":{"phonemes":"by","span":[25,27]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"livg"},{"Hyphen":"y"},{"Rafsi":"ter"},{"Rafsi":"bílma"}],"span":[29,42]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"ZeiCompound":{"left":{"ZeiCompound":{"left":{"ZeiCompound":{"left":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[0,4]}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[5,8]}},"right":{"Cmavo":{"phonemes":"a","span":[10,11]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[12,15]}},"right":{"Cmavo":{"phonemes":"na'e","span":[16,20]}}}},"zei":{"Cmavo":{"phonemes":"zeĭ","span":[21,24]}},"right":{"Cmavo":{"phonemes":"by","span":[25,27]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"livg"},{"Hyphen":"y"},{"Rafsi":"ter"},{"Rafsi":"bílma"}],"span":[29,42]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

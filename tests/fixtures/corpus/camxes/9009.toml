@@ -35,24 +35,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord"
 tree = """
 Text @[0‥21) {
   leading_free_modifiers: [
-    Vocative @[0‥3) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-    },
+    Cmavo @[0‥3) "coĭ",
   ],
-  ParagraphStatement @[5‥21) {
-    i: WithIndicator @[5‥21) {
-      WithIndicator @[5‥17) {
-        WithIndicator @[5‥13) {
-          Cmavo @[5‥6) "i",
-          indicator: Cmavo @[7‥10) "a'e",
-          nai: Cmavo @[10‥13) "naĭ",
-        },
-        indicator: Cmavo @[13‥17) "ro'o",
+  WithIndicator @[5‥21) {
+    WithIndicator @[5‥17) {
+      WithIndicator @[5‥13) {
+        Cmavo @[5‥6) "i",
+        indicator: Cmavo @[7‥10) "a'e",
+        nai: Cmavo @[10‥13) "naĭ",
       },
-      indicator: Cmavo @[17‥21) "ro'i",
+      indicator: Cmavo @[13‥17) "ro'o",
     },
+    indicator: Cmavo @[17‥21) "ro'i",
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}]}}],"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"a'e","span":[7,10]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[13,17]}}}},"indicator":{"Cmavo":{"phonemes":"ro'i","span":[17,21]}}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}}}}],"leading_i_statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"a'e","span":[7,10]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ro'o","span":[13,17]}}}},"indicator":{"Cmavo":{"phonemes":"ro'i","span":[17,21]}}}}}]}}"""

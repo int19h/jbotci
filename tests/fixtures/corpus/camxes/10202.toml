@@ -34,13 +34,12 @@ Text @[0‥11) {
   leading_cmevla: [
     Cmevla @[0‥2) "or",
   ],
-  Terms @[3‥11) {
-    terms: [
-      Description @[3‥11) {
-        description: Cmavo @[3‥5) "lo",
-        selbri: Gismu @[6‥11) "sídbo",
-      },
-    ],
+  DescriptorWithGadriSumti @[3‥11) {
+    description: Cmavo @[3‥5) "lo",
+    tail: DescriptionTail @[6‥11) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[6‥11) "sídbo",
+    },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[3,5]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídbo","span":[6,11]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"or","span":[0,2]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídbo","span":[6,11]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

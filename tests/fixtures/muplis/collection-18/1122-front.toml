@@ -38,37 +38,37 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[7,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[12,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[17,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[20,24]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[34,38]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([lu {coĭ .djan.} li'u] [lu {(mi'e naĭ) .djan.} li'u])"
+brackets = "([{lu (coĭ .djan.)} li'u] [{lu ([mi'e naĭ] .djan.)} li'u])"
 tree = """
-Terms @[0‥38) {
-  terms: [
-    TextQuote @[0‥16) {
-      lu: Cmavo @[0‥2) "lu",
-      free_modifiers: [
-        Vocative @[3‥11) {
-          vocative_markers: [
-            Cmavo @[3‥6) "coĭ",
-          ],
-          sumti: Cmevla @[7‥11) "djan",
+TermsFragment @[0‥38) {
+  TextQuote @[0‥16) {
+    lu: Cmavo @[0‥2) "lu",
+    free_modifiers: [
+      VocativeFreeModifier @[3‥11) {
+        vocative_markers: Cmavo @[3‥6) "coĭ",
+        sumti: [
+          Cmevla @[7‥11) "djan",
+        ],
+      },
+    ],
+    text: Text {},
+    lihu: Cmavo @[12‥16) "li'u",
+  },
+  TextQuote @[17‥38) {
+    lu: Cmavo @[17‥19) "lu",
+    free_modifiers: [
+      VocativeFreeModifier @[20‥33) {
+        vocative_markers: CoiVocativeMarkerWords @[20‥28) {
+          first_coi: Cmavo @[20‥24) "mi'e",
+          first_nai: Cmavo @[25‥28) "naĭ",
         },
-      ],
-      Text {},
-      lihu: Cmavo @[12‥16) "li'u",
-    },
-    TextQuote @[17‥38) {
-      lu: Cmavo @[17‥19) "lu",
-      free_modifiers: [
-        Vocative @[20‥33) {
-          vocative_markers: [
-            Cmavo @[20‥24) "mi'e",
-            Cmavo @[25‥28) "naĭ",
-          ],
-          sumti: Cmevla @[29‥33) "djan",
-        },
-      ],
-      Text {},
-      lihu: Cmavo @[34‥38) "li'u",
-    },
-  ],
+        sumti: [
+          Cmevla @[29‥33) "djan",
+        ],
+      },
+    ],
+    text: Text {},
+    lihu: Cmavo @[34‥38) "li'u",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[7,11]}}}}]}}}],"text":{},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[12,16]}}}}}}}},{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[17,19]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[20,24]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}}}]}}}],"text":{},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[34,38]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[7,11]}}}}]}}}}],"text":{"RegularText":{}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[12,16]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[17,19]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[20,24]}}}},"first_nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[25,28]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}}}]}}}}],"text":{"RegularText":{}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[34,38]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

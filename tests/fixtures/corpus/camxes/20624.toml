@@ -37,14 +37,10 @@ ParagraphStatement @[1‥14) {
     indicator: Cmavo @[4‥6) "ŭi",
   },
   free_modifiers: [
-    Vocative @[7‥14) {
-      vocative_markers: [
-        WithIndicator @[7‥14) {
-          Cmavo @[7‥11) "ki'e",
-          indicator: Cmavo @[11‥14) "saĭ",
-        },
-      ],
+    WithIndicator @[7‥14) {
+      Cmavo @[7‥11) "ki'e",
+      indicator: Cmavo @[11‥14) "saĭ",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[4,6]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[7,11]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[11,14]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[4,6]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[7,11]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[11,14]}}}}}}}}]}]}}"""

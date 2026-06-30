@@ -48,59 +48,63 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥82) {
-  ParagraphStatement @[1‥15) {
-    i: WithIndicator @[1‥6) {
-      Cmavo @[1‥2) "i",
-      indicator: Cmavo @[4‥6) "oĭ",
-    },
-    Bridi @[7‥15) {
+ParagraphStatement @[1‥82) {
+  i: WithIndicator @[1‥6) {
+    Cmavo @[1‥2) "i",
+    indicator: Cmavo @[4‥6) "oĭ",
+  },
+  ParagraphStatementSequence @[7‥82) {
+    BridiWithLeadingTerms @[7‥15) {
       leading_terms: [
         Cmavo @[7‥9) "mi",
       ],
-      Gismu @[10‥15) "tátpi",
+      bridi_tail: Gismu @[10‥15) "tátpi",
     },
-  },
-  ParagraphStatement @[17‥82) {
-    i: Cmavo @[17‥18) "i",
-    StatementConnection @[19‥82) {
-      leading_statement: Bridi @[19‥32) {
-        leading_terms: [
-          Cmavo @[19‥21) "mi",
-        ],
-        TaggedSelbri @[22‥32) {
-          tense_modal: Composite @[22‥26) {
-            Cmavo @[22‥24) "ca",
-            Cmavo @[24‥26) "zi",
-          },
-          Gismu @[27‥32) "clíva",
-        },
-      },
-      i: Cmavo @[34‥35) "i",
-      connective: Selbri @[35‥39) {
-        Cmavo @[35‥37) "ba",
-        Cmavo @[37‥39) "bo",
-      },
-      trailing_statement: Bridi @[40‥82) {
-        leading_terms: [
-          Cmavo @[40‥42) "mi",
-        ],
-        SelbriBridiTail @[43‥82) {
-          Gismu @[43‥48) "dásnu",
-          terms: [
-            TaggedSumti @[49‥82) {
-              tense_modal: Cmavo @[49‥51) "vi",
-              DelimitedNonLojbanQuote @[52‥82) {
-                zoi: Cmavo @[52‥56) "la'o",
-                opening_delimiter: Cmavo @[57‥59) "gy",
-                quoted_text: Verbatim @[61‥79) "SunnyVale GolfLand",
-                closing_delimiter: Cmavo @[80‥82) "gy",
-              },
+    following: [
+      ParagraphStatement @[17‥82) {
+        i: Cmavo @[17‥18) "i",
+        StatementConnection @[19‥82) {
+          leading_statement: BridiWithLeadingTerms @[19‥32) {
+            leading_terms: [
+              Cmavo @[19‥21) "mi",
+            ],
+            bridi_tail: TaggedSelbri @[22‥32) {
+              tense_modal: [
+                PuTimeOffsetTense @[22‥26) {
+                  pu: Cmavo @[22‥24) "ca",
+                  distance: Cmavo @[24‥26) "zi",
+                },
+              ],
+              inner_selbri: Gismu @[27‥32) "clíva",
             },
-          ],
+          },
+          i: Cmavo @[34‥35) "i",
+          connective: Selbri @[35‥39) {
+            Cmavo @[35‥37) "ba",
+            Cmavo @[37‥39) "bo",
+          },
+          trailing_statement: BridiWithLeadingTerms @[40‥82) {
+            leading_terms: [
+              Cmavo @[40‥42) "mi",
+            ],
+            bridi_tail: SelbriSimpleBridiTail @[43‥82) {
+              selbri: Gismu @[43‥48) "dásnu",
+              terms: [
+                TaggedSumtiTerm @[49‥82) {
+                  tense_modal: Cmavo @[49‥51) "vi",
+                  sumti: DelimitedNonLojbanQuote @[52‥82) {
+                    zoi: Cmavo @[52‥56) "la'o",
+                    opening_delimiter: Cmavo @[57‥59) "gy",
+                    quoted_text: Verbatim @[61‥79) "SunnyVale GolfLand",
+                    closing_delimiter: Cmavo @[80‥82) "gy",
+                  },
+                },
+              ],
+            },
+          },
         },
       },
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[4,6]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tátpi","span":[10,15]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[17,18]}}}},"statement":{"StatementConnection":{"leading_statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[19,21]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[22,24]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[24,26]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[27,32]}}}}}}}}}}}}}},"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[34,35]}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[35,37]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[37,39]}}}}]}},"trailing_statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[40,42]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dásnu","span":[43,48]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[49,51]}}}}}]}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[52,56]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[57,59]}},"quoted_text":{"span":[61,79],"text":"SunnyVale GolfLand"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[80,82]}}}}}}}}}]}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[4,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tátpi","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[17,18]}}}},"statement":{"StatementOrFragmentStatement":{"IStatementConnection":{"leading_statement":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[19,21]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[22,24]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[24,26]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[27,32]}}}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"SimpleIConnectiveStatementTail":{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[34,35]}}}},"connective":{"ITagBoStatementConnective":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[35,37]}}}}}]}}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[37,39]}}}}}},"trailing_statement":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[40,42]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dásnu","span":[43,48]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[49,51]}}}}}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[52,56]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[57,59]}},"quoted_text":{"span":[61,79],"text":"SunnyVale GolfLand"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[80,82]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}]}}}}]}}}}}}"""

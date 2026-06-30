@@ -27,12 +27,5 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"i'e","span":[4,7]}}}]"""
 
 [expectations.output.gentufa]
-tree = """
-Text @[4‥7) {
-  leading_indicators: [
-    Indicator @[4‥7) {
-      indicator: Cmavo @[4‥7) "i'e",
-    },
-  ],
-}"""
-json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i'e","span":[4,7]}}}}}]}"""
+tree = """Cmavo @[4‥7) "i'e""""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i'e","span":[4,7]}}}}}]}}"""

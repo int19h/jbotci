@@ -32,19 +32,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥17) {
-  terms: [
-    Description @[0‥17) {
-      tail_elements: [
-        NumberQuantifier @[0‥11) {
-          Cmavo @[0‥4) "su'o",
-          Cmavo @[5‥7) "pa",
-          Cmavo @[7‥9) "no",
-          Cmavo @[9‥11) "no",
-        },
-      ],
-      selbri: Gismu @[12‥17) "nánca",
-    },
-  ],
+DescriptorWithoutGadriSumti @[0‥17) {
+  quantifier: NumberWords @[0‥11) {
+    first_number: Cmavo @[0‥4) "su'o",
+    continuations: [
+      Cmavo @[5‥7) "pa",
+      Cmavo @[7‥9) "no",
+      Cmavo @[9‥11) "no",
+    ],
+  },
+  Gismu @[12‥17) "nánca",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[5,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[9,11]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[12,17]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[5,7]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[7,9]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[9,11]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánca","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

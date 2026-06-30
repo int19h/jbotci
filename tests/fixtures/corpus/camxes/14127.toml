@@ -40,29 +40,29 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord"
 tree = """
 Text @[0‥38) {
   leading_free_modifiers: [
-    MetalinguisticBridi @[0‥9) {
+    SeiFreeModifier @[0‥9) {
       sei: Cmavo @[0‥3) "seĭ",
       selbri: Gismu @[4‥9) "básti",
     },
   ],
-  Terms @[10‥38) {
-    terms: [
-      QuotedWord @[10‥18) {
-        zo: Cmavo @[10‥12) "zo",
-        Gismu @[13‥18) "gúnka",
-      },
-      PlaceTaggedSumti @[19‥38) {
-        fa: Cmavo @[19‥21) "fa",
-        TextQuote @[22‥38) {
-          lu: Cmavo @[22‥24) "lu",
-          ConvertedSelbri @[25‥33) {
-            se: Cmavo @[25‥27) "se",
-            Gismu @[28‥33) "gúnka",
-          },
-          lihu: Cmavo @[34‥38) "li'u",
+  TermsFragment @[10‥38) {
+    QuotedWord @[10‥18) {
+      zo: Cmavo @[10‥12) "zo",
+      Gismu @[13‥18) "gúnka",
+    },
+    PlaceTaggedSumtiTerm @[19‥38) {
+      fa: Cmavo @[19‥21) "fa",
+      sumti: TextQuote @[22‥38) {
+        lu: Cmavo @[22‥24) "lu",
+        text: TanruUnitAtom @[25‥33) {
+          conversions: [
+            Cmavo @[25‥27) "se",
+          ],
+          base: Gismu @[28‥33) "gúnka",
         },
+        lihu: Cmavo @[34‥38) "li'u",
       },
-    ],
+    },
   },
 }"""
-json = """{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[4,9]}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Gismu":{"phonemes":"gúnka","span":[13,18]}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[19,21]}}}},"sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[22,24]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[25,27]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[28,33]}}}}}}}}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[34,38]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[4,9]}}}}}}}}}}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Gismu":{"phonemes":"gúnka","span":[13,18]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[19,21]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[22,24]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[25,27]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[28,33]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[34,38]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

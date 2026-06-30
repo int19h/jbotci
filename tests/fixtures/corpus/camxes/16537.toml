@@ -44,29 +44,29 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}},{"PlainWord":{"
 tree = """
 Text @[1‥50) {
   leading_indicators: [
-    Indicator @[1‥6) {
-      indicator: WithIndicator @[1‥6) {
-        Cmavo @[1‥3) "ŭi",
-        indicator: Cmavo @[3‥6) "peĭ",
-      },
+    WithIndicator @[1‥6) {
+      Cmavo @[1‥3) "ŭi",
+      indicator: Cmavo @[3‥6) "peĭ",
     },
   ],
-  Bridi @[7‥50) {
+  BridiWithLeadingTerms @[7‥50) {
     leading_terms: [
       QuotedWord @[7‥16) {
         zo: Cmavo @[7‥9) "zo",
         Lujvo @[10‥16) "xáĭtcu",
       },
     ],
-    SelbriBridiTail @[17‥50) {
-      ConvertedSelbri @[17‥25) {
-        se: Cmavo @[17‥19) "xe",
-        Gismu @[20‥25) "fánva",
+    bridi_tail: SelbriSimpleBridiTail @[17‥50) {
+      selbri: TanruUnitAtom @[17‥25) {
+        conversions: [
+          Cmavo @[17‥19) "xe",
+        ],
+        base: Gismu @[20‥25) "fánva",
       },
       terms: [
-        PlaceTaggedSumti @[26‥50) {
+        PlaceTaggedSumtiTerm @[26‥50) {
           fa: Cmavo @[26‥28) "fe",
-          DelimitedNonLojbanQuote @[29‥50) {
+          sumti: DelimitedNonLojbanQuote @[29‥50) {
             zoi: Cmavo @[29‥32) "zoĭ",
             opening_delimiter: Cmavo @[33‥35) "xy",
             quoted_text: Verbatim @[37‥46) "parasitic",
@@ -77,4 +77,4 @@ Text @[1‥50) {
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[7,9]}},"word":{"Lujvo":{"parts":[{"Rafsi":"xáĭ"},{"Rafsi":"tcu"}],"span":[10,16]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[17,19]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[20,25]}}}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[26,28]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"xy","span":[33,35]}},"quoted_text":{"span":[37,46],"text":"parasitic"},"closing_delimiter":{"Cmavo":{"phonemes":"xy","span":[48,50]}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[3,6]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[7,9]}},"word":{"Lujvo":{"parts":[{"Rafsi":"xáĭ"},{"Rafsi":"tcu"}],"span":[10,16]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xe","span":[17,19]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fánva","span":[20,25]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[26,28]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"xy","span":[33,35]}},"quoted_text":{"span":[37,46],"text":"parasitic"},"closing_delimiter":{"Cmavo":{"phonemes":"xy","span":[48,50]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[3,6]}}}}}]}}'

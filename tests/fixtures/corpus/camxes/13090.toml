@@ -41,28 +41,27 @@ tree = """
 ParagraphStatement @[1‥31) {
   i: Cmavo @[1‥2) "i",
   connective: Cmavo @[2‥4) "je",
-  SelbriBridiTail @[5‥31) {
-    Lujvo @[5‥11) "xrúkla",
+  SelbriSimpleBridiTail @[5‥31) {
+    selbri: Lujvo @[5‥11) "xrúkla",
     terms: [
-      PlaceTaggedSumti @[12‥19) {
+      PlaceTaggedSumtiTerm @[12‥19) {
         fa: Cmavo @[12‥14) "fi",
-        LerfuStringSumti @[16‥19) {
-          letter: [
-            LerfuWord @[16‥19) {
-              Cmavo @[16‥17) "i",
-              bu: Cmavo @[17‥19) "bu",
-            },
-          ],
+        sumti: LerfuWord @[16‥19) {
+          Cmavo @[16‥17) "i",
+          bu: Cmavo @[17‥19) "bu",
         },
       },
-      PlaceTaggedSumti @[20‥31) {
+      PlaceTaggedSumtiTerm @[20‥31) {
         fa: Cmavo @[20‥22) "fu",
-        Description @[23‥31) {
+        sumti: DescriptorWithGadriSumti @[23‥31) {
           description: Cmavo @[23‥25) "lo",
-          selbri: Gismu @[26‥31) "kárce",
+          tail: DescriptionTail @[26‥31) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[26‥31) "kárce",
+          },
         },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}}}]}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xrú"},{"Rafsi":"kla"}],"span":[5,11]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[12,14]}}}},"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}]}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[20,22]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[23,25]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[26,31]}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"connective":{"IStandardParagraphStatementConnective":{"connective":{"ParagraphJekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[2,4]}}}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xrú"},{"Rafsi":"kla"}],"span":[5,11]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[12,14]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[20,22]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[23,25]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[26,31]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

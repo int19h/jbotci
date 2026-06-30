@@ -33,18 +33,14 @@ json = '[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥13) {
+BridiWithLeadingTerms @[0‥13) {
   leading_terms: [
-    LerfuStringSumti @[0‥5) {
-      letter: [
-        LerfuWord @[0‥5) {
-          Cmavo @[0‥2) "la",
-          bu: Cmavo @[3‥5) "bu",
-        },
-      ],
+    LerfuWord @[0‥5) {
+      Cmavo @[0‥2) "la",
+      bu: Cmavo @[3‥5) "bu",
     },
     Cmavo @[5‥7) "da",
   ],
-  Gismu @[8‥13) "nélci",
+  bridi_tail: Gismu @[8‥13) "nélci",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}}}]}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[8,13]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[8,13]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

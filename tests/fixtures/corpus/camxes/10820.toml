@@ -34,17 +34,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[1‥18) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥18) {
+  BridiWithLeadingTerms @[3‥18) {
     leading_terms: [
       Cmavo @[3‥5) "mi",
     ],
-    ConvertedSelbri @[6‥18) {
-      se: Cmavo @[6‥8) "te",
-      WithIndicator @[9‥18) {
+    bridi_tail: TanruUnitAtom @[6‥18) {
+      conversions: [
+        Cmavo @[6‥8) "te",
+      ],
+      base: WithIndicator @[9‥18) {
         Gismu @[9‥14) "lísri",
         indicator: Cmavo @[16‥18) "aĭ",
       },
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[6,8]}}}},"inner_selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lísri","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"aĭ","span":[16,18]}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[6,8]}}}}],"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lísri","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"aĭ","span":[16,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

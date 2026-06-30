@@ -32,21 +32,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"vi'o","span":[3,7]}}},{"PlainWord"
 tree = """
 Text @[3‥31) {
   leading_free_modifiers: [
-    Vocative @[3‥12) {
-      vocative_markers: [
-        Cmavo @[3‥7) "vi'o",
-      ],
+    VocativeFreeModifier @[3‥12) {
+      vocative_markers: Cmavo @[3‥7) "vi'o",
       dohu: Cmavo @[8‥12) "do'u",
     },
   ],
-  Bridi @[13‥31) {
+  BridiWithLeadingTerms @[13‥31) {
     leading_terms: [
       Cmavo @[13‥15) "mi",
     ],
-    SelbriBridiTail @[16‥31) {
-      Gismu @[16‥21) "jdíce",
+    bridi_tail: SelbriSimpleBridiTail @[16‥31) {
+      selbri: Gismu @[16‥21) "jdíce",
       terms: [
-        ReferentSumti @[22‥31) {
+        LaheSumti @[22‥31) {
           lahe: Cmavo @[22‥26) "tu'a",
           Cmavo @[27‥31) "di'u",
         },
@@ -54,4 +52,4 @@ Text @[3‥31) {
     },
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi'o","span":[3,7]}}}}],"dohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do'u","span":[8,12]}}}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[13,15]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jdíce","span":[16,21]}}}}},"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[22,26]}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[27,31]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi'o","span":[3,7]}}}}}},"dohu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do'u","span":[8,12]}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[13,15]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jdíce","span":[16,21]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[22,26]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[27,31]}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

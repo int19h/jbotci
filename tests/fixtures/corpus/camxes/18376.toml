@@ -34,35 +34,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥29) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥29) {
-      to: Cmavo @[0‥2) "to",
-      free_modifiers: [
-        Vocative @[3‥12) {
-          vocative_markers: [
-            Cmavo @[3‥7) "pe'u",
-          ],
-          sumti: SelbriVocative @[8‥12) {
-            selbri: Cmavo @[8‥12) "go'i",
-          },
-        },
-      ],
-      Terms @[13‥25) {
-        terms: [
-          TaggedSumti @[13‥25) {
-            tense_modal: Modal @[13‥16) {
-              bai: Cmavo @[13‥16) "baŭ",
-            },
-            Description @[17‥25) {
-              description: Cmavo @[17‥19) "la",
-              selbri: Gismu @[20‥25) "glíco",
-            },
-          },
-        ],
-      },
-      toi: Cmavo @[26‥29) "toĭ",
+ParentheticalText @[0‥29) {
+  to: Cmavo @[0‥2) "to",
+  free_modifiers: [
+    VocativeFreeModifier @[3‥12) {
+      vocative_markers: Cmavo @[3‥7) "pe'u",
+      sumti: Cmavo @[8‥12) "go'i",
     },
   ],
+  text: TaggedSumtiTerm @[13‥25) {
+    tense_modal: Cmavo @[13‥16) "baŭ",
+    sumti: DescriptorWithGadriSumti @[17‥25) {
+      description: Cmavo @[17‥19) "la",
+      tail: DescriptionTail @[20‥25) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Gismu @[20‥25) "glíco",
+      },
+    },
+  },
+  toi: Cmavo @[26‥29) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'u","span":[3,7]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}],"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[13,16]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[20,25]}}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[26,29]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'u","span":[3,7]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}}}}}}}}}}],"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[13,16]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[17,19]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[20,25]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[26,29]}}}}}}]}}"""

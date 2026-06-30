@@ -32,27 +32,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥19) {
-  leading_free_modifiers: [
-    Vocative @[0‥19) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: SelbriVocative @[4‥19) {
-        selbri: Tanru @[4‥19) {
-          SumtiSelbri @[4‥13) {
-            me: Cmavo @[4‥6) "me",
-            NameDescription @[7‥13) {
-              la: Cmavo @[7‥9) "la",
-              names: [
-                Cmevla @[10‥13) "rlp",
-              ],
-            },
-          },
-          Gismu @[14‥19) "bróde",
-        },
+VocativeFreeModifier @[0‥19) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: TanruSelbri @[4‥19) {
+    first_unit: SumtiSelbriTanruUnit @[4‥13) {
+      me: Cmavo @[4‥6) "me",
+      sumti: NameSumti @[7‥13) {
+        la: Cmavo @[7‥9) "la",
+        names: [
+          Cmevla @[10‥13) "rlp",
+        ],
       },
     },
-  ],
+    additional_units: [
+      Gismu @[14‥19) "bróde",
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[4,6]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rlp","span":[10,13]}}}}]}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[14,19]}}}}}]}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[4,6]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"rlp","span":[10,13]}}}}]}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[14,19]}}}}}}}}}]}}}}}}}}}]}}'

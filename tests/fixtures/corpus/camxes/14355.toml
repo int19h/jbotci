@@ -30,15 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[7‥18) {
-  terms: [
-    Description @[7‥18) {
-      description: Cmavo @[7‥9) "le",
-      selbri: ConvertedSelbri @[10‥18) {
-        se: Cmavo @[10‥12) "se",
-        Gismu @[13‥18) "térdi",
-      },
+DescriptorWithGadriSumti @[7‥18) {
+  description: Cmavo @[7‥9) "le",
+  tail: DescriptionTail @[10‥18) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruUnitAtom @[10‥18) {
+      conversions: [
+        Cmavo @[10‥12) "se",
+      ],
+      base: Gismu @[13‥18) "térdi",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[10,12]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[13,18]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[10,12]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

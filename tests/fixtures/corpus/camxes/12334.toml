@@ -34,27 +34,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥28) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥28) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥24) {
-        terms: [
-          Description @[3‥24) {
-            outer_quantifier: NumberQuantifier @[3‥9) {
-              Cmavo @[3‥5) "pi",
-              Cmavo @[5‥9) "so'u",
-            },
-            description: Cmavo @[10‥12) "le",
-            selbri: Tanru @[13‥24) {
-              Gismu @[13‥18) "cákla",
-              Gismu @[19‥24) "kágni",
-            },
-          },
+ParentheticalText @[0‥28) {
+  to: Cmavo @[0‥2) "to",
+  text: DescriptorWithOuterQuantifierSumti @[3‥24) {
+    outer_quantifier: NumberWords @[3‥9) {
+      first_number: Cmavo @[3‥5) "pi",
+      continuations: [
+        Cmavo @[5‥9) "so'u",
+      ],
+    },
+    description: Cmavo @[10‥12) "le",
+    tail: DescriptionTail @[13‥24) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[13‥24) {
+        first_unit: Gismu @[13‥18) "cákla",
+        additional_units: [
+          Gismu @[19‥24) "kágni",
         ],
       },
-      toi: Cmavo @[25‥28) "toĭ",
     },
-  ],
+  },
+  toi: Cmavo @[25‥28) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'u","span":[5,9]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[10,12]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cákla","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[19,24]}}}}}]}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[25,28]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so'u","span":[5,9]}}}}}]}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[10,12]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cákla","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kágni","span":[19,24]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[25,28]}}}}}}]}}"""

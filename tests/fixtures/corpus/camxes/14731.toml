@@ -32,15 +32,11 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    WithIndicator @[0‥10) {
-      QuotedWord @[0‥5) {
-        zo: Cmavo @[0‥2) "zo",
-        Cmavo @[3‥5) "pi",
-      },
-      indicator: Cmavo @[6‥10) "ki'a",
-    },
-  ],
+WithIndicator @[0‥10) {
+  QuotedWord @[0‥5) {
+    zo: Cmavo @[0‥2) "zo",
+    Cmavo @[3‥5) "pi",
+  },
+  indicator: Cmavo @[6‥10) "ki'a",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"WithIndicator":{"base":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[6,10]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"WithIndicator":{"base":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[6,10]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

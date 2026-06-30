@@ -38,25 +38,24 @@ tree = """
 ParagraphStatement @[1‥34) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    MetalinguisticBridi @[3‥34) {
+    SeiFreeModifier @[3‥34) {
       sei: Cmavo @[3‥6) "seĭ",
       terms: [
-        Description @[7‥15) {
+        DescriptorWithGadriSumti @[7‥15) {
           description: Cmavo @[7‥9) "le",
-          selbri: Gismu @[10‥15) "sélfu",
+          tail: DescriptionTail @[10‥15) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[10‥15) "sélfu",
+          },
         },
       ],
       cu: Cmavo @[16‥18) "cu",
       selbri: Gismu @[19‥24) "cúsku",
       sehu: Cmavo @[25‥29) "se'u",
       free_modifiers: [
-        Vocative @[30‥34) {
-          vocative_markers: [
-            Cmavo @[30‥34) "re'i",
-          ],
-        },
+        Cmavo @[30‥34) "re'i",
       ],
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sélfu","span":[10,15]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[19,24]}}}}},"sehu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'u","span":[25,29]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re'i","span":[30,34]}}}}]}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sélfu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[19,24]}}}}}}}}}}}}}},"sehu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'u","span":[25,29]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re'i","span":[30,34]}}}}}}}}]}}]}]}}"""

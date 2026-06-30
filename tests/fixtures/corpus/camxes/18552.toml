@@ -37,11 +37,9 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[0,2]}}},{"DelimitedNo
 tree = """
 Text @[0‥25) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "ŭa",
-    },
+    Cmavo @[0‥2) "ŭa",
   ],
-  Bridi @[3‥25) {
+  BridiWithLeadingTerms @[3‥25) {
     leading_terms: [
       DelimitedNonLojbanQuote @[3‥19) {
         zoi: Cmavo @[3‥7) "la'o",
@@ -50,7 +48,7 @@ Text @[0‥25) {
         closing_delimiter: Cmavo @[17‥19) "gy",
       },
     ],
-    Gismu @[20‥25) "spófu",
+    bridi_tail: Gismu @[20‥25) "spófu",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[8,10]}},"quoted_text":{"span":[11,16],"text":"topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[17,19]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[20,25]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[8,10]}},"quoted_text":{"span":[11,16],"text":"topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[17,19]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[20,25]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭa","span":[0,2]}}}}}]}}"""

@@ -32,13 +32,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"di'a","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 tree = """
 TaggedSelbri @[0‥19) {
-  tense_modal: Cmavo @[0‥4) "di'a",
-  Tanru @[5‥19) {
-    Gismu @[5‥10) "tríxe",
-    WithIndicator @[11‥19) {
-      Gismu @[11‥16) "córtu",
-      indicator: Cmavo @[17‥19) "oĭ",
-    },
+  tense_modal: [
+    Cmavo @[0‥4) "di'a",
+  ],
+  inner_selbri: TanruSelbri @[5‥19) {
+    first_unit: Gismu @[5‥10) "tríxe",
+    additional_units: [
+      WithIndicator @[11‥19) {
+        Gismu @[11‥16) "córtu",
+        indicator: Cmavo @[17‥19) "oĭ",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'a","span":[0,4]}}}}}]}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tríxe","span":[5,10]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"córtu","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[17,19]}}}}}]}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'a","span":[0,4]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tríxe","span":[5,10]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"córtu","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[17,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

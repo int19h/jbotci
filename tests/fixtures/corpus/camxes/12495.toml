@@ -36,15 +36,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"DelimitedNonLoj
 tree = """
 ParagraphStatement @[1‥42) {
   i: Cmavo @[1‥2) "i",
-  Terms @[3‥42) {
-    terms: [
-      DelimitedNonLojbanQuote @[3‥42) {
-        zoi: Cmavo @[3‥6) "zoĭ",
-        opening_delimiter: Cmavo @[8‥10) "cy",
-        quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
-        closing_delimiter: Cmavo @[40‥42) "cy",
-      },
-    ],
+  DelimitedNonLojbanQuote @[3‥42) {
+    zoi: Cmavo @[3‥6) "zoĭ",
+    opening_delimiter: Cmavo @[8‥10) "cy",
+    quoted_text: Verbatim @[12‥38) "led-editor.sourceforge.net",
+    closing_delimiter: Cmavo @[40‥42) "cy",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"cy","span":[8,10]}},"quoted_text":{"span":[12,38],"text":"led-editor.sourceforge.net"},"closing_delimiter":{"Cmavo":{"phonemes":"cy","span":[40,42]}}}}}}}}}}}}}}}}}]}}}}}}}}}'

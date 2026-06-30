@@ -34,13 +34,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-NumberQuantifier @[0‥22) {
-  Cmavo @[0‥2) "ci",
-  Cmavo @[3‥7) "pi'e",
-  Cmavo @[8‥10) "re",
-  Cmavo @[10‥12) "re",
-  Cmavo @[13‥17) "pi'e",
-  Cmavo @[18‥20) "vo",
-  Cmavo @[20‥22) "no",
+NumberWords @[0‥22) {
+  first_number: Cmavo @[0‥2) "ci",
+  continuations: [
+    Cmavo @[3‥7) "pi'e",
+    Cmavo @[8‥10) "re",
+    Cmavo @[10‥12) "re",
+    Cmavo @[13‥17) "pi'e",
+    Cmavo @[18‥20) "vo",
+    Cmavo @[20‥22) "no",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[3,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[13,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[18,20]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[20,22]}}}}]}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[3,7]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[10,12]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[13,17]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[18,20]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[20,22]}}}}}]}}}}}}}}}}}"""

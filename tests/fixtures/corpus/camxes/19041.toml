@@ -36,33 +36,33 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥39) {
-  Bridi @[0‥17) {
+ParagraphStatementSequence @[0‥39) {
+  BridiWithLeadingTerms @[0‥17) {
     leading_terms: [
       Cmavo @[0‥2) "mi",
     ],
-    InvertedTanru @[3‥17) {
+    bridi_tail: CoSelbri @[3‥17) {
       leading_selbri: Gismu @[3‥8) "nítcu",
-      co: Cmavo @[9‥11) "co",
-      trailing_selbri: Gismu @[12‥17) "cítka",
-    },
-  },
-  ParagraphStatement @[19‥31) {
-    i: Cmavo @[19‥20) "i",
-    WithIndicator @[21‥31) {
-      Gismu @[21‥26) "clíva",
-      indicator: Cmavo @[27‥31) "ji'a",
-    },
-  },
-  ParagraphStatement @[33‥39) {
-    i: Cmavo @[33‥34) "i",
-    free_modifiers: [
-      Vocative @[35‥39) {
-        vocative_markers: [
-          Cmavo @[35‥39) "co'o",
-        ],
+      co_tail: CoSelbriTail @[9‥17) {
+        co: Cmavo @[9‥11) "co",
+        trailing_selbri: Gismu @[12‥17) "cítka",
       },
-    ],
+    },
   },
+  following: [
+    ParagraphStatement @[19‥31) {
+      i: Cmavo @[19‥20) "i",
+      WithIndicator @[21‥31) {
+        Gismu @[21‥26) "clíva",
+        indicator: Cmavo @[27‥31) "ji'a",
+      },
+    },
+    ParagraphStatement @[33‥39) {
+      i: Cmavo @[33‥34) "i",
+      free_modifiers: [
+        Cmavo @[35‥39) "co'o",
+      ],
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nítcu","span":[3,8]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[9,11]}}}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[12,17]}}}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[19,20]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[21,26]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[27,31]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[33,34]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[35,39]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nítcu","span":[3,8]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[9,11]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[19,20]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[21,26]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[27,31]}}}}}}}}}}}}}}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[33,34]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[35,39]}}}}}}}}]}]}}}}}}"""

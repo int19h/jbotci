@@ -30,15 +30,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥12) {
-  terms: [
-    Description @[0‥12) {
-      description: Cmavo @[0‥3) "leĭ",
-      selbri: TaggedSelbri @[4‥12) {
-        tense_modal: Cmavo @[4‥6) "vi",
-        Gismu @[7‥12) "prénu",
-      },
+DescriptorWithGadriSumti @[0‥12) {
+  description: Cmavo @[0‥3) "leĭ",
+  tail: DescriptionTail @[4‥12) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TaggedSelbri @[4‥12) {
+      tense_modal: Cmavo @[4‥6) "vi",
+      inner_selbri: Gismu @[7‥12) "prénu",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}}},"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[4,6]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"leĭ","span":[0,3]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[4,6]}}}}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[7,12]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

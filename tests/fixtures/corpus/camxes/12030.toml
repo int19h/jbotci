@@ -35,13 +35,9 @@ Text @[0‥8) {
     Cmevla @[0‥3) "and",
   ],
   leading_connective: Cmavo @[4‥6) "ja",
-  Terms @[6‥8) {
-    terms: [
-      TaggedSumti @[6‥8) {
-        tense_modal: Cmavo @[6‥8) "va",
-        ElidedSumti {},
-      },
-    ],
+  TaggedSumtiTerm @[6‥8) {
+    tense_modal: Cmavo @[6‥8) "va",
+    sumti: TaggedElidedSumti {},
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"and","span":[0,3]}}}}],"leading_connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[4,6]}}}}]}},"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va","span":[6,8]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"and","span":[0,3]}}}}],"leading_connective":{"StandardStatementConnective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[4,6]}}}}}}},"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va","span":[6,8]}}}}}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}'

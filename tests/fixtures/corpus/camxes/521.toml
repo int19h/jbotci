@@ -31,12 +31,16 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-InvertedTanru @[0‥20) {
+CoSelbri @[0‥20) {
   leading_selbri: Gismu @[0‥5) "ckúle",
-  co: Cmavo @[6‥8) "co",
-  trailing_selbri: Tanru @[9‥20) {
-    Gismu @[9‥14) "mélbi",
-    Gismu @[15‥20) "níxli",
+  co_tail: CoSelbriTail @[6‥20) {
+    co: Cmavo @[6‥8) "co",
+    trailing_selbri: TanruSelbri @[9‥20) {
+      first_unit: Gismu @[9‥14) "mélbi",
+      additional_units: [
+        Gismu @[15‥20) "níxli",
+      ],
+    },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[9,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níxli","span":[15,20]}}}}}]}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckúle","span":[0,5]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[6,8]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mélbi","span":[9,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níxli","span":[15,20]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}'

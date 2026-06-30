@@ -36,14 +36,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥43) {
+BridiWithLeadingTerms @[0‥43) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥43) {
-    Gismu @[3‥8) "víska",
+  bridi_tail: SelbriSimpleBridiTail @[3‥43) {
+    selbri: Gismu @[3‥8) "víska",
     terms: [
-      Description @[9‥43) {
+      DescriptorWithGadriSumti @[9‥43) {
         description: WithIndicator @[9‥20) {
           WithIndicator @[9‥16) {
             Cmavo @[9‥11) "le",
@@ -51,16 +51,21 @@ Bridi @[0‥43) {
           },
           indicator: Cmavo @[18‥20) "ĭa",
         },
-        selbri: Tanru @[21‥43) {
-          Gismu @[21‥26) "blánu",
-          WithIndicator @[27‥37) {
-            Gismu @[27‥32) "zdáni",
-            indicator: Cmavo @[33‥37) "fu'o",
+        tail: DescriptionTail @[21‥43) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[21‥43) {
+            first_unit: Gismu @[21‥26) "blánu",
+            additional_units: [
+              WithIndicator @[27‥37) {
+                Gismu @[27‥32) "zdáni",
+                indicator: Cmavo @[33‥37) "fu'o",
+              },
+              Gismu @[38‥43) "pónse",
+            ],
           },
-          Gismu @[38‥43) "pónse",
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"fu'e","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"ĭa","span":[18,20]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[21,26]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[27,32]}}}},"indicator":{"Cmavo":{"phonemes":"fu'o","span":[33,37]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[38,43]}}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"indicator":{"Cmavo":{"phonemes":"fu'e","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"ĭa","span":[18,20]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blánu","span":[21,26]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdáni","span":[27,32]}}}},"indicator":{"Cmavo":{"phonemes":"fu'o","span":[33,37]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[38,43]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

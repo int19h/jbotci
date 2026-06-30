@@ -39,30 +39,34 @@ Text @[0‥33) {
   leading_cmevla: [
     Cmevla @[0‥1) "m",
   ],
-  Paragraph @[2‥33) {
-    Tanru @[2‥13) {
-      Gismu @[2‥7) "mútce",
-      Gismu @[8‥13) "cízra",
+  ParagraphStatementSequence @[2‥33) {
+    TanruSelbri @[2‥13) {
+      first_unit: Gismu @[2‥7) "mútce",
+      additional_units: [
+        Gismu @[8‥13) "cízra",
+      ],
     },
-    ParagraphStatement @[15‥33) {
-      i: Cmavo @[15‥16) "i",
-      Bridi @[17‥33) {
-        leading_terms: [
-          Cmavo @[17‥19) "mi",
-        ],
-        SelbriBridiTail @[20‥33) {
-          Gismu @[20‥25) "bróda",
-          terms: [
-            NameDescription @[26‥33) {
-              la: Cmavo @[26‥28) "la",
-              names: [
-                Cmevla @[29‥33) "stin",
-              ],
-            },
+    following: [
+      ParagraphStatement @[15‥33) {
+        i: Cmavo @[15‥16) "i",
+        BridiWithLeadingTerms @[17‥33) {
+          leading_terms: [
+            Cmavo @[17‥19) "mi",
           ],
+          bridi_tail: SelbriSimpleBridiTail @[20‥33) {
+            selbri: Gismu @[20‥25) "bróda",
+            terms: [
+              NameSumti @[26‥33) {
+                la: Cmavo @[26‥28) "la",
+                names: [
+                  Cmevla @[29‥33) "stin",
+                ],
+              },
+            ],
+          },
         },
       },
-    },
+    ],
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"m","span":[0,1]}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[2,7]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cízra","span":[8,13]}}}}}]}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[15,16]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[20,25]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[26,28]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"stin","span":[29,33]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"m","span":[0,1]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[2,7]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cízra","span":[8,13]}}}}}}}}}]}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[15,16]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[17,19]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[20,25]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[26,28]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"stin","span":[29,33]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}'

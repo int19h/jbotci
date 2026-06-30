@@ -36,25 +36,28 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[6,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"va","span":[11,13]}}},{"PlainWord":{"Gismu":{"phonemes":"plíse","span":[14,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}},{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[23,28]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.i [{le za'u (va plíse)} cu bárda])"
+brackets = "(.i [{le (za'u [va plíse])} cu bárda])"
 tree = """
 ParagraphStatement @[1‥28) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥28) {
+  BridiWithLeadingTerms @[3‥28) {
     leading_terms: [
-      Description @[3‥19) {
+      DescriptorWithGadriSumti @[3‥19) {
         description: Cmavo @[3‥5) "le",
-        tail_elements: [
-          Cmavo @[6‥10) "za'u",
-        ],
-        selbri: TaggedSelbri @[11‥19) {
-          tense_modal: Cmavo @[11‥13) "va",
-          Gismu @[14‥19) "plíse",
+        tail: DescriptionTail @[6‥19) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: QuantifierRelationDescriptionTail @[6‥19) {
+            quantifier: Cmavo @[6‥10) "za'u",
+            selbri: TaggedSelbri @[11‥19) {
+              tense_modal: Cmavo @[11‥13) "va",
+              inner_selbri: Gismu @[14‥19) "plíse",
+            },
+          },
         },
       },
     ],
     cu: Cmavo @[20‥22) "cu",
-    Gismu @[23‥28) "bárda",
+    bridi_tail: Gismu @[23‥28) "bárda",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[6,10]}}}}]}}}],"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va","span":[11,13]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"plíse","span":[14,19]}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[23,28]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'u","span":[6,10]}}}}}}},"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va","span":[11,13]}}}}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"plíse","span":[14,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[23,28]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

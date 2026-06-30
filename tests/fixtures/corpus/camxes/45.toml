@@ -35,7 +35,7 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[35‥70) {
+BridiWithLeadingTerms @[35‥70) {
   leading_terms: [
     DelimitedNonLojbanQuote @[35‥61) {
       zoi: Cmavo @[35‥38) "zoĭ",
@@ -45,6 +45,6 @@ Bridi @[35‥70) {
     },
   ],
   cu: Cmavo @[62‥64) "cu",
-  Gismu @[65‥70) "múpli",
+  bridi_tail: Gismu @[65‥70) "múpli",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[35,38]}},"opening_delimiter":{"Cmavo":{"phonemes":"sa","span":[39,41]}},"quoted_text":{"span":[42,58],"text":"some other words"},"closing_delimiter":{"Cmavo":{"phonemes":"sa","span":[59,61]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[62,64]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[65,70]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[35,38]}},"opening_delimiter":{"Cmavo":{"phonemes":"sa","span":[39,41]}},"quoted_text":{"span":[42,58],"text":"some other words"},"closing_delimiter":{"Cmavo":{"phonemes":"sa","span":[59,61]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[62,64]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[65,70]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

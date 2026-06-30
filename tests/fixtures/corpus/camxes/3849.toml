@@ -33,12 +33,12 @@ tree = """
 ParagraphStatement @[1‥12) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative @[3‥12) {
-      vocative_markers: [
-        Cmavo @[3‥6) "coĭ",
+    VocativeFreeModifier @[3‥12) {
+      vocative_markers: Cmavo @[3‥6) "coĭ",
+      sumti: [
+        Cmevla @[7‥12) "robin",
       ],
-      sumti: Cmevla @[7‥12) "robin",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"robin","span":[7,12]}}}}]}}}]}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"robin","span":[7,12]}}}}]}}}}]}]}}'

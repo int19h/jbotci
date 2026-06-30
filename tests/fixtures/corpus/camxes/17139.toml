@@ -36,37 +36,33 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥42) {
-  terms: [
-    TextQuote @[0‥42) {
-      lu: WithIndicator @[0‥15) {
-        WithIndicator @[0‥10) {
-          WithIndicator @[0‥7) {
-            Cmavo @[0‥2) "lu",
-            indicator: Cmavo @[3‥7) "ke'u",
-          },
-          indicator: Cmavo @[8‥10) "ŭi",
-        },
-        indicator: Cmavo @[11‥15) "ja'o",
+TextQuote @[0‥42) {
+  lu: WithIndicator @[0‥15) {
+    WithIndicator @[0‥10) {
+      WithIndicator @[0‥7) {
+        Cmavo @[0‥2) "lu",
+        indicator: Cmavo @[3‥7) "ke'u",
       },
-      Bridi @[16‥36) {
-        leading_terms: [
-          Cmavo @[16‥18) "mi",
-        ],
-        SelbriBridiTail @[19‥36) {
-          Gismu @[19‥24) "sídju",
-          terms: [
-            NameDescription @[25‥36) {
-              la: Cmavo @[25‥27) "la",
-              names: [
-                Cmevla @[28‥36) "anakatas",
-              ],
-            },
+      indicator: Cmavo @[8‥10) "ŭi",
+    },
+    indicator: Cmavo @[11‥15) "ja'o",
+  },
+  text: BridiWithLeadingTerms @[16‥36) {
+    leading_terms: [
+      Cmavo @[16‥18) "mi",
+    ],
+    bridi_tail: SelbriSimpleBridiTail @[19‥36) {
+      selbri: Gismu @[19‥24) "sídju",
+      terms: [
+        NameSumti @[25‥36) {
+          la: Cmavo @[25‥27) "la",
+          names: [
+            Cmevla @[28‥36) "anakatas",
           ],
         },
-      },
-      lihu: Cmavo @[38‥42) "li'u",
+      ],
     },
-  ],
+  },
+  lihu: Cmavo @[38‥42) "li'u",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ke'u","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"ja'o","span":[11,15]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[16,18]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídju","span":[19,24]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[25,27]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"anakatas","span":[28,36]}}}}]}}}]}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[38,42]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ke'u","span":[3,7]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"ja'o","span":[11,15]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[16,18]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sídju","span":[19,24]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[25,27]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"anakatas","span":[28,36]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[38,42]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

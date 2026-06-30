@@ -43,32 +43,34 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥67) {
-  Bridi @[0‥57) {
+ParagraphStatementSequence @[0‥67) {
+  BridiWithLeadingTerms @[0‥57) {
     leading_terms: [
       Cmavo @[0‥2) "mi",
     ],
-    SelbriBridiTail @[3‥57) {
-      TaggedSelbri @[3‥13) {
-        tense_modal: Composite @[3‥7) {
-          Cmavo @[3‥5) "ba",
-          Cmavo @[5‥7) "za",
-        },
-        Gismu @[8‥13) "kláma",
+    bridi_tail: SelbriSimpleBridiTail @[3‥57) {
+      selbri: TaggedSelbri @[3‥13) {
+        tense_modal: [
+          PuTimeOffsetTense @[3‥7) {
+            pu: Cmavo @[3‥5) "ba",
+            distance: Cmavo @[5‥7) "za",
+          },
+        ],
+        inner_selbri: Gismu @[8‥13) "kláma",
       },
       terms: [
-        PlaceTaggedSumti @[14‥44) {
+        PlaceTaggedSumtiTerm @[14‥44) {
           fa: Cmavo @[14‥16) "fi",
-          DelimitedNonLojbanQuote @[17‥44) {
+          sumti: DelimitedNonLojbanQuote @[17‥44) {
             zoi: Cmavo @[17‥21) "la'o",
             opening_delimiter: Cmavo @[22‥24) "gy",
             quoted_text: Verbatim @[25‥41) "anime convention",
             closing_delimiter: Cmavo @[42‥44) "gy",
           },
         },
-        TaggedSumti @[45‥57) {
+        TaggedSumtiTerm @[45‥57) {
           tense_modal: Cmavo @[45‥47) "vi",
-          NameDescription @[48‥57) {
+          sumti: NameSumti @[48‥57) {
             la: Cmavo @[48‥50) "la",
             names: [
               Cmevla @[51‥57) "bastin",
@@ -78,9 +80,11 @@ Paragraph @[0‥67) {
       ],
     },
   },
-  ParagraphStatement @[60‥67) {
-    i: Cmavo @[60‥61) "i",
-    Gismu @[62‥67) "zdíle",
-  },
+  following: [
+    ParagraphStatement @[60‥67) {
+      i: Cmavo @[60‥61) "i",
+      Gismu @[62‥67) "zdíle",
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[5,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[8,13]}}}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[17,21]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[22,24]}},"quoted_text":{"span":[25,41],"text":"anime convention"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[42,44]}}}}}}}}},{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[45,47]}}}}}]}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[48,50]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bastin","span":[51,57]}}}}]}}}}]}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[60,61]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdíle","span":[62,67]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[3,5]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za","span":[5,7]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[8,13]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[17,21]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[22,24]}},"quoted_text":{"span":[25,41],"text":"anime convention"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[42,44]}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithVa":{"va":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi","span":[45,47]}}}}}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[48,50]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bastin","span":[51,57]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[60,61]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdíle","span":[62,67]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}"""

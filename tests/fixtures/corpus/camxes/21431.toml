@@ -36,19 +36,20 @@ Paragraph @[0‥25) {
   niho: [
     Cmavo @[0‥4) "ni'o",
   ],
-  Terms @[5‥25) {
-    terms: [
-      Description @[5‥25) {
-        description: WithIndicator @[5‥12) {
-          Cmavo @[5‥7) "lo",
-          indicator: Cmavo @[8‥12) "li'o",
-        },
-        selbri: Tanru @[12‥25) {
-          Lujvo @[12‥22) "klirysílna",
+  DescriptorWithGadriSumti @[5‥25) {
+    description: WithIndicator @[5‥12) {
+      Cmavo @[5‥7) "lo",
+      indicator: Cmavo @[8‥12) "li'o",
+    },
+    tail: DescriptionTail @[12‥25) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[12‥25) {
+        first_unit: Lujvo @[12‥22) "klirysílna",
+        additional_units: [
           Cmavo @[23‥25) "mo",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}],"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[8,12]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"klir"},{"Hyphen":"y"},{"Rafsi":"sílna"}],"span":[12,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[23,25]}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}],"statements":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"li'o","span":[8,12]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"klir"},{"Hyphen":"y"},{"Rafsi":"sílna"}],"span":[12,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[23,25]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}]}}}"""

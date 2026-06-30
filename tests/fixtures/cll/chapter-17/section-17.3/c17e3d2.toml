@@ -44,29 +44,25 @@ tree = """
 json = """[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[10,12]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}},{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[19,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([.i bu] ga'e vy [.a bu] ny to'a)"
+brackets = "([.i bu] [ga'e vy {.a bu} ny to'a])"
 tree = """
-Terms @[1‥27) {
-  terms: [
-    LerfuStringSumti @[1‥27) {
-      letter: [
-        LerfuWord @[1‥4) {
-          Cmavo @[1‥2) "i",
-          bu: Cmavo @[2‥4) "bu",
-        },
-        Cmavo @[5‥9) "ga'e",
-        Cmavo @[10‥12) "vy",
-        LerfuWord @[15‥18) {
-          Cmavo @[15‥16) "a",
-          bu: Cmavo @[16‥18) "bu",
-        },
-        Cmavo @[19‥21) "ny",
-        Cmavo @[23‥27) "to'a",
-      ],
+LetterString @[1‥27) {
+  first_letter: LerfuWord @[1‥4) {
+    Cmavo @[1‥2) "i",
+    bu: Cmavo @[2‥4) "bu",
+  },
+  continuations: [
+    Cmavo @[5‥9) "ga'e",
+    Cmavo @[10‥12) "vy",
+    LerfuWord @[15‥18) {
+      Cmavo @[15‥16) "a",
+      bu: Cmavo @[16‥18) "bu",
     },
+    Cmavo @[19‥21) "ny",
+    Cmavo @[23‥27) "to'a",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[10,12]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[19,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[10,12]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[19,21]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:7","content":"sign:6","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":1,"byteEnd":27},"text":"ibu ga'e vy. .abu ny. to'a","construct":"fragment"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:7":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":1,"byteEnd":27},"text":"ibu ga'e vy. .abu ny. to'a","construct":"fragment"}},"sign:6":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"ibu ga'e vy. .abu ny. to'a","letterals":[{"kind":"glyph","sourceWords":["i","bu"],"text":"cmavo:i-cmavo:bu","value":"i","buDepth":1},{"kind":"shift","sourceWords":["ga'e"],"text":"ga'e","modifier":"upperCase"},{"kind":"glyph","sourceWords":["vy"],"text":"vy","value":"v"},{"kind":"glyph","sourceWords":["a","bu"],"text":"cmavo:a-cmavo:bu","value":"a","buDepth":1},{"kind":"glyph","sourceWords":["ny"],"text":"ny","value":"n"},{"kind":"shift","sourceWords":["to'a"],"text":"to'a","modifier":"lowerCase"}],"source":{"span":{"byteStart":1,"byteEnd":27},"text":"ibu ga'e vy. .abu ny. to'a","construct":"letteral"}}}}'''

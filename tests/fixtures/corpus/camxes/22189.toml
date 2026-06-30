@@ -29,18 +29,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥7) {
-  terms: [
-    ProSumti @[0‥7) {
-      Cmavo @[0‥2) "mi",
-      free_modifiers: [
-        Vocative @[3‥7) {
-          vocative_markers: [
-            Cmavo @[3‥7) "re'i",
-          ],
-        },
-      ],
-    },
+ProSumti @[0‥7) {
+  Cmavo @[0‥2) "mi",
+  free_modifiers: [
+    Cmavo @[3‥7) "re'i",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re'i","span":[3,7]}}}}]}}]}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re'i","span":[3,7]}}}}}}}}]}}}}}}}}}}}]}}}}}}}}}"""

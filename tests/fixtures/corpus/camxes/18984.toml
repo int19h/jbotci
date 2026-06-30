@@ -43,50 +43,66 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥75) {
-  ParagraphStatement @[1‥19) {
-    i: WithIndicator @[1‥7) {
-      Cmavo @[1‥2) "i",
-      indicator: Cmavo @[3‥7) "va'i",
-    },
-    Tanru @[8‥19) {
-      Gismu @[8‥13) "vlíle",
-      Gismu @[14‥19) "cínmo",
-    },
+ParagraphStatement @[1‥75) {
+  i: WithIndicator @[1‥7) {
+    Cmavo @[1‥2) "i",
+    indicator: Cmavo @[3‥7) "va'i",
   },
-  ParagraphStatement @[21‥75) {
-    i: WithIndicator @[21‥27) {
-      Cmavo @[21‥22) "i",
-      indicator: Cmavo @[23‥27) "ku'i",
+  ParagraphStatementSequence @[8‥75) {
+    TanruSelbri @[8‥19) {
+      first_unit: Gismu @[8‥13) "vlíle",
+      additional_units: [
+        Gismu @[14‥19) "cínmo",
+      ],
     },
-    Bridi @[28‥75) {
-      leading_terms: [
-        Description @[28‥51) {
-          description: Cmavo @[28‥30) "lo",
-          selbri: Tanru @[31‥51) {
-            ConvertedTanruUnit @[31‥39) {
-              se: Cmavo @[31‥33) "se",
-              Gismu @[34‥39) "féndi",
+    following: [
+      ParagraphStatement @[21‥75) {
+        i: WithIndicator @[21‥27) {
+          Cmavo @[21‥22) "i",
+          indicator: Cmavo @[23‥27) "ku'i",
+        },
+        BridiWithLeadingTerms @[28‥75) {
+          leading_terms: [
+            DescriptorWithGadriSumti @[28‥51) {
+              description: Cmavo @[28‥30) "lo",
+              tail: DescriptionTail @[31‥51) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: TanruSelbri @[31‥51) {
+                  first_unit: TanruUnitAtom @[31‥39) {
+                    conversions: [
+                      Cmavo @[31‥33) "se",
+                    ],
+                    base: Gismu @[34‥39) "féndi",
+                  },
+                  additional_units: [
+                    Gismu @[40‥45) "sévzi",
+                    Gismu @[46‥51) "rémna",
+                  ],
+                },
+              },
             },
-            Gismu @[40‥45) "sévzi",
-            Gismu @[46‥51) "rémna",
+          ],
+          cu: Cmavo @[52‥54) "cu",
+          bridi_tail: SelbriSimpleBridiTail @[55‥75) {
+            selbri: Gismu @[55‥60) "cátra",
+            terms: [
+              DescriptorWithGadriSumti @[61‥75) {
+                description: Cmavo @[61‥63) "le",
+                tail: DescriptionTail @[64‥75) {
+                  leading_tail_elements: LeadingDescriptionTailElements {},
+                  tail: TanruSelbri @[64‥75) {
+                    first_unit: Gismu @[64‥69) "fríca",
+                    additional_units: [
+                      Gismu @[70‥75) "dráta",
+                    ],
+                  },
+                },
+              },
+            ],
           },
         },
-      ],
-      cu: Cmavo @[52‥54) "cu",
-      SelbriBridiTail @[55‥75) {
-        Gismu @[55‥60) "cátra",
-        terms: [
-          Description @[61‥75) {
-            description: Cmavo @[61‥63) "le",
-            selbri: Tanru @[64‥75) {
-              Gismu @[64‥69) "fríca",
-              Gismu @[70‥75) "dráta",
-            },
-          },
-        ],
       },
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"va'i","span":[3,7]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlíle","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínmo","span":[14,19]}}}}}]}}}}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[21,22]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[23,27]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[28,30]}}}},"selbri":{"Tanru":[{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[31,33]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"féndi","span":[34,39]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sévzi","span":[40,45]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[46,51]}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[52,54]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cátra","span":[55,60]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[61,63]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[64,69]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráta","span":[70,75]}}}}}]}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"va'i","span":[3,7]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlíle","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínmo","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[21,22]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[23,27]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[28,30]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[31,33]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"féndi","span":[34,39]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sévzi","span":[40,45]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rémna","span":[46,51]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[52,54]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cátra","span":[55,60]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[61,63]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[64,69]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráta","span":[70,75]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}"""

@@ -35,28 +35,33 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥41) {
+BridiWithLeadingTerms @[0‥41) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥41) {
-    Negated @[3‥26) {
+  bridi_tail: SelbriSimpleBridiTail @[3‥41) {
+    selbri: NegatedSelbri @[3‥26) {
       na: Cmavo @[3‥5) "na",
-      InvertedTanru @[6‥26) {
+      inner_selbri: CoSelbri @[6‥26) {
         leading_selbri: Gismu @[6‥11) "tróci",
-        co: Cmavo @[12‥14) "co",
-        trailing_selbri: Lujvo @[15‥26) "nalvájnygaŭ",
+        co_tail: CoSelbriTail @[12‥26) {
+          co: Cmavo @[12‥14) "co",
+          trailing_selbri: Lujvo @[15‥26) "nalvájnygaŭ",
+        },
       },
     },
     terms: [
-      Description @[27‥41) {
+      DescriptorWithGadriSumti @[27‥41) {
         description: Cmavo @[27‥29) "le",
-        selbri: Emphasized @[30‥41) {
-          bahe: Cmavo @[30‥34) "za'e",
-          Lujvo @[35‥41) "rálcku",
+        tail: DescriptionTail @[30‥41) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Emphasized @[30‥41) {
+            bahe: Cmavo @[30‥34) "za'e",
+            Lujvo @[35‥41) "rálcku",
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"InvertedTanru":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[6,11]}}}}},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[12,14]}}}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"vájn"},{"Hyphen":"y"},{"Rafsi":"gaŭ"}],"span":[15,26]}}}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"selbri":{"SelbriWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[30,34]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rál"},{"Rafsi":"cku"}],"span":[35,41]}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[3,5]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tróci","span":[6,11]}}}}}}}}}}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[12,14]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"vájn"},{"Hyphen":"y"},{"Rafsi":"gaŭ"}],"span":[15,26]}}}}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[30,34]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rál"},{"Rafsi":"cku"}],"span":[35,41]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

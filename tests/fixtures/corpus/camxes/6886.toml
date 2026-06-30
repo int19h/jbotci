@@ -35,30 +35,29 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥28) {
-  terms: [
-    Description @[0‥28) {
-      description: WithIndicator @[0‥7) {
-        Cmavo @[0‥2) "le",
-        indicator: Cmavo @[3‥7) "ki'a",
-      },
-      selbri: SumtiSelbri @[8‥28) {
-        me: Cmavo @[8‥10) "me",
-        Description @[11‥28) {
-          description: Cmavo @[11‥13) "la",
-          tail_elements: [
-            LerfuStringSumti @[14‥22) {
-              letter: [
-                Cmavo @[14‥16) "py",
-                Cmavo @[17‥19) "dy",
-                Cmavo @[20‥22) "fy",
-              ],
-            },
-          ],
-          selbri: Gismu @[23‥28) "dátni",
+DescriptorWithGadriSumti @[0‥28) {
+  description: WithIndicator @[0‥7) {
+    Cmavo @[0‥2) "le",
+    indicator: Cmavo @[3‥7) "ki'a",
+  },
+  tail: DescriptionTail @[8‥28) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: SumtiSelbriTanruUnit @[8‥28) {
+      me: Cmavo @[8‥10) "me",
+      sumti: DescriptorWithGadriSumti @[11‥28) {
+        description: Cmavo @[11‥13) "la",
+        tail: DescriptionTail @[14‥28) {
+          leading_tail_elements: LetterString @[14‥22) {
+            first_letter: Cmavo @[14‥16) "py",
+            continuations: [
+              Cmavo @[17‥19) "dy",
+              Cmavo @[20‥22) "fy",
+            ],
+          },
+          tail: Gismu @[23‥28) "dátni",
         },
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}}},"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[8,10]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"tail_elements":[{"DescriptionTailSumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"py","span":[14,16]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"dy","span":[17,19]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[20,22]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dátni","span":[23,28]}}}}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[3,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[8,10]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"py","span":[14,16]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"dy","span":[17,19]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[20,22]}}}}}}]}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dátni","span":[23,28]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

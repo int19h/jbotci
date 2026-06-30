@@ -39,19 +39,23 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "([ke {(ke [mútce mútce] ke'e) ckíre} ke'e] do)"
 tree = """
-SelbriBridiTail @[0‥36) {
-  GroupedSelbri @[0‥33) {
+SelbriSimpleBridiTail @[0‥36) {
+  selbri: GroupedTanruUnit @[0‥33) {
     ke: Cmavo @[0‥2) "ke",
-    Tanru @[3‥28) {
-      GroupedTanruUnit @[3‥22) {
+    selbri: TanruSelbri @[3‥28) {
+      first_unit: GroupedTanruUnit @[3‥22) {
         ke: Cmavo @[3‥5) "ke",
-        Tanru @[6‥17) {
-          Gismu @[6‥11) "mútce",
-          Gismu @[12‥17) "mútce",
+        selbri: TanruSelbri @[6‥17) {
+          first_unit: Gismu @[6‥11) "mútce",
+          additional_units: [
+            Gismu @[12‥17) "mútce",
+          ],
         },
         kehe: Cmavo @[18‥22) "ke'e",
       },
-      Gismu @[23‥28) "ckíre",
+      additional_units: [
+        Gismu @[23‥28) "ckíre",
+      ],
     },
     kehe: Cmavo @[29‥33) "ke'e",
   },
@@ -59,4 +63,4 @@ SelbriBridiTail @[0‥36) {
     Cmavo @[34‥36) "do",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"GroupedSelbri":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}}},"selbri":{"Tanru":[{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[3,5]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[6,11]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[12,17]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckíre","span":[23,28]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[29,33]}}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[34,36]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[0,2]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[3,5]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[6,11]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[12,17]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[18,22]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckíre","span":[23,28]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[29,33]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[34,36]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

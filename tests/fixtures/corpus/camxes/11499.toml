@@ -38,33 +38,45 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥41) {
-  terms: [
-    SumtiConnection @[0‥41) {
-      leading_sumti: SumtiConnection @[0‥30) {
-        leading_sumti: SumtiConnection @[0‥19) {
-          leading_sumti: Description @[0‥8) {
-            description: Cmavo @[0‥2) "le",
-            selbri: Gismu @[3‥8) "glíco",
-          },
-          connective: Cmavo @[9‥10) "e",
-          trailing_sumti: Description @[11‥19) {
-            description: Cmavo @[11‥13) "le",
-            selbri: Gismu @[14‥19) "dótco",
-          },
-        },
-        connective: Cmavo @[20‥21) "e",
-        trailing_sumti: Description @[22‥30) {
-          description: Cmavo @[22‥24) "le",
-          selbri: Gismu @[25‥30) "fráso",
+SumtiAfterthought @[0‥41) {
+  leading_sumti: DescriptorWithGadriSumti @[0‥8) {
+    description: Cmavo @[0‥2) "le",
+    tail: DescriptionTail @[3‥8) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[3‥8) "glíco",
+    },
+  },
+  continuations: [
+    SumtiAfterthoughtTail @[9‥19) {
+      connective: Cmavo @[9‥10) "e",
+      sumti: DescriptorWithGadriSumti @[11‥19) {
+        description: Cmavo @[11‥13) "le",
+        tail: DescriptionTail @[14‥19) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[14‥19) "dótco",
         },
       },
+    },
+    SumtiAfterthoughtTail @[20‥30) {
+      connective: Cmavo @[20‥21) "e",
+      sumti: DescriptorWithGadriSumti @[22‥30) {
+        description: Cmavo @[22‥24) "le",
+        tail: DescriptionTail @[25‥30) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[25‥30) "fráso",
+        },
+      },
+    },
+    SumtiAfterthoughtTail @[31‥41) {
       connective: Cmavo @[31‥32) "e",
-      trailing_sumti: Description @[33‥41) {
+      sumti: DescriptorWithGadriSumti @[33‥41) {
         description: Cmavo @[33‥35) "le",
-        selbri: Gismu @[36‥41) "lójbo",
+        tail: DescriptionTail @[36‥41) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[36‥41) "lójbo",
+        },
       },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[3,8]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[9,10]}}}}]}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[11,13]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dótco","span":[14,19]}}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[20,21]}}}}]}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[22,24]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fráso","span":[25,30]}}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[31,32]}}}}]}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[36,41]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[3,8]}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[9,10]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[11,13]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dótco","span":[14,19]}}}}}}}}}}}}}}}}}}}}}}}},{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[20,21]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[22,24]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fráso","span":[25,30]}}}}}}}}}}}}}}}}}}}}}}}},{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[31,32]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[33,35]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[36,41]}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}]}}}}}}}}}'

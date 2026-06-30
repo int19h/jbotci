@@ -54,83 +54,80 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥94) {
   i: Cmavo @[1‥2) "i",
-  Terms @[3‥94) {
-    terms: [
-      TextQuote @[3‥94) {
-        lu: WithIndicator @[3‥8) {
-          Cmavo @[3‥5) "lu",
-          indicator: Cmavo @[6‥8) "aŭ",
-        },
-        Paragraph @[9‥89) {
-          Bridi @[9‥69) {
-            leading_terms: [
-              Cmavo @[9‥11) "do",
-            ],
-            Negated @[12‥69) {
-              na: Cmavo @[12‥14) "na",
-              TaggedSelbri @[15‥69) {
-                tense_modal: Modal @[15‥18) {
-                  bai: Cmavo @[15‥18) "taĭ",
-                },
-                TanruUnitWord @[19‥69) {
-                  Gismu @[19‥24) "cátke",
-                  free_modifiers: [
-                    MetalinguisticBridi @[25‥69) {
-                      sei: Cmavo @[25‥28) "seĭ",
-                      terms: [
-                        Description @[29‥60) {
-                          description: Cmavo @[29‥31) "la",
+  TextQuote @[3‥94) {
+    lu: WithIndicator @[3‥8) {
+      Cmavo @[3‥5) "lu",
+      indicator: Cmavo @[6‥8) "aŭ",
+    },
+    text: ParagraphStatementSequence @[9‥89) {
+      BridiWithLeadingTerms @[9‥69) {
+        leading_terms: [
+          Cmavo @[9‥11) "do",
+        ],
+        bridi_tail: NegatedSelbri @[12‥69) {
+          na: Cmavo @[12‥14) "na",
+          inner_selbri: TaggedSelbri @[15‥69) {
+            tense_modal: Cmavo @[15‥18) "taĭ",
+            inner_selbri: WordTanruUnit @[19‥69) {
+              Gismu @[19‥24) "cátke",
+              free_modifiers: [
+                SeiFreeModifier @[25‥69) {
+                  sei: Cmavo @[25‥28) "seĭ",
+                  terms: [
+                    DescriptorWithGadriSumti @[29‥60) {
+                      description: Cmavo @[29‥31) "la",
+                      tail: DescriptionTail @[32‥60) {
+                        leading_tail_elements: LeadingDescriptionTailElements {},
+                        tail: RelationDescriptionTail @[32‥60) {
                           selbri: Lujvo @[32‥40) "sipsmácu",
-                          relative_clauses: [
-                            IncidentalRelativeBridi @[41‥60) {
-                              noi: Cmavo @[41‥44) "noĭ",
-                              SelbriBridiTail @[45‥60) {
-                                Tanru @[45‥56) {
-                                  Gismu @[45‥50) "zútse",
+                          relative_clauses: IncidentalBridiRelativeClause @[41‥60) {
+                            noi: Cmavo @[41‥44) "noĭ",
+                            subbridi: SelbriSimpleBridiTail @[45‥60) {
+                              selbri: TanruSelbri @[45‥56) {
+                                first_unit: Gismu @[45‥50) "zútse",
+                                additional_units: [
                                   Gismu @[51‥56) "lámji",
-                                },
-                                terms: [
-                                  LerfuStringSumti @[57‥60) {
-                                    letter: [
-                                      LerfuWord @[57‥60) {
-                                        Cmavo @[57‥58) "a",
-                                        bu: Cmavo @[58‥60) "bu",
-                                      },
-                                    ],
-                                  },
                                 ],
                               },
+                              terms: [
+                                LerfuWord @[57‥60) {
+                                  Cmavo @[57‥58) "a",
+                                  bu: Cmavo @[58‥60) "bu",
+                                },
+                              ],
                             },
-                          ],
+                          },
                         },
-                      ],
-                      cu: Cmavo @[61‥63) "cu",
-                      selbri: Gismu @[64‥69) "cúsku",
+                      },
                     },
                   ],
+                  cu: Cmavo @[61‥63) "cu",
+                  selbri: Gismu @[64‥69) "cúsku",
                 },
-              },
-            },
-          },
-          ParagraphStatement @[70‥89) {
-            i: Cmavo @[70‥71) "i",
-            Bridi @[72‥89) {
-              leading_terms: [
-                Cmavo @[72‥74) "mi",
               ],
-              TaggedSelbri @[75‥89) {
-                tense_modal: WithIndicator @[75‥83) {
-                  Cmavo @[75‥79) "ka'e",
-                  indicator: Cmavo @[79‥83) "ru'e",
-                },
-                Gismu @[84‥89) "vásxu",
-              },
             },
           },
         },
-        lihu: Cmavo @[90‥94) "li'u",
       },
-    ],
+      following: [
+        ParagraphStatement @[70‥89) {
+          i: Cmavo @[70‥71) "i",
+          BridiWithLeadingTerms @[72‥89) {
+            leading_terms: [
+              Cmavo @[72‥74) "mi",
+            ],
+            bridi_tail: TaggedSelbri @[75‥89) {
+              tense_modal: WithIndicator @[75‥83) {
+                Cmavo @[75‥79) "ka'e",
+                indicator: Cmavo @[79‥83) "ru'e",
+              },
+              inner_selbri: Gismu @[84‥89) "vásxu",
+            },
+          },
+        },
+      ],
+    },
+    lihu: Cmavo @[90‥94) "li'u",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[6,8]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[12,14]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"taĭ","span":[15,18]}}}}}},"inner_selbri":{"Tanru":[{"TanruUnitWord":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cátke","span":[19,24]}}}},{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[25,28]}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[29,31]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sip"},{"Rafsi":"smácu"}],"span":[32,40]}}}}},"relative_clauses":[{"IncidentalRelativeBridi":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[41,44]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zútse","span":[45,50]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lámji","span":[51,56]}}}}}]},"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[57,58]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[58,60]}}}}}]}}}]}}}}}}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[61,63]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[64,69]}}}}}}}]}]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[70,71]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[72,74]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[75,79]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[79,83]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vásxu","span":[84,89]}}}}}}}}}}}}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[90,94]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[6,8]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[12,14]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"taĭ","span":[15,18]}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cátke","span":[19,24]}}}},{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[25,28]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[29,31]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sip"},{"Rafsi":"smácu"}],"span":[32,40]}}}}}}}}}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"IncidentalBridiRelativeClause":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[41,44]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zútse","span":[45,50]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lámji","span":[51,56]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[57,58]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[58,60]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[61,63]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[64,69]}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[70,71]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[72,74]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"CahaTense":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[75,79]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[79,83]}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vásxu","span":[84,89]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[90,94]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

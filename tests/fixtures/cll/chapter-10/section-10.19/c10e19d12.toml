@@ -38,19 +38,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "(ta [{ca ca'a} jélca])"
 tree = """
-Bridi @[0‥16) {
+BridiWithLeadingTerms @[0‥16) {
   leading_terms: [
     Cmavo @[0‥2) "ta",
   ],
-  TaggedSelbri @[3‥16) {
-    tense_modal: Composite @[3‥10) {
-      Cmavo @[3‥5) "ca",
-      Cmavo @[6‥10) "ca'a",
+  bridi_tail: TaggedSelbri @[3‥16) {
+    tense_modal: TimeThenSpaceCahaTense @[3‥10) {
+      time: [
+        Cmavo @[3‥5) "ca",
+      ],
+      caha: Cmavo @[6‥10) "ca'a",
     },
-    Gismu @[11‥16) "jélca",
+    inner_selbri: Gismu @[11‥16) "jélca",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'a","span":[6,10]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jélca","span":[11,16]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"caha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'a","span":[6,10]}}}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jélca","span":[11,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"formula:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":16},"text":"ta ca ca'a jelca","construct":"bridi"}},"predication:10":{"type":"predication","eventuality":"eventuality:6","relation":"jelca","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":16},"text":"ta ca ca'a jelca","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":0,"byteEnd":16},"text":"ta ca ca'a jelca","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"indexical","sort":"entity","indexical":"medialDemonstrative","source":{"span":{"byteStart":0,"byteEnd":2},"text":"ta","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","actuality":{"kind":"actual"},"time":{"relation":"at","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":16},"text":"ta ca ca'a jelca","construct":"predication"}},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":16},"text":"ta ca ca'a jelca","construct":"bridi"}}}}'''

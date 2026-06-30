@@ -31,18 +31,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"te","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥15) {
-  terms: [
-    TaggedSumti @[0‥15) {
-      tense_modal: Modal @[0‥6) {
-        se: Cmavo @[0‥2) "te",
-        bai: Cmavo @[2‥6) "zu'e",
-      },
-      Description @[7‥15) {
-        description: Cmavo @[7‥9) "le",
-        selbri: Gismu @[10‥15) "gúnka",
-      },
+TaggedSumtiTerm @[0‥15) {
+  tense_modal: ModalTense @[0‥6) {
+    se: Cmavo @[0‥2) "te",
+    bai: Cmavo @[2‥6) "zu'e",
+  },
+  sumti: DescriptorWithGadriSumti @[7‥15) {
+    description: Cmavo @[7‥9) "le",
+    tail: DescriptionTail @[10‥15) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[10‥15) "gúnka",
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu'e","span":[2,6]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[10,15]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zu'e","span":[2,6]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

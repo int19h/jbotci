@@ -40,27 +40,35 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"G
 [expectations.output.gentufa]
 brackets = "([la stáce] [{pu cítka} {lo círla}])"
 tree = """
-Bridi @[0‥26) {
+BridiWithLeadingTerms @[0‥26) {
   leading_terms: [
-    Description @[0‥8) {
+    DescriptorWithGadriSumti @[0‥8) {
       description: Cmavo @[0‥2) "la",
-      selbri: Gismu @[3‥8) "stáce",
+      tail: DescriptionTail @[3‥8) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Gismu @[3‥8) "stáce",
+      },
     },
   ],
-  SelbriBridiTail @[9‥26) {
-    TaggedSelbri @[9‥17) {
-      tense_modal: Cmavo @[9‥11) "pu",
-      Gismu @[12‥17) "cítka",
+  bridi_tail: SelbriSimpleBridiTail @[9‥26) {
+    selbri: TaggedSelbri @[9‥17) {
+      tense_modal: [
+        Cmavo @[9‥11) "pu",
+      ],
+      inner_selbri: Gismu @[12‥17) "cítka",
     },
     terms: [
-      Description @[18‥26) {
+      DescriptorWithGadriSumti @[18‥26) {
         description: Cmavo @[18‥20) "lo",
-        selbri: Gismu @[21‥26) "círla",
+        tail: DescriptionTail @[21‥26) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[21‥26) "círla",
+        },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stáce","span":[3,8]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[9,11]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[12,17]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[18,20]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"círla","span":[21,26]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stáce","span":[3,8]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[9,11]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[12,17]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[18,20]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"círla","span":[21,26]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:23","content":"formula:22","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":26},"text":"la stace pu citka lo cirla","construct":"bridi"}},"parameter:8":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":3,"byteEnd":8},"text":"stace","construct":"name-denotation"}},"predication:11":{"type":"predication","relation":"stace","arguments":{"x1":{"kind":"filled","value":"parameter:8"},"x2":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":8},"text":"stace","construct":"restrictive-predication"}},"predication:15":{"type":"predication","relation":"cmene","arguments":{"x1":{"kind":"filled","value":"sign:14"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"filled","value":"entity:1"}},"mode":"incidental","source":{"span":{"byteStart":0,"byteEnd":8},"text":"la stace","construct":"name-description"}},"predication:19":{"type":"predication","relation":"cirla","arguments":{"x1":{"kind":"filled","value":"entity:17"},"x2":{"kind":"elided","value":"entity:18","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":21,"byteEnd":26},"text":"cirla","construct":"restrictive-predication"}},"predication:21":{"type":"predication","eventuality":"eventuality:6","relation":"citka","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:17"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":26},"text":"la stace pu citka lo cirla","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":3,"byteEnd":8},"text":"stace","construct":"restrictive-formula"}},"formula:16":{"type":"formula","operator":"atom","predication":"predication:15","source":{"span":{"byteStart":0,"byteEnd":8},"text":"la stace","construct":"name-description"}},"formula:20":{"type":"formula","operator":"atom","predication":"predication:19","source":{"span":{"byteStart":21,"byteEnd":26},"text":"cirla","construct":"restrictive-formula"}},"formula:22":{"type":"formula","operator":"atom","predication":"predication:21","source":{"span":{"byteStart":0,"byteEnd":26},"text":"la stace pu citka lo cirla","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","body":"formula:16"},"source":{"span":{"byteStart":0,"byteEnd":8},"text":"la stace","construct":"description"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:17":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:20"},"source":{"span":{"byteStart":18,"byteEnd":26},"text":"lo cirla","construct":"description"}},"entity:18":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"before","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":26},"text":"la stace pu citka lo cirla","construct":"predication"}},"eventuality/locution:23":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":26},"text":"la stace pu citka lo cirla","construct":"bridi"}},"sign:14":{"type":"referent","category":"constant","sort":"sign","kind":"word","text":"stace","denotes":"relation:13","source":{"span":{"byteStart":3,"byteEnd":8},"text":"stace","construct":"name-sign"}},"relation:13":{"type":"referent","category":"constant","sort":"relation","body":"formula:12","parameters":["parameter:8"],"arity":1,"source":{"span":{"byteStart":3,"byteEnd":8},"text":"stace","construct":"name-denotation"}}}}'''

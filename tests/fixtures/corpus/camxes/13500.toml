@@ -32,13 +32,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ru'i","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 tree = """
 TaggedSelbri @[0‥19) {
-  tense_modal: Composite @[0‥8) {
+  tense_modal: [
     Cmavo @[0‥4) "ru'i",
     Cmavo @[4‥8) "ca'o",
-  },
-  WithIndicator @[9‥19) {
+  ],
+  inner_selbri: WithIndicator @[9‥19) {
     Gismu @[9‥14) "cínri",
     indicator: Cmavo @[16‥19) "u'i",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'i","span":[0,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[4,8]}}}}}]}},"inner_selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínri","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[16,19]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"TaheIntervalPropertyTense":{"tahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ru'i","span":[0,4]}}}}}},{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca'o","span":[4,8]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cínri","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[16,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

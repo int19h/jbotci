@@ -33,14 +33,12 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"aŭ","span":[1,3]}}},{"PlainWord":{"
 tree = """
 Text @[1‥23) {
   leading_indicators: [
-    Indicator @[1‥3) {
-      indicator: Cmavo @[1‥3) "aŭ",
-    },
+    Cmavo @[1‥3) "aŭ",
   ],
-  SelbriConnection @[4‥23) {
-    leading_selbri: Gismu @[4‥9) "réctu",
-    connective: Cmavo @[10‥13) "joĭ",
-    trailing_selbri: Lujvo @[14‥23) "titygrúte",
+  TanruUnit @[4‥23) {
+    Gismu @[4‥9) "réctu",
+    Cmavo @[10‥13) "joĭ",
+    Lujvo @[14‥23) "titygrúte",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"réctu","span":[4,9]}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[10,13]}}}}]}},"trailing_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tit"},{"Hyphen":"y"},{"Rafsi":"grúte"}],"span":[14,23]}}}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"aŭ","span":[1,3]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"réctu","span":[4,9]}}}}}}}},"links":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[10,13]}}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tit"},{"Hyphen":"y"},{"Rafsi":"grúte"}],"span":[14,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"aŭ","span":[1,3]}}}}}]}}'

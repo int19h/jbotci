@@ -36,27 +36,29 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥30) {
+BridiWithLeadingTerms @[0‥30) {
   leading_terms: [
     NumberSumti @[0‥21) {
       li: Cmavo @[0‥2) "li",
-      ReversePolish @[3‥21) {
+      ReversePolishMekso @[3‥21) {
         fuha: Cmavo @[3‥7) "fu'a",
-        operands: [
-          NumberQuantifier @[8‥13) {
-            Cmavo @[8‥10) "re",
+        parts: ReversePolishParts @[8‥21) {
+          first_operand: PaRunQuantifier @[8‥13) {
+            number: Cmavo @[8‥10) "re",
             boi: Cmavo @[10‥13) "boĭ",
           },
-          Cmavo @[14‥16) "ci",
-        ],
-        operators: [
-          Cmavo @[17‥21) "su'i",
-        ],
+          tails: [
+            ReversePolishPartsTail @[14‥21) {
+              right_parts: Cmavo @[14‥16) "ci",
+              operator: Cmavo @[17‥21) "su'i",
+            },
+          ],
+        },
       },
     },
   ],
-  SelbriBridiTail @[22‥30) {
-    Cmavo @[22‥24) "du",
+  bridi_tail: SelbriSimpleBridiTail @[22‥30) {
+    selbri: Cmavo @[22‥24) "du",
     terms: [
       NumberSumti @[25‥30) {
         li: Cmavo @[25‥27) "li",
@@ -65,4 +67,4 @@ Bridi @[0‥30) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolish":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"operands":[{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}]}}}],"operators":[{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[17,21]}}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[22,24]}}}}},"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[25,27]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[28,30]}}}}]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolishMekso":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}}}},"tails":[{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[14,16]}}}}}}}}}}},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[17,21]}}}}}}}}}]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[22,24]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[25,27]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[28,30]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

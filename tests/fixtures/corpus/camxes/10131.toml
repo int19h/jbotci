@@ -29,10 +29,10 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}},{"PlainWord":{"Cm
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥3) {
+ParagraphStatementSequence @[0‥3) {
   Cmavo @[0‥1) "u",
-  ParagraphStatement @[2‥3) {
-    i: Cmavo @[2‥3) "i",
-  },
+  following: [
+    Cmavo @[2‥3) "i",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Ek":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}}}]}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[2,3]}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"EkFragment":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u","span":[0,1]}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[2,3]}}}}}]}}}}}}'

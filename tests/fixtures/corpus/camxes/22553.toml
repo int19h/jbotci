@@ -31,12 +31,14 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"cáfne","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥22) {
-  Gismu @[0‥5) "cáfne",
-  Gismu @[6‥11) "mórji",
-  WithIndicator @[12‥22) {
-    Gismu @[12‥17) "gúnka",
-    indicator: Cmavo @[18‥22) "ki'a",
-  },
+TanruSelbri @[0‥22) {
+  first_unit: Gismu @[0‥5) "cáfne",
+  additional_units: [
+    Gismu @[6‥11) "mórji",
+    WithIndicator @[12‥22) {
+      Gismu @[12‥17) "gúnka",
+      indicator: Cmavo @[18‥22) "ki'a",
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cáfne","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mórji","span":[6,11]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[18,22]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cáfne","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mórji","span":[6,11]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnka","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[18,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

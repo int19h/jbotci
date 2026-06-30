@@ -31,18 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥15) {
-  terms: [
-    QuantifiedSumti @[0‥15) {
-      quantifier: Cmavo @[0‥4) "su'o",
-      NumberSumti @[5‥15) {
-        li: Cmavo @[5‥7) "li",
-        NumberQuantifier @[8‥15) {
-          Cmavo @[8‥10) "mu",
-          Cmavo @[11‥15) "ki'o",
-        },
-      },
+QuantifiedSumti @[0‥15) {
+  quantifier: Cmavo @[0‥4) "su'o",
+  inner_sumti: NumberSumti @[5‥15) {
+    li: Cmavo @[5‥7) "li",
+    NumberWords @[8‥15) {
+      first_number: Cmavo @[8‥10) "mu",
+      continuations: [
+        Cmavo @[11‥15) "ki'o",
+      ],
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}}}]}},"inner_sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[5,7]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[11,15]}}}}]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[0,4]}}}}}}},"inner_sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[5,7]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[8,10]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[11,15]}}}}}]}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

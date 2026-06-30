@@ -22,8 +22,8 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, LojbanScript, TreeRenderOptions,
-    compact_morphology_json_string_with_options, compact_syntax_json_string_with_options,
-    pretty_brackets, pretty_brackets_with_options, pretty_generated_model_tree_with_options,
+    compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
+    pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
     pretty_legacy_as_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
     pretty_morphology_tree_with_options, pretty_tree_with_options,
 };
@@ -39,7 +39,7 @@ use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxWarning, generated_model_text_syntax_leaf_spans_match_words,
     parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_handwritten_with_source_and_options,
-    parse_syntax_tree_with_source_and_options, syntax_tree_eq_ignoring_spans,
+    parse_syntax_tree_with_source_and_options,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -356,6 +356,8 @@ struct FixtureRewriteArgs {
     syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
     syntax_only: bool,
+    #[arg(long, hide = true)]
+    gentufa_output_only: bool,
     only_semantics_refs: bool,
     #[arg(long, hide = true)]
     chunk_worker: bool,
@@ -6883,6 +6885,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.add_semantics_refs
             || args.syntax_only
+            || args.gentufa_output_only
             || args.only_semantics_refs)
     {
         bail!(
@@ -6892,9 +6895,17 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.syntax_only
         && (args.migrate_morphology_diagnostics
             || args.add_semantics_refs
+            || args.gentufa_output_only
             || args.only_semantics_refs)
     {
         bail!("`--syntax-only` cannot be combined with other fixture rewrite modes");
+    }
+    if args.gentufa_output_only
+        && (args.migrate_morphology_diagnostics
+            || args.add_semantics_refs
+            || args.only_semantics_refs)
+    {
+        bail!("`--gentufa-output-only` cannot be combined with other fixture rewrite modes");
     }
     if args.chunk_worker {
         let summary = fixture_rewrite_paths(
@@ -6904,6 +6915,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
+            args.gentufa_output_only,
             args.only_semantics_refs,
         )?;
         println!(
@@ -6920,6 +6932,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
+            args.gentufa_output_only,
             args.only_semantics_refs,
         )?;
         println!("rewrote {} fixture(s)", summary.rewritten);
@@ -6931,6 +6944,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.add_semantics_refs,
         args.syntax_failure_diagnostics_only,
         args.syntax_only,
+        args.gentufa_output_only,
         args.only_semantics_refs,
     )
 }
@@ -6943,6 +6957,7 @@ fn fixture_rewrite_subprocess_chunks(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    gentufa_output_only: bool,
     only_semantics_refs: bool,
 ) -> Result<()> {
     let mut paths = Vec::new();
@@ -6963,6 +6978,7 @@ fn fixture_rewrite_subprocess_chunks(
             add_semantics_refs,
             syntax_failure_diagnostics_only,
             syntax_only,
+            gentufa_output_only,
             only_semantics_refs,
         )?;
         if !output.stderr.is_empty() {
@@ -6998,6 +7014,7 @@ fn fixture_rewrite_chunk_output(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    gentufa_output_only: bool,
     only_semantics_refs: bool,
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
@@ -7013,6 +7030,9 @@ fn fixture_rewrite_chunk_output(
     }
     if syntax_only {
         command.arg("--syntax-only");
+    }
+    if gentufa_output_only {
+        command.arg("--gentufa-output-only");
     }
     if only_semantics_refs {
         command.arg("--only-semantics-refs");
@@ -7073,6 +7093,7 @@ fn fixture_rewrite_paths(
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
+    gentufa_output_only: bool,
     only_semantics_refs: bool,
 ) -> Result<RewriteSummary> {
     let mut rewritten = 0usize;
@@ -7092,6 +7113,20 @@ fn fixture_rewrite_paths(
                 .with_context(|| {
                     format!(
                         "refreshing syntax diagnostics in fixture `{}`",
+                        path.display()
+                    )
+                })?
+            {
+                fs::write(&path, after)
+                    .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
+                rewritten += 1;
+            }
+            continue;
+        } else if gentufa_output_only {
+            if let Some(after) = refresh_gentufa_output_expectations_text(&fixture, &before)
+                .with_context(|| {
+                    format!(
+                        "refreshing gentufa output fixture `{}`",
                         path.display()
                     )
                 })?
@@ -7536,6 +7571,18 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
         &syntax_options,
     ) {
         Ok(parsed) => {
+            let generated_model = if refresh_syntax || refresh_tree || refresh_brackets {
+                Some(
+                    parse_syntax_tree_generated_model_with_source_and_options(
+                        &syntax_words,
+                        &fixture.test_case.lojban,
+                        &syntax_options,
+                    )
+                    .context("parsing generated syntax model for gentufa expectations")?,
+                )
+            } else {
+                None
+            };
             if refresh_syntax {
                 if let Some(syntax) = &mut fixture.test_case.expectations.syntax {
                     syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
@@ -7549,15 +7596,20 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                     }
                 }
                 let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
-                gentufa.json = Some(text_expectation(compact_syntax_json_string_with_options(
-                    &parsed.parse_tree,
-                    JsonRenderOptions {
-                        indent: 0,
-                        ..JsonRenderOptions::default()
-                    },
-                )?));
-                gentufa.tree = Some(text_expectation(pretty_tree_with_options(
-                    &parsed.parse_tree,
+                let generated_model = generated_model
+                    .as_ref()
+                    .expect("generated model parsed when refreshing gentufa expectations");
+                gentufa.json = Some(text_expectation(
+                    compact_generated_model_json_string_with_options(
+                        generated_model,
+                        JsonRenderOptions {
+                            indent: 0,
+                            ..JsonRenderOptions::default()
+                        },
+                    )?,
+                ));
+                gentufa.tree = Some(text_expectation(pretty_generated_model_tree_with_options(
+                    generated_model,
                     &fixture.test_case.lojban,
                     TreeRenderOptions {
                         color: false,
@@ -7572,8 +7624,11 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                 && let Some(gentufa) = &mut output.gentufa
                 && let Some(tree) = &mut gentufa.tree
             {
-                tree.text = pretty_tree_with_options(
-                    &parsed.parse_tree,
+                let generated_model = generated_model
+                    .as_ref()
+                    .expect("generated model parsed when refreshing gentufa tree");
+                tree.text = pretty_generated_model_tree_with_options(
+                    generated_model,
                     &fixture.test_case.lojban,
                     TreeRenderOptions {
                         color: false,
@@ -7588,7 +7643,17 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
                 && let Some(gentufa) = &mut output.gentufa
                 && let Some(brackets) = &mut gentufa.brackets
             {
-                brackets.text = pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban)?;
+                let generated_model = generated_model
+                    .as_ref()
+                    .expect("generated model parsed when refreshing gentufa brackets");
+                brackets.text = pretty_generated_model_brackets_with_options(
+                    generated_model,
+                    &fixture.test_case.lojban,
+                    BracketRenderOptions {
+                        color: false,
+                        ..BracketRenderOptions::default()
+                    },
+                )?;
             }
         }
         Err(error) => {
@@ -7609,6 +7674,303 @@ fn refresh_syntax_expectations_only(fixture: &mut LoadedTestCase) -> Result<()> 
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct GentufaOutputSectionReplacements {
+    brackets: Option<String>,
+    tree: Option<String>,
+    json: Option<String>,
+}
+
+impl GentufaOutputSectionReplacements {
+    #[requires(true)]
+    #[ensures(ret == (self.brackets.is_some() || self.tree.is_some() || self.json.is_some()))]
+    fn has_any(&self) -> bool {
+        self.brackets.is_some() || self.tree.is_some() || self.json.is_some()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none() || matches!(key, "brackets" | "tree" | "json"))]
+    fn value_for_key(&self, key: &str) -> Option<&str> {
+        match key {
+            "brackets" => self.brackets.as_deref(),
+            "tree" => self.tree.as_deref(),
+            "json" => self.json.as_deref(),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+#[invariant(true)]
+struct GentufaOutputReplacements {
+    normal: GentufaOutputSectionReplacements,
+    show_elided: GentufaOutputSectionReplacements,
+}
+
+impl GentufaOutputReplacements {
+    #[requires(true)]
+    #[ensures(ret == (self.normal.has_any() || self.show_elided.has_any()))]
+    fn has_any(&self) -> bool {
+        self.normal.has_any() || self.show_elided.has_any()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum GentufaOutputSection {
+    Normal,
+    ShowElided,
+    Other,
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn refresh_gentufa_output_expectations_text(
+    fixture: &LoadedTestCase,
+    contents: &str,
+) -> Result<Option<String>> {
+    let Some(replacements) = gentufa_output_replacements(fixture)? else {
+        return Ok(None);
+    };
+    let updated = replace_gentufa_output_sections(contents, &replacements)?;
+    Ok((updated != contents).then_some(updated))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn gentufa_output_replacements(
+    fixture: &LoadedTestCase,
+) -> Result<Option<GentufaOutputReplacements>> {
+    let Some(gentufa) = fixture
+        .test_case
+        .expectations
+        .output
+        .as_ref()
+        .and_then(|output| output.gentufa.as_ref())
+    else {
+        return Ok(None);
+    };
+    let mut replacements = GentufaOutputReplacements::default();
+    if !gentufa.brackets.is_some()
+        && !gentufa.tree.is_some()
+        && !gentufa.json.is_some()
+        && !gentufa.show_elided.as_ref().is_some_and(|show_elided| {
+            show_elided.brackets.is_some()
+                || show_elided.tree.is_some()
+                || show_elided.json.is_some()
+        })
+    {
+        return Ok(None);
+    }
+    let generated_model = parse_generated_fixture_for_output(fixture)?;
+    if gentufa.brackets.is_some() {
+        replacements.normal.brackets = Some(format_fixture_text_expectation_value(
+            pretty_generated_fixture_brackets(fixture, &generated_model, false)?,
+        )?);
+    }
+    if gentufa.tree.is_some() {
+        replacements.normal.tree = Some(format_fixture_text_expectation_value(
+            pretty_generated_fixture_tree(fixture, &generated_model, false)?,
+        )?);
+    }
+    if gentufa.json.is_some() {
+        replacements.normal.json = Some(format_fixture_text_expectation_value(
+            compact_generated_fixture_json(&generated_model, false)?,
+        )?);
+    }
+    if let Some(show_elided) = &gentufa.show_elided {
+        if show_elided.brackets.is_some() {
+            replacements.show_elided.brackets = Some(format_fixture_text_expectation_value(
+                pretty_generated_fixture_brackets(fixture, &generated_model, true)?,
+            )?);
+        }
+        if show_elided.tree.is_some() {
+            replacements.show_elided.tree = Some(format_fixture_text_expectation_value(
+                pretty_generated_fixture_tree(fixture, &generated_model, true)?,
+            )?);
+        }
+        if show_elided.json.is_some() {
+            replacements.show_elided.json = Some(format_fixture_text_expectation_value(
+                compact_generated_fixture_json(&generated_model, true)?,
+            )?);
+        }
+    }
+    Ok(replacements.has_any().then_some(replacements))
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn parse_generated_fixture_for_output(
+    fixture: &LoadedTestCase,
+) -> Result<Box<jbotci_syntax::generated_model::TextSyntax>> {
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .context("segmenting fixture input for gentufa output refresh")?;
+    parse_syntax_tree_generated_model_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    )
+    .context("parsing generated syntax model for gentufa output refresh")
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn pretty_generated_fixture_brackets(
+    fixture: &LoadedTestCase,
+    generated_model: &jbotci_syntax::generated_model::TextSyntax,
+    show_elided: bool,
+) -> Result<String> {
+    pretty_generated_model_brackets_with_options(
+        generated_model,
+        &fixture.test_case.lojban,
+        BracketRenderOptions {
+            color: false,
+            show_elided,
+            ..BracketRenderOptions::default()
+        },
+    )
+    .context("rendering generated gentufa brackets")
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn pretty_generated_fixture_tree(
+    fixture: &LoadedTestCase,
+    generated_model: &jbotci_syntax::generated_model::TextSyntax,
+    show_elided: bool,
+) -> Result<String> {
+    pretty_generated_model_tree_with_options(
+        generated_model,
+        &fixture.test_case.lojban,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            show_spans: true,
+            show_elided,
+            ..TreeRenderOptions::default()
+        },
+    )
+    .context("rendering generated gentufa tree")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn compact_generated_fixture_json(
+    generated_model: &jbotci_syntax::generated_model::TextSyntax,
+    show_elided: bool,
+) -> Result<String> {
+    compact_generated_model_json_string_with_options(
+        generated_model,
+        JsonRenderOptions {
+            indent: 0,
+            show_elided,
+            ..JsonRenderOptions::default()
+        },
+    )
+    .context("rendering generated gentufa JSON")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn format_fixture_text_expectation_value(text: String) -> Result<String> {
+    format_fixture_toml_value(&text_expectation(text))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn replace_gentufa_output_sections(
+    contents: &str,
+    replacements: &GentufaOutputReplacements,
+) -> Result<String> {
+    let mut output = String::with_capacity(contents.len());
+    let mut section = GentufaOutputSection::Other;
+    let mut skipping_multiline_value: Option<&'static str> = None;
+    let mut replaced_any = false;
+    for line in contents.lines() {
+        if let Some(delimiter) = skipping_multiline_value {
+            if line.contains(delimiter) {
+                skipping_multiline_value = None;
+            }
+            continue;
+        }
+        if let Some(next_section) = parse_gentufa_output_section_header(line) {
+            section = next_section;
+        }
+        let replacement = parse_expectation_key(line).and_then(|key| match section {
+            GentufaOutputSection::Normal => replacements.normal.value_for_key(key),
+            GentufaOutputSection::ShowElided => replacements.show_elided.value_for_key(key),
+            GentufaOutputSection::Other => None,
+        });
+        if let Some(value) = replacement {
+            if let Some(delimiter) = multiline_value_delimiter(line) {
+                skipping_multiline_value = Some(delimiter);
+            }
+            output.push_str(parse_expectation_key(line).expect("replacement has a key"));
+            output.push_str(" = ");
+            output.push_str(value);
+            output.push('\n');
+            replaced_any = true;
+        } else {
+            output.push_str(line);
+            output.push('\n');
+        }
+    }
+    if let Some(delimiter) = skipping_multiline_value {
+        bail!("unterminated multiline fixture value starting with `{delimiter}`");
+    }
+    if !replaced_any && replacements.has_any() {
+        bail!("fixture has gentufa output expectations but no replaceable gentufa fields");
+    }
+    Ok(output)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn parse_gentufa_output_section_header(line: &str) -> Option<GentufaOutputSection> {
+    match line.trim() {
+        "[expectations.output.gentufa]" => Some(GentufaOutputSection::Normal),
+        "[expectations.output.gentufa.show-elided]" => Some(GentufaOutputSection::ShowElided),
+        header if header.starts_with('[') && header.ends_with(']') => {
+            Some(GentufaOutputSection::Other)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|key| matches!(key, "brackets" | "tree" | "json")))]
+fn parse_expectation_key(line: &str) -> Option<&'static str> {
+    let trimmed = line.trim_start();
+    ["brackets", "tree", "json"].into_iter().find(|key| {
+        trimmed
+            .strip_prefix(*key)
+            .is_some_and(|suffix| suffix.trim_start().starts_with('='))
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|delimiter| matches!(delimiter, "\"\"\"" | "'''")))]
+fn multiline_value_delimiter(line: &str) -> Option<&'static str> {
+    let (_, value) = line.split_once('=')?;
+    let value = value.trim_start();
+    for delimiter in ["\"\"\"", "'''"] {
+        if let Some(rest) = value.strip_prefix(delimiter)
+            && !rest.contains(delimiter)
+        {
+            return Some(delimiter);
+        }
+    }
+    None
 }
 
 #[requires(true)]
@@ -7901,6 +8263,18 @@ fn refresh_fixture_expectations(
             &syntax_options,
         ) {
             Ok(parsed) => {
+                let generated_model = if refresh_syntax || refresh_tree || refresh_brackets {
+                    Some(
+                        parse_syntax_tree_generated_model_with_source_and_options(
+                            &syntax_words,
+                            &fixture.test_case.lojban,
+                            &syntax_options,
+                        )
+                        .context("parsing generated syntax model for gentufa expectations")?,
+                    )
+                } else {
+                    None
+                };
                 if refresh_syntax {
                     if let Some(syntax) = &mut fixture.test_case.expectations.syntax {
                         syntax.raw = Some(text_expectation(format_debug_value(&parsed.parse_tree)));
@@ -7914,15 +8288,20 @@ fn refresh_fixture_expectations(
                         }
                     }
                     let gentufa = ensure_gentufa_output(&mut fixture.test_case.expectations);
-                    gentufa.json = Some(text_expectation(compact_syntax_json_string_with_options(
-                        &parsed.parse_tree,
-                        JsonRenderOptions {
-                            indent: 0,
-                            ..JsonRenderOptions::default()
-                        },
-                    )?));
-                    gentufa.tree = Some(text_expectation(pretty_tree_with_options(
-                        &parsed.parse_tree,
+                    let generated_model = generated_model
+                        .as_ref()
+                        .expect("generated model parsed when refreshing gentufa expectations");
+                    gentufa.json = Some(text_expectation(
+                        compact_generated_model_json_string_with_options(
+                            generated_model,
+                            JsonRenderOptions {
+                                indent: 0,
+                                ..JsonRenderOptions::default()
+                            },
+                        )?,
+                    ));
+                    gentufa.tree = Some(text_expectation(pretty_generated_model_tree_with_options(
+                        generated_model,
                         &fixture.test_case.lojban,
                         TreeRenderOptions {
                             color: false,
@@ -7937,8 +8316,11 @@ fn refresh_fixture_expectations(
                     && let Some(gentufa) = &mut output.gentufa
                     && let Some(tree) = &mut gentufa.tree
                 {
-                    tree.text = pretty_tree_with_options(
-                        &parsed.parse_tree,
+                    let generated_model = generated_model
+                        .as_ref()
+                        .expect("generated model parsed when refreshing gentufa tree");
+                    tree.text = pretty_generated_model_tree_with_options(
+                        generated_model,
                         &fixture.test_case.lojban,
                         TreeRenderOptions {
                             color: false,
@@ -7953,7 +8335,17 @@ fn refresh_fixture_expectations(
                     && let Some(gentufa) = &mut output.gentufa
                     && let Some(brackets) = &mut gentufa.brackets
                 {
-                    brackets.text = pretty_brackets(&parsed.parse_tree, &fixture.test_case.lojban)?;
+                    let generated_model = generated_model
+                        .as_ref()
+                        .expect("generated model parsed when refreshing gentufa brackets");
+                    brackets.text = pretty_generated_model_brackets_with_options(
+                        generated_model,
+                        &fixture.test_case.lojban,
+                        BracketRenderOptions {
+                            color: false,
+                            ..BracketRenderOptions::default()
+                        },
+                    )?;
                 }
                 if refresh_semantics_refs {
                     let refs = analyze_references(&parsed.parse_tree)
@@ -9473,7 +9865,7 @@ fn fixture_vector_stats_for_path(path: &Path) -> Result<VectorStats> {
             return Ok(stats);
         }
     };
-    let parsed = match parse_syntax_tree_with_source_and_options(
+    let parsed = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -9484,7 +9876,7 @@ fn fixture_vector_stats_for_path(path: &Path) -> Result<VectorStats> {
             return Ok(stats);
         }
     };
-    let value = serde_json::to_value(&parsed.parse_tree).context("serializing parse tree")?;
+    let value = serde_json::to_value(&parsed).context("serializing parse tree")?;
     stats.parsed = 1;
     record_json_array_lengths(&value, &mut Vec::new(), &mut stats);
     Ok(stats)
@@ -10063,7 +10455,7 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(words) => words,
         Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
     };
-    let parsed = match parse_syntax_tree_with_source_and_options(
+    let parsed = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -10071,8 +10463,8 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match pretty_brackets_with_options(
-        &parsed.parse_tree,
+    match pretty_generated_model_brackets_with_options(
+        &parsed,
         &fixture.test_case.lojban,
         BracketRenderOptions {
             color: false,
@@ -10096,7 +10488,7 @@ fn run_gentufa_brackets_round_trip(
     fixture: &LoadedTestCase,
     morphology_options: &MorphologyOptions,
     syntax_options: &ParseOptions,
-    expected: &jbotci_syntax::SyntaxParse,
+    expected: &jbotci_syntax::generated_model::TextSyntax,
     rendered: &str,
 ) -> FacetResult {
     let words = match segment_words_with_modifiers_with_options_and_source_id(
@@ -10111,22 +10503,64 @@ fn run_gentufa_brackets_round_trip(
             ));
         }
     };
-    let actual =
-        match parse_syntax_tree_with_source_and_options(words.as_ref(), rendered, syntax_options) {
-            Ok(parsed) => parsed,
-            Err(error) => {
-                return FacetResult::failed(format!(
-                    "gentufa brackets round-trip syntax error: {error}"
-                ));
-            }
-        };
-    if syntax_tree_eq_ignoring_spans(&expected.parse_tree, &actual.parse_tree) {
+    let actual = match parse_syntax_tree_generated_model_with_source_and_options(
+        words.as_ref(),
+        rendered,
+        syntax_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "gentufa brackets round-trip syntax error: {error}"
+            ));
+        }
+    };
+    if generated_syntax_tree_eq_ignoring_spans(expected, &actual) {
         FacetResult::passed()
     } else {
         FacetResult::failed(format!(
             "gentufa brackets round-trip syntax tree mismatch for {}",
             fixture.test_case.id
         ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_syntax_tree_eq_ignoring_spans(
+    left: &jbotci_syntax::generated_model::TextSyntax,
+    right: &jbotci_syntax::generated_model::TextSyntax,
+) -> bool {
+    let Ok(mut left) = serde_json::to_value(left) else {
+        return false;
+    };
+    let Ok(mut right) = serde_json::to_value(right) else {
+        return false;
+    };
+    remove_generated_syntax_source_spans(&mut left);
+    remove_generated_syntax_source_spans(&mut right);
+    left == right
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remove_generated_syntax_source_spans(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.remove("span");
+            for child in object.values_mut() {
+                remove_generated_syntax_source_spans(child);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                remove_generated_syntax_source_spans(item);
+            }
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }
 
@@ -10157,7 +10591,7 @@ fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(words) => words,
         Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
     };
-    let parsed = match parse_syntax_tree_with_source_and_options(
+    let parsed = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -10165,8 +10599,8 @@ fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match pretty_tree_with_options(
-        &parsed.parse_tree,
+    match pretty_generated_model_tree_with_options(
+        &parsed,
         &fixture.test_case.lojban,
         TreeRenderOptions {
             color: false,
@@ -10212,7 +10646,7 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(words) => words,
         Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
     };
-    let parsed = match parse_syntax_tree_with_source_and_options(
+    let parsed = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -10220,8 +10654,8 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    match compact_syntax_json_string_with_options(
-        &parsed.parse_tree,
+    match compact_generated_model_json_string_with_options(
+        &parsed,
         JsonRenderOptions {
             indent: 0,
             ..JsonRenderOptions::default()
@@ -10318,8 +10752,8 @@ fn run_gentufa_brackets_show_elided_fixture(fixture: &LoadedTestCase) -> FacetRe
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match pretty_brackets_with_options(
-        &parsed.parse_tree,
+    match pretty_generated_model_brackets_with_options(
+        &parsed,
         &fixture.test_case.lojban,
         BracketRenderOptions {
             color: false,
@@ -10357,8 +10791,8 @@ fn run_gentufa_tree_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match pretty_tree_with_options(
-        &parsed.parse_tree,
+    match pretty_generated_model_tree_with_options(
+        &parsed,
         &fixture.test_case.lojban,
         TreeRenderOptions {
             color: false,
@@ -10398,8 +10832,8 @@ fn run_gentufa_json_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(error),
     };
-    match compact_syntax_json_string_with_options(
-        &parsed.parse_tree,
+    match compact_generated_model_json_string_with_options(
+        &parsed,
         JsonRenderOptions {
             indent: 0,
             show_elided: true,
@@ -10422,7 +10856,7 @@ fn run_gentufa_json_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 fn parse_gentufa_fixture_tree(
     fixture: &LoadedTestCase,
-) -> std::result::Result<jbotci_syntax::SyntaxParse, String> {
+) -> std::result::Result<Box<jbotci_syntax::generated_model::TextSyntax>, String> {
     let dialect = fixture
         .test_case
         .dialect_definition()
@@ -10435,8 +10869,12 @@ fn parse_gentufa_fixture_tree(
         Some(SourceId("<fixture>".to_owned())),
     )
     .map_err(|error| format!("morphology error: {error}"))?;
-    parse_syntax_tree_with_source_and_options(&words, &fixture.test_case.lojban, &syntax_options)
-        .map_err(|error| format!("syntax error: {error}"))
+    parse_syntax_tree_generated_model_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    )
+    .map_err(|error| format!("syntax error: {error}"))
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]

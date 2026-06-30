@@ -40,33 +40,39 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥34) {
   i: Cmavo @[1‥2) "i",
-  Terms @[3‥34) {
-    terms: [
-      Description @[3‥34) {
-        description: Cmavo @[3‥5) "le",
-        selbri: OrdinalSelbri @[6‥16) {
-          number: [
-            Cmavo @[6‥7) "pa",
-            Cmavo @[7‥8) "ze",
-            Cmavo @[8‥12) "pi'e",
-            Cmavo @[12‥13) "xa",
-          ],
+  DescriptorWithGadriSumti @[3‥34) {
+    description: Cmavo @[3‥5) "le",
+    tail: DescriptionTail @[6‥34) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: RelationDescriptionTail @[6‥34) {
+        selbri: OrdinalTanruUnit @[6‥16) {
+          number: NumberWords @[6‥13) {
+            first_number: Cmavo @[6‥7) "pa",
+            continuations: [
+              Cmavo @[7‥8) "ze",
+              Cmavo @[8‥12) "pi'e",
+              Cmavo @[12‥13) "xa",
+            ],
+          },
           moi: Cmavo @[13‥16) "moĭ",
         },
-        relative_clauses: [
-          SumtiAssociationPhrase @[17‥34) {
-            association_marker: Cmavo @[17‥19) "pe",
-            Description @[20‥34) {
-              description: Cmavo @[20‥22) "le",
-              selbri: Tanru @[23‥34) {
-                Gismu @[23‥28) "mékso",
-                Gismu @[29‥34) "págbu",
+        relative_clauses: SumtiAssociationRelativeClause @[17‥34) {
+          association_marker: Cmavo @[17‥19) "pe",
+          sumti: DescriptorWithGadriSumti @[20‥34) {
+            description: Cmavo @[20‥22) "le",
+            tail: DescriptionTail @[23‥34) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: TanruSelbri @[23‥34) {
+                first_unit: Gismu @[23‥28) "mékso",
+                additional_units: [
+                  Gismu @[29‥34) "págbu",
+                ],
               },
             },
           },
-        ],
+        },
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[7,8]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[8,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,13]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[13,16]}}}}}}]},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[17,19]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[20,22]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mékso","span":[23,28]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[29,34]}}}}}]}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,7]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[7,8]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[8,12]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,13]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[13,16]}}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[17,19]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[20,22]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mékso","span":[23,28]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[29,34]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

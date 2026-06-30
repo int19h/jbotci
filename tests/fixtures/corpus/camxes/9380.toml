@@ -32,27 +32,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥18) {
-  leading_free_modifiers: [
-    Vocative @[0‥18) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: QuantifiedSumti @[4‥18) {
-        quantifier: Cmavo @[4‥6) "ro",
-        ProSumti @[6‥18) {
-          Cmavo @[6‥8) "do",
-          free_modifiers: [
-            Vocative @[9‥18) {
-              vocative_markers: [
-                Cmavo @[9‥12) "coĭ",
-              ],
-              sumti: Cmevla @[13‥18) "robin",
-            },
+VocativeFreeModifier @[0‥18) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: QuantifiedSumti @[4‥18) {
+    quantifier: Cmavo @[4‥6) "ro",
+    inner_sumti: ProSumti @[6‥18) {
+      Cmavo @[6‥8) "do",
+      free_modifiers: [
+        VocativeFreeModifier @[9‥18) {
+          vocative_markers: Cmavo @[9‥12) "coĭ",
+          sumti: [
+            Cmevla @[13‥18) "robin",
           ],
         },
-      },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[4,6]}}}}]}},"inner_sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[6,8]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[9,12]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"robin","span":[13,18]}}}}]}}}]}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[4,6]}}}}}}},"inner_sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[6,8]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[9,12]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"robin","span":[13,18]}}}}]}}}}]}}}}}}}}}}}}]}}'

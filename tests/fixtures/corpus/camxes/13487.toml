@@ -31,20 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥22) {
-  leading_free_modifiers: [
-    Vocative @[0‥22) {
-      vocative_markers: [
-        Cmavo @[0‥4) "ki'e",
-        Cmavo @[4‥7) "naĭ",
-      ],
-      sumti: SelbriVocative @[8‥22) {
-        selbri: Tanru @[8‥22) {
-          Lujvo @[8‥16) "malglíco",
-          Gismu @[17‥22) "prénu",
-        },
-      },
-    },
-  ],
+VocativeFreeModifier @[0‥22) {
+  vocative_markers: CoiVocativeMarkerWords @[0‥7) {
+    first_coi: Cmavo @[0‥4) "ki'e",
+    first_nai: Cmavo @[4‥7) "naĭ",
+  },
+  sumti: TanruSelbri @[8‥22) {
+    first_unit: Lujvo @[8‥16) "malglíco",
+    additional_units: [
+      Gismu @[17‥22) "prénu",
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glíco"}],"span":[8,16]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[17,22]}}}}}]}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}},"first_nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mal"},{"Rafsi":"glíco"}],"span":[8,16]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[17,22]}}}}}}}}}]}}}}}}}}}]}}"""

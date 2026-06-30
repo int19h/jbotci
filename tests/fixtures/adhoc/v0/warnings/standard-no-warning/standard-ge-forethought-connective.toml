@@ -12,20 +12,22 @@ raw = '{"frames":[{"index":0,"node":{"offset":6,"length":5},"kind":"base-selbri"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥23) {
-  terms: [
-    ForethoughtSumtiConnection @[0‥23) {
-      gek: Cmavo @[0‥2) "ge",
-      leading_sumti: Description @[3‥11) {
-        description: Cmavo @[3‥5) "lo",
-        selbri: Gismu @[6‥11) "mlátu",
-      },
-      gik: Cmavo @[12‥14) "gi",
-      trailing_sumti: Description @[15‥23) {
-        description: Cmavo @[15‥17) "lo",
-        selbri: Gismu @[18‥23) "gérku",
-      },
+ForethoughtSumti @[0‥23) {
+  gek: Cmavo @[0‥2) "ge",
+  leading_sumti: DescriptorWithGadriSumti @[3‥11) {
+    description: Cmavo @[3‥5) "lo",
+    tail: DescriptionTail @[6‥11) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[6‥11) "mlátu",
     },
-  ],
+  },
+  gik: Cmavo @[12‥14) "gi",
+  trailing_sumti: DescriptorWithGadriSumti @[15‥23) {
+    description: Cmavo @[15‥17) "lo",
+    tail: DescriptionTail @[18‥23) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[18‥23) "gérku",
+    },
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ForethoughtSumtiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[0,2]}}}}]}},"leading_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[3,5]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[6,11]}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[12,14]}}}}]}},"trailing_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[15,17]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[18,23]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"ForethoughtSumti":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[0,2]}}}}}},"leading_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[6,11]}}}}}}}}}}}}}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[12,14]}}}}},"trailing_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[15,17]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[18,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

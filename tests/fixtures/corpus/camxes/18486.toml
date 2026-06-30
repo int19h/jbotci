@@ -31,12 +31,14 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"kúbli","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-LinkedSumtiTanruUnit @[0‥14) {
-  Gismu @[0‥5) "kúbli",
-  be: Cmavo @[6‥8) "be",
-  first_sumti: NumberSumti @[9‥14) {
-    li: Cmavo @[9‥11) "li",
-    Cmavo @[12‥14) "ci",
+LinkedTanruUnit @[0‥14) {
+  base: Gismu @[0‥5) "kúbli",
+  linkargs: Linkargs @[6‥14) {
+    be: Cmavo @[6‥8) "be",
+    first_link: NumberSumti @[9‥14) {
+      li: Cmavo @[9‥11) "li",
+      Cmavo @[12‥14) "ci",
+    },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kúbli","span":[0,5]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"first_sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[9,11]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[12,14]}}}}]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kúbli","span":[0,5]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[6,8]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[9,11]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[12,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

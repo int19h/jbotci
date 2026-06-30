@@ -40,37 +40,43 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"cádzu","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[9,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"PlainWord":{"Cmevla":{"phonemes":"pacac","span":[16,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[23,27]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[28,30]}}},{"PlainWord":{"Cmevla":{"phonemes":"recac","span":[32,37]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(mi [cádzu {ca ([la .pacac.] bi'o [la .recac.])}])"
+brackets = "(mi [cádzu {ca ([la .pacac.] [bi'o {la .recac.}])}])"
 tree = """
-Bridi @[0‥37) {
+BridiWithLeadingTerms @[0‥37) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥37) {
-    Gismu @[3‥8) "cádzu",
+  bridi_tail: SelbriSimpleBridiTail @[3‥37) {
+    selbri: Gismu @[3‥8) "cádzu",
     terms: [
-      TaggedSumti @[9‥37) {
-        tense_modal: Cmavo @[9‥11) "ca",
-        SumtiConnection @[12‥37) {
-          leading_sumti: NameDescription @[12‥21) {
+      TaggedSumtiTerm @[9‥37) {
+        tense_modal: [
+          Cmavo @[9‥11) "ca",
+        ],
+        sumti: SumtiAfterthought @[12‥37) {
+          leading_sumti: NameSumti @[12‥21) {
             la: Cmavo @[12‥14) "la",
             names: [
               Cmevla @[16‥21) "pacac",
             ],
           },
-          connective: Cmavo @[23‥27) "bi'o",
-          trailing_sumti: NameDescription @[28‥37) {
-            la: Cmavo @[28‥30) "la",
-            names: [
-              Cmevla @[32‥37) "recac",
-            ],
-          },
+          continuations: [
+            SumtiAfterthoughtTail @[23‥37) {
+              connective: Cmavo @[23‥27) "bi'o",
+              sumti: NameSumti @[28‥37) {
+                la: Cmavo @[28‥30) "la",
+                names: [
+                  Cmevla @[32‥37) "recac",
+                ],
+              },
+            },
+          ],
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cádzu","span":[3,8]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[9,11]}}}}}]}},"sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"pacac","span":[16,21]}}}}]}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[23,27]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[28,30]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"recac","span":[32,37]}}}}]}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cádzu","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[9,11]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"pacac","span":[16,21]}}}}]}}}}}},"continuations":[{"connective":{"JoikConnective":{"SimpleIntervalConnective":{"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[23,27]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[28,30]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"recac","span":[32,37]}}}}]}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:14","content":"formula:13","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi cadzu ca la .pacac. bi'o la .recac.","construct":"bridi"}},"predication:12":{"type":"predication","eventuality":"eventuality:6","relation":"cadzu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi cadzu ca la .pacac. bi'o la .recac.","construct":"predication"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi cadzu ca la .pacac. bi'o la .recac.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"pacac"},"source":{"span":{"byteStart":12,"byteEnd":22},"text":"la .pacac.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"recac"},"source":{"span":{"byteStart":28,"byteEnd":38},"text":"la .recac.","construct":"sumti"}},"entity:9":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"orderedInterval","members":["entity:7","entity:8"]},"source":{"span":{"byteStart":12,"byteEnd":38},"text":"la .pacac. bi'o la .recac.","construct":"connected-sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"at","anchor":"entity:9"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi cadzu ca la .pacac. bi'o la .recac.","construct":"predication"}},"eventuality/locution:14":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi cadzu ca la .pacac. bi'o la .recac.","construct":"bridi"}}}}'''

@@ -34,13 +34,9 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "(la'e do'i lu'u)"
 tree = """
-Terms @[0‥14) {
-  terms: [
-    ReferentSumti @[0‥14) {
-      lahe: Cmavo @[0‥4) "la'e",
-      Cmavo @[5‥9) "do'i",
-      luhu: Cmavo @[10‥14) "lu'u",
-    },
-  ],
+LaheSumti @[0‥14) {
+  lahe: Cmavo @[0‥4) "la'e",
+  Cmavo @[5‥9) "do'i",
+  luhu: Cmavo @[10‥14) "lu'u",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do'i","span":[5,9]}}}}},"luhu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[10,14]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[0,4]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do'i","span":[5,9]}}}}}}}}}}}},"luhu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[10,14]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

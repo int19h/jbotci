@@ -30,24 +30,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[3‥27) {
-  leading_free_modifiers: [
-    Vocative @[3‥27) {
-      vocative_markers: [
-        Cmavo @[3‥7) "co'o",
-      ],
-      sumti: Description @[8‥27) {
-        description: Cmavo @[8‥10) "le",
-        tail_elements: [
-          Cmavo @[11‥13) "mi",
-          Cmavo @[14‥16) "re",
-        ],
+VocativeFreeModifier @[3‥27) {
+  vocative_markers: Cmavo @[3‥7) "co'o",
+  sumti: DescriptorWithGadriSumti @[8‥27) {
+    description: Cmavo @[8‥10) "le",
+    tail: DescriptionTail @[11‥27) {
+      leading_tail_elements: Cmavo @[11‥13) "mi",
+      tail: QuantifierRelationDescriptionTail @[14‥27) {
+        quantifier: Cmavo @[14‥16) "re",
         selbri: WithIndicator @[17‥27) {
           Gismu @[17‥22) "brúna",
           indicator: Cmavo @[23‥27) "pe'a",
         },
       },
     },
-  ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}],"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}},{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[14,16]}}}}]}}}],"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brúna","span":[17,22]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[23,27]}}}}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[14,16]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brúna","span":[17,22]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[23,27]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}"""

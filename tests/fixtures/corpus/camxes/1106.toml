@@ -41,48 +41,52 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥51) {
+BridiWithLeadingTerms @[0‥51) {
   leading_terms: [
     NumberSumti @[0‥24) {
       li: Cmavo @[0‥2) "li",
-      ReversePolish @[3‥24) {
+      ReversePolishMekso @[3‥24) {
         fuha: Cmavo @[3‥7) "fu'a",
-        operands: [
-          NumberQuantifier @[8‥13) {
-            Cmavo @[8‥10) "ci",
+        parts: ReversePolishParts @[8‥24) {
+          first_operand: PaRunQuantifier @[8‥13) {
+            number: Cmavo @[8‥10) "ci",
             boi: Cmavo @[10‥13) "boĭ",
           },
-          NumberQuantifier @[14‥19) {
-            Cmavo @[14‥16) "mu",
-            boi: Cmavo @[16‥19) "boĭ",
-          },
-        ],
-        operators: [
-          Cmavo @[20‥24) "vu'u",
-        ],
+          tails: [
+            ReversePolishPartsTail @[14‥24) {
+              right_parts: PaRunQuantifier @[14‥19) {
+                number: Cmavo @[14‥16) "mu",
+                boi: Cmavo @[16‥19) "boĭ",
+              },
+              operator: Cmavo @[20‥24) "vu'u",
+            },
+          ],
+        },
       },
     },
   ],
-  SelbriBridiTail @[25‥51) {
-    Cmavo @[25‥27) "du",
+  bridi_tail: SelbriSimpleBridiTail @[25‥51) {
+    selbri: Cmavo @[25‥27) "du",
     terms: [
       NumberSumti @[28‥51) {
         li: Cmavo @[28‥30) "li",
-        ReversePolish @[31‥51) {
+        ReversePolishMekso @[31‥51) {
           fuha: Cmavo @[31‥35) "fu'a",
-          operands: [
-            NumberQuantifier @[36‥41) {
-              Cmavo @[36‥38) "re",
+          parts: ReversePolishParts @[36‥51) {
+            first_operand: PaRunQuantifier @[36‥41) {
+              number: Cmavo @[36‥38) "re",
               boi: Cmavo @[38‥41) "boĭ",
             },
-            Cmavo @[42‥46) "tu'o",
-          ],
-          operators: [
-            Cmavo @[47‥51) "va'a",
-          ],
+            tails: [
+              ReversePolishPartsTail @[42‥51) {
+                right_parts: Cmavo @[42‥46) "tu'o",
+                operator: Cmavo @[47‥51) "va'a",
+              },
+            ],
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolish":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"operands":[{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[8,10]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[14,16]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[16,19]}}}}}}}],"operators":[{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vu'u","span":[20,24]}}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[25,27]}}}}},"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[28,30]}}}},"expression":{"ReversePolish":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[31,35]}}}},"operands":[{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[36,38]}}}}],"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[38,41]}}}}}}},{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[42,46]}}}}]}}}],"operators":[{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'a","span":[47,51]}}}}}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ReversePolishMekso":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[3,7]}}}},"parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[8,10]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[10,13]}}}}}}}}},"tails":[{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[14,16]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[16,19]}}}}}}}}}},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vu'u","span":[20,24]}}}}}}}}}]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du","span":[25,27]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[28,30]}}}},"expression":{"ReversePolishMekso":{"fuha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu'a","span":[31,35]}}}},"parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[36,38]}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[38,41]}}}}}}}}},"tails":[{"right_parts":{"first_operand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'o","span":[42,46]}}}}}}}}}}},"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'a","span":[47,51]}}}}}}}}}]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

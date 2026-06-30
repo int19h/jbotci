@@ -30,13 +30,16 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ma'ar"},{"Rafsi":"bí'i"}],
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥18) {
-  Lujvo @[0‥9) "ma'arbí'i",
+SelbriSimpleBridiTail @[0‥18) {
+  selbri: Lujvo @[0‥9) "ma'arbí'i",
   terms: [
-    Description @[10‥18) {
+    DescriptorWithGadriSumti @[10‥18) {
       description: Cmavo @[10‥12) "le",
-      selbri: Gismu @[13‥18) "dínju",
+      tail: DescriptionTail @[13‥18) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Gismu @[13‥18) "dínju",
+      },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ma'ar"},{"Rafsi":"bí'i"}],"span":[0,9]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[10,12]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dínju","span":[13,18]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ma'ar"},{"Rafsi":"bí'i"}],"span":[0,9]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[10,12]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dínju","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

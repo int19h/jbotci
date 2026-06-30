@@ -43,30 +43,32 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥34) {
-  terms: [
-    SumtiConnection @[0‥27) {
-      leading_sumti: DelimitedNonLojbanQuote @[0‥15) {
-        zoi: Cmavo @[0‥3) "zoĭ",
-        opening_delimiter: Cmavo @[4‥6) "gy",
-        quoted_text: Verbatim @[7‥12) "broda",
-        closing_delimiter: Cmavo @[13‥15) "gy",
-      },
-      connective: Cmavo @[17‥18) "e",
-      trailing_sumti: DelimitedNonLojbanQuote @[19‥27) {
-        zoi: Cmavo @[19‥22) "zoĭ",
-        opening_delimiter: Cmavo @[22‥24) "ly",
-        quoted_text: Verbatim @[25‥25) "",
-        closing_delimiter: Cmavo @[25‥27) "ly",
-      },
+TermsFragment @[0‥34) {
+  SumtiAfterthought @[0‥27) {
+    leading_sumti: DelimitedNonLojbanQuote @[0‥15) {
+      zoi: Cmavo @[0‥3) "zoĭ",
+      opening_delimiter: Cmavo @[4‥6) "gy",
+      quoted_text: Verbatim @[7‥12) "broda",
+      closing_delimiter: Cmavo @[13‥15) "gy",
     },
-    LerfuStringSumti @[27‥34) {
-      letter: [
-        Cmavo @[27‥29) "ly",
-        Cmavo @[29‥31) "ly",
-        Cmavo @[32‥34) "ly",
-      ],
-    },
-  ],
+    continuations: [
+      SumtiAfterthoughtTail @[17‥27) {
+        connective: Cmavo @[17‥18) "e",
+        sumti: DelimitedNonLojbanQuote @[19‥27) {
+          zoi: Cmavo @[19‥22) "zoĭ",
+          opening_delimiter: Cmavo @[22‥24) "ly",
+          quoted_text: Verbatim @[25‥25) "",
+          closing_delimiter: Cmavo @[25‥27) "ly",
+        },
+      },
+    ],
+  },
+  LetterString @[27‥34) {
+    first_letter: Cmavo @[27‥29) "ly",
+    continuations: [
+      Cmavo @[29‥31) "ly",
+      Cmavo @[32‥34) "ly",
+    ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[7,12],"text":"broda"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}]}},"trailing_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[19,22]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[22,24]}},"quoted_text":{"span":[25,25],"text":""},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[25,27]}}}}}}}}}},{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[27,29]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[29,31]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[32,34]}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[7,12],"text":"broda"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[17,18]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[19,22]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[22,24]}},"quoted_text":{"span":[25,25],"text":""},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[25,27]}}}}}}}}}}}}]}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[27,29]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[29,31]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[32,34]}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}'

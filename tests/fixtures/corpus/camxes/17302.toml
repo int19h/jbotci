@@ -34,16 +34,12 @@ Text @[0‥12) {
   leading_cmevla: [
     Cmevla @[0‥3) "ánd",
   ],
-  Terms @[4‥12) {
-    terms: [
-      TaggedSumti @[4‥12) {
-        tense_modal: Composite @[4‥12) {
-          Cmavo @[4‥8) "to'e",
-          Cmavo @[8‥12) "ka'e",
-        },
-        ElidedSumti {},
-      },
-    ],
+  TaggedSumtiTerm @[4‥12) {
+    tense_modal: PrefixedTimeSpaceCahaTense @[4‥12) {
+      nahe: Cmavo @[4‥8) "to'e",
+      tense: Cmavo @[8‥12) "ka'e",
+    },
+    sumti: TaggedElidedSumti {},
   },
 }"""
-json = """{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ánd","span":[0,3]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[4,8]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[8,12]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ánd","span":[0,3]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"PrefixedTimeSpaceCahaTense":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[4,8]}}}},"tense":{"CahaTense":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ka'e","span":[8,12]}}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

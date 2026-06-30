@@ -29,12 +29,8 @@ json = """[{"PlainWord":{"Cmevla":{"phonemes":"daf","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥8) {
-  leading_cmevla: [
-    WithIndicator @[0‥8) {
-      Cmevla @[0‥3) "daf",
-      indicator: Cmavo @[4‥8) "ki'a",
-    },
-  ],
+WithIndicator @[0‥8) {
+  Cmevla @[0‥3) "daf",
+  indicator: Cmavo @[4‥8) "ki'a",
 }"""
-json = """{"leading_cmevla":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"daf","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[4,8]}}}}]}"""
+json = """{"RegularText":{"leading_cmevla":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"daf","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[4,8]}}}}]}}"""

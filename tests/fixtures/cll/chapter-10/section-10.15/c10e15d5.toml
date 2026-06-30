@@ -47,47 +47,59 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "([la .djan.] [{ca cúsku} {le (se [du'u {(la .djordj.) ([ca kláma] [le zárci])}])}])"
 tree = """
-Bridi @[0‥59) {
+BridiWithLeadingTerms @[0‥59) {
   leading_terms: [
-    NameDescription @[0‥8) {
+    NameSumti @[0‥8) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[4‥8) "djan",
       ],
     },
   ],
-  SelbriBridiTail @[10‥59) {
-    TaggedSelbri @[10‥18) {
-      tense_modal: Cmavo @[10‥12) "ca",
-      Gismu @[13‥18) "cúsku",
+  bridi_tail: SelbriSimpleBridiTail @[10‥59) {
+    selbri: TaggedSelbri @[10‥18) {
+      tense_modal: [
+        Cmavo @[10‥12) "ca",
+      ],
+      inner_selbri: Gismu @[13‥18) "cúsku",
     },
     terms: [
-      Description @[19‥59) {
+      DescriptorWithGadriSumti @[19‥59) {
         description: Cmavo @[19‥21) "le",
-        selbri: ConvertedSelbri @[22‥59) {
-          se: Cmavo @[22‥24) "se",
-          Abstraction @[25‥59) {
-            nu: Cmavo @[25‥29) "du'u",
-            Bridi @[30‥59) {
-              leading_terms: [
-                NameDescription @[30‥40) {
-                  la: Cmavo @[30‥32) "la",
-                  names: [
-                    Cmevla @[34‥40) "djordj",
-                  ],
-                },
-              ],
-              SelbriBridiTail @[42‥59) {
-                TaggedSelbri @[42‥50) {
-                  tense_modal: Cmavo @[42‥44) "ca",
-                  Gismu @[45‥50) "kláma",
-                },
-                terms: [
-                  Description @[51‥59) {
-                    description: Cmavo @[51‥53) "le",
-                    selbri: Gismu @[54‥59) "zárci",
+        tail: DescriptionTail @[22‥59) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruUnitAtom @[22‥59) {
+            conversions: [
+              Cmavo @[22‥24) "se",
+            ],
+            base: AbstractionTanruUnit @[25‥59) {
+              nu: Cmavo @[25‥29) "du'u",
+              subbridi: BridiWithLeadingTerms @[30‥59) {
+                leading_terms: [
+                  NameSumti @[30‥40) {
+                    la: Cmavo @[30‥32) "la",
+                    names: [
+                      Cmevla @[34‥40) "djordj",
+                    ],
                   },
                 ],
+                bridi_tail: SelbriSimpleBridiTail @[42‥59) {
+                  selbri: TaggedSelbri @[42‥50) {
+                    tense_modal: [
+                      Cmavo @[42‥44) "ca",
+                    ],
+                    inner_selbri: Gismu @[45‥50) "kláma",
+                  },
+                  terms: [
+                    DescriptorWithGadriSumti @[51‥59) {
+                      description: Cmavo @[51‥53) "le",
+                      tail: DescriptionTail @[54‥59) {
+                        leading_tail_elements: LeadingDescriptionTailElements {},
+                        tail: Gismu @[54‥59) "zárci",
+                      },
+                    },
+                  ],
+                },
               },
             },
           },
@@ -96,7 +108,7 @@ Bridi @[0‥59) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[4,8]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[10,12]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[13,18]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[19,21]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[22,24]}}}},"inner_selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'u","span":[25,29]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[34,40]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[42,44]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[45,50]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[51,53]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zárci","span":[54,59]}}}}}}}}]}}}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[4,8]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[10,12]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[13,18]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[19,21]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[22,24]}}}}],"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"du'u","span":[25,29]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[34,40]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[42,44]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[45,50]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[51,53]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zárci","span":[54,59]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:32","content":"formula:31","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":59},"text":"la .djan. ca cusku le se du'u la .djordj. ca klama le zarci","construct":"bridi"}},"parameter:12":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":54,"byteEnd":59},"text":"zarci","construct":"speaker-description-property"}},"predication:15":{"type":"predication","relation":"zarci","arguments":{"x1":{"kind":"filled","value":"parameter:12"},"x2":{"kind":"elided","value":"entity:13","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:14","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":54,"byteEnd":59},"text":"zarci","construct":"restrictive-predication"}},"predication:18":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:11"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:17"}},"mode":"incidental","source":{"span":{"byteStart":51,"byteEnd":59},"text":"le zarci","construct":"speaker-description"}},"predication:23":{"type":"predication","eventuality":"eventuality:9","relation":"klama","arguments":{"x1":{"kind":"filled","value":"entity:10"},"x2":{"kind":"filled","value":"entity:11"},"x3":{"kind":"elided","value":"entity:20","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:21","introducedBy":"zo'e"},"x5":{"kind":"elided","value":"entity:22","introducedBy":"zo'e"}},"mode":"inert","source":{"span":{"byteStart":30,"byteEnd":59},"text":"la .djordj. ca klama le zarci","construct":"predication"}},"predication:26":{"type":"predication","relation":"sentenceExpresses","arguments":{"x1":{"kind":"filled","value":"text:8"},"x2":{"kind":"filled","value":"proposition:25"}},"mode":"restrictive","source":{"span":{"byteStart":22,"byteEnd":59},"text":"se du'u la .djordj. ca klama le zarci","construct":"abstraction-description"}},"predication:30":{"type":"predication","eventuality":"eventuality:6","relation":"cusku","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"text:8"},"x3":{"kind":"elided","value":"entity:28","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:29","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":59},"text":"la .djan. ca cusku le se du'u la .djordj. ca klama le zarci","construct":"predication"}},"formula:16":{"type":"formula","operator":"atom","predication":"predication:15","source":{"span":{"byteStart":54,"byteEnd":59},"text":"zarci","construct":"restrictive-formula"}},"formula:19":{"type":"formula","operator":"atom","predication":"predication:18","source":{"span":{"byteStart":51,"byteEnd":59},"text":"le zarci","construct":"speaker-description"}},"formula:24":{"type":"formula","operator":"atom","predication":"predication:23","source":{"span":{"byteStart":30,"byteEnd":59},"text":"la .djordj. ca klama le zarci","construct":"bridi-formula"}},"formula:27":{"type":"formula","operator":"atom","predication":"predication:26","source":{"span":{"byteStart":22,"byteEnd":59},"text":"se du'u la .djordj. ca klama le zarci","construct":"restrictive-formula"}},"formula:31":{"type":"formula","operator":"atom","predication":"predication:30","source":{"span":{"byteStart":0,"byteEnd":59},"text":"la .djan. ca cusku le se du'u la .djordj. ca klama le zarci","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":0,"byteEnd":9},"text":"la .djan.","construct":"sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djordj"},"source":{"span":{"byteStart":30,"byteEnd":41},"text":"la .djordj.","construct":"sumti"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:19"},"source":{"span":{"byteStart":51,"byteEnd":59},"text":"le zarci","construct":"description"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:14":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:20":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:21":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:22":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:28":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:29":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","time":{"relation":"at","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":59},"text":"la .djan. ca cusku le se du'u la .djordj. ca klama le zarci","construct":"predication"}},"eventuality:9":{"type":"referent","time":{"relation":"at","anchor":"eventuality:6"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":30,"byteEnd":59},"text":"la .djordj. ca klama le zarci","construct":"predication"}},"eventuality/locution:32":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":59},"text":"la .djan. ca cusku le se du'u la .djordj. ca klama le zarci","construct":"bridi"}},"proposition:25":{"type":"referent","category":"constant","sort":"proposition","body":"formula:24","source":{"span":{"byteStart":25,"byteEnd":59},"text":"du'u la .djordj. ca klama le zarci","construct":"abstraction"}},"text:8":{"type":"referent","category":"constant","sort":"text","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:27"},"source":{"span":{"byteStart":19,"byteEnd":59},"text":"le se du'u la .djordj. ca klama le zarci","construct":"description"}},"relation:17":{"type":"referent","category":"constant","sort":"relation","body":"formula:16","parameters":["parameter:12"],"arity":1,"source":{"span":{"byteStart":54,"byteEnd":59},"text":"zarci","construct":"speaker-description-property"}}}}'''

@@ -31,14 +31,18 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"bébna","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥21) {
-  Gismu @[0‥5) "bébna",
-  GroupedTanruUnit @[6‥21) {
-    ke: Cmavo @[6‥8) "ke",
-    Tanru @[9‥21) {
-      Lujvo @[9‥15) "sámbaŭ",
-      Gismu @[16‥21) "cásnu",
+TanruSelbri @[0‥21) {
+  first_unit: Gismu @[0‥5) "bébna",
+  additional_units: [
+    GroupedTanruUnit @[6‥21) {
+      ke: Cmavo @[6‥8) "ke",
+      selbri: TanruSelbri @[9‥21) {
+        first_unit: Lujvo @[9‥15) "sámbaŭ",
+        additional_units: [
+          Gismu @[16‥21) "cásnu",
+        ],
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bébna","span":[0,5]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Rafsi":"baŭ"}],"span":[9,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[16,21]}}}}}]}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bébna","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[6,8]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sám"},{"Rafsi":"baŭ"}],"span":[9,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[16,21]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

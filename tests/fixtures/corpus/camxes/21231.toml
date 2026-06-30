@@ -33,22 +33,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥19) {
   leading_free_modifiers: [
-    Vocative @[0‥11) {
-      vocative_markers: [
-        Cmavo @[0‥4) "mi'e",
+    VocativeFreeModifier @[0‥11) {
+      vocative_markers: Cmavo @[0‥4) "mi'e",
+      sumti: [
+        Cmevla @[5‥11) "stevon",
       ],
-      sumti: Cmevla @[5‥11) "stevon",
     },
   ],
   ParagraphStatement @[13‥19) {
     i: Cmavo @[13‥14) "i",
     free_modifiers: [
-      Vocative @[15‥19) {
-        vocative_markers: [
-          Cmavo @[15‥19) "co'o",
-        ],
-      },
+      Cmavo @[15‥19) "co'o",
     ],
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"stevon","span":[5,11]}}}}]}}}],"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[15,19]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"stevon","span":[5,11]}}}}]}}}}],"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[15,19]}}}}}}}}]}]}}"""

@@ -30,15 +30,13 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥7) {
-  terms: [
-    TaggedSumti @[0‥7) {
-      tense_modal: Cmavo @[0‥2) "ca",
-      WithIndicator @[2‥7) {
-        Cmavo @[2‥4) "ma",
-        indicator: Cmavo @[4‥7) "kaŭ",
-      },
-    },
+TaggedSumtiTerm @[0‥7) {
+  tense_modal: [
+    Cmavo @[0‥2) "ca",
   ],
+  sumti: WithIndicator @[2‥7) {
+    Cmavo @[2‥4) "ma",
+    indicator: Cmavo @[4‥7) "kaŭ",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}},"sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[4,7]}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[2,4]}}}},"indicator":{"Cmavo":{"phonemes":"kaŭ","span":[4,7]}}}}}}}}}}}}}}}}}]}}}}}}}}}'

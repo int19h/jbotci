@@ -41,32 +41,42 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[6,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"be","span":[16,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[19,21]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fas"},{"Hyphen":"y"},{"Rafsi":"gú'e"}],"span":[22,30]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[31,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[34,38]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kré"},{"Rafsi":"caŭ"}],"span":[39,45]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([lo {ca (nolráĭtru be [le fasygú'e])}] cu [na'e krécaŭ])"
+brackets = "([lo {ca (nolráĭtru [be {le fasygú'e}])}] cu [na'e krécaŭ])"
 tree = """
-Bridi @[0‥45) {
+BridiWithLeadingTerms @[0‥45) {
   leading_terms: [
-    Description @[0‥30) {
+    DescriptorWithGadriSumti @[0‥30) {
       description: Cmavo @[0‥2) "lo",
-      selbri: TaggedSelbri @[3‥30) {
-        tense_modal: Cmavo @[3‥5) "ca",
-        LinkedSumtiTanruUnit @[6‥30) {
-          Lujvo @[6‥15) "nolráĭtru",
-          be: Cmavo @[16‥18) "be",
-          first_sumti: Description @[19‥30) {
-            description: Cmavo @[19‥21) "le",
-            selbri: Lujvo @[22‥30) "fasygú'e",
+      tail: DescriptionTail @[3‥30) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TaggedSelbri @[3‥30) {
+          tense_modal: [
+            Cmavo @[3‥5) "ca",
+          ],
+          inner_selbri: LinkedTanruUnit @[6‥30) {
+            base: Lujvo @[6‥15) "nolráĭtru",
+            linkargs: Linkargs @[16‥30) {
+              be: Cmavo @[16‥18) "be",
+              first_link: DescriptorWithGadriSumti @[19‥30) {
+                description: Cmavo @[19‥21) "le",
+                tail: DescriptionTail @[22‥30) {
+                  leading_tail_elements: LeadingDescriptionTailElements {},
+                  tail: Lujvo @[22‥30) "fasygú'e",
+                },
+              },
+            },
           },
         },
       },
     },
   ],
   cu: Cmavo @[31‥33) "cu",
-  ScalarNegatedTanruUnit @[34‥45) {
+  bridi_tail: ScalarNegatedTanruUnit @[34‥45) {
     nahe: Cmavo @[34‥38) "na'e",
-    Lujvo @[39‥45) "krécaŭ",
+    inner_unit: Lujvo @[39‥45) "krécaŭ",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}},"inner_selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[6,15]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[16,18]}}}},"first_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[19,21]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fas"},{"Hyphen":"y"},{"Rafsi":"gú'e"}],"span":[22,30]}}}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[31,33]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[34,38]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kré"},{"Rafsi":"caŭ"}],"span":[39,45]}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[3,5]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[6,15]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[16,18]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[19,21]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"fas"},{"Hyphen":"y"},{"Rafsi":"gú'e"}],"span":[22,30]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[31,33]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[34,38]}}}},"inner_unit":{"TanruUnitAtom":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kré"},{"Rafsi":"caŭ"}],"span":[39,45]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:22","content":"formula:21","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"bridi"}},"parameter:8":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":22,"byteEnd":30},"text":"fasygu'e","construct":"speaker-description-property"}},"predication:9":{"type":"predication","relation":"fasygu'e","arguments":{"x1":{"kind":"filled","value":"parameter:8"}},"mode":"restrictive","source":{"span":{"byteStart":22,"byteEnd":30},"text":"fasygu'e","construct":"restrictive-predication"}},"predication:12":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:11"}},"mode":"incidental","source":{"span":{"byteStart":19,"byteEnd":30},"text":"le fasygu'e","construct":"speaker-description"}},"predication:16":{"type":"predication","eventuality":"eventuality:15","relation":"nolraitru","arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"elided","value":"entity:14","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":30},"text":"ca nolraitru be le fasygu'e","construct":"restrictive-predication"}},"predication:19":{"type":"predication","eventuality":"eventuality:18","relation":"krecau","arguments":{"x1":{"kind":"filled","value":"entity:6"}},"mode":"asserted","scalarNegation":{"kind":"otherThan","introducedBy":"na'e","scale":"scale:20","argumentScope":["x1"]},"source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"tanru-formula"}},"formula:10":{"type":"formula","operator":"atom","predication":"predication:9","source":{"span":{"byteStart":22,"byteEnd":30},"text":"fasygu'e","construct":"restrictive-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":19,"byteEnd":30},"text":"le fasygu'e","construct":"speaker-description"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":3,"byteEnd":30},"text":"ca nolraitru be le fasygu'e","construct":"restrictive-formula"}},"formula:21":{"type":"formula","operator":"atom","predication":"predication:19","source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"tanru-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"veridicalDescription","word":"lo","speaker":"entity:1","body":"formula:17"},"source":{"span":{"byteStart":0,"byteEnd":30},"text":"lo ca nolraitru be le fasygu'e","construct":"description"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:13"},"source":{"span":{"byteStart":19,"byteEnd":30},"text":"le fasygu'e","construct":"description"}},"entity:14":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:15":{"type":"referent","time":{"relation":"at","anchor":"eventuality:3"},"category":"constant","sort":"eventuality","source":{"span":{"byteStart":3,"byteEnd":30},"text":"ca nolraitru be le fasygu'e","construct":"restrictive-predication"}},"eventuality:18":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"tanru-formula"}},"eventuality/locution:22":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"bridi"}},"scale:20":{"type":"referent","category":"constant","sort":"scale","descriptor":{"kind":"scale","word":"implicit scalar scale","speaker":"entity:1","name":"na'e"},"source":{"span":{"byteStart":0,"byteEnd":45},"text":"lo ca nolraitru be le fasygu'e cu na'e krecau","construct":"scalar-scale"}},"relation:11":{"type":"referent","category":"constant","sort":"relation","body":"formula:10","parameters":["parameter:8"],"arity":1,"source":{"span":{"byteStart":22,"byteEnd":30},"text":"fasygu'e","construct":"speaker-description-property"}}}}'''

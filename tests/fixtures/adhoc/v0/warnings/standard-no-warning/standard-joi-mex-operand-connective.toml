@@ -12,16 +12,12 @@ raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥12) {
-  terms: [
-    NumberSumti @[0‥12) {
-      li: Cmavo @[0‥2) "li",
-      MeksoConnection @[3‥12) {
-        left_expression: Cmavo @[3‥5) "pa",
-        connective: Cmavo @[6‥9) "joĭ",
-        right_expression: Cmavo @[10‥12) "re",
-      },
-    },
-  ],
+NumberSumti @[0‥12) {
+  li: Cmavo @[0‥2) "li",
+  AfterthoughtMeksoOperand @[3‥12) {
+    Cmavo @[3‥5) "pa",
+    Cmavo @[6‥9) "joĭ",
+    Cmavo @[10‥12) "re",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"MeksoConnection":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}}]}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[6,9]}}}}]}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[10,12]}}}}]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}}}}}},"links":[{"operand_connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[6,9]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[10,12]}}}}}}}}}]}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

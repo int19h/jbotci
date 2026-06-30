@@ -43,14 +43,12 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}},{"PlainWord":
 tree = """
 Text @[1‥86) {
   leading_indicators: [
-    Indicator @[1‥6) {
-      indicator: WithIndicator @[1‥6) {
-        Cmavo @[1‥3) "ŭi",
-        indicator: Cmavo @[3‥6) "saĭ",
-      },
+    WithIndicator @[1‥6) {
+      Cmavo @[1‥3) "ŭi",
+      indicator: Cmavo @[3‥6) "saĭ",
     },
   ],
-  Bridi @[7‥86) {
+  BridiWithLeadingTerms @[7‥86) {
     leading_terms: [
       DelimitedNonLojbanQuote @[7‥55) {
         zoi: Cmavo @[7‥11) "la'o",
@@ -60,21 +58,26 @@ Text @[1‥86) {
       },
     ],
     cu: Cmavo @[56‥58) "cu",
-    SelbriBridiTail @[59‥86) {
-      Gismu @[59‥64) "pónse",
+    bridi_tail: SelbriSimpleBridiTail @[59‥86) {
+      selbri: Gismu @[59‥64) "pónse",
       terms: [
-        Description @[65‥86) {
+        DescriptorWithGadriSumti @[65‥86) {
           description: Cmavo @[65‥67) "le",
-          selbri: Tanru @[68‥86) {
-            Emphasized @[68‥78) {
-              bahe: Cmavo @[68‥72) "za'e",
-              Gismu @[73‥78) "múpli",
+          tail: DescriptionTail @[68‥86) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: TanruSelbri @[68‥86) {
+              first_unit: Emphasized @[68‥78) {
+                bahe: Cmavo @[68‥72) "za'e",
+                Gismu @[73‥78) "múpli",
+              },
+              additional_units: [
+                Lujvo @[79‥86) "samrú'e",
+              ],
             },
-            Lujvo @[79‥86) "samrú'e",
           },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[7,11]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[12,14]}},"quoted_text":{"span":[15,52],"text":"http://www.devilwhiskey.com/main.html"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[53,55]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[56,58]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[59,64]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[65,67]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[68,72]}},"word_like":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[73,78]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"rú'e"}],"span":[79,86]}}}}}]}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[3,6]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[7,11]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[12,14]}},"quoted_text":{"span":[15,52],"text":"http://www.devilwhiskey.com/main.html"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[53,55]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[56,58]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[59,64]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[65,67]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[68,72]}},"word_like":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[73,78]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"rú'e"}],"span":[79,86]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[3,6]}}}}}]}}"""

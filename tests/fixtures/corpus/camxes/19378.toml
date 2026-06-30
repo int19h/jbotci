@@ -37,38 +37,31 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥36) {
   leading_free_modifiers: [
-    Vocative @[0‥4) {
-      vocative_markers: [
-        Cmavo @[0‥4) "je'e",
-      ],
-    },
+    Cmavo @[0‥4) "je'e",
   ],
   ParagraphStatement @[6‥36) {
     i: WithIndicator @[6‥10) {
       Cmavo @[6‥7) "i",
       indicator: Cmavo @[8‥10) "xu",
     },
-    Terms @[11‥36) {
-      terms: [
-        SumtiWithRelativeClauses @[11‥36) {
-          base_sumti: NameDescription @[11‥21) {
-            la: Cmavo @[11‥13) "la",
-            names: [
-              Cmevla @[14‥21) "nu,ĭork",
-            ],
+    SimpleSumti @[11‥36) {
+      base_sumti: NameSumti @[11‥21) {
+        la: Cmavo @[11‥13) "la",
+        names: [
+          Cmevla @[14‥21) "nu,ĭork",
+        ],
+      },
+      relative_clauses: SumtiAssociationRelativeClause @[23‥36) {
+        association_marker: Cmavo @[23‥27) "po'u",
+        sumti: DescriptorWithGadriSumti @[28‥36) {
+          description: Cmavo @[28‥30) "le",
+          tail: DescriptionTail @[31‥36) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[31‥36) "tcádu",
           },
-          relative_clauses: [
-            SumtiAssociationPhrase @[23‥36) {
-              association_marker: Cmavo @[23‥27) "po'u",
-              Description @[28‥36) {
-                description: Cmavo @[28‥30) "le",
-                selbri: Gismu @[31‥36) "tcádu",
-              },
-            },
-          ],
         },
-      ],
+      },
     },
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}}}]}}],"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[8,10]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nu,ĭork","span":[14,21]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po'u","span":[23,27]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcádu","span":[31,36]}}}}}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}}}}}}}],"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[8,10]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nu,ĭork","span":[14,21]}}}}]}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po'u","span":[23,27]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcádu","span":[31,36]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -40,11 +40,11 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[7,9]}},"quoted_text":{"span":[10,14],"text":"Mary"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[15,17]}}}},{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[19,24]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[25,27]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[28,30]}}},{"PlainWord":{"Gismu":{"phonemes":"tíxnu","span":[31,36]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(.i [{zoĭ gy Mary gy} {cméne (le mi tíxnu)}])"
+brackets = "(.i [{zoĭ gy Mary gy} {cméne (le [mi tíxnu])}])"
 tree = """
 ParagraphStatement @[1‥36) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥36) {
+  BridiWithLeadingTerms @[3‥36) {
     leading_terms: [
       DelimitedNonLojbanQuote @[3‥17) {
         zoi: Cmavo @[3‥6) "zoĭ",
@@ -53,18 +53,18 @@ ParagraphStatement @[1‥36) {
         closing_delimiter: Cmavo @[15‥17) "gy",
       },
     ],
-    SelbriBridiTail @[19‥36) {
-      Gismu @[19‥24) "cméne",
+    bridi_tail: SelbriSimpleBridiTail @[19‥36) {
+      selbri: Gismu @[19‥24) "cméne",
       terms: [
-        Description @[25‥36) {
+        DescriptorWithGadriSumti @[25‥36) {
           description: Cmavo @[25‥27) "le",
-          tail_elements: [
-            Cmavo @[28‥30) "mi",
-          ],
-          selbri: Gismu @[31‥36) "tíxnu",
+          tail: DescriptionTail @[28‥36) {
+            leading_tail_elements: Cmavo @[28‥30) "mi",
+            tail: Gismu @[31‥36) "tíxnu",
+          },
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[7,9]}},"quoted_text":{"span":[10,14],"text":"Mary"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[15,17]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[19,24]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[25,27]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[28,30]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tíxnu","span":[31,36]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[7,9]}},"quoted_text":{"span":[10,14],"text":"Mary"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[15,17]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[19,24]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[25,27]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[28,30]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tíxnu","span":[31,36]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

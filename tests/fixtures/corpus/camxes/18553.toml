@@ -44,48 +44,49 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥67) {
+BridiWithLeadingTerms @[0‥67) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥67) {
-    Gismu @[3‥8) "kríci",
+  bridi_tail: SelbriSimpleBridiTail @[3‥67) {
+    selbri: Gismu @[3‥8) "kríci",
     terms: [
-      Description @[9‥67) {
+      DescriptorWithGadriSumti @[9‥67) {
         description: Cmavo @[9‥11) "le",
-        selbri: Abstraction @[12‥67) {
-          nu: Cmavo @[12‥14) "nu",
-          Bridi @[15‥67) {
-            leading_terms: [
-              NameDescription @[15‥23) {
-                la: Cmavo @[15‥17) "la",
-                names: [
-                  Cmevla @[18‥23) "jaden",
-                ],
-              },
-            ],
-            SelbriBridiTail @[25‥67) {
-              Gismu @[25‥30) "kríci",
-              terms: [
-                ReferentSumti @[31‥40) {
-                  lahe: Cmavo @[31‥35) "la'e",
-                  Cmavo @[36‥40) "di'u",
-                },
-                TaggedSumti @[41‥67) {
-                  tense_modal: Modal @[41‥45) {
-                    bai: Cmavo @[41‥45) "mu'i",
-                  },
-                  ReferentSumti @[46‥67) {
-                    lahe: Cmavo @[46‥50) "tu'a",
-                    DelimitedNonLojbanQuote @[51‥67) {
-                      zoi: Cmavo @[51‥55) "la'o",
-                      opening_delimiter: Cmavo @[56‥58) "gy",
-                      quoted_text: Verbatim @[59‥64) "topic",
-                      closing_delimiter: Cmavo @[65‥67) "gy",
-                    },
-                  },
+        tail: DescriptionTail @[12‥67) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: AbstractionTanruUnit @[12‥67) {
+            nu: Cmavo @[12‥14) "nu",
+            subbridi: BridiWithLeadingTerms @[15‥67) {
+              leading_terms: [
+                NameSumti @[15‥23) {
+                  la: Cmavo @[15‥17) "la",
+                  names: [
+                    Cmevla @[18‥23) "jaden",
+                  ],
                 },
               ],
+              bridi_tail: SelbriSimpleBridiTail @[25‥67) {
+                selbri: Gismu @[25‥30) "kríci",
+                terms: [
+                  LaheSumti @[31‥40) {
+                    lahe: Cmavo @[31‥35) "la'e",
+                    Cmavo @[36‥40) "di'u",
+                  },
+                  TaggedSumtiTerm @[41‥67) {
+                    tense_modal: Cmavo @[41‥45) "mu'i",
+                    sumti: LaheSumti @[46‥67) {
+                      lahe: Cmavo @[46‥50) "tu'a",
+                      DelimitedNonLojbanQuote @[51‥67) {
+                        zoi: Cmavo @[51‥55) "la'o",
+                        opening_delimiter: Cmavo @[56‥58) "gy",
+                        quoted_text: Verbatim @[59‥64) "topic",
+                        closing_delimiter: Cmavo @[65‥67) "gy",
+                      },
+                    },
+                  },
+                ],
+              },
             },
           },
         },
@@ -93,4 +94,4 @@ Bridi @[0‥67) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kríci","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[12,14]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jaden","span":[18,23]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kríci","span":[25,30]}}}}},"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[31,35]}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[36,40]}}}}}}}},{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[41,45]}}}}}},"sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[46,50]}}}},"inner_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[51,55]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[56,58]}},"quoted_text":{"span":[59,64],"text":"topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[65,67]}}}}}}}}}}}]}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kríci","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[12,14]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"jaden","span":[18,23]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kríci","span":[25,30]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la'e","span":[31,35]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"di'u","span":[36,40]}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[41,45]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[46,50]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[51,55]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[56,58]}},"quoted_text":{"span":[59,64],"text":"topic"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[65,67]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

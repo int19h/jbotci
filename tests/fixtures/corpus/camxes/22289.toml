@@ -32,17 +32,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,1]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥15) {
-  terms: [
-    Description @[0‥15) {
-      outer_quantifier: NumberQuantifier @[0‥3) {
-        Cmavo @[0‥1) "vo",
-        Cmavo @[1‥2) "pi",
-        Cmavo @[2‥3) "re",
-      },
-      description: Cmavo @[6‥9) "loĭ",
-      selbri: Gismu @[10‥15) "rátcu",
-    },
-  ],
+DescriptorWithOuterQuantifierSumti @[0‥15) {
+  outer_quantifier: NumberWords @[0‥3) {
+    first_number: Cmavo @[0‥1) "vo",
+    continuations: [
+      Cmavo @[1‥2) "pi",
+      Cmavo @[2‥3) "re",
+    ],
+  },
+  description: Cmavo @[6‥9) "loĭ",
+  tail: DescriptionTail @[10‥15) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: Gismu @[10‥15) "rátcu",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,1]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[2,3]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[6,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rátcu","span":[10,15]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[0,1]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[2,3]}}}}}]}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[6,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rátcu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

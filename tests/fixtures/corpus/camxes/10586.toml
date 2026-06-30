@@ -38,25 +38,23 @@ Text @[0‥20) {
   leading_cmevla: [
     Cmevla @[0‥3) "for",
   ],
-  Terms @[4‥20) {
-    terms: [
-      PlaceTaggedSumti @[4‥8) {
-        fa: Cmavo @[4‥6) "fu",
-        Cmavo @[6‥8) "tu",
-      },
-      Description @[8‥20) {
-        tail_elements: [
-          NumberQuantifier @[8‥13) {
-            Cmavo @[8‥10) "re",
-            Cmavo @[11‥13) "re",
-          },
+  TermsFragment @[4‥20) {
+    PlaceTaggedSumtiTerm @[4‥8) {
+      fa: Cmavo @[4‥6) "fu",
+      sumti: Cmavo @[6‥8) "tu",
+    },
+    DescriptorWithoutGadriSumti @[8‥20) {
+      quantifier: NumberWords @[8‥13) {
+        first_number: Cmavo @[8‥10) "re",
+        continuations: [
+          Cmavo @[11‥13) "re",
         ],
-        selbri: TaggedSelbri @[13‥20) {
-          tense_modal: Cmavo @[13‥15) "fe",
-          Gismu @[15‥20) "rénce",
-        },
       },
-    ],
+      TaggedSelbri @[13‥20) {
+        tense_modal: Cmavo @[13‥15) "fe",
+        inner_selbri: Gismu @[15‥20) "rénce",
+      },
+    },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"for","span":[0,3]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[4,6]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu","span":[6,8]}}}}}}},{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[11,13]}}}}]}}}],"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[13,15]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rénce","span":[15,20]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"for","span":[0,3]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[4,6]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu","span":[6,8]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[11,13]}}}}}]}}},"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"FaFlatTagTense":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[13,15]}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rénce","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

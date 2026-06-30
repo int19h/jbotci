@@ -29,19 +29,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[3‥26) {
-  leading_free_modifiers: [
-    ParentheticalText @[3‥26) {
-      to: WithIndicator @[3‥10) {
-        Cmavo @[3‥5) "to",
-        indicator: Cmavo @[6‥10) "la'a",
-      },
-      Tanru @[11‥22) {
-        Gismu @[11‥16) "clíra",
-        Gismu @[17‥22) "dúkse",
-      },
-      toi: Cmavo @[23‥26) "toĭ",
-    },
-  ],
+ParentheticalText @[3‥26) {
+  to: WithIndicator @[3‥10) {
+    Cmavo @[3‥5) "to",
+    indicator: Cmavo @[6‥10) "la'a",
+  },
+  text: TanruSelbri @[11‥22) {
+    first_unit: Gismu @[11‥16) "clíra",
+    additional_units: [
+      Gismu @[17‥22) "dúkse",
+    ],
+  },
+  toi: Cmavo @[23‥26) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"la'a","span":[6,10]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíra","span":[11,16]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[17,22]}}}}}]}}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[23,26]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[3,5]}}}},"indicator":{"Cmavo":{"phonemes":"la'a","span":[6,10]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíra","span":[11,16]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúkse","span":[17,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[23,26]}}}}}}]}}"""

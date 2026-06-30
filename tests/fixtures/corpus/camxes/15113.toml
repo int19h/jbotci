@@ -30,15 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}},{"PlainWord":{"F
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥18) {
-  terms: [
-    Description @[0‥18) {
-      description: Cmavo @[0‥2) "lo",
-      selbri: Tanru @[3‥18) {
-        Fuhivla @[3‥15) "mabrnmustéla",
+DescriptorWithGadriSumti @[0‥18) {
+  description: Cmavo @[0‥2) "lo",
+  tail: DescriptionTail @[3‥18) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruSelbri @[3‥18) {
+      first_unit: Fuhivla @[3‥15) "mabrnmustéla",
+      additional_units: [
         Cmavo @[16‥18) "mo",
-      },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"mabrnmustéla","span":[3,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"mabrnmustéla","span":[3,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo","span":[16,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

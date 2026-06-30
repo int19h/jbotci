@@ -30,20 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"baĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥13) {
-  terms: [
-    TaggedSumti @[0‥13) {
-      tense_modal: Modal @[0‥13) {
-        bai: Cmavo @[0‥3) "baĭ",
-        free_modifiers: [
-          MetalinguisticBridi @[4‥13) {
-            sei: Cmavo @[4‥7) "seĭ",
-            selbri: Gismu @[8‥13) "níbli",
-          },
-        ],
+TaggedSumtiTerm @[0‥13) {
+  tense_modal: ModalTense @[0‥13) {
+    bai: Cmavo @[0‥3) "baĭ",
+    free_modifiers: [
+      SeiFreeModifier @[4‥13) {
+        sei: Cmavo @[4‥7) "seĭ",
+        selbri: Gismu @[8‥13) "níbli",
       },
-      ElidedSumti {},
-    },
-  ],
+    ],
+  },
+  sumti: TaggedElidedSumti {},
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baĭ","span":[0,3]}}}},{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[4,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níbli","span":[8,13]}}}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baĭ","span":[0,3]}}}},{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[4,7]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"níbli","span":[8,13]}}}}}}}}}}}}}}}}]}}}},"sumti":{}}}}}]}}}}}}}}}'

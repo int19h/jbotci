@@ -33,22 +33,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥24) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥24) {
-      sei: Cmavo @[0‥3) "seĭ",
-      terms: [
-        Description @[4‥15) {
-          description: Cmavo @[4‥6) "le",
-          tail_elements: [
-            Cmavo @[7‥9) "mi",
-          ],
-          selbri: Gismu @[10‥15) "stédu",
-        },
-      ],
-      cu: Cmavo @[16‥18) "cu",
-      selbri: Gismu @[19‥24) "spója",
+SeiFreeModifier @[0‥24) {
+  sei: Cmavo @[0‥3) "seĭ",
+  terms: [
+    DescriptorWithGadriSumti @[4‥15) {
+      description: Cmavo @[4‥6) "le",
+      tail: DescriptionTail @[7‥15) {
+        leading_tail_elements: Cmavo @[7‥9) "mi",
+        tail: Gismu @[10‥15) "stédu",
+      },
     },
   ],
+  cu: Cmavo @[16‥18) "cu",
+  selbri: Gismu @[19‥24) "spója",
 }"""
-json = '{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stédu","span":[10,15]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spója","span":[19,24]}}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stédu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[16,18]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spója","span":[19,24]}}}}}}}}}}}}}}}}]}}'

@@ -32,21 +32,23 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"bóngu","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥25) {
-  WithIndicator @[0‥8) {
+TanruSelbri @[0‥25) {
+  first_unit: WithIndicator @[0‥8) {
     Gismu @[0‥5) "bóngu",
     indicator: Cmavo @[6‥8) "xu",
   },
-  TanruUnitWord @[9‥25) {
-    Gismu @[9‥14) "júlne",
-    free_modifiers: [
-      Vocative @[15‥25) {
-        vocative_markers: [
-          Cmavo @[15‥18) "doĭ",
-        ],
-        sumti: Cmevla @[19‥25) "norpan",
-      },
-    ],
-  },
+  additional_units: [
+    WordTanruUnit @[9‥25) {
+      Gismu @[9‥14) "júlne",
+      free_modifiers: [
+        VocativeFreeModifier @[15‥25) {
+          vocative_markers: Cmavo @[15‥18) "doĭ",
+          sumti: [
+            Cmevla @[19‥25) "norpan",
+          ],
+        },
+      ],
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bóngu","span":[0,5]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[6,8]}}}}},{"TanruUnitWord":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júlne","span":[9,14]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[15,18]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"norpan","span":[19,25]}}}}]}}}]}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bóngu","span":[0,5]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[6,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júlne","span":[9,14]}}}},{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[15,18]}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"norpan","span":[19,25]}}}}]}}}}]}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

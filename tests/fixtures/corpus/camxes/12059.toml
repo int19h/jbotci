@@ -33,18 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[4,8]}}},{"PlainWord"
 tree = """
 Text @[4‥20) {
   leading_indicators: [
-    Indicator @[4‥8) {
-      indicator: Cmavo @[4‥8) "va'i",
-    },
+    Cmavo @[4‥8) "va'i",
   ],
-  Bridi @[9‥20) {
+  BridiWithLeadingTerms @[9‥20) {
     leading_terms: [
       Cmavo @[9‥11) "ma",
     ],
-    WithIndicator @[12‥20) {
+    bridi_tail: WithIndicator @[12‥20) {
       Gismu @[12‥17) "stúzi",
       indicator: Cmavo @[18‥20) "xu",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stúzi","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[18,20]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[4,8]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stúzi","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[18,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"va'i","span":[4,8]}}}}}]}}"""

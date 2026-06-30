@@ -31,22 +31,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥11) {
-  leading_free_modifiers: [
-    Vocative @[0‥11) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      free_modifiers: [
-        ReciprocalSumti @[3‥11) {
-          soi: Cmavo @[3‥6) "soĭ",
-          leading_sumti: QuantifiedSumti @[7‥11) {
-            quantifier: Cmavo @[7‥9) "ro",
-            Cmavo @[9‥11) "do",
-          },
-        },
-      ],
+VocativeFreeModifier @[0‥11) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  free_modifiers: [
+    SoiFreeModifier @[3‥11) {
+      soi: Cmavo @[3‥6) "soĭ",
+      leading_sumti: QuantifiedSumti @[7‥11) {
+        quantifier: Cmavo @[7‥9) "ro",
+        inner_sumti: Cmavo @[9‥11) "do",
+      },
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],{"ReciprocalSumti":{"soi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[3,6]}}}},"leading_sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[7,9]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}]}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":[{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},{"SoiFreeModifier":{"soi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[3,6]}}}},"leading_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[7,9]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}]}}]}}'

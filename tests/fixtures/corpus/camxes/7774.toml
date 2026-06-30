@@ -36,19 +36,19 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥26) {
-  terms: [
-    SumtiConnection @[0‥26) {
-      leading_sumti: QuotedWord @[0‥12) {
-        zo: Cmavo @[0‥2) "zo",
-        Lujvo @[3‥12) "gugyrúsko",
-      },
+SumtiAfterthought @[0‥26) {
+  leading_sumti: QuotedWord @[0‥12) {
+    zo: Cmavo @[0‥2) "zo",
+    Lujvo @[3‥12) "gugyrúsko",
+  },
+  continuations: [
+    SumtiAfterthoughtTail @[14‥26) {
       connective: Cmavo @[14‥15) "a",
-      trailing_sumti: QuotedWord @[16‥26) {
+      sumti: QuotedWord @[16‥26) {
         zo: Cmavo @[16‥18) "zo",
         Lujvo @[19‥26) "gugrú'o",
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"gug"},{"Hyphen":"y"},{"Rafsi":"rúsko"}],"span":[3,12]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[14,15]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Lujvo":{"parts":[{"Rafsi":"gug"},{"Rafsi":"rú'o"}],"span":[19,26]}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Lujvo":{"parts":[{"Rafsi":"gug"},{"Hyphen":"y"},{"Rafsi":"rúsko"}],"span":[3,12]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[14,15]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[16,18]}},"word":{"Lujvo":{"parts":[{"Rafsi":"gug"},{"Rafsi":"rú'o"}],"span":[19,26]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}"""

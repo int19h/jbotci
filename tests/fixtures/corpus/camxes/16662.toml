@@ -37,20 +37,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"QuotedWord":{
 tree = """
 ParagraphStatement @[0‥23) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥23) {
+  BridiWithLeadingTerms @[2‥23) {
     leading_terms: [
       QuotedWord @[2‥10) {
         zo: Cmavo @[2‥4) "zo",
         Gismu @[5‥10) "nárga",
       },
     ],
-    Negated @[11‥23) {
+    bridi_tail: NegatedSelbri @[11‥23) {
       na: WithIndicator @[11‥18) {
         Cmavo @[11‥13) "na",
         indicator: Cmavo @[14‥18) "ji'a",
       },
-      Cmavo @[19‥23) "go'i",
+      inner_selbri: Cmavo @[19‥23) "go'i",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"nárga","span":[5,10]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[11,13]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[14,18]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[19,23]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[2,4]}},"word":{"Gismu":{"phonemes":"nárga","span":[5,10]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[11,13]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[14,18]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[19,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

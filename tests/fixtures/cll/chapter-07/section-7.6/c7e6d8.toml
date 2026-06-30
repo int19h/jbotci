@@ -45,32 +45,32 @@ brackets = "(xu [{(zo .djan.) (cméne do)} {.i go'i}])"
 tree = """
 Text @[0‥29) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  Paragraph @[3‥29) {
-    Bridi @[3‥21) {
+  ParagraphStatementSequence @[3‥29) {
+    BridiWithLeadingTerms @[3‥21) {
       leading_terms: [
         QuotedWord @[3‥11) {
           zo: Cmavo @[3‥5) "zo",
           Cmevla @[7‥11) "djan",
         },
       ],
-      SelbriBridiTail @[13‥21) {
-        Gismu @[13‥18) "cméne",
+      bridi_tail: SelbriSimpleBridiTail @[13‥21) {
+        selbri: Gismu @[13‥18) "cméne",
         terms: [
           Cmavo @[19‥21) "do",
         ],
       },
     },
-    ParagraphStatement @[23‥29) {
-      i: Cmavo @[23‥24) "i",
-      Cmavo @[25‥29) "go'i",
-    },
+    following: [
+      ParagraphStatement @[23‥29) {
+        i: Cmavo @[23‥24) "i",
+        Cmavo @[25‥29) "go'i",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmevla":{"phonemes":"djan","span":[7,11]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[13,18]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}}]}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[23,24]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[25,29]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmevla":{"phonemes":"djan","span":[7,11]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[13,18]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}}}}}}}}}}}]}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[23,24]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[25,29]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:19","objects":{"utterance:5":{"type":"utterance","force":"ask","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:13","content":"question:12","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"bridi"}},"utterance:6":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:18","content":"formula:17","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":25,"byteEnd":29},"text":"go'i","construct":"bridi"}},"sequence:19":{"type":"sequence","items":["utterance:5","utterance:6"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":29},"text":"xu zo .djan. cmene do .i go'i","construct":"text"}},"predication:10":{"type":"predication","eventuality":"eventuality:7","relation":"cmene","arguments":{"x1":{"kind":"filled","value":"sign:8"},"x2":{"kind":"filled","value":"entity:2"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"predication"}},"predication:16":{"type":"predication","eventuality":"eventuality:14","relation":"cmene","arguments":{"x1":{"kind":"filled","value":"sign:8"},"x2":{"kind":"filled","value":"entity:2"},"x3":{"kind":"elided","value":"entity:15","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":25,"byteEnd":29},"text":"go'i","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"bridi-formula"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":25,"byteEnd":29},"text":"go'i","construct":"bridi-formula"}},"question:12":{"type":"question","body":"formula:11","kind":"truth","mode":"direct","asker":"entity:1","respondent":"entity:2","domain":"truthValue","source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"question"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:7":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"predication"}},"eventuality:14":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":25,"byteEnd":29},"text":"go'i","construct":"predication"}},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":3,"byteEnd":21},"text":"zo .djan. cmene do","construct":"bridi"}},"eventuality/locution:18":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":25,"byteEnd":29},"text":"go'i","construct":"bridi"}},"sign:8":{"type":"referent","category":"constant","sort":"sign","kind":"quotation","quotation":{"mode":"opaque","delimiter":"cmavo:zo-<<cmevla:djan>>","text":"zo .djan."},"source":{"span":{"byteStart":3,"byteEnd":12},"text":"zo .djan.","construct":"quotation"}}}}'''

@@ -31,20 +31,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    LerfuStringSumti @[0‥10) {
-      letter: [
-        Cmavo @[0‥2) "xy",
-      ],
-      boi: Cmavo @[3‥6) "boĭ",
-      free_modifiers: [
-        Subscript @[6‥10) {
-          xi: Cmavo @[6‥8) "xi",
-          Cmavo @[8‥10) "no",
-        },
-      ],
+LerfuStringSumti @[0‥10) {
+  words: Cmavo @[0‥2) "xy",
+  boi: Cmavo @[3‥6) "boĭ",
+  free_modifiers: [
+    XiNumberFreeModifier @[6‥10) {
+      xi: Cmavo @[6‥8) "xi",
+      expression: Cmavo @[8‥10) "no",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[3,6]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[6,8]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[8,10]}}}}]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[3,6]}}}},"free_modifiers":[{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[6,8]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[8,10]}}}}}}}}}]}}}}}}}}}}}}]}}}}}}}}}'

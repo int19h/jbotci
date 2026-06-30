@@ -12,19 +12,17 @@ raw = '{"frames":[{"index":0,"node":{"offset":7,"length":5},"kind":"tanru-unit",
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥22) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥22) {
-      to: WithIndicator @[0‥6) {
-        Cmavo @[0‥2) "to",
-        indicator: Cmavo @[4‥6) "ŭi",
-      },
-      Tanru @[7‥18) {
-        Gismu @[7‥12) "mútce",
-        Gismu @[13‥18) "cásnu",
-      },
-      toi: Cmavo @[19‥22) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥22) {
+  to: WithIndicator @[0‥6) {
+    Cmavo @[0‥2) "to",
+    indicator: Cmavo @[4‥6) "ŭi",
+  },
+  text: TanruSelbri @[7‥18) {
+    first_unit: Gismu @[7‥12) "mútce",
+    additional_units: [
+      Gismu @[13‥18) "cásnu",
+    ],
+  },
+  toi: Cmavo @[19‥22) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[4,6]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[7,12]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[13,18]}}}}}]}}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[19,22]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[4,6]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mútce","span":[7,12]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[19,22]}}}}}}]}}'

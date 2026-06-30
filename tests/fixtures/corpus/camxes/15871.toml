@@ -33,28 +33,25 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥20) {
-  leading_free_modifiers: [
-    Vocative @[0‥20) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: Description @[4‥20) {
-        description: Cmavo @[4‥6) "le",
+VocativeFreeModifier @[0‥20) {
+  vocative_markers: Cmavo @[0‥3) "doĭ",
+  sumti: DescriptorWithGadriSumti @[4‥20) {
+    description: Cmavo @[4‥6) "le",
+    tail: DescriptionTail @[7‥20) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: RelationDescriptionTail @[7‥20) {
         selbri: Gismu @[7‥12) "játna",
-        relative_clauses: [
-          SumtiAssociationPhrase @[13‥20) {
-            association_marker: Cmavo @[13‥15) "pe",
-            LerfuStringSumti @[16‥20) {
-              letter: [
-                Cmavo @[16‥18) "by",
-                Cmavo @[18‥20) "fy",
-              ],
-            },
+        relative_clauses: SumtiAssociationRelativeClause @[13‥20) {
+          association_marker: Cmavo @[13‥15) "pe",
+          sumti: LetterString @[16‥20) {
+            first_letter: Cmavo @[16‥18) "by",
+            continuations: [
+              Cmavo @[18‥20) "fy",
+            ],
           },
-        ],
+        },
       },
     },
-  ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"játna","span":[7,12]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[13,15]}}}},"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[16,18]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[18,20]}}}}]}}}}]}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"játna","span":[7,12]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[13,15]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[16,18]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fy","span":[18,20]}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}'

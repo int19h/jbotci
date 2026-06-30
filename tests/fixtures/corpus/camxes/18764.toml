@@ -40,37 +40,44 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥59) {
-  terms: [
-    Description @[0‥59) {
-      description: Cmavo @[0‥2) "le",
-      selbri: LinkedSumtiTanruUnit @[3‥59) {
-        Gismu @[3‥8) "bróda",
+DescriptorWithGadriSumti @[0‥59) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[3‥59) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: LinkedTanruUnit @[3‥59) {
+      base: Gismu @[3‥8) "bróda",
+      linkargs: Linkargs @[9‥59) {
         be: Cmavo @[9‥11) "be",
-        first_sumti: Cmavo @[12‥14) "mi",
+        first_link: Cmavo @[12‥14) "mi",
         bei_links: [
-          AdditionalLinkedSumti @[15‥21) {
+          BeiLink @[15‥21) {
             bei: Cmavo @[15‥18) "beĭ",
-            sumti: Cmavo @[19‥21) "do",
+            link: Cmavo @[19‥21) "do",
           },
-          AdditionalLinkedSumti @[22‥41) {
+          BeiLink @[22‥41) {
             bei: Cmavo @[22‥25) "beĭ",
-            sumti: Description @[26‥41) {
+            link: DescriptorWithGadriSumti @[26‥41) {
               description: Cmavo @[26‥28) "le",
-              selbri: Fuhivla @[29‥41) "mabrnmustéla",
+              tail: DescriptionTail @[29‥41) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: Fuhivla @[29‥41) "mabrnmustéla",
+              },
             },
           },
-          AdditionalLinkedSumti @[42‥54) {
+          BeiLink @[42‥54) {
             bei: Cmavo @[42‥45) "beĭ",
-            sumti: Description @[46‥54) {
+            link: DescriptorWithGadriSumti @[46‥54) {
               description: Cmavo @[46‥48) "le",
-              selbri: Gismu @[49‥54) "mlátu",
+              tail: DescriptionTail @[49‥54) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: Gismu @[49‥54) "mlátu",
+              },
             },
           },
         ],
         beho: Cmavo @[55‥59) "be'o",
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[3,8]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}},"bei_links":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[15,18]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[22,25]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[26,28]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"mabrnmustéla","span":[29,41]}}}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[42,45]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[46,48]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[49,54]}}}}}}}}],"beho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be'o","span":[55,59]}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[3,8]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}}}}}}}}}},"bei_links":[{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[15,18]}}}},"link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[19,21]}}}}}}}}}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[22,25]}}}},"link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[26,28]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"mabrnmustéla","span":[29,41]}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"bei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"beĭ","span":[42,45]}}}},"link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[46,48]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mlátu","span":[49,54]}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"beho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be'o","span":[55,59]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

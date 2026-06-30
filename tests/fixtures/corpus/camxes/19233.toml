@@ -46,31 +46,36 @@ ParagraphStatement @[1‥45) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[2‥6) "sa'e",
   },
-  Terms @[7‥45) {
-    terms: [
-      Description @[7‥45) {
-        description: Cmavo @[7‥9) "le",
-        selbri: Tanru @[10‥45) {
-          OrdinalSelbri @[10‥19) {
-            number: [
-              Cmavo @[10‥14) "ji'i",
+  DescriptorWithGadriSumti @[7‥45) {
+    description: Cmavo @[7‥9) "le",
+    tail: DescriptionTail @[10‥45) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[10‥45) {
+        first_unit: OrdinalTanruUnit @[10‥19) {
+          number: NumberWords @[10‥16) {
+            first_number: Cmavo @[10‥14) "ji'i",
+            continuations: [
               Cmavo @[14‥16) "ro",
             ],
-            moi: Cmavo @[16‥19) "moĭ",
           },
-          LinkedSumtiTanruUnit @[20‥45) {
-            Gismu @[20‥25) "múpli",
-            be: Cmavo @[26‥28) "be",
-            first_sumti: DelimitedNonLojbanQuote @[29‥45) {
-              zoi: Cmavo @[29‥33) "la'o",
-              opening_delimiter: Cmavo @[34‥36) "sy",
-              quoted_text: Verbatim @[37‥42) "xchat",
-              closing_delimiter: Cmavo @[43‥45) "sy",
+          moi: Cmavo @[16‥19) "moĭ",
+        },
+        additional_units: [
+          LinkedTanruUnit @[20‥45) {
+            base: Gismu @[20‥25) "múpli",
+            linkargs: Linkargs @[26‥45) {
+              be: Cmavo @[26‥28) "be",
+              first_link: DelimitedNonLojbanQuote @[29‥45) {
+                zoi: Cmavo @[29‥33) "la'o",
+                opening_delimiter: Cmavo @[34‥36) "sy",
+                quoted_text: Verbatim @[37‥42) "xchat",
+                closing_delimiter: Cmavo @[43‥45) "sy",
+              },
             },
           },
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"sa'e","span":[2,6]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[10,14]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[14,16]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[16,19]}}}}}},{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[20,25]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[26,28]}}}},"first_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"sy","span":[34,36]}},"quoted_text":{"span":[37,42],"text":"xchat"},"closing_delimiter":{"Cmavo":{"phonemes":"sy","span":[43,45]}}}}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"sa'e","span":[2,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ji'i","span":[10,14]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[14,16]}}}}}]}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"moĭ","span":[16,19]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múpli","span":[20,25]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[26,28]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"sy","span":[34,36]}},"quoted_text":{"span":[37,42],"text":"xchat"},"closing_delimiter":{"Cmavo":{"phonemes":"sy","span":[43,45]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

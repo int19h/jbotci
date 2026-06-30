@@ -36,42 +36,40 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥29) {
-  ParagraphStatement @[0‥13) {
-    i: Cmavo @[0‥1) "i",
-    Bridi @[2‥13) {
+ParagraphStatement @[0‥29) {
+  i: Cmavo @[0‥1) "i",
+  ParagraphStatementSequence @[2‥29) {
+    BridiWithLeadingTerms @[2‥13) {
       leading_terms: [
         Cmavo @[2‥4) "mi",
       ],
-      TaggedSelbri @[5‥13) {
-        tense_modal: Cmavo @[5‥7) "ba",
-        Gismu @[8‥13) "clíva",
+      bridi_tail: TaggedSelbri @[5‥13) {
+        tense_modal: [
+          Cmavo @[5‥7) "ba",
+        ],
+        inner_selbri: Gismu @[8‥13) "clíva",
       },
     },
-  },
-  ParagraphStatement @[14‥29) {
-    i: Cmavo @[14‥15) "i",
-    Terms @[15‥29) {
-      terms: [
-        TaggedSumti @[15‥29) {
-          tense_modal: Modal @[15‥29) {
+    following: [
+      ParagraphStatement @[14‥29) {
+        i: Cmavo @[14‥15) "i",
+        TaggedSumtiTerm @[15‥29) {
+          tense_modal: ModalTense @[15‥29) {
             bai: Cmavo @[15‥19) "ja'e",
             free_modifiers: [
-              Vocative @[20‥29) {
-                vocative_markers: [
-                  Cmavo @[20‥24) "co'o",
-                ],
+              VocativeFreeModifier @[20‥29) {
+                vocative_markers: Cmavo @[20‥24) "co'o",
                 sumti: QuantifiedSumti @[25‥29) {
                   quantifier: Cmavo @[25‥27) "ro",
-                  Cmavo @[27‥29) "do",
+                  inner_sumti: Cmavo @[27‥29) "do",
                 },
               },
             ],
           },
-          ElidedSumti {},
+          sumti: TaggedElidedSumti {},
         },
-      ],
-    },
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[5,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[8,13]}}}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[14,15]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja'e","span":[15,19]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[20,24]}}}}],"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[25,27]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[27,29]}}}}}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[5,7]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[8,13]}}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[14,15]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja'e","span":[15,19]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[20,24]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[25,27]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[27,29]}}}}}}}}}}}}}}}}]}}}},"sumti":{}}}}}]}}}}]}}}}}}"""

@@ -37,16 +37,18 @@ Text @[0‥24) {
   leading_cmevla: [
     Cmevla @[0‥1) "c",
   ],
-  Tanru @[2‥24) {
-    Gismu @[2‥7) "stéba",
-    TanruUnitConnection @[8‥24) {
-      leading_unit: Gismu @[8‥13) "stáli",
-      connective: Selbri @[14‥18) {
-        na: Cmavo @[14‥16) "na",
-        Cmavo @[16‥18) "jo",
+  TanruSelbri @[2‥24) {
+    first_unit: Gismu @[2‥7) "stéba",
+    additional_units: [
+      TanruUnit @[8‥24) {
+        Gismu @[8‥13) "stáli",
+        Selbri @[14‥18) {
+          na: Cmavo @[14‥16) "na",
+          Cmavo @[16‥18) "jo",
+        },
+        Gismu @[19‥24) "píndi",
       },
-      trailing_unit: Gismu @[19‥24) "píndi",
-    },
+    ],
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"c","span":[0,1]}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stéba","span":[2,7]}}}}},{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stáli","span":[8,13]}}}}},"connective":{"Selbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[14,16]}}}},"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo","span":[16,18]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"píndi","span":[19,24]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"c","span":[0,1]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stéba","span":[2,7]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stáli","span":[8,13]}}}}}}}},"links":[{"connective":{"JekConnective":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[14,16]}}}},"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo","span":[16,18]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"píndi","span":[19,24]}}}}}}}}}]}]}}}}}}}}}}}}}}}}}}}}}}'

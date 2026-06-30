@@ -39,14 +39,16 @@ ParagraphStatement @[0‥21) {
     indicator: Cmavo @[2‥6) "ku'i",
   },
   TaggedSelbri @[7‥21) {
-    tense_modal: Composite @[7‥12) {
-      Cmavo @[7‥9) "ba",
-      Cmavo @[10‥12) "zi",
-    },
-    WithIndicator @[13‥21) {
+    tense_modal: [
+      PuTimeOffsetTense @[7‥12) {
+        pu: Cmavo @[7‥9) "ba",
+        distance: Cmavo @[10‥12) "zi",
+      },
+    ],
+    inner_selbri: WithIndicator @[13‥21) {
       Gismu @[13‥18) "clíva",
       indicator: Cmavo @[19‥21) "eĭ",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[2,6]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[7,9]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[10,12]}}}}}]}},"inner_selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[19,21]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[2,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[7,9]}}}},"distance":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zi","span":[10,12]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"eĭ","span":[19,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

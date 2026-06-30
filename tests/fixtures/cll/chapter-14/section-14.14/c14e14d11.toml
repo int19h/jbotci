@@ -41,38 +41,42 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[12,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}},{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[19,25]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[27,29]}}},{"PlainWord":{"Gismu":{"phonemes":"brúna","span":[30,35]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[36,38]}}},{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[38,41]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{la .djeĭmyz.} joĭ {la .djordj.}] cu [brúna {re meĭ}])"
+brackets = "([{la .djeĭmyz.} {joĭ (la .djordj.)}] cu [brúna {re meĭ}])"
 tree = """
-Bridi @[0‥41) {
+BridiWithLeadingTerms @[0‥41) {
   leading_terms: [
-    SumtiConnection @[0‥25) {
-      leading_sumti: NameDescription @[0‥10) {
+    SumtiAfterthought @[0‥25) {
+      leading_sumti: NameSumti @[0‥10) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[3‥10) "djeĭmyz",
         ],
       },
-      connective: Cmavo @[12‥15) "joĭ",
-      trailing_sumti: NameDescription @[16‥25) {
-        la: Cmavo @[16‥18) "la",
-        names: [
-          Cmevla @[19‥25) "djordj",
-        ],
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[12‥25) {
+          connective: Cmavo @[12‥15) "joĭ",
+          sumti: NameSumti @[16‥25) {
+            la: Cmavo @[16‥18) "la",
+            names: [
+              Cmevla @[19‥25) "djordj",
+            ],
+          },
+        },
+      ],
     },
   ],
   cu: Cmavo @[27‥29) "cu",
-  Tanru @[30‥41) {
-    Gismu @[30‥35) "brúna",
-    OrdinalSelbri @[36‥41) {
-      number: [
-        Cmavo @[36‥38) "re",
-      ],
-      moi: Cmavo @[38‥41) "meĭ",
-    },
+  bridi_tail: TanruSelbri @[30‥41) {
+    first_unit: Gismu @[30‥35) "brúna",
+    additional_units: [
+      OrdinalTanruUnit @[36‥41) {
+        number: Cmavo @[36‥38) "re",
+        moi: Cmavo @[38‥41) "meĭ",
+      },
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[12,15]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[19,25]}}}}]}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[27,29]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brúna","span":[30,35]}}}}},{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[36,38]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[38,41]}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[12,15]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[19,25]}}}}]}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[27,29]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brúna","span":[30,35]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[36,38]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[38,41]}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:24","content":"formula:23","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"bridi"}},"parameter:14":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"predication:12":{"type":"predication","eventuality":"eventuality:9","relation":"re mei","arguments":{"x1":{"kind":"filled","value":"entity:8"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"predication:18":{"type":"predication","eventuality":"eventuality:15","relation":"bruna","arguments":{"x1":{"kind":"filled","value":"parameter:14"},"x2":{"kind":"elided","value":"entity:16","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:17","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"predication:21":{"type":"predication","relation":"tanru","tanruLink":{"head":"predication:12","modifier":"relation:20","relationLabel":"bruna-re mei"},"arguments":{"x1":{"kind":"filled","value":"entity:8"},"x2":{"kind":"filled","value":"relation:20"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"formula:19":{"type":"formula","operator":"atom","predication":"predication:18","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"formula:22":{"type":"formula","operator":"atom","predication":"predication:21","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"formula:23":{"type":"formula","operator":"and","children":["formula:13","formula:22"],"connector":{"source":"tanru","locus":"selbri"},"source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djeimyz"},"source":{"span":{"byteStart":0,"byteEnd":11},"text":"la djeimyz.","construct":"sumti"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djordj"},"source":{"span":{"byteStart":16,"byteEnd":26},"text":"la djordj.","construct":"sumti"}},"entity:8":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"mass","members":["entity:6","entity:7"],"collective":true},"source":{"span":{"byteStart":0,"byteEnd":26},"text":"la djeimyz. joi la djordj.","construct":"connected-sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:17":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:9":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"eventuality:15":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}},"eventuality/locution:24":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"bridi"}},"relation:20":{"type":"referent","category":"constant","sort":"relation","body":"formula:19","parameters":["parameter:14"],"arity":1,"source":{"span":{"byteStart":0,"byteEnd":41},"text":"la djeimyz. joi la djordj. cu bruna remei","construct":"tanru-formula"}}}}'''

@@ -17,28 +17,33 @@ raw = '{"frames":[{"index":0,"node":{"offset":3,"length":5},"kind":"tanru-unit",
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥38) {
-  terms: [
-    Description @[0‥20) {
-      description: Cmavo @[0‥2) "le",
-      selbri: Tanru @[3‥20) {
-        LinkedSumtiTanruUnit @[3‥14) {
-          Gismu @[3‥8) "mámta",
-          be: Cmavo @[9‥11) "be",
-          first_sumti: Cmavo @[12‥14) "mi",
+TermsFragment @[0‥38) {
+  DescriptorWithGadriSumti @[0‥20) {
+    description: Cmavo @[0‥2) "le",
+    tail: DescriptionTail @[3‥20) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[3‥20) {
+        first_unit: LinkedTanruUnit @[3‥14) {
+          base: Gismu @[3‥8) "mámta",
+          linkargs: Linkargs @[9‥14) {
+            be: Cmavo @[9‥11) "be",
+            first_link: Cmavo @[12‥14) "mi",
+          },
         },
-        Gismu @[15‥20) "jbéne",
-      },
-    },
-    PlaceTaggedSumti @[21‥38) {
-      fa: Cmavo @[21‥23) "fo",
-      NameDescription @[24‥38) {
-        la: Cmavo @[24‥26) "la",
-        names: [
-          Cmevla @[27‥38) "filidelfĭas",
+        additional_units: [
+          Gismu @[15‥20) "jbéne",
         ],
       },
     },
-  ],
+  },
+  PlaceTaggedSumtiTerm @[21‥38) {
+    fa: Cmavo @[21‥23) "fo",
+    sumti: NameSumti @[24‥38) {
+      la: Cmavo @[24‥26) "la",
+      names: [
+        Cmevla @[27‥38) "filidelfĭas",
+      ],
+    },
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mámta","span":[3,8]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jbéne","span":[15,20]}}}}}]}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[21,23]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"filidelfĭas","span":[27,38]}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mámta","span":[3,8]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jbéne","span":[15,20]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[21,23]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"filidelfĭas","span":[27,38]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}'

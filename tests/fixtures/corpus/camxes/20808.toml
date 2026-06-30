@@ -33,26 +33,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}},{"PlainWord":
 
 [expectations.output.gentufa]
 tree = """
-Text @[1‥25) {
-  leading_indicators: [
-    Indicator @[1‥25) {
-      indicator: WithIndicator @[1‥25) {
-        WithIndicator @[1‥21) {
-          WithIndicator @[1‥16) {
-            WithIndicator @[1‥12) {
-              WithIndicator @[1‥8) {
-                Cmavo @[1‥4) "o'o",
-                indicator: Cmavo @[4‥8) "cu'i",
-              },
-              indicator: Cmavo @[10‥12) "oĭ",
-            },
-            indicator: Cmavo @[12‥16) "ru'e",
-          },
-          indicator: Cmavo @[17‥21) "zo'o",
+WithIndicator @[1‥25) {
+  WithIndicator @[1‥21) {
+    WithIndicator @[1‥16) {
+      WithIndicator @[1‥12) {
+        WithIndicator @[1‥8) {
+          Cmavo @[1‥4) "o'o",
+          indicator: Cmavo @[4‥8) "cu'i",
         },
-        indicator: Cmavo @[21‥25) "ru'e",
+        indicator: Cmavo @[10‥12) "oĭ",
       },
+      indicator: Cmavo @[12‥16) "ru'e",
     },
-  ],
+    indicator: Cmavo @[17‥21) "zo'o",
+  },
+  indicator: Cmavo @[21‥25) "ru'e",
 }"""
-json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[4,8]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[17,21]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[21,25]}}}}}]}"""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[4,8]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[10,12]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[12,16]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[17,21]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[21,25]}}}}}]}}"""

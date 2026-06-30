@@ -33,26 +33,20 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Text @[1‥20) {
-  leading_indicators: [
-    Indicator @[1‥20) {
-      indicator: WithIndicator @[1‥20) {
-        WithIndicator @[1‥17) {
-          WithIndicator @[1‥13) {
-            WithIndicator @[1‥10) {
-              WithIndicator @[1‥6) {
-                Cmavo @[1‥3) "ŭi",
-                indicator: Cmavo @[3‥6) "caĭ",
-              },
-              indicator: Cmavo @[8‥10) "ŭi",
-            },
-            indicator: Cmavo @[10‥13) "caĭ",
-          },
-          indicator: Cmavo @[15‥17) "ŭi",
+WithIndicator @[1‥20) {
+  WithIndicator @[1‥17) {
+    WithIndicator @[1‥13) {
+      WithIndicator @[1‥10) {
+        WithIndicator @[1‥6) {
+          Cmavo @[1‥3) "ŭi",
+          indicator: Cmavo @[3‥6) "caĭ",
         },
-        indicator: Cmavo @[17‥20) "caĭ",
+        indicator: Cmavo @[8‥10) "ŭi",
       },
+      indicator: Cmavo @[10‥13) "caĭ",
     },
-  ],
+    indicator: Cmavo @[15‥17) "ŭi",
+  },
+  indicator: Cmavo @[17‥20) "caĭ",
 }"""
-json = '{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[3,6]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[15,17]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[17,20]}}}}}]}'
+json = '{"RegularText":{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[3,6]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[10,13]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[15,17]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[17,20]}}}}}]}}'

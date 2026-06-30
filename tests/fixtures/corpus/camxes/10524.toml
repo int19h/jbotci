@@ -38,28 +38,24 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"paŭ","span":[0,3]}}},{"PlainWord"
 tree = """
 Text @[0‥36) {
   leading_indicators: [
-    Indicator @[0‥10) {
-      indicator: WithIndicator @[0‥10) {
-        WithIndicator @[0‥7) {
-          Cmavo @[0‥3) "paŭ",
-          indicator: Cmavo @[5‥7) "ŭe",
-        },
-        indicator: Cmavo @[7‥10) "saĭ",
+    WithIndicator @[0‥10) {
+      WithIndicator @[0‥7) {
+        Cmavo @[0‥3) "paŭ",
+        indicator: Cmavo @[5‥7) "ŭe",
       },
+      indicator: Cmavo @[7‥10) "saĭ",
     },
   ],
-  Bridi @[11‥36) {
+  BridiWithLeadingTerms @[11‥36) {
     leading_terms: [
       Cmavo @[11‥13) "do",
     ],
-    SelbriBridiTail @[14‥36) {
-      Gismu @[14‥19) "pónse",
+    bridi_tail: SelbriSimpleBridiTail @[14‥36) {
+      selbri: Gismu @[14‥19) "pónse",
       terms: [
-        Description @[20‥36) {
-          tail_elements: [
-            Cmavo @[20‥22) "mu",
-          ],
-          selbri: WithIndicator @[23‥36) {
+        DescriptorWithoutGadriSumti @[20‥36) {
+          quantifier: Cmavo @[20‥22) "mu",
+          WithIndicator @[23‥36) {
             WithIndicator @[23‥31) {
               Gismu @[23‥28) "jámfu",
               indicator: Cmavo @[29‥31) "xu",
@@ -71,4 +67,4 @@ Text @[0‥36) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[11,13]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[14,19]}}}}},"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[20,22]}}}}]}}}],"selbri":{"SelbriWord":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jámfu","span":[23,28]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[29,31]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[32,36]}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"paŭ","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"ŭe","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[7,10]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[11,13]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pónse","span":[14,19]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[20,22]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jámfu","span":[23,28]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[29,31]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[32,36]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"paŭ","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"ŭe","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[7,10]}}}}}]}}"""

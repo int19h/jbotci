@@ -33,19 +33,17 @@ Text @[0‥24) {
   leading_cmevla: [
     Cmevla @[0‥5) "ekted",
   ],
-  Terms @[7‥24) {
-    terms: [
-      Description @[7‥24) {
-        description: Cmavo @[7‥9) "le",
-        tail_elements: [
-          Cmavo @[10‥12) "mi",
-        ],
-        selbri: Tanru @[13‥24) {
-          Gismu @[13‥18) "críno",
+  DescriptorWithGadriSumti @[7‥24) {
+    description: Cmavo @[7‥9) "le",
+    tail: DescriptionTail @[10‥24) {
+      leading_tail_elements: Cmavo @[10‥12) "mi",
+      tail: TanruSelbri @[13‥24) {
+        first_unit: Gismu @[13‥18) "críno",
+        additional_units: [
           Gismu @[19‥24) "kárce",
-        },
+        ],
       },
-    ],
+    },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ekted","span":[0,5]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críno","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[19,24]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ekted","span":[0,5]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[10,12]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críno","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[19,24]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

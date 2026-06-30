@@ -21,20 +21,12 @@ Text @[0‥16) {
   leading_cmevla: [
     Cmevla @[0‥9) "signifĭed",
   ],
-  Terms @[10‥16) {
-    terms: [
-      LerfuStringSumti @[10‥12) {
-        letter: [
-          Cmavo @[10‥12) "by",
-        ],
-      },
-      TaggedSumti @[13‥16) {
-        tense_modal: Modal @[13‥16) {
-          bai: Cmavo @[13‥16) "gaŭ",
-        },
-        ElidedSumti {},
-      },
-    ],
+  TermsFragment @[10‥16) {
+    Cmavo @[10‥12) "by",
+    TaggedSumtiTerm @[13‥16) {
+      tense_modal: Cmavo @[13‥16) "gaŭ",
+      sumti: TaggedElidedSumti {},
+    },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"signifĭed","span":[0,9]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[10,12]}}}}]}}},{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[13,16]}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"signifĭed","span":[0,9]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[10,12]}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gaŭ","span":[13,16]}}}}}}}},"sumti":{}}}}}]}}}}}}}}}'

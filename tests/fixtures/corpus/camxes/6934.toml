@@ -38,35 +38,40 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥44) {
-  ParagraphStatement @[1‥31) {
-    i: WithIndicator @[1‥7) {
-      Cmavo @[1‥2) "i",
-      indicator: Cmavo @[3‥7) "ji'a",
-    },
-    Bridi @[8‥31) {
+ParagraphStatement @[1‥44) {
+  i: WithIndicator @[1‥7) {
+    Cmavo @[1‥2) "i",
+    indicator: Cmavo @[3‥7) "ji'a",
+  },
+  ParagraphStatementSequence @[8‥44) {
+    BridiWithLeadingTerms @[8‥31) {
       leading_terms: [
-        Description @[8‥16) {
+        DescriptorWithGadriSumti @[8‥16) {
           description: Cmavo @[8‥10) "lo",
-          selbri: Gismu @[11‥16) "nánba",
+          tail: DescriptionTail @[11‥16) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Gismu @[11‥16) "nánba",
+          },
         },
       ],
       cu: Cmavo @[17‥19) "cu",
-      Tanru @[20‥31) {
-        Gismu @[20‥25) "súdga",
-        Gismu @[26‥31) "fónmo",
+      bridi_tail: TanruSelbri @[20‥31) {
+        first_unit: Gismu @[20‥25) "súdga",
+        additional_units: [
+          Gismu @[26‥31) "fónmo",
+        ],
       },
     },
-  },
-  ParagraphStatement @[33‥44) {
-    i: WithIndicator @[33‥44) {
-      WithIndicator @[33‥41) {
-        Cmavo @[33‥34) "i",
-        indicator: Cmavo @[36‥38) "aŭ",
-        nai: Cmavo @[38‥41) "naĭ",
+    following: [
+      WithIndicator @[33‥44) {
+        WithIndicator @[33‥41) {
+          Cmavo @[33‥34) "i",
+          indicator: Cmavo @[36‥38) "aŭ",
+          nai: Cmavo @[38‥41) "naĭ",
+        },
+        indicator: Cmavo @[41‥44) "caĭ",
       },
-      indicator: Cmavo @[41‥44) "caĭ",
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[3,7]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[8,10]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[11,16]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[17,19]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súdga","span":[20,25]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónmo","span":[26,31]}}}}}]}}}}}}}}},{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[33,34]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[36,38]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[38,41]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[41,44]}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[3,7]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[8,10]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[11,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[17,19]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súdga","span":[20,25]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónmo","span":[26,31]}}}}}}}}}]}}}}}}}}}}}}}}}}},"following":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[33,34]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[36,38]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[38,41]}}}},"indicator":{"Cmavo":{"phonemes":"caĭ","span":[41,44]}}}}}]}}}}}}"""

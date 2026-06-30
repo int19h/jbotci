@@ -30,17 +30,11 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥11) {
-  terms: [
-    TaggedSumti @[0‥11) {
-      tense_modal: Modal @[0‥4) {
-        bai: Cmavo @[0‥4) "ki'u",
-      },
-      WithIndicator @[5‥11) {
-        Cmavo @[5‥7) "ma",
-        indicator: Cmavo @[9‥11) "ŭe",
-      },
-    },
-  ],
+TaggedSumtiTerm @[0‥11) {
+  tense_modal: Cmavo @[0‥4) "ki'u",
+  sumti: WithIndicator @[5‥11) {
+    Cmavo @[5‥7) "ma",
+    indicator: Cmavo @[9‥11) "ŭe",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[0,4]}}}}}},"sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"ŭe","span":[9,11]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[0,4]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"ŭe","span":[9,11]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

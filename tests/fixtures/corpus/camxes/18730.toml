@@ -37,10 +37,10 @@ ParagraphStatement @[1‥13) {
   i: Cmavo @[1‥2) "i",
   LinkedSumti @[3‥13) {
     be: Cmavo @[3‥5) "be",
-    first_sumti: QuotedWord @[6‥13) {
+    first_link: QuotedWord @[6‥13) {
       zo: Cmavo @[6‥8) "zo",
       Cmavo @[9‥13) "go'a",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"LinkedSumti":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[3,5]}}}},"first_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"go'a","span":[9,13]}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiFragment":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[3,5]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[6,8]}},"word":{"Cmavo":{"phonemes":"go'a","span":[9,13]}}}}}}}}}}}}}}}}}}}}}}}}"""

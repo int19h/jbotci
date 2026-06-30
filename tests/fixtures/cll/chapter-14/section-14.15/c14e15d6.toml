@@ -48,51 +48,61 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[6,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[18,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[24,27]}}},{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[27,29]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[33,38]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}},{"PlainWord":{"Gismu":{"phonemes":"gúnma","span":[43,48]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[49,51]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[52,54]}}},{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[54,57]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{mi joĭ bo do} ce {(la .djan.) joĭ bo (la .djeĭn.)}] cu [gúnma {se (re meĭ)}])"
+brackets = "([{mi (joĭ bo do)} {ce ([la .djan.] [joĭ bo {la .djeĭn.}])}] cu [gúnma {se (re meĭ)}])"
 tree = """
-Bridi @[0‥57) {
+BridiWithLeadingTerms @[0‥57) {
   leading_terms: [
-    SumtiConnection @[0‥38) {
-      leading_sumti: BoundSumtiConnection @[0‥11) {
+    SumtiAfterthought @[0‥38) {
+      leading_sumti: SumtiBound @[0‥11) {
         leading_sumti: Cmavo @[0‥2) "mi",
-        bo_connective: Cmavo @[3‥6) "joĭ",
-        bo: Cmavo @[6‥8) "bo",
-        trailing_sumti: Cmavo @[9‥11) "do",
-      },
-      connective: Cmavo @[12‥14) "ce",
-      trailing_sumti: BoundSumtiConnection @[15‥38) {
-        leading_sumti: NameDescription @[15‥22) {
-          la: Cmavo @[15‥17) "la",
-          names: [
-            Cmevla @[18‥22) "djan",
-          ],
-        },
-        bo_connective: Cmavo @[24‥27) "joĭ",
-        bo: Cmavo @[27‥29) "bo",
-        trailing_sumti: NameDescription @[30‥38) {
-          la: Cmavo @[30‥32) "la",
-          names: [
-            Cmevla @[33‥38) "djeĭn",
-          ],
+        bound_tail: BoundSumtiTail @[3‥11) {
+          connective: Cmavo @[3‥6) "joĭ",
+          bo: Cmavo @[6‥8) "bo",
+          trailing_sumti: Cmavo @[9‥11) "do",
         },
       },
+      continuations: [
+        SumtiAfterthoughtTail @[12‥38) {
+          connective: Cmavo @[12‥14) "ce",
+          sumti: SumtiBound @[15‥38) {
+            leading_sumti: NameSumti @[15‥22) {
+              la: Cmavo @[15‥17) "la",
+              names: [
+                Cmevla @[18‥22) "djan",
+              ],
+            },
+            bound_tail: BoundSumtiTail @[24‥38) {
+              connective: Cmavo @[24‥27) "joĭ",
+              bo: Cmavo @[27‥29) "bo",
+              trailing_sumti: NameSumti @[30‥38) {
+                la: Cmavo @[30‥32) "la",
+                names: [
+                  Cmevla @[33‥38) "djeĭn",
+                ],
+              },
+            },
+          },
+        },
+      ],
     },
   ],
   cu: Cmavo @[40‥42) "cu",
-  Tanru @[43‥57) {
-    Gismu @[43‥48) "gúnma",
-    ConvertedTanruUnit @[49‥57) {
-      se: Cmavo @[49‥51) "se",
-      OrdinalSelbri @[52‥57) {
-        number: [
-          Cmavo @[52‥54) "re",
+  bridi_tail: TanruSelbri @[43‥57) {
+    first_unit: Gismu @[43‥48) "gúnma",
+    additional_units: [
+      TanruUnitAtom @[49‥57) {
+        conversions: [
+          Cmavo @[49‥51) "se",
         ],
-        moi: Cmavo @[54‥57) "meĭ",
+        base: OrdinalTanruUnit @[52‥57) {
+          number: Cmavo @[52‥54) "re",
+          moi: Cmavo @[54‥57) "meĭ",
+        },
       },
-    },
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"BoundSumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"bo_connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}}}]}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[6,8]}}}},"trailing_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}}}]}},"trailing_sumti":{"BoundSumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[18,22]}}}}]}},"bo_connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[24,27]}}}}]}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[27,29]}}}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[33,38]}}}}]}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnma","span":[43,48]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[49,51]}}}},"inner_unit":{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[52,54]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[54,57]}}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}},"bound_tail":{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[6,8]}}}},"trailing_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce","span":[12,14]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[18,22]}}}}]}}}}},"bound_tail":{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[24,27]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[27,29]}}}},"trailing_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[33,38]}}}}]}}}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[40,42]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gúnma","span":[43,48]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[49,51]}}}}],"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[52,54]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[54,57]}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:25","content":"formula:24","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"bridi"}},"parameter:16":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"predication:14":{"type":"predication","eventuality":"eventuality:11","relation":"re mei","arguments":{"x1":{"kind":"elided","value":"entity:12","introducedBy":"zo'e"},"x2":{"kind":"filled","value":"entity:10"},"x3":{"kind":"elided","value":"entity:13","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"predication:19":{"type":"predication","eventuality":"eventuality:17","relation":"gunma","arguments":{"x1":{"kind":"filled","value":"parameter:16"},"x2":{"kind":"elided","value":"entity:18","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"predication:22":{"type":"predication","relation":"tanru","tanruLink":{"head":"predication:14","modifier":"relation:21","relationLabel":"gunma-re mei"},"arguments":{"x1":{"kind":"filled","value":"entity:10"},"x2":{"kind":"filled","value":"relation:21"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"formula:20":{"type":"formula","operator":"atom","predication":"predication:19","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"formula:23":{"type":"formula","operator":"atom","predication":"predication:22","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"formula:24":{"type":"formula","operator":"and","children":["formula:15","formula:23"],"connector":{"source":"tanru","locus":"selbri"},"source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"mass","members":["entity:1","entity:2"],"collective":true},"source":{"span":{"byteStart":0,"byteEnd":11},"text":"mi joibo do","construct":"connected-sumti"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":15,"byteEnd":23},"text":"la djan.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djein"},"source":{"span":{"byteStart":30,"byteEnd":39},"text":"la djein.","construct":"sumti"}},"entity:9":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"mass","members":["entity:7","entity:8"],"collective":true},"source":{"span":{"byteStart":15,"byteEnd":39},"text":"la djan. joibo la djein.","construct":"connected-sumti"}},"entity:10":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"set","members":["entity:6","entity:9"]},"source":{"span":{"byteStart":0,"byteEnd":39},"text":"mi joibo do ce la djan. joibo la djein.","construct":"connected-sumti"}},"entity:12":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:18":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:11":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"eventuality:17":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}},"eventuality/locution:25":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"bridi"}},"relation:21":{"type":"referent","category":"constant","sort":"relation","body":"formula:20","parameters":["parameter:16"],"arity":1,"source":{"span":{"byteStart":0,"byteEnd":57},"text":"mi joibo do ce la djan. joibo la djein. cu gunma se remei","construct":"tanru-formula"}}}}'''

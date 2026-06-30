@@ -46,38 +46,43 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord"
 tree = """
 Text @[0‥59) {
   leading_free_modifiers: [
-    Vocative @[0‥13) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
+    VocativeFreeModifier @[0‥13) {
+      vocative_markers: Cmavo @[0‥3) "doĭ",
+      sumti: [
+        WithIndicator @[4‥13) {
+          Cmevla @[4‥7) "xod",
+          indicator: Cmavo @[9‥13) "ji'a",
+        },
       ],
-      sumti: WithIndicator @[4‥13) {
-        Cmevla @[4‥7) "xod",
-        indicator: Cmavo @[9‥13) "ji'a",
-      },
     },
   ],
-  Bridi @[14‥59) {
+  BridiWithLeadingTerms @[14‥59) {
     leading_terms: [
-      Description @[14‥40) {
+      DescriptorWithGadriSumti @[14‥40) {
         description: Cmavo @[14‥16) "le",
-        selbri: Tanru @[17‥28) {
-          Gismu @[17‥22) "válsi",
-          Gismu @[23‥28) "líste",
-        },
-        relative_clauses: [
-          SumtiAssociationPhrase @[29‥40) {
-            association_marker: Cmavo @[29‥31) "po",
-            QuotedWord @[32‥40) {
-              zo: Cmavo @[32‥34) "zo",
-              Gismu @[35‥40) "múvdu",
+        tail: DescriptionTail @[17‥40) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: RelationDescriptionTail @[17‥40) {
+            selbri: TanruSelbri @[17‥28) {
+              first_unit: Gismu @[17‥22) "válsi",
+              additional_units: [
+                Gismu @[23‥28) "líste",
+              ],
+            },
+            relative_clauses: SumtiAssociationRelativeClause @[29‥40) {
+              association_marker: Cmavo @[29‥31) "po",
+              sumti: QuotedWord @[32‥40) {
+                zo: Cmavo @[32‥34) "zo",
+                Gismu @[35‥40) "múvdu",
+              },
             },
           },
-        ],
+        },
       },
     ],
     cu: Cmavo @[41‥43) "cu",
-    SelbriBridiTail @[44‥59) {
-      Gismu @[44‥49) "stídi",
+    bridi_tail: SelbriSimpleBridiTail @[44‥59) {
+      selbri: Gismu @[44‥49) "stídi",
       terms: [
         QuotedWord @[50‥59) {
           zo: Cmavo @[50‥52) "zo",
@@ -87,4 +92,4 @@ Text @[0‥59) {
     },
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"NameWords":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"xod","span":[4,7]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[9,13]}}}}]}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[17,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"líste","span":[23,28]}}}}}]},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[29,31]}}}},"sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[32,34]}},"word":{"Gismu":{"phonemes":"múvdu","span":[35,40]}}}}}}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[41,43]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stídi","span":[44,49]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[50,52]}},"word":{"Lujvo":{"parts":[{"Rafsi":"múv"},{"Rafsi":"gaŭ"}],"span":[53,59]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"xod","span":[4,7]}}}},"indicator":{"Cmavo":{"phonemes":"ji'a","span":[9,13]}}}}]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[14,16]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[17,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"líste","span":[23,28]}}}}}}}}}]}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"po","span":[29,31]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[32,34]}},"word":{"Gismu":{"phonemes":"múvdu","span":[35,40]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[41,43]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stídi","span":[44,49]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[50,52]}},"word":{"Lujvo":{"parts":[{"Rafsi":"múv"},{"Rafsi":"gaŭ"}],"span":[53,59]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

@@ -31,18 +31,20 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"vlípa","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥17) {
-  Tanru @[0‥12) {
-    Gismu @[0‥5) "vlípa",
-    Lujvo @[6‥12) "lídvru",
+SelbriSimpleBridiTail @[0‥17) {
+  selbri: TanruSelbri @[0‥12) {
+    first_unit: Gismu @[0‥5) "vlípa",
+    additional_units: [
+      Lujvo @[6‥12) "lídvru",
+    ],
   },
   terms: [
-    TaggedSumti @[13‥17) {
-      tense_modal: Cmavo @[13‥15) "ca",
-      ElidedSumti @[15‥17) {
-        maybe_ku: Cmavo @[15‥17) "ku",
-      },
+    TaggedSumtiTerm @[13‥17) {
+      tense_modal: [
+        Cmavo @[13‥15) "ca",
+      ],
+      sumti: Cmavo @[15‥17) "ku",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlípa","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"líd"},{"Rafsi":"vru"}],"span":[6,12]}}}}}]},"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[13,15]}}}}}]}},"sumti":{"ElidedSumti":{"maybe_ku":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[15,17]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vlípa","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"líd"},{"Rafsi":"vru"}],"span":[6,12]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[13,15]}}}}}]}}}}}}}}},"sumti":{"TaggedElidedSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[15,17]}}}}}}}}}]}}}}}}}}}}}}}}}}}'

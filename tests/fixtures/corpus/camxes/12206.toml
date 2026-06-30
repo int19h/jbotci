@@ -31,20 +31,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥13) {
-  terms: [
-    SumtiWithRelativeClauses @[0‥13) {
-      base_sumti: QuantifiedSumti @[0‥4) {
-        quantifier: Cmavo @[0‥2) "no",
-        Cmavo @[2‥4) "da",
-      },
-      relative_clauses: [
-        SumtiAssociationPhrase @[5‥13) {
-          association_marker: Cmavo @[5‥8) "goĭ",
-          Cmavo @[9‥13) "ko'a",
-        },
-      ],
-    },
-  ],
+SimpleSumti @[0‥13) {
+  base_sumti: QuantifiedSumti @[0‥4) {
+    quantifier: Cmavo @[0‥2) "no",
+    inner_sumti: Cmavo @[2‥4) "da",
+  },
+  relative_clauses: SumtiAssociationRelativeClause @[5‥13) {
+    association_marker: Cmavo @[5‥8) "goĭ",
+    sumti: Cmavo @[9‥13) "ko'a",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[2,4]}}}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[9,13]}}}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[0,2]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[2,4]}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[5,8]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[9,13]}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

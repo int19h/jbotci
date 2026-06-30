@@ -31,12 +31,12 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥19) {
-  Gismu @[0‥5) "pílno",
+SelbriSimpleBridiTail @[0‥19) {
+  selbri: Gismu @[0‥5) "pílno",
   terms: [
     QuantifiedSumti @[6‥19) {
       quantifier: Cmavo @[6‥8) "pa",
-      NameDescription @[9‥19) {
+      inner_sumti: NameSumti @[9‥19) {
         la: Cmavo @[9‥12) "laĭ",
         names: [
           Cmevla @[13‥19) "ĭuniks",
@@ -45,4 +45,4 @@ SelbriBridiTail @[0‥19) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}}}},"terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,8]}}}}]}},"inner_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"laĭ","span":[9,12]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ĭuniks","span":[13,19]}}}}]}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,8]}}}}}}},"inner_sumti":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"laĭ","span":[9,12]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ĭuniks","span":[13,19]}}}}]}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

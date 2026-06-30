@@ -40,33 +40,27 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥33) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥33) {
-      to: Cmavo @[0‥2) "to",
-      free_modifiers: [
-        MetalinguisticBridi @[3‥12) {
-          sei: Cmavo @[3‥6) "seĭ",
-          selbri: Gismu @[7‥12) "básti",
-        },
-      ],
-      Terms @[13‥29) {
-        terms: [
-          QuotedWord @[13‥19) {
-            zo: Cmavo @[13‥15) "zo",
-            Cmavo @[17‥19) "oĭ",
-          },
-          PlaceTaggedSumti @[20‥29) {
-            fa: Cmavo @[20‥22) "fa",
-            QuotedWord @[23‥29) {
-              zo: Cmavo @[23‥25) "zo",
-              Cmavo @[27‥29) "ĭo",
-            },
-          },
-        ],
-      },
-      toi: Cmavo @[30‥33) "toĭ",
+ParentheticalText @[0‥33) {
+  to: Cmavo @[0‥2) "to",
+  free_modifiers: [
+    SeiFreeModifier @[3‥12) {
+      sei: Cmavo @[3‥6) "seĭ",
+      selbri: Gismu @[7‥12) "básti",
     },
   ],
+  text: TermsFragment @[13‥29) {
+    QuotedWord @[13‥19) {
+      zo: Cmavo @[13‥15) "zo",
+      Cmavo @[17‥19) "oĭ",
+    },
+    PlaceTaggedSumtiTerm @[20‥29) {
+      fa: Cmavo @[20‥22) "fa",
+      sumti: QuotedWord @[23‥29) {
+        zo: Cmavo @[23‥25) "zo",
+        Cmavo @[27‥29) "ĭo",
+      },
+    },
+  },
+  toi: Cmavo @[30‥33) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[7,12]}}}}}}}],"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Cmavo":{"phonemes":"oĭ","span":[17,19]}}}}}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[20,22]}}}},"sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[23,25]}},"word":{"Cmavo":{"phonemes":"ĭo","span":[27,29]}}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[30,33]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[7,12]}}}}}}}}}}}}}}}}],"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Cmavo":{"phonemes":"oĭ","span":[17,19]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[20,22]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[23,25]}},"word":{"Cmavo":{"phonemes":"ĭo","span":[27,29]}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[30,33]}}}}}}]}}'

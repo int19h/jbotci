@@ -31,20 +31,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥17) {
-  Terms @[0‥14) {
-    terms: [
-      Description @[0‥14) {
-        description: Cmavo @[0‥2) "le",
-        selbri: Tanru @[3‥14) {
-          Gismu @[3‥8) "xánri",
+ParagraphStatementSequence @[0‥17) {
+  DescriptorWithGadriSumti @[0‥14) {
+    description: Cmavo @[0‥2) "le",
+    tail: DescriptionTail @[3‥14) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[3‥14) {
+        first_unit: Gismu @[3‥8) "xánri",
+        additional_units: [
           Gismu @[9‥14) "múnje",
-        },
+        ],
       },
-    ],
+    },
   },
-  ParagraphStatement @[16‥17) {
-    i: Cmavo @[16‥17) "i",
-  },
+  following: [
+    Cmavo @[16‥17) "i",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xánri","span":[3,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múnje","span":[9,14]}}}}}]}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xánri","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"múnje","span":[9,14]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}}}]}}}}}}'

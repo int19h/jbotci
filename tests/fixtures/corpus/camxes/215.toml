@@ -29,12 +29,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[24‥32) {
-  terms: [
-    Description @[24‥32) {
-      description: Cmavo @[24‥26) "la",
-      selbri: Gismu @[27‥32) "bródo",
-    },
-  ],
+DescriptorWithGadriSumti @[24‥32) {
+  description: Cmavo @[24‥26) "la",
+  tail: DescriptionTail @[27‥32) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: Gismu @[27‥32) "bródo",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródo","span":[27,32]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bródo","span":[27,32]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

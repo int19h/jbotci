@@ -39,36 +39,45 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥44) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥44) {
+  BridiWithLeadingTerms @[2‥44) {
     leading_terms: [
-      Description @[2‥19) {
+      DescriptorWithGadriSumti @[2‥19) {
         description: Cmavo @[2‥4) "le",
-        selbri: Tanru @[5‥19) {
-          Gismu @[5‥10) "cníno",
-          ConvertedTanruUnit @[11‥19) {
-            se: Cmavo @[11‥13) "se",
-            Gismu @[14‥19) "cúxna",
+        tail: DescriptionTail @[5‥19) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: TanruSelbri @[5‥19) {
+            first_unit: Gismu @[5‥10) "cníno",
+            additional_units: [
+              TanruUnitAtom @[11‥19) {
+                conversions: [
+                  Cmavo @[11‥13) "se",
+                ],
+                base: Gismu @[14‥19) "cúxna",
+              },
+            ],
           },
         },
       },
     ],
-    SelbriBridiTail @[20‥44) {
-      TaggedSelbri @[20‥30) {
-        tense_modal: Cmavo @[20‥24) "co'a",
-        Gismu @[25‥30) "túrni",
+    bridi_tail: SelbriSimpleBridiTail @[20‥44) {
+      selbri: TaggedSelbri @[20‥30) {
+        tense_modal: [
+          Cmavo @[20‥24) "co'a",
+        ],
+        inner_selbri: Gismu @[25‥30) "túrni",
       },
       terms: [
-        TaggedSumti @[31‥44) {
-          tense_modal: Modal @[31‥35) {
-            bai: Cmavo @[31‥35) "ti'u",
-          },
-          NumberSumti @[36‥44) {
+        TaggedSumtiTerm @[31‥44) {
+          tense_modal: Cmavo @[31‥35) "ti'u",
+          sumti: NumberSumti @[36‥44) {
             li: Cmavo @[36‥38) "li",
-            NumberQuantifier @[39‥44) {
-              Cmavo @[39‥40) "no",
-              Cmavo @[40‥41) "mu",
-              Cmavo @[42‥43) "re",
-              Cmavo @[43‥44) "mu",
+            NumberWords @[39‥44) {
+              first_number: Cmavo @[39‥40) "no",
+              continuations: [
+                Cmavo @[40‥41) "mu",
+                Cmavo @[42‥43) "re",
+                Cmavo @[43‥44) "mu",
+              ],
             },
           },
         },
@@ -76,4 +85,4 @@ ParagraphStatement @[0‥44) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[2,4]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[5,10]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[11,13]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúxna","span":[14,19]}}}}}}}]}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[20,24]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túrni","span":[25,30]}}}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'u","span":[31,35]}}}}}},"sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[36,38]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[39,40]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[40,41]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[42,43]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[43,44]}}}}]}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[2,4]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cníno","span":[5,10]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[11,13]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúxna","span":[14,19]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'a","span":[20,24]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túrni","span":[25,30]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti'u","span":[31,35]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[36,38]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[39,40]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[40,41]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[42,43]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[43,44]}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

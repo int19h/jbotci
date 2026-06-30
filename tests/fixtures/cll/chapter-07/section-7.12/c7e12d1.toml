@@ -45,9 +45,9 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "([la .djan.] cu [{lafmúvgaŭ (da [poĭ grána ku'o])} {gi'e (désygaŭ da)}])"
 tree = """
-Bridi @[0‥56) {
+BridiWithLeadingTerms @[0‥56) {
   leading_terms: [
-    NameDescription @[0‥8) {
+    NameSumti @[0‥8) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[4‥8) "djan",
@@ -55,36 +55,30 @@ Bridi @[0‥56) {
     },
   ],
   cu: Cmavo @[10‥12) "cu",
-  AfterthoughtBridiTail @[13‥56) {
-    SelbriBridiTail @[13‥40) {
-      Lujvo @[13‥22) "lafmúvgaŭ",
+  bridi_tail: AfterthoughtBridiTail @[13‥56) {
+    SelbriSimpleBridiTail @[13‥40) {
+      selbri: Lujvo @[13‥22) "lafmúvgaŭ",
       terms: [
-        SumtiWithRelativeClauses @[23‥40) {
+        SimpleSumti @[23‥40) {
           base_sumti: Cmavo @[23‥25) "da",
-          relative_clauses: [
-            RestrictiveRelativeBridi @[26‥40) {
-              poi: Cmavo @[26‥29) "poĭ",
-              Gismu @[30‥35) "grána",
-              kuho: Cmavo @[36‥40) "ku'o",
-            },
-          ],
+          relative_clauses: RestrictiveBridiRelativeClause @[26‥40) {
+            poi: Cmavo @[26‥29) "poĭ",
+            subbridi: Gismu @[30‥35) "grána",
+            kuho: Cmavo @[36‥40) "ku'o",
+          },
         },
       ],
     },
-    continuations: [
-      BridiTailConnection @[41‥56) {
-        connective: Cmavo @[41‥45) "gi'e",
-        SelbriBridiTail @[46‥56) {
-          Lujvo @[46‥53) "désygaŭ",
-          terms: [
-            Cmavo @[54‥56) "da",
-          ],
-        },
-      },
-    ],
+    Cmavo @[41‥45) "gi'e",
+    SelbriSimpleBridiTail @[46‥56) {
+      selbri: Lujvo @[46‥53) "désygaŭ",
+      terms: [
+        Cmavo @[54‥56) "da",
+      ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[4,8]}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"laf"},{"Rafsi":"múv"},{"Rafsi":"gaŭ"}],"span":[13,22]}}}}},"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[23,25]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[26,29]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"grána","span":[30,35]}}}}}}}}}}}},"kuho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku'o","span":[36,40]}}}}}}]}}}]}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[41,45]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dés"},{"Hyphen":"y"},{"Rafsi":"gaŭ"}],"span":[46,53]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[54,56]}}}}}}]}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[4,8]}}}}]}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[10,12]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"laf"},{"Rafsi":"múv"},{"Rafsi":"gaŭ"}],"span":[13,22]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[23,25]}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[26,29]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"grána","span":[30,35]}}}}}}}}}}}}}}}}}}}}}},"kuho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku'o","span":[36,40]}}}}}}}}}}}}}}}}}]}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[41,45]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"dés"},{"Hyphen":"y"},{"Rafsi":"gaŭ"}],"span":[46,53]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"da","span":[54,56]}}}}}}}}}}}}}}}]}}}}]}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:25","content":"formula:24","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":56},"text":"la .djan. cu lafmuvgau da poi grana ku'o gi'e desygau da","construct":"bridi"}},"predication:11":{"type":"predication","eventuality":"eventuality:8","relation":"grana","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":30,"byteEnd":35},"text":"grana","construct":"predication"}},"predication:17":{"type":"predication","eventuality":"eventuality:6","relation":"lafmuvgau","arguments":{"x1":{"kind":"filled","value":"entity:13","source":{"span":{"byteStart":0,"byteEnd":9},"text":"la .djan.","construct":"shared-head-term"}},"x2":{"kind":"filled","value":"entity:7","relativeClauses":[{"kind":"restrictive","body":"formula:12","source":{"span":{"byteStart":30,"byteEnd":35},"text":"grana","construct":"relative-clause"}}]},"x3":{"kind":"elided","value":"entity:14","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:15","introducedBy":"zo'e"},"x5":{"kind":"elided","value":"entity:16","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":13,"byteEnd":22},"text":"lafmuvgau","construct":"predication"}},"predication:21":{"type":"predication","eventuality":"eventuality:19","relation":"desygau","arguments":{"x1":{"kind":"filled","value":"entity:13","source":{"span":{"byteStart":0,"byteEnd":9},"text":"la .djan.","construct":"shared-head-term"}},"x2":{"kind":"filled","value":"entity:7"},"x3":{"kind":"elided","value":"entity:20","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":46,"byteEnd":53},"text":"desygau","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":30,"byteEnd":35},"text":"grana","construct":"bridi-formula"}},"formula:18":{"type":"formula","operator":"atom","predication":"predication:17","source":{"span":{"byteStart":13,"byteEnd":22},"text":"lafmuvgau","construct":"bridi-tail-formula"}},"formula:22":{"type":"formula","operator":"atom","predication":"predication:21","source":{"span":{"byteStart":46,"byteEnd":53},"text":"desygau","construct":"bridi-tail-formula"}},"formula:23":{"type":"formula","operator":"and","children":["formula:18","formula:22"],"connector":{"source":"gi'e","locus":"bridiTail","truthTable":"TFFF"},"source":{"span":{"byteStart":0,"byteEnd":56},"text":"la .djan. cu lafmuvgau da poi grana ku'o gi'e desygau da","construct":"compound-bridi-formula"}},"formula:24":{"type":"formula","operator":"exists","variable":"entity:7","restriction":"formula:12","body":"formula:23","source":{"span":{"byteStart":23,"byteEnd":25},"text":"da","construct":"quantifier-scope"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"variable","sort":"entity","descriptor":{"kind":"proSumti","word":"da"},"source":{"span":{"byteStart":23,"byteEnd":25},"text":"da","construct":"sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":0,"byteEnd":9},"text":"la .djan.","construct":"sumti"}},"entity:14":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:20":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":13,"byteEnd":22},"text":"lafmuvgau","construct":"predication"}},"eventuality:8":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":30,"byteEnd":35},"text":"grana","construct":"predication"}},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":46,"byteEnd":53},"text":"desygau","construct":"predication"}},"eventuality/locution:25":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":56},"text":"la .djan. cu lafmuvgau da poi grana ku'o gi'e desygau da","construct":"bridi"}}}}'''

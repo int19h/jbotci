@@ -34,19 +34,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥24) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥24) {
-    terms: [
-      Description @[2‥24) {
-        description: Cmavo @[2‥4) "lo",
-        selbri: Tanru @[5‥24) {
-          WithIndicator @[5‥19) {
-            Lujvo @[5‥14) "samsélpla",
-            indicator: Cmavo @[15‥19) "po'o",
-          },
-          Cmavo @[20‥24) "co'e",
+  DescriptorWithGadriSumti @[2‥24) {
+    description: Cmavo @[2‥4) "lo",
+    tail: DescriptionTail @[5‥24) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[5‥24) {
+        first_unit: WithIndicator @[5‥19) {
+          Lujvo @[5‥14) "samsélpla",
+          indicator: Cmavo @[15‥19) "po'o",
         },
+        additional_units: [
+          Cmavo @[20‥24) "co'e",
+        ],
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[2,4]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[5,14]}}}},"indicator":{"Cmavo":{"phonemes":"po'o","span":[15,19]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'e","span":[20,24]}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[2,4]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sam"},{"Rafsi":"sél"},{"Rafsi":"pla"}],"span":[5,14]}}}},"indicator":{"Cmavo":{"phonemes":"po'o","span":[15,19]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'e","span":[20,24]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

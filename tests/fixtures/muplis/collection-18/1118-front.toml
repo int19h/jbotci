@@ -36,17 +36,11 @@ brackets = "(coĭ [.i peĭ])"
 tree = """
 Text @[0‥10) {
   leading_free_modifiers: [
-    Vocative @[0‥3) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-    },
+    Cmavo @[0‥3) "coĭ",
   ],
-  ParagraphStatement @[5‥10) {
-    i: WithIndicator @[5‥10) {
-      Cmavo @[5‥6) "i",
-      indicator: Cmavo @[7‥10) "peĭ",
-    },
+  WithIndicator @[5‥10) {
+    Cmavo @[5‥6) "i",
+    indicator: Cmavo @[7‥10) "peĭ",
   },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}]}}],"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[7,10]}}}}}]}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}}}}],"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[7,10]}}}}}]}}'

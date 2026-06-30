@@ -17,7 +17,7 @@ pub use diagnostics::{
 };
 pub use jbotci_diagnostics::DiagnosticDetailMode;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
-use jbotci_morphology::{Phonemes, WordLike};
+use jbotci_morphology::{Cmavo, Phonemes, WordLike};
 pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::ast::TextSyntax;
 pub use places::{
@@ -29,8 +29,9 @@ pub use references::{
     ReferenceDisplayModel, ReferenceName, ReferenceSlotName, RichReferenceAnnotation,
     RichReferenceAnnotations, reference_slot_name_for_place_slot,
 };
+use jbotci_tree::FieldRef;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 pub use surface::{
     phoneme_render_options_for_script, render_lojban_text_for_script,
     render_lojban_text_for_script_with_options,
@@ -301,7 +302,10 @@ pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError>
     value
         .serialize(serializer)
         .map_err(|source| OutputError::Json(source.to_string()))?;
-    serde_json::from_slice(&bytes)
+    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
+    deserializer.disable_recursion_limit();
+    let deserializer = serde_stacker::Deserializer::new(&mut deserializer);
+    Value::deserialize(deserializer)
         .map(compact_json_shape)
         .map_err(|source| OutputError::Json(source.to_string()))
 }
@@ -388,8 +392,139 @@ pub fn compact_generated_model_json_string_with_options(
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
     let mut value = compact_json_value(tree)?;
+    if options.show_elided {
+        insert_generated_model_elided_terminators(&mut value, options);
+    }
     render_phoneme_fields_in_json_value(&mut value, options.phonemes);
     Ok(format_compact_json_value(&value, 0, options))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn insert_generated_model_elided_terminators(value: &mut Value, options: JsonRenderOptions) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                insert_generated_model_elided_terminators(item, options);
+            }
+        }
+        Value::Object(object) => {
+            let constructor = if object.len() == 1 {
+                object.keys().next().cloned()
+            } else {
+                None
+            };
+            if let Some(constructor) = constructor {
+                if let Some(inner) = object.get_mut(&constructor) {
+                    insert_generated_model_elided_terminators(inner, options);
+                    if let Value::Object(fields) = inner {
+                        insert_generated_model_elided_terminator_fields(
+                            &constructor,
+                            fields,
+                            options,
+                        );
+                    }
+                }
+            } else {
+                for child in object.values_mut() {
+                    insert_generated_model_elided_terminators(child, options);
+                }
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(true)]
+fn insert_generated_model_elided_terminator_fields(
+    constructor: &str,
+    fields: &mut Map<String, Value>,
+    options: JsonRenderOptions,
+) {
+    let Some(order) = generated_model_field_order(constructor) else {
+        return;
+    };
+    let mut original = std::mem::take(fields);
+    let mut rebuilt = Map::new();
+    let mut previous_end = None;
+    for (index, field) in order.iter().copied().enumerate() {
+        if let Some(value) = original.remove(field) {
+            previous_end = json_value_char_end_position(&value).or(previous_end);
+            rebuilt.insert(field.to_owned(), value);
+            continue;
+        }
+        let field_ref = FieldRef::new(Some(field), index, false);
+        let Some(cmavo) = jbotci_syntax::elidable_terminator_for_absent_field_ref(field_ref)
+        else {
+            continue;
+        };
+        let Some(char_end) = previous_end else {
+            continue;
+        };
+        rebuilt.insert(
+            field.to_owned(),
+            generated_elided_cmavo_token_value(cmavo, char_end, options),
+        );
+    }
+    for (key, value) in original {
+        rebuilt.insert(key, value);
+    }
+    *fields = rebuilt;
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(ret.is_none_or(|fields| !fields.is_empty()))]
+fn generated_model_field_order(constructor: &str) -> Option<&'static [&'static str]> {
+    jbotci_syntax::generated_model::GENERATED_MODEL_FIELD_ORDERS
+        .iter()
+        .find(|order| order.constructor == constructor)
+        .map(|order| order.fields)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_value_char_end_position(value: &Value) -> Option<usize> {
+    match value {
+        Value::Array(items) => items.iter().filter_map(json_value_char_end_position).max(),
+        Value::Object(object) => {
+            if let Some(Value::Array(span)) = object.get("span")
+                && span.len() == 2
+                && let Some(end) = span.get(1).and_then(Value::as_u64)
+            {
+                return usize::try_from(end).ok();
+            }
+            object.values().filter_map(json_value_char_end_position).max()
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_elided_cmavo_token_value(
+    cmavo: Cmavo,
+    char_end: usize,
+    options: JsonRenderOptions,
+) -> Value {
+    let phonemes = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text")
+        .render(options.phonemes);
+    let mut cmavo_fields = Map::new();
+    cmavo_fields.insert("phonemes".to_owned(), Value::String(phonemes));
+    cmavo_fields.insert(
+        "span".to_owned(),
+        Value::Array(vec![char_end.into(), char_end.into()]),
+    );
+    cmavo_fields.insert("elided".to_owned(), Value::Bool(true));
+
+    let mut cmavo_value = Map::new();
+    cmavo_value.insert("Cmavo".to_owned(), Value::Object(cmavo_fields));
+    let mut plain_word_value = Map::new();
+    plain_word_value.insert("PlainWord".to_owned(), Value::Object(cmavo_value));
+    let mut plain_value = Map::new();
+    plain_value.insert("Plain".to_owned(), Value::Object(plain_word_value));
+    Value::Object(plain_value)
 }
 
 #[requires(true)]

@@ -32,15 +32,21 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"sréra","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥23) {
-  Gismu @[0‥5) "sréra",
-  ConvertedTanruUnit @[6‥14) {
-    se: Cmavo @[6‥8) "te",
-    Gismu @[9‥14) "gísmu",
-  },
-  ConvertedTanruUnit @[15‥23) {
-    se: Cmavo @[15‥17) "se",
-    Gismu @[18‥23) "smádi",
-  },
+TanruSelbri @[0‥23) {
+  first_unit: Gismu @[0‥5) "sréra",
+  additional_units: [
+    TanruUnitAtom @[6‥14) {
+      conversions: [
+        Cmavo @[6‥8) "te",
+      ],
+      base: Gismu @[9‥14) "gísmu",
+    },
+    TanruUnitAtom @[15‥23) {
+      conversions: [
+        Cmavo @[15‥17) "se",
+      ],
+      base: Gismu @[18‥23) "smádi",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sréra","span":[0,5]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[6,8]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gísmu","span":[9,14]}}}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[15,17]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smádi","span":[18,23]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sréra","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[6,8]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gísmu","span":[9,14]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[15,17]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smádi","span":[18,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

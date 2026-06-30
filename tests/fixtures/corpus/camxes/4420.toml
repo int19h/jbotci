@@ -44,7 +44,7 @@ json = """[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥43) {
+BridiWithLeadingTerms @[0‥43) {
   leading_terms: [
     QuotedWord @[0‥7) {
       zo: Cmavo @[0‥2) "zo",
@@ -55,24 +55,28 @@ Bridi @[0‥43) {
     Cmavo @[8‥10) "cu",
     indicator: Cmavo @[12‥14) "aŭ",
   },
-  SelbriBridiTail @[15‥43) {
-    Gismu @[15‥20) "mápti",
+  bridi_tail: SelbriSimpleBridiTail @[15‥43) {
+    selbri: Gismu @[15‥20) "mápti",
     terms: [
-      SumtiConnection @[21‥43) {
+      SumtiAfterthought @[21‥43) {
         leading_sumti: QuotedWord @[21‥29) {
           zo: Cmavo @[21‥23) "zo",
           Gismu @[24‥29) "kélci",
         },
-        connective: Afterthought @[31‥35) {
-          Cmavo @[31‥32) "e",
-          nai: Cmavo @[32‥35) "naĭ",
-        },
-        trailing_sumti: QuotedWord @[36‥43) {
-          zo: Cmavo @[36‥38) "zo",
-          Cmavo @[39‥43) "ca'a",
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[31‥43) {
+            connective: Afterthought @[31‥35) {
+              Cmavo @[31‥32) "e",
+              nai: Cmavo @[32‥35) "naĭ",
+            },
+            sumti: QuotedWord @[36‥43) {
+              zo: Cmavo @[36‥38) "zo",
+              Cmavo @[39‥43) "ca'a",
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"su'o","span":[3,7]}}}}}}}}],"cu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[12,14]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápti","span":[15,20]}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[21,23]}},"word":{"Gismu":{"phonemes":"kélci","span":[24,29]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[31,32]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[32,35]}}}}}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[36,38]}},"word":{"Cmavo":{"phonemes":"ca'a","span":[39,43]}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"su'o","span":[3,7]}}}}}}}}}}}}}}}}}],"cu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"aŭ","span":[12,14]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápti","span":[15,20]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[21,23]}},"word":{"Gismu":{"phonemes":"kélci","span":[24,29]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[31,32]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[32,35]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[36,38]}},"word":{"Cmavo":{"phonemes":"ca'a","span":[39,43]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}"""

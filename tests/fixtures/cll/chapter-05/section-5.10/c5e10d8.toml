@@ -42,39 +42,44 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"me","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[9,11]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[12,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[23,24]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[25,27]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[35,37]}}},{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[38,43]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([re {me ([le ci nolráĭtru] .e [la .djan.])}] cu blábi)"
+brackets = "([re {me ([le {ci nolráĭtru}] [.e {la .djan.}])}] cu blábi)"
 tree = """
-Bridi @[0‥43) {
+BridiWithLeadingTerms @[0‥43) {
   leading_terms: [
-    Description @[0‥33) {
-      tail_elements: [
-        Cmavo @[0‥2) "re",
-      ],
-      selbri: SumtiSelbri @[3‥33) {
+    DescriptorWithoutGadriSumti @[0‥33) {
+      quantifier: Cmavo @[0‥2) "re",
+      SumtiSelbriTanruUnit @[3‥33) {
         me: Cmavo @[3‥5) "me",
-        SumtiConnection @[6‥33) {
-          leading_sumti: Description @[6‥21) {
+        sumti: SumtiAfterthought @[6‥33) {
+          leading_sumti: DescriptorWithGadriSumti @[6‥21) {
             description: Cmavo @[6‥8) "le",
-            tail_elements: [
-              Cmavo @[9‥11) "ci",
-            ],
-            selbri: Lujvo @[12‥21) "nolráĭtru",
+            tail: DescriptionTail @[9‥21) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: QuantifierRelationDescriptionTail @[9‥21) {
+                quantifier: Cmavo @[9‥11) "ci",
+                selbri: Lujvo @[12‥21) "nolráĭtru",
+              },
+            },
           },
-          connective: Cmavo @[23‥24) "e",
-          trailing_sumti: NameDescription @[25‥33) {
-            la: Cmavo @[25‥27) "la",
-            names: [
-              Cmevla @[29‥33) "djan",
-            ],
-          },
+          continuations: [
+            SumtiAfterthoughtTail @[23‥33) {
+              connective: Cmavo @[23‥24) "e",
+              sumti: NameSumti @[25‥33) {
+                la: Cmavo @[25‥27) "la",
+                names: [
+                  Cmevla @[29‥33) "djan",
+                ],
+              },
+            },
+          ],
         },
       },
     },
   ],
   cu: Cmavo @[35‥37) "cu",
-  Gismu @[38‥43) "blábi",
+  bridi_tail: Gismu @[38‥43) "blábi",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}}}],"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[3,5]}}}},"sumti":{"SumtiConnection":{"leading_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[9,11]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[12,21]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[23,24]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[25,27]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}}}]}}}}}}]}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[35,37]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[38,43]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[3,5]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[9,11]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nol"},{"Rafsi":"ráĭ"},{"Rafsi":"tru"}],"span":[12,21]}}}}}}}}}}}}}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[23,24]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[25,27]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[29,33]}}}}]}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[35,37]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blábi","span":[38,43]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:27","content":"formula:26","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":43},"text":"re me le ci nolraitru .e la .djan. cu blabi","construct":"bridi"}},"parameter:12":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":12,"byteEnd":21},"text":"nolraitru","construct":"speaker-description-property"}},"predication:8":{"type":"predication","eventuality":"eventuality:6","relation":"blabi","arguments":{"x1":{"kind":"filled","value":"entity:7"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":43},"text":"re me le ci nolraitru .e la .djan. cu blabi","construct":"predication"}},"predication:15":{"type":"predication","relation":"nolraitru","arguments":{"x1":{"kind":"filled","value":"parameter:12"},"x2":{"kind":"elided","value":"entity:13","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:14","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":12,"byteEnd":21},"text":"nolraitru","construct":"restrictive-predication"}},"predication:18":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:11"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:17"}},"mode":"incidental","source":{"span":{"byteStart":6,"byteEnd":21},"text":"le ci nolraitru","construct":"speaker-description"}},"predication:23":{"type":"predication","eventuality":"eventuality:10","relation":"referentOf","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:22"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":34},"text":"me le ci nolraitru .e la .djan.","construct":"restrictive-predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":0,"byteEnd":43},"text":"re me le ci nolraitru .e la .djan. cu blabi","construct":"bridi-formula"}},"formula:16":{"type":"formula","operator":"atom","predication":"predication:15","source":{"span":{"byteStart":12,"byteEnd":21},"text":"nolraitru","construct":"restrictive-formula"}},"formula:19":{"type":"formula","operator":"atom","predication":"predication:18","source":{"span":{"byteStart":6,"byteEnd":21},"text":"le ci nolraitru","construct":"speaker-description"}},"formula:24":{"type":"formula","operator":"atom","predication":"predication:23","source":{"span":{"byteStart":3,"byteEnd":34},"text":"me le ci nolraitru .e la .djan.","construct":"restrictive-predication"}},"formula:26":{"type":"formula","operator":"cardinality","variable":"entity:7","restriction":"formula:24","body":"formula:9","quantity":"quantity:25","source":{"span":{"byteStart":0,"byteEnd":34},"text":"re me le ci nolraitru .e la .djan.","construct":"quantifier-scope"}},"quantity:20":{"type":"quantity","form":"exact","value":{"integer":3},"scale":"count","source":{"span":{"byteStart":9,"byteEnd":11},"text":"ci","construct":"quantity"}},"quantity:25":{"type":"quantity","form":"exact","value":{"integer":2},"scale":"count","source":{"span":{"byteStart":0,"byteEnd":2},"text":"re","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"variable","sort":"entity","source":{"span":{"byteStart":0,"byteEnd":34},"text":"re me le ci nolraitru .e la .djan.","construct":"bound-argument"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:19","quantity":"quantity:20"},"source":{"span":{"byteStart":6,"byteEnd":21},"text":"le ci nolraitru","construct":"description"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:14":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:21":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":25,"byteEnd":34},"text":"la .djan.","construct":"sumti"}},"entity:22":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"joint","members":["entity:11","entity:21"]},"source":{"span":{"byteStart":6,"byteEnd":34},"text":"le ci nolraitru .e la .djan.","construct":"connected-sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":43},"text":"re me le ci nolraitru .e la .djan. cu blabi","construct":"predication"}},"eventuality:10":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":3,"byteEnd":34},"text":"me le ci nolraitru .e la .djan.","construct":"restrictive-predication"}},"eventuality/locution:27":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":43},"text":"re me le ci nolraitru .e la .djan. cu blabi","construct":"bridi"}},"relation:17":{"type":"referent","category":"constant","sort":"relation","body":"formula:16","parameters":["parameter:12"],"arity":1,"source":{"span":{"byteStart":12,"byteEnd":21},"text":"nolraitru","construct":"speaker-description-property"}}}}'''

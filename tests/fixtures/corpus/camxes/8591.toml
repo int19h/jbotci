@@ -19,34 +19,38 @@ raw = '{"frames":[{"index":0,"node":{"offset":16,"length":5},"kind":"tanru-unit"
 tree = """
 ParagraphStatement @[1‥59) {
   i: Cmavo @[1‥2) "i",
-  Bridi @[3‥59) {
+  BridiWithLeadingTerms @[3‥59) {
     leading_terms: [
-      NameDescription @[3‥11) {
+      NameSumti @[3‥11) {
         la: Cmavo @[3‥5) "la",
         names: [
           Cmevla @[6‥11) "ŭikis",
         ],
       },
     ],
-    SelbriBridiTail @[12‥59) {
-      ModalConversion @[12‥21) {
+    bridi_tail: SelbriSimpleBridiTail @[12‥59) {
+      selbri: JaiModalTanruUnit @[12‥21) {
         jai: Cmavo @[12‥15) "jaĭ",
-        Gismu @[16‥21) "stídi",
+        inner_unit: Gismu @[16‥21) "stídi",
       },
       terms: [
-        SumtiConnection @[22‥59) {
+        SumtiAfterthought @[22‥59) {
           leading_sumti: QuotedWord @[22‥37) {
             zo: Cmavo @[22‥24) "zo",
             Fuhivla @[25‥37) "galxrfarínge",
           },
-          connective: Cmavo @[39‥40) "e",
-          trailing_sumti: QuotedWord @[41‥59) {
-            zo: Cmavo @[41‥43) "zo",
-            Fuhivla @[44‥59) "sancrfaringĭále",
-          },
+          continuations: [
+            SumtiAfterthoughtTail @[39‥59) {
+              connective: Cmavo @[39‥40) "e",
+              sumti: QuotedWord @[41‥59) {
+                zo: Cmavo @[41‥43) "zo",
+                Fuhivla @[44‥59) "sancrfaringĭále",
+              },
+            },
+          ],
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭikis","span":[6,11]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ModalConversion":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[12,15]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stídi","span":[16,21]}}}}}}}]},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[22,24]}},"word":{"Fuhivla":{"phonemes":"galxrfarínge","span":[25,37]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[39,40]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[41,43]}},"word":{"Fuhivla":{"phonemes":"sancrfaringĭále","span":[44,59]}}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ŭikis","span":[6,11]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"JaiModalTanruUnit":{"jai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jaĭ","span":[12,15]}}}},"inner_unit":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stídi","span":[16,21]}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[22,24]}},"word":{"Fuhivla":{"phonemes":"galxrfarínge","span":[25,37]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[39,40]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[41,43]}},"word":{"Fuhivla":{"phonemes":"sancrfaringĭále","span":[44,59]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}'

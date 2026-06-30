@@ -31,12 +31,10 @@ json = '[{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[0,4]}}},{"PlainWord":
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥25) {
-  leading_cmevla: [
-    Cmevla @[0‥4) "djan",
-    Cmevla @[6‥11) "meris",
-    Cmevla @[13‥18) "djeĭn",
-    Cmevla @[21‥25) "alis",
-  ],
-}"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[6,11]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[13,18]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[21,25]}}}}]}'
+[
+  Cmevla @[0‥4) "djan",
+  Cmevla @[6‥11) "meris",
+  Cmevla @[13‥18) "djeĭn",
+  Cmevla @[21‥25) "alis",
+]"""
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[6,11]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[13,18]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[21,25]}}}}]}}'

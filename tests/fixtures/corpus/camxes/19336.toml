@@ -34,25 +34,33 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥35) {
-  terms: [
-    Description @[0‥21) {
-      description: Cmavo @[0‥4) "lo'e",
-      selbri: Tanru @[5‥21) {
-        WithIndicator @[5‥15) {
+TermsFragment @[0‥35) {
+  DescriptorWithGadriSumti @[0‥21) {
+    description: Cmavo @[0‥4) "lo'e",
+    tail: DescriptionTail @[5‥21) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruSelbri @[5‥21) {
+        first_unit: WithIndicator @[5‥15) {
           Gismu @[5‥10) "nánba",
           indicator: Cmavo @[11‥15) "na'i",
         },
-        Gismu @[16‥21) "xábju",
+        additional_units: [
+          Gismu @[16‥21) "xábju",
+        ],
       },
     },
-    TaggedSumti @[22‥35) {
-      tense_modal: Cmavo @[22‥26) "ga'u",
-      Description @[27‥35) {
-        description: Cmavo @[27‥29) "le",
-        selbri: Gismu @[30‥35) "térdi",
+  },
+  TaggedSumtiTerm @[22‥35) {
+    tense_modal: [
+      Cmavo @[22‥26) "ga'u",
+    ],
+    sumti: DescriptorWithGadriSumti @[27‥35) {
+      description: Cmavo @[27‥29) "le",
+      tail: DescriptionTail @[30‥35) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: Gismu @[30‥35) "térdi",
       },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[0,4]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[5,10]}}}},"indicator":{"Cmavo":{"phonemes":"na'i","span":[11,15]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xábju","span":[16,21]}}}}}]}}}},{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'u","span":[22,26]}}}}}]}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[30,35]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[0,4]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nánba","span":[5,10]}}}},"indicator":{"Cmavo":{"phonemes":"na'i","span":[11,15]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xábju","span":[16,21]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"SpaceThenTimeCahaTense":{"space":{"SpaceTenseWithOffset":{"offsets":[{"faha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'u","span":[22,26]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"térdi","span":[30,35]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

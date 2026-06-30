@@ -12,14 +12,8 @@ raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥8) {
-  leading_indicators: [
-    Indicator @[0‥8) {
-      indicator: WithIndicator @[0‥8) {
-        Cmavo @[0‥3) "a'o",
-        indicator: Cmavo @[4‥8) "se'a",
-      },
-    },
-  ],
+WithIndicator @[0‥8) {
+  Cmavo @[0‥3) "a'o",
+  indicator: Cmavo @[4‥8) "se'a",
 }"""
-json = """{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"se'a","span":[4,8]}}}}}]}"""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'o","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"se'a","span":[4,8]}}}}}]}}"""

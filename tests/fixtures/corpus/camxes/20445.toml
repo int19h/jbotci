@@ -45,45 +45,51 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥104) {
+BridiWithLeadingTerms @[0‥104) {
   leading_terms: [
-    TaggedSumti @[0‥14) {
-      tense_modal: Cmavo @[0‥2) "ca",
-      Description @[3‥14) {
+    TaggedSumtiTerm @[0‥14) {
+      tense_modal: [
+        Cmavo @[0‥2) "ca",
+      ],
+      sumti: DescriptorWithGadriSumti @[3‥14) {
         description: Cmavo @[3‥5) "le",
-        selbri: Lujvo @[6‥14) "reldjédi",
+        tail: DescriptionTail @[6‥14) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[6‥14) "reldjédi",
+        },
       },
     },
     Cmavo @[15‥17) "ko",
   ],
-  SelbriBridiTail @[18‥104) {
-    Gismu @[18‥23) "távla",
+  bridi_tail: SelbriSimpleBridiTail @[18‥104) {
+    selbri: Gismu @[18‥23) "távla",
     terms: [
-      TaggedSumti @[24‥104) {
-        tense_modal: AdHocModal @[24‥34) {
+      TaggedSumtiTerm @[24‥104) {
+        tense_modal: FihoTense @[24‥34) {
           fiho: Cmavo @[24‥28) "fi'o",
-          Gismu @[29‥34) "símsa",
+          selbri: Gismu @[29‥34) "símsa",
         },
-        Description @[35‥104) {
+        sumti: DescriptorWithGadriSumti @[35‥104) {
           description: Cmavo @[35‥37) "le",
-          selbri: Tanru @[38‥104) {
-            Gismu @[38‥43) "blóti",
-            TanruUnitWord @[44‥104) {
-              Lujvo @[44‥51) "zerlé'a",
-              free_modifiers: [
-                ParentheticalText @[52‥104) {
-                  to: Cmavo @[52‥54) "to",
-                  Terms @[55‥100) {
-                    terms: [
-                      DelimitedNonLojbanQuote @[55‥100) {
+          tail: DescriptionTail @[38‥104) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: TanruSelbri @[38‥104) {
+              first_unit: Gismu @[38‥43) "blóti",
+              additional_units: [
+                WordTanruUnit @[44‥104) {
+                  Lujvo @[44‥51) "zerlé'a",
+                  free_modifiers: [
+                    ParentheticalText @[52‥104) {
+                      to: Cmavo @[52‥54) "to",
+                      text: DelimitedNonLojbanQuote @[55‥100) {
                         zoi: Cmavo @[55‥58) "zoĭ",
                         opening_delimiter: Cmevla @[59‥62) "url",
                         quoted_text: Verbatim @[64‥95) "http://www.talklikeapirate.com/",
                         closing_delimiter: Cmevla @[97‥100) "url",
                       },
-                    ],
-                  },
-                  toi: Cmavo @[101‥104) "toĭ",
+                      toi: Cmavo @[101‥104) "toĭ",
+                    },
+                  ],
                 },
               ],
             },
@@ -93,4 +99,4 @@ Bridi @[0‥104) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"djédi"}],"span":[6,14]}}}}}}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[15,17]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[18,23]}}}}},"terms":[{"TaggedSumti":{"tense_modal":{"AdHocModal":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[24,28]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[29,34]}}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[35,37]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blóti","span":[38,43]}}}}},{"TanruUnitWord":[{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zer"},{"Rafsi":"lé'a"}],"span":[44,51]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[52,54]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[55,58]}},"opening_delimiter":{"Cmevla":{"phonemes":"url","span":[59,62]}},"quoted_text":{"span":[64,95],"text":"http://www.talklikeapirate.com/"},"closing_delimiter":{"Cmevla":{"phonemes":"url","span":[97,100]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[101,104]}}}}}}]}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[0,2]}}}}}]}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[3,5]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"djédi"}],"span":[6,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[15,17]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[18,23]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"FihoTense":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[24,28]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"símsa","span":[29,34]}}}}}}}}}}}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[35,37]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"blóti","span":[38,43]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zer"},{"Rafsi":"lé'a"}],"span":[44,51]}}}},{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[52,54]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[55,58]}},"opening_delimiter":{"Cmevla":{"phonemes":"url","span":[59,62]}},"quoted_text":{"span":[64,95],"text":"http://www.talklikeapirate.com/"},"closing_delimiter":{"Cmevla":{"phonemes":"url","span":[97,100]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[101,104]}}}}}}]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

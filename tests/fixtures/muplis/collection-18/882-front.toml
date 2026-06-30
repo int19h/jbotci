@@ -33,20 +33,20 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"a'i","span":[1,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}},{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[9,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[15,17]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.a'i-naĭ [cíkre ta])"
+brackets = "([.a'i naĭ] [cíkre ta])"
 tree = """
 Text @[1‥17) {
   leading_indicators: [
-    Indicator @[1‥8) {
+    LeadingIndicator @[1‥8) {
       indicator: Cmavo @[1‥4) "a'i",
       nai: Cmavo @[5‥8) "naĭ",
     },
   ],
-  SelbriBridiTail @[9‥17) {
-    Gismu @[9‥14) "cíkre",
+  SelbriSimpleBridiTail @[9‥17) {
+    selbri: Gismu @[9‥14) "cíkre",
     terms: [
       Cmavo @[15‥17) "ta",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[9,14]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[15,17]}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'i","span":[1,4]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[9,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta","span":[15,17]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'i","span":[1,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[5,8]}}}}}]}}"""

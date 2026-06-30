@@ -32,29 +32,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥18) {
-  leading_free_modifiers: [
-    Vocative @[0‥18) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: SelbriVocative @[4‥18) {
-        selbri: TanruUnitWord @[4‥18) {
-          Gismu @[4‥9) "tsáli",
-          free_modifiers: [
-            Vocative @[10‥18) {
-              vocative_markers: [
-                Cmavo @[10‥13) "coĭ",
-              ],
-              sumti: QuantifiedSumti @[14‥18) {
-                quantifier: Cmavo @[14‥16) "ro",
-                Cmavo @[16‥18) "do",
-              },
-            },
-          ],
+VocativeFreeModifier @[0‥18) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: WordTanruUnit @[4‥18) {
+    Gismu @[4‥9) "tsáli",
+    free_modifiers: [
+      VocativeFreeModifier @[10‥18) {
+        vocative_markers: Cmavo @[10‥13) "coĭ",
+        sumti: QuantifiedSumti @[14‥18) {
+          quantifier: Cmavo @[14‥16) "ro",
+          inner_sumti: Cmavo @[16‥18) "do",
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"TanruUnitWord":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[4,9]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[10,13]}}}}],"sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[14,16]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[16,18]}}}}}}}}}]}]}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":[{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[4,9]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[10,13]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[14,16]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[16,18]}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}]}}'

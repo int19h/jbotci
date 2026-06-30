@@ -29,8 +29,10 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sic"},{"Rafsi":"mérko"}],"sp
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥18) {
-  Lujvo @[0‥8) "sicmérko",
-  Lujvo @[9‥18) "jbonúnsla",
+TanruSelbri @[0‥18) {
+  first_unit: Lujvo @[0‥8) "sicmérko",
+  additional_units: [
+    Lujvo @[9‥18) "jbonúnsla",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sic"},{"Rafsi":"mérko"}],"span":[0,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbo"},{"Rafsi":"nún"},{"Rafsi":"sla"}],"span":[9,18]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sic"},{"Rafsi":"mérko"}],"span":[0,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbo"},{"Rafsi":"nún"},{"Rafsi":"sla"}],"span":[9,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

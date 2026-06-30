@@ -28,12 +28,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥4) {
-  terms: [
-    TaggedSumti @[0‥4) {
-      tense_modal: Cmavo @[0‥4) "na'o",
-      ElidedSumti {},
-    },
+TaggedSumtiTerm @[0‥4) {
+  tense_modal: [
+    Cmavo @[0‥4) "na'o",
   ],
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"TaheIntervalPropertyTense":{"tahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}}}}}]}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

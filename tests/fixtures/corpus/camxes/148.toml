@@ -37,20 +37,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"QuotedWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥53) {
-  terms: [
-    Cmavo @[0‥2) "mi",
-    SumtiConnection @[3‥53) {
-      leading_sumti: QuotedWord @[3‥8) {
-        zo: Cmavo @[3‥5) "zo",
-        Cmavo @[6‥8) "zo",
-      },
-      connective: Cmavo @[10‥11) "e",
-      trailing_sumti: QuotedWord @[45‥53) {
-        zo: Cmavo @[45‥47) "zo",
-        Gismu @[48‥53) "bródi",
-      },
+TermsFragment @[0‥53) {
+  Cmavo @[0‥2) "mi",
+  SumtiAfterthought @[3‥53) {
+    leading_sumti: QuotedWord @[3‥8) {
+      zo: Cmavo @[3‥5) "zo",
+      Cmavo @[6‥8) "zo",
     },
-  ],
+    continuations: [
+      SumtiAfterthoughtTail @[10‥53) {
+        connective: Cmavo @[10‥11) "e",
+        sumti: QuotedWord @[45‥53) {
+          zo: Cmavo @[45‥47) "zo",
+          Gismu @[48‥53) "bródi",
+        },
+      },
+    ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}},{"Sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmavo":{"phonemes":"zo","span":[6,8]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[10,11]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[45,47]}},"word":{"Gismu":{"phonemes":"bródi","span":[48,53]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmavo":{"phonemes":"zo","span":[6,8]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[10,11]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[45,47]}},"word":{"Gismu":{"phonemes":"bródi","span":[48,53]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}'

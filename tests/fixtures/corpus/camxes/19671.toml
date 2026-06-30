@@ -36,21 +36,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥32) {
-  terms: [
-    NumberSumti @[0‥32) {
-      li: Cmavo @[0‥2) "li",
-      NumberQuantifier @[3‥32) {
-        Cmavo @[3‥6) "daŭ",
-        Cmavo @[7‥9) "re",
-        Cmavo @[10‥12) "ci",
-        Cmavo @[13‥16) "vaĭ",
-        Cmavo @[17‥20) "vaĭ",
-        Cmavo @[21‥24) "vaĭ",
-        Cmavo @[25‥28) "vaĭ",
-        Cmavo @[29‥32) "vaĭ",
-      },
-    },
-  ],
+NumberSumti @[0‥32) {
+  li: Cmavo @[0‥2) "li",
+  NumberWords @[3‥32) {
+    first_number: Cmavo @[3‥6) "daŭ",
+    continuations: [
+      Cmavo @[7‥9) "re",
+      Cmavo @[10‥12) "ci",
+      Cmavo @[13‥16) "vaĭ",
+      Cmavo @[17‥20) "vaĭ",
+      Cmavo @[21‥24) "vaĭ",
+      Cmavo @[25‥28) "vaĭ",
+      Cmavo @[29‥32) "vaĭ",
+    ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daŭ","span":[3,6]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[7,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[13,16]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[17,20]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[21,24]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[25,28]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[29,32]}}}}]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"daŭ","span":[3,6]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[7,9]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[10,12]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[13,16]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[17,20]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[21,24]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[25,28]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vaĭ","span":[29,32]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

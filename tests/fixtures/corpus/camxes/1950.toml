@@ -32,28 +32,22 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥33) {
-  terms: [
-    LerfuStringSumti @[0‥33) {
-      letter: [
-        Cmavo @[0‥2) "xy",
-      ],
-      boi: Cmavo @[4‥7) "boĭ",
-      free_modifiers: [
-        Subscript @[8‥33) {
-          xi: Cmavo @[8‥10) "xi",
-          ParenthesizedMekso @[11‥33) {
-            vei: Cmavo @[11‥14) "veĭ",
-            MeksoConnection @[15‥26) {
-              left_expression: Cmavo @[15‥17) "by",
-              connective: Cmavo @[19‥23) "ce'o",
-              right_expression: Cmavo @[24‥26) "dy",
-            },
-            veho: Cmavo @[29‥33) "ve'o",
-          },
+LerfuStringSumti @[0‥33) {
+  words: Cmavo @[0‥2) "xy",
+  boi: Cmavo @[4‥7) "boĭ",
+  free_modifiers: [
+    XiParenthesizedFreeModifier @[8‥33) {
+      xi: Cmavo @[8‥10) "xi",
+      expression: ParenthesizedMeksoOperand @[11‥33) {
+        vei: Cmavo @[11‥14) "veĭ",
+        inner_expression: AfterthoughtMeksoOperand @[15‥26) {
+          Cmavo @[15‥17) "by",
+          Cmavo @[19‥23) "ce'o",
+          Cmavo @[24‥26) "dy",
         },
-      ],
+        veho: Cmavo @[29‥33) "ve'o",
+      },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}],"boi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[4,7]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[8,10]}}}},"expression":{"ParenthesizedMekso":{"vei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"veĭ","span":[11,14]}}}},"inner_expression":{"MeksoConnection":{"left_expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[15,17]}}}}]}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'o","span":[19,23]}}}}]}},"right_expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"dy","span":[24,26]}}}}]}}}},"veho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve'o","span":[29,33]}}}}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xy","span":[0,2]}}}}}},"boi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"boĭ","span":[4,7]}}}},"free_modifiers":[{"XiFreeModifier":{"XiParenthesizedFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[8,10]}}}},"expression":{"vei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"veĭ","span":[11,14]}}}},"inner_expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[15,17]}}}}}}}}},"links":[{"operand_connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'o","span":[19,23]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"dy","span":[24,26]}}}}}}}}}}]}}}}}},"veho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve'o","span":[29,33]}}}}}}}}]}}}}}}}}}}}}]}}}}}}}}}"""

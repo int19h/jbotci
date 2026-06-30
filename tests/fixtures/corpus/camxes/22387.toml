@@ -35,14 +35,16 @@ tree = """
 ParagraphStatement @[0‥18) {
   i: Cmavo @[0‥1) "i",
   TaggedSelbri @[2‥18) {
-    tense_modal: Composite @[2‥9) {
-      Cmavo @[2‥6) "ze'u",
-      Cmavo @[7‥9) "pu",
+    tense_modal: ZehaTimeIntervalTense @[2‥9) {
+      zeha: Cmavo @[2‥6) "ze'u",
+      direction: [
+        Cmavo @[7‥9) "pu",
+      ],
     },
-    Negated @[10‥18) {
+    inner_selbri: NegatedSelbri @[10‥18) {
       na: Cmavo @[10‥12) "na",
-      Gismu @[13‥18) "víska",
+      inner_selbri: Gismu @[13‥18) "víska",
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'u","span":[2,6]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[7,9]}}}}}]}},"inner_selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[10,12]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[13,18]}}}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithInterval":{"zeha":{"zeha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze'u","span":[2,6]}}}},"direction":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[7,9]}}}}]}}}}}}}}},"inner_selbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[10,12]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

@@ -46,23 +46,21 @@ Paragraph @[1‥65) {
   ParagraphStatement @[1‥7) {
     i: Cmavo @[1‥2) "i",
     free_modifiers: [
-      Vocative @[3‥7) {
-        vocative_markers: [
-          Cmavo @[3‥7) "co'o",
-        ],
-      },
+      Cmavo @[3‥7) "co'o",
     ],
   },
   ParagraphStatement @[9‥65) {
     i: Cmavo @[9‥10) "i",
-    Bridi @[11‥65) {
+    BridiWithLeadingTerms @[11‥65) {
       leading_terms: [
         Cmavo @[11‥13) "mi",
       ],
-      SelbriBridiTail @[14‥65) {
-        TaggedSelbri @[14‥22) {
-          tense_modal: Cmavo @[14‥16) "ca",
-          Gismu @[17‥22) "víska",
+      bridi_tail: SelbriSimpleBridiTail @[14‥65) {
+        selbri: TaggedSelbri @[14‥22) {
+          tense_modal: [
+            Cmavo @[14‥16) "ca",
+          ],
+          inner_selbri: Gismu @[17‥22) "víska",
         },
         terms: [
           WithIndicator @[23‥65) {
@@ -83,4 +81,4 @@ Paragraph @[1‥65) {
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}]}}]},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[14,16]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[17,22]}}}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[23,27]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[28,30]}},"quoted_text":{"span":[32,50],"text":"Mothman Prophecies"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[51,53]}}}}},"indicator":{"Cmavo":{"phonemes":"ŭu","span":[56,58]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[58,61]}}}},"indicator":{"Cmavo":{"phonemes":"se'i","span":[61,65]}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}}}}}]},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[9,10]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[11,13]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[14,16]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[17,22]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[23,27]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[28,30]}},"quoted_text":{"span":[32,50],"text":"Mothman Prophecies"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[51,53]}}}}},"indicator":{"Cmavo":{"phonemes":"ŭu","span":[56,58]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[58,61]}}}},"indicator":{"Cmavo":{"phonemes":"se'i","span":[61,65]}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

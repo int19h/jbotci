@@ -40,31 +40,31 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[8,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi'i","span":[13,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[18,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[23,25]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[25,27]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(li [{pi mu} {ga'o mi'i ke'i} {pi mu}])"
+brackets = "(li [{pi mu} {(ga'o mi'i ke'i) (pi mu)}])"
 tree = """
-Terms @[0‥27) {
-  terms: [
-    NumberSumti @[0‥27) {
-      li: Cmavo @[0‥2) "li",
-      MeksoConnection @[3‥27) {
-        left_expression: NumberQuantifier @[3‥7) {
-          Cmavo @[3‥5) "pi",
-          Cmavo @[5‥7) "mu",
-        },
-        connective: Interval @[8‥22) {
-          Cmavo @[8‥12) "ga'o",
-          Cmavo @[13‥17) "mi'i",
-          Cmavo @[18‥22) "ke'i",
-        },
-        right_expression: NumberQuantifier @[23‥27) {
-          Cmavo @[23‥25) "pi",
-          Cmavo @[25‥27) "mu",
-        },
-      },
+NumberSumti @[0‥27) {
+  li: Cmavo @[0‥2) "li",
+  AfterthoughtMeksoOperand @[3‥27) {
+    NumberWords @[3‥7) {
+      first_number: Cmavo @[3‥5) "pi",
+      continuations: [
+        Cmavo @[5‥7) "mu",
+      ],
     },
-  ],
+    Interval @[8‥22) {
+      Cmavo @[8‥12) "ga'o",
+      Cmavo @[13‥17) "mi'i",
+      Cmavo @[18‥22) "ke'i",
+    },
+    NumberWords @[23‥27) {
+      first_number: Cmavo @[23‥25) "pi",
+      continuations: [
+        Cmavo @[25‥27) "mu",
+      ],
+    },
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"MeksoConnection":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}}]}}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[8,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'i","span":[13,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[18,22]}}}}]}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[23,25]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[25,27]}}}}]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}}}]}}}},"links":[{"operand_connective":{"JoikConnective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[8,12]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'i","span":[13,17]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[18,22]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[23,25]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[25,27]}}}}}]}}}}}]}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:11","content":"number:10","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":27},"text":"li pimu ga'o mi'i ke'i pimu","construct":"fragment"}},"math:6":{"type":"mathExpression","literal":{"kind":"decimal","value":"0.5"}},"math:7":{"type":"mathExpression","literal":{"kind":"decimal","value":"0.5"}},"math:8":{"type":"mathExpression","operator":"centeredInterval","endpointInclusion":{"left":"inclusive","right":"exclusive"},"operands":["math:6","math:7"],"source":{"span":{"byteStart":0,"byteEnd":27},"text":"li pimu ga'o mi'i ke'i pimu","construct":"math-expression"}},"quantity:9":{"type":"quantity","form":"exact","value":{"mathExpression":"math:8"},"scale":"count","source":{"span":{"byteStart":0,"byteEnd":27},"text":"li pimu ga'o mi'i ke'i pimu","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:11":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":27},"text":"li pimu ga'o mi'i ke'i pimu","construct":"fragment"}},"number:10":{"type":"referent","category":"constant","sort":"number","descriptor":{"kind":"number","word":"li","quantity":"quantity:9","name":"mekso"},"source":{"span":{"byteStart":0,"byteEnd":27},"text":"li pimu ga'o mi'i ke'i pimu","construct":"number-sumti"}}}}'''

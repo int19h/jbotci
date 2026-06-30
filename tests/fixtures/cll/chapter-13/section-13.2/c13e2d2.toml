@@ -41,34 +41,32 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"u'a","span":[1,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}},{"PlainWord":{"Gismu":{"phonemes":"fácki","span":[8,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}},{"PlainWord":{"Gismu":{"phonemes":"mápku","span":[23,28]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.u'a [mi {fácki (fi [le mi mápku])}])"
+brackets = "(.u'a [mi {fácki (fi [le {mi mápku}])}])"
 tree = """
 Text @[1‥28) {
   leading_indicators: [
-    Indicator @[1‥4) {
-      indicator: Cmavo @[1‥4) "u'a",
-    },
+    Cmavo @[1‥4) "u'a",
   ],
-  Bridi @[5‥28) {
+  BridiWithLeadingTerms @[5‥28) {
     leading_terms: [
       Cmavo @[5‥7) "mi",
     ],
-    SelbriBridiTail @[8‥28) {
-      Gismu @[8‥13) "fácki",
+    bridi_tail: SelbriSimpleBridiTail @[8‥28) {
+      selbri: Gismu @[8‥13) "fácki",
       terms: [
-        PlaceTaggedSumti @[14‥28) {
+        PlaceTaggedSumtiTerm @[14‥28) {
           fa: Cmavo @[14‥16) "fi",
-          Description @[17‥28) {
+          sumti: DescriptorWithGadriSumti @[17‥28) {
             description: Cmavo @[17‥19) "le",
-            tail_elements: [
-              Cmavo @[20‥22) "mi",
-            ],
-            selbri: Gismu @[23‥28) "mápku",
+            tail: DescriptionTail @[20‥28) {
+              leading_tail_elements: Cmavo @[20‥22) "mi",
+              tail: Gismu @[23‥28) "mápku",
+            },
           },
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fácki","span":[8,13]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápku","span":[23,28]}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'a","span":[1,4]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[5,7]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fácki","span":[8,13]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápku","span":[23,28]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"u'a","span":[1,4]}}}}}]}}"""
 

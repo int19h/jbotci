@@ -31,22 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥14) {
-  leading_free_modifiers: [
-    Vocative @[0‥14) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: LerfuStringSumti @[4‥14) {
-        letter: [
-          Cmavo @[4‥6) "sy",
-          WithIndicator @[6‥14) {
-            Cmavo @[6‥8) "jy",
-            indicator: Cmavo @[10‥14) "zo'o",
-          },
-        ],
+VocativeFreeModifier @[0‥14) {
+  vocative_markers: Cmavo @[0‥3) "doĭ",
+  sumti: LetterString @[4‥14) {
+    first_letter: Cmavo @[4‥6) "sy",
+    continuations: [
+      WithIndicator @[6‥14) {
+        Cmavo @[6‥8) "jy",
+        indicator: Cmavo @[10‥14) "zo'o",
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"sy","span":[4,6]}}}},{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jy","span":[6,8]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[10,14]}}}}]}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"sy","span":[4,6]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jy","span":[6,8]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[10,14]}}}}}}]}}}}}}}}}}}}}]}}"""

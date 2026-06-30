@@ -17,9 +17,9 @@ raw = '{"frames":[{"index":0,"node":{"offset":17,"length":5},"kind":"base-selbri
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥34) {
+BridiWithLeadingTerms @[0‥34) {
   leading_terms: [
-    NameDescription @[0‥16) {
+    NameSumti @[0‥16) {
       la: Cmavo @[0‥2) "la",
       names: [
         Cmevla @[3‥8) "djeĭs",
@@ -27,10 +27,10 @@ Bridi @[0‥34) {
       ],
     },
   ],
-  SelbriBridiTail @[17‥34) {
-    Gismu @[17‥22) "cméne",
+  bridi_tail: SelbriSimpleBridiTail @[17‥34) {
+    selbri: Gismu @[17‥22) "cméne",
     terms: [
-      NameDescription @[23‥34) {
+      NameSumti @[23‥34) {
         la: Cmavo @[23‥25) "la",
         names: [
           Cmevla @[26‥34) "talĭesin",
@@ -39,4 +39,4 @@ Bridi @[0‥34) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭs","span":[3,8]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kominek","span":[9,16]}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[17,22]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"talĭesin","span":[26,34]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭs","span":[3,8]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kominek","span":[9,16]}}}}]}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[17,22]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[23,25]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"talĭesin","span":[26,34]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

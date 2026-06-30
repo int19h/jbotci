@@ -32,19 +32,17 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥15) {
-  terms: [
-    Description @[0‥15) {
-      outer_quantifier: Cmavo @[0‥2) "re",
-      description: Cmavo @[2‥4) "la",
-      tail_elements: [
-        Cmavo @[4‥6) "ti",
+DescriptorWithOuterQuantifierSumti @[0‥15) {
+  outer_quantifier: Cmavo @[0‥2) "re",
+  description: Cmavo @[2‥4) "la",
+  tail: DescriptionTail @[4‥15) {
+    leading_tail_elements: Cmavo @[4‥6) "ti",
+    tail: TanruUnitAtom @[6‥15) {
+      conversions: [
+        Cmavo @[6‥8) "ve",
       ],
-      selbri: ConvertedSelbri @[6‥15) {
-        se: Cmavo @[6‥8) "ve",
-        Fuhivla @[9‥15) "cláŭse",
-      },
+      base: Fuhivla @[9‥15) "cláŭse",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"outer_quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}]}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[4,6]}}}}}}],"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[6,8]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"cláŭse","span":[9,15]}}}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithOuterQuantifierSumti":{"outer_quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[0,2]}}}}}}},"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[2,4]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ti","span":[4,6]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[6,8]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"cláŭse","span":[9,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

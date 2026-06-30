@@ -31,23 +31,23 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,1]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥23) {
-  terms: [
-    Description @[0‥20) {
-      tail_elements: [
-        NumberQuantifier @[0‥8) {
-          Cmavo @[0‥1) "xa",
-          Cmavo @[1‥2) "pi",
-          Cmavo @[2‥3) "xa",
-          Cmavo @[6‥8) "re",
-        },
+TermsFragment @[0‥23) {
+  DescriptorWithoutGadriSumti @[0‥20) {
+    quantifier: NumberWords @[0‥8) {
+      first_number: Cmavo @[0‥1) "xa",
+      continuations: [
+        Cmavo @[1‥2) "pi",
+        Cmavo @[2‥3) "xa",
+        Cmavo @[6‥8) "re",
       ],
-      selbri: Tanru @[9‥20) {
-        Gismu @[9‥14) "prénu",
-        Gismu @[15‥20) "víska",
-      },
     },
-    Cmavo @[21‥23) "mi",
-  ],
+    TanruSelbri @[9‥20) {
+      first_unit: Gismu @[9‥14) "prénu",
+      additional_units: [
+        Gismu @[15‥20) "víska",
+      ],
+    },
+  },
+  Cmavo @[21‥23) "mi",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,1]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[2,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[6,8]}}}}]}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[9,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[15,20]}}}}}]}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[21,23]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[0,1]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[1,2]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[2,3]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[6,8]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[9,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[15,20]}}}}}}}}}]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[21,23]}}}}}}}}}}}}}}}]}}}}}}}}}'

@@ -32,25 +32,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥21) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥21) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥17) {
-        terms: [
-          SumtiWithRelativeClauses @[3‥17) {
-            base_sumti: Cmavo @[3‥5) "ri",
-            relative_clauses: [
-              RestrictiveRelativeBridi @[6‥17) {
-                poi: Cmavo @[6‥9) "poĭ",
-                Lujvo @[10‥17) "cmizú'e",
-              },
-            ],
-          },
-        ],
-      },
-      toi: Cmavo @[18‥21) "toĭ",
+ParentheticalText @[0‥21) {
+  to: Cmavo @[0‥2) "to",
+  text: SimpleSumti @[3‥17) {
+    base_sumti: Cmavo @[3‥5) "ri",
+    relative_clauses: RestrictiveBridiRelativeClause @[6‥17) {
+      poi: Cmavo @[6‥9) "poĭ",
+      subbridi: Lujvo @[10‥17) "cmizú'e",
     },
-  ],
+  },
+  toi: Cmavo @[18‥21) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[3,5]}}}}},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[6,9]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cmi"},{"Rafsi":"zú'e"}],"span":[10,17]}}}}}}}}}}}}}}]}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[18,21]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[3,5]}}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[6,9]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cmi"},{"Rafsi":"zú'e"}],"span":[10,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[18,21]}}}}}}]}}"""

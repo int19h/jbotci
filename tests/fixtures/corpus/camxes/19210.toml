@@ -32,12 +32,10 @@ Text @[0‥14) {
     Cmevla @[0‥6) "carbon",
   ],
   leading_free_modifiers: [
-    Vocative @[8‥14) {
-      vocative_markers: [
-        Cmavo @[8‥11) "doĭ",
-      ],
+    VocativeFreeModifier @[8‥14) {
+      vocative_markers: Cmavo @[8‥11) "doĭ",
       sumti: Cmavo @[12‥14) "do",
     },
   ],
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"carbon","span":[0,6]}}}}],"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[8,11]}}}}],"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"carbon","span":[0,6]}}}}],"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[8,11]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}}}}}}}}}}]}}'

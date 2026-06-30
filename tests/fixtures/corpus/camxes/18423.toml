@@ -35,28 +35,39 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"cábna","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥38) {
-  Tanru @[0‥11) {
-    Gismu @[0‥5) "cábna",
-    Gismu @[6‥11) "sáske",
+ParagraphStatementSequence @[0‥38) {
+  TanruSelbri @[0‥11) {
+    first_unit: Gismu @[0‥5) "cábna",
+    additional_units: [
+      Gismu @[6‥11) "sáske",
+    ],
   },
-  ParagraphStatement @[13‥38) {
-    i: Cmavo @[13‥14) "i",
-    Bridi @[15‥38) {
-      leading_terms: [
-        Description @[15‥29) {
-          description: Cmavo @[15‥17) "le",
-          selbri: Tanru @[18‥29) {
-            Gismu @[18‥23) "bálvi",
-            Gismu @[24‥29) "sáske",
+  following: [
+    ParagraphStatement @[13‥38) {
+      i: Cmavo @[13‥14) "i",
+      BridiWithLeadingTerms @[15‥38) {
+        leading_terms: [
+          DescriptorWithGadriSumti @[15‥29) {
+            description: Cmavo @[15‥17) "le",
+            tail: DescriptionTail @[18‥29) {
+              leading_tail_elements: LeadingDescriptionTailElements {},
+              tail: TanruSelbri @[18‥29) {
+                first_unit: Gismu @[18‥23) "bálvi",
+                additional_units: [
+                  Gismu @[24‥29) "sáske",
+                ],
+              },
+            },
           },
+        ],
+        bridi_tail: TaggedSelbri @[30‥38) {
+          tense_modal: [
+            Cmavo @[30‥32) "ba",
+          ],
+          inner_selbri: Gismu @[33‥38) "fríca",
         },
-      ],
-      TaggedSelbri @[30‥38) {
-        tense_modal: Cmavo @[30‥32) "ba",
-        Gismu @[33‥38) "fríca",
       },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cábna","span":[0,5]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[6,11]}}}}}]}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bálvi","span":[18,23]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[24,29]}}}}}]}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[30,32]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[33,38]}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cábna","span":[0,5]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[6,11]}}}}}}}}}]}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[15,17]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bálvi","span":[18,23]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[24,29]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ba","span":[30,32]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fríca","span":[33,38]}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}'

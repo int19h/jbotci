@@ -36,15 +36,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-NumberQuantifier @[0‥30) {
-  Cmavo @[0‥2) "pa",
-  Cmavo @[3‥7) "ki'o",
-  Cmavo @[8‥10) "re",
-  Cmavo @[11‥13) "ci",
-  Cmavo @[14‥16) "vo",
-  Cmavo @[17‥21) "ki'o",
-  Cmavo @[22‥24) "mu",
-  Cmavo @[25‥27) "xa",
-  Cmavo @[28‥30) "ze",
+NumberWords @[0‥30) {
+  first_number: Cmavo @[0‥2) "pa",
+  continuations: [
+    Cmavo @[3‥7) "ki'o",
+    Cmavo @[8‥10) "re",
+    Cmavo @[11‥13) "ci",
+    Cmavo @[14‥16) "vo",
+    Cmavo @[17‥21) "ki'o",
+    Cmavo @[22‥24) "mu",
+    Cmavo @[25‥27) "xa",
+    Cmavo @[28‥30) "ze",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[3,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[11,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[14,16]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[17,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[22,24]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[25,27]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[28,30]}}}}]}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[3,7]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[8,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[11,13]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[14,16]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'o","span":[17,21]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[22,24]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[25,27]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[28,30]}}}}}]}}}}}}}}}}}"""

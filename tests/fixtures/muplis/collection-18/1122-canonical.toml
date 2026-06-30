@@ -35,18 +35,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"PlainWord":{
 [expectations.output.gentufa]
 brackets = "([lu li'u] [lu li'u])"
 tree = """
-Terms @[0‥17) {
-  terms: [
-    TextQuote @[0‥8) {
-      lu: Cmavo @[0‥2) "lu",
-      Text {},
-      lihu: Cmavo @[4‥8) "li'u",
-    },
-    TextQuote @[9‥17) {
-      lu: Cmavo @[9‥11) "lu",
-      Text {},
-      lihu: Cmavo @[13‥17) "li'u",
-    },
-  ],
+TermsFragment @[0‥17) {
+  TextQuote @[0‥8) {
+    lu: Cmavo @[0‥2) "lu",
+    text: Text {},
+    lihu: Cmavo @[4‥8) "li'u",
+  },
+  TextQuote @[9‥17) {
+    lu: Cmavo @[9‥11) "lu",
+    text: Text {},
+    lihu: Cmavo @[13‥17) "li'u",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[4,8]}}}}}}}},{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[9,11]}}}},"text":{},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[13,17]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"RegularText":{}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[4,8]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[9,11]}}}},"text":{"RegularText":{}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[13,17]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

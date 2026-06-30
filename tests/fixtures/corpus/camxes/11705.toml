@@ -24,8 +24,5 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}]'
 
 [expectations.output.gentufa]
-tree = """
-ParagraphStatement @[3‥4) {
-  i: Cmavo @[3‥4) "i",
-}"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}}}]}]}'
+tree = 'Cmavo @[3‥4) "i"'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[3,4]}}}}}]}}'

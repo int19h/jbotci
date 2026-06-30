@@ -32,21 +32,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥26) {
-  terms: [
-    SumtiConnection @[0‥26) {
-      leading_sumti: Cmavo @[0‥2) "mi",
+SumtiAfterthought @[0‥26) {
+  leading_sumti: Cmavo @[0‥2) "mi",
+  continuations: [
+    SumtiAfterthoughtTail @[3‥26) {
       connective: Cmavo @[3‥6) "joĭ",
-      trailing_sumti: Description @[7‥26) {
-        tail_elements: [
-          Cmavo @[7‥10) "raŭ",
-        ],
-        selbri: Tanru @[11‥26) {
-          Fuhivla @[11‥21) "prenrfráso",
-          Cmavo @[22‥26) "go'i",
+      sumti: DescriptorWithoutGadriSumti @[7‥26) {
+        quantifier: Cmavo @[7‥10) "raŭ",
+        TanruSelbri @[11‥26) {
+          first_unit: Fuhivla @[11‥21) "prenrfráso",
+          additional_units: [
+            Cmavo @[22‥26) "go'i",
+          ],
         },
       },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}}}]}},"trailing_sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"raŭ","span":[7,10]}}}}]}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"prenrfráso","span":[11,21]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[22,26]}}}}}]}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[3,6]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"raŭ","span":[7,10]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Fuhivla":{"phonemes":"prenrfráso","span":[11,21]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[22,26]}}}}}}}}}]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}"""

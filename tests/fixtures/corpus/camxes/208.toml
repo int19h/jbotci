@@ -30,19 +30,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"gy","span":[28,30]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[28‥36) {
-  terms: [
-    LerfuStringSumti @[28‥30) {
-      letter: [
-        Cmavo @[28‥30) "gy",
-      ],
-    },
-    Cmavo @[31‥33) "de",
-    LerfuStringSumti @[34‥36) {
-      letter: [
-        Cmavo @[34‥36) "gy",
-      ],
-    },
-  ],
+TermsFragment @[28‥36) {
+  Cmavo @[28‥30) "gy",
+  Cmavo @[31‥33) "de",
+  Cmavo @[34‥36) "gy",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gy","span":[28,30]}}}}]}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[31,33]}}}}}},{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gy","span":[34,36]}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gy","span":[28,30]}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de","span":[31,33]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gy","span":[34,36]}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

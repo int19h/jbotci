@@ -33,16 +33,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord":{
 tree = """
 Text @[0‥15) {
   leading_free_modifiers: [
-    Vocative @[0‥9) {
-      vocative_markers: [
-        WithIndicator @[0‥6) {
-          Cmavo @[0‥3) "doĭ",
-          indicator: Cmavo @[4‥6) "xu",
-        },
-      ],
+    VocativeFreeModifier @[0‥9) {
+      vocative_markers: WithIndicator @[0‥6) {
+        Cmavo @[0‥3) "doĭ",
+        indicator: Cmavo @[4‥6) "xu",
+      },
       sumti: Cmavo @[7‥9) "ma",
     },
   ],
   Gismu @[10‥15) "núzba",
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[4,6]}}}}],"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[7,9]}}}}}}}],"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núzba","span":[10,15]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[4,6]}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[7,9]}}}}}}}}}}}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núzba","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

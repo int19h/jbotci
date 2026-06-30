@@ -39,12 +39,12 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[4,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[11,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[14,16]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(mi [.e naĭ-ŭi] do)"
+brackets = "(mi [{.e (naĭ .ŭi)} do])"
 tree = """
-Terms @[0‥16) {
-  terms: [
-    SumtiConnection @[0‥16) {
-      leading_sumti: Cmavo @[0‥2) "mi",
+SumtiAfterthought @[0‥16) {
+  leading_sumti: Cmavo @[0‥2) "mi",
+  continuations: [
+    SumtiAfterthoughtTail @[4‥16) {
       connective: Afterthought @[4‥13) {
         Cmavo @[4‥5) "e",
         nai: WithIndicator @[6‥13) {
@@ -52,9 +52,9 @@ Terms @[0‥16) {
           indicator: Cmavo @[11‥13) "ŭi",
         },
       },
-      trailing_sumti: Cmavo @[14‥16) "do",
+      sumti: Cmavo @[14‥16) "do",
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[4,5]}}}}],"nai":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[11,13]}}}}}},"trailing_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[14,16]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[4,5]}}}},"nai":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[6,9]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[11,13]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[14,16]}}}}}}}}}}]}}}}}}]}}}}}}}}}'
 

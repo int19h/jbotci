@@ -30,9 +30,11 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"sp
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥26) {
-  Lujvo @[0‥8) "practíce",
-  Lujvo @[9‥17) "practíce",
-  Lujvo @[18‥26) "practíce",
+TanruSelbri @[0‥26) {
+  first_unit: Lujvo @[0‥8) "practíce",
+  additional_units: [
+    Lujvo @[9‥17) "practíce",
+    Lujvo @[18‥26) "practíce",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[0,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[9,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[18,26]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[0,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[9,17]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"pra"},{"Rafsi":"ctíce"}],"span":[18,26]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

@@ -36,11 +36,7 @@ ParagraphStatement @[1‥11) {
     indicator: Cmavo @[4‥6) "ŭa",
   },
   free_modifiers: [
-    Vocative @[7‥11) {
-      vocative_markers: [
-        Cmavo @[7‥11) "je'e",
-      ],
-    },
+    Cmavo @[7‥11) "je'e",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[7,11]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[7,11]}}}}}}}}]}]}}"""

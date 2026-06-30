@@ -33,19 +33,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"LerfuWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥13) {
-  terms: [
-    TaggedSumti @[0‥13) {
-      tense_modal: Composite @[0‥13) {
-        Cmavo @[0‥2) "pa",
-        LerfuWord @[3‥9) {
-          Cmavo @[3‥7) "su'i",
-          bu: Cmavo @[7‥9) "bu",
-        },
-        Cmavo @[10‥13) "roĭ",
+TaggedSumtiTerm @[0‥13) {
+  tense_modal: [
+    NumberedIntervalPropertyTense @[0‥13) {
+      number: IntervalPropertyNumberWords @[0‥9) {
+        first_number: Cmavo @[0‥2) "pa",
+        continuations: [
+          LerfuWord @[3‥9) {
+            Cmavo @[3‥7) "su'i",
+            bu: Cmavo @[7‥9) "bu",
+          },
+        ],
       },
-      ElidedSumti {},
+      roi: Cmavo @[10‥13) "roĭ",
     },
   ],
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}}},{"Cmavo":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[3,7]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[7,9]}}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[10,13]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"IntervalPropertyNumberLetterContinuation":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[3,7]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[7,9]}}}}}}]},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[10,13]}}}}}}]}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

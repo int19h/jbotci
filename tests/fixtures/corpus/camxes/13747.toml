@@ -39,19 +39,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}},{"PlainWord":{
 tree = """
 Text @[0‥56) {
   leading_indicators: [
-    Indicator @[0‥2) {
-      indicator: Cmavo @[0‥2) "xu",
-    },
+    Cmavo @[0‥2) "xu",
   ],
-  SelbriBridiTail @[3‥56) {
-    Tanru @[3‥17) {
-      Gismu @[3‥8) "gérna",
-      Lujvo @[9‥17) "naldráni",
+  SelbriSimpleBridiTail @[3‥56) {
+    selbri: TanruSelbri @[3‥17) {
+      first_unit: Gismu @[3‥8) "gérna",
+      additional_units: [
+        Lujvo @[9‥17) "naldráni",
+      ],
     },
     terms: [
-      PlaceTaggedSumti @[18‥56) {
+      PlaceTaggedSumtiTerm @[18‥56) {
         fa: Cmavo @[18‥20) "fa",
-        DelimitedNonLojbanQuote @[21‥56) {
+        sumti: DelimitedNonLojbanQuote @[21‥56) {
           zoi: Cmavo @[21‥24) "zoĭ",
           opening_delimiter: Cmavo @[25‥27) "ly",
           quoted_text: Verbatim @[28‥53) "na selbangu na'e le remei",
@@ -61,4 +61,4 @@ Text @[0‥56) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérna","span":[3,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"dráni"}],"span":[9,17]}}}}}]},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[18,20]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[21,24]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[25,27]}},"quoted_text":{"span":[28,53],"text":"na selbangu na'e le remei"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[54,56]}}}}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérna","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"dráni"}],"span":[9,17]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fa","span":[18,20]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[21,24]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[25,27]}},"quoted_text":{"span":[28,53],"text":"na selbangu na'e le remei"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[54,56]}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[0,2]}}}}}]}}"""

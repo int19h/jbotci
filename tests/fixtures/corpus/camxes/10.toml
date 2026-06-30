@@ -29,8 +29,8 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[27,30]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SumtiAssociationPhrase @[27‥35) {
+SumtiAssociationRelativeClause @[27‥35) {
   association_marker: Cmavo @[27‥30) "goĭ",
-  Cmavo @[31‥35) "ko'a",
+  sumti: Cmavo @[31‥35) "ko'a",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"RelativeClauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[27,30]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[31,35]}}}}}}}]}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"RelativeClauseFragment":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[27,30]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[31,35]}}}}}}}}}}}}}}}}}}}}}}}}"""

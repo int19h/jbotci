@@ -32,21 +32,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥27) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥27) {
-      sei: Cmavo @[0‥3) "seĭ",
-      selbri: Tanru @[4‥27) {
-        Gismu @[4‥9) "snáda",
-        GroupedTanruUnit @[10‥27) {
-          ke: Cmavo @[10‥12) "ke",
-          Tanru @[13‥27) {
-            Gismu @[13‥18) "lójbo",
+SeiFreeModifier @[0‥27) {
+  sei: Cmavo @[0‥3) "seĭ",
+  selbri: TanruSelbri @[4‥27) {
+    first_unit: Gismu @[4‥9) "snáda",
+    additional_units: [
+      GroupedTanruUnit @[10‥27) {
+        ke: Cmavo @[10‥12) "ke",
+        selbri: TanruSelbri @[13‥27) {
+          first_unit: Gismu @[13‥18) "lójbo",
+          additional_units: [
             Lujvo @[19‥27) "zumcásnu",
-          },
+          ],
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"snáda","span":[4,9]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[10,12]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[13,18]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zum"},{"Rafsi":"cásnu"}],"span":[19,27]}}}}}]}}}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"snáda","span":[4,9]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[10,12]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lójbo","span":[13,18]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"zum"},{"Rafsi":"cásnu"}],"span":[19,27]}}}}}}}}}]}}}}}}}}]}}}}}}}]}}'

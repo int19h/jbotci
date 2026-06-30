@@ -31,22 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥19) {
-  leading_free_modifiers: [
-    Vocative @[0‥19) {
-      vocative_markers: [
-        Cmavo @[0‥3) "doĭ",
-      ],
-      sumti: SelbriVocative @[4‥19) {
-        selbri: Tanru @[4‥19) {
-          WithIndicator @[4‥14) {
-            Gismu @[4‥9) "tsáli",
-            indicator: Cmavo @[10‥14) "za'a",
-          },
-          Cmavo @[15‥19) "go'i",
-        },
-      },
+VocativeFreeModifier @[0‥19) {
+  vocative_markers: Cmavo @[0‥3) "doĭ",
+  sumti: TanruSelbri @[4‥19) {
+    first_unit: WithIndicator @[4‥14) {
+      Gismu @[4‥9) "tsáli",
+      indicator: Cmavo @[10‥14) "za'a",
     },
-  ],
+    additional_units: [
+      Cmavo @[15‥19) "go'i",
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}],"sumti":{"SelbriVocative":{"selbri":{"Tanru":[{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[4,9]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[10,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[15,19]}}}}}]}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[4,9]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[10,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[15,19]}}}}}}}}}]}}}}}}}}}]}}"""

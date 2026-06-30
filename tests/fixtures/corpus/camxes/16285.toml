@@ -19,40 +19,34 @@ raw = '{"frames":[{"index":0,"node":{"offset":25,"length":5},"kind":"base-selbri
 tree = """
 Text @[0‥41) {
   leading_free_modifiers: [
-    Vocative @[0‥4) {
-      vocative_markers: [
-        Cmavo @[0‥4) "ki'e",
-      ],
-    },
+    Cmavo @[0‥4) "ki'e",
   ],
-  Paragraph @[6‥41) {
-    ParagraphStatement @[6‥33) {
-      i: Cmavo @[6‥7) "i",
-      free_modifiers: [
-        Vocative @[8‥20) {
-          vocative_markers: [
-            Cmavo @[8‥12) "ki'e",
-          ],
-          sumti: Cmevla @[13‥20) "nitcĭon",
-        },
-      ],
-      Bridi @[22‥33) {
+  ParagraphStatement @[6‥41) {
+    i: Cmavo @[6‥7) "i",
+    free_modifiers: [
+      VocativeFreeModifier @[8‥20) {
+        vocative_markers: Cmavo @[8‥12) "ki'e",
+        sumti: [
+          Cmevla @[13‥20) "nitcĭon",
+        ],
+      },
+    ],
+    ParagraphStatementSequence @[22‥41) {
+      BridiWithLeadingTerms @[22‥33) {
         leading_terms: [
           Cmavo @[22‥24) "do",
         ],
-        SelbriBridiTail @[25‥33) {
-          Gismu @[25‥30) "távla",
+        bridi_tail: SelbriSimpleBridiTail @[25‥33) {
+          selbri: Gismu @[25‥30) "távla",
           terms: [
             Cmavo @[31‥33) "mi",
           ],
         },
       },
-    },
-    ParagraphStatement @[35‥41) {
-      i: Cmavo @[35‥36) "i",
-      free_modifiers: [
-        Vocative @[37‥41) {
-          vocative_markers: [
+      following: [
+        ParagraphStatement @[35‥41) {
+          i: Cmavo @[35‥36) "i",
+          free_modifiers: [
             Cmavo @[37‥41) "co'o",
           ],
         },
@@ -60,4 +54,4 @@ Text @[0‥41) {
     },
   },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}}]}}],"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[8,12]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nitcĭon","span":[13,20]}}}}]}}}],"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[22,24]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[25,30]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}]}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[35,36]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[37,41]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[0,4]}}}}}}}}],"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[6,7]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'e","span":[8,12]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nitcĭon","span":[13,20]}}}}]}}}}]}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[22,24]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"távla","span":[25,30]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[31,33]}}}}}}}}}}}}}}}]}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[35,36]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[37,41]}}}}}}}}]}]}}}}}}"""

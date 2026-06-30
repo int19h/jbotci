@@ -29,16 +29,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥6) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥6) {
-      to: Cmavo @[0‥2) "to",
-      Text @[3‥6) {
-        leading_cmevla: [
-          Cmevla @[3‥6) "cyc",
-        ],
-      },
-    },
-  ],
+ParentheticalText @[0‥6) {
+  to: Cmavo @[0‥2) "to",
+  text: Cmevla @[3‥6) "cyc",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cyc","span":[3,6]}}}}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cyc","span":[3,6]}}}}]}}}}]}}'

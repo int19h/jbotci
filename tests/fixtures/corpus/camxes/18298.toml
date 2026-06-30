@@ -31,22 +31,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥15) {
-  leading_free_modifiers: [
-    Vocative @[0‥15) {
-      vocative_markers: [
-        WithIndicator @[0‥15) {
-          WithIndicator @[0‥10) {
-            WithIndicator @[0‥7) {
-              Cmavo @[0‥4) "je'e",
-              indicator: Cmavo @[5‥7) "ŭi",
-            },
-            indicator: Cmavo @[7‥10) "saĭ",
-          },
-          indicator: Cmavo @[11‥15) "zo'o",
-        },
-      ],
+WithIndicator @[0‥15) {
+  WithIndicator @[0‥10) {
+    WithIndicator @[0‥7) {
+      Cmavo @[0‥4) "je'e",
+      indicator: Cmavo @[5‥7) "ŭi",
     },
-  ],
+    indicator: Cmavo @[7‥10) "saĭ",
+  },
+  indicator: Cmavo @[11‥15) "zo'o",
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[7,10]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[11,15]}}}}]}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[7,10]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[11,15]}}}}}}}}]}}"""

@@ -38,12 +38,12 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[0‥42) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥42) {
+  BridiWithLeadingTerms @[2‥42) {
     leading_terms: [
       Cmavo @[2‥4) "ma",
     ],
-    SelbriBridiTail @[5‥42) {
-      Gismu @[5‥10) "válsi",
+    bridi_tail: SelbriSimpleBridiTail @[5‥42) {
+      selbri: Gismu @[5‥10) "válsi",
       terms: [
         DelimitedNonLojbanQuote @[11‥42) {
           zoi: Cmavo @[11‥14) "zoĭ",
@@ -55,4 +55,4 @@ ParagraphStatement @[0‥42) {
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[2,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[5,10]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[11,14]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[15,17]}},"quoted_text":{"span":[18,39],"text":"Iranian/Persian/Farsi"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[40,42]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[2,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"válsi","span":[5,10]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[11,14]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[15,17]}},"quoted_text":{"span":[18,39],"text":"Iranian/Persian/Farsi"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[40,42]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

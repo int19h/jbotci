@@ -34,27 +34,23 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥30) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥30) {
-      sei: Cmavo @[0‥3) "seĭ",
-      terms: [
-        Description @[4‥15) {
-          description: Cmavo @[4‥6) "le",
-          tail_elements: [
-            Cmavo @[7‥9) "mi",
-          ],
-          selbri: Gismu @[10‥15) "skámi",
-        },
-      ],
-      selbri: TaggedSelbri @[16‥30) {
-        tense_modal: Composite @[16‥24) {
-          Cmavo @[16‥20) "de'a",
-          Cmavo @[20‥24) "co'u",
-        },
-        Gismu @[25‥30) "nírna",
+SeiFreeModifier @[0‥30) {
+  sei: Cmavo @[0‥3) "seĭ",
+  terms: [
+    DescriptorWithGadriSumti @[4‥15) {
+      description: Cmavo @[4‥6) "le",
+      tail: DescriptionTail @[7‥15) {
+        leading_tail_elements: Cmavo @[7‥9) "mi",
+        tail: Gismu @[10‥15) "skámi",
       },
     },
   ],
+  selbri: TaggedSelbri @[16‥30) {
+    tense_modal: [
+      Cmavo @[16‥20) "de'a",
+      Cmavo @[20‥24) "co'u",
+    ],
+    inner_selbri: Gismu @[25‥30) "nírna",
+  },
 }"""
-json = """{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[10,15]}}}}}}}}],"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de'a","span":[16,20]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'u","span":[20,24]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nírna","span":[25,30]}}}}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[4,6]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[7,9]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"de'a","span":[16,20]}}}}}},{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'u","span":[20,24]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nírna","span":[25,30]}}}}}}}}}}}}}}}}}]}}"""

@@ -45,10 +45,10 @@ tree = """
 ParagraphStatement @[1‥65) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    MetalinguisticBridi @[3‥65) {
+    SeiFreeModifier @[3‥65) {
       sei: Cmavo @[3‥6) "seĭ",
       terms: [
-        NameDescription @[7‥16) {
+        NameSumti @[7‥16) {
           la: Cmavo @[7‥9) "la",
           names: [
             Cmevla @[10‥16) "djordj",
@@ -58,39 +58,33 @@ ParagraphStatement @[1‥65) {
       selbri: Gismu @[18‥23) "cúsku",
       sehu: Cmavo @[24‥28) "se'u",
       free_modifiers: [
-        Vocative @[29‥65) {
-          vocative_markers: [
-            Cmavo @[29‥33) "co'o",
-          ],
-          sumti: Description @[34‥65) {
-            tail_elements: [
-              Cmavo @[34‥36) "ro",
-            ],
-            selbri: Gismu @[37‥42) "zváti",
-            relative_clauses: [
-              SumtiAssociationPhrase @[43‥65) {
-                association_marker: Cmavo @[43‥45) "pe",
-                TaggedSumti @[46‥65) {
-                  tag: Modal @[46‥51) {
-                    se: Cmavo @[46‥48) "se",
-                    bai: Cmavo @[48‥51) "caŭ",
-                  },
-                  NameDescription @[52‥65) {
-                    la: Cmavo @[52‥54) "la",
-                    names: [
-                      WithIndicator @[55‥65) {
-                        Cmevla @[55‥59) "djan",
-                        indicator: Cmavo @[61‥65) "ga'i",
-                      },
-                    ],
-                  },
+        VocativeFreeModifier @[29‥65) {
+          vocative_markers: Cmavo @[29‥33) "co'o",
+          sumti: DescriptorWithoutGadriSumti @[34‥65) {
+            quantifier: Cmavo @[34‥36) "ro",
+            Gismu @[37‥42) "zváti",
+            relative_clauses: SumtiAssociationRelativeClause @[43‥65) {
+              association_marker: Cmavo @[43‥45) "pe",
+              sumti: TenseTaggedRelativeSumti @[46‥65) {
+                tense_modal: ModalTense @[46‥51) {
+                  se: Cmavo @[46‥48) "se",
+                  bai: Cmavo @[48‥51) "caŭ",
+                },
+                sumti: NameSumti @[52‥65) {
+                  la: Cmavo @[52‥54) "la",
+                  names: [
+                    WithIndicator @[55‥65) {
+                      Cmevla @[55‥59) "djan",
+                      indicator: Cmavo @[61‥65) "ga'i",
+                    },
+                  ],
                 },
               },
-            ],
+            },
           },
         },
       ],
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[10,16]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[18,23]}}}}},"sehu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'u","span":[24,28]}}}},{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[29,33]}}}}],"sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[34,36]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[37,42]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[43,45]}}}},"sumti":{"TaggedSumti":{"tag":{"TenseModal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[46,48]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"caŭ","span":[48,51]}}}}}}},"inner_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[52,54]}}}},"names":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[55,59]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[61,65]}}}}]}}}}}}]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[3,6]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[10,16]}}}}]}}}}}}}}}}}}],"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[18,23]}}}}}}}}}}}}}},"sehu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'u","span":[24,28]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[29,33]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[34,36]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[37,42]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe","span":[43,45]}}}},"sumti":{"TenseTaggedRelativeSumti":{"tense_modal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[46,48]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"caŭ","span":[48,51]}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[52,54]}}}},"names":[{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[55,59]}}}},"indicator":{"Cmavo":{"phonemes":"ga'i","span":[61,65]}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}]}]}}"""

@@ -41,30 +41,26 @@ json = '[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[1,2]
 [expectations.output.gentufa]
 brackets = "([.a bu] [dúnda {by cy}])"
 tree = """
-Bridi @[1‥17) {
+BridiWithLeadingTerms @[1‥17) {
   leading_terms: [
-    LerfuStringSumti @[1‥4) {
-      letter: [
-        LerfuWord @[1‥4) {
-          Cmavo @[1‥2) "a",
-          bu: Cmavo @[2‥4) "bu",
-        },
-      ],
+    LerfuWord @[1‥4) {
+      Cmavo @[1‥2) "a",
+      bu: Cmavo @[2‥4) "bu",
     },
   ],
-  SelbriBridiTail @[5‥17) {
-    Gismu @[5‥10) "dúnda",
+  bridi_tail: SelbriSimpleBridiTail @[5‥17) {
+    selbri: Gismu @[5‥10) "dúnda",
     terms: [
-      LerfuStringSumti @[11‥17) {
-        letter: [
-          Cmavo @[11‥13) "by",
+      LetterString @[11‥17) {
+        first_letter: Cmavo @[11‥13) "by",
+        continuations: [
           Cmavo @[15‥17) "cy",
         ],
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}}]}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúnda","span":[5,10]}}}}},"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[11,13]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[15,17]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dúnda","span":[5,10]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"by","span":[11,13]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cy","span":[15,17]}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"formula:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":1,"byteEnd":18},"text":"abu dunda by. cy.","construct":"bridi"}},"predication:10":{"type":"predication","eventuality":"eventuality:6","relation":"dunda","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:8"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":1,"byteEnd":18},"text":"abu dunda by. cy.","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":1,"byteEnd":18},"text":"abu dunda by. cy.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"unloweredSumti","word":"sumti"},"source":{"span":{"byteStart":1,"byteEnd":4},"text":"abu","construct":"sumti"},"diagnostics":[{"severity":"warning","message":"letteral pro-sumti did not resolve to an antecedent"}]},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"unloweredSumti","word":"sumti"},"source":{"span":{"byteStart":11,"byteEnd":18},"text":"by. cy.","construct":"sumti"},"diagnostics":[{"severity":"warning","message":"letteral pro-sumti did not resolve to an antecedent"}]},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":1,"byteEnd":18},"text":"abu dunda by. cy.","construct":"predication"}},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":1,"byteEnd":18},"text":"abu dunda by. cy.","construct":"bridi"}}}}'''

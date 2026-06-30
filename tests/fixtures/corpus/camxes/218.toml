@@ -37,18 +37,16 @@ json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥27) {
-  terms: [
-    DelimitedNonLojbanQuote @[0‥21) {
-      zoi: Cmavo @[0‥3) "zoĭ",
-      opening_delimiter: Cmavo @[4‥6) "zo",
-      quoted_text: Verbatim @[7‥18) "da da da da",
-      closing_delimiter: Cmavo @[19‥21) "zo",
-    },
-    QuotedWord @[22‥27) {
-      zo: Cmavo @[22‥24) "zo",
-      Cmavo @[25‥27) "co",
-    },
-  ],
+TermsFragment @[0‥27) {
+  DelimitedNonLojbanQuote @[0‥21) {
+    zoi: Cmavo @[0‥3) "zoĭ",
+    opening_delimiter: Cmavo @[4‥6) "zo",
+    quoted_text: Verbatim @[7‥18) "da da da da",
+    closing_delimiter: Cmavo @[19‥21) "zo",
+  },
+  QuotedWord @[22‥27) {
+    zo: Cmavo @[22‥24) "zo",
+    Cmavo @[25‥27) "co",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[7,18],"text":"da da da da"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[19,21]}}}}}}}},{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[22,24]}},"word":{"Cmavo":{"phonemes":"co","span":[25,27]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"quoted_text":{"span":[7,18],"text":"da da da da"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[19,21]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[22,24]}},"word":{"Cmavo":{"phonemes":"co","span":[25,27]}}}}}}}}}}}}}}}}}]}}}}}}}}}'

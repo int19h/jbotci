@@ -27,8 +27,5 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
-tree = """
-Text @[0‥4) {
-  leading_connective: Cmavo @[0‥4) "bi'o",
-}"""
-json = """{"leading_connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[0,4]}}}}]}}}"""
+tree = """Cmavo @[0‥4) "bi'o""""
+json = """{"RegularText":{"leading_connective":{"StandardStatementConnective":{"JoikConnective":{"SimpleIntervalConnective":{"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[0,4]}}}}}}}}}}"""

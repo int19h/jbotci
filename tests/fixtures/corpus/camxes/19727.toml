@@ -35,9 +35,9 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}},{"DelimitedN
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥57) {
+BridiWithLeadingTerms @[0‥57) {
   leading_terms: [
-    ReferentSumti @[0‥48) {
+    LaheSumti @[0‥48) {
       lahe: Cmavo @[0‥4) "tu'a",
       DelimitedNonLojbanQuote @[5‥48) {
         zoi: Cmavo @[5‥8) "zoĭ",
@@ -47,6 +47,6 @@ Bridi @[0‥57) {
       },
     },
   ],
-  Lujvo @[49‥57) "tolbánzu",
+  bridi_tail: Lujvo @[49‥57) "tolbánzu",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[5,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[9,11]}},"quoted_text":{"span":[12,45],"text":"http://www.zompist.com/sounds.htm"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[46,48]}}}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tol"},{"Rafsi":"bánzu"}],"span":[49,57]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[5,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[9,11]}},"quoted_text":{"span":[12,45],"text":"http://www.zompist.com/sounds.htm"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[46,48]}}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"tol"},{"Rafsi":"bánzu"}],"span":[49,57]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

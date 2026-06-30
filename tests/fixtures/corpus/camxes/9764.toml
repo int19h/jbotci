@@ -35,22 +35,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"DelimitedNonLo
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥49) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥49) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥44) {
-        terms: [
-          DelimitedNonLojbanQuote @[3‥44) {
-            zoi: Cmavo @[3‥6) "zoĭ",
-            opening_delimiter: Cmavo @[7‥9) "xy",
-            quoted_text: Verbatim @[11‥40) "e mult mai simplu decat crezi",
-            closing_delimiter: Cmavo @[42‥44) "xy",
-          },
-        ],
-      },
-      toi: Cmavo @[46‥49) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥49) {
+  to: Cmavo @[0‥2) "to",
+  text: DelimitedNonLojbanQuote @[3‥44) {
+    zoi: Cmavo @[3‥6) "zoĭ",
+    opening_delimiter: Cmavo @[7‥9) "xy",
+    quoted_text: Verbatim @[11‥40) "e mult mai simplu decat crezi",
+    closing_delimiter: Cmavo @[42‥44) "xy",
+  },
+  toi: Cmavo @[46‥49) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"xy","span":[7,9]}},"quoted_text":{"span":[11,40],"text":"e mult mai simplu decat crezi"},"closing_delimiter":{"Cmavo":{"phonemes":"xy","span":[42,44]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[46,49]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"xy","span":[7,9]}},"quoted_text":{"span":[11,40],"text":"e mult mai simplu decat crezi"},"closing_delimiter":{"Cmavo":{"phonemes":"xy","span":[42,44]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[46,49]}}}}}}]}}'

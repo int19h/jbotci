@@ -35,26 +35,36 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥38) {
-  terms: [
-    Description @[0‥29) {
-      description: Cmavo @[0‥2) "le",
-      selbri: InvertedTanru @[3‥29) {
-        leading_selbri: Tanru @[3‥14) {
-          Gismu @[3‥8) "skámi",
-          Gismu @[9‥14) "mórji",
+TermsFragment @[0‥38) {
+  DescriptorWithGadriSumti @[0‥29) {
+    description: Cmavo @[0‥2) "le",
+    tail: DescriptionTail @[3‥29) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: CoSelbri @[3‥29) {
+        leading_selbri: TanruSelbri @[3‥14) {
+          first_unit: Gismu @[3‥8) "skámi",
+          additional_units: [
+            Gismu @[9‥14) "mórji",
+          ],
         },
-        co: Cmavo @[15‥17) "co",
-        trailing_selbri: ConvertedSelbri @[18‥29) {
-          se: Cmavo @[18‥20) "se",
-          Lujvo @[21‥29) "terkláma",
+        co_tail: CoSelbriTail @[15‥29) {
+          co: Cmavo @[15‥17) "co",
+          trailing_selbri: TanruUnitAtom @[18‥29) {
+            conversions: [
+              Cmavo @[18‥20) "se",
+            ],
+            base: Lujvo @[21‥29) "terkláma",
+          },
         },
       },
     },
-    Description @[30‥38) {
-      description: Cmavo @[30‥32) "la",
-      selbri: Gismu @[33‥38) "náxle",
+  },
+  DescriptorWithGadriSumti @[30‥38) {
+    description: Cmavo @[30‥32) "la",
+    tail: DescriptionTail @[33‥38) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[33‥38) "náxle",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"InvertedTanru":{"leading_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mórji","span":[9,14]}}}}}]},"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[15,17]}}}},"trailing_selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[18,20]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"kláma"}],"span":[21,29]}}}}}}}}}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"náxle","span":[33,38]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mórji","span":[9,14]}}}}}}}}}]}},"co_tail":{"co":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co","span":[15,17]}}}},"trailing_selbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[18,20]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ter"},{"Rafsi":"kláma"}],"span":[21,29]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[30,32]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"náxle","span":[33,38]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

@@ -33,14 +33,22 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"co'u","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"je","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"za'o","span":[8,12]}}},{"PlainWord":{"Gismu":{"phonemes":"cárvi","span":[13,18]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([co'u je za'o] cárvi)"
+brackets = "([co'u {je za'o}] cárvi)"
 tree = """
 TaggedSelbri @[0‥18) {
-  tense_modal: Composite @[0‥12) {
-    Cmavo @[0‥4) "co'u",
-    Cmavo @[5‥7) "je",
-    Cmavo @[8‥12) "za'o",
+  tense_modal: ConnectedTenseModal @[0‥12) {
+    first: [
+      Cmavo @[0‥4) "co'u",
+    ],
+    continuations: [
+      ConnectedTenseModalContinuation @[5‥12) {
+        connective: Cmavo @[5‥7) "je",
+        tense_modal: [
+          Cmavo @[8‥12) "za'o",
+        ],
+      },
+    ],
   },
-  Gismu @[13‥18) "cárvi",
+  inner_selbri: Gismu @[13‥18) "cárvi",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'u","span":[0,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[5,7]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'o","span":[8,12]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cárvi","span":[13,18]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"ConnectedTenseModal":{"first":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'u","span":[0,4]}}}}}}]}}}}}}},"continuations":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[5,7]}}}}}},"tense_modal":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"ZahoIntervalPropertyTense":{"zaho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"za'o","span":[8,12]}}}}}}]}}}}}}}}]}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cárvi","span":[13,18]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

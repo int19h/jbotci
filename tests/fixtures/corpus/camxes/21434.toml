@@ -31,18 +31,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥16) {
-  terms: [
-    TaggedSumti @[0‥16) {
-      tense_modal: Modal @[0‥6) {
-        se: Cmavo @[0‥2) "ve",
-        bai: Cmavo @[2‥6) "cu'u",
-      },
-      Description @[7‥16) {
-        description: Cmavo @[7‥9) "la",
-        selbri: Lujvo @[10‥16) "jbósnu",
-      },
+TaggedSumtiTerm @[0‥16) {
+  tense_modal: ModalTense @[0‥6) {
+    se: Cmavo @[0‥2) "ve",
+    bai: Cmavo @[2‥6) "cu'u",
+  },
+  sumti: DescriptorWithGadriSumti @[7‥16) {
+    description: Cmavo @[7‥9) "la",
+    tail: DescriptionTail @[10‥16) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Lujvo @[10‥16) "jbósnu",
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[2,6]}}}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"snu"}],"span":[10,16]}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}}},"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu'u","span":[2,6]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"snu"}],"span":[10,16]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

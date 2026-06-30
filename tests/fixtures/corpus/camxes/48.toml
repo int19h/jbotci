@@ -34,19 +34,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"DelimitedN
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥26) {
-  leading_free_modifiers: [
-    Vocative @[0‥26) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: DelimitedNonLojbanQuote @[4‥26) {
-        zoi: Cmavo @[4‥8) "la'o",
-        opening_delimiter: Cmavo @[9‥12) "zoĭ",
-        quoted_text: Verbatim @[13‥22) "jadenbane",
-        closing_delimiter: Cmavo @[23‥26) "zoĭ",
-      },
-    },
-  ],
+VocativeFreeModifier @[0‥26) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: DelimitedNonLojbanQuote @[4‥26) {
+    zoi: Cmavo @[4‥8) "la'o",
+    opening_delimiter: Cmavo @[9‥12) "zoĭ",
+    quoted_text: Verbatim @[13‥22) "jadenbane",
+    closing_delimiter: Cmavo @[23‥26) "zoĭ",
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[13,22],"text":"jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[4,8]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"quoted_text":{"span":[13,22],"text":"jadenbane"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[23,26]}}}}}}}}}}}}}}}}}]}}"""

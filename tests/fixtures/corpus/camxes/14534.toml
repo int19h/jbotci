@@ -38,13 +38,9 @@ ParagraphStatement @[1‥15) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[2‥6) "mu'a",
   },
-  Terms @[7‥15) {
-    terms: [
-      QuotedWord @[7‥15) {
-        zo: Cmavo @[7‥9) "zo",
-        Gismu @[10‥15) "básti",
-      },
-    ],
+  QuotedWord @[7‥15) {
+    zo: Cmavo @[7‥9) "zo",
+    Gismu @[10‥15) "básti",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"mu'a","span":[2,6]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[7,9]}},"word":{"Gismu":{"phonemes":"básti","span":[10,15]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"mu'a","span":[2,6]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[7,9]}},"word":{"Gismu":{"phonemes":"básti","span":[10,15]}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

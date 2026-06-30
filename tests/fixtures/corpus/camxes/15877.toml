@@ -31,21 +31,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[3,5]}}},{"PlainWord":{"C
 tree = """
 Text @[3‥23) {
   leading_indicators: [
-    Indicator @[3‥5) {
-      indicator: Cmavo @[3‥5) "xu",
-    },
+    Cmavo @[3‥5) "xu",
   ],
-  Terms @[6‥23) {
-    terms: [
-      Description @[6‥20) {
-        description: Cmavo @[6‥8) "le",
-        selbri: Tanru @[9‥20) {
-          Gismu @[9‥14) "xótli",
-          Gismu @[15‥20) "zváti",
+  TermsFragment @[6‥23) {
+    DescriptorWithGadriSumti @[6‥20) {
+      description: Cmavo @[6‥8) "le",
+      tail: DescriptionTail @[9‥20) {
+        leading_tail_elements: LeadingDescriptionTailElements {},
+        tail: TanruSelbri @[9‥20) {
+          first_unit: Gismu @[9‥14) "xótli",
+          additional_units: [
+            Gismu @[15‥20) "zváti",
+          ],
         },
       },
-      Cmavo @[21‥23) "ma",
-    ],
+    },
+    Cmavo @[21‥23) "ma",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xótli","span":[9,14]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[15,20]}}}}}]}}}},{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[21,23]}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[3,5]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xótli","span":[9,14]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[15,20]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[21,23]}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xu","span":[3,5]}}}}}]}}'

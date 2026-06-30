@@ -32,15 +32,17 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"súcta","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥30) {
-  TanruUnitConnection @[0‥17) {
-    leading_unit: Gismu @[0‥5) "súcta",
-    connective: Cmavo @[6‥8) "je",
-    trailing_unit: Lujvo @[9‥17) "nalsúcta",
+TanruSelbri @[0‥30) {
+  first_unit: TanruUnit @[0‥17) {
+    Gismu @[0‥5) "súcta",
+    Cmavo @[6‥8) "je",
+    Lujvo @[9‥17) "nalsúcta",
   },
-  WithIndicator @[18‥30) {
-    Lujvo @[18‥26) "naldráni",
-    indicator: Cmavo @[28‥30) "oĭ",
-  },
+  additional_units: [
+    WithIndicator @[18‥30) {
+      Lujvo @[18‥26) "naldráni",
+      indicator: Cmavo @[28‥30) "oĭ",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súcta","span":[0,5]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"súcta"}],"span":[9,17]}}}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"dráni"}],"span":[18,26]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[28,30]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"súcta","span":[0,5]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"súcta"}],"span":[9,17]}}}}}}}}}]},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"dráni"}],"span":[18,26]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[28,30]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

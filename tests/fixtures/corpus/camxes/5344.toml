@@ -33,14 +33,10 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"lógji","span":[0,5]}}},{"PlainWord"
 tree = """
 AfterthoughtBridiTail @[0‥16) {
   Gismu @[0‥5) "lógji",
-  continuations: [
-    BridiTailConnection @[6‥16) {
-      connective: Cmavo @[6‥8) "je",
-      Negated @[8‥16) {
-        na: Cmavo @[8‥10) "na",
-        Gismu @[11‥16) "dráni",
-      },
-    },
-  ],
+  Cmavo @[6‥8) "je",
+  NegatedSelbri @[8‥16) {
+    na: Cmavo @[8‥10) "na",
+    inner_selbri: Gismu @[11‥16) "dráni",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lógji","span":[0,5]}}}}}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[8,10]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráni","span":[11,16]}}}}}}}}}}}]}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lógji","span":[0,5]}}}}}}}}}}}}}}}}},"links":[{"connective":{"RelationConnectiveAsBridiTail":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[6,8]}}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[8,10]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dráni","span":[11,16]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}'

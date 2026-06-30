@@ -31,26 +31,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥19) {
-  leading_free_modifiers: [
-    Vocative @[0‥19) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-      ],
-      sumti: NameWords @[4‥19) {
-        Cmevla @[4‥9) "kreĭg",
-        free_modifiers: [
-          Vocative @[10‥19) {
-            vocative_markers: [
-              Cmavo @[10‥13) "coĭ",
-            ],
-            sumti: SelbriVocative @[14‥19) {
-              selbri: Gismu @[14‥19) "tsáli",
-            },
-          },
-        ],
+VocativeFreeModifier @[0‥19) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  sumti: CmevlaVocativeSumti @[4‥19) {
+    names: [
+      Cmevla @[4‥9) "kreĭg",
+    ],
+    free_modifiers: [
+      VocativeFreeModifier @[10‥19) {
+        vocative_markers: Cmavo @[10‥13) "coĭ",
+        sumti: Gismu @[14‥19) "tsáli",
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}],"sumti":{"NameWords":[[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kreĭg","span":[4,9]}}}}],{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[10,13]}}}}],"sumti":{"SelbriVocative":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[14,19]}}}}}}}}}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"kreĭg","span":[4,9]}}}}],{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[10,13]}}}}}},"sumti":{"SelbriVocativeSumti":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tsáli","span":[14,19]}}}}}}}}}}}}}}}}}}]}}}}]}}'

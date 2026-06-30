@@ -32,17 +32,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥14) {
-  terms: [
-    NumberSumti @[0‥14) {
-      li: Cmavo @[0‥2) "li",
-      NumberQuantifier @[3‥14) {
-        Cmavo @[3‥7) "su'o",
-        Cmavo @[8‥10) "pa",
-        Cmavo @[10‥12) "no",
-        Cmavo @[12‥14) "no",
-      },
-    },
-  ],
+NumberSumti @[0‥14) {
+  li: Cmavo @[0‥2) "li",
+  NumberWords @[3‥14) {
+    first_number: Cmavo @[3‥7) "su'o",
+    continuations: [
+      Cmavo @[8‥10) "pa",
+      Cmavo @[10‥12) "no",
+      Cmavo @[12‥14) "no",
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[3,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[8,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}}]}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'o","span":[3,7]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[8,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[10,12]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[12,14]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

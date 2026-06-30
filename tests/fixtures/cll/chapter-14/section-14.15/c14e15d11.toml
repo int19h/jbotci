@@ -39,28 +39,30 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"jo'u","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[18,20]}}},{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[20,23]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([mi {jo'u naĭ} do] cu [re meĭ])"
+brackets = "([mi {(jo'u naĭ) do}] cu [re meĭ])"
 tree = """
-Bridi @[0‥23) {
+BridiWithLeadingTerms @[0‥23) {
   leading_terms: [
-    SumtiConnection @[0‥14) {
+    SumtiAfterthought @[0‥14) {
       leading_sumti: Cmavo @[0‥2) "mi",
-      connective: NonLogical @[3‥11) {
-        Cmavo @[3‥7) "jo'u",
-        nai: Cmavo @[8‥11) "naĭ",
-      },
-      trailing_sumti: Cmavo @[12‥14) "do",
+      continuations: [
+        SumtiAfterthoughtTail @[3‥14) {
+          connective: NonLogical @[3‥11) {
+            Cmavo @[3‥7) "jo'u",
+            nai: Cmavo @[8‥11) "naĭ",
+          },
+          sumti: Cmavo @[12‥14) "do",
+        },
+      ],
     },
   ],
   cu: Cmavo @[15‥17) "cu",
-  OrdinalSelbri @[18‥23) {
-    number: [
-      Cmavo @[18‥20) "re",
-    ],
+  bridi_tail: OrdinalTanruUnit @[18‥23) {
+    number: Cmavo @[18‥20) "re",
     moi: Cmavo @[20‥23) "meĭ",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo'u","span":[3,7]}}}}],"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}}},"trailing_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"OrdinalSelbri":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[18,20]}}}}],"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[20,23]}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jo'u","span":[3,7]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[12,14]}}}}}}}}}}]}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"OrdinalTanruUnit":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[18,20]}}}}}},"moi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"meĭ","span":[20,23]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"formula:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":23},"text":"mi jo'u nai do cu remei","construct":"bridi"}},"predication:10":{"type":"predication","eventuality":"eventuality:6","relation":"re mei","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":23},"text":"mi jo'u nai do cu remei","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":0,"byteEnd":23},"text":"mi jo'u nai do cu remei","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"joint","members":["entity:1","entity:2"],"scalarNegated":true},"source":{"span":{"byteStart":0,"byteEnd":14},"text":"mi jo'u nai do","construct":"connected-sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":23},"text":"mi jo'u nai do cu remei","construct":"predication"}},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":23},"text":"mi jo'u nai do cu remei","construct":"bridi"}}}}'''

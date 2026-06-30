@@ -33,22 +33,20 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"aĭ","span":[1,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"e'e","span":[5,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[9,11]}}},{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[12,17]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.aĭ.e'e [mi zúkte])"
+brackets = "([.aĭ .e'e] [mi zúkte])"
 tree = """
 Text @[1‥17) {
   leading_indicators: [
-    Indicator @[1‥8) {
-      indicator: WithIndicator @[1‥8) {
-        Cmavo @[1‥3) "aĭ",
-        indicator: Cmavo @[5‥8) "e'e",
-      },
+    WithIndicator @[1‥8) {
+      Cmavo @[1‥3) "aĭ",
+      indicator: Cmavo @[5‥8) "e'e",
     },
   ],
-  Bridi @[9‥17) {
+  BridiWithLeadingTerms @[9‥17) {
     leading_terms: [
       Cmavo @[9‥11) "mi",
     ],
-    Gismu @[12‥17) "zúkte",
+    bridi_tail: Gismu @[12‥17) "zúkte",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[9,11]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[12,17]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"aĭ","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"e'e","span":[5,8]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[9,11]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zúkte","span":[12,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"aĭ","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"e'e","span":[5,8]}}}}}]}}"""

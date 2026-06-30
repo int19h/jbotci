@@ -34,21 +34,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ĭo","span":[1,3]}}},{"PlainWord":{"
 tree = """
 Text @[1‥20) {
   leading_indicators: [
-    Indicator @[1‥11) {
-      indicator: WithIndicator @[1‥11) {
-        WithIndicator @[1‥7) {
-          Cmavo @[1‥3) "ĭo",
-          indicator: Cmavo @[5‥7) "ĭo",
-        },
-        indicator: Cmavo @[9‥11) "ĭo",
+    WithIndicator @[1‥11) {
+      WithIndicator @[1‥7) {
+        Cmavo @[1‥3) "ĭo",
+        indicator: Cmavo @[5‥7) "ĭo",
       },
+      indicator: Cmavo @[9‥11) "ĭo",
     },
   ],
-  Bridi @[12‥20) {
+  BridiWithLeadingTerms @[12‥20) {
     leading_terms: [
       Cmavo @[12‥14) "ma",
     ],
-    Gismu @[15‥20) "gáltu",
+    bridi_tail: Gismu @[15‥20) "gáltu",
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[12,14]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gáltu","span":[15,20]}}}}}}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭo","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[9,11]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[12,14]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gáltu","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ĭo","span":[1,3]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[5,7]}}}},"indicator":{"Cmavo":{"phonemes":"ĭo","span":[9,11]}}}}}]}}'

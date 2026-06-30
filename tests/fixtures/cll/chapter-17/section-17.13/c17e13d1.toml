@@ -40,24 +40,26 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"se'e","span":[5,9]}}},{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[10,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}},{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[18,23]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}},{"PlainWord":{"Cmevla":{"phonemes":"asycy'i'is","span":[28,38]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([me'o {se'e ci xa}] cu [lérfu {la .asycy'i'is.}])"
+brackets = "([me'o {se'e (ci xa)}] cu [lérfu {la .asycy'i'is.}])"
 tree = """
-Bridi @[0‥38) {
+BridiWithLeadingTerms @[0‥38) {
   leading_terms: [
     NumberSumti @[0‥14) {
       li: Cmavo @[0‥4) "me'o",
-      LerfuStringMekso @[5‥14) {
-        Cmavo @[5‥9) "se'e",
-        Cmavo @[10‥12) "ci",
-        Cmavo @[12‥14) "xa",
+      LetterString @[5‥14) {
+        first_letter: Cmavo @[5‥9) "se'e",
+        continuations: [
+          Cmavo @[10‥12) "ci",
+          Cmavo @[12‥14) "xa",
+        ],
       },
     },
   ],
   cu: Cmavo @[15‥17) "cu",
-  SelbriBridiTail @[18‥38) {
-    Gismu @[18‥23) "lérfu",
+  bridi_tail: SelbriSimpleBridiTail @[18‥38) {
+    selbri: Gismu @[18‥23) "lérfu",
     terms: [
-      NameDescription @[24‥38) {
+      NameSumti @[24‥38) {
         la: Cmavo @[24‥26) "la",
         names: [
           Cmevla @[28‥38) "asycy'i'is",
@@ -66,7 +68,7 @@ Bridi @[0‥38) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}}},"expression":{"LerfuStringMekso":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'e","span":[5,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[10,12]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,14]}}}}]}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[18,23]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"asycy'i'is","span":[28,38]}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me'o","span":[0,4]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"LerfuStringMekso":{"letters":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se'e","span":[5,9]}}}}},"continuations":[{"LetterStringPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[10,12]}}}}},{"LetterStringPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[12,14]}}}}}]}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[15,17]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[18,23]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[24,26]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"asycy'i'is","span":[28,38]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"formula:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":39},"text":"me'o se'e cixa cu lerfu la .asycy'i'is.","construct":"bridi"}},"predication:10":{"type":"predication","eventuality":"eventuality:6","relation":"lerfu","arguments":{"x1":{"kind":"filled","value":"sign:7"},"x2":{"kind":"filled","value":"entity:8"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":39},"text":"me'o se'e cixa cu lerfu la .asycy'i'is.","construct":"predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":0,"byteEnd":39},"text":"me'o se'e cixa cu lerfu la .asycy'i'is.","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"asycy'i'is"},"source":{"span":{"byteStart":24,"byteEnd":39},"text":"la .asycy'i'is.","construct":"sumti"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":39},"text":"me'o se'e cixa cu lerfu la .asycy'i'is.","construct":"predication"}},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":39},"text":"me'o se'e cixa cu lerfu la .asycy'i'is.","construct":"bridi"}},"sign:7":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"se'e cixa","letterals":[{"kind":"characterCode","sourceWords":["se'e","ci","xa"],"text":"se'e ci xa","value":"cixa"}],"source":{"span":{"byteStart":5,"byteEnd":14},"text":"se'e cixa","construct":"letteral"}}}}'''

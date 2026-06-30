@@ -39,24 +39,20 @@ json = """[{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,
 
 [expectations.output.gentufa]
 tree = """
-Terms @[1‥27) {
-  terms: [
-    LerfuStringSumti @[1‥27) {
-      letter: [
-        LerfuWord @[1‥4) {
-          Cmavo @[1‥2) "i",
-          bu: Cmavo @[2‥4) "bu",
-        },
-        Cmavo @[5‥9) "ga'e",
-        Cmavo @[10‥12) "vy",
-        LerfuWord @[15‥18) {
-          Cmavo @[15‥16) "a",
-          bu: Cmavo @[16‥18) "bu",
-        },
-        Cmavo @[19‥21) "ny",
-        Cmavo @[23‥27) "to'a",
-      ],
+LetterString @[1‥27) {
+  first_letter: LerfuWord @[1‥4) {
+    Cmavo @[1‥2) "i",
+    bu: Cmavo @[2‥4) "bu",
+  },
+  continuations: [
+    Cmavo @[5‥9) "ga'e",
+    Cmavo @[10‥12) "vy",
+    LerfuWord @[15‥18) {
+      Cmavo @[15‥16) "a",
+      bu: Cmavo @[16‥18) "bu",
     },
+    Cmavo @[19‥21) "ny",
+    Cmavo @[23‥27) "to'a",
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[10,12]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[19,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[2,4]}}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'e","span":[5,9]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vy","span":[10,12]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[15,16]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[19,21]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'a","span":[23,27]}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}"""

@@ -39,32 +39,32 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥37) {
-  ParagraphStatement @[1‥5) {
-    i: Cmavo @[1‥2) "i",
+ParagraphStatement @[1‥37) {
+  i: Cmavo @[1‥2) "i",
+  ParagraphStatementSequence @[3‥37) {
     Cmavo @[3‥5) "pa",
-  },
-  ParagraphStatement @[7‥11) {
-    i: Cmavo @[7‥8) "i",
-    Cmavo @[9‥11) "re",
-  },
-  ParagraphStatement @[13‥17) {
-    i: Cmavo @[13‥14) "i",
-    Cmavo @[15‥17) "ci",
-  },
-  ParagraphStatement @[19‥23) {
-    i: Cmavo @[19‥20) "i",
-    Cmavo @[21‥23) "vo",
-  },
-  ParagraphStatement @[25‥29) {
-    i: Cmavo @[25‥26) "i",
-    Cmavo @[27‥29) "mu",
-  },
-  ParagraphStatement @[31‥37) {
-    i: WithIndicator @[31‥37) {
-      Cmavo @[31‥32) "i",
-      indicator: Cmavo @[33‥37) "zo'o",
-    },
+    following: [
+      ParagraphStatement @[7‥11) {
+        i: Cmavo @[7‥8) "i",
+        Cmavo @[9‥11) "re",
+      },
+      ParagraphStatement @[13‥17) {
+        i: Cmavo @[13‥14) "i",
+        Cmavo @[15‥17) "ci",
+      },
+      ParagraphStatement @[19‥23) {
+        i: Cmavo @[19‥20) "i",
+        Cmavo @[21‥23) "vo",
+      },
+      ParagraphStatement @[25‥29) {
+        i: Cmavo @[25‥26) "i",
+        Cmavo @[27‥29) "mu",
+      },
+      WithIndicator @[31‥37) {
+        Cmavo @[31‥32) "i",
+        indicator: Cmavo @[33‥37) "zo'o",
+      },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}}]}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[9,11]}}}}]}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[15,17]}}}}]}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[19,20]}}}},"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[21,23]}}}}]}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[27,29]}}}}]}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[31,32]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[33,37]}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[3,5]}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[9,11]}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[13,14]}}}},"statement":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[15,17]}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[19,20]}}}},"statement":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[21,23]}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[25,26]}}}},"statement":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[27,29]}}}}}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[31,32]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[33,37]}}}}}]}}}}}}"""

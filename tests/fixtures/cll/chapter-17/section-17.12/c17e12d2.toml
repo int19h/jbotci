@@ -49,86 +49,64 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"dyny'am","span":[4,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[14,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}},{"PlainWord":{"Cmevla":{"phonemes":"ny'aty'om","span":[20,29]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[32,33]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[34,36]}}},{"PlainWord":{"Cmevla":{"phonemes":"cy'i'am","span":[38,45]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[48,49]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[50,52]}}},{"PlainWord":{"Cmevla":{"phonemes":"sykybulym","span":[54,63]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[66,67]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[68,70]}}},{"PlainWord":{"Cmevla":{"phonemes":"ibymym","span":[72,78]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[81,82]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[83,85]}}},{"PlainWord":{"Cmevla":{"phonemes":"ny'ybucym","span":[87,96]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([la .dyny'am.] [.i {la .ny'aty'om.}] [.i {la .cy'i'am.}] [.i {la .sykybulym.}] [.i {la .ibymym.}] [.i {la .ny'ybucym.}])"
+brackets = "([la .dyny'am.] [{.i (la .ny'aty'om.)} {.i (la .cy'i'am.)} {.i (la .sykybulym.)} {.i (la .ibymym.)} {.i (la .ny'ybucym.)}])"
 tree = """
-Paragraph @[0‥96) {
-  Terms @[0‥11) {
-    terms: [
-      NameDescription @[0‥11) {
-        la: Cmavo @[0‥2) "la",
-        names: [
-          Cmevla @[4‥11) "dyny'am",
-        ],
-      },
+ParagraphStatementSequence @[0‥96) {
+  NameSumti @[0‥11) {
+    la: Cmavo @[0‥2) "la",
+    names: [
+      Cmevla @[4‥11) "dyny'am",
     ],
   },
-  ParagraphStatement @[14‥29) {
-    i: Cmavo @[14‥15) "i",
-    Terms @[16‥29) {
-      terms: [
-        NameDescription @[16‥29) {
-          la: Cmavo @[16‥18) "la",
-          names: [
-            Cmevla @[20‥29) "ny'aty'om",
-          ],
-        },
-      ],
+  following: [
+    ParagraphStatement @[14‥29) {
+      i: Cmavo @[14‥15) "i",
+      NameSumti @[16‥29) {
+        la: Cmavo @[16‥18) "la",
+        names: [
+          Cmevla @[20‥29) "ny'aty'om",
+        ],
+      },
     },
-  },
-  ParagraphStatement @[32‥45) {
-    i: Cmavo @[32‥33) "i",
-    Terms @[34‥45) {
-      terms: [
-        NameDescription @[34‥45) {
-          la: Cmavo @[34‥36) "la",
-          names: [
-            Cmevla @[38‥45) "cy'i'am",
-          ],
-        },
-      ],
+    ParagraphStatement @[32‥45) {
+      i: Cmavo @[32‥33) "i",
+      NameSumti @[34‥45) {
+        la: Cmavo @[34‥36) "la",
+        names: [
+          Cmevla @[38‥45) "cy'i'am",
+        ],
+      },
     },
-  },
-  ParagraphStatement @[48‥63) {
-    i: Cmavo @[48‥49) "i",
-    Terms @[50‥63) {
-      terms: [
-        NameDescription @[50‥63) {
-          la: Cmavo @[50‥52) "la",
-          names: [
-            Cmevla @[54‥63) "sykybulym",
-          ],
-        },
-      ],
+    ParagraphStatement @[48‥63) {
+      i: Cmavo @[48‥49) "i",
+      NameSumti @[50‥63) {
+        la: Cmavo @[50‥52) "la",
+        names: [
+          Cmevla @[54‥63) "sykybulym",
+        ],
+      },
     },
-  },
-  ParagraphStatement @[66‥78) {
-    i: Cmavo @[66‥67) "i",
-    Terms @[68‥78) {
-      terms: [
-        NameDescription @[68‥78) {
-          la: Cmavo @[68‥70) "la",
-          names: [
-            Cmevla @[72‥78) "ibymym",
-          ],
-        },
-      ],
+    ParagraphStatement @[66‥78) {
+      i: Cmavo @[66‥67) "i",
+      NameSumti @[68‥78) {
+        la: Cmavo @[68‥70) "la",
+        names: [
+          Cmevla @[72‥78) "ibymym",
+        ],
+      },
     },
-  },
-  ParagraphStatement @[81‥96) {
-    i: Cmavo @[81‥82) "i",
-    Terms @[83‥96) {
-      terms: [
-        NameDescription @[83‥96) {
-          la: Cmavo @[83‥85) "la",
-          names: [
-            Cmevla @[87‥96) "ny'ybucym",
-          ],
-        },
-      ],
+    ParagraphStatement @[81‥96) {
+      i: Cmavo @[81‥82) "i",
+      NameSumti @[83‥96) {
+        la: Cmavo @[83‥85) "la",
+        names: [
+          Cmevla @[87‥96) "ny'ybucym",
+        ],
+      },
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dyny'am","span":[4,11]}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[14,15]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ny'aty'om","span":[20,29]}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[32,33]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[34,36]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cy'i'am","span":[38,45]}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[48,49]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[50,52]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"sykybulym","span":[54,63]}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[66,67]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[68,70]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ibymym","span":[72,78]}}}}]}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[81,82]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[83,85]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ny'ybucym","span":[87,96]}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"dyny'am","span":[4,11]}}}}]}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[14,15]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[16,18]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ny'aty'om","span":[20,29]}}}}]}}}}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[32,33]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[34,36]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"cy'i'am","span":[38,45]}}}}]}}}}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[48,49]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[50,52]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"sykybulym","span":[54,63]}}}}]}}}}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[66,67]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[68,70]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ibymym","span":[72,78]}}}}]}}}}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[81,82]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[83,85]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ny'ybucym","span":[87,96]}}}}]}}}}}}}}}}}}]}}}}]}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:23","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:12","content":"entity:11","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":12},"text":"la .dyny'am.","construct":"fragment"}},"utterance:6":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:14","content":"entity:13","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":16,"byteEnd":30},"text":"la .ny'aty'om.","construct":"fragment"}},"utterance:7":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:16","content":"entity:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":34,"byteEnd":46},"text":"la .cy'i'am.","construct":"fragment"}},"utterance:8":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:18","content":"entity:17","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":50,"byteEnd":64},"text":"la .sykybulym.","construct":"fragment"}},"utterance:9":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:20","content":"entity:19","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":68,"byteEnd":79},"text":"la .ibymym.","construct":"fragment"}},"utterance:10":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:22","content":"entity:21","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":83,"byteEnd":97},"text":"la .ny'ybucym.","construct":"fragment"}},"sequence:23":{"type":"sequence","items":["utterance:5","utterance:6","utterance:7","utterance:8","utterance:9","utterance:10"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":97},"text":"la .dyny'am. .i la .ny'aty'om. .i la .cy'i'am. .i la .sykybulym. .i la .ibymym. .i la .ny'ybucym.","construct":"text"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"dyny'am"},"source":{"span":{"byteStart":0,"byteEnd":12},"text":"la .dyny'am.","construct":"sumti"}},"entity:13":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"ny'aty'om"},"source":{"span":{"byteStart":16,"byteEnd":30},"text":"la .ny'aty'om.","construct":"sumti"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"cy'i'am"},"source":{"span":{"byteStart":34,"byteEnd":46},"text":"la .cy'i'am.","construct":"sumti"}},"entity:17":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"sykybulym"},"source":{"span":{"byteStart":50,"byteEnd":64},"text":"la .sykybulym.","construct":"sumti"}},"entity:19":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"ibymym"},"source":{"span":{"byteStart":68,"byteEnd":79},"text":"la .ibymym.","construct":"sumti"}},"entity:21":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"ny'ybucym"},"source":{"span":{"byteStart":83,"byteEnd":97},"text":"la .ny'ybucym.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:12":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":12},"text":"la .dyny'am.","construct":"fragment"}},"eventuality/locution:14":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":16,"byteEnd":30},"text":"la .ny'aty'om.","construct":"fragment"}},"eventuality/locution:16":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":34,"byteEnd":46},"text":"la .cy'i'am.","construct":"fragment"}},"eventuality/locution:18":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":50,"byteEnd":64},"text":"la .sykybulym.","construct":"fragment"}},"eventuality/locution:20":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":68,"byteEnd":79},"text":"la .ibymym.","construct":"fragment"}},"eventuality/locution:22":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":83,"byteEnd":97},"text":"la .ny'ybucym.","construct":"fragment"}}}}'''

@@ -31,14 +31,18 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"jínga"}],"sp
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥23) {
-  Lujvo @[0‥8) "kamjínga",
-  GroupedTanruUnit @[9‥23) {
-    ke: Cmavo @[9‥11) "ke",
-    Tanru @[12‥23) {
-      Gismu @[12‥17) "míntu",
-      Gismu @[18‥23) "zmádu",
+TanruSelbri @[0‥23) {
+  first_unit: Lujvo @[0‥8) "kamjínga",
+  additional_units: [
+    GroupedTanruUnit @[9‥23) {
+      ke: Cmavo @[9‥11) "ke",
+      selbri: TanruSelbri @[12‥23) {
+        first_unit: Gismu @[12‥17) "míntu",
+        additional_units: [
+          Gismu @[18‥23) "zmádu",
+        ],
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"jínga"}],"span":[0,8]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"míntu","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zmádu","span":[18,23]}}}}}]}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"kam"},{"Rafsi":"jínga"}],"span":[0,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"míntu","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zmádu","span":[18,23]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

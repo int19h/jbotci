@@ -37,26 +37,22 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥44) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥44) {
-      to: Cmavo @[0‥2) "to",
-      SelbriBridiTail @[3‥39) {
-        Gismu @[3‥8) "xénru",
-        terms: [
-          ReferentSumti @[9‥39) {
-            lahe: Cmavo @[9‥13) "tu'a",
-            DelimitedNonLojbanQuote @[14‥39) {
-              zoi: Cmavo @[14‥18) "la'o",
-              opening_delimiter: Cmavo @[19‥21) "gy",
-              quoted_text: Verbatim @[23‥36) "Sesame Street",
-              closing_delimiter: Cmavo @[37‥39) "gy",
-            },
-          },
-        ],
+ParentheticalText @[0‥44) {
+  to: Cmavo @[0‥2) "to",
+  text: SelbriSimpleBridiTail @[3‥39) {
+    selbri: Gismu @[3‥8) "xénru",
+    terms: [
+      LaheSumti @[9‥39) {
+        lahe: Cmavo @[9‥13) "tu'a",
+        DelimitedNonLojbanQuote @[14‥39) {
+          zoi: Cmavo @[14‥18) "la'o",
+          opening_delimiter: Cmavo @[19‥21) "gy",
+          quoted_text: Verbatim @[23‥36) "Sesame Street",
+          closing_delimiter: Cmavo @[37‥39) "gy",
+        },
       },
-      toi: Cmavo @[41‥44) "toĭ",
-    },
-  ],
+    ],
+  },
+  toi: Cmavo @[41‥44) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xénru","span":[3,8]}}}}},"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[9,13]}}}},"inner_sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[14,18]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[19,21]}},"quoted_text":{"span":[23,36],"text":"Sesame Street"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}}}]}}}}}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[41,44]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xénru","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[9,13]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[14,18]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[19,21]}},"quoted_text":{"span":[23,36],"text":"Sesame Street"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[37,39]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[41,44]}}}}}}]}}"""

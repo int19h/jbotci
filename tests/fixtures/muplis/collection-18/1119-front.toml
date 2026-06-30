@@ -36,19 +36,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "(seĭ [mi {do .i'u}] rínsa)"
 tree = """
-Text @[0‥19) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥19) {
-      sei: Cmavo @[0‥3) "seĭ",
-      terms: [
-        Cmavo @[4‥6) "mi",
-        WithIndicator @[7‥13) {
-          Cmavo @[7‥9) "do",
-          indicator: Cmavo @[10‥13) "i'u",
-        },
-      ],
-      selbri: Gismu @[14‥19) "rínsa",
+SeiFreeModifier @[0‥19) {
+  sei: Cmavo @[0‥3) "seĭ",
+  terms: [
+    Cmavo @[4‥6) "mi",
+    WithIndicator @[7‥13) {
+      Cmavo @[7‥9) "do",
+      indicator: Cmavo @[10‥13) "i'u",
     },
   ],
+  selbri: Gismu @[14‥19) "rínsa",
 }"""
-json = """{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}}}},{"Sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}}},"indicator":{"Cmavo":{"phonemes":"i'u","span":[10,13]}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rínsa","span":[14,19]}}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[4,6]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[7,9]}}}},"indicator":{"Cmavo":{"phonemes":"i'u","span":[10,13]}}}}}}}}}}}}}}}],"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rínsa","span":[14,19]}}}}}}}}}}}}}}}}]}}"""

@@ -44,37 +44,40 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[0,5]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "(kláma [{fi (la .atlantas.)} {fe (la .bastn.)} {fu (le kárce)}])"
 tree = """
-SelbriBridiTail @[0‥48) {
-  Gismu @[0‥5) "kláma",
+SelbriSimpleBridiTail @[0‥48) {
+  selbri: Gismu @[0‥5) "kláma",
   terms: [
-    PlaceTaggedSumti @[6‥21) {
+    PlaceTaggedSumtiTerm @[6‥21) {
       fa: Cmavo @[6‥8) "fi",
-      NameDescription @[9‥21) {
+      sumti: NameSumti @[9‥21) {
         la: Cmavo @[9‥11) "la",
         names: [
           Cmevla @[13‥21) "atlantas",
         ],
       },
     },
-    PlaceTaggedSumti @[23‥35) {
+    PlaceTaggedSumtiTerm @[23‥35) {
       fa: Cmavo @[23‥25) "fe",
-      NameDescription @[26‥35) {
+      sumti: NameSumti @[26‥35) {
         la: Cmavo @[26‥28) "la",
         names: [
           Cmevla @[30‥35) "bastn",
         ],
       },
     },
-    PlaceTaggedSumti @[37‥48) {
+    PlaceTaggedSumtiTerm @[37‥48) {
       fa: Cmavo @[37‥39) "fu",
-      Description @[40‥48) {
+      sumti: DescriptorWithGadriSumti @[40‥48) {
         description: Cmavo @[40‥42) "le",
-        selbri: Gismu @[43‥48) "kárce",
+        tail: DescriptionTail @[43‥48) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[43‥48) "kárce",
+        },
       },
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[0,5]}}}}},"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[6,8]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[9,11]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"atlantas","span":[13,21]}}}}]}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[23,25]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[26,28]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bastn","span":[30,35]}}}}]}}}},{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[37,39]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[40,42]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[43,48]}}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[6,8]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[9,11]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"atlantas","span":[13,21]}}}}]}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[23,25]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[26,28]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"bastn","span":[30,35]}}}}]}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fu","span":[37,39]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[40,42]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kárce","span":[43,48]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:22","content":"formula:21","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":48},"text":"klama fi la .atlantas. fe la .bastn. fu le karce","construct":"bridi"}},"parameter:10":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":43,"byteEnd":48},"text":"karce","construct":"speaker-description-property"}},"predication:13":{"type":"predication","relation":"karce","arguments":{"x1":{"kind":"filled","value":"parameter:10"},"x2":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:12","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":43,"byteEnd":48},"text":"karce","construct":"restrictive-predication"}},"predication:16":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:9"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:15"}},"mode":"incidental","source":{"span":{"byteStart":40,"byteEnd":48},"text":"le karce","construct":"speaker-description"}},"predication:20":{"type":"predication","eventuality":"eventuality:6","relation":"klama","arguments":{"x1":{"kind":"elided","value":"entity:18","introducedBy":"zo'e"},"x2":{"kind":"filled","value":"entity:8"},"x3":{"kind":"filled","value":"entity:7"},"x4":{"kind":"elided","value":"entity:19","introducedBy":"zo'e"},"x5":{"kind":"filled","value":"entity:9"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":48},"text":"klama fi la .atlantas. fe la .bastn. fu le karce","construct":"predication"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":43,"byteEnd":48},"text":"karce","construct":"restrictive-formula"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":40,"byteEnd":48},"text":"le karce","construct":"speaker-description"}},"formula:21":{"type":"formula","operator":"atom","predication":"predication:20","source":{"span":{"byteStart":0,"byteEnd":48},"text":"klama fi la .atlantas. fe la .bastn. fu le karce","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"atlantas"},"source":{"span":{"byteStart":9,"byteEnd":22},"text":"la .atlantas.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"bastn"},"source":{"span":{"byteStart":26,"byteEnd":36},"text":"la .bastn.","construct":"sumti"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:17"},"source":{"span":{"byteStart":40,"byteEnd":48},"text":"le karce","construct":"description"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:12":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:18":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:19":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":48},"text":"klama fi la .atlantas. fe la .bastn. fu le karce","construct":"predication"}},"eventuality/locution:22":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":48},"text":"klama fi la .atlantas. fe la .bastn. fu le karce","construct":"bridi"}},"relation:15":{"type":"referent","category":"constant","sort":"relation","body":"formula:14","parameters":["parameter:10"],"arity":1,"source":{"span":{"byteStart":43,"byteEnd":48},"text":"karce","construct":"speaker-description-property"}}}}'''

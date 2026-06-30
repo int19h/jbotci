@@ -39,22 +39,18 @@ json = """[{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"qu
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥41) {
-  terms: [
-    WithIndicator @[0‥41) {
-      QuotedWords @[0‥36) {
-        lohu: Cmavo @[0‥4) "lo'u",
-        Cmavo @[5‥7) "mi",
-        Cmavo @[8‥10) "fi",
-        Cmavo @[11‥13) "la",
-        Cmevla @[14‥19) "mumym",
-        Cmavo @[20‥22) "cu",
-        Cmavo @[23‥25) "eĭ",
-        Gismu @[26‥31) "clíra",
-        lehu: Cmavo @[32‥36) "le'u",
-      },
-      indicator: Cmavo @[37‥41) "ki'a",
-    },
-  ],
+WithIndicator @[0‥41) {
+  QuotedWords @[0‥36) {
+    lohu: Cmavo @[0‥4) "lo'u",
+    Cmavo @[5‥7) "mi",
+    Cmavo @[8‥10) "fi",
+    Cmavo @[11‥13) "la",
+    Cmevla @[14‥19) "mumym",
+    Cmavo @[20‥22) "cu",
+    Cmavo @[23‥25) "eĭ",
+    Gismu @[26‥31) "clíra",
+    lehu: Cmavo @[32‥36) "le'u",
+  },
+  indicator: Cmavo @[37‥41) "ki'a",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordsQuote":{"WithIndicator":{"base":{"Plain":{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"mi","span":[5,7]}},{"Cmavo":{"phonemes":"fi","span":[8,10]}},{"Cmavo":{"phonemes":"la","span":[11,13]}},{"Cmevla":{"phonemes":"mumym","span":[14,19]}},{"Cmavo":{"phonemes":"cu","span":[20,22]}},{"Cmavo":{"phonemes":"eĭ","span":[23,25]}},{"Gismu":{"phonemes":"clíra","span":[26,31]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[32,36]}}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[37,41]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"WithIndicator":{"base":{"Plain":{"QuotedWords":{"lohu":{"Cmavo":{"phonemes":"lo'u","span":[0,4]}},"quoted_words":[{"Cmavo":{"phonemes":"mi","span":[5,7]}},{"Cmavo":{"phonemes":"fi","span":[8,10]}},{"Cmavo":{"phonemes":"la","span":[11,13]}},{"Cmevla":{"phonemes":"mumym","span":[14,19]}},{"Cmavo":{"phonemes":"cu","span":[20,22]}},{"Cmavo":{"phonemes":"eĭ","span":[23,25]}},{"Gismu":{"phonemes":"clíra","span":[26,31]}}],"lehu":{"Cmavo":{"phonemes":"le'u","span":[32,36]}}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[37,41]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

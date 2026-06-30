@@ -70,13 +70,11 @@ Paragraph @[0‥92) {
       indicator: Cmavo @[8‥11) "saĭ",
     },
   ],
-  Bridi @[12‥92) {
+  BridiWithLeadingTerms @[12‥92) {
     leading_terms: [
-      TaggedSumti @[12‥26) {
-        tense_modal: Modal @[12‥16) {
-          bai: Cmavo @[12‥16) "mu'i",
-        },
-        WithIndicator @[17‥26) {
+      TaggedSumtiTerm @[12‥26) {
+        tense_modal: Cmavo @[12‥16) "mu'i",
+        sumti: WithIndicator @[17‥26) {
           Cmavo @[17‥19) "ma",
           indicator: Cmavo @[20‥23) "paŭ",
           nai: Cmavo @[23‥26) "naĭ",
@@ -88,39 +86,43 @@ Paragraph @[0‥92) {
       },
     ],
     cu: Cmavo @[36‥38) "cu",
-    SelbriBridiTail @[39‥92) {
-      Negated @[39‥47) {
+    bridi_tail: SelbriSimpleBridiTail @[39‥92) {
+      selbri: NegatedSelbri @[39‥47) {
         na: Cmavo @[39‥41) "na",
-        Gismu @[42‥47) "mápti",
+        inner_selbri: Gismu @[42‥47) "mápti",
       },
       terms: [
-        SumtiConnection @[48‥92) {
-          leading_sumti: SumtiConnection @[48‥80) {
-            leading_sumti: SumtiConnection @[48‥68) {
-              leading_sumti: QuotedWord @[48‥56) {
-                zo: Cmavo @[48‥50) "zo",
-                Gismu @[51‥56) "rínka",
-              },
+        SumtiAfterthought @[48‥92) {
+          leading_sumti: QuotedWord @[48‥56) {
+            zo: Cmavo @[48‥50) "zo",
+            Gismu @[51‥56) "rínka",
+          },
+          continuations: [
+            SumtiAfterthoughtTail @[58‥68) {
               connective: Cmavo @[58‥59) "e",
-              trailing_sumti: QuotedWord @[60‥68) {
+              sumti: QuotedWord @[60‥68) {
                 zo: Cmavo @[60‥62) "zo",
                 Gismu @[63‥68) "múkti",
               },
             },
-            connective: Cmavo @[70‥71) "e",
-            trailing_sumti: QuotedWord @[72‥80) {
-              zo: Cmavo @[72‥74) "zo",
-              Gismu @[75‥80) "krínu",
+            SumtiAfterthoughtTail @[70‥80) {
+              connective: Cmavo @[70‥71) "e",
+              sumti: QuotedWord @[72‥80) {
+                zo: Cmavo @[72‥74) "zo",
+                Gismu @[75‥80) "krínu",
+              },
             },
-          },
-          connective: Cmavo @[82‥83) "e",
-          trailing_sumti: QuotedWord @[84‥92) {
-            zo: Cmavo @[84‥86) "zo",
-            Gismu @[87‥92) "níbli",
-          },
+            SumtiAfterthoughtTail @[82‥92) {
+              connective: Cmavo @[82‥83) "e",
+              sumti: QuotedWord @[84‥92) {
+                zo: Cmavo @[84‥86) "zo",
+                Gismu @[87‥92) "níbli",
+              },
+            },
+          ],
         },
       ],
     },
   },
 }"""
-json = """{"paragraphs":[{"niho":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[6,8]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[8,11]}}}}],"statements":[{"statement":{"Bridi":{"leading_terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[12,16]}}}}}},"sumti":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}},"indicator":{"Cmavo":{"phonemes":"paŭ","span":[20,23]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[23,26]}}}}}}},{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[27,29]}},"word":{"Gismu":{"phonemes":"jálge","span":[30,35]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[36,38]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[39,41]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápti","span":[42,47]}}}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"SumtiConnection":{"leading_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[48,50]}},"word":{"Gismu":{"phonemes":"rínka","span":[51,56]}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[58,59]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[60,62]}},"word":{"Gismu":{"phonemes":"múkti","span":[63,68]}}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[70,71]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[72,74]}},"word":{"Gismu":{"phonemes":"krínu","span":[75,80]}}}}}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[82,83]}}}}]}},"trailing_sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[84,86]}},"word":{"Gismu":{"phonemes":"níbli","span":[87,92]}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[6,8]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[8,11]}}}}],"statements":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[12,16]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}},"indicator":{"Cmavo":{"phonemes":"paŭ","span":[20,23]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[23,26]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[27,29]}},"word":{"Gismu":{"phonemes":"jálge","span":[30,35]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[36,38]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[39,41]}}}},"inner_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mápti","span":[42,47]}}}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[48,50]}},"word":{"Gismu":{"phonemes":"rínka","span":[51,56]}}}}}}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[58,59]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[60,62]}},"word":{"Gismu":{"phonemes":"múkti","span":[63,68]}}}}}}}}}}}},{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[70,71]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[72,74]}},"word":{"Gismu":{"phonemes":"krínu","span":[75,80]}}}}}}}}}}}},{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[82,83]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[84,86]}},"word":{"Gismu":{"phonemes":"níbli","span":[87,92]}}}}}}}}}}}}]}}}}}}]}}}}}}}}}}}}}}]}}}"""

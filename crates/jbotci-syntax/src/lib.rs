@@ -1,7 +1,10 @@
 //! Lojban syntax model and parser facade.
 
 pub mod tree;
-pub use tree::{Token, WithIndicators, elidable_terminator_for_absent_field};
+pub use tree::{
+    Token, WithIndicators, elidable_terminator_for_absent_field,
+    elidable_terminator_for_absent_field_ref,
+};
 
 #[doc(hidden)]
 pub mod generated_tree;

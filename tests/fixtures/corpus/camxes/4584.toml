@@ -36,37 +36,37 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥40) {
-  leading_free_modifiers: [
-    Vocative @[0‥40) {
-      vocative_markers: [
-        Cmavo @[0‥3) "coĭ",
-        Cmavo @[4‥7) "doĭ",
-      ],
-      sumti: SumtiWithRelativeClauses @[8‥40) {
-        base_sumti: Cmevla @[8‥13) "elron",
-        relative_clauses: [
-          RestrictiveRelativeBridi @[14‥40) {
-            poi: WithIndicator @[14‥20) {
-              Cmavo @[14‥17) "poĭ",
-              indicator: Cmavo @[18‥20) "xu",
-            },
-            SelbriBridiTail @[21‥40) {
-              TaggedSelbri @[21‥35) {
-                tense_modal: Cmavo @[21‥23) "ca",
-                Tanru @[24‥35) {
-                  Gismu @[24‥29) "xálka",
-                  Gismu @[30‥35) "fénki",
-                },
-              },
-              terms: [
-                Cmavo @[36‥40) "ke'a",
-              ],
-            },
+VocativeFreeModifier @[0‥40) {
+  vocative_markers: CoiVocativeMarkerWords @[0‥7) {
+    first_coi: Cmavo @[0‥3) "coĭ",
+    doi: Cmavo @[4‥7) "doĭ",
+  },
+  sumti: CmevlaVocativeSumti @[8‥40) {
+    names: [
+      Cmevla @[8‥13) "elron",
+    ],
+    trailing_relative_clauses: RestrictiveBridiRelativeClause @[14‥40) {
+      poi: WithIndicator @[14‥20) {
+        Cmavo @[14‥17) "poĭ",
+        indicator: Cmavo @[18‥20) "xu",
+      },
+      subbridi: SelbriSimpleBridiTail @[21‥40) {
+        selbri: TaggedSelbri @[21‥35) {
+          tense_modal: [
+            Cmavo @[21‥23) "ca",
+          ],
+          inner_selbri: TanruSelbri @[24‥35) {
+            first_unit: Gismu @[24‥29) "xálka",
+            additional_units: [
+              Gismu @[30‥35) "fénki",
+            ],
           },
+        },
+        terms: [
+          Cmavo @[36‥40) "ke'a",
         ],
       },
     },
-  ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}],"sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"elron","span":[8,13]}}}}]},"relative_clauses":[{"RestrictiveRelativeBridi":{"poi":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[14,17]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[18,20]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[21,23]}}}}}]}},"inner_selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xálka","span":[24,29]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fénki","span":[30,35]}}}}}]}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[36,40]}}}}}}]}}}}}}}}}]}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},"doi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"elron","span":[8,13]}}}}],"trailing_relative_clauses":{"first":{"BridiRelativeClause":{"RestrictiveBridiRelativeClause":{"poi":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"poĭ","span":[14,17]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[18,20]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ca","span":[21,23]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xálka","span":[24,29]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fénki","span":[30,35]}}}}}}}}}]}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'a","span":[36,40]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}]}}"""

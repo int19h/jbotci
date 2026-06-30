@@ -621,6 +621,12 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
 #[requires(true)]
 #[ensures(true)]
 pub fn elidable_terminator_for_absent_field(_node: NodeRef<'_>, field: FieldRef) -> Option<Cmavo> {
+    elidable_terminator_for_absent_field_ref(field)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn elidable_terminator_for_absent_field_ref(field: FieldRef) -> Option<Cmavo> {
     match field.name {
         Some("beho") => Some(Cmavo::Beho),
         Some("boi") => Some(Cmavo::Boi),

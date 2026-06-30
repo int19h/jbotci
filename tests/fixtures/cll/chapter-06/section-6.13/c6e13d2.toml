@@ -43,44 +43,52 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"críbe","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[9,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[13,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}},{"PlainWord":{"Gismu":{"phonemes":"xékri","span":[21,26]}}},{"PlainWord":{"Cmavo":{"phonemes":"i","span":[28,29]}}},{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[30,34]}}},{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[35,40]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[41,43]}}},{"PlainWord":{"Gismu":{"phonemes":"smácu","span":[44,49]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([{le críbe (goĭ ko'a)} cu xékri] [.i {ko'a (cítka [le smácu])}])"
+brackets = "([{le (críbe [goĭ ko'a])} cu xékri] [.i {ko'a (cítka [le smácu])}])"
 tree = """
-Paragraph @[0‥49) {
-  Bridi @[0‥26) {
+ParagraphStatementSequence @[0‥49) {
+  BridiWithLeadingTerms @[0‥26) {
     leading_terms: [
-      Description @[0‥17) {
+      DescriptorWithGadriSumti @[0‥17) {
         description: Cmavo @[0‥2) "le",
-        selbri: Gismu @[3‥8) "críbe",
-        relative_clauses: [
-          SumtiAssociationPhrase @[9‥17) {
-            association_marker: Cmavo @[9‥12) "goĭ",
-            Cmavo @[13‥17) "ko'a",
+        tail: DescriptionTail @[3‥17) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: RelationDescriptionTail @[3‥17) {
+            selbri: Gismu @[3‥8) "críbe",
+            relative_clauses: SumtiAssociationRelativeClause @[9‥17) {
+              association_marker: Cmavo @[9‥12) "goĭ",
+              sumti: Cmavo @[13‥17) "ko'a",
+            },
           },
-        ],
+        },
       },
     ],
     cu: Cmavo @[18‥20) "cu",
-    Gismu @[21‥26) "xékri",
+    bridi_tail: Gismu @[21‥26) "xékri",
   },
-  ParagraphStatement @[28‥49) {
-    i: Cmavo @[28‥29) "i",
-    Bridi @[30‥49) {
-      leading_terms: [
-        Cmavo @[30‥34) "ko'a",
-      ],
-      SelbriBridiTail @[35‥49) {
-        Gismu @[35‥40) "cítka",
-        terms: [
-          Description @[41‥49) {
-            description: Cmavo @[41‥43) "le",
-            selbri: Gismu @[44‥49) "smácu",
-          },
+  following: [
+    ParagraphStatement @[28‥49) {
+      i: Cmavo @[28‥29) "i",
+      BridiWithLeadingTerms @[30‥49) {
+        leading_terms: [
+          Cmavo @[30‥34) "ko'a",
         ],
+        bridi_tail: SelbriSimpleBridiTail @[35‥49) {
+          selbri: Gismu @[35‥40) "cítka",
+          terms: [
+            DescriptorWithGadriSumti @[41‥49) {
+              description: Cmavo @[41‥43) "le",
+              tail: DescriptionTail @[44‥49) {
+                leading_tail_elements: LeadingDescriptionTailElements {},
+                tail: Gismu @[44‥49) "smácu",
+              },
+            },
+          ],
+        },
       },
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críbe","span":[3,8]}}}}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[9,12]}}}},"sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[13,17]}}}}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xékri","span":[21,26]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[28,29]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[30,34]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[35,40]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[41,43]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smácu","span":[44,49]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"críbe","span":[3,8]}}}}}}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[9,12]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[13,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[18,20]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xékri","span":[21,26]}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[28,29]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'a","span":[30,34]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[35,40]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[41,43]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"smácu","span":[44,49]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:31","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:18","content":"formula:17","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":26},"text":"le cribe goi ko'a cu xekri","construct":"bridi"}},"utterance:6":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:30","content":"formula:29","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":30,"byteEnd":49},"text":"ko'a citka le smacu","construct":"bridi"}},"sequence:31":{"type":"sequence","items":["utterance:5","utterance:6"],"relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":49},"text":"le cribe goi ko'a cu xekri .i ko'a citka le smacu","construct":"text"}},"parameter:9":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":3,"byteEnd":8},"text":"cribe","construct":"speaker-description-property"}},"parameter:21":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":44,"byteEnd":49},"text":"smacu","construct":"speaker-description-property"}},"predication:11":{"type":"predication","relation":"cribe","arguments":{"x1":{"kind":"filled","value":"parameter:9"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":3,"byteEnd":8},"text":"cribe","construct":"restrictive-predication"}},"predication:14":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:8"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:13"}},"mode":"incidental","source":{"span":{"byteStart":0,"byteEnd":17},"text":"le cribe goi ko'a","construct":"speaker-description"}},"predication:16":{"type":"predication","eventuality":"eventuality:7","relation":"xekri","arguments":{"x1":{"kind":"filled","value":"entity:8"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":26},"text":"le cribe goi ko'a cu xekri","construct":"predication"}},"predication:23":{"type":"predication","relation":"smacu","arguments":{"x1":{"kind":"filled","value":"parameter:21"},"x2":{"kind":"elided","value":"entity:22","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":44,"byteEnd":49},"text":"smacu","construct":"restrictive-predication"}},"predication:26":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:20"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:25"}},"mode":"incidental","source":{"span":{"byteStart":41,"byteEnd":49},"text":"le smacu","construct":"speaker-description"}},"predication:28":{"type":"predication","eventuality":"eventuality:19","relation":"citka","arguments":{"x1":{"kind":"filled","value":"entity:8"},"x2":{"kind":"filled","value":"entity:20"}},"mode":"asserted","source":{"span":{"byteStart":30,"byteEnd":49},"text":"ko'a citka le smacu","construct":"predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":3,"byteEnd":8},"text":"cribe","construct":"restrictive-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":0,"byteEnd":17},"text":"le cribe goi ko'a","construct":"speaker-description"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":0,"byteEnd":26},"text":"le cribe goi ko'a cu xekri","construct":"bridi-formula"}},"formula:24":{"type":"formula","operator":"atom","predication":"predication:23","source":{"span":{"byteStart":44,"byteEnd":49},"text":"smacu","construct":"restrictive-formula"}},"formula:27":{"type":"formula","operator":"atom","predication":"predication:26","source":{"span":{"byteStart":41,"byteEnd":49},"text":"le smacu","construct":"speaker-description"}},"formula:29":{"type":"formula","operator":"atom","predication":"predication:28","source":{"span":{"byteStart":30,"byteEnd":49},"text":"ko'a citka le smacu","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:15"},"assignedNames":[{"name":"ko'a","word":"ko'a","introducedBy":"goi","source":{"span":{"byteStart":9,"byteEnd":17},"text":"goi ko'a","construct":"assigned-name"}}],"source":{"span":{"byteStart":0,"byteEnd":17},"text":"le cribe goi ko'a","construct":"description"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:20":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:27"},"source":{"span":{"byteStart":41,"byteEnd":49},"text":"le smacu","construct":"description"}},"entity:22":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:7":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":26},"text":"le cribe goi ko'a cu xekri","construct":"predication"}},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":30,"byteEnd":49},"text":"ko'a citka le smacu","construct":"predication"}},"eventuality/locution:18":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":26},"text":"le cribe goi ko'a cu xekri","construct":"bridi"}},"eventuality/locution:30":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":30,"byteEnd":49},"text":"ko'a citka le smacu","construct":"bridi"}},"relation:13":{"type":"referent","category":"constant","sort":"relation","body":"formula:12","parameters":["parameter:9"],"arity":1,"source":{"span":{"byteStart":3,"byteEnd":8},"text":"cribe","construct":"speaker-description-property"}},"relation:25":{"type":"referent","category":"constant","sort":"relation","body":"formula:24","parameters":["parameter:21"],"arity":1,"source":{"span":{"byteStart":44,"byteEnd":49},"text":"smacu","construct":"speaker-description-property"}}}}'''

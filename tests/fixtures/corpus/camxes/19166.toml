@@ -40,29 +40,23 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥34) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥34) {
-    terms: [
-      Description @[2‥10) {
-        tail_elements: [
-          Cmavo @[2‥4) "xo",
-        ],
-        selbri: Gismu @[5‥10) "xábju",
-      },
-      Description @[11‥34) {
-        tail_elements: [
-          Cmavo @[11‥13) "xo",
-        ],
-        selbri: SumtiSelbri @[14‥34) {
-          me: Cmavo @[14‥16) "me",
-          DelimitedNonLojbanQuote @[16‥34) {
-            zoi: Cmavo @[16‥20) "la'o",
-            opening_delimiter: Cmavo @[20‥22) "gy",
-            quoted_text: Verbatim @[23‥31) "channels",
-            closing_delimiter: Cmavo @[32‥34) "gy",
-          },
+  TermsFragment @[2‥34) {
+    DescriptorWithoutGadriSumti @[2‥10) {
+      quantifier: Cmavo @[2‥4) "xo",
+      Gismu @[5‥10) "xábju",
+    },
+    DescriptorWithoutGadriSumti @[11‥34) {
+      quantifier: Cmavo @[11‥13) "xo",
+      SumtiSelbriTanruUnit @[14‥34) {
+        me: Cmavo @[14‥16) "me",
+        sumti: DelimitedNonLojbanQuote @[16‥34) {
+          zoi: Cmavo @[16‥20) "la'o",
+          opening_delimiter: Cmavo @[20‥22) "gy",
+          quoted_text: Verbatim @[23‥31) "channels",
+          closing_delimiter: Cmavo @[32‥34) "gy",
         },
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[2,4]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xábju","span":[5,10]}}}}}}}},{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[11,13]}}}}]}}}],"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[14,16]}}}},"sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[16,20]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[20,22]}},"quoted_text":{"span":[23,31],"text":"channels"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[32,34]}}}}}}}}}]}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[2,4]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xábju","span":[5,10]}}}}}}}}}}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xo","span":[11,13]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[14,16]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[16,20]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[20,22]}},"quoted_text":{"span":[23,31],"text":"channels"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[32,34]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

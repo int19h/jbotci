@@ -38,33 +38,31 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[0,5]}}},{"PlainWor
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[0‥43) {
-  Gismu @[0‥5) "zváti",
+SelbriSimpleBridiTail @[0‥43) {
+  selbri: Gismu @[0‥5) "zváti",
   terms: [
-    SumtiWithRelativeClauses @[6‥43) {
-      base_sumti: NameDescription @[6‥17) {
+    SimpleSumti @[6‥43) {
+      base_sumti: NameSumti @[6‥17) {
         la: Cmavo @[6‥8) "la",
         names: [
           Cmevla @[9‥17) "nudjrzis",
         ],
       },
-      relative_clauses: [
-        IncidentalRelativeBridi @[19‥43) {
-          noi: Cmavo @[19‥22) "noĭ",
-          SelbriBridiTail @[23‥43) {
-            Gismu @[23‥28) "págbu",
-            terms: [
-              DelimitedNonLojbanQuote @[29‥43) {
-                zoi: Cmavo @[29‥33) "la'o",
-                opening_delimiter: Cmavo @[34‥36) "gy",
-                quoted_text: Verbatim @[37‥40) "USA",
-                closing_delimiter: Cmavo @[41‥43) "gy",
-              },
-            ],
-          },
+      relative_clauses: IncidentalBridiRelativeClause @[19‥43) {
+        noi: Cmavo @[19‥22) "noĭ",
+        subbridi: SelbriSimpleBridiTail @[23‥43) {
+          selbri: Gismu @[23‥28) "págbu",
+          terms: [
+            DelimitedNonLojbanQuote @[29‥43) {
+              zoi: Cmavo @[29‥33) "la'o",
+              opening_delimiter: Cmavo @[34‥36) "gy",
+              quoted_text: Verbatim @[37‥40) "USA",
+              closing_delimiter: Cmavo @[41‥43) "gy",
+            },
+          ],
         },
-      ],
+      },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[0,5]}}}}},"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nudjrzis","span":[9,17]}}}}]}},"relative_clauses":[{"IncidentalRelativeBridi":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[19,22]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[23,28]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[34,36]}},"quoted_text":{"span":[37,40],"text":"USA"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[41,43]}}}}}}}}]}}}}}}}}}]}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zváti","span":[0,5]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[6,8]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"nudjrzis","span":[9,17]}}}}]}}},"relative_clauses":{"first":{"BridiRelativeClause":{"IncidentalBridiRelativeClause":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[19,22]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"págbu","span":[23,28]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[29,33]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[34,36]}},"quoted_text":{"span":[37,40],"text":"USA"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[41,43]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}"""

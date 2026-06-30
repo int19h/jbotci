@@ -37,32 +37,37 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥43) {
-  terms: [
-    Description @[0‥43) {
-      description: Cmavo @[0‥2) "le",
-      selbri: Tanru @[3‥35) {
-        Gismu @[3‥8) "skámi",
-        LinkedSumtiTanruUnit @[9‥35) {
-          ConvertedTanruUnit @[9‥17) {
-            se: Cmavo @[9‥11) "se",
-            Gismu @[12‥17) "mrílu",
-          },
-          be: Cmavo @[18‥20) "be",
-          first_sumti: NameDescription @[21‥35) {
-            la: Cmavo @[21‥23) "la",
-            names: [
-              Cmevla @[24‥28) "djim",
-              Cmevla @[29‥35) "karter",
+DescriptorWithGadriSumti @[0‥43) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[3‥35) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruSelbri @[3‥35) {
+      first_unit: Gismu @[3‥8) "skámi",
+      additional_units: [
+        LinkedTanruUnit @[9‥35) {
+          base: TanruUnitAtom @[9‥17) {
+            conversions: [
+              Cmavo @[9‥11) "se",
             ],
+            base: Gismu @[12‥17) "mrílu",
+          },
+          linkargs: Linkargs @[18‥35) {
+            be: Cmavo @[18‥20) "be",
+            first_link: NameSumti @[21‥35) {
+              la: Cmavo @[21‥23) "la",
+              names: [
+                Cmevla @[24‥28) "djim",
+                Cmevla @[29‥35) "karter",
+              ],
+            },
           },
         },
-      },
-      ku: WithIndicator @[36‥43) {
-        Cmavo @[36‥38) "ku",
-        indicator: Cmavo @[40‥43) "u'i",
-      },
+      ],
     },
-  ],
+  },
+  ku: WithIndicator @[36‥43) {
+    Cmavo @[36‥38) "ku",
+    indicator: Cmavo @[40‥43) "u'i",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}},{"LinkedSumtiTanruUnit":{"base":{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[12,17]}}}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[18,20]}}}},"first_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[21,23]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djim","span":[24,28]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"karter","span":[29,35]}}}}]}}}}]},"ku":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[36,38]}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[40,43]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[9,11]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[12,17]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[18,20]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[21,23]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djim","span":[24,28]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"karter","span":[29,35]}}}}]}}}}}}}}}}}}}}]}}}}}}}},"ku":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[36,38]}}}},"indicator":{"Cmavo":{"phonemes":"u'i","span":[40,43]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

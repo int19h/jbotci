@@ -11,7 +11,9 @@ use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
-use jbotci_syntax::{Indicator, Token, WithIndicators};
+use jbotci_syntax::{
+    Indicator, Token, WithIndicators, elidable_terminator_for_absent_field_ref,
+};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{
@@ -2929,6 +2931,22 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
     #[ensures(true)]
     fn exit_field(&mut self, _field: FieldRef) {
         self.pop_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, field: FieldRef) {
+        if !self.source.options.show_elided {
+            return;
+        }
+        let Some(cmavo) = elidable_terminator_for_absent_field_ref(field) else {
+            return;
+        };
+        let Some(frame) = self.stack.last_mut() else {
+            return;
+        };
+        let terminator = elided_terminator_leaf(cmavo, &frame.children, self.source);
+        frame.children.push(terminator);
     }
 
     #[requires(true)]

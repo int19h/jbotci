@@ -34,15 +34,13 @@ json = """[{"PlainWord":{"Gismu":{"phonemes":"stíci","span":[0,5]}}},{"PlainWor
 tree = """
 AfterthoughtBridiTail @[0‥22) {
   Gismu @[0‥5) "stíci",
-  continuations: [
-    BridiTailConnection @[6‥22) {
-      connective: Cmavo @[6‥10) "gi'e",
-      LinkedSumtiTanruUnit @[11‥22) {
-        Gismu @[11‥16) "díklo",
-        be: Cmavo @[17‥19) "be",
-        first_sumti: Cmavo @[20‥22) "mi",
-      },
+  Cmavo @[6‥10) "gi'e",
+  LinkedTanruUnit @[11‥22) {
+    base: Gismu @[11‥16) "díklo",
+    linkargs: Linkargs @[17‥22) {
+      be: Cmavo @[17‥19) "be",
+      first_link: Cmavo @[20‥22) "mi",
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stíci","span":[0,5]}}}}}}}},"continuations":[{"connective":{"BridiTail":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[6,10]}}}}]}},"bridi_tail":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"díklo","span":[11,16]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[17,19]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}}}]}}}}}]}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"stíci","span":[0,5]}}}}}}}}}}}}}}}}},"links":[{"connective":{"GihekConnective":{"giha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi'e","span":[6,10]}}}}}},"bridi_tail":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"díklo","span":[11,16]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[17,19]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[20,22]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}"""

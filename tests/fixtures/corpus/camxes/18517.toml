@@ -39,16 +39,18 @@ ParagraphStatement @[1‥34) {
     Cmavo @[1‥2) "i",
     indicator: Cmavo @[3‥7) "ta'o",
   },
-  Tanru @[8‥34) {
-    Gismu @[8‥13) "skámi",
-    Gismu @[14‥19) "srána",
-    WithIndicator @[20‥34) {
-      WithIndicator @[20‥30) {
-        Gismu @[20‥25) "sávru",
-        indicator: Cmavo @[27‥30) "a'a",
+  TanruSelbri @[8‥34) {
+    first_unit: Gismu @[8‥13) "skámi",
+    additional_units: [
+      Gismu @[14‥19) "srána",
+      WithIndicator @[20‥34) {
+        WithIndicator @[20‥30) {
+          Gismu @[20‥25) "sávru",
+          indicator: Cmavo @[27‥30) "a'a",
+        },
+        indicator: Cmavo @[30‥34) "cu'i",
       },
-      indicator: Cmavo @[30‥34) "cu'i",
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ta'o","span":[3,7]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[8,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"srána","span":[14,19]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sávru","span":[20,25]}}}},"indicator":{"Cmavo":{"phonemes":"a'a","span":[27,30]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[30,34]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ta'o","span":[3,7]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"skámi","span":[8,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"srána","span":[14,19]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sávru","span":[20,25]}}}},"indicator":{"Cmavo":{"phonemes":"a'a","span":[27,30]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[30,34]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

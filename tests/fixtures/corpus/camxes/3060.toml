@@ -33,20 +33,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ŭe","span":[0,2]}}},{"PlainWord":{"
 tree = """
 Text @[0‥19) {
   leading_indicators: [
-    Indicator @[0‥5) {
-      indicator: WithIndicator @[0‥5) {
-        Cmavo @[0‥2) "ŭe",
-        indicator: Cmavo @[3‥5) "ŭi",
-      },
+    WithIndicator @[0‥5) {
+      Cmavo @[0‥2) "ŭe",
+      indicator: Cmavo @[3‥5) "ŭi",
     },
   ],
   leading_free_modifiers: [
-    Vocative @[6‥19) {
-      vocative_markers: [
-        Cmavo @[6‥9) "coĭ",
+    VocativeFreeModifier @[6‥19) {
+      vocative_markers: Cmavo @[6‥9) "coĭ",
+      sumti: [
+        Cmevla @[10‥19) "duramater",
       ],
-      sumti: Cmevla @[10‥19) "duramater",
     },
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"duramater","span":[10,19]}}}}]}}}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭe","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[3,5]}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"duramater","span":[10,19]}}}}]}}}}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭe","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[3,5]}}}}}]}}'

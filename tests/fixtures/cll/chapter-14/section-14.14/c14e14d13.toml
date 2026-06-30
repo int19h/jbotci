@@ -43,48 +43,56 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}},{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[18,24]}}},{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[26,31]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}},{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[35,40]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[43,44]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}},{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[48,54]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{la .djeĭmyz.} .e {la .djordj.}] [prámi {(la .meris.) .e (la .martas.)}])"
+brackets = "([{la .djeĭmyz.} {.e (la .djordj.)}] [prámi {(la .meris.) (.e [la .martas.])}])"
 tree = """
-Bridi @[0‥54) {
+BridiWithLeadingTerms @[0‥54) {
   leading_terms: [
-    SumtiConnection @[0‥24) {
-      leading_sumti: NameDescription @[0‥10) {
+    SumtiAfterthought @[0‥24) {
+      leading_sumti: NameSumti @[0‥10) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[3‥10) "djeĭmyz",
         ],
       },
-      connective: Cmavo @[13‥14) "e",
-      trailing_sumti: NameDescription @[15‥24) {
-        la: Cmavo @[15‥17) "la",
-        names: [
-          Cmevla @[18‥24) "djordj",
-        ],
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[13‥24) {
+          connective: Cmavo @[13‥14) "e",
+          sumti: NameSumti @[15‥24) {
+            la: Cmavo @[15‥17) "la",
+            names: [
+              Cmevla @[18‥24) "djordj",
+            ],
+          },
+        },
+      ],
     },
   ],
-  SelbriBridiTail @[26‥54) {
-    Gismu @[26‥31) "prámi",
+  bridi_tail: SelbriSimpleBridiTail @[26‥54) {
+    selbri: Gismu @[26‥31) "prámi",
     terms: [
-      SumtiConnection @[32‥54) {
-        leading_sumti: NameDescription @[32‥40) {
+      SumtiAfterthought @[32‥54) {
+        leading_sumti: NameSumti @[32‥40) {
           la: Cmavo @[32‥34) "la",
           names: [
             Cmevla @[35‥40) "meris",
           ],
         },
-        connective: Cmavo @[43‥44) "e",
-        trailing_sumti: NameDescription @[45‥54) {
-          la: Cmavo @[45‥47) "la",
-          names: [
-            Cmevla @[48‥54) "martas",
-          ],
-        },
+        continuations: [
+          SumtiAfterthoughtTail @[43‥54) {
+            connective: Cmavo @[43‥44) "e",
+            sumti: NameSumti @[45‥54) {
+              la: Cmavo @[45‥47) "la",
+              names: [
+                Cmevla @[48‥54) "martas",
+              ],
+            },
+          },
+        ],
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[18,24]}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[26,31]}}}}},"terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[35,40]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[43,44]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[48,54]}}}}]}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭmyz","span":[3,10]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[18,24]}}}}]}}}}}}}]}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[26,31]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[32,34]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[35,40]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[43,44]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[48,54]}}}}]}}}}}}}]}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:23","content":"formula:22","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"bridi"}},"predication:11":{"type":"predication","eventuality":"eventuality:10","relation":"prami","arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"filled","value":"entity:8"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"predication:14":{"type":"predication","eventuality":"eventuality:13","relation":"prami","arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"filled","value":"entity:9"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"predication:17":{"type":"predication","eventuality":"eventuality:16","relation":"prami","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:8"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"predication:20":{"type":"predication","eventuality":"eventuality:19","relation":"prami","arguments":{"x1":{"kind":"filled","value":"entity:7"},"x2":{"kind":"filled","value":"entity:9"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-formula"}},"formula:18":{"type":"formula","operator":"atom","predication":"predication:17","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-formula"}},"formula:21":{"type":"formula","operator":"atom","predication":"predication:20","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-formula"}},"formula:22":{"type":"formula","operator":"and","children":["formula:12","formula:15","formula:18","formula:21"],"connector":{"source":"e","locus":"sumti","truthTable":"TFFF"},"source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"sumti-connection-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djeimyz"},"source":{"span":{"byteStart":0,"byteEnd":11},"text":"la djeimyz.","construct":"sumti"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djordj"},"source":{"span":{"byteStart":15,"byteEnd":25},"text":"la djordj.","construct":"sumti"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"meris"},"source":{"span":{"byteStart":32,"byteEnd":41},"text":"la meris.","construct":"sumti"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"martas"},"source":{"span":{"byteStart":45,"byteEnd":55},"text":"la martas.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:10":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"eventuality:13":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"eventuality:16":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"distributed-predication"}},"eventuality/locution:23":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":55},"text":"la djeimyz. .e la djordj. prami la meris. .e la martas.","construct":"bridi"}}}}'''

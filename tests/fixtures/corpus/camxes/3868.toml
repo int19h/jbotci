@@ -30,15 +30,13 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥15) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥15) {
-      sei: Cmavo @[0‥3) "seĭ",
-      selbri: Tanru @[4‥15) {
-        Gismu @[4‥9) "bésna",
-        Gismu @[10‥15) "pórpi",
-      },
-    },
-  ],
+SeiFreeModifier @[0‥15) {
+  sei: Cmavo @[0‥3) "seĭ",
+  selbri: TanruSelbri @[4‥15) {
+    first_unit: Gismu @[4‥9) "bésna",
+    additional_units: [
+      Gismu @[10‥15) "pórpi",
+    ],
+  },
 }"""
-json = '{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[4,9]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pórpi","span":[10,15]}}}}}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bésna","span":[4,9]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pórpi","span":[10,15]}}}}}}}}}]}}}}}}}]}}'

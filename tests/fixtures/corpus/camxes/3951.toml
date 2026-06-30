@@ -33,10 +33,10 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"zásti"}],"
 
 [expectations.output.gentufa]
 tree = """
-SelbriConnection @[0‥29) {
-  leading_selbri: Lujvo @[0‥8) "nalzásti",
-  connective: Cmavo @[9‥11) "ju",
-  trailing_selbri: WithIndicator @[12‥29) {
+TanruUnit @[0‥29) {
+  Lujvo @[0‥8) "nalzásti",
+  Cmavo @[9‥11) "ju",
+  WithIndicator @[12‥29) {
     WithIndicator @[12‥24) {
       Gismu @[12‥17) "núpre",
       indicator: Cmavo @[19‥21) "oĭ",
@@ -45,4 +45,4 @@ SelbriConnection @[0‥29) {
     indicator: Cmavo @[26‥29) "o'o",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriConnection":{"leading_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"zásti"}],"span":[0,8]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[9,11]}}}}]}},"trailing_selbri":{"SelbriWord":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núpre","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[19,21]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[21,24]}}}},"indicator":{"Cmavo":{"phonemes":"o'o","span":[26,29]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nal"},{"Rafsi":"zásti"}],"span":[0,8]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju","span":[9,11]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"núpre","span":[12,17]}}}},"indicator":{"Cmavo":{"phonemes":"oĭ","span":[19,21]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[21,24]}}}},"indicator":{"Cmavo":{"phonemes":"o'o","span":[26,29]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

@@ -33,20 +33,12 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"QuotedWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥17) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥17) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥13) {
-        terms: [
-          QuotedWord @[3‥13) {
-            zo: Cmavo @[3‥5) "zo",
-            Cmevla @[6‥13) "zorglub",
-          },
-        ],
-      },
-      toi: Cmavo @[14‥17) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥17) {
+  to: Cmavo @[0‥2) "to",
+  text: QuotedWord @[3‥13) {
+    zo: Cmavo @[3‥5) "zo",
+    Cmevla @[6‥13) "zorglub",
+  },
+  toi: Cmavo @[14‥17) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmevla":{"phonemes":"zorglub","span":[6,13]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[14,17]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[3,5]}},"word":{"Cmevla":{"phonemes":"zorglub","span":[6,13]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[14,17]}}}}}}]}}'

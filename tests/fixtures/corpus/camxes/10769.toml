@@ -34,19 +34,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na'i","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥19) {
   leading_indicators: [
-    Indicator @[0‥10) {
-      indicator: WithIndicator @[0‥10) {
-        Cmavo @[0‥4) "na'i",
-        indicator: Cmavo @[5‥7) "ŭa",
-        nai: Cmavo @[7‥10) "naĭ",
-      },
+    WithIndicator @[0‥10) {
+      Cmavo @[0‥4) "na'i",
+      indicator: Cmavo @[5‥7) "ŭa",
+      nai: Cmavo @[7‥10) "naĭ",
     },
   ],
-  SelbriBridiTail @[11‥19) {
-    Gismu @[11‥16) "cpédu",
+  SelbriSimpleBridiTail @[11‥19) {
+    selbri: Gismu @[11‥16) "cpédu",
     terms: [
       Cmavo @[17‥19) "ma",
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpédu","span":[11,16]}}}}},"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'i","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[5,7]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpédu","span":[11,16]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma","span":[17,19]}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'i","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[5,7]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}}}}]}}"""

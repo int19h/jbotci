@@ -34,21 +34,20 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}},{"PlainWord"
 tree = """
 Text @[0‥19) {
   leading_indicators: [
-    Indicator @[0‥7) {
+    LeadingIndicator @[0‥7) {
       indicator: Cmavo @[0‥4) "pe'a",
       nai: Cmavo @[4‥7) "naĭ",
     },
   ],
-  Terms @[8‥19) {
-    terms: [
-      Description @[8‥19) {
-        description: Cmavo @[8‥10) "lo",
-        selbri: WithIndicator @[11‥19) {
-          Gismu @[11‥16) "sáske",
-          indicator: Cmavo @[17‥19) "xu",
-        },
+  DescriptorWithGadriSumti @[8‥19) {
+    description: Cmavo @[8‥10) "lo",
+    tail: DescriptionTail @[11‥19) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: WithIndicator @[11‥19) {
+        Gismu @[11‥16) "sáske",
+        indicator: Cmavo @[17‥19) "xu",
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[8,10]}}}},"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[17,19]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[8,10]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sáske","span":[11,16]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[17,19]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'a","span":[0,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}]}}"""

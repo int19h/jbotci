@@ -39,24 +39,26 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"a'e","span":[1,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[8,10]}}},{"PlainWord":{"Gismu":{"phonemes":"ránji","span":[11,16]}}},{"PlainWord":{"Gismu":{"phonemes":"bácru","span":[17,22]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(.a'e-naĭ [do {ránji bácru}])"
+brackets = "([.a'e naĭ] [do {ránji bácru}])"
 tree = """
 Text @[1‥22) {
   leading_indicators: [
-    Indicator @[1‥7) {
+    LeadingIndicator @[1‥7) {
       indicator: Cmavo @[1‥4) "a'e",
       nai: Cmavo @[4‥7) "naĭ",
     },
   ],
-  Bridi @[8‥22) {
+  BridiWithLeadingTerms @[8‥22) {
     leading_terms: [
       Cmavo @[8‥10) "do",
     ],
-    Tanru @[11‥22) {
-      Gismu @[11‥16) "ránji",
-      Gismu @[17‥22) "bácru",
+    bridi_tail: TanruSelbri @[11‥22) {
+      first_unit: Gismu @[11‥16) "ránji",
+      additional_units: [
+        Gismu @[17‥22) "bácru",
+      ],
     },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[8,10]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránji","span":[11,16]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bácru","span":[17,22]}}}}}]}}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'e","span":[1,4]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[8,10]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ránji","span":[11,16]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bácru","span":[17,22]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"a'e","span":[1,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}]}}"""
 

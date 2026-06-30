@@ -32,17 +32,21 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nor"},{"Rafsi":"kálri"}],"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥34) {
-  Lujvo @[0‥8) "norkálri",
-  GroupedTanruUnit @[9‥34) {
-    ke: Cmavo @[9‥11) "ke",
-    Tanru @[12‥34) {
-      Emphasized @[12‥28) {
-        bahe: Cmavo @[12‥16) "za'e",
-        Lujvo @[17‥28) "kerzbigálxe",
+TanruSelbri @[0‥34) {
+  first_unit: Lujvo @[0‥8) "norkálri",
+  additional_units: [
+    GroupedTanruUnit @[9‥34) {
+      ke: Cmavo @[9‥11) "ke",
+      selbri: TanruSelbri @[12‥34) {
+        first_unit: Emphasized @[12‥28) {
+          bahe: Cmavo @[12‥16) "za'e",
+          Lujvo @[17‥28) "kerzbigálxe",
+        },
+        additional_units: [
+          Gismu @[29‥34) "túbnu",
+        ],
       },
-      Gismu @[29‥34) "túbnu",
     },
-  },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nor"},{"Rafsi":"kálri"}],"span":[0,8]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[12,16]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ker"},{"Rafsi":"zbi"},{"Rafsi":"gálxe"}],"span":[17,28]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túbnu","span":[29,34]}}}}}]}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"nor"},{"Rafsi":"kálri"}],"span":[0,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Emphasized":{"bahe":{"Cmavo":{"phonemes":"za'e","span":[12,16]}},"word_like":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"ker"},{"Rafsi":"zbi"},{"Rafsi":"gálxe"}],"span":[17,28]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túbnu","span":[29,34]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

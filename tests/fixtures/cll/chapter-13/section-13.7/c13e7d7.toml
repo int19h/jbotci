@@ -38,19 +38,17 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"ri'e","span":[8,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[12,15]}}}]"""
 
 [expectations.output.gentufa]
-brackets = ".o'o-naĭ-ri'e-naĭ"
+brackets = "([.o'o naĭ] [ri'e naĭ])"
 tree = """
-Text @[1‥15) {
-  leading_indicators: [
-    Indicator @[1‥7) {
-      indicator: Cmavo @[1‥4) "o'o",
-      nai: Cmavo @[4‥7) "naĭ",
-    },
-    Indicator @[8‥15) {
-      indicator: Cmavo @[8‥12) "ri'e",
-      nai: Cmavo @[12‥15) "naĭ",
-    },
-  ],
-}"""
-json = """{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}},{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri'e","span":[8,12]}}}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[12,15]}}}]}"""
+[
+  LeadingIndicator @[1‥7) {
+    indicator: Cmavo @[1‥4) "o'o",
+    nai: Cmavo @[4‥7) "naĭ",
+  },
+  LeadingIndicator @[8‥15) {
+    indicator: Cmavo @[8‥12) "ri'e",
+    nai: Cmavo @[12‥15) "naĭ",
+  },
+]"""
+json = """{"RegularText":{"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o'o","span":[1,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}},{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri'e","span":[8,12]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[12,15]}}}}}]}}"""
 

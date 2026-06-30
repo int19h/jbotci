@@ -30,15 +30,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥8) {
-  leading_free_modifiers: [
-    UtteranceOrdinal @[0‥8) {
-      number: [
-        Cmavo @[0‥2) "pa",
-        Cmavo @[2‥4) "so",
-      ],
-      mai: Cmavo @[4‥8) "mo'o",
-    },
-  ],
+MaiFreeModifier @[0‥8) {
+  number: NumberWords @[0‥4) {
+    first_number: Cmavo @[0‥2) "pa",
+    continuations: [
+      Cmavo @[2‥4) "so",
+    ],
+  },
+  mai: Cmavo @[4‥8) "mo'o",
 }"""
-json = """{"leading_free_modifiers":[{"UtteranceOrdinal":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[2,4]}}}}],"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'o","span":[4,8]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"MaiFreeModifier":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[2,4]}}}}}]}},"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mo'o","span":[4,8]}}}}}}]}}"""

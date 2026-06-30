@@ -38,23 +38,19 @@ json = """[{"LerfuWord":{"base":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"pho
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥28) {
+BridiWithLeadingTerms @[0‥28) {
   leading_terms: [
-    LerfuStringSumti @[0‥19) {
-      letter: [
-        LerfuWord @[0‥19) {
-          DelimitedNonLojbanQuote @[0‥16) {
-            zoi: Cmavo @[0‥3) "zoĭ",
-            opening_delimiter: Cmavo @[4‥8) "ba'e",
-            quoted_text: Verbatim @[9‥11) "bu",
-            closing_delimiter: Cmavo @[12‥16) "ba'e",
-          },
-          bu: Cmavo @[17‥19) "bu",
-        },
-      ],
+    LerfuWord @[0‥19) {
+      DelimitedNonLojbanQuote @[0‥16) {
+        zoi: Cmavo @[0‥3) "zoĭ",
+        opening_delimiter: Cmavo @[4‥8) "ba'e",
+        quoted_text: Verbatim @[9‥11) "bu",
+        closing_delimiter: Cmavo @[12‥16) "ba'e",
+      },
+      bu: Cmavo @[17‥19) "bu",
     },
   ],
   cu: Cmavo @[20‥22) "cu",
-  Gismu @[23‥28) "bróda",
+  bridi_tail: Gismu @[23‥28) "bróda",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"ba'e","span":[4,8]}},"quoted_text":{"span":[9,11],"text":"bu"},"closing_delimiter":{"Cmavo":{"phonemes":"ba'e","span":[12,16]}}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}]}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[23,28]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"ba'e","span":[4,8]}},"quoted_text":{"span":[9,11],"text":"bu"},"closing_delimiter":{"Cmavo":{"phonemes":"ba'e","span":[12,16]}}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[20,22]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[23,28]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

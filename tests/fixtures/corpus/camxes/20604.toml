@@ -31,16 +31,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-ParagraphStatement @[1‥15) {
-  i: WithIndicator @[1‥15) {
-    WithIndicator @[1‥10) {
-      WithIndicator @[1‥6) {
-        Cmavo @[1‥2) "i",
-        indicator: Cmavo @[4‥6) "ŭa",
-      },
-      indicator: Cmavo @[8‥10) "ŭi",
+WithIndicator @[1‥15) {
+  WithIndicator @[1‥10) {
+    WithIndicator @[1‥6) {
+      Cmavo @[1‥2) "i",
+      indicator: Cmavo @[4‥6) "ŭa",
     },
-    indicator: Cmavo @[11‥15) "za'a",
+    indicator: Cmavo @[8‥10) "ŭi",
   },
+  indicator: Cmavo @[11‥15) "za'a",
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[11,15]}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[4,6]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[8,10]}}}},"indicator":{"Cmavo":{"phonemes":"za'a","span":[11,15]}}}}}]}}"""

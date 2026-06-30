@@ -42,29 +42,21 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}},{"LerfuWord":{
 [expectations.output.gentufa]
 brackets = "([lu {.a bu} li'u] cu lérfu)"
 tree = """
-Bridi @[0‥21) {
+BridiWithLeadingTerms @[0‥21) {
   leading_terms: [
     TextQuote @[0‥12) {
       lu: Cmavo @[0‥2) "lu",
-      Terms @[4‥7) {
-        terms: [
-          LerfuStringSumti @[4‥7) {
-            letter: [
-              LerfuWord @[4‥7) {
-                Cmavo @[4‥5) "a",
-                bu: Cmavo @[5‥7) "bu",
-              },
-            ],
-          },
-        ],
+      text: LerfuWord @[4‥7) {
+        Cmavo @[4‥5) "a",
+        bu: Cmavo @[5‥7) "bu",
       },
       lihu: Cmavo @[8‥12) "li'u",
     },
   ],
   cu: Cmavo @[13‥15) "cu",
-  Gismu @[16‥21) "lérfu",
+  bridi_tail: Gismu @[16‥21) "lérfu",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}}]}}}]}}}}]}]},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[8,12]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[13,15]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[16,21]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[4,5]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[5,7]}}}}}}}}}}}}}}}}}}}]}}}}}}}}},"lihu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li'u","span":[8,12]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[13,15]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lérfu","span":[16,21]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:19","content":"formula:18","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":21},"text":"lu .abu li'u cu lerfu","construct":"bridi"}},"utterance:11":{"type":"utterance","force":"mention","speaker":"entity:7","audience":"entity:8","eventuality":"eventuality/locution:13","content":"sign:12","deicticGround":{"time":"eventuality:9","place":"entity:10"},"source":{"span":{"byteStart":4,"byteEnd":7},"text":"abu","construct":"fragment"}},"predication:17":{"type":"predication","eventuality":"eventuality:6","relation":"lerfu","arguments":{"x1":{"kind":"filled","value":"sign:14"},"x2":{"kind":"elided","value":"entity:15","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:16","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":21},"text":"lu .abu li'u cu lerfu","construct":"predication"}},"formula:18":{"type":"formula","operator":"atom","predication":"predication:17","source":{"span":{"byteStart":0,"byteEnd":21},"text":"lu .abu li'u cu lerfu","construct":"bridi-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker","source":{"span":{"byteStart":0,"byteEnd":12},"text":"lu .abu li'u","construct":"quotation"}},"entity:8":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience","source":{"span":{"byteStart":0,"byteEnd":12},"text":"lu .abu li'u","construct":"quotation"}},"entity:10":{"type":"referent","category":"indexical","sort":"entity","indexical":"here","source":{"span":{"byteStart":0,"byteEnd":12},"text":"lu .abu li'u","construct":"quotation"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":21},"text":"lu .abu li'u cu lerfu","construct":"predication"}},"eventuality:9":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now","source":{"span":{"byteStart":0,"byteEnd":12},"text":"lu .abu li'u","construct":"quotation"}},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":4,"byteEnd":7},"text":"abu","construct":"fragment"}},"eventuality/locution:19":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":21},"text":"lu .abu li'u cu lerfu","construct":"bridi"}},"sign:12":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"a","letterals":[{"kind":"glyph","sourceWords":["a","bu"],"text":"cmavo:a-cmavo:bu","value":"a","buDepth":1}],"source":{"span":{"byteStart":4,"byteEnd":7},"text":"abu","construct":"letteral"}},"sign:14":{"type":"referent","category":"constant","sort":"sign","kind":"quotation","quotation":{"mode":"parsed","utterance":"utterance:11","text":"lu .abu li'u"},"source":{"span":{"byteStart":0,"byteEnd":12},"text":"lu .abu li'u","construct":"quotation"}}}}'''

@@ -38,9 +38,9 @@ tree = """
 json = '[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[7,12],"text":"Steve"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}},{"PlainWord":{"Gismu":{"phonemes":"mérko","span":[17,22]}}},{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[23,28]}}},{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[29,34]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([zoĭ gy Steve gy] [mérko glíco cméne])"
+brackets = "([zoĭ gy Steve gy] [mérko {glíco cméne}])"
 tree = """
-Bridi @[0‥34) {
+BridiWithLeadingTerms @[0‥34) {
   leading_terms: [
     DelimitedNonLojbanQuote @[0‥15) {
       zoi: Cmavo @[0‥3) "zoĭ",
@@ -49,10 +49,12 @@ Bridi @[0‥34) {
       closing_delimiter: Cmavo @[13‥15) "gy",
     },
   ],
-  Tanru @[17‥34) {
-    Gismu @[17‥22) "mérko",
-    Gismu @[23‥28) "glíco",
-    Gismu @[29‥34) "cméne",
+  bridi_tail: TanruSelbri @[17‥34) {
+    first_unit: Gismu @[17‥22) "mérko",
+    additional_units: [
+      Gismu @[23‥28) "glíco",
+      Gismu @[29‥34) "cméne",
+    ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[7,12],"text":"Steve"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mérko","span":[17,22]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[23,28]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[29,34]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[4,6]}},"quoted_text":{"span":[7,12],"text":"Steve"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[13,15]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mérko","span":[17,22]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[23,28]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[29,34]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}'

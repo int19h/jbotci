@@ -31,13 +31,15 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"xláli","span":[2,7]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-SelbriBridiTail @[2‥23) {
-  Tanru @[2‥13) {
-    Gismu @[2‥7) "xláli",
-    Gismu @[8‥13) "síclu",
+SelbriSimpleBridiTail @[2‥23) {
+  selbri: TanruSelbri @[2‥13) {
+    first_unit: Gismu @[2‥7) "xláli",
+    additional_units: [
+      Gismu @[8‥13) "síclu",
+    ],
   },
   terms: [
-    NameDescription @[14‥23) {
+    NameSumti @[14‥23) {
       la: Cmavo @[14‥16) "la",
       names: [
         Cmevla @[17‥23) "diksis",
@@ -45,4 +47,4 @@ SelbriBridiTail @[2‥23) {
     },
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xláli","span":[2,7]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"síclu","span":[8,13]}}}}}]},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[14,16]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"diksis","span":[17,23]}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xláli","span":[2,7]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"síclu","span":[8,13]}}}}}}}}}]}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[14,16]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"diksis","span":[17,23]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

@@ -41,40 +41,47 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[0‥60) {
+BridiWithLeadingTerms @[0‥60) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥60) {
-    Gismu @[3‥8) "pílno",
+  bridi_tail: SelbriSimpleBridiTail @[3‥60) {
+    selbri: Gismu @[3‥8) "pílno",
     terms: [
-      Description @[9‥60) {
+      DescriptorWithGadriSumti @[9‥60) {
         description: Cmavo @[9‥11) "le",
-        selbri: Tanru @[12‥23) {
-          Gismu @[12‥17) "fúkpi",
-          Gismu @[18‥23) "játna",
-        },
-        relative_clauses: [
-          IncidentalRelativeBridi @[24‥60) {
-            noi: Cmavo @[24‥27) "noĭ",
-            SelbriBridiTail @[28‥60) {
-              ConvertedSelbri @[28‥36) {
-                se: Cmavo @[28‥30) "se",
-                Gismu @[31‥36) "cméne",
-              },
-              terms: [
-                DelimitedNonLojbanQuote @[37‥60) {
-                  zoi: Cmavo @[37‥40) "zoĭ",
-                  opening_delimiter: Cmavo @[41‥43) "zo",
-                  quoted_text: Verbatim @[45‥56) "bsd licence",
-                  closing_delimiter: Cmavo @[58‥60) "zo",
-                },
+        tail: DescriptionTail @[12‥60) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: RelationDescriptionTail @[12‥60) {
+            selbri: TanruSelbri @[12‥23) {
+              first_unit: Gismu @[12‥17) "fúkpi",
+              additional_units: [
+                Gismu @[18‥23) "játna",
               ],
             },
+            relative_clauses: IncidentalBridiRelativeClause @[24‥60) {
+              noi: Cmavo @[24‥27) "noĭ",
+              subbridi: SelbriSimpleBridiTail @[28‥60) {
+                selbri: TanruUnitAtom @[28‥36) {
+                  conversions: [
+                    Cmavo @[28‥30) "se",
+                  ],
+                  base: Gismu @[31‥36) "cméne",
+                },
+                terms: [
+                  DelimitedNonLojbanQuote @[37‥60) {
+                    zoi: Cmavo @[37‥40) "zoĭ",
+                    opening_delimiter: Cmavo @[41‥43) "zo",
+                    quoted_text: Verbatim @[45‥56) "bsd licence",
+                    closing_delimiter: Cmavo @[58‥60) "zo",
+                  },
+                ],
+              },
+            },
           },
-        ],
+        },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[3,8]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fúkpi","span":[12,17]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"játna","span":[18,23]}}}}}]},"relative_clauses":[{"IncidentalRelativeBridi":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[24,27]}}}},"subbridi":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[28,30]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[31,36]}}}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[37,40]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[41,43]}},"quoted_text":{"span":[45,56],"text":"bsd licence"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[58,60]}}}}}}}}]}}}}}}}}}]}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pílno","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[9,11]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fúkpi","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"játna","span":[18,23]}}}}}}}}}]}}}}},"relative_clauses":{"first":{"BridiRelativeClause":{"IncidentalBridiRelativeClause":{"noi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"noĭ","span":[24,27]}}}},"subbridi":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[28,30]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[31,36]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[37,40]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[41,43]}},"quoted_text":{"span":[45,56],"text":"bsd licence"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[58,60]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

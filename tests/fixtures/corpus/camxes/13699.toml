@@ -33,12 +33,10 @@ tree = """
 ParagraphStatement @[1‥11) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative @[3‥11) {
-      vocative_markers: [
-        Cmavo @[3‥7) "je'e",
-        Cmavo @[8‥11) "naĭ",
-      ],
+    CoiVocativeMarkerWords @[3‥11) {
+      first_coi: Cmavo @[3‥7) "je'e",
+      first_nai: Cmavo @[8‥11) "naĭ",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[3,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je'e","span":[3,7]}}}},"first_nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[8,11]}}}}}}}}]}]}}"""

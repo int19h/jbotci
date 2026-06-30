@@ -31,10 +31,12 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 tree = """
 TaggedSelbri @[0‥12) {
-  tense_modal: WithIndicator @[0‥7) {
-    Cmavo @[0‥4) "na'o",
-    indicator: Cmavo @[4‥7) "peĭ",
-  },
-  Cmavo @[8‥12) "go'i",
+  tense_modal: [
+    WithIndicator @[0‥7) {
+      Cmavo @[0‥4) "na'o",
+      indicator: Cmavo @[4‥7) "peĭ",
+    },
+  ],
+  inner_selbri: Cmavo @[8‥12) "go'i",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[4,7]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"TaheIntervalPropertyTense":{"tahe":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'o","span":[0,4]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[4,7]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GohaWordTanruUnit":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"go'i","span":[8,12]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

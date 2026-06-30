@@ -38,37 +38,44 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"no","span":[2,4]}}},{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[5,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[11,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"se","span":[14,16]}}},{"PlainWord":{"Gismu":{"phonemes":"márce","span":[17,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}},{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[26,28]}}},{"PlainWord":{"Gismu":{"phonemes":"vínji","span":[29,34]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{mu no} prénu] [{pu (se márce)} {le pa vínji}])"
+brackets = "([{mu no} prénu] [{pu (se márce)} {le (pa vínji)}])"
 tree = """
-Bridi @[0‥34) {
+BridiWithLeadingTerms @[0‥34) {
   leading_terms: [
-    Description @[0‥10) {
-      tail_elements: [
-        NumberQuantifier @[0‥4) {
-          Cmavo @[0‥2) "mu",
+    DescriptorWithoutGadriSumti @[0‥10) {
+      quantifier: NumberWords @[0‥4) {
+        first_number: Cmavo @[0‥2) "mu",
+        continuations: [
           Cmavo @[2‥4) "no",
-        },
-      ],
-      selbri: Gismu @[5‥10) "prénu",
+        ],
+      },
+      Gismu @[5‥10) "prénu",
     },
   ],
-  SelbriBridiTail @[11‥34) {
-    TaggedSelbri @[11‥22) {
-      tense_modal: Cmavo @[11‥13) "pu",
-      ConvertedSelbri @[14‥22) {
-        se: Cmavo @[14‥16) "se",
-        Gismu @[17‥22) "márce",
+  bridi_tail: SelbriSimpleBridiTail @[11‥34) {
+    selbri: TaggedSelbri @[11‥22) {
+      tense_modal: [
+        Cmavo @[11‥13) "pu",
+      ],
+      inner_selbri: TanruUnitAtom @[14‥22) {
+        conversions: [
+          Cmavo @[14‥16) "se",
+        ],
+        base: Gismu @[17‥22) "márce",
       },
     },
     terms: [
-      Description @[23‥34) {
+      DescriptorWithGadriSumti @[23‥34) {
         description: Cmavo @[23‥25) "le",
-        tail_elements: [
-          Cmavo @[26‥28) "pa",
-        ],
-        selbri: Gismu @[29‥34) "vínji",
+        tail: DescriptionTail @[26‥34) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: QuantifierRelationDescriptionTail @[26‥34) {
+            quantifier: Cmavo @[26‥28) "pa",
+            selbri: Gismu @[29‥34) "vínji",
+          },
+        },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"Description":{"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[2,4]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[5,10]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[11,13]}}}}}]}},"inner_selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[14,16]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"márce","span":[17,22]}}}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"tail_elements":[{"DescriptionTailQuantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[26,28]}}}}]}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vínji","span":[29,34]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithoutGadriSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[2,4]}}}}}]}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[5,10]}}}}}}}}}}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithOffset":{"offsets":[{"pu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pu","span":[11,13]}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[14,16]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"márce","span":[17,22]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[23,25]}}}},"tail":{"leading_tail_elements":{},"tail":{"QuantifierRelationDescriptionTail":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[26,28]}}}}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vínji","span":[29,34]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'

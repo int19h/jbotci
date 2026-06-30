@@ -32,13 +32,17 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"xébni"}],"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥28) {
-  LinkedSumtiTanruUnit @[0‥14) {
-    Lujvo @[0‥8) "selxébni",
-    be: Cmavo @[9‥11) "be",
-    first_sumti: Cmavo @[12‥14) "mi",
+TanruSelbri @[0‥28) {
+  first_unit: LinkedTanruUnit @[0‥14) {
+    base: Lujvo @[0‥8) "selxébni",
+    linkargs: Linkargs @[9‥14) {
+      be: Cmavo @[9‥11) "be",
+      first_link: Cmavo @[12‥14) "mi",
+    },
   },
-  Gismu @[15‥20) "sélfu",
-  Lujvo @[21‥28) "mutmí'i",
+  additional_units: [
+    Gismu @[15‥20) "sélfu",
+    Lujvo @[21‥28) "mutmí'i",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"LinkedSumtiTanruUnit":{"base":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"xébni"}],"span":[0,8]}}}}},"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sélfu","span":[15,20]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mut"},{"Rafsi":"mí'i"}],"span":[21,28]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"xébni"}],"span":[0,8]}}}}}},"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[9,11]}}}},"first_link":{"PlainLinkedSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[12,14]}}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"sélfu","span":[15,20]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mut"},{"Rafsi":"mí'i"}],"span":[21,28]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

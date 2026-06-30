@@ -33,16 +33,17 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[0‥15) {
   i: Cmavo @[0‥1) "i",
-  Terms @[2‥15) {
-    terms: [
-      Description @[2‥15) {
-        description: Cmavo @[2‥6) "lo'e",
-        selbri: ConvertedSelbri @[7‥15) {
-          se: Cmavo @[7‥9) "se",
-          Gismu @[10‥15) "vásxu",
-        },
+  DescriptorWithGadriSumti @[2‥15) {
+    description: Cmavo @[2‥6) "lo'e",
+    tail: DescriptionTail @[7‥15) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: TanruUnitAtom @[7‥15) {
+        conversions: [
+          Cmavo @[7‥9) "se",
+        ],
+        base: Gismu @[10‥15) "vásxu",
       },
-    ],
+    },
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[2,6]}}}},"selbri":{"ConvertedSelbri":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[7,9]}}}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vásxu","span":[10,15]}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'e","span":[2,6]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[7,9]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vásxu","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

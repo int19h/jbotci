@@ -28,14 +28,15 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥15) {
-  terms: [
-    Cmavo @[0‥3) "deĭ",
-    Cmavo @[4‥6) "na",
-    Description @[7‥15) {
-      description: Cmavo @[7‥9) "le",
-      selbri: Gismu @[10‥15) "brídi",
+TermsFragment @[0‥15) {
+  Cmavo @[0‥3) "deĭ",
+  Cmavo @[4‥6) "na",
+  DescriptorWithGadriSumti @[7‥15) {
+    description: Cmavo @[7‥9) "le",
+    tail: DescriptionTail @[10‥15) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[10‥15) "brídi",
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}}}}},{"BareNegation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[4,6]}}}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brídi","span":[10,15]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"deĭ","span":[0,3]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"BareNaTerm":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[4,6]}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[7,9]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"brídi","span":[10,15]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

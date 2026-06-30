@@ -29,15 +29,11 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    TaggedSumti @[0‥10) {
-      tense_modal: AdHocModal @[0‥10) {
-        fiho: Cmavo @[0‥4) "fi'o",
-        Gismu @[5‥10) "cpána",
-      },
-      ElidedSumti {},
-    },
-  ],
+TaggedSumtiTerm @[0‥10) {
+  tense_modal: FihoTense @[0‥10) {
+    fiho: Cmavo @[0‥4) "fi'o",
+    selbri: Gismu @[5‥10) "cpána",
+  },
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"AdHocModal":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"FihoTense":{"fiho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'o","span":[0,4]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cpána","span":[5,10]}}}}}}}}}}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

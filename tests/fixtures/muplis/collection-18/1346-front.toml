@@ -44,32 +44,35 @@ json = """[{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":
 [expectations.output.gentufa]
 brackets = "([la'oĭ Jiro] [djíca {le (nu [ri {pínxe (la'oĭ Coke)}])}])"
 tree = """
-Bridi @[0‥42) {
+BridiWithLeadingTerms @[0‥42) {
   leading_terms: [
     DelimitedWordQuote @[0‥10) {
       marker: Cmavo @[0‥5) "la'oĭ",
       Verbatim @[6‥10) "Jiro",
     },
   ],
-  SelbriBridiTail @[11‥42) {
-    Gismu @[11‥16) "djíca",
+  bridi_tail: SelbriSimpleBridiTail @[11‥42) {
+    selbri: Gismu @[11‥16) "djíca",
     terms: [
-      Description @[17‥42) {
+      DescriptorWithGadriSumti @[17‥42) {
         description: Cmavo @[17‥19) "le",
-        selbri: Abstraction @[20‥42) {
-          nu: Cmavo @[20‥22) "nu",
-          Bridi @[23‥42) {
-            leading_terms: [
-              Cmavo @[23‥25) "ri",
-            ],
-            SelbriBridiTail @[26‥42) {
-              Gismu @[26‥31) "pínxe",
-              terms: [
-                DelimitedWordQuote @[32‥42) {
-                  marker: Cmavo @[32‥37) "la'oĭ",
-                  Verbatim @[38‥42) "Coke",
-                },
+        tail: DescriptionTail @[20‥42) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: AbstractionTanruUnit @[20‥42) {
+            nu: Cmavo @[20‥22) "nu",
+            subbridi: BridiWithLeadingTerms @[23‥42) {
+              leading_terms: [
+                Cmavo @[23‥25) "ri",
               ],
+              bridi_tail: SelbriSimpleBridiTail @[26‥42) {
+                selbri: Gismu @[26‥31) "pínxe",
+                terms: [
+                  DelimitedWordQuote @[32‥42) {
+                    marker: Cmavo @[32‥37) "la'oĭ",
+                    Verbatim @[38‥42) "Coke",
+                  },
+                ],
+              },
             },
           },
         },
@@ -77,4 +80,4 @@ Bridi @[0‥42) {
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[0,5]}},"quoted_text":{"span":[6,10],"text":"Jiro"}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djíca","span":[11,16]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"selbri":{"Abstraction":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[20,22]}}}},"subbridi":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[23,25]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pínxe","span":[26,31]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedWordQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[32,37]}},"quoted_text":{"span":[38,42],"text":"Coke"}}}}}}}]}}}}}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"ExperimentalZohoiCompoundQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[0,5]}},"quoted_text":{"span":[6,10],"text":"Jiro"}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"djíca","span":[11,16]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[17,19]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"AbstractionTanruUnit":{"nu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"nu","span":[20,22]}}}},"subbridi":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ri","span":[23,25]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"pínxe","span":[26,31]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"ExperimentalZohoiCompoundQuote":{"Plain":{"DelimitedWordQuote":{"marker":{"Cmavo":{"phonemes":"la'oĭ","span":[32,37]}},"quoted_text":{"span":[38,42],"text":"Coke"}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""

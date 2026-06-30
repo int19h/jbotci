@@ -33,20 +33,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥23) {
-  terms: [
-    NumberSumti @[0‥23) {
-      li: Cmavo @[0‥2) "li",
-      MeksoConnection @[3‥23) {
-        left_expression: Cmavo @[3‥5) "no",
-        connective: Interval @[6‥20) {
-          Cmavo @[6‥10) "ga'o",
-          Cmavo @[11‥15) "bi'o",
-          Cmavo @[16‥20) "ke'i",
-        },
-        right_expression: Cmavo @[21‥23) "pa",
-      },
+NumberSumti @[0‥23) {
+  li: Cmavo @[0‥2) "li",
+  AfterthoughtMeksoOperand @[3‥23) {
+    Cmavo @[3‥5) "no",
+    Interval @[6‥20) {
+      Cmavo @[6‥10) "ga'o",
+      Cmavo @[11‥15) "bi'o",
+      Cmavo @[16‥20) "ke'i",
     },
-  ],
+    Cmavo @[21‥23) "pa",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"MeksoConnection":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[3,5]}}}}]}}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[6,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[11,15]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[16,20]}}}}]}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[21,23]}}}}]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[3,5]}}}}}}}},"links":[{"operand_connective":{"JoikConnective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[6,10]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[11,15]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[16,20]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[21,23]}}}}}}}}}]}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

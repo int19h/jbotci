@@ -35,22 +35,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"DelimitedNon
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥27) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥27) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥23) {
-        terms: [
-          DelimitedNonLojbanQuote @[3‥23) {
-            zoi: Cmavo @[3‥7) "la'o",
-            opening_delimiter: Cmavo @[8‥10) "gy",
-            quoted_text: Verbatim @[11‥19) "size one",
-            closing_delimiter: Cmavo @[21‥23) "gy",
-          },
-        ],
-      },
-      toi: Cmavo @[24‥27) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥27) {
+  to: Cmavo @[0‥2) "to",
+  text: DelimitedNonLojbanQuote @[3‥23) {
+    zoi: Cmavo @[3‥7) "la'o",
+    opening_delimiter: Cmavo @[8‥10) "gy",
+    quoted_text: Verbatim @[11‥19) "size one",
+    closing_delimiter: Cmavo @[21‥23) "gy",
+  },
+  toi: Cmavo @[24‥27) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[8,10]}},"quoted_text":{"span":[11,19],"text":"size one"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[21,23]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[24,27]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"la'o","span":[3,7]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[8,10]}},"quoted_text":{"span":[11,19],"text":"size one"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[21,23]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[24,27]}}}}}}]}}"""

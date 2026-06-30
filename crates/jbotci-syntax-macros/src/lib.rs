@@ -474,6 +474,7 @@ impl SyntaxGrammar {
         let mut transparent_constructors = BTreeSet::<String>::new();
         let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
+        let mut variant_struct_outputs = BTreeSet::<(String, String)>::new();
         for rule in &self.rules {
             collect_chain_link_element_fields_for_rule(
                 rule,
@@ -507,6 +508,12 @@ impl SyntaxGrammar {
                         let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                         let variant_constructor = variant.to_string();
                         transparent_constructors.insert(variant_constructor.clone());
+                        if let Some(branch_output_ident) = simple_type_ident(branch_output) {
+                            variant_struct_outputs.insert((
+                                variant_constructor.clone(),
+                                branch_output_ident.to_string(),
+                            ));
+                        }
                         transparent_field_pairs
                             .insert((enum_constructor.clone(), branch_name.clone()));
                         transparent_field_pairs
@@ -602,7 +609,39 @@ impl SyntaxGrammar {
         let chain_link_element_fields = chain_link_element_fields
             .iter()
             .map(|(constructor, field)| quote!((#constructor, #field)));
+        let struct_field_order_items =
+            structs
+                .values()
+                .filter(|model| model.fields.len() > 1)
+                .map(|model| {
+                    let constructor = generated_constructor_name(&model.ident);
+                    let fields = model.fields.iter().map(|field| field.name.to_string());
+                    quote!(GeneratedModelFieldOrder {
+                        constructor: #constructor,
+                        fields: &[#(#fields,)*],
+                    })
+                });
+        let variant_field_order_items = variant_struct_outputs
+            .iter()
+            .filter_map(|(constructor, output)| {
+                let model = structs.get(output)?;
+                if model.fields.len() <= 1 {
+                    return None;
+                }
+                let fields = model.fields.iter().map(|field| field.name.to_string());
+                Some(quote!(GeneratedModelFieldOrder {
+                    constructor: #constructor,
+                    fields: &[#(#fields,)*],
+                }))
+            });
+        let field_order_items = struct_field_order_items.chain(variant_field_order_items);
         let support_items = vec![quote! {
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub struct GeneratedModelFieldOrder {
+                pub constructor: &'static str,
+                pub fields: &'static [&'static str],
+            }
+
             #[doc(hidden)]
             pub const GENERATED_MODEL_TRANSPARENT_TREE_CONSTRUCTORS: &[&str] = &[
                 #(#transparent_constructors,)*
@@ -616,6 +655,11 @@ impl SyntaxGrammar {
             #[doc(hidden)]
             pub const GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS: &[(&str, &str)] = &[
                 #(#chain_link_element_fields,)*
+            ];
+
+            #[doc(hidden)]
+            pub const GENERATED_MODEL_FIELD_ORDERS: &[GeneratedModelFieldOrder] = &[
+                #(#field_order_items,)*
             ];
         }];
         Ok(GeneratedTreeModel {

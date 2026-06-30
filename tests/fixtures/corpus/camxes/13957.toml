@@ -35,20 +35,14 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ju'o","span":[1,5]}}},{"PlainWord"
 tree = """
 Text @[1‥18) {
   leading_indicators: [
-    Indicator @[1‥9) {
-      indicator: WithIndicator @[1‥9) {
-        Cmavo @[1‥5) "ju'o",
-        indicator: Cmavo @[5‥9) "cu'i",
-      },
+    WithIndicator @[1‥9) {
+      Cmavo @[1‥5) "ju'o",
+      indicator: Cmavo @[5‥9) "cu'i",
     },
   ],
-  Terms @[10‥18) {
-    terms: [
-      QuotedWord @[10‥18) {
-        zo: Cmavo @[10‥12) "zo",
-        Gismu @[13‥18) "fárvi",
-      },
-    ],
+  QuotedWord @[10‥18) {
+    zo: Cmavo @[10‥12) "zo",
+    Gismu @[13‥18) "fárvi",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Gismu":{"phonemes":"fárvi","span":[13,18]}}}}}}}}]}}}}]}],"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'o","span":[1,5]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[5,9]}}}}}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[10,12]}},"word":{"Gismu":{"phonemes":"fárvi","span":[13,18]}}}}}}}}}}}}}}}}}]}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'o","span":[1,5]}}}},"indicator":{"Cmavo":{"phonemes":"cu'i","span":[5,9]}}}}}]}}"""

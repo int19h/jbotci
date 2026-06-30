@@ -31,20 +31,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    Description @[0‥10) {
-      description: Cmavo @[0‥2) "le",
-      selbri: ProBridi @[2‥10) {
-        goha: Cmavo @[2‥5) "neĭ",
-        free_modifiers: [
-          Subscript @[5‥10) {
-            xi: Cmavo @[5‥7) "xi",
-            Cmavo @[7‥10) "raŭ",
-          },
-        ],
-      },
+DescriptorWithGadriSumti @[0‥10) {
+  description: Cmavo @[0‥2) "le",
+  tail: DescriptionTail @[2‥10) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: ProBridiTanruUnit @[2‥10) {
+      goha: Cmavo @[2‥5) "neĭ",
+      free_modifiers: [
+        XiNumberFreeModifier @[5‥10) {
+          xi: Cmavo @[5‥7) "xi",
+          expression: Cmavo @[7‥10) "raŭ",
+        },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"selbri":{"Tanru":[{"ProBridi":{"goha":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"neĭ","span":[2,5]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[5,7]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"raŭ","span":[7,10]}}}}]}}}}}]}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ProBridiTanruUnit":{"goha":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"neĭ","span":[2,5]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[5,7]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"raŭ","span":[7,10]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

@@ -37,7 +37,7 @@ json = """[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[29‥75) {
+BridiWithLeadingTerms @[29‥75) {
   leading_terms: [
     DelimitedNonLojbanQuote @[29‥55) {
       zoi: Cmavo @[29‥32) "zoĭ",
@@ -47,12 +47,14 @@ Bridi @[29‥75) {
     },
   ],
   cu: Cmavo @[56‥58) "cu",
-  Tanru @[59‥75) {
-    ScalarNegatedTanruUnit @[59‥69) {
+  bridi_tail: TanruSelbri @[59‥75) {
+    first_unit: ScalarNegatedTanruUnit @[59‥69) {
       nahe: Cmavo @[59‥63) "to'e",
-      Gismu @[64‥69) "mákcu",
+      inner_unit: Gismu @[64‥69) "mákcu",
     },
-    Gismu @[70‥75) "zdíle",
+    additional_units: [
+      Gismu @[70‥75) "zdíle",
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[33,36]}},"quoted_text":{"span":[37,50],"text":"What a maroon"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[52,55]}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[56,58]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[59,63]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mákcu","span":[64,69]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdíle","span":[70,75]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[29,32]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[33,36]}},"quoted_text":{"span":[37,50],"text":"What a maroon"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[52,55]}}}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[56,58]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"ScalarNegatedTanruUnit":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to'e","span":[59,63]}}}},"inner_unit":{"TanruUnitAtom":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mákcu","span":[64,69]}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zdíle","span":[70,75]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}"""

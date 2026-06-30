@@ -27,10 +27,5 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
-tree = """
-Paragraph @[0‥4) {
-  niho: [
-    Cmavo @[0‥4) "ni'o",
-  ],
-}"""
-json = """{"paragraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}]}]}"""
+tree = """Cmavo @[0‥4) "ni'o""""
+json = """{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[0,4]}}}}]}]}}}"""

@@ -45,40 +45,46 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[8,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[13,17]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[17,19]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[19,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}},{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[27,31]}}},{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[32,36]}}},{"PlainWord":{"Cmavo":{"phonemes":"ma'u","span":[37,41]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[41,43]}}},{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[43,45]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(li [{pi mu} su'i {(ni'u pi mu) (ga'o bi'o ke'i) (ma'u pi mu)}])"
+brackets = "(li [{pi mu} {su'i ([ni'u {pi mu}] [{ga'o bi'o ke'i} {ma'u (pi mu)}])}])"
 tree = """
-Terms @[0‥45) {
-  terms: [
-    NumberSumti @[0‥45) {
-      li: Cmavo @[0‥2) "li",
-      Infix @[3‥45) {
-        left_expression: NumberQuantifier @[3‥7) {
-          Cmavo @[3‥5) "pi",
-          Cmavo @[5‥7) "mu",
-        },
+NumberSumti @[0‥45) {
+  li: Cmavo @[0‥2) "li",
+  InfixMekso @[3‥45) {
+    first_expression: NumberWords @[3‥7) {
+      first_number: Cmavo @[3‥5) "pi",
+      continuations: [
+        Cmavo @[5‥7) "mu",
+      ],
+    },
+    continuations: [
+      InfixMeksoContinuation @[8‥45) {
         operator: Cmavo @[8‥12) "su'i",
-        right_expression: MeksoConnection @[13‥45) {
-          left_expression: NumberQuantifier @[13‥21) {
-            Cmavo @[13‥17) "ni'u",
-            Cmavo @[17‥19) "pi",
-            Cmavo @[19‥21) "mu",
+        right_expression: AfterthoughtMeksoOperand @[13‥45) {
+          NumberWords @[13‥21) {
+            first_number: Cmavo @[13‥17) "ni'u",
+            continuations: [
+              Cmavo @[17‥19) "pi",
+              Cmavo @[19‥21) "mu",
+            ],
           },
-          connective: Interval @[22‥36) {
+          Interval @[22‥36) {
             Cmavo @[22‥26) "ga'o",
             Cmavo @[27‥31) "bi'o",
             Cmavo @[32‥36) "ke'i",
           },
-          right_expression: NumberQuantifier @[37‥45) {
-            Cmavo @[37‥41) "ma'u",
-            Cmavo @[41‥43) "pi",
-            Cmavo @[43‥45) "mu",
+          NumberWords @[37‥45) {
+            first_number: Cmavo @[37‥41) "ma'u",
+            continuations: [
+              Cmavo @[41‥43) "pi",
+              Cmavo @[43‥45) "mu",
+            ],
           },
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"Infix":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}}]}}},"operator":{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[8,12]}}}}},"right_expression":{"MeksoConnection":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[13,17]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[17,19]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[19,21]}}}}]}}},"connective":{"Interval":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[27,31]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[32,36]}}}}]}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma'u","span":[37,41]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[41,43]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[43,45]}}}}]}}}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[3,5]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[5,7]}}}}}]}}}}}}}},"continuations":[{"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[8,12]}}}}}}}},"right_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[13,17]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[17,19]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[19,21]}}}}}]}}}},"links":[{"operand_connective":{"JoikConnective":{"ClosedIntervalConnective":{"left_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'o","span":[22,26]}}}},"bihi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bi'o","span":[27,31]}}}},"right_interval":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'i","span":[32,36]}}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ma'u","span":[37,41]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi","span":[41,43]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu","span":[43,45]}}}}}]}}}}}]}}}}}]}}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:13","content":"number:12","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":45},"text":"li pimu su'i ni'upimu ga'o bi'o ke'i ma'upimu","construct":"fragment"}},"math:6":{"type":"mathExpression","literal":{"kind":"decimal","value":"0.5"}},"math:7":{"type":"mathExpression","literal":{"kind":"decimal","value":"-0.5"}},"math:8":{"type":"mathExpression","literal":{"kind":"decimal","value":"0.5"}},"math:9":{"type":"mathExpression","operator":"orderedInterval","endpointInclusion":{"left":"inclusive","right":"exclusive"},"operands":["math:7","math:8"]},"math:10":{"type":"mathExpression","operator":"add","operands":["math:6","math:9"],"source":{"span":{"byteStart":0,"byteEnd":45},"text":"li pimu su'i ni'upimu ga'o bi'o ke'i ma'upimu","construct":"math-expression"}},"quantity:11":{"type":"quantity","form":"exact","value":{"mathExpression":"math:10"},"scale":"count","source":{"span":{"byteStart":0,"byteEnd":45},"text":"li pimu su'i ni'upimu ga'o bi'o ke'i ma'upimu","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:13":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":45},"text":"li pimu su'i ni'upimu ga'o bi'o ke'i ma'upimu","construct":"fragment"}},"number:12":{"type":"referent","category":"constant","sort":"number","descriptor":{"kind":"number","word":"li","quantity":"quantity:11","name":"pi mu su'i mekso"},"source":{"span":{"byteStart":0,"byteEnd":45},"text":"li pimu su'i ni'upimu ga'o bi'o ke'i ma'upimu","construct":"number-sumti"}}}}'''

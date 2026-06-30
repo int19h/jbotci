@@ -30,22 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥9) {
-  terms: [
-    TaggedSumti @[0‥9) {
-      tense_modal: Composite @[0‥9) {
-        Cmavo @[0‥2) "ci",
-        Cmavo @[2‥5) "roĭ",
-        free_modifiers: [
-          Vocative @[6‥9) {
-            vocative_markers: [
-              Cmavo @[6‥9) "coĭ",
-            ],
-          },
-        ],
-      },
-      ElidedSumti {},
+TaggedSumtiTerm @[0‥9) {
+  tense_modal: [
+    NumberedIntervalPropertyTense @[0‥9) {
+      number: Cmavo @[0‥2) "ci",
+      roi: Cmavo @[2‥5) "roĭ",
+      free_modifiers: [
+        Cmavo @[6‥9) "coĭ",
+      ],
     },
   ],
+  sumti: TaggedElidedSumti {},
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[2,5]}}}}}],{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}]}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[0,2]}}}}},"roi":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[2,5]}}}},{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[6,9]}}}}}}}}]}}]}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}'

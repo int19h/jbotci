@@ -26,8 +26,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[12,14]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Bridi @[12‥20) {
+BareCuBridi @[12‥20) {
   cu: Cmavo @[12‥14) "cu",
-  Gismu @[15‥20) "bróde",
+  bridi_tail: Gismu @[15‥20) "bróde",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[12,14]}}}},"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[15,20]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BareCuBridi":{"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[12,14]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróde","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

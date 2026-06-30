@@ -36,33 +36,33 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}},{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[7,12]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}},{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[16,18]}}},{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[19,24]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xil"},{"Rafsi":"ckábu"}],"span":[25,33]}}}]'
 
 [expectations.output.gentufa]
-brackets = "(peĭ [do {cíkre (le mi [spófu xilckábu])}])"
+brackets = "(peĭ [do {cíkre (le [mi {spófu xilckábu}])}])"
 tree = """
 Text @[0‥33) {
   leading_indicators: [
-    Indicator @[0‥3) {
-      indicator: Cmavo @[0‥3) "peĭ",
-    },
+    Cmavo @[0‥3) "peĭ",
   ],
-  Bridi @[4‥33) {
+  BridiWithLeadingTerms @[4‥33) {
     leading_terms: [
       Cmavo @[4‥6) "do",
     ],
-    SelbriBridiTail @[7‥33) {
-      Gismu @[7‥12) "cíkre",
+    bridi_tail: SelbriSimpleBridiTail @[7‥33) {
+      selbri: Gismu @[7‥12) "cíkre",
       terms: [
-        Description @[13‥33) {
+        DescriptorWithGadriSumti @[13‥33) {
           description: Cmavo @[13‥15) "le",
-          tail_elements: [
-            Cmavo @[16‥18) "mi",
-          ],
-          selbri: Tanru @[19‥33) {
-            Gismu @[19‥24) "spófu",
-            Lujvo @[25‥33) "xilckábu",
+          tail: DescriptionTail @[16‥33) {
+            leading_tail_elements: Cmavo @[16‥18) "mi",
+            tail: TanruSelbri @[19‥33) {
+              first_unit: Gismu @[19‥24) "spófu",
+              additional_units: [
+                Lujvo @[25‥33) "xilckábu",
+              ],
+            },
           },
         },
       ],
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[7,12]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}}},"tail_elements":[{"DescriptionTailSumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[16,18]}}}}}}],"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[19,24]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xil"},{"Rafsi":"ckábu"}],"span":[25,33]}}}}}]}}}}]}}}}}}}}]}],"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}}}}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[4,6]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cíkre","span":[7,12]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[13,15]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[16,18]}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"spófu","span":[19,24]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"xil"},{"Rafsi":"ckábu"}],"span":[25,33]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"peĭ","span":[0,3]}}}}}]}}'

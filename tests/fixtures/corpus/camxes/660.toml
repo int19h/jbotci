@@ -32,13 +32,15 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"gu'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥25) {
-  ForethoughtSelbriConnection @[0‥19) {
+TanruSelbri @[0‥25) {
+  first_unit: ForethoughtSelbriGroupTanruUnit @[0‥19) {
     guhek: Cmavo @[0‥4) "gu'e",
-    leading_bridi: Gismu @[5‥10) "bárda",
+    leading_selbri: Gismu @[5‥10) "bárda",
     gik: Cmavo @[11‥13) "gi",
-    trailing_bridi: Gismu @[14‥19) "xúnre",
+    trailing_unit: Gismu @[14‥19) "xúnre",
   },
-  Gismu @[20‥25) "gérku",
+  additional_units: [
+    Gismu @[20‥25) "gérku",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"SelbriGroupTanruUnit":{"ForethoughtSelbriConnection":{"guhek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gu'e","span":[0,4]}}}}]}},"leading_bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[5,10]}}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[11,13]}}}}]}},"trailing_bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xúnre","span":[14,19]}}}}}}}}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[20,25]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"ForethoughtSelbriGroupTanruUnit":{"guhek":{"guha":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gu'e","span":[0,4]}}}}},"leading_selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[5,10]}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[11,13]}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"xúnre","span":[14,19]}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gérku","span":[20,25]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

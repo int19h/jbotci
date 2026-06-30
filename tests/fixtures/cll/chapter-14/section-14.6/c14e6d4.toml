@@ -40,37 +40,44 @@ tree = """
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"o","span":[10,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[16,20]}}},{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[22,27]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}},{"PlainWord":{"Gismu":{"phonemes":"zárci","span":[31,36]}}}]'
 
 [expectations.output.gentufa]
-brackets = "([{la .djan.} .o {la .alis.}] [kláma {le zárci}])"
+brackets = "([{la .djan.} {.o (la .alis.)}] [kláma {le zárci}])"
 tree = """
-Bridi @[0‥36) {
+BridiWithLeadingTerms @[0‥36) {
   leading_terms: [
-    SumtiConnection @[0‥20) {
-      leading_sumti: NameDescription @[0‥7) {
+    SumtiAfterthought @[0‥20) {
+      leading_sumti: NameSumti @[0‥7) {
         la: Cmavo @[0‥2) "la",
         names: [
           Cmevla @[3‥7) "djan",
         ],
       },
-      connective: Cmavo @[10‥11) "o",
-      trailing_sumti: NameDescription @[12‥20) {
-        la: Cmavo @[12‥14) "la",
-        names: [
-          Cmevla @[16‥20) "alis",
-        ],
-      },
+      continuations: [
+        SumtiAfterthoughtTail @[10‥20) {
+          connective: Cmavo @[10‥11) "o",
+          sumti: NameSumti @[12‥20) {
+            la: Cmavo @[12‥14) "la",
+            names: [
+              Cmevla @[16‥20) "alis",
+            ],
+          },
+        },
+      ],
     },
   ],
-  SelbriBridiTail @[22‥36) {
-    Gismu @[22‥27) "kláma",
+  bridi_tail: SelbriSimpleBridiTail @[22‥36) {
+    selbri: Gismu @[22‥27) "kláma",
     terms: [
-      Description @[28‥36) {
+      DescriptorWithGadriSumti @[28‥36) {
         description: Cmavo @[28‥30) "le",
-        selbri: Gismu @[31‥36) "zárci",
+        tail: DescriptionTail @[31‥36) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Gismu @[31‥36) "zárci",
+        },
       },
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[10,11]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[16,20]}}}}]}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[22,27]}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zárci","span":[31,36]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[3,7]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[10,11]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"alis","span":[16,20]}}}}]}}}}}}}]}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[22,27]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[28,30]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"zárci","span":[31,36]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:30","content":"formula:29","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"bridi"}},"parameter:7":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":31,"byteEnd":36},"text":"zarci","construct":"speaker-description-property"}},"predication:10":{"type":"predication","relation":"zarci","arguments":{"x1":{"kind":"filled","value":"parameter:7"},"x2":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:9","introducedBy":"zo'e"}},"mode":"restrictive","source":{"span":{"byteStart":31,"byteEnd":36},"text":"zarci","construct":"restrictive-predication"}},"predication:13":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:6"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:12"}},"mode":"incidental","source":{"span":{"byteStart":28,"byteEnd":36},"text":"le zarci","construct":"speaker-description"}},"predication:20":{"type":"predication","eventuality":"eventuality:19","relation":"klama","arguments":{"x1":{"kind":"filled","value":"entity:15"},"x2":{"kind":"filled","value":"entity:6"},"x3":{"kind":"elided","value":"entity:16","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:17","introducedBy":"zo'e"},"x5":{"kind":"elided","value":"entity:18","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-predication"}},"predication:27":{"type":"predication","eventuality":"eventuality:26","relation":"klama","arguments":{"x1":{"kind":"filled","value":"entity:22"},"x2":{"kind":"filled","value":"entity:6"},"x3":{"kind":"elided","value":"entity:23","introducedBy":"zo'e"},"x4":{"kind":"elided","value":"entity:24","introducedBy":"zo'e"},"x5":{"kind":"elided","value":"entity:25","introducedBy":"zo'e"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-predication"}},"formula:11":{"type":"formula","operator":"atom","predication":"predication:10","source":{"span":{"byteStart":31,"byteEnd":36},"text":"zarci","construct":"restrictive-formula"}},"formula:14":{"type":"formula","operator":"atom","predication":"predication:13","source":{"span":{"byteStart":28,"byteEnd":36},"text":"le zarci","construct":"speaker-description"}},"formula:21":{"type":"formula","operator":"atom","predication":"predication:20","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-formula"}},"formula:28":{"type":"formula","operator":"atom","predication":"predication:27","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-formula"}},"formula:29":{"type":"formula","operator":"iff","children":["formula:21","formula:28"],"connector":{"source":"o","locus":"sumti","truthTable":"TFFT"},"source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"sumti-connection-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:14"},"source":{"span":{"byteStart":28,"byteEnd":36},"text":"le zarci","construct":"description"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:15":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":0,"byteEnd":8},"text":"la djan.","construct":"sumti"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:17":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:18":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:22":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"alis"},"source":{"span":{"byteStart":12,"byteEnd":21},"text":"la .alis.","construct":"sumti"}},"entity:23":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:24":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:25":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:19":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-predication"}},"eventuality:26":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"distributed-predication"}},"eventuality/locution:30":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":36},"text":"la djan. .o la .alis. klama le zarci","construct":"bridi"}},"relation:12":{"type":"referent","category":"constant","sort":"relation","body":"formula:11","parameters":["parameter:7"],"arity":1,"source":{"span":{"byteStart":31,"byteEnd":36},"text":"zarci","construct":"speaker-description-property"}}}}'''

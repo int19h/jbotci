@@ -33,18 +33,16 @@ json = '[{"PlainWord":{"Gismu":{"phonemes":"túgni","span":[0,5]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥22) {
+ParagraphStatementSequence @[0‥22) {
   Gismu @[0‥5) "túgni",
-  ParagraphStatement @[7‥22) {
-    i: Cmavo @[7‥8) "i",
-    Terms @[9‥22) {
-      terms: [
-        QuotedWord @[9‥22) {
-          zo: Cmavo @[9‥11) "zo",
-          Fuhivla @[12‥22) "kelcrgálfa",
-        },
-      ],
+  following: [
+    ParagraphStatement @[7‥22) {
+      i: Cmavo @[7‥8) "i",
+      QuotedWord @[9‥22) {
+        zo: Cmavo @[9‥11) "zo",
+        Fuhivla @[12‥22) "kelcrgálfa",
+      },
     },
-  },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túgni","span":[0,5]}}}}}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Fuhivla":{"phonemes":"kelcrgálfa","span":[12,22]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"túgni","span":[0,5]}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[7,8]}}}},"statement":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Fuhivla":{"phonemes":"kelcrgálfa","span":[12,22]}}}}}}}}}}}}}}}}}]}}}}]}}}}}}'

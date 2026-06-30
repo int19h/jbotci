@@ -31,18 +31,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥22) {
-  terms: [
-    NameDescription @[0‥9) {
-      la: Cmavo @[0‥2) "la",
-      names: [
-        Cmevla @[3‥9) "lojban",
-      ],
+TermsFragment @[0‥22) {
+  NameSumti @[0‥9) {
+    la: Cmavo @[0‥2) "la",
+    names: [
+      Cmevla @[3‥9) "lojban",
+    ],
+  },
+  DescriptorWithGadriSumti @[11‥22) {
+    description: Cmavo @[11‥13) "le",
+    tail: DescriptionTail @[14‥22) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Lujvo @[14‥22) "frásybaŭ",
     },
-    Description @[11‥22) {
-      description: Cmavo @[11‥13) "le",
-      selbri: Lujvo @[14‥22) "frásybaŭ",
-    },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[3,9]}}}}]}}},{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[11,13]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"frás"},{"Hyphen":"y"},{"Rafsi":"baŭ"}],"span":[14,22]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[3,9]}}}}]}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[11,13]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"frás"},{"Hyphen":"y"},{"Rafsi":"baŭ"}],"span":[14,22]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

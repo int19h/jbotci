@@ -33,18 +33,26 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥28) {
-  ConvertedTanruUnit @[0‥8) {
-    se: Cmavo @[0‥2) "ve",
-    Gismu @[3‥8) "bótpi",
+TanruSelbri @[0‥28) {
+  first_unit: TanruUnitAtom @[0‥8) {
+    conversions: [
+      Cmavo @[0‥2) "ve",
+    ],
+    base: Gismu @[3‥8) "bótpi",
   },
-  ConvertedTanruUnit @[10‥18) {
-    se: Cmavo @[10‥12) "te",
-    Gismu @[13‥18) "lánme",
-  },
-  ConvertedTanruUnit @[20‥28) {
-    se: Cmavo @[20‥22) "te",
-    Gismu @[23‥28) "tírxu",
-  },
+  additional_units: [
+    TanruUnitAtom @[10‥18) {
+      conversions: [
+        Cmavo @[10‥12) "te",
+      ],
+      base: Gismu @[13‥18) "lánme",
+    },
+    TanruUnitAtom @[20‥28) {
+      conversions: [
+        Cmavo @[20‥22) "te",
+      ],
+      base: Gismu @[23‥28) "tírxu",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bótpi","span":[3,8]}}}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[10,12]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lánme","span":[13,18]}}}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[20,22]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tírxu","span":[23,28]}}}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ve","span":[0,2]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bótpi","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[10,12]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lánme","span":[13,18]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"te","span":[20,22]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tírxu","span":[23,28]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

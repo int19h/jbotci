@@ -45,60 +45,56 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[3,7]}}},{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[8,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}},{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[16,22]}}},{"PlainWord":{"Cmavo":{"phonemes":"pe'e","span":[24,28]}}},{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[29,32]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[33,35]}}},{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[36,40]}}},{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[41,44]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}},{"PlainWord":{"Cmevla":{"phonemes":"gliban","span":[49,55]}}},{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[57,62]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "([{mi ce'e (baŭ [la .lojban.])} pe'e joĭ {do ce'e (baŭ [la .gliban.])}] cásnu)"
+brackets = "([{mi (ce'e [baŭ {la .lojban.}])} {pe'e joĭ (do [ce'e {baŭ (la .gliban.)}])}] cásnu)"
 tree = """
-Bridi @[0‥62) {
+BridiWithLeadingTerms @[0‥62) {
   leading_terms: [
-    TermsetConnection @[0‥55) {
-      leading_terms: [
-        TermsetGroup @[0‥22) {
-          leading_terms: [
-            Cmavo @[0‥2) "mi",
-          ],
-          cehe: Cmavo @[3‥7) "ce'e",
-          trailing_terms: [
-            TaggedSumti @[8‥22) {
-              tense_modal: Modal @[8‥11) {
-                bai: Cmavo @[8‥11) "baŭ",
-              },
-              NameDescription @[12‥22) {
+    PeheTermsetConnection @[0‥55) {
+      leading_term: TermsetGroup @[0‥22) {
+        leading_term: Cmavo @[0‥2) "mi",
+        continuations: [
+          TermsetGroupContinuation @[3‥22) {
+            cehe: Cmavo @[3‥7) "ce'e",
+            trailing_term: TaggedSumtiTerm @[8‥22) {
+              tense_modal: Cmavo @[8‥11) "baŭ",
+              sumti: NameSumti @[12‥22) {
                 la: Cmavo @[12‥14) "la",
                 names: [
                   Cmevla @[16‥22) "lojban",
                 ],
               },
             },
-          ],
-        },
-      ],
-      pehe: Cmavo @[24‥28) "pe'e",
-      connective: Cmavo @[29‥32) "joĭ",
-      trailing_terms: [
-        TermsetGroup @[33‥55) {
-          leading_terms: [
-            Cmavo @[33‥35) "do",
-          ],
-          cehe: Cmavo @[36‥40) "ce'e",
-          trailing_terms: [
-            TaggedSumti @[41‥55) {
-              tense_modal: Modal @[41‥44) {
-                bai: Cmavo @[41‥44) "baŭ",
+          },
+        ],
+      },
+      continuations: [
+        PeheTermsetConnectionContinuation @[24‥55) {
+          pehe: Cmavo @[24‥28) "pe'e",
+          connective: Cmavo @[29‥32) "joĭ",
+          trailing_term: TermsetGroup @[33‥55) {
+            leading_term: Cmavo @[33‥35) "do",
+            continuations: [
+              TermsetGroupContinuation @[36‥55) {
+                cehe: Cmavo @[36‥40) "ce'e",
+                trailing_term: TaggedSumtiTerm @[41‥55) {
+                  tense_modal: Cmavo @[41‥44) "baŭ",
+                  sumti: NameSumti @[45‥55) {
+                    la: Cmavo @[45‥47) "la",
+                    names: [
+                      Cmevla @[49‥55) "gliban",
+                    ],
+                  },
+                },
               },
-              NameDescription @[45‥55) {
-                la: Cmavo @[45‥47) "la",
-                names: [
-                  Cmevla @[49‥55) "gliban",
-                ],
-              },
-            },
-          ],
+            ],
+          },
         },
       ],
     },
   ],
-  Gismu @[57‥62) "cásnu",
+  bridi_tail: Gismu @[57‥62) "cásnu",
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"TermsetConnection":{"leading_terms":[{"TermsetGroup":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"cehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[3,7]}}}},"trailing_terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[8,11]}}}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[16,22]}}}}]}}}}]}}],"pehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'e","span":[24,28]}}}},"connective":{"NonLogical":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[29,32]}}}}]}},"trailing_terms":[{"TermsetGroup":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[33,35]}}}}}}],"cehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[36,40]}}}},"trailing_terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[41,44]}}}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"gliban","span":[49,55]}}}}]}}}}]}}]}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[57,62]}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"PeheTermsetConnection":{"leading_term":{"TermsetGroup":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}},"continuations":[{"cehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[3,7]}}}},"trailing_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[8,11]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[12,14]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[16,22]}}}}]}}}}}}}}}}}}}]}},"continuations":[{"pehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'e","span":[24,28]}}}},"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[29,32]}}}}}}},"trailing_term":{"TermsetGroup":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[33,35]}}}}}}}}}}}}},"continuations":[{"cehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ce'e","span":[36,40]}}}},"trailing_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"baŭ","span":[41,44]}}}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[45,47]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"gliban","span":[49,55]}}}}]}}}}}}}}}}}}}]}}}]}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cásnu","span":[57,62]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:16","content":"formula:15","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":62},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban. casnu","construct":"bridi"}},"predication:14":{"type":"predication","eventuality":"eventuality:13","relation":"casnu","arguments":{"x1":{"kind":"filled","value":"entity:12"}},"modalArguments":[{"relation":"bangu","introducedBy":"bau","arguments":{"x1":{"kind":"filled","value":"entity:6"},"x2":{"kind":"elided","value":"entity:7","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:8","introducedBy":"zo'e"}},"component":"entity:1","source":{"span":{"byteStart":8,"byteEnd":11},"text":"bau","construct":"modal-argument"}},{"relation":"bangu","introducedBy":"bau","arguments":{"x1":{"kind":"filled","value":"entity:9"},"x2":{"kind":"elided","value":"entity:10","introducedBy":"zo'e"},"x3":{"kind":"elided","value":"entity:11","introducedBy":"zo'e"}},"component":"entity:2","source":{"span":{"byteStart":41,"byteEnd":44},"text":"bau","construct":"modal-argument"}}],"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":56},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban.","construct":"termset-connection-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":0,"byteEnd":56},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban.","construct":"termset-connection-formula"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:6":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"lojban"},"source":{"span":{"byteStart":12,"byteEnd":23},"text":"la .lojban.","construct":"sumti"}},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:8":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"gliban"},"source":{"span":{"byteStart":45,"byteEnd":56},"text":"la .gliban.","construct":"sumti"}},"entity:10":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"elided","word":"zo'e"}},"entity:12":{"type":"referent","category":"composite","sort":"entity","composition":{"operator":"mass","members":["entity:1","entity:2"],"collective":true},"source":{"span":{"byteStart":0,"byteEnd":56},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban.","construct":"connected-sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:13":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":56},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban.","construct":"termset-connection-formula"}},"eventuality/locution:16":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":62},"text":"mi ce'e bau la .lojban. pe'e joi do ce'e bau la .gliban. casnu","construct":"bridi"}}}}'''

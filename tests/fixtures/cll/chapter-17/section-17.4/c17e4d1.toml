@@ -38,15 +38,11 @@ json = '[{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"C
 [expectations.output.gentufa]
 brackets = "(zo bu)"
 tree = """
-Terms @[0‥5) {
-  terms: [
-    QuotedWord @[0‥5) {
-      zo: Cmavo @[0‥2) "zo",
-      Cmavo @[3‥5) "bu",
-    },
-  ],
+QuotedWord @[0‥5) {
+  zo: Cmavo @[0‥2) "zo",
+  Cmavo @[3‥5) "bu",
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[0,2]}},"word":{"Cmavo":{"phonemes":"bu","span":[3,5]}}}}}}}}}}}}}}}}}]}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:7","content":"sign:6","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":5},"text":"zo bu","construct":"fragment"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:7":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":5},"text":"zo bu","construct":"fragment"}},"sign:6":{"type":"referent","category":"constant","sort":"sign","kind":"quotation","quotation":{"mode":"opaque","delimiter":"cmavo:zo-<<cmavo:bu>>","text":"zo bu"},"source":{"span":{"byteStart":0,"byteEnd":5},"text":"zo bu","construct":"quotation"}}}}'''

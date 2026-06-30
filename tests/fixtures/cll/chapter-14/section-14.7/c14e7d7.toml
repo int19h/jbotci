@@ -50,18 +50,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "(ga [ge {mi (nélci [la .djan.])} gi {mi (nélci [la .martas.])}] gi [mi {nélci (la .meris.)}])"
 tree = """
-BridiConnection @[0‥67) {
+DirectForethoughtBridiConnection @[0‥67) {
   gek: Cmavo @[0‥2) "ga",
-  first: BridiConnection @[3‥45) {
+  first: DirectForethoughtBridiConnection @[3‥45) {
     gek: Cmavo @[3‥5) "ge",
-    first: Bridi @[6‥22) {
+    first: BridiWithLeadingTerms @[6‥22) {
       leading_terms: [
         Cmavo @[6‥8) "mi",
       ],
-      SelbriBridiTail @[9‥22) {
-        Gismu @[9‥14) "nélci",
+      bridi_tail: SelbriSimpleBridiTail @[9‥22) {
+        selbri: Gismu @[9‥14) "nélci",
         terms: [
-          NameDescription @[15‥22) {
+          NameSumti @[15‥22) {
             la: Cmavo @[15‥17) "la",
             names: [
               Cmevla @[18‥22) "djan",
@@ -71,14 +71,14 @@ BridiConnection @[0‥67) {
       },
     },
     gik: Cmavo @[24‥26) "gi",
-    second: Bridi @[27‥45) {
+    second: BridiWithLeadingTerms @[27‥45) {
       leading_terms: [
         Cmavo @[27‥29) "mi",
       ],
-      SelbriBridiTail @[30‥45) {
-        Gismu @[30‥35) "nélci",
+      bridi_tail: SelbriSimpleBridiTail @[30‥45) {
+        selbri: Gismu @[30‥35) "nélci",
         terms: [
-          NameDescription @[36‥45) {
+          NameSumti @[36‥45) {
             la: Cmavo @[36‥38) "la",
             names: [
               Cmevla @[39‥45) "martas",
@@ -89,14 +89,14 @@ BridiConnection @[0‥67) {
     },
   },
   gik: Cmavo @[47‥49) "gi",
-  second: Bridi @[50‥67) {
+  second: BridiWithLeadingTerms @[50‥67) {
     leading_terms: [
       Cmavo @[50‥52) "mi",
     ],
-    SelbriBridiTail @[53‥67) {
-      Gismu @[53‥58) "nélci",
+    bridi_tail: SelbriSimpleBridiTail @[53‥67) {
+      selbri: Gismu @[53‥58) "nélci",
       terms: [
-        NameDescription @[59‥67) {
+        NameSumti @[59‥67) {
           la: Cmavo @[59‥61) "la",
           names: [
             Cmevla @[62‥67) "meris",
@@ -106,7 +106,7 @@ BridiConnection @[0‥67) {
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"ForethoughtBridiTailConnection":{"BridiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}}}]}},"first":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"ForethoughtBridiTailConnection":{"BridiConnection":{"gek":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[3,5]}}}}]}},"first":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[9,14]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[18,22]}}}}]}}}]}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[24,26]}}}}]}},"second":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[27,29]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[30,35]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[36,38]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[39,45]}}}}]}}}]}}}}}}}}}}}}}}},"gik":{"Forethought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[47,49]}}}}]}},"second":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[50,52]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[53,58]}}}}},"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[59,61]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[62,67]}}}}]}}}]}}}}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"ForethoughtSimpleBridiTail":{"DirectForethoughtBridiConnection":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga","span":[0,2]}}}}}},"first":{"BridiSubbridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"ForethoughtSimpleBridiTail":{"DirectForethoughtBridiConnection":{"gek":{"GaForethoughtConnective":{"ga":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ge","span":[3,5]}}}}}},"first":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[9,14]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[15,17]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djan","span":[18,22]}}}}]}}}}}}}}}}}}]}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[24,26]}}}}},"second":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[27,29]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[30,35]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[36,38]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"martas","span":[39,45]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}},"gik":{"gi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"gi","span":[47,49]}}}}},"second":{"BridiSubbridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[50,52]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[53,58]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[59,61]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"meris","span":[62,67]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:20","content":"formula:19","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":68},"text":"ga ge mi nelci la djan. gi mi nelci la martas. gi mi nelci la meris.","construct":"bridi"}},"predication:8":{"type":"predication","eventuality":"eventuality:6","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:7"}},"mode":"asserted","source":{"span":{"byteStart":6,"byteEnd":23},"text":"mi nelci la djan.","construct":"predication"}},"predication:12":{"type":"predication","eventuality":"eventuality:10","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:11"}},"mode":"asserted","source":{"span":{"byteStart":27,"byteEnd":46},"text":"mi nelci la martas.","construct":"predication"}},"predication:17":{"type":"predication","eventuality":"eventuality:15","relation":"nelci","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:16"}},"mode":"asserted","source":{"span":{"byteStart":50,"byteEnd":68},"text":"mi nelci la meris.","construct":"predication"}},"formula:9":{"type":"formula","operator":"atom","predication":"predication:8","source":{"span":{"byteStart":6,"byteEnd":23},"text":"mi nelci la djan.","construct":"bridi-formula"}},"formula:13":{"type":"formula","operator":"atom","predication":"predication:12","source":{"span":{"byteStart":27,"byteEnd":46},"text":"mi nelci la martas.","construct":"bridi-formula"}},"formula:14":{"type":"formula","operator":"and","children":["formula:9","formula:13"],"connector":{"source":"ge gi","locus":"bridi","truthTable":"TFFF"}},"formula:18":{"type":"formula","operator":"atom","predication":"predication:17","source":{"span":{"byteStart":50,"byteEnd":68},"text":"mi nelci la meris.","construct":"bridi-formula"}},"formula:19":{"type":"formula","operator":"or","children":["formula:14","formula:18"],"connector":{"source":"ga gi","locus":"bridi","truthTable":"TTTF"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:7":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"djan"},"source":{"span":{"byteStart":15,"byteEnd":23},"text":"la djan.","construct":"sumti"}},"entity:11":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"martas"},"source":{"span":{"byteStart":36,"byteEnd":46},"text":"la martas.","construct":"sumti"}},"entity:16":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"name","word":"la","speaker":"entity:1","name":"meris"},"source":{"span":{"byteStart":59,"byteEnd":68},"text":"la meris.","construct":"sumti"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":6,"byteEnd":23},"text":"mi nelci la djan.","construct":"predication"}},"eventuality:10":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":27,"byteEnd":46},"text":"mi nelci la martas.","construct":"predication"}},"eventuality:15":{"type":"referent","category":"constant","sort":"eventuality","source":{"span":{"byteStart":50,"byteEnd":68},"text":"mi nelci la meris.","construct":"predication"}},"eventuality/locution:20":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":68},"text":"ga ge mi nelci la djan. gi mi nelci la martas. gi mi nelci la meris.","construct":"bridi"}}}}'''

@@ -29,15 +29,13 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ta'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥7) {
-  terms: [
-    TaggedSumti @[0‥7) {
-      tense_modal: Composite @[0‥7) {
-        Cmavo @[0‥4) "ta'e",
-        Cmavo @[4‥7) "naĭ",
-      },
-      ElidedSumti {},
+TaggedSumtiTerm @[0‥7) {
+  tense_modal: [
+    TaheIntervalPropertyTense @[0‥7) {
+      tahe: Cmavo @[0‥4) "ta'e",
+      nai: Cmavo @[4‥7) "naĭ",
     },
   ],
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'e","span":[0,4]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}]}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"TaheIntervalPropertyTense":{"tahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ta'e","span":[0,4]}}}},"nai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"naĭ","span":[4,7]}}}}}}]}}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

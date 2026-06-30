@@ -31,20 +31,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ko'i","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥10) {
-  terms: [
-    ProSumti @[0‥10) {
-      Cmavo @[0‥4) "ko'i",
-      free_modifiers: [
-        Subscript @[4‥10) {
-          xi: Cmavo @[4‥6) "xi",
-          NumberQuantifier @[6‥10) {
-            Cmavo @[6‥8) "pa",
-            Cmavo @[8‥10) "so",
-          },
-        },
-      ],
+ProSumti @[0‥10) {
+  Cmavo @[0‥4) "ko'i",
+  free_modifiers: [
+    XiNumberFreeModifier @[4‥10) {
+      xi: Cmavo @[4‥6) "xi",
+      expression: NumberWords @[6‥10) {
+        first_number: Cmavo @[6‥8) "pa",
+        continuations: [
+          Cmavo @[8‥10) "so",
+        ],
+      },
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'i","span":[0,4]}}}},{"Subscript":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[4,6]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,8]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[8,10]}}}}]}}}}}]}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko'i","span":[0,4]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[4,6]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[6,8]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"so","span":[8,10]}}}}}]}}}}}]}}}}}}}}}}}]}}}}}}}}}"""

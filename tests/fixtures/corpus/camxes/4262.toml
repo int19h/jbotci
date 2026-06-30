@@ -28,12 +28,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥2) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥2) {
-      to: Cmavo @[0‥2) "to",
-      Text {},
-    },
-  ],
+ParentheticalText @[0‥2) {
+  to: Cmavo @[0‥2) "to",
+  text: Text {},
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{}}}}]}}'

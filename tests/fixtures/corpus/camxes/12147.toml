@@ -35,34 +35,27 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"jy","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥34) {
-  terms: [
-    SumtiWithRelativeClauses @[0‥34) {
-      base_sumti: LerfuStringSumti @[0‥2) {
-        letter: [
-          Cmavo @[0‥2) "jy",
-        ],
-      },
-      relative_clauses: [
-        SumtiAssociationPhrase @[4‥34) {
-          association_marker: Cmavo @[4‥7) "goĭ",
-          Description @[8‥34) {
-            description: Cmavo @[8‥10) "le",
-            tail_elements: [
-              Description @[11‥23) {
-                description: Cmavo @[11‥13) "la",
-                selbri: Lujvo @[14‥20) "jbóske",
-                ku: Cmavo @[21‥23) "ku",
-              },
-            ],
-            selbri: WithIndicator @[24‥34) {
-              Gismu @[24‥29) "júlne",
-              indicator: Cmavo @[30‥34) "pe'a",
-            },
+SimpleSumti @[0‥34) {
+  base_sumti: Cmavo @[0‥2) "jy",
+  relative_clauses: SumtiAssociationRelativeClause @[4‥34) {
+    association_marker: Cmavo @[4‥7) "goĭ",
+    sumti: DescriptorWithGadriSumti @[8‥34) {
+      description: Cmavo @[8‥10) "le",
+      tail: DescriptionTail @[11‥34) {
+        leading_tail_elements: DescriptorWithGadriSumti @[11‥23) {
+          description: Cmavo @[11‥13) "la",
+          tail: DescriptionTail @[14‥20) {
+            leading_tail_elements: LeadingDescriptionTailElements {},
+            tail: Lujvo @[14‥20) "jbóske",
           },
+          ku: Cmavo @[21‥23) "ku",
         },
-      ],
+        tail: WithIndicator @[24‥34) {
+          Gismu @[24‥29) "júlne",
+          indicator: Cmavo @[30‥34) "pe'a",
+        },
+      },
     },
-  ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"SumtiWithRelativeClauses":{"base_sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jy","span":[0,2]}}}}]}},"relative_clauses":[{"SumtiAssociationPhrase":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"tail_elements":[{"DescriptionTailSumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"ske"}],"span":[14,20]}}}}},"ku":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[21,23]}}}}}}}],"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júlne","span":[24,29]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[30,34]}}}}}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"jy","span":[0,2]}}}}}}}}},"relative_clauses":{"first":{"SumtiAssociationRelativeClause":{"association_marker":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"goĭ","span":[4,7]}}}},"sumti":{"PlainRelativeSumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[8,10]}}}},"tail":{"leading_tail_elements":{"tail_sumti":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[11,13]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"jbó"},{"Rafsi":"ske"}],"span":[14,20]}}}}}}}}}}}}}}}}},"ku":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ku","span":[21,23]}}}}}}},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"júlne","span":[24,29]}}}},"indicator":{"Cmavo":{"phonemes":"pe'a","span":[30,34]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

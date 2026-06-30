@@ -31,12 +31,14 @@ json = '[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"fárna"}],"sp
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥24) {
-  TanruUnitConnection @[0‥17) {
-    leading_unit: Lujvo @[0‥8) "relfárna",
-    connective: Cmavo @[9‥11) "je",
-    trailing_unit: Gismu @[12‥17) "ckíni",
+TanruSelbri @[0‥24) {
+  first_unit: TanruUnit @[0‥17) {
+    Lujvo @[0‥8) "relfárna",
+    Cmavo @[9‥11) "je",
+    Gismu @[12‥17) "ckíni",
   },
-  Lujvo @[18‥24) "mójgri",
+  additional_units: [
+    Lujvo @[18‥24) "mójgri",
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"fárna"}],"span":[0,8]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[9,11]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckíni","span":[12,17]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mój"},{"Rafsi":"gri"}],"span":[18,24]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"rel"},{"Rafsi":"fárna"}],"span":[0,8]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[9,11]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"ckíni","span":[12,17]}}}}}}}}}]},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"mój"},{"Rafsi":"gri"}],"span":[18,24]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

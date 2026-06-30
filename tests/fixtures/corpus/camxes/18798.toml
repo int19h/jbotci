@@ -28,18 +28,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥9) {
-  terms: [
-    NumberSumti @[0‥9) {
-      li: Cmavo @[0‥2) "li",
-      NumberQuantifier @[3‥9) {
-        Cmavo @[3‥4) "ze",
-        WithIndicator @[5‥9) {
-          Cmavo @[5‥6) "xa",
-          indicator: Cmavo @[7‥9) "xu",
-        },
+NumberSumti @[0‥9) {
+  li: Cmavo @[0‥2) "li",
+  NumberWords @[3‥9) {
+    first_number: Cmavo @[3‥4) "ze",
+    continuations: [
+      WithIndicator @[5‥9) {
+        Cmavo @[5‥6) "xa",
+        indicator: Cmavo @[7‥9) "xu",
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[3,4]}}}},{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}}]}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[3,4]}}}},"continuations":[{"NumberWordPaContinuation":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[5,6]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[7,9]}}}}}]}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

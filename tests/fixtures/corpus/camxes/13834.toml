@@ -30,17 +30,9 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥11) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥11) {
-      to: Cmavo @[0‥2) "to",
-      Paragraph @[3‥7) {
-        niho: [
-          Cmavo @[3‥7) "ni'o",
-        ],
-      },
-      toi: Cmavo @[8‥11) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥11) {
+  to: Cmavo @[0‥2) "to",
+  text: Cmavo @[3‥7) "ni'o",
+  toi: Cmavo @[8‥11) "toĭ",
 }"""
-json = """{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[3,7]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[8,11]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextNihoParagraphs":[{"niho":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'o","span":[3,7]}}}}]}]}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[8,11]}}}}}}]}}"""

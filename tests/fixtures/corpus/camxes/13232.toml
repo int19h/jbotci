@@ -35,22 +35,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"DelimitedNonLo
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥32) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥32) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥28) {
-        terms: [
-          DelimitedNonLojbanQuote @[3‥28) {
-            zoi: Cmavo @[3‥6) "zoĭ",
-            opening_delimiter: Cmavo @[7‥9) "ly",
-            quoted_text: Verbatim @[10‥25) "rivbi not cikna",
-            closing_delimiter: Cmavo @[26‥28) "ly",
-          },
-        ],
-      },
-      toi: Cmavo @[29‥32) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥32) {
+  to: Cmavo @[0‥2) "to",
+  text: DelimitedNonLojbanQuote @[3‥28) {
+    zoi: Cmavo @[3‥6) "zoĭ",
+    opening_delimiter: Cmavo @[7‥9) "ly",
+    quoted_text: Verbatim @[10‥25) "rivbi not cikna",
+    closing_delimiter: Cmavo @[26‥28) "ly",
+  },
+  toi: Cmavo @[29‥32) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[10,25],"text":"rivbi not cikna"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[26,28]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[29,32]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"ly","span":[7,9]}},"quoted_text":{"span":[10,25],"text":"rivbi not cikna"},"closing_delimiter":{"Cmavo":{"phonemes":"ly","span":[26,28]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[29,32]}}}}}}]}}'

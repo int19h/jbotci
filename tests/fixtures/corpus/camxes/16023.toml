@@ -35,22 +35,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}},{"DelimitedNonLo
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥23) {
-  leading_free_modifiers: [
-    ParentheticalText @[0‥23) {
-      to: Cmavo @[0‥2) "to",
-      Terms @[3‥19) {
-        terms: [
-          DelimitedNonLojbanQuote @[3‥19) {
-            zoi: Cmavo @[3‥6) "zoĭ",
-            opening_delimiter: Cmavo @[7‥9) "gy",
-            quoted_text: Verbatim @[10‥16) "Baronh",
-            closing_delimiter: Cmavo @[17‥19) "gy",
-          },
-        ],
-      },
-      toi: Cmavo @[20‥23) "toĭ",
-    },
-  ],
+ParentheticalText @[0‥23) {
+  to: Cmavo @[0‥2) "to",
+  text: DelimitedNonLojbanQuote @[3‥19) {
+    zoi: Cmavo @[3‥6) "zoĭ",
+    opening_delimiter: Cmavo @[7‥9) "gy",
+    quoted_text: Verbatim @[10‥16) "Baronh",
+    closing_delimiter: Cmavo @[17‥19) "gy",
+  },
+  toi: Cmavo @[20‥23) "toĭ",
 }"""
-json = '{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[7,9]}},"quoted_text":{"span":[10,16],"text":"Baronh"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[17,19]}}}}}}}}]}}}}]}]},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[20,23]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"ParentheticalText":{"to":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"to","span":[0,2]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[3,6]}},"opening_delimiter":{"Cmavo":{"phonemes":"gy","span":[7,9]}},"quoted_text":{"span":[10,16],"text":"Baronh"},"closing_delimiter":{"Cmavo":{"phonemes":"gy","span":[17,19]}}}}}}}}}}}}}}}}}]}}}}}}}}},"toi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"toĭ","span":[20,23]}}}}}}]}}'

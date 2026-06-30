@@ -26,14 +26,10 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Text @[3‥13) {
-  leading_free_modifiers: [
-    Vocative @[3‥13) {
-      vocative_markers: [
-        Cmavo @[3‥6) "doĭ",
-      ],
-      sumti: Cmevla @[7‥13) "lojbab",
-    },
+VocativeFreeModifier @[3‥13) {
+  vocative_markers: Cmavo @[3‥6) "doĭ",
+  sumti: [
+    Cmevla @[7‥13) "lojbab",
   ],
 }"""
-json = '{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojbab","span":[7,13]}}}}]}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[3,6]}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojbab","span":[7,13]}}}}]}}}}]}}'

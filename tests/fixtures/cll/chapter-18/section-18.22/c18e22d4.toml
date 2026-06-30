@@ -39,28 +39,32 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[6,10]}}},{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[11,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"ju'u","span":[14,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[19,21]}}},{"PlainWord":{"Cmavo":{"phonemes":"no","span":[21,23]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(li [{vo pi'e ze} ju'u {re no}])"
+brackets = "(li [{vo (pi'e ze)} {ju'u (re no)}])"
 tree = """
-Terms @[0‥23) {
-  terms: [
-    NumberSumti @[0‥23) {
-      li: Cmavo @[0‥2) "li",
-      Infix @[3‥23) {
-        left_expression: NumberQuantifier @[3‥13) {
-          Cmavo @[3‥5) "vo",
-          Cmavo @[6‥10) "pi'e",
-          Cmavo @[11‥13) "ze",
-        },
+NumberSumti @[0‥23) {
+  li: Cmavo @[0‥2) "li",
+  InfixMekso @[3‥23) {
+    first_expression: NumberWords @[3‥13) {
+      first_number: Cmavo @[3‥5) "vo",
+      continuations: [
+        Cmavo @[6‥10) "pi'e",
+        Cmavo @[11‥13) "ze",
+      ],
+    },
+    continuations: [
+      InfixMeksoContinuation @[14‥23) {
         operator: Cmavo @[14‥18) "ju'u",
-        right_expression: NumberQuantifier @[19‥23) {
-          Cmavo @[19‥21) "re",
-          Cmavo @[21‥23) "no",
+        right_expression: NumberWords @[19‥23) {
+          first_number: Cmavo @[19‥21) "re",
+          continuations: [
+            Cmavo @[21‥23) "no",
+          ],
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"Infix":{"left_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[3,5]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[6,10]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[11,13]}}}}]}}},"operator":{"Primitive":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'u","span":[14,18]}}}}},"right_expression":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[19,21]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[21,23]}}}}]}}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vo","span":[3,5]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'e","span":[6,10]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ze","span":[11,13]}}}}}]}}}}}}}},"continuations":[{"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ju'u","span":[14,18]}}}}}}}},"right_expression":{"left_expression":{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[19,21]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[21,23]}}}}}]}}}}}}}}}]}}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:11","content":"number:10","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":23},"text":"li vo pi'e ze ju'u reno","construct":"fragment"}},"math:6":{"type":"mathExpression","literal":{"kind":"mixedRadix","value":{"components":[{"text":"vo","integer":4},{"text":"ze","integer":7}]}}},"math:7":{"type":"mathExpression","literal":{"kind":"integer","value":20}},"math:8":{"type":"mathExpression","operator":"base","operands":["math:6","math:7"],"source":{"span":{"byteStart":0,"byteEnd":23},"text":"li vo pi'e ze ju'u reno","construct":"math-expression"}},"quantity:9":{"type":"quantity","form":"exact","value":{"mathExpression":"math:8"},"scale":"count","source":{"span":{"byteStart":0,"byteEnd":23},"text":"li vo pi'e ze ju'u reno","construct":"quantity"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:11":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":23},"text":"li vo pi'e ze ju'u reno","construct":"fragment"}},"number:10":{"type":"referent","category":"constant","sort":"number","descriptor":{"kind":"number","word":"li","quantity":"quantity:9","name":"vo pi'e ze ju'u re no"},"source":{"span":{"byteStart":0,"byteEnd":23},"text":"li vo pi'e ze ju'u reno","construct":"number-sumti"}}}}'''

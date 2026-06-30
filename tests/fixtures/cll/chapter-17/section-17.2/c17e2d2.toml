@@ -42,27 +42,23 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"ky","span":[0,2]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[5,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}},{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[10,13]}}},{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[16,17]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(ky [.o bu] y'y [.a bu])"
+brackets = "(ky [{.o bu} y'y {.a bu}])"
 tree = """
-Terms @[0‥19) {
-  terms: [
-    LerfuStringSumti @[0‥19) {
-      letter: [
-        Cmavo @[0‥2) "ky",
-        LerfuWord @[5‥8) {
-          Cmavo @[5‥6) "o",
-          bu: Cmavo @[6‥8) "bu",
-        },
-        Cmavo @[10‥13) "y'y",
-        LerfuWord @[16‥19) {
-          Cmavo @[16‥17) "a",
-          bu: Cmavo @[17‥19) "bu",
-        },
-      ],
+LetterString @[0‥19) {
+  first_letter: Cmavo @[0‥2) "ky",
+  continuations: [
+    LerfuWord @[5‥8) {
+      Cmavo @[5‥6) "o",
+      bu: Cmavo @[6‥8) "bu",
+    },
+    Cmavo @[10‥13) "y'y",
+    LerfuWord @[16‥19) {
+      Cmavo @[16‥17) "a",
+      bu: Cmavo @[17‥19) "bu",
     },
   ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ky","span":[0,2]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[5,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[10,13]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[16,17]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}]}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ky","span":[0,2]}}}}},"continuations":[{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"o","span":[5,6]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[6,8]}}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"y'y","span":[10,13]}}}}}},{"LetterStringLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmavo":{"phonemes":"a","span":[16,17]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[17,19]}}}}}}}]}}}}}}}}}}}}}]}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:7","content":"sign:6","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":19},"text":"ky. .obu .y'y. .abu","construct":"fragment"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:7":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":19},"text":"ky. .obu .y'y. .abu","construct":"fragment"}},"sign:6":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"ko'a","letterals":[{"kind":"glyph","sourceWords":["ky"],"text":"ky","value":"k"},{"kind":"glyph","sourceWords":["o","bu"],"text":"cmavo:o-cmavo:bu","value":"o","buDepth":1},{"kind":"glyph","sourceWords":["y'y"],"text":"y'y","value":"'"},{"kind":"glyph","sourceWords":["a","bu"],"text":"cmavo:a-cmavo:bu","value":"a","buDepth":1}],"source":{"span":{"byteStart":0,"byteEnd":19},"text":"ky. .obu .y'y. .abu","construct":"letteral"}}}}'''

@@ -41,36 +41,34 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[6,8]}}},{"QuotedWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[6‥78) {
-  Terms @[6‥14) {
-    terms: [
-      PlaceTaggedSumti @[6‥14) {
-        fa: Cmavo @[6‥8) "fi",
-        QuotedWord @[9‥14) {
-          zo: Cmavo @[9‥11) "zo",
-          Cmavo @[12‥14) "vi",
-        },
-      },
-    ],
-  },
-  ParagraphStatement @[16‥78) {
-    i: Cmavo @[16‥17) "i",
-    Bridi @[18‥78) {
-      leading_terms: [
-        Cmavo @[18‥20) "ko",
-      ],
-      SelbriBridiTail @[21‥78) {
-        Gismu @[21‥26) "víska",
-        terms: [
-          DelimitedNonLojbanQuote @[27‥78) {
-            zoi: Cmavo @[27‥30) "zoĭ",
-            opening_delimiter: Cmavo @[31‥33) "zy",
-            quoted_text: Verbatim @[34‥75) "http://lojban.org/publications/wordlists/",
-            closing_delimiter: Cmavo @[76‥78) "zy",
-          },
-        ],
-      },
+ParagraphStatementSequence @[6‥78) {
+  PlaceTaggedSumtiTerm @[6‥14) {
+    fa: Cmavo @[6‥8) "fi",
+    sumti: QuotedWord @[9‥14) {
+      zo: Cmavo @[9‥11) "zo",
+      Cmavo @[12‥14) "vi",
     },
   },
+  following: [
+    ParagraphStatement @[16‥78) {
+      i: Cmavo @[16‥17) "i",
+      BridiWithLeadingTerms @[18‥78) {
+        leading_terms: [
+          Cmavo @[18‥20) "ko",
+        ],
+        bridi_tail: SelbriSimpleBridiTail @[21‥78) {
+          selbri: Gismu @[21‥26) "víska",
+          terms: [
+            DelimitedNonLojbanQuote @[27‥78) {
+              zoi: Cmavo @[27‥30) "zoĭ",
+              opening_delimiter: Cmavo @[31‥33) "zy",
+              quoted_text: Verbatim @[34‥75) "http://lojban.org/publications/wordlists/",
+              closing_delimiter: Cmavo @[76‥78) "zy",
+            },
+          ],
+        },
+      },
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[6,8]}}}},"sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Cmavo":{"phonemes":"vi","span":[12,14]}}}}}}}}}]}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[18,20]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[21,26]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[27,30]}},"opening_delimiter":{"Cmavo":{"phonemes":"zy","span":[31,33]}},"quoted_text":{"span":[34,75],"text":"http://lojban.org/publications/wordlists/"},"closing_delimiter":{"Cmavo":{"phonemes":"zy","span":[76,78]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi","span":[6,8]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[9,11]}},"word":{"Cmavo":{"phonemes":"vi","span":[12,14]}}}}}}}}}}}}}}}}}}}]}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[16,17]}}}},"statement":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ko","span":[18,20]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"víska","span":[21,26]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[27,30]}},"opening_delimiter":{"Cmavo":{"phonemes":"zy","span":[31,33]}},"quoted_text":{"span":[34,75],"text":"http://lojban.org/publications/wordlists/"},"closing_delimiter":{"Cmavo":{"phonemes":"zy","span":[76,78]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}]}}}}}}'

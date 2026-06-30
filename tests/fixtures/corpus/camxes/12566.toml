@@ -37,8 +37,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"Gi
 tree = """
 ParagraphStatement @[1‥35) {
   i: Cmavo @[1‥2) "i",
-  SelbriBridiTail @[3‥35) {
-    Gismu @[3‥8) "cúsku",
+  SelbriSimpleBridiTail @[3‥35) {
+    selbri: Gismu @[3‥8) "cúsku",
     terms: [
       DelimitedNonLojbanQuote @[9‥35) {
         zoi: Cmavo @[9‥12) "zoĭ",
@@ -49,4 +49,4 @@ ParagraphStatement @[1‥35) {
     ],
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[3,8]}}}}},"terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"quoted_text":{"span":[17,31],"text":"~/.unix/quotes"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[33,35]}}}}}}}}]}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cúsku","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[9,12]}},"opening_delimiter":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"quoted_text":{"span":[17,31],"text":"~/.unix/quotes"},"closing_delimiter":{"Cmavo":{"phonemes":"zo","span":[33,35]}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}'

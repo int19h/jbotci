@@ -28,14 +28,8 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ga'a","span":[0,4]}}}]"""
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥4) {
-  terms: [
-    TaggedSumti @[0‥4) {
-      tense_modal: Modal @[0‥4) {
-        bai: Cmavo @[0‥4) "ga'a",
-      },
-      ElidedSumti {},
-    },
-  ],
+TaggedSumtiTerm @[0‥4) {
+  tense_modal: Cmavo @[0‥4) "ga'a",
+  sumti: TaggedElidedSumti {},
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"TaggedSumti":{"tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'a","span":[0,4]}}}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"TaggedSumtiTerm":{"tense_modal":{"TenseModal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ga'a","span":[0,4]}}}}}}}},"sumti":{}}}}}]}}}}}}}}}"""

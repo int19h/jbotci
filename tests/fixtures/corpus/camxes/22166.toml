@@ -36,17 +36,17 @@ Text @[0‥12) {
   leading_cmevla: [
     Cmevla @[0‥2) "ór",
   ],
-  Terms @[3‥12) {
-    terms: [
-      Cmavo @[3‥5) "ra",
-      QuantifiedSumti @[5‥12) {
-        quantifier: NumberQuantifier @[5‥9) {
-          Cmavo @[5‥7) "re",
+  TermsFragment @[3‥12) {
+    Cmavo @[3‥5) "ra",
+    QuantifiedSumti @[5‥12) {
+      quantifier: NumberWords @[5‥9) {
+        first_number: Cmavo @[5‥7) "re",
+        continuations: [
           Cmavo @[7‥9) "ly",
-        },
-        Cmavo @[10‥12) "do",
+        ],
       },
-    ],
+      inner_sumti: Cmavo @[10‥12) "do",
+    },
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ór","span":[0,2]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[3,5]}}}}}},{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[5,7]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[7,9]}}}}]}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[10,12]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"ór","span":[0,2]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ra","span":[3,5]}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[5,7]}}}},"continuations":[{"NumberWordLerfuContinuation":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ly","span":[7,9]}}}}}}]}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[10,12]}}}}}}}}}}}}}}}}]}}}}}}}}}'

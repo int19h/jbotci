@@ -35,18 +35,22 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 tree = """
 ParagraphStatement @[1‥28) {
   i: Cmavo @[1‥2) "i",
-  Tanru @[3‥28) {
-    Gismu @[3‥8) "dénpa",
-    GroupedTanruUnit @[9‥28) {
-      ke: Cmavo @[9‥11) "ke",
-      Tanru @[12‥28) {
-        Gismu @[12‥17) "fónxa",
-        WithIndicator @[18‥28) {
-          Gismu @[18‥23) "prénu",
-          indicator: Cmavo @[24‥28) "zo'o",
+  TanruSelbri @[3‥28) {
+    first_unit: Gismu @[3‥8) "dénpa",
+    additional_units: [
+      GroupedTanruUnit @[9‥28) {
+        ke: Cmavo @[9‥11) "ke",
+        selbri: TanruSelbri @[12‥28) {
+          first_unit: Gismu @[12‥17) "fónxa",
+          additional_units: [
+            WithIndicator @[18‥28) {
+              Gismu @[18‥23) "prénu",
+              indicator: Cmavo @[24‥28) "zo'o",
+            },
+          ],
         },
       },
-    },
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dénpa","span":[3,8]}}}}},{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónxa","span":[12,17]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[18,23]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[24,28]}}}}}]}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"dénpa","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[9,11]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fónxa","span":[12,17]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prénu","span":[18,23]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[24,28]}}}}}}}}}]}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

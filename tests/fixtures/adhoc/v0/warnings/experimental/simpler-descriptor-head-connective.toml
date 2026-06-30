@@ -12,18 +12,13 @@ raw = '{"frames":[{"index":0,"node":{"offset":9,"length":5},"kind":"base-selbri"
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥14) {
-  terms: [
-    DescriptionConnection @[0‥14) {
-      leading_description_head: DescriptionHead @[0‥2) {
-        description: Cmavo @[0‥2) "lo",
-      },
-      connective: Cmavo @[3‥5) "je",
-      trailing_description_head: DescriptionHead @[6‥8) {
-        description: Cmavo @[6‥8) "le",
-      },
-      selbri: Gismu @[9‥14) "bróda",
-    },
-  ],
+DescriptionConnectionSumti @[0‥14) {
+  leading_description_head: Cmavo @[0‥2) "lo",
+  connective: Cmavo @[3‥5) "je",
+  trailing_description_head: Cmavo @[6‥8) "le",
+  tail: DescriptionTail @[9‥14) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: Gismu @[9‥14) "bróda",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"DescriptionConnection":{"leading_description_head":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[3,5]}}}}]}},"trailing_description_head":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[9,14]}}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptionConnectionSumti":{"leading_description_head":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo","span":[0,2]}}}},"connective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[3,5]}}}}},"trailing_description_head":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[6,8]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[9,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

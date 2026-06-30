@@ -33,24 +33,18 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥23) {
-  leading_free_modifiers: [
-    Vocative @[0‥23) {
-      vocative_markers: [
-        Cmavo @[0‥4) "mi'e",
-      ],
-      sumti: NameWords @[5‥23) {
-        Cmevla @[5‥9) "greg",
-        WithIndicator @[10‥23) {
-          WithIndicator @[10‥20) {
-            Cmevla @[10‥14) "daĭk",
-            indicator: Cmavo @[15‥17) "ŭa",
-            nai: Cmavo @[17‥20) "naĭ",
-          },
-          indicator: Cmavo @[20‥23) "daĭ",
-        },
+VocativeFreeModifier @[0‥23) {
+  vocative_markers: Cmavo @[0‥4) "mi'e",
+  sumti: [
+    Cmevla @[5‥9) "greg",
+    WithIndicator @[10‥23) {
+      WithIndicator @[10‥20) {
+        Cmevla @[10‥14) "daĭk",
+        indicator: Cmavo @[15‥17) "ŭa",
+        nai: Cmavo @[17‥20) "naĭ",
       },
+      indicator: Cmavo @[20‥23) "daĭ",
     },
   ],
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}}}],"sumti":{"NameWords":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"greg","span":[5,9]}}}},{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"daĭk","span":[10,14]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[15,17]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[17,20]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[20,23]}}}}]}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi'e","span":[0,4]}}}}}},"sumti":{"CmevlaVocativeSumti":{"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"greg","span":[5,9]}}}},{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"daĭk","span":[10,14]}}}},"indicator":{"Cmavo":{"phonemes":"ŭa","span":[15,17]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[17,20]}}}},"indicator":{"Cmavo":{"phonemes":"daĭ","span":[20,23]}}}}]}}}}]}}"""

@@ -41,20 +41,19 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}},{"PlainWord"
 [expectations.output.gentufa]
 brackets = "(tu'a [le vórme] [lu'u ki'a])"
 tree = """
-Terms @[0‥23) {
-  terms: [
-    ReferentSumti @[0‥23) {
-      lahe: Cmavo @[0‥4) "tu'a",
-      Description @[5‥13) {
-        description: Cmavo @[5‥7) "le",
-        selbri: Gismu @[8‥13) "vórme",
-      },
-      luhu: WithIndicator @[14‥23) {
-        Cmavo @[14‥18) "lu'u",
-        indicator: Cmavo @[19‥23) "ki'a",
-      },
+LaheSumti @[0‥23) {
+  lahe: Cmavo @[0‥4) "tu'a",
+  DescriptorWithGadriSumti @[5‥13) {
+    description: Cmavo @[5‥7) "le",
+    tail: DescriptionTail @[8‥13) {
+      leading_tail_elements: LeadingDescriptionTailElements {},
+      tail: Gismu @[8‥13) "vórme",
     },
-  ],
+  },
+  luhu: WithIndicator @[14‥23) {
+    Cmavo @[14‥18) "lu'u",
+    indicator: Cmavo @[19‥23) "ki'a",
+  },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"ReferentSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[8,13]}}}}}}},"luhu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}}}}}]}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LaheSumti":{"lahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"tu'a","span":[0,4]}}}},"inner_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[5,7]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vórme","span":[8,13]}}}}}}}}}}}}}}}}}}}}}}}}}},"luhu":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[14,18]}}}},"indicator":{"Cmavo":{"phonemes":"ki'a","span":[19,23]}}}}}}}}}}}}}}}}]}}}}}}}}}"""
 

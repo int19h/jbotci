@@ -39,20 +39,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"zaĭ","span":[0,3]}}},{"LerfuWord":{
 [expectations.output.gentufa]
 brackets = "(zaĭ [.devanagar. bu])"
 tree = """
-Terms @[0‥18) {
-  terms: [
-    LerfuStringSumti @[0‥18) {
-      letter: [
-        Cmavo @[0‥3) "zaĭ",
-        LerfuWord @[5‥18) {
-          Cmevla @[5‥14) "devanagar",
-          bu: Cmavo @[16‥18) "bu",
-        },
-      ],
-    },
-  ],
+LauLerfuWord @[0‥18) {
+  lau: Cmavo @[0‥3) "zaĭ",
+  letter: LerfuWord @[5‥18) {
+    Cmevla @[5‥14) "devanagar",
+    bu: Cmavo @[16‥18) "bu",
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"LerfuStringSumti":{"letter":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zaĭ","span":[0,3]}}}},{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmevla":{"phonemes":"devanagar","span":[5,14]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}}]}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"LerfuStringSumti":{"words":{"first_letter":{"LauLerfuWord":{"lau":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"zaĭ","span":[0,3]}}}},"letter":{"SimpleLerfuWord":{"Plain":{"LerfuWord":{"base":{"PlainWord":{"Cmevla":{"phonemes":"devanagar","span":[5,14]}}},"bu":{"Cmavo":{"phonemes":"bu","span":[16,18]}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"mention","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:7","content":"sign:6","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":18},"text":"zai .devanagar. bu","construct":"fragment"}},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality/locution:7":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":18},"text":"zai .devanagar. bu","construct":"fragment"}},"sign:6":{"type":"referent","category":"constant","sort":"sign","kind":"letteral","text":"zai .devanagar. bu","letterals":[{"kind":"shift","sourceWords":["zai","devanagar","bu"],"text":"zai cmevla:devanagar-cmavo:bu","value":"cmevla:devanagar-cmavo:bu","modifier":"script"}],"source":{"span":{"byteStart":0,"byteEnd":18},"text":"zai .devanagar. bu","construct":"letteral"}}}}'''

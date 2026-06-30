@@ -30,15 +30,11 @@ json = """[{"PlainWord":{"Cmevla":{"phonemes":"fucker","span":[0,6]}}},{"PlainWo
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥17) {
-  leading_cmevla: [
-    WithIndicator @[0‥17) {
-      WithIndicator @[0‥13) {
-        Cmevla @[0‥6) "fucker",
-        indicator: Cmavo @[9‥13) "zo'o",
-      },
-      indicator: Cmavo @[13‥17) "ru'e",
-    },
-  ],
+WithIndicator @[0‥17) {
+  WithIndicator @[0‥13) {
+    Cmevla @[0‥6) "fucker",
+    indicator: Cmavo @[9‥13) "zo'o",
+  },
+  indicator: Cmavo @[13‥17) "ru'e",
 }"""
-json = """{"leading_cmevla":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"fucker","span":[0,6]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[9,13]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[13,17]}}}}]}"""
+json = """{"RegularText":{"leading_cmevla":[{"WithIndicator":{"base":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"fucker","span":[0,6]}}}},"indicator":{"Cmavo":{"phonemes":"zo'o","span":[9,13]}}}},"indicator":{"Cmavo":{"phonemes":"ru'e","span":[13,17]}}}}]}}"""

@@ -30,28 +30,22 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥19) {
-  terms: [
-    QuantifiedSumti @[0‥19) {
-      quantifier: NumberQuantifier @[0‥4) {
-        Cmavo @[0‥2) "pa",
-        Cmavo @[2‥4) "ro",
-      },
-      TextQuote @[4‥19) {
-        lu: Cmavo @[4‥6) "lu",
-        Terms @[7‥19) {
-          terms: [
-            NameDescription @[7‥19) {
-              la: Cmavo @[7‥9) "la",
-              names: [
-                Cmevla @[10‥16) "lojban",
-                Cmevla @[17‥19) "on",
-              ],
-            },
-          ],
-        },
-      },
+QuantifiedSumti @[0‥19) {
+  quantifier: NumberWords @[0‥4) {
+    first_number: Cmavo @[0‥2) "pa",
+    continuations: [
+      Cmavo @[2‥4) "ro",
+    ],
+  },
+  inner_sumti: TextQuote @[4‥19) {
+    lu: Cmavo @[4‥6) "lu",
+    text: NameSumti @[7‥19) {
+      la: Cmavo @[7‥9) "la",
+      names: [
+        Cmevla @[10‥16) "lojban",
+        Cmevla @[17‥19) "on",
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuantifiedSumti":{"quantifier":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[2,4]}}}}]}},"inner_sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[4,6]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[10,16]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"on","span":[17,19]}}}}]}}}]}}}}]}]}}}}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[0,2]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[2,4]}}}}}]}}},"inner_sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[4,6]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[7,9]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"lojban","span":[10,16]}}}},{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"on","span":[17,19]}}}}]}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

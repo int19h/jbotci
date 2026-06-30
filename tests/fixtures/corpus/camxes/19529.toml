@@ -30,11 +30,15 @@ json = """[{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"ví'i"}],"s
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥16) {
-  Lujvo @[0‥7) "selví'i",
-  ConvertedTanruUnit @[8‥16) {
-    se: Cmavo @[8‥10) "se",
-    Gismu @[11‥16) "rínci",
-  },
+TanruSelbri @[0‥16) {
+  first_unit: Lujvo @[0‥7) "selví'i",
+  additional_units: [
+    TanruUnitAtom @[8‥16) {
+      conversions: [
+        Cmavo @[8‥10) "se",
+      ],
+      base: Gismu @[11‥16) "rínci",
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"ví'i"}],"span":[0,7]}}}}},{"ConvertedTanruUnit":{"se":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[8,10]}}}},"inner_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rínci","span":[11,16]}}}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"ví'i"}],"span":[0,7]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"conversions":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"se","span":[8,10]}}}}],"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"rínci","span":[11,16]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

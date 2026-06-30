@@ -34,13 +34,9 @@ Text @[0‥10) {
   leading_cmevla: [
     Cmevla @[0‥5) "velut",
   ],
-  Terms @[6‥10) {
-    terms: [
-      TextQuote @[6‥10) {
-        lu: Cmavo @[6‥8) "lu",
-        Cmavo @[8‥10) "na",
-      },
-    ],
+  TextQuote @[6‥10) {
+    lu: Cmavo @[6‥8) "lu",
+    text: Cmavo @[8‥10) "na",
   },
 }"""
-json = '{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"velut","span":[0,5]}}}}],"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[6,8]}}}},"text":{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Other":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[8,10]}}}}]}}}]}]}}}}}]}}}}]}]}'
+json = '{"RegularText":{"leading_cmevla":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"velut","span":[0,5]}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"TextQuote":{"lu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu","span":[6,8]}}}},"text":{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"SingleNaFragment":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[8,10]}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

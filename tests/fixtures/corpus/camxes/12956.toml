@@ -30,15 +30,16 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥18) {
-  terms: [
-    Description @[0‥18) {
-      description: Cmavo @[0‥3) "loĭ",
-      selbri: Tanru @[4‥18) {
-        Lujvo @[4‥12) "sélcykaĭ",
+DescriptorWithGadriSumti @[0‥18) {
+  description: Cmavo @[0‥3) "loĭ",
+  tail: DescriptionTail @[4‥18) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruSelbri @[4‥18) {
+      first_unit: Lujvo @[4‥12) "sélcykaĭ",
+      additional_units: [
         Gismu @[13‥18) "bárda",
-      },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sélc"},{"Hyphen":"y"},{"Rafsi":"kaĭ"}],"span":[4,12]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[13,18]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"loĭ","span":[0,3]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sélc"},{"Hyphen":"y"},{"Rafsi":"kaĭ"}],"span":[4,12]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bárda","span":[13,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

@@ -44,7 +44,7 @@ json = """[{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":
 [expectations.output.gentufa]
 brackets = "([zoĭ zoĭ steve zoĭ] [ke {(ke [mérko glíco] ke'e) cméne} ke'e])"
 tree = """
-Bridi @[0‥51) {
+BridiWithLeadingTerms @[0‥51) {
   leading_terms: [
     DelimitedNonLojbanQuote @[0‥17) {
       zoi: Cmavo @[0‥3) "zoĭ",
@@ -53,20 +53,24 @@ Bridi @[0‥51) {
       closing_delimiter: Cmavo @[14‥17) "zoĭ",
     },
   ],
-  GroupedSelbri @[18‥51) {
+  bridi_tail: GroupedTanruUnit @[18‥51) {
     ke: Cmavo @[18‥20) "ke",
-    Tanru @[21‥46) {
-      GroupedTanruUnit @[21‥40) {
+    selbri: TanruSelbri @[21‥46) {
+      first_unit: GroupedTanruUnit @[21‥40) {
         ke: Cmavo @[21‥23) "ke",
-        Tanru @[24‥35) {
-          Gismu @[24‥29) "mérko",
-          Gismu @[30‥35) "glíco",
+        selbri: TanruSelbri @[24‥35) {
+          first_unit: Gismu @[24‥29) "mérko",
+          additional_units: [
+            Gismu @[30‥35) "glíco",
+          ],
         },
         kehe: Cmavo @[36‥40) "ke'e",
       },
-      Gismu @[41‥46) "cméne",
+      additional_units: [
+        Gismu @[41‥46) "cméne",
+      ],
     },
     kehe: Cmavo @[47‥51) "ke'e",
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"QuotedSumti":{"DelimitedNonLojbanQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[4,7]}},"quoted_text":{"span":[8,13],"text":"steve"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[14,17]}}}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"GroupedSelbri":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[18,20]}}}},"selbri":{"Tanru":[{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[21,23]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mérko","span":[24,29]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[30,35]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[36,40]}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[41,46]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[47,51]}}}}}}}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"DelimitedNonLojbanQuote":{"zoi":{"Cmavo":{"phonemes":"zoĭ","span":[0,3]}},"opening_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[4,7]}},"quoted_text":{"span":[8,13],"text":"steve"},"closing_delimiter":{"Cmavo":{"phonemes":"zoĭ","span":[14,17]}}}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[18,20]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[21,23]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mérko","span":[24,29]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"glíco","span":[30,35]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[36,40]}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cméne","span":[41,46]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[47,51]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

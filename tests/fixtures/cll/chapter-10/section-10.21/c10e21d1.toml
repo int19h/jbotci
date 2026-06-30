@@ -41,32 +41,47 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[3,5]}}},{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[5,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[9,13]}}},{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[14,16]}}},{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[16,19]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cél"},{"Rafsi":"gaŭ"}],"span":[20,26]}}},{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}},{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"dánti"}],"span":[30,38]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(mi [{(re roĭ pi'u xa roĭ) célgaŭ} {le seldánti}])"
+brackets = "(mi [{([re roĭ] [pi'u {xa roĭ}]) célgaŭ} {le seldánti}])"
 tree = """
-Bridi @[0‥38) {
+BridiWithLeadingTerms @[0‥38) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥38) {
-    TaggedSelbri @[3‥26) {
-      tense_modal: Composite @[3‥19) {
-        Cmavo @[3‥5) "re",
-        Cmavo @[5‥8) "roĭ",
-        Cmavo @[9‥13) "pi'u",
-        Cmavo @[14‥16) "xa",
-        Cmavo @[16‥19) "roĭ",
+  bridi_tail: SelbriSimpleBridiTail @[3‥38) {
+    selbri: TaggedSelbri @[3‥26) {
+      tense_modal: ConnectedTenseModal @[3‥19) {
+        first: [
+          NumberedIntervalPropertyTense @[3‥8) {
+            number: Cmavo @[3‥5) "re",
+            roi: Cmavo @[5‥8) "roĭ",
+          },
+        ],
+        continuations: [
+          ConnectedTenseModalContinuation @[9‥19) {
+            connective: Cmavo @[9‥13) "pi'u",
+            tense_modal: [
+              NumberedIntervalPropertyTense @[14‥19) {
+                number: Cmavo @[14‥16) "xa",
+                roi: Cmavo @[16‥19) "roĭ",
+              },
+            ],
+          },
+        ],
       },
-      Lujvo @[20‥26) "célgaŭ",
+      inner_selbri: Lujvo @[20‥26) "célgaŭ",
     },
     terms: [
-      Description @[27‥38) {
+      DescriptorWithGadriSumti @[27‥38) {
         description: Cmavo @[27‥29) "le",
-        selbri: Lujvo @[30‥38) "seldánti",
+        tail: DescriptionTail @[30‥38) {
+          leading_tail_elements: LeadingDescriptionTailElements {},
+          tail: Lujvo @[30‥38) "seldánti",
+        },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[3,5]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[5,8]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[9,13]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[14,16]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[16,19]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cél"},{"Rafsi":"gaŭ"}],"span":[20,26]}}}}}}},"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"dánti"}],"span":[30,38]}}}}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"ConnectedTenseModal":{"first":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[3,5]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[5,8]}}}}}}]}}}}}}},"continuations":[{"connective":{"JoikConnective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pi'u","span":[9,13]}}}}}}},"tense_modal":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xa","span":[14,16]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[16,19]}}}}}}]}}}}}}}}]}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"cél"},{"Rafsi":"gaŭ"}],"span":[20,26]}}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"le","span":[27,29]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"sel"},{"Rafsi":"dánti"}],"span":[30,38]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"utterance:5","objects":{"utterance:5":{"type":"utterance","force":"assert","speaker":"entity:1","audience":"entity:2","eventuality":"eventuality/locution:18","content":"formula:17","deicticGround":{"time":"eventuality:3","place":"entity:4"},"source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi reroi pi'u xaroi celgau le seldanti","construct":"bridi"}},"parameter:10":{"type":"parameter","sort":"entity","role":"propertySlot","introducedBy":"ce'u","source":{"span":{"byteStart":30,"byteEnd":38},"text":"seldanti","construct":"speaker-description-property"}},"predication:11":{"type":"predication","relation":"seldanti","arguments":{"x1":{"kind":"filled","value":"parameter:10"}},"mode":"restrictive","source":{"span":{"byteStart":30,"byteEnd":38},"text":"seldanti","construct":"restrictive-predication"},"diagnostics":[{"severity":"warning","message":"relation place structure is unavailable; only places required by explicit assignments are represented"}]},"predication:14":{"type":"predication","relation":"skicu","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:9"},"x3":{"kind":"filled","value":"entity:2"},"x4":{"kind":"filled","value":"relation:13"}},"mode":"incidental","source":{"span":{"byteStart":27,"byteEnd":38},"text":"le seldanti","construct":"speaker-description"}},"predication:16":{"type":"predication","eventuality":"eventuality:6","relation":"celgau","arguments":{"x1":{"kind":"filled","value":"entity:1"},"x2":{"kind":"filled","value":"entity:9"}},"mode":"asserted","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi reroi pi'u xaroi celgau le seldanti","construct":"predication"},"diagnostics":[{"severity":"warning","message":"relation place structure is unavailable; only places required by explicit assignments are represented"}]},"formula:12":{"type":"formula","operator":"atom","predication":"predication:11","source":{"span":{"byteStart":30,"byteEnd":38},"text":"seldanti","construct":"restrictive-formula"}},"formula:15":{"type":"formula","operator":"atom","predication":"predication:14","source":{"span":{"byteStart":27,"byteEnd":38},"text":"le seldanti","construct":"speaker-description"}},"formula:17":{"type":"formula","operator":"atom","predication":"predication:16","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi reroi pi'u xaroi celgau le seldanti","construct":"bridi-formula"}},"quantity:7":{"type":"quantity","form":"exact","value":{"integer":2},"scale":"frequency"},"quantity:8":{"type":"quantity","form":"exact","value":{"integer":6},"scale":"frequency"},"entity:1":{"type":"referent","category":"indexical","sort":"entity","indexical":"speaker"},"entity:2":{"type":"referent","category":"indexical","sort":"entity","indexical":"audience"},"entity:4":{"type":"referent","category":"indexical","sort":"entity","indexical":"here"},"entity:9":{"type":"referent","category":"constant","sort":"entity","descriptor":{"kind":"speakerDescription","word":"le","speaker":"entity:1","body":"formula:15"},"source":{"span":{"byteStart":27,"byteEnd":38},"text":"le seldanti","construct":"description"}},"eventuality:3":{"type":"referent","category":"indexical","sort":"eventuality","indexical":"now"},"eventuality:6":{"type":"referent","recurrence":[{"kind":"occurrenceCount","introducedBy":"roi","quantity":"quantity:7"},{"kind":"occurrenceCount","introducedBy":"roi","connection":{"kind":"product","introducedBy":"pi'u"},"quantity":"quantity:8"}],"intervalModifiers":[{"kind":"recurrence","value":{"kind":"occurrenceCount","introducedBy":"roi","quantity":"quantity:7"}},{"kind":"recurrence","value":{"kind":"occurrenceCount","introducedBy":"roi","connection":{"kind":"product","introducedBy":"pi'u"},"quantity":"quantity:8"}}],"category":"constant","sort":"eventuality","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi reroi pi'u xaroi celgau le seldanti","construct":"predication"}},"eventuality/locution:18":{"type":"referent","actuality":{"kind":"actual"},"category":"constant","sort":"eventuality/locution","source":{"span":{"byteStart":0,"byteEnd":38},"text":"mi reroi pi'u xaroi celgau le seldanti","construct":"bridi"}},"relation:13":{"type":"referent","category":"constant","sort":"relation","body":"formula:12","parameters":["parameter:10"],"arity":1,"source":{"span":{"byteStart":30,"byteEnd":38},"text":"seldanti","construct":"speaker-description-property"}}}}'''

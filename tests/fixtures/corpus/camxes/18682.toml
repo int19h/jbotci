@@ -31,18 +31,19 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}},{"PlainWord":{"G
 
 [expectations.output.gentufa]
 tree = """
-Terms @[0‥18) {
-  terms: [
-    Description @[0‥18) {
-      description: Cmavo @[0‥2) "la",
-      selbri: Tanru @[3‥18) {
-        Gismu @[3‥8) "jámna",
+DescriptorWithGadriSumti @[0‥18) {
+  description: Cmavo @[0‥2) "la",
+  tail: DescriptionTail @[3‥18) {
+    leading_tail_elements: LeadingDescriptionTailElements {},
+    tail: TanruSelbri @[3‥18) {
+      first_unit: Gismu @[3‥8) "jámna",
+      additional_units: [
         WithIndicator @[9‥18) {
           Gismu @[9‥14) "gánxo",
           indicator: Cmavo @[15‥18) "peĭ",
         },
-      },
+      ],
     },
-  ],
+  },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"Sumti":{"Description":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jámna","span":[3,8]}}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gánxo","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[15,18]}}}}}]}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"DescriptorWithGadriSumti":{"description":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[0,2]}}}},"tail":{"leading_tail_elements":{},"tail":{"RelationDescriptionTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"jámna","span":[3,8]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"gánxo","span":[9,14]}}}},"indicator":{"Cmavo":{"phonemes":"peĭ","span":[15,18]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}'

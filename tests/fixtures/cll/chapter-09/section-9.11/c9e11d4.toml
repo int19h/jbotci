@@ -42,31 +42,31 @@ tree = """
 json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}},{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}},{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}},{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[14,18]}}},{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[18,20]}}},{"PlainWord":{"Cmavo":{"phonemes":"la","span":[21,23]}}},{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[25,30]}}}]"""
 
 [expectations.output.gentufa]
-brackets = "(mi [nélci {do .e ki'u bo (la .djeĭn.)}])"
+brackets = "(mi [nélci {do (.e ki'u bo [la .djeĭn.])}])"
 tree = """
-Bridi @[0‥30) {
+BridiWithLeadingTerms @[0‥30) {
   leading_terms: [
     Cmavo @[0‥2) "mi",
   ],
-  SelbriBridiTail @[3‥30) {
-    Gismu @[3‥8) "nélci",
+  bridi_tail: SelbriSimpleBridiTail @[3‥30) {
+    selbri: Gismu @[3‥8) "nélci",
     terms: [
-      BoundSumtiConnection @[9‥30) {
+      SumtiBound @[9‥30) {
         leading_sumti: Cmavo @[9‥11) "do",
-        bo_connective: Cmavo @[13‥14) "e",
-        bo_tense_modal: Modal @[14‥18) {
-          bai: Cmavo @[14‥18) "ki'u",
-        },
-        bo: Cmavo @[18‥20) "bo",
-        trailing_sumti: NameDescription @[21‥30) {
-          la: Cmavo @[21‥23) "la",
-          names: [
-            Cmevla @[25‥30) "djeĭn",
-          ],
+        bound_tail: BoundSumtiTail @[13‥30) {
+          connective: Cmavo @[13‥14) "e",
+          tense_modal: Cmavo @[14‥18) "ki'u",
+          bo: Cmavo @[18‥20) "bo",
+          trailing_sumti: NameSumti @[21‥30) {
+            la: Cmavo @[21‥23) "la",
+            names: [
+              Cmevla @[25‥30) "djeĭn",
+            ],
+          },
         },
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}},"terms":[{"Sumti":{"BoundSumtiConnection":{"leading_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}},"bo_connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}]}},"bo_tense_modal":{"Modal":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[14,18]}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[18,20]}}}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[21,23]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[25,30]}}}}]}}}}}]}}}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"nélci","span":[3,8]}}}}}}}}}}}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}},"bound_tail":{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[13,14]}}}}}},"tense_modal":{"TenseModalAtom":{"ModalTense":{"bai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ki'u","span":[14,18]}}}}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[18,20]}}}},"trailing_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[21,23]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djeĭn","span":[25,30]}}}}]}}}}}}}}}}}}}}]}}}}}}}}}}}}}}}}}}"""
 

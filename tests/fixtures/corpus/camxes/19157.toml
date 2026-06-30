@@ -34,15 +34,15 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}},{"PlainWord":{"Cm
 tree = """
 ParagraphStatement @[0‥17) {
   i: Cmavo @[0‥1) "i",
-  Bridi @[2‥17) {
+  BridiWithLeadingTerms @[2‥17) {
     leading_terms: [
       Cmavo @[2‥4) "mi",
     ],
-    WithIndicator @[5‥17) {
+    bridi_tail: WithIndicator @[5‥17) {
       Gismu @[5‥10) "tcíca",
       indicator: Cmavo @[11‥14) "saĭ",
       nai: Cmavo @[14‥17) "naĭ",
     },
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"SelbriWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcíca","span":[5,10]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[11,14]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[0,1]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[2,4]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"tcíca","span":[5,10]}}}},"indicator":{"Cmavo":{"phonemes":"saĭ","span":[11,14]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[14,17]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

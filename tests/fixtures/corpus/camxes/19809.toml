@@ -29,8 +29,10 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-NumberQuantifier @[0‥6) {
-  Cmavo @[0‥4) "ni'u",
-  Cmavo @[4‥6) "pa",
+NumberWords @[0‥6) {
+  first_number: Cmavo @[0‥4) "ni'u",
+  continuations: [
+    Cmavo @[4‥6) "pa",
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Mekso":{"NumberMekso":{"NumberQuantifier":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}}},{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[4,6]}}}}]}}}}}}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"MeksoFragment":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ni'u","span":[0,4]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[4,6]}}}}}]}}}}}}}}}}}"""

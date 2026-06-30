@@ -32,19 +32,21 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"me","span":[0,2]}}},{"PlainWord":{"C
 
 [expectations.output.gentufa]
 tree = """
-Tanru @[0‥21) {
-  SumtiSelbri @[0‥12) {
+TanruSelbri @[0‥21) {
+  first_unit: SumtiSelbriTanruUnit @[0‥12) {
     me: Cmavo @[0‥2) "me",
-    NameDescription @[3‥12) {
+    sumti: NameSumti @[3‥12) {
       la: Cmavo @[3‥5) "la",
       names: [
         Cmevla @[6‥12) "turing",
       ],
     },
   },
-  WithIndicator @[13‥21) {
-    Gismu @[13‥18) "mínji",
-    indicator: Cmavo @[19‥21) "xu",
-  },
+  additional_units: [
+    WithIndicator @[13‥21) {
+      Gismu @[13‥18) "mínji",
+      indicator: Cmavo @[19‥21) "xu",
+    },
+  ],
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"SumtiSelbri":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[0,2]}}}},"sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"turing","span":[6,12]}}}}]}}}},{"TanruUnitWord":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mínji","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[19,21]}}}}}]}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"SumtiSelbriTanruUnit":{"me":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"me","span":[0,2]}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[3,5]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"turing","span":[6,12]}}}}]}}}}}}}}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mínji","span":[13,18]}}}},"indicator":{"Cmavo":{"phonemes":"xu","span":[19,21]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}'

@@ -33,28 +33,26 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥27) {
-  leading_free_modifiers: [
-    Vocative @[0‥27) {
-      vocative_markers: [
-        Cmavo @[0‥4) "fi'i",
+VocativeFreeModifier @[0‥27) {
+  vocative_markers: Cmavo @[0‥4) "fi'i",
+  sumti: SumtiAfterthought @[5‥27) {
+    leading_sumti: NameSumti @[5‥13) {
+      la: Cmavo @[5‥7) "la",
+      names: [
+        Cmevla @[8‥13) "frank",
       ],
-      sumti: SumtiConnection @[5‥27) {
-        leading_sumti: NameDescription @[5‥13) {
-          la: Cmavo @[5‥7) "la",
-          names: [
-            Cmevla @[8‥13) "frank",
-          ],
-        },
+    },
+    continuations: [
+      SumtiAfterthoughtTail @[16‥27) {
         connective: Cmavo @[16‥17) "e",
-        trailing_sumti: NameDescription @[18‥27) {
+        sumti: NameSumti @[18‥27) {
           la: Cmavo @[18‥20) "la",
           names: [
             Cmevla @[21‥27) "djordj",
           ],
         },
       },
-    },
-  ],
+    ],
+  },
 }"""
-json = """{"leading_free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}}}],"sumti":{"SumtiConnection":{"leading_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frank","span":[8,13]}}}}]}},"connective":{"Afterthought":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[16,17]}}}}]}},"trailing_sumti":{"NameDescription":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[18,20]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[21,27]}}}}]}}}}}}]}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fi'i","span":[0,4]}}}}}},"sumti":{"Sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[5,7]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"frank","span":[8,13]}}}}]}}}}}},"continuations":[{"connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[16,17]}}}}}},"sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NameSumti":{"la":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"la","span":[18,20]}}}},"names":[{"Plain":{"PlainWord":{"Cmevla":{"phonemes":"djordj","span":[21,27]}}}}]}}}}}}}]}}}}}}]}}"""

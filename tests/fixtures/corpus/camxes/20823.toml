@@ -36,37 +36,37 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}},{"PlainWord":{"
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[1‥32) {
-  ParagraphStatement @[1‥20) {
-    i: Cmavo @[1‥2) "i",
-    Bridi @[3‥20) {
+ParagraphStatement @[1‥32) {
+  i: Cmavo @[1‥2) "i",
+  ParagraphStatementSequence @[3‥32) {
+    BridiWithLeadingTerms @[3‥20) {
       leading_terms: [
         Cmavo @[3‥5) "mi",
       ],
-      Negated @[6‥20) {
+      bridi_tail: NegatedSelbri @[6‥20) {
         na: Cmavo @[6‥8) "na",
-        TaggedSelbri @[9‥20) {
-          tense_modal: Composite @[9‥14) {
-            Cmavo @[9‥11) "pa",
-            Cmavo @[11‥14) "roĭ",
-          },
-          Gismu @[15‥20) "mrílu",
+        inner_selbri: TaggedSelbri @[9‥20) {
+          tense_modal: [
+            NumberedIntervalPropertyTense @[9‥14) {
+              number: Cmavo @[9‥11) "pa",
+              roi: Cmavo @[11‥14) "roĭ",
+            },
+          ],
+          inner_selbri: Gismu @[15‥20) "mrílu",
         },
       },
     },
-  },
-  ParagraphStatement @[22‥32) {
-    i: WithIndicator @[22‥27) {
-      Cmavo @[22‥23) "i",
-      indicator: Cmavo @[23‥27) "ku'i",
-    },
-    free_modifiers: [
-      Vocative @[28‥32) {
-        vocative_markers: [
+    following: [
+      ParagraphStatement @[22‥32) {
+        i: WithIndicator @[22‥27) {
+          Cmavo @[22‥23) "i",
+          indicator: Cmavo @[23‥27) "ku'i",
+        },
+        free_modifiers: [
           Cmavo @[28‥32) "vi'o",
         ],
       },
     ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Negated":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[6,8]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"Composite":{"parts":[{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[9,11]}}}}},{"Cmavo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[11,14]}}}}}]}},"inner_selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[15,20]}}}}}}}}}}}}}}}}},{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[22,23]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[23,27]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi'o","span":[28,32]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[3,5]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"NegatedSelbri":{"na":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na","span":[6,8]}}}},"inner_selbri":{"TaggedSelbri":{"tense_modal":{"TenseModalAtom":{"CompositeTense":{"TimeSpaceCahaKiTense":{"tense":{"TimeThenSpaceCahaTense":{"time":{"TimeTenseWithProperties":{"properties":[{"NumberedIntervalPropertyTense":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[9,11]}}}}},"roi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[11,14]}}}}}}]}}}}}}}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"mrílu","span":[15,20]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"following":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[22,23]}}}},"indicator":{"Cmavo":{"phonemes":"ku'i","span":[23,27]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"vi'o","span":[28,32]}}}}}}}}]}]}}}}}}"""

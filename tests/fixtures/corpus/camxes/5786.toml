@@ -28,12 +28,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[8,10]}}}]'
 
 [expectations.output.gentufa]
 tree = """
-Terms @[8‥10) {
-  terms: [
-    PlaceTaggedSumti @[8‥10) {
-      fa: Cmavo @[8‥10) "fe",
-      ElidedSumti {},
-    },
-  ],
+PlaceTaggedSumtiTerm @[8‥10) {
+  fa: Cmavo @[8‥10) "fe",
+  sumti: TaggedElidedSumti {},
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"Terms":{"terms":[{"PlaceTaggedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[8,10]}}}},"sumti":{"ElidedSumti":{}}}}]}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"PlaceTaggedSumtiTerm":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fe","span":[8,10]}}}},"sumti":{}}}}}]}}}}}}}}}'

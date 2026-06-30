@@ -36,17 +36,11 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[0,2]}}},{"PlainWord":{"C
 [expectations.output.gentufa]
 brackets = "(ny maĭ)"
 tree = """
-Text @[0‥6) {
-  leading_free_modifiers: [
-    UtteranceOrdinal @[0‥6) {
-      number: [
-        Cmavo @[0‥2) "ny",
-      ],
-      mai: Cmavo @[3‥6) "maĭ",
-    },
-  ],
+MaiFreeModifier @[0‥6) {
+  number: Cmavo @[0‥2) "ny",
+  mai: Cmavo @[3‥6) "maĭ",
 }"""
-json = '{"leading_free_modifiers":[{"UtteranceOrdinal":{"number":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[0,2]}}}}],"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"maĭ","span":[3,6]}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"MaiFreeModifier":{"number":{"LetterString":{"first_letter":{"SimpleLerfuWord":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ny","span":[0,2]}}}}}}},"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"maĭ","span":[3,6]}}}}}}]}}'
 
 [expectations.output.tersmu]
 json = '''{"version":"lojban-semantics-json-1","root":"sequence:5","objects":{"sequence:5":{"type":"sequence","relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":6},"text":"ny.mai","construct":"text"}}}}'''

@@ -40,13 +40,15 @@ ParagraphStatement @[1‥31) {
     indicator: Cmavo @[4‥7) "u'u",
     nai: Cmavo @[7‥10) "naĭ",
   },
-  Tanru @[11‥31) {
-    TanruUnitConnection @[11‥25) {
-      leading_unit: Gismu @[11‥16) "péndo",
-      connective: Cmavo @[17‥19) "je",
-      trailing_unit: Gismu @[20‥25) "prámi",
+  TanruSelbri @[11‥31) {
+    first_unit: TanruUnit @[11‥25) {
+      Gismu @[11‥16) "péndo",
+      Cmavo @[17‥19) "je",
+      Gismu @[20‥25) "prámi",
     },
-    Gismu @[26‥31) "vídru",
+    additional_units: [
+      Gismu @[26‥31) "vídru",
+    ],
   },
 }"""
-json = """{"paragraphs":[{"statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"u'u","span":[4,7]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}}},"statement":{"Bridi":{"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitConnection":{"leading_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[11,16]}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[17,19]}}}}]}},"trailing_unit":{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[20,25]}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vídru","span":[26,31]}}}}}]}}}}}}}}}]}]}"""
+json = """{"RegularText":{"leading_i_statements":[{"i":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"indicator":{"Cmavo":{"phonemes":"u'u","span":[4,7]}},"nai":{"Cmavo":{"phonemes":"naĭ","span":[7,10]}}}}}],"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"péndo","span":[11,16]}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"je","span":[17,19]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"prámi","span":[20,25]}}}}}}}}}]},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"vídru","span":[26,31]}}}}}}}}}]}}}}}}}}}}}}}}}}}}}}}}"""

@@ -32,11 +32,7 @@ tree = """
 ParagraphStatement @[1‥6) {
   i: Cmavo @[1‥2) "i",
   free_modifiers: [
-    Vocative @[3‥6) {
-      vocative_markers: [
-        Cmavo @[3‥6) "coĭ",
-      ],
-    },
+    Cmavo @[3‥6) "coĭ",
   ],
 }"""
-json = '{"paragraphs":[{"statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}]}}]}]}]}'
+json = '{"RegularText":{"leading_i_statements":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[1,2]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[3,6]}}}}}}}}]}]}}'

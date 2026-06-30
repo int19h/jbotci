@@ -31,8 +31,9 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}},{"PlainWord":{"C
 tree = """
 LinkedSumti @[0‥5) {
   be: Cmavo @[0‥2) "be",
-  first_sumti: ElidedSumti @[3‥5) {
-    tag: Cmavo @[3‥5) "fo",
+  first_link: PlaceTaggedLinkedSumti @[3‥5) {
+    fa: Cmavo @[3‥5) "fo",
+    sumti: TaggedElidedSumti {},
   },
 }"""
-json = '{"paragraphs":[{"statements":[{"statement":{"Fragment":{"LinkedSumti":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}}},"first_sumti":{"ElidedSumti":{"tag":{"PlaceTag":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}}}}}}}}}]}]}'
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"LinkedSumtiFragment":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}}},"first_link":{"PlaceTaggedLinkedSumti":{"fa":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"fo","span":[3,5]}}}},"sumti":{}}}}}}}}}}}}'

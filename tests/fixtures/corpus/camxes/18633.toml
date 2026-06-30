@@ -41,44 +41,48 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-Paragraph @[0‥69) {
-  Bridi @[0‥61) {
+ParagraphStatementSequence @[0‥69) {
+  BridiWithLeadingTerms @[0‥61) {
     leading_terms: [
       Cmavo @[0‥2) "mi",
     ],
-    Tanru @[3‥61) {
-      TanruUnitConnection @[3‥55) {
-        leading_unit: GroupedTanruUnit @[3‥24) {
+    bridi_tail: TanruSelbri @[3‥61) {
+      first_unit: TanruUnit @[3‥55) {
+        GroupedTanruUnit @[3‥24) {
           ke: Cmavo @[3‥5) "ke",
-          Tanru @[6‥19) {
-            Lujvo @[6‥13) "vácysaĭ",
-            Gismu @[14‥19) "cítka",
+          selbri: TanruSelbri @[6‥19) {
+            first_unit: Lujvo @[6‥13) "vácysaĭ",
+            additional_units: [
+              Gismu @[14‥19) "cítka",
+            ],
           },
           kehe: Cmavo @[20‥24) "ke'e",
         },
-        connective: Cmavo @[25‥27) "ja",
-        trailing_unit: GroupedTanruUnit @[28‥55) {
+        Cmavo @[25‥27) "ja",
+        GroupedTanruUnit @[28‥55) {
           ke: Cmavo @[28‥30) "ke",
-          Tanru @[31‥50) {
-            Gismu @[31‥36) "lánka",
-            Gismu @[37‥42) "cécla",
-            Lujvo @[43‥50) "sluzú'e",
+          selbri: TanruSelbri @[31‥50) {
+            first_unit: Gismu @[31‥36) "lánka",
+            additional_units: [
+              Gismu @[37‥42) "cécla",
+              Lujvo @[43‥50) "sluzú'e",
+            ],
           },
           kehe: Cmavo @[51‥55) "ke'e",
         },
       },
-      Gismu @[56‥61) "clíva",
+      additional_units: [
+        Gismu @[56‥61) "clíva",
+      ],
     },
   },
-  ParagraphStatement @[63‥69) {
-    i: Cmavo @[63‥64) "i",
-    free_modifiers: [
-      Vocative @[65‥69) {
-        vocative_markers: [
-          Cmavo @[65‥69) "co'o",
-        ],
-      },
-    ],
-  },
+  following: [
+    ParagraphStatement @[63‥69) {
+      i: Cmavo @[63‥64) "i",
+      free_modifiers: [
+        Cmavo @[65‥69) "co'o",
+      ],
+    },
+  ],
 }"""
-json = """{"paragraphs":[{"statements":[{"statement":{"Bridi":{"leading_terms":[{"Sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}],"bridi_tail":{"first":{"first":{"first":{"SelbriBridiTail":{"selbri":{"Tanru":[{"TanruUnitConnection":{"leading_unit":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[3,5]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"vác"},{"Hyphen":"y"},{"Rafsi":"saĭ"}],"span":[6,13]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[14,19]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[20,24]}}}}}},"connective":{"Selbri":{"cmavo":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[25,27]}}}}]}},"trailing_unit":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[28,30]}}}},"selbri":{"Tanru":[{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lánka","span":[31,36]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cécla","span":[37,42]}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"slu"},{"Rafsi":"zú'e"}],"span":[43,50]}}}}}]},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[51,55]}}}}}}}},{"TanruUnitWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[56,61]}}}}}]}}}}}}}}},{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[63,64]}}}},"free_modifiers":[{"Vocative":{"vocative_markers":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[65,69]}}}}]}}]}]}]}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[3,5]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"vác"},{"Hyphen":"y"},{"Rafsi":"saĭ"}],"span":[6,13]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cítka","span":[14,19]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[20,24]}}}}}}}}},"links":[{"connective":{"JekConnective":{"ja":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ja","span":[25,27]}}}}}},"trailing_unit":{"LinkedTanruUnit":{"base":{"base":{"GroupedTanruUnit":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[28,30]}}}},"selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"lánka","span":[31,36]}}}}}}}}},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"cécla","span":[37,42]}}}}}}}}},{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Lujvo":{"parts":[{"Rafsi":"slu"},{"Rafsi":"zú'e"}],"span":[43,50]}}}}}}}}}]}},"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[51,55]}}}}}}}}}}]},"additional_units":[{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"clíva","span":[56,61]}}}}}}}}}]}}}}}}}}}}}}}}}}},"following":[{"i":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"i","span":[63,64]}}}},"free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[65,69]}}}}}}}}]}]}}}}}}"""

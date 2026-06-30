@@ -37,22 +37,18 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}},{"QuotedWord":
 
 [expectations.output.gentufa]
 tree = """
-Text @[0‥27) {
-  leading_free_modifiers: [
-    MetalinguisticBridi @[0‥27) {
-      sei: Cmavo @[0‥3) "seĭ",
-      terms: [
-        QuotedWord @[4‥12) {
-          zo: Cmavo @[4‥6) "zo",
-          Gismu @[7‥12) "cásnu",
-        },
-        QuotedWord @[13‥21) {
-          zo: Cmavo @[13‥15) "zo",
-          Gismu @[16‥21) "cásna",
-        },
-      ],
-      selbri: Gismu @[22‥27) "básti",
+SeiFreeModifier @[0‥27) {
+  sei: Cmavo @[0‥3) "seĭ",
+  terms: [
+    QuotedWord @[4‥12) {
+      zo: Cmavo @[4‥6) "zo",
+      Gismu @[7‥12) "cásnu",
+    },
+    QuotedWord @[13‥21) {
+      zo: Cmavo @[13‥15) "zo",
+      Gismu @[16‥21) "cásna",
     },
   ],
+  selbri: Gismu @[22‥27) "básti",
 }"""
-json = '{"leading_free_modifiers":[{"MetalinguisticBridi":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Gismu":{"phonemes":"cásnu","span":[7,12]}}}}}}}},{"Sumti":{"QuotedSumti":{"WordQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Gismu":{"phonemes":"cásna","span":[16,21]}}}}}}}}],"selbri":{"SelbriWord":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[22,27]}}}}}}}]}'
+json = '{"RegularText":{"leading_free_modifiers":[{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[0,3]}}}},"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[4,6]}},"word":{"Gismu":{"phonemes":"cásnu","span":[7,12]}}}}}}}}}}}}}}}}},{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"QuotedSumti":{"GenericCompoundQuote":{"Plain":{"QuotedWord":{"zo":{"Cmavo":{"phonemes":"zo","span":[13,15]}},"word":{"Gismu":{"phonemes":"cásna","span":[16,21]}}}}}}}}}}}}}}}}}],"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"básti","span":[22,27]}}}}}}}}}}}}}}}}]}}'
