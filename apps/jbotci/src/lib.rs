@@ -31,10 +31,10 @@ use jbotci_embeddings::{
     semantic_cukta_output, semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
-    ElidedTerminator, EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions,
-    GentufaPngOptions, GentufaScript, GentufaSvgOptions, WebSourceRange, blocks_layout,
-    elided_terminators, generated_model_blocks_layout_with_references, render_gentufa_blocks_png,
-    render_gentufa_blocks_svg, rendered_leaves,
+    EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
+    GentufaScript, GentufaSvgOptions, WebSourceRange,
+    generated_model_blocks_layout_with_references, render_gentufa_blocks_png,
+    render_gentufa_blocks_svg,
 };
 use jbotci_gimfihi::{
     CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
@@ -59,11 +59,9 @@ use jbotci_output::{
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, format_definition_or_notes_line_with_indexed_places,
-    generated_reference_display_from_legacy, ipa_morphology_text,
-    pretty_generated_model_brackets_with_options,
-    pretty_generated_model_tree_with_legacy_references, pretty_generated_model_tree_with_options,
-    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
-    reference_display_model_for_syntax_tree, render_diagnostics, render_trace_report,
+    generated_reference_display, ipa_morphology_text, pretty_generated_model_brackets_with_options,
+    pretty_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
+    pretty_morphology_tree_with_options, render_diagnostics, render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
@@ -74,13 +72,11 @@ use jbotci_search::vlacku::{
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    references::ReferenceAnalysis,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_generated_model_with_source_and_options_attempt,
-    parse_syntax_tree_with_source_and_options,
 };
 #[cfg(feature = "grammar-debug")]
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
@@ -4443,7 +4439,6 @@ fn render_gentufa(
                 &generated_model,
                 &text,
                 words.as_slice(),
-                &parse_options,
                 phoneme_options,
                 output_type,
             )?;
@@ -4484,18 +4479,8 @@ fn render_gentufa(
                 decompose_lujvo: input.decompose_lujvo,
                 show_elided: false,
             };
-            let rendered = if input.show_refs {
-                let legacy_parse =
-                    parse_syntax_tree_with_source_and_options(&words, &text, &parse_options)?;
-                pretty_generated_model_tree_with_legacy_references(
-                    &generated_model,
-                    &legacy_parse.parse_tree,
-                    &text,
-                    tree_options,
-                )?
-            } else {
-                pretty_generated_model_tree_with_options(&generated_model, &text, tree_options)?
-            };
+            let rendered =
+                pretty_generated_model_tree_with_options(&generated_model, &text, tree_options)?;
             stdout.push_str(&rendered);
             stdout.push('\n');
         }
@@ -4664,77 +4649,10 @@ fn render_tersmu(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
-fn render_gentufa_blocks_output(
-    syntax: &jbotci_syntax::ast::TextSyntax,
-    source: &str,
-    words: &[WordLike],
-    phoneme_options: PhonemeRenderOptions,
-    show_elided: bool,
-    output_type: GentufaImageOutputType,
-) -> Result<Vec<u8>> {
-    let analysis =
-        ReferenceAnalysis::analyze(syntax).map_err(|error| anyhow!(error.to_string()))?;
-    let reference_model = reference_display_model_for_syntax_tree(
-        &analysis,
-        syntax,
-        source,
-        TreeRenderOptions {
-            color: false,
-            indent: 2,
-            phonemes: phoneme_options,
-            glyphs: GlyphStyle::Unicode,
-            show_spans: false,
-            show_refs: true,
-            decompose_lujvo: false,
-            show_elided,
-        },
-    );
-    let block_options = GentufaBlockOptions {
-        script: GentufaScript::Latin,
-        show_elided,
-        phonemes: phoneme_options,
-    };
-    let leaves = rendered_leaves(syntax, source, &block_options);
-    let elided = elided_terminators(&analysis, syntax, &block_options);
-    let mut annotations = gentufa_block_annotations(words);
-    annotations.extend(gentufa_elided_block_annotations(&elided));
-    let layout = blocks_layout(
-        &analysis,
-        &reference_model,
-        source,
-        &leaves,
-        &elided,
-        &annotations,
-        &block_options,
-    );
-    let svg_options = GentufaSvgOptions {
-        show_glosses: true,
-        script: GentufaScript::Latin,
-        title: "jbotci gentufa blocks".to_owned(),
-    };
-    let fonts = EmbeddedGentufaFonts::get();
-    match output_type {
-        GentufaImageOutputType::Svg => {
-            Ok(render_gentufa_blocks_svg(&layout, &svg_options, fonts)?.into_bytes())
-        }
-        GentufaImageOutputType::Png => Ok(render_gentufa_blocks_png(
-            &layout,
-            &GentufaPngOptions {
-                svg: svg_options,
-                ..GentufaPngOptions::default()
-            },
-            fonts,
-        )?),
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
 fn render_gentufa_generated_blocks_output(
     syntax: &jbotci_syntax::generated_model::TextSyntax,
     source: &str,
     words: &[WordLike],
-    parse_options: &ParseOptions,
     phoneme_options: PhonemeRenderOptions,
     output_type: GentufaImageOutputType,
 ) -> Result<Vec<u8>> {
@@ -4744,10 +4662,8 @@ fn render_gentufa_generated_blocks_output(
         phonemes: phoneme_options,
     };
     let annotations = gentufa_block_annotations(words);
-    let legacy_parse = parse_syntax_tree_with_source_and_options(words, source, parse_options)?;
-    let reference_display = generated_reference_display_from_legacy(
+    let reference_display = generated_reference_display(
         syntax,
-        &legacy_parse.parse_tree,
         source,
         TreeRenderOptions {
             color: false,
@@ -4763,7 +4679,7 @@ fn render_gentufa_generated_blocks_output(
     let layout = generated_model_blocks_layout_with_references(
         syntax,
         source,
-        Some(&reference_display.syntax_index),
+        Some(&reference_display.analysis.syntax_index),
         Some(&reference_display.references),
         &annotations,
         &block_options,
@@ -4787,38 +4703,6 @@ fn render_gentufa_generated_blocks_output(
             fonts,
         )?),
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn gentufa_elided_block_annotations(
-    terminators: &[ElidedTerminator],
-) -> Vec<GentufaBlockAnnotation<()>> {
-    terminators
-        .iter()
-        .filter_map(|terminator| {
-            let output = run_vlacku_requests(
-                jbotci_dictionary_data::english(),
-                &[VlackuRequest::Valsi(terminator.dictionary_text.clone())],
-                &VlackuSearchOptions {
-                    count: 1,
-                    word_types: Vec::new(),
-                    min_votes: None,
-                    min_similarity: None,
-                    decompose_lujvo: false,
-                },
-            );
-            let card = output.cards.into_iter().next()?;
-            Some(GentufaBlockAnnotation {
-                range: terminator.range,
-                text: Some(terminator.text.clone()),
-                glosses: card.glosses,
-                definition: Some(card.definition.trim().to_owned())
-                    .filter(|definition| !definition.is_empty()),
-                tooltip: None,
-            })
-        })
-        .collect()
 }
 
 #[requires(true)]

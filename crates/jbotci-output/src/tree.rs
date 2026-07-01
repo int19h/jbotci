@@ -10,7 +10,8 @@ use jbotci_morphology::{
     WordLikeData,
 };
 use jbotci_semantics::references::{
-    GeneratedSyntaxIndex, RawSyntaxNodeId, ReferenceAnalysis, SyntaxIndex,
+    GeneratedReferenceAnalysis, GeneratedSyntaxIndex, RawSyntaxNodeId, ReferenceAnalysis,
+    SyntaxIndex,
 };
 use jbotci_source::SourceSpan;
 use jbotci_syntax::ast::{
@@ -33,7 +34,7 @@ use crate::references::ReferenceDisplayModel;
 #[derive(Debug)]
 #[invariant(true)]
 pub struct GeneratedReferenceDisplay<'tree> {
-    pub syntax_index: GeneratedSyntaxIndex<'tree>,
+    pub analysis: GeneratedReferenceAnalysis<'tree>,
     pub references: ReferenceDisplayModel,
 }
 use crate::{GlyphStyle, OutputError, TreeRenderOptions};
@@ -219,13 +220,27 @@ pub fn pretty_generated_model_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    if options.show_refs {
-        return Err(OutputError::References(
-            "generated-model syntax reference rendering is not wired yet".to_owned(),
-        ));
-    }
-    let value = projected_generated_syntax_tree_value_with_index(tree, source, options, None);
-    Ok(render_tree_value_with_options(&value, options, None))
+    let reference_analysis = if options.show_refs {
+        Some(
+            GeneratedReferenceAnalysis::analyze(tree)
+                .map_err(|error| OutputError::References(error.to_string()))?,
+        )
+    } else {
+        None
+    };
+    let syntax_index = reference_analysis
+        .as_ref()
+        .map(|analysis| &analysis.syntax_index);
+    let value =
+        projected_generated_syntax_tree_value_with_index(tree, source, options, syntax_index);
+    let references = reference_analysis
+        .as_ref()
+        .map(|analysis| ReferenceDisplayModel::new_generated(analysis, &value, source, options));
+    Ok(render_tree_value_with_options(
+        &value,
+        options,
+        references.as_ref(),
+    ))
 }
 
 #[doc(hidden)]
@@ -238,14 +253,14 @@ pub fn pretty_generated_model_tree_with_legacy_references(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     let GeneratedReferenceDisplay {
-        syntax_index,
+        analysis,
         references,
     } = generated_reference_display_from_legacy(generated_tree, legacy_tree, source, options)?;
     let generated_value = projected_generated_syntax_tree_value_with_index(
         generated_tree,
         source,
         options,
-        Some(&syntax_index),
+        Some(&analysis.syntax_index),
     );
     Ok(render_tree_value_with_options(
         &generated_value,
@@ -267,13 +282,41 @@ pub fn pretty_generated_model_tree_with_reference_display(
         generated_tree,
         source,
         options,
-        Some(&display.syntax_index),
+        Some(&display.analysis.syntax_index),
     );
     Ok(render_tree_value_with_options(
         &generated_value,
         options,
         Some(&display.references),
     ))
+}
+
+#[doc(hidden)]
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn generated_reference_display<'tree>(
+    generated_tree: &'tree GeneratedTextSyntax,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
+    let reference_analysis = GeneratedReferenceAnalysis::analyze(generated_tree)
+        .map_err(|error| OutputError::References(error.to_string()))?;
+    let generated_value = projected_generated_syntax_tree_value_with_index(
+        generated_tree,
+        source,
+        options,
+        Some(&reference_analysis.syntax_index),
+    );
+    let references = ReferenceDisplayModel::new_generated(
+        &reference_analysis,
+        &generated_value,
+        source,
+        options,
+    );
+    Ok(GeneratedReferenceDisplay {
+        analysis: reference_analysis,
+        references,
+    })
 }
 
 #[doc(hidden)]
@@ -287,7 +330,7 @@ pub fn generated_reference_display_from_legacy<'tree>(
 ) -> Result<GeneratedReferenceDisplay<'tree>, OutputError> {
     let reference_analysis = ReferenceAnalysis::analyze(legacy_tree)
         .map_err(|error| OutputError::References(error.to_string()))?;
-    let generated_index = GeneratedSyntaxIndex::new(generated_tree)
+    let generated_analysis = GeneratedReferenceAnalysis::analyze(generated_tree)
         .map_err(|error| OutputError::References(error.to_string()))?;
     let legacy_value = collapse_value(syntax_tree_value(
         legacy_tree,
@@ -295,13 +338,15 @@ pub fn generated_reference_display_from_legacy<'tree>(
         options,
         Some(&reference_analysis.syntax_index),
     ));
-    let id_map =
-        syntax_id_translation_by_source_spans(&reference_analysis.syntax_index, &generated_index);
+    let id_map = syntax_id_translation_by_source_spans(
+        &reference_analysis.syntax_index,
+        &generated_analysis.syntax_index,
+    );
     let references =
         ReferenceDisplayModel::new(&reference_analysis, &legacy_value, source, options)
             .translated_syntax_ids(&id_map);
     Ok(GeneratedReferenceDisplay {
-        syntax_index: generated_index,
+        analysis: generated_analysis,
         references,
     })
 }

@@ -49,10 +49,10 @@ use jbotci_morphology::{
 use jbotci_output::{
     BracketSourceFragment, BracketSourceRange, GlyphStyle, ReferenceDisplayModel,
     TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
-    generated_reference_display_from_legacy, indexed_place_spans_for_definition_or_notes_line,
-    ipa_morphology_text, phoneme_render_options_for_script,
-    pretty_generated_model_tree_with_reference_display, reference_slot_name_for_place_slot,
-    render_lojban_text_for_script_with_options,
+    generated_reference_display, generated_reference_slot_name_for_place_slot,
+    indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
+    phoneme_render_options_for_script, pretty_generated_model_tree_with_reference_display,
+    reference_slot_name_for_place_slot, render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -62,13 +62,11 @@ use jbotci_search::vlacku::{
     vlacku_exact_query_is_pattern,
 };
 use jbotci_semantics::references::{
-    PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId, SumtiPlaceAssignmentId,
+    GeneratedReferenceAnalysis, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, SelbriPlaceFrameId,
+    SumtiPlaceAssignmentId,
 };
 use jbotci_source::SourceId;
-use jbotci_syntax::{
-    ParseOptions, parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_with_source_and_options,
-};
+use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -456,18 +454,6 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let legacy_parse =
-        match parse_syntax_tree_with_source_and_options(&words, source, &parse_options) {
-            Ok(parsed) => parsed,
-            Err(error) => {
-                diagnostics.push(error.to_diagnostic(source_id, source));
-                return GentufaWebResult::Error(GentufaError {
-                    phase: Some(DiagnosticPhase::Syntax),
-                    message: error.to_string(),
-                    diagnostics,
-                });
-            }
-        };
     let tree_options = TreeRenderOptions {
         color: false,
         indent: 2,
@@ -478,21 +464,17 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         decompose_lujvo: false,
         show_elided: false,
     };
-    let reference_display = match generated_reference_display_from_legacy(
-        &generated_model,
-        &legacy_parse.parse_tree,
-        source,
-        tree_options,
-    ) {
-        Ok(display) => display,
-        Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            });
-        }
-    };
+    let reference_display =
+        match generated_reference_display(&generated_model, source, tree_options) {
+            Ok(display) => display,
+            Err(error) => {
+                return GentufaWebResult::Error(GentufaError {
+                    phase: Some(DiagnosticPhase::Syntax),
+                    message: error.to_string(),
+                    diagnostics,
+                });
+            }
+        };
     let tree_text = match pretty_generated_model_tree_with_reference_display(
         &generated_model,
         source,
@@ -510,15 +492,19 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     };
     let block_options = gentufa_block_options(&request.options);
     let generated_annotations = Vec::<GentufaBlockAnnotation<DictionaryTooltipCard>>::new();
-    let blocks_layout = generated_blocks_layout_with_empty_reference_tooltips(
+    let blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
         generated_syntax_blocks_layout_with_references(
             &generated_model,
             source,
-            Some(&reference_display.syntax_index),
+            Some(&reference_display.analysis.syntax_index),
             Some(&reference_display.references),
             &generated_annotations,
             &block_options,
         ),
+        &reference_display.analysis,
+        source,
+        &block_options,
+        "",
     );
     let tree_rows = generated_model_tree_rows_from_text(&tree_text);
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
@@ -583,14 +569,22 @@ fn generated_model_tree_rows_from_text(tree_text: &str) -> Vec<GentufaTreeRow> {
 
 #[requires(true)]
 #[ensures(ret.max_col == layout.max_col)]
-fn generated_blocks_layout_with_empty_reference_tooltips(
+fn attach_generated_reference_tooltips_to_blocks_layout(
     layout: BareGentufaBlocksLayout,
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+    base_path: &str,
 ) -> GentufaBlocksLayout {
     GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
-            .map(generated_block_with_empty_reference_tooltips)
+            .map(|block| {
+                attach_generated_reference_tooltips_to_block(
+                    block, analysis, source, options, base_path,
+                )
+            })
             .collect(),
         max_col: layout.max_col,
         max_row: layout.max_row,
@@ -599,7 +593,13 @@ fn generated_blocks_layout_with_empty_reference_tooltips(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_block_with_empty_reference_tooltips(block: BareGentufaBlock) -> GentufaBlock {
+fn attach_generated_reference_tooltips_to_block(
+    block: BareGentufaBlock,
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> GentufaBlock {
     let jbotci_gentufa::GentufaBlock {
         block_id,
         node_ids,
@@ -632,10 +632,13 @@ fn generated_block_with_empty_reference_tooltips(block: BareGentufaBlock) -> Gen
         is_leaf,
         is_elided,
         token_kind,
-        ref_markers: ref_markers
-            .into_iter()
-            .map(generated_reference_marker_with_empty_tooltip)
-            .collect(),
+        ref_markers: attach_generated_reference_tooltips_to_markers(
+            ref_markers,
+            analysis,
+            source,
+            options,
+            base_path,
+        ),
         span,
         node_types,
         ancestors,
@@ -656,8 +659,31 @@ fn generated_block_with_empty_reference_tooltips(block: BareGentufaBlock) -> Gen
 }
 
 #[requires(true)]
-#[ensures(ret.tooltip.is_none())]
-fn generated_reference_marker_with_empty_tooltip(marker: BareReferenceMarker) -> ReferenceMarker {
+#[ensures(ret.len() == old(markers.len()))]
+fn attach_generated_reference_tooltips_to_markers(
+    markers: Vec<BareReferenceMarker>,
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> Vec<ReferenceMarker> {
+    markers
+        .into_iter()
+        .map(|marker| {
+            let tooltip = generated_reference_tooltip_for_marker(
+                &marker, analysis, source, options, base_path,
+            );
+            generated_reference_marker_with_tooltip(marker, tooltip)
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_reference_marker_with_tooltip(
+    marker: BareReferenceMarker,
+    tooltip: Option<ReferenceTooltip>,
+) -> ReferenceMarker {
     let jbotci_gentufa::ReferenceMarker {
         role,
         kind,
@@ -670,8 +696,147 @@ fn generated_reference_marker_with_empty_tooltip(marker: BareReferenceMarker) ->
         kind,
         label,
         source,
-        tooltip: None,
+        tooltip,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_reference_tooltip_for_marker(
+    marker: &BareReferenceMarker,
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+    base_path: &str,
+) -> Option<ReferenceTooltip> {
+    let marker_source = marker.source.as_ref()?;
+    match (marker.role, marker_source.as_data()) {
+        (
+            ReferenceMarkerRole::Referent,
+            data!(ReferenceMarkerSource::PlaceAssignment {
+                assignment,
+                lookup_word,
+                ..
+            }),
+        ) => {
+            let assignment = analysis
+                .place_analysis
+                .assignment(SumtiPlaceAssignmentId(*assignment))?;
+            Some(reference_tooltip_for_lookup_word(
+                base_path,
+                lookup_word,
+                numbered_slots_from_iter([assignment.slot]),
+                Vec::new(),
+            ))
+        }
+        (
+            ReferenceMarkerRole::Reference,
+            data!(ReferenceMarkerSource::PlaceFrame {
+                frame,
+                lookup_word,
+                ..
+            }),
+        ) => {
+            let assignment_ids = analysis
+                .place_analysis
+                .assignments_for_frame(SelbriPlaceFrameId(*frame));
+            let mut slots = Vec::new();
+            let mut rows = Vec::new();
+            for assignment_id in assignment_ids {
+                let Some(assignment) = analysis.place_analysis.assignment(*assignment_id) else {
+                    continue;
+                };
+                slots.push(assignment.slot);
+                let slot = generated_reference_slot_label_for_place_slot(
+                    assignment.slot,
+                    analysis,
+                    source,
+                    options,
+                );
+                rows.push(new!(ReferenceTooltipRow {
+                    label: reference_label_with_slot(&marker.label, slot),
+                    target_text: generated_reference_target_text_for_node(
+                        analysis,
+                        assignment.sumti.0,
+                        source,
+                    ),
+                }));
+            }
+            Some(reference_tooltip_for_lookup_word(
+                base_path,
+                lookup_word,
+                numbered_slots_from_iter(slots),
+                rows,
+            ))
+        }
+        (
+            ReferenceMarkerRole::Reference,
+            data!(ReferenceMarkerSource::DiscourseEdge {
+                target_node,
+                lookup_word,
+                ..
+            }),
+        ) => Some(reference_tooltip_for_lookup_word(
+            base_path,
+            lookup_word,
+            Vec::new(),
+            vec![new!(ReferenceTooltipRow {
+                label: marker.label.clone(),
+                target_text: generated_reference_target_text_for_node(
+                    analysis,
+                    RawSyntaxNodeId(*target_node),
+                    source,
+                ),
+            })],
+        )),
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_reference_slot_label_for_place_slot(
+    slot: PlaceSlot,
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    source: &str,
+    options: &GentufaBlockOptions,
+) -> ReferenceSlotLabel {
+    reference_slot_label_from_output(&generated_reference_slot_name_for_place_slot(
+        slot,
+        &analysis.syntax_index,
+        source,
+        tree_render_options(options.phonemes, options.show_elided),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_reference_target_text_for_node(
+    analysis: &GeneratedReferenceAnalysis<'_>,
+    node: RawSyntaxNodeId,
+    source: &str,
+) -> String {
+    analysis
+        .syntax_index
+        .metadata(node)
+        .map(|metadata| source_text_for_spans(source, &metadata.source_spans))
+        .unwrap_or_default()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn source_text_for_spans(source: &str, spans: &[jbotci_source::SourceSpan]) -> String {
+    let mut text = String::new();
+    for span in spans {
+        let Some(fragment) = source.get(span.byte_start..span.byte_end) else {
+            continue;
+        };
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        text.push_str(fragment);
+    }
+    text
 }
 
 #[requires(true)]

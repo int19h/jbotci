@@ -28,7 +28,8 @@ pub use places::{
 pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
     ReferenceDisplayModel, ReferenceName, ReferenceSlotName, RichReferenceAnnotation,
-    RichReferenceAnnotations, reference_slot_name_for_place_slot,
+    RichReferenceAnnotations, generated_reference_slot_name_for_place_slot,
+    reference_slot_name_for_place_slot,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -40,7 +41,9 @@ use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
 pub use tree::pretty_generated_model_tree_with_reference_display;
 pub use tree::reference_display_model_for_syntax_tree;
-pub use tree::{GeneratedReferenceDisplay, generated_reference_display_from_legacy};
+pub use tree::{
+    GeneratedReferenceDisplay, generated_reference_display, generated_reference_display_from_legacy,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
