@@ -69,8 +69,12 @@ impl Default for SyntaxGrammarEnv {
 pub(crate) struct SyntaxGrammarDialect {
     pub term_hierarchy_enabled: bool,
     pub cbm_enabled: bool,
+    pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
+    pub zantufa_mex_enabled: bool,
+    pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
+    pub zantufa_terms_enabled: bool,
 }
 
 impl SyntaxGrammarDialect {
@@ -81,8 +85,12 @@ impl SyntaxGrammarDialect {
         Self {
             term_hierarchy_enabled: features.contains(&DialectFeature::TermHierarchy),
             cbm_enabled: features.contains(&DialectFeature::Cbm),
+            zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
+            zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
+            zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
+            zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
         }
     }
 }
@@ -93,8 +101,12 @@ impl SyntaxGrammarDialect {
 pub(crate) enum SyntaxGrammarFeature {
     TermHierarchy,
     Cbm,
+    ZantufaAdverbials,
     ZantufaConnectives,
+    ZantufaMex,
+    ZantufaQuotes,
     ZantufaTags,
+    ZantufaTerms,
 }
 
 impl SyntaxGrammarFeature {
@@ -104,8 +116,12 @@ impl SyntaxGrammarFeature {
         match self {
             Self::TermHierarchy => dialect.term_hierarchy_enabled,
             Self::Cbm => dialect.cbm_enabled,
+            Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
+            Self::ZantufaMex => dialect.zantufa_mex_enabled,
+            Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
+            Self::ZantufaTerms => dialect.zantufa_terms_enabled,
         }
     }
 
@@ -115,8 +131,12 @@ impl SyntaxGrammarFeature {
         match self {
             Self::TermHierarchy => "TERM-HIERARCHY feature",
             Self::Cbm => "CBM feature",
+            Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
+            Self::ZantufaMex => "ZANTUFA-MEX feature",
+            Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
+            Self::ZantufaTerms => "ZANTUFA-TERMS feature",
         }
     }
 }

@@ -1836,19 +1836,28 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     branch_initial_place,
                 );
                 let second_frame = self.analyze_subbridi_frame_with_initial_place(
-                    &connection.second,
+                    &connection.first_branch.branch,
                     branch_initial_place,
                 );
-                let mut cursors = vec![
-                    self.cursor_with_existing_assignments(first_frame, branch_initial_place),
-                    self.cursor_with_existing_assignments(second_frame, branch_initial_place),
-                ];
+                let mut branch_frames = vec![first_frame, second_frame];
+                for branch in &connection.additional_branches {
+                    branch_frames.push(self.analyze_subbridi_frame_with_initial_place(
+                        &branch.branch,
+                        branch_initial_place,
+                    ));
+                }
+                let mut cursors = branch_frames
+                    .iter()
+                    .map(|frame| {
+                        self.cursor_with_existing_assignments(*frame, branch_initial_place)
+                    })
+                    .collect::<Vec<_>>();
                 self.assign_terms(
                     &mut cursors,
                     &connection.tail_terms,
                     AssignmentSource::SharedTailTerm,
                 );
-                vec![first_frame, second_frame]
+                branch_frames
             }
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
                 connection,
@@ -1876,8 +1885,15 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 let first_frame =
                     self.analyze_subbridi_frame_with_initial_place(&connection.first, branch_initial_place);
                 let second_frame =
-                    self.analyze_subbridi_frame_with_initial_place(&connection.second, branch_initial_place);
-                vec![first_frame, second_frame]
+                    self.analyze_subbridi_frame_with_initial_place(&connection.first_branch.branch, branch_initial_place);
+                let mut branch_frames = vec![first_frame, second_frame];
+                for branch in &connection.additional_branches {
+                    branch_frames.push(self.analyze_subbridi_frame_with_initial_place(
+                        &branch.branch,
+                        branch_initial_place,
+                    ));
+                }
+                branch_frames
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(connection) => {
                 if let Some(tense_modal) = connection.tense_modal.as_deref() {
@@ -1953,13 +1969,17 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => self.analyze_co_selbri(selbri),
             generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
                 let leading = self.analyze_relation(&selbri.leading_selbri);
-                let trailing = self.analyze_relation(&selbri.trailing_selbri);
+                let mut branches =
+                    vec![leading, self.analyze_relation(&selbri.first_branch.selbri)];
+                for branch in &selbri.additional_branches {
+                    branches.push(self.analyze_relation(&branch.selbri));
+                }
                 self.add_frame(
                     self.raw_for_node(selbri),
                     PlaceFrameKind::ConnectiveBranching,
                     Some(SelbriNodeId(self.raw_for_node(selbri))),
                     None,
-                    propagation_connective_branches(vec![leading, trailing]),
+                    propagation_connective_branches(branches),
                 )
             }
         }
@@ -2100,13 +2120,19 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
                 let leading = self.analyze_relation(&unit.leading_selbri);
-                let trailing = self.analyze_bo_or_linked_tanru_unit(&unit.trailing_unit);
+                let mut branches = vec![
+                    leading,
+                    self.analyze_bo_or_linked_tanru_unit(&unit.first_branch.unit),
+                ];
+                for branch in &unit.additional_branches {
+                    branches.push(self.analyze_bo_or_linked_tanru_unit(&branch.unit));
+                }
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::ConnectiveBranching,
                     None,
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_connective_branches(vec![leading, trailing]),
+                    propagation_connective_branches(branches),
                 )
             }
         }
@@ -2680,13 +2706,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_argument_nested(&term.sumti);
             }
             generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
-                self.analyze_subbridi(&term.subbridi);
+                self.analyze_statement(&term.statement);
             }
             generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
-                self.analyze_subbridi(&term.subbridi);
+                self.analyze_statement(&term.statement);
             }
             generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
                 generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    self.analyze_free_modifiers_nested(&term.free_modifiers);
                     self.analyze_relation(&term.selbri);
                 }
                 generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
@@ -2697,8 +2724,13 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 for term in &term.terms {
                     self.analyze_term_nested(term);
                 }
-                for term in &term.gik_terms {
+                for term in &term.first_branch.terms {
                     self.analyze_term_nested(term);
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.analyze_term_nested(term);
+                    }
                 }
             }
             generated::SimpleTermSyntax::NuhiTermset(term) => {
@@ -2796,7 +2828,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
                 self.analyze_argument_nested(&sumti.leading_sumti);
-                self.analyze_sumti_forethought(&sumti.trailing_sumti);
+                self.analyze_sumti_forethought(&sumti.first_branch.sumti);
+                for branch in &sumti.additional_branches {
+                    self.analyze_sumti_forethought(&branch.sumti);
+                }
             }
         }
     }
@@ -3063,6 +3098,11 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_mekso_base_nested(operand);
                 }
             }
+            generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+                for operand in &group.operands {
+                    self.analyze_mekso_operand_nested(operand);
+                }
+            }
         }
     }
 
@@ -3125,6 +3165,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.analyze_mekso_operand_nested(&operand.inner_expression);
             }
+            generated::SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+                self.analyze_mekso_operand_nested(&operand.inner_expression);
+            }
             generated::SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
                 self.analyze_math_expression_nested(&operand.inner_expression);
             }
@@ -3132,6 +3175,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_argument_nested(&operand.sumti);
             }
             generated::SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => {
+                self.analyze_relation(&operand.selbri);
+            }
+            generated::SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
                 self.analyze_relation(&operand.selbri);
             }
             generated::SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
@@ -3222,6 +3268,13 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::SimpleMeksoOperatorSyntax::OperandMeksoOperator(operator) => {
                 self.analyze_math_expression_nested(&operator.mekso);
             }
+            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
+                self.analyze_relation(&operator.selbri);
+            }
+            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
+                self.analyze_argument_nested(&operator.sumti);
+            }
+            generated::SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => {}
             generated::SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(_) => {}
         }
     }
@@ -5079,7 +5132,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 connection,
             ) => {
                 self.visit_subbridi(&connection.first);
-                self.visit_subbridi(&connection.second);
+                self.visit_subbridi(&connection.first_branch.branch);
+                for branch in &connection.additional_branches {
+                    self.visit_subbridi(&branch.branch);
+                }
                 self.visit_terms(&connection.tail_terms);
             }
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
@@ -5109,7 +5165,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 connection,
             ) => {
                 self.visit_subbridi(&connection.first);
-                self.visit_subbridi(&connection.second);
+                self.visit_subbridi(&connection.first_branch.branch);
+                for branch in &connection.additional_branches {
+                    self.visit_subbridi(&branch.branch);
+                }
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(
                 connection,
@@ -5206,12 +5265,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::SimpleTermSyntax::ForethoughtTermset(term) => {
                 self.visit_boxed_terms(&term.terms);
-                self.visit_boxed_terms(&term.gik_terms);
+                self.visit_boxed_terms(&term.first_branch.terms);
+                for branch in &term.additional_branches {
+                    self.visit_boxed_terms(&branch.terms);
+                }
             }
             generated::SimpleTermSyntax::NuhiTermset(term) => self.visit_boxed_terms(&term.termset),
             generated::SimpleTermSyntax::KeTermset(term) => self.visit_boxed_terms(&term.termset),
             generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
                 generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    self.visit_free_modifiers(&term.free_modifiers);
                     self.visit_relation(&term.selbri);
                 }
                 generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
@@ -5219,10 +5282,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             },
             generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
-                self.visit_subbridi(&term.subbridi);
+                self.visit_statement(&term.statement);
             }
             generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
-                self.visit_subbridi(&term.subbridi);
+                self.visit_statement(&term.statement);
             }
             generated::SimpleTermSyntax::NaKuTerm(_)
             | generated::SimpleTermSyntax::BareNaTerm(_) => {}
@@ -5634,7 +5697,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::SimpleTermSyntax::ForethoughtTermset(term) => {
                 self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.terms, sources);
-                self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.gik_terms, sources);
+                self.collect_prenex_cei_assignment_sources_in_boxed_terms(
+                    &term.first_branch.terms,
+                    sources,
+                );
+                for branch in &term.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_boxed_terms(
+                        &branch.terms,
+                        sources,
+                    );
+                }
             }
             generated::SimpleTermSyntax::NuhiTermset(term) => {
                 self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.termset, sources);
@@ -5772,9 +5844,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
                 self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
-                    &sumti.trailing_sumti,
+                    &sumti.first_branch.sumti,
                     sources,
                 );
+                for branch in &sumti.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
+                        &branch.sumti,
+                        sources,
+                    );
+                }
             }
             generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
                 self.collect_prenex_cei_assignment_sources_in_simple_sumti(sumti, sources);
@@ -6178,9 +6256,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
                 self.collect_prenex_cei_assignment_sources_in_relation(
-                    &selbri.trailing_selbri,
+                    &selbri.first_branch.selbri,
                     sources,
                 );
+                for branch in &selbri.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_relation(&branch.selbri, sources);
+                }
             }
         }
     }
@@ -6292,9 +6373,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
                 self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-                    &unit.trailing_unit,
+                    &unit.first_branch.unit,
                     sources,
                 );
+                for branch in &unit.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
+                        &branch.unit,
+                        sources,
+                    );
+                }
             }
         }
     }
@@ -6671,7 +6758,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::SimpleTermSyntax::ForethoughtTermset(term) => {
                 self.bind_prenex_relation_variables_in_boxed_terms(&term.terms);
-                self.bind_prenex_relation_variables_in_boxed_terms(&term.gik_terms);
+                self.bind_prenex_relation_variables_in_boxed_terms(&term.first_branch.terms);
+                for branch in &term.additional_branches {
+                    self.bind_prenex_relation_variables_in_boxed_terms(&branch.terms);
+                }
             }
             generated::SimpleTermSyntax::NuhiTermset(term) => {
                 self.bind_prenex_relation_variables_in_boxed_terms(&term.termset);
@@ -6780,7 +6870,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match sumti {
             generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
                 self.bind_prenex_relation_variables_in_argument(&sumti.leading_sumti);
-                self.bind_prenex_relation_variables_in_sumti_forethought(&sumti.trailing_sumti);
+                self.bind_prenex_relation_variables_in_sumti_forethought(&sumti.first_branch.sumti);
+                for branch in &sumti.additional_branches {
+                    self.bind_prenex_relation_variables_in_sumti_forethought(&branch.sumti);
+                }
             }
             generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
                 self.bind_prenex_relation_variables_in_simple_sumti(sumti);
@@ -7177,7 +7270,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match sumti {
             generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
                 self.visit_argument(&sumti.leading_sumti);
-                self.visit_sumti_forethought(argument_id, &sumti.trailing_sumti);
+                self.visit_sumti_forethought(argument_id, &sumti.first_branch.sumti);
+                for branch in &sumti.additional_branches {
+                    self.visit_sumti_forethought(argument_id, &branch.sumti);
+                }
                 false
             }
             generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
@@ -7696,6 +7792,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_mekso_base(operand);
                 }
             }
+            generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+                for operand in &group.operands {
+                    self.visit_mekso_operand(operand);
+                }
+            }
         }
     }
 
@@ -7753,6 +7854,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.visit_mekso_operand(&operand.inner_expression);
             }
+            generated::SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+                self.visit_mekso_operand(&operand.inner_expression);
+            }
             generated::SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
                 self.visit_math_expression(&operand.inner_expression);
             }
@@ -7760,6 +7864,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_argument(&operand.sumti);
             }
             generated::SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => {
+                self.visit_relation(&operand.selbri);
+            }
+            generated::SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
                 self.visit_relation(&operand.selbri);
             }
             generated::SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
@@ -7845,6 +7952,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::SimpleMeksoOperatorSyntax::OperandMeksoOperator(operator) => {
                 self.visit_math_expression(&operator.mekso);
             }
+            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
+                self.visit_relation(&operator.selbri);
+            }
+            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
+                self.visit_argument(&operator.sumti);
+            }
+            generated::SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => {}
             generated::SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(_) => {}
         }
     }
@@ -7875,7 +7989,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
                 self.visit_relation(&selbri.leading_selbri);
-                self.visit_relation(&selbri.trailing_selbri);
+                self.visit_relation(&selbri.first_branch.selbri);
+                for branch in &selbri.additional_branches {
+                    self.visit_relation(&branch.selbri);
+                }
             }
         }
     }
@@ -7922,7 +8039,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match unit {
             generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
                 self.visit_relation(&unit.leading_selbri);
-                self.visit_bo_or_linked_tanru_unit(&unit.trailing_unit);
+                self.visit_bo_or_linked_tanru_unit(&unit.first_branch.unit);
+                for branch in &unit.additional_branches {
+                    self.visit_bo_or_linked_tanru_unit(&branch.unit);
+                }
             }
             generated::BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
                 self.visit_linked_tanru_unit(&unit.leading_unit);
@@ -8841,7 +8961,10 @@ fn advance_cursor_for_generated_simple_term_shape(
         }
         generated::SimpleTermSyntax::ForethoughtTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.terms);
-            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.gik_terms);
+            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.first_branch.terms);
+            for branch in &term.additional_branches {
+                advance_cursor_for_generated_boxed_terms_shape(cursor, &branch.terms);
+            }
         }
         generated::SimpleTermSyntax::NuhiTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.termset);
@@ -9116,6 +9239,7 @@ fn generated_mekso_base_to_usize(expression: &generated::MeksoBaseSyntax) -> Opt
             generated_mekso_operand_to_usize(operand)
         }
         generated::MeksoBaseSyntax::ForethoughtCallMekso(_) => None,
+        generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => None,
     }
 }
 

@@ -1541,6 +1541,80 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_zantufa_xoi_and_fihoi_statement_payloads() {
+        run_on_normal_stack(|| {
+            for source in [
+                "xoi mi broda i je do brode se'u",
+                "fi'oi mi broda i je do brode fi'au",
+            ] {
+                let parsed = parse_source(source, &ParseOptions::default());
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalSoiAdverbial)
+                        || has_warning_kind(
+                            &parsed,
+                            ExperimentalConstruct::ExperimentalFihoiAdverbial
+                        ),
+                    "{source}"
+                );
+                assert!(
+                    format!("{:?}", parsed.parse_tree).contains("IStatementConnection"),
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_poiha_brigahi_with_free_modifiers() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source(
+                "noi'a to mi toi klama ku mi cu broda",
+                &ParseOptions::default(),
+            );
+
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi
+            ));
+            assert!(format!("{:?}", parsed.parse_tree).contains("free_modifiers"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_mex_forms() {
+        run_on_normal_stack(|| {
+            let dialect =
+                parse_dialect_definition("(+ZANTUFA-MEX)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+            for source in [
+                "li mo'e broda lo'o",
+                "li ma'o lo broda te'u pa lo'o",
+                "li na'e pa lo'o",
+                "li ke pa re ke'e lo'o",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(
+                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    "{source}"
+                );
+
+                let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa mex");
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gates_zantufa_initial_gi_gek() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("gi je mi klama gi do klama")
@@ -1580,6 +1654,234 @@ mod tests {
             assert!(parsed.warnings.iter().any(|warning| {
                 warning.kind == ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
             }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_nary_forethought_bridi_branches() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("ge mi klama gi do klama gi ti klama")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed =
+                parse_syntax_tree(&words, &options).expect("valid Zantufa n-ary bridi forethought");
+            let debug_tree = format!("{:?}", parsed.parse_tree);
+
+            assert!(debug_tree.contains("additional_branches"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_nary_forethought_bridi_branch_count_grid() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+            for (source, extra_branch_count) in [
+                ("ge mi klama gi do klama", 0),
+                ("ge mi klama gi do klama gi ti klama", 1),
+                ("ge mi klama gi do klama gi ti klama gi ta klama", 2),
+                (
+                    "ge mi klama gi do klama gi ti klama gi ta klama gi zo'e klama",
+                    3,
+                ),
+            ] {
+                let parsed = parse_source(source, &options);
+                assert_eq!(
+                    parsed
+                        .warnings
+                        .iter()
+                        .filter(|warning| {
+                            warning.kind
+                                == ExperimentalConstruct::ExperimentalZantufaNaryForethought
+                        })
+                        .count(),
+                    extra_branch_count,
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_nary_forethought_bridi_with_gihi() {
+        run_on_normal_stack(|| {
+            let source = "ge mi klama gi do klama gi ti klama gi'i";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_source(source, &options);
+
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+            ));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_nary_forethought_termset_branches() {
+        run_on_normal_stack(|| {
+            let source = "nu'i ge mi gi do gi ti";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_source(source, &options);
+            let debug_tree = format!("{:?}", parsed.parse_tree);
+
+            assert!(debug_tree.contains("ForethoughtTermset"));
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_nary_forethought_termset_option_grid() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+            for (source, extra_branch_count, has_gihi) in [
+                ("nu'i ge mi gi do", 0, false),
+                ("nu'i ge mi gi do gi ti", 1, false),
+                ("nu'i ge mi nu'u gi do nu'u gi ti nu'u", 1, false),
+                (
+                    "nu'i ge mi nu'u gi do nu'u gi ti nu'u gi ta nu'u gi'i",
+                    2,
+                    true,
+                ),
+            ] {
+                let parsed = parse_source(source, &options);
+                assert_eq!(
+                    parsed
+                        .warnings
+                        .iter()
+                        .filter(|warning| {
+                            warning.kind
+                                == ExperimentalConstruct::ExperimentalZantufaNaryForethought
+                        })
+                        .count(),
+                    extra_branch_count,
+                    "{source}"
+                );
+                assert_eq!(
+                    has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalZantufaForethoughtGihi
+                    ),
+                    has_gihi,
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_nary_forethought_sumti_branches() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("ga lo mlatu gi lo gerku gi lo ractu")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed =
+                parse_syntax_tree(&words, &options).expect("valid Zantufa n-ary sumti forethought");
+
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gates_zantufa_nary_forethought_selbri_branches() {
+        run_on_normal_stack(|| {
+            let words = segment_words_with_modifiers("mi gu'e klama gi cadzu gi bajra")
+                .expect("valid morphology");
+
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options)
+                .expect("valid Zantufa n-ary selbri forethought");
+
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_guskant_sourced_nary_juhe_forethought_example() {
+        run_on_normal_stack(|| {
+            // Source: guskant, "{tu'e...tu'u} in NU", Google Groups, 2015-07-15.
+            let source = "lo nu ju'e gi broda gi brode gi brodi gi brodo gi brodu kei";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                .expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_syntax_tree(&words, &options)
+                .expect("valid sourced Zantufa n-ary forethought");
+
+            assert_eq!(
+                parsed
+                    .warnings
+                    .iter()
+                    .filter(|warning| {
+                        warning.kind == ExperimentalConstruct::ExperimentalZantufaNaryForethought
+                    })
+                    .count(),
+                3
+            );
         });
     }
 

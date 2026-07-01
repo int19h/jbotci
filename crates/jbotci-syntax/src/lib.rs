@@ -1642,10 +1642,12 @@ pub enum ExperimentalConstruct {
     ExperimentalXohiTagSelbri,
     ExperimentalZantufaCmavo,
     ExperimentalZantufaForethoughtGihi,
+    ExperimentalZantufaNaryForethought,
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
     ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaMex,
     ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
     ExperimentalZantufaLuheiSelbriUnit,
@@ -1771,6 +1773,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaForethoughtGihi => {
                 "syntax.warning.experimental-zantufa-forethought-gihi"
             }
+            Self::ExperimentalZantufaNaryForethought => {
+                "syntax.warning.experimental-zantufa-nary-forethought"
+            }
             Self::ExperimentalZantufaGek => "syntax.warning.experimental-zantufa-gek",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "syntax.warning.experimental-zantufa-poiha-brigahi"
@@ -1781,6 +1786,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaRecursiveTag => {
                 "syntax.warning.experimental-zantufa-recursive-tag"
             }
+            Self::ExperimentalZantufaMex => "syntax.warning.experimental-zantufa-mex",
             Self::ExperimentalZantufaRahoiQuote => {
                 "syntax.warning.experimental-zantufa-rahoi-quote"
             }
@@ -1888,12 +1894,14 @@ impl ExperimentalConstruct {
             Self::ExperimentalXohiTagSelbri => "XOhI tag-to-selbri conversion",
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
             Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
+            Self::ExperimentalZantufaNaryForethought => "Zantufa n-ary forethought branch",
             Self::ExperimentalZantufaGek => "Zantufa forethought connective form",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "Zantufa POIhA briga'i term with KU terminator"
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
             Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaMex => "Zantufa mex grammar form",
             Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",
             Self::ExperimentalZantufaMuhoiSelbriUnit => {
                 "Zantufa MUhOI delimited foreign selbri unit"

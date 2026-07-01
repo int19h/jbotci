@@ -17,10 +17,10 @@ use jbotci_syntax::generated_model::{
     BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax, BoOrLinkedTanruUnitSyntax,
     BoundMeksoOperandSyntax, BoundMeksoOperatorSyntax, BoundOrAtomMeksoOperatorSyntax,
     BoundOrSimpleMeksoOperandSyntax, BoundTanruUnitSyntax, BridiRelativeClauseSyntax,
-    BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax,
-    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
-    BridiWithPostCuTermsSyntax, CmevlaVocativeSumtiSyntax, CoSelbriSyntax,
-    ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
+    BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
+    BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CmevlaVocativeSumtiSyntax,
+    CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
     CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
@@ -4977,7 +4977,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         match connection {
             ForethoughtBridiConnectionSyntax::DirectForethoughtBridiConnection(connection) => {
                 self.collect_generated_subbridi_term_formula_scopes(&connection.first, scopes)?;
-                self.collect_generated_subbridi_term_formula_scopes(&connection.second, scopes)?;
+                self.collect_generated_subbridi_term_formula_scopes(
+                    &connection.first_branch.branch,
+                    scopes,
+                )?;
+                for branch in &connection.additional_branches {
+                    self.collect_generated_subbridi_term_formula_scopes(&branch.branch, scopes)?;
+                }
                 for term in &connection.tail_terms {
                     self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
                 }
@@ -5506,6 +5512,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if eventuality.is_some() {
             return Err(unsupported("scoped forethought termset connection"));
         }
+        if !termset.additional_branches.is_empty() {
+            return Err(unsupported("n-ary forethought termset semantics"));
+        }
 
         let before_terms = &terms[..position];
         let after_terms = &terms[position + 1..];
@@ -5513,7 +5522,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             generated_forethought_termset_branch_terms(before_terms, &termset.terms, after_terms);
         let trailing_terms = generated_forethought_termset_branch_terms(
             before_terms,
-            &termset.gik_terms,
+            &termset.first_branch.terms,
             after_terms,
         );
         let source = self.source_for_node(termset, "termset-connection-formula");
@@ -5550,7 +5559,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         if let Some(formula) = self.build_generated_fahu_forethought_termset_distribution_formula(
             &termset.gek,
-            &termset.gik,
+            &termset.first_branch.gik,
             leading,
             trailing,
             source.clone(),
@@ -5567,7 +5576,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             leading
         };
-        let right = if generated_gik_connective_negates_right(&termset.gik) {
+        let right = if generated_gik_connective_negates_right(&termset.first_branch.gik) {
             self.build_unary_formula(FormulaOperator::Not, trailing, source.clone())?
         } else {
             trailing
@@ -5610,11 +5619,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 operator,
                 children,
                 Some(Connector {
-                    source: generated_modal_forethought_pair_source(&termset.gek, &termset.gik),
+                    source: generated_modal_forethought_pair_source(
+                        &termset.gek,
+                        &termset.first_branch.gik,
+                    ),
                     locus: "termset".to_owned(),
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &termset.gek,
-                        &termset.gik,
+                        &termset.first_branch.gik,
                     )
                     .or_else(|| {
                         generated_modal_statement_connection_spec_for_tense_modal(&termset.gek)
@@ -6545,7 +6557,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                                 members: vec![first, second],
                                 excluded_members: Vec::new(),
                                 collective,
-                                scalar_negated: termset.gik.nai.is_some().then_some(true),
+                                scalar_negated: termset
+                                    .first_branch
+                                    .gik
+                                    .nai
+                                    .is_some()
+                                    .then_some(true),
                                 complement: None,
                                 endpoint_inclusion,
                             })),
@@ -8051,6 +8068,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         prefix_terms: &[&TermSyntax],
         suffix_terms: &[&TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if !connection.additional_branches.is_empty() {
+            return Err(unsupported("n-ary forethought bridi semantics"));
+        }
         let first_eventuality = if prefix_terms.is_empty()
             || generated_subbridi_is_connected_bridi_tail(&connection.first)
         {
@@ -8076,14 +8096,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let second_eventuality = if prefix_terms.is_empty() {
             None
         } else {
-            Some(self.build_eventuality(self.source_for_node(&connection.second, "predication"))?)
+            Some(self.build_eventuality(
+                self.source_for_node(&connection.first_branch.branch, "predication"),
+            )?)
         };
         let branch_prenex_existentials = self
             .generated_implicit_existentials_for_active_prenex_bindings(
                 &prefix_context.assignments.implicit_existentials,
             );
         let second_formula = self.build_forethought_subbridi_branch_formula(
-            &connection.second,
+            &connection.first_branch.branch,
             &prefix_context.assignments.visible_arguments,
             first_visible_place,
             &branch_suffix_terms,
@@ -8103,7 +8125,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 false,
             )?;
             self.attach_generated_indicator_displays_with_target_focus(
-                indicator_parts_for_generated_node(&connection.gik),
+                indicator_parts_for_generated_node(&connection.first_branch.gik),
                 second_formula,
                 anchor,
                 "indicator",
@@ -8122,7 +8144,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             first_formula
         };
-        let right = if generated_gik_connective_negates_right(&connection.gik) {
+        let right = if generated_gik_connective_negates_right(&connection.first_branch.gik) {
             self.build_unary_formula(FormulaOperator::Not, second_formula, None)?
         } else {
             second_formula
@@ -8203,12 +8225,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(Connector {
                     source: generated_modal_forethought_pair_source(
                         &connection.gek,
-                        &connection.gik,
+                        &connection.first_branch.gik,
                     ),
                     locus: "bridi".to_owned(),
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &connection.gek,
-                        &connection.gik,
+                        &connection.first_branch.gik,
                     ),
                     parameter: connector_parameter,
                 }),
@@ -10181,7 +10203,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
                                 gek: &forethought.gek,
-                                gik: &forethought.gik,
+                                gik: &forethought.first_branch.gik,
                             }));
                         pending_forethought_connections.push((place, forethought));
                     } else {
@@ -10245,7 +10267,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
                                 gek: &forethought.gek,
-                                gik: &forethought.gik,
+                                gik: &forethought.first_branch.gik,
                             }));
                         pending_forethought_connections.push((place, forethought));
                     } else {
@@ -10327,8 +10349,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 &mut alternatives,
                 place,
                 GeneratedAlternativeArgumentSource::SumtiForethought {
-                    sumti: &forethought.trailing_sumti,
-                    negated: forethought.gik.nai.is_some(),
+                    sumti: &forethought.first_branch.sumti,
+                    negated: forethought.first_branch.gik.nai.is_some(),
                 },
             )?;
         }
@@ -10728,7 +10750,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
                                 gek: &forethought.gek,
-                                gik: &forethought.gik,
+                                gik: &forethought.first_branch.gik,
                             }));
                         pending_forethought_connections.push((place, forethought));
                     } else {
@@ -10792,7 +10814,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
                                 gek: &forethought.gek,
-                                gik: &forethought.gik,
+                                gik: &forethought.first_branch.gik,
                             }));
                         pending_forethought_connections.push((place, forethought));
                     } else {
@@ -10874,8 +10896,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 &mut alternatives,
                 place,
                 GeneratedAlternativeArgumentSource::SumtiForethought {
-                    sumti: &forethought.trailing_sumti,
-                    negated: forethought.gik.nai.is_some(),
+                    sumti: &forethought.first_branch.sumti,
+                    negated: forethought.first_branch.gik.nai.is_some(),
                 },
             )?;
         }
@@ -11439,13 +11461,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     arguments,
                     place,
                     GeneratedAlternativeArgumentSource::SumtiForethought {
-                        sumti: &forethought.trailing_sumti,
-                        negated: forethought.gik.nai.is_some(),
+                        sumti: &forethought.first_branch.sumti,
+                        negated: forethought.first_branch.gik.nai.is_some(),
                     },
                 )?;
                 return Ok(Some(GeneratedDistributedSumtiConnective::Forethought {
                     gek: &forethought.gek,
-                    gik: &forethought.gik,
+                    gik: &forethought.first_branch.gik,
                 }));
             }
             let mut formula_scopes = Vec::new();
@@ -14773,6 +14795,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connector_locus: &str,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
+        if !connection.additional_branches.is_empty() {
+            return Err(unsupported("n-ary forethought selbri semantics"));
+        }
         if !visible_arguments.contains_key(&1) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             insert_visible_argument(
@@ -14789,7 +14814,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             leading_eventuality,
         )?;
         let trailing = self.build_selbri_formula_for_visible_arguments(
-            connection.trailing_selbri.as_ref(),
+            connection.first_branch.selbri.as_ref(),
             visible_arguments,
             source.clone(),
             connector_locus,
@@ -14797,7 +14822,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         let formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &connection.guhek,
-            &connection.gik,
+            &connection.first_branch.gik,
             connector_locus,
             leading.formula,
             trailing.formula,
@@ -14823,6 +14848,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connector_locus: &str,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
+        if !unit.additional_branches.is_empty() {
+            return Err(unsupported("n-ary forethought selbri-group semantics"));
+        }
         if !visible_arguments.contains_key(&1) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             insert_visible_argument(
@@ -14839,7 +14867,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             leading_eventuality,
         )?;
         let trailing = self.build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit(
-            unit.trailing_unit.as_ref(),
+            unit.first_branch.unit.as_ref(),
             visible_arguments,
             None,
             source.clone(),
@@ -14847,7 +14875,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         let formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &unit.guhek,
-            &unit.gik,
+            &unit.first_branch.gik,
             connector_locus,
             leading.formula,
             trailing.formula,
@@ -16835,19 +16863,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        if !unit.additional_branches.is_empty() {
+            return Err(unsupported(
+                "n-ary forethought selbri-group property semantics",
+            ));
+        }
         let leading = self.build_property_formula_for_forethought_tanru_branch_selbri(
             unit.leading_selbri.as_ref(),
             parameter,
             source.clone(),
         )?;
         let trailing = self.build_property_formula_for_bo_or_linked_tanru_unit(
-            unit.trailing_unit.as_ref(),
+            unit.first_branch.unit.as_ref(),
             parameter,
             source.clone(),
         )?;
         self.build_binary_formula_for_generated_forethought_selbri_connective(
             &unit.guhek,
-            &unit.gik,
+            &unit.first_branch.gik,
             "property-abstraction",
             leading,
             trailing,
@@ -23284,10 +23317,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 builder.build_simple_sumti_referent(simple)
             }
             SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
+                if !sumti.additional_branches.is_empty() {
+                    return Err(unsupported("n-ary forethought sumti semantics"));
+                }
                 let leading = builder.build_sumti_referent(&sumti.leading_sumti)?;
-                let trailing = builder.build_sumti_forethought_referent(&sumti.trailing_sumti)?;
+                let trailing =
+                    builder.build_sumti_forethought_referent(&sumti.first_branch.sumti)?;
                 builder.build_connected_generated_forethought_sumti_referent(
-                    sumti, leading, &sumti.gek, &sumti.gik, trailing,
+                    sumti,
+                    leading,
+                    &sumti.gek,
+                    &sumti.first_branch.gik,
+                    trailing,
                 )
             }
         })
@@ -24064,6 +24105,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )
                 .map(|id| (id, replaced))
             }
+            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
+                "Zantufa grouped mex operand sequence semantics",
+            )),
         }
     }
 
@@ -24317,6 +24361,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             MeksoBaseSyntax::ForethoughtCallMekso(call) => {
                 self.build_generated_forethought_call_mekso(call, source)
             }
+            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
+                "Zantufa grouped mex operand sequence semantics",
+            )),
         }
     }
 
@@ -24407,6 +24454,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.build_generated_qualified_mekso_operand(operand, source)
             }
+            SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+                let id = self.build_generated_mekso_operand(&operand.inner_expression, source)?;
+                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
+                Ok(id)
+            }
             SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
                 self.build_generated_math_expression(&operand.inner_expression, source)
             }
@@ -24415,6 +24467,29 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => {
                 self.build_generated_selbri_mekso_operand(operand, source)
+            }
+            SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
+                let source = source.or_else(|| self.source_for_node(operand, "selbri-operand"));
+                let Some(abstraction) = self.single_abstraction_from_selbri(&operand.selbri)?
+                else {
+                    return self.build_generated_math_literal(
+                        MathLiteral::text(
+                            "selbriOperand".to_owned(),
+                            generated_selbri_surface_text(&operand.selbri)?,
+                        ),
+                        source,
+                    );
+                };
+                let denotation = self.build_abstraction_output(
+                    abstraction,
+                    self.source_for_node(abstraction, "abstraction"),
+                )?;
+                let id = self.next_math_id();
+                self.insert(
+                    id,
+                    SemanticObject::math_selbri_operand(denotation, source, Vec::new()),
+                )?;
+                Ok(id)
             }
             SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
                 self.build_generated_array_mekso_operand(operand, source)
@@ -30229,9 +30304,17 @@ fn add_generated_untagged_selbri_visible_linkarg_places(
             )?;
             add_generated_selbri_visible_linkarg_places(
                 places,
-                connection.trailing_selbri.as_ref(),
+                connection.first_branch.selbri.as_ref(),
                 first_visible_place,
-            )
+            )?;
+            for branch in &connection.additional_branches {
+                add_generated_selbri_visible_linkarg_places(
+                    places,
+                    branch.selbri.as_ref(),
+                    first_visible_place,
+                )?;
+            }
+            Ok(())
         }
     }
 }
@@ -30480,12 +30563,19 @@ fn relation_phrase_label_from_selbri(selbri: &SelbriSyntax) -> Result<String, Se
         }
         SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::ForethoughtSelbriConnection(
             connection,
-        )) => Ok(format!(
-            "{} {} {}",
-            generated_guhek_connective_source(&connection.guhek),
-            relation_phrase_label_from_selbri(connection.leading_selbri.as_ref())?,
-            relation_phrase_label_from_selbri(connection.trailing_selbri.as_ref())?,
-        )),
+        )) => {
+            let mut parts = vec![
+                generated_guhek_connective_source(&connection.guhek),
+                relation_phrase_label_from_selbri(connection.leading_selbri.as_ref())?,
+                token_text(&connection.first_branch.gik.gi.value),
+                relation_phrase_label_from_selbri(connection.first_branch.selbri.as_ref())?,
+            ];
+            for branch in &connection.additional_branches {
+                parts.push(token_text(&branch.gik.0.value));
+                parts.push(relation_phrase_label_from_selbri(branch.selbri.as_ref())?);
+            }
+            Ok(parts.join(" "))
+        }
     }
 }
 
@@ -30729,6 +30819,15 @@ fn generated_simple_mekso_operator_label(
             relation_label_from_selbri(&operator.selbri)
         }
         SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
+        SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
+            relation_label_from_selbri(&operator.selbri)
+        }
+        SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => {
+            Ok("sumti-operator".to_owned())
+        }
+        SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
+            Ok(generated_operand_connective_source(&operator.0))
+        }
     }
 }
 
@@ -30832,6 +30931,23 @@ fn generated_simple_mekso_operator_surface_label(
             relation_label_from_selbri(&operator.selbri)
         }
         SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
+        SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            token_text(&operator.maho.value),
+            relation_label_from_selbri(&operator.selbri)?
+        )),
+        SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
+            let mut visitor = GeneratedSpanCollector::default();
+            operator.sumti.visit_in_order(&mut visitor);
+            Ok(format!(
+                "{} {}",
+                token_text(&operator.maho.value),
+                token_list_text(visitor.tokens.iter())
+            ))
+        }
+        SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
+            Ok(generated_operand_connective_source(&operator.0))
+        }
     }
 }
 
@@ -31011,6 +31127,7 @@ fn generated_mekso_base_surface_text_with_connected_operator_replacement(
             }
             Ok(replaced.then(|| parts.join(" ")))
         }
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok(None),
     }
 }
 
@@ -31200,9 +31317,16 @@ fn generated_simple_mekso_operand_surface_text_with_connected_operator_replaceme
             Ok(replaced.then(|| parts.join(" ")))
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
+        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                &operand.inner_expression,
+                replacement_operator,
+            )
+        }
     }
 }
 
@@ -31292,6 +31416,7 @@ fn generated_number_descriptor_mekso_base_surface_text(
             }
             Ok(parts.join(" "))
         }
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok("mekso".to_owned()),
     }
 }
 
@@ -31383,6 +31508,16 @@ fn first_generated_connected_mekso_operator_in_base(
             }
             Ok(None)
         }
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+            for operand in &group.operands {
+                if let Some(expansion) =
+                    first_generated_connected_mekso_operator_in_operand(operand)?
+                {
+                    return Ok(Some(expansion));
+                }
+            }
+            Ok(None)
+        }
     }
 }
 
@@ -31466,6 +31601,9 @@ fn first_generated_connected_mekso_operator_in_simple_operand(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
         }
+        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
+        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator(&operand.inner_expression)
         }
@@ -31478,6 +31616,7 @@ fn first_generated_connected_mekso_operator_in_simple_operand(
             Ok(None)
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
@@ -31568,6 +31707,9 @@ fn connected_generated_simple_mekso_operator(
             connected_generated_forethought_mekso_operator(operator)
         }
         SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(_)
+        | SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
+        | SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
+        | SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
         | SimpleMeksoOperatorSyntax::SelbriMeksoOperator(_)
         | SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok(None),
     }
@@ -31693,6 +31835,10 @@ fn generated_mekso_base_contains_operand_connection(expression: &MeksoBaseSyntax
             .operands
             .iter()
             .any(generated_mekso_base_contains_operand_connection),
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => group
+            .operands
+            .iter()
+            .any(|operand| generated_mekso_operand_contains_operand_connection(operand)),
     }
 }
 
@@ -31757,6 +31903,9 @@ fn generated_simple_mekso_operand_contains_operand_connection(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
+        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
+        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_contains_operand_connection(&operand.inner_expression)
         }
@@ -31765,6 +31914,7 @@ fn generated_simple_mekso_operand_contains_operand_connection(
             .iter()
             .any(generated_mekso_contains_operand_connection),
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => false,
@@ -31814,6 +31964,17 @@ fn generated_mekso_base_surface_text(
             let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
             for operand in call.operands.iter() {
                 parts.push(generated_mekso_base_surface_text(operand)?);
+            }
+            Ok(parts.join(" "))
+        }
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+            let mut parts = Vec::with_capacity(group.operands.len() + 2);
+            parts.push(token_text(&group.ke.value));
+            for operand in &group.operands {
+                parts.push(generated_mekso_operand_surface_text(operand)?);
+            }
+            if let Some(kehe) = &group.kehe {
+                parts.push(token_text(&kehe.value));
             }
             Ok(parts.join(" "))
         }
@@ -31893,6 +32054,11 @@ fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_surface_text(&operand.inner_expression)
         }
+        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => Ok(format!(
+            "{} {}",
+            token_text(&operand.nahe.value),
+            generated_mekso_operand_surface_text(&operand.inner_expression)?
+        )),
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_surface_text(&operand.inner_expression)
         }
@@ -31908,6 +32074,11 @@ fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => Ok(format!(
             "{} {}",
             token_text(&operand.nihe.value),
+            relation_label_from_selbri(&operand.selbri)?
+        )),
+        SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => Ok(format!(
+            "{} {}",
+            token_text(&operand.mohe.value),
             relation_label_from_selbri(&operand.selbri)?
         )),
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
@@ -34166,12 +34337,19 @@ fn relation_label_from_bound_tanru_unit(
 fn relation_label_from_forethought_selbri_group_tanru_unit(
     unit: &ForethoughtSelbriGroupTanruUnitSyntax,
 ) -> Result<String, SemanticsError> {
-    Ok(format!(
-        "{} {} {}",
+    let mut parts = vec![
         generated_guhek_connective_source(&unit.guhek),
         relation_phrase_label_from_selbri(unit.leading_selbri.as_ref())?,
-        relation_label_from_bo_or_linked_tanru_unit(unit.trailing_unit.as_ref())?,
-    ))
+        token_text(&unit.first_branch.gik.gi.value),
+        relation_label_from_bo_or_linked_tanru_unit(unit.first_branch.unit.as_ref())?,
+    ];
+    for branch in &unit.additional_branches {
+        parts.push(token_text(&branch.gik.0.value));
+        parts.push(relation_label_from_bo_or_linked_tanru_unit(
+            branch.unit.as_ref(),
+        )?);
+    }
+    Ok(parts.join(" "))
 }
 
 #[requires(true)]
@@ -34613,6 +34791,9 @@ fn generated_logical_sumti_connection_for_branch(
             let SumtiForethoughtSyntax::ForethoughtSumti(forethought) = sumti else {
                 return Ok(None);
             };
+            if !forethought.additional_branches.is_empty() {
+                return Err(unsupported("n-ary forethought sumti distribution"));
+            }
             if generated_modal_forethought_connective_is_logical(&forethought.gek)
                 && !generated_modal_forethought_connective_is_interval(&forethought.gek)
             {
@@ -34622,10 +34803,10 @@ fn generated_logical_sumti_connection_for_branch(
                     ),
                     connective: GeneratedDistributedSumtiConnective::Forethought {
                         gek: &forethought.gek,
-                        gik: &forethought.gik,
+                        gik: &forethought.first_branch.gik,
                     },
                     trailing: GeneratedDistributedSumtiBranch::SumtiForethought(
-                        forethought.trailing_sumti.as_ref(),
+                        forethought.first_branch.sumti.as_ref(),
                     ),
                     relative_clauses: None,
                 }));
@@ -34964,6 +35145,9 @@ fn generated_sumti_forethought_for_distribution(
     let SumtiForethoughtSyntax::ForethoughtSumti(forethought) = bound.leading_sumti.as_ref() else {
         return None;
     };
+    if !forethought.additional_branches.is_empty() {
+        return None;
+    }
     (generated_modal_forethought_connective_is_logical(&forethought.gek)
         && !generated_modal_forethought_connective_is_interval(&forethought.gek))
     .then_some(forethought)
@@ -35613,6 +35797,103 @@ fn generated_node_contains_cmavo<N: TreeNode>(node: &N, cmavo: Cmavo) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
+fn generated_statement_contains_current_level_keha(statement: &StatementSyntax) -> bool {
+    match statement {
+        StatementSyntax::StatementBase(statement) => {
+            generated_statement_base_contains_current_level_keha(statement)
+        }
+        StatementSyntax::IStatementConnection(connection) => {
+            generated_statement_base_contains_current_level_keha(&connection.leading_statement)
+                || connection.continuations.iter().any(|continuation| {
+                    generated_i_statement_connection_tail_contains_current_level_keha(continuation)
+                })
+        }
+        StatementSyntax::PreposedIStatementConnection(connection) => {
+            generated_statement_base_contains_current_level_keha(&connection.leading_statement)
+                || generated_statement_after_i_connective_contains_current_level_keha(
+                    &connection.trailing_statement,
+                )
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_i_statement_connection_tail_contains_current_level_keha(
+    tail: &IStatementConnectionTailSyntax,
+) -> bool {
+    match tail {
+        IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
+            generated_statement_after_i_connective_contains_current_level_keha(
+                &tail.trailing_statement,
+            )
+        }
+        IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
+            generated_statement_after_i_connective_contains_current_level_keha(
+                &tail.trailing_statement,
+            )
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_after_i_connective_contains_current_level_keha(
+    statement: &StatementAfterIConnectiveSyntax,
+) -> bool {
+    match statement {
+        StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+            generated_bridi_statement_contains_current_level_keha(statement)
+        }
+        StatementAfterIConnectiveSyntax::TextGroupStatement(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_statement_base_contains_current_level_keha(statement: &StatementBaseSyntax) -> bool {
+    match statement {
+        StatementBaseSyntax::PrenexStatement(statement) => {
+            statement
+                .prenex_terms
+                .iter()
+                .any(generated_term_contains_current_level_keha)
+                || generated_statement_contains_current_level_keha(&statement.inner_statement)
+        }
+        StatementBaseSyntax::BridiStatement(statement) => {
+            generated_bridi_statement_contains_current_level_keha(statement)
+        }
+        StatementBaseSyntax::TextGroupStatement(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_statement_contains_current_level_keha(statement: &BridiStatementSyntax) -> bool {
+    generated_bridi_contains_current_level_keha(&statement.bridi)
+        || statement
+            .continuations
+            .iter()
+            .any(generated_bridi_statement_continuation_contains_current_level_keha)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_statement_continuation_contains_current_level_keha(
+    continuation: &BridiStatementContinuationSyntax,
+) -> bool {
+    match continuation {
+        BridiStatementContinuationSyntax::BoBridiStatementContinuation(continuation) => {
+            generated_subbridi_contains_current_level_keha(&continuation.trailing_subbridi)
+        }
+        BridiStatementContinuationSyntax::KeBridiStatementContinuation(continuation) => {
+            generated_subbridi_contains_current_level_keha(&continuation.trailing_subbridi)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_subbridi_contains_current_level_keha(subbridi: &SubbridiSyntax) -> bool {
     match subbridi {
         SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) => {
@@ -35796,7 +36077,11 @@ fn generated_forethought_bridi_connection_contains_current_level_keha(
     match connection {
         ForethoughtBridiConnectionSyntax::DirectForethoughtBridiConnection(connection) => {
             generated_subbridi_contains_current_level_keha(&connection.first)
-                || generated_subbridi_contains_current_level_keha(&connection.second)
+                || generated_subbridi_contains_current_level_keha(&connection.first_branch.branch)
+                || connection
+                    .additional_branches
+                    .iter()
+                    .any(|branch| generated_subbridi_contains_current_level_keha(&branch.branch))
                 || connection
                     .tail_terms
                     .iter()
@@ -35821,7 +36106,10 @@ fn generated_forethought_bridi_connection_without_tail_terms_contains_current_le
             connection,
         ) => {
             generated_subbridi_contains_current_level_keha(&connection.first)
-                || generated_subbridi_contains_current_level_keha(&connection.second)
+                || generated_subbridi_contains_current_level_keha(&connection.first_branch.branch)
+                || connection.additional_branches.iter().any(|branch| {
+                    generated_subbridi_contains_current_level_keha(&branch.branch)
+                })
         }
         ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(
             connection,
@@ -35918,17 +36206,20 @@ fn generated_simple_term_contains_current_level_keha(term: &SimpleTermSyntax) ->
         },
         SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
             NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                generated_selbri_contains_current_level_keha(&term.selbri)
+                term.free_modifiers
+                    .iter()
+                    .any(|free_modifier| generated_node_contains_cmavo(free_modifier, Cmavo::Keha))
+                    || generated_selbri_contains_current_level_keha(&term.selbri)
             }
             NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
                 generated_selbri_contains_current_level_keha(&term.selbri)
             }
         },
         SimpleTermSyntax::FihoiAdverbialTerm(term) => {
-            generated_subbridi_contains_current_level_keha(&term.subbridi)
+            generated_statement_contains_current_level_keha(&term.statement)
         }
         SimpleTermSyntax::SoiAdverbialTerm(term) => {
-            generated_subbridi_contains_current_level_keha(&term.subbridi)
+            generated_statement_contains_current_level_keha(&term.statement)
         }
         SimpleTermSyntax::ForethoughtTermset(termset) => {
             termset
@@ -35936,9 +36227,16 @@ fn generated_simple_term_contains_current_level_keha(term: &SimpleTermSyntax) ->
                 .iter()
                 .any(|term| generated_term_contains_current_level_keha(term))
                 || termset
-                    .gik_terms
+                    .first_branch
+                    .terms
                     .iter()
                     .any(|term| generated_term_contains_current_level_keha(term))
+                || termset.additional_branches.iter().any(|branch| {
+                    branch
+                        .terms
+                        .iter()
+                        .any(|term| generated_term_contains_current_level_keha(term))
+                })
         }
         SimpleTermSyntax::NuhiTermset(termset) => termset
             .termset
@@ -36007,7 +36305,12 @@ fn generated_sumti_forethought_contains_current_level_keha(sumti: &SumtiForethou
     match sumti {
         SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
             generated_sumti_contains_current_level_keha(&sumti.leading_sumti)
-                || generated_sumti_forethought_contains_current_level_keha(&sumti.trailing_sumti)
+                || generated_sumti_forethought_contains_current_level_keha(
+                    &sumti.first_branch.sumti,
+                )
+                || sumti.additional_branches.iter().any(|branch| {
+                    generated_sumti_forethought_contains_current_level_keha(&branch.sumti)
+                })
         }
         SumtiForethoughtSyntax::SimpleSumti(sumti) => {
             generated_simple_sumti_contains_current_level_keha(sumti)
@@ -36105,7 +36408,11 @@ fn generated_untagged_selbri_contains_current_level_keha(selbri: &UntaggedSelbri
         }
         UntaggedSelbriSyntax::ForethoughtSelbriConnection(connection) => {
             generated_selbri_contains_current_level_keha(&connection.leading_selbri)
-                || generated_selbri_contains_current_level_keha(&connection.trailing_selbri)
+                || generated_selbri_contains_current_level_keha(&connection.first_branch.selbri)
+                || connection
+                    .additional_branches
+                    .iter()
+                    .any(|branch| generated_selbri_contains_current_level_keha(&branch.selbri))
         }
     }
 }
@@ -36156,8 +36463,11 @@ fn generated_bo_or_linked_tanru_unit_contains_current_level_keha(
         BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
             generated_selbri_contains_current_level_keha(&unit.leading_selbri)
                 || generated_bo_or_linked_tanru_unit_contains_current_level_keha(
-                    &unit.trailing_unit,
+                    &unit.first_branch.unit,
                 )
+                || unit.additional_branches.iter().any(|branch| {
+                    generated_bo_or_linked_tanru_unit_contains_current_level_keha(&branch.unit)
+                })
         }
         BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
             generated_linked_tanru_unit_contains_current_level_keha(&unit.leading_unit)
