@@ -219,7 +219,6 @@ fn generate_struct(
     let invariant_expr = invariant_expression(&contracts, quote! { true });
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let turbofish = ty_generics.as_turbofish();
 
     quote! {
         #(#option_errors)*
@@ -237,7 +236,7 @@ fn generate_struct(
             message: ::std::string::String,
         }
 
-        impl #impl_generics #error_ident #ty_generics #where_clause {
+        impl #error_ident {
             fn invariant_violation() -> Self {
                 Self {
                     message: ::std::format!("type invariant violated for `{}`: {}", ::std::stringify!(#wrapper_ident), #invariant_docs),
@@ -245,13 +244,13 @@ fn generate_struct(
             }
         }
 
-        impl #impl_generics ::std::fmt::Display for #error_ident #ty_generics #where_clause {
+        impl ::std::fmt::Display for #error_ident {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 f.write_str(&self.message)
             }
         }
 
-        impl #impl_generics ::std::error::Error for #error_ident #ty_generics #where_clause {}
+        impl ::std::error::Error for #error_ident {}
 
         #[doc(hidden)]
         #wrapper_vis struct #builder_unset_ident;
@@ -324,19 +323,19 @@ fn generate_struct(
             }
 
             #[doc(hidden)]
-            pub fn __bityzba_try_from_data_builder<F>(data: F) -> ::std::result::Result<Self, #error_ident #ty_generics>
+            pub fn __bityzba_try_from_data_builder<F>(data: F) -> ::std::result::Result<Self, #error_ident>
             where
                 F: ::std::ops::FnOnce(#all_unset_builder_ty) -> #all_set_builder_ty,
             {
                 Self::try_from_data(data(#builder_ident::new()).build())
             }
 
-            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident> {
                 let value = Self(data);
                 if value.__bityzba_invariant() {
                     ::std::result::Result::Ok(value)
                 } else {
-                    ::std::result::Result::Err(#error_ident #turbofish::invariant_violation())
+                    ::std::result::Result::Err(#error_ident::invariant_violation())
                 }
             }
 
@@ -370,7 +369,7 @@ fn generate_struct(
         }
 
         impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
-            type Error = #error_ident #ty_generics;
+            type Error = #error_ident;
 
             fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
                 Self::try_from_data(data)
@@ -420,7 +419,6 @@ fn generate_tuple_newtype_struct(
     let invariant_expr = invariant_expression(&contracts, quote! { true });
     let invariant_docs = invariant_docs(&contracts);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let turbofish = ty_generics.as_turbofish();
 
     quote! {
         #(#option_errors)*
@@ -436,7 +434,7 @@ fn generate_tuple_newtype_struct(
             message: ::std::string::String,
         }
 
-        impl #impl_generics #error_ident #ty_generics #where_clause {
+        impl #error_ident {
             fn invariant_violation() -> Self {
                 Self {
                     message: ::std::format!("type invariant violated for `{}`: {}", ::std::stringify!(#wrapper_ident), #invariant_docs),
@@ -444,13 +442,13 @@ fn generate_tuple_newtype_struct(
             }
         }
 
-        impl #impl_generics ::std::fmt::Display for #error_ident #ty_generics #where_clause {
+        impl ::std::fmt::Display for #error_ident {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 f.write_str(&self.message)
             }
         }
 
-        impl #impl_generics ::std::error::Error for #error_ident #ty_generics #where_clause {}
+        impl ::std::error::Error for #error_ident {}
 
         impl #impl_generics #wrapper_ident #ty_generics #where_clause {
             #[doc(hidden)]
@@ -459,16 +457,16 @@ fn generate_tuple_newtype_struct(
             }
 
             #[doc(hidden)]
-            pub fn __bityzba_try_from_tuple_field(value: #field_type) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+            pub fn __bityzba_try_from_tuple_field(value: #field_type) -> ::std::result::Result<Self, #error_ident> {
                 Self::try_from_data(#data_ident(value))
             }
 
-            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident> {
                 let value = Self(data);
                 if value.__bityzba_invariant() {
                     ::std::result::Result::Ok(value)
                 } else {
-                    ::std::result::Result::Err(#error_ident #turbofish::invariant_violation())
+                    ::std::result::Result::Err(#error_ident::invariant_violation())
                 }
             }
 
@@ -498,7 +496,7 @@ fn generate_tuple_newtype_struct(
         }
 
         impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
-            type Error = #error_ident #ty_generics;
+            type Error = #error_ident;
 
             fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
                 Self::try_from_data(data)
@@ -553,7 +551,6 @@ fn generate_enum(
     let invariant_docs = enum_invariant_docs(&contracts);
     let generics = &item.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let turbofish = ty_generics.as_turbofish();
 
     quote! {
         #(#option_errors)*
@@ -573,7 +570,7 @@ fn generate_enum(
             message: ::std::string::String,
         }
 
-        impl #impl_generics #error_ident #ty_generics #where_clause {
+        impl #error_ident {
             fn invariant_violation() -> Self {
                 Self {
                     message: ::std::format!("type invariant violated for `{}`: {}", ::std::stringify!(#wrapper_ident), #invariant_docs),
@@ -581,21 +578,21 @@ fn generate_enum(
             }
         }
 
-        impl #impl_generics ::std::fmt::Display for #error_ident #ty_generics #where_clause {
+        impl ::std::fmt::Display for #error_ident {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 f.write_str(&self.message)
             }
         }
 
-        impl #impl_generics ::std::error::Error for #error_ident #ty_generics #where_clause {}
+        impl ::std::error::Error for #error_ident {}
 
         impl #impl_generics #wrapper_ident #ty_generics #where_clause {
-            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident #ty_generics> {
+            pub fn try_from_data(data: #data_ident #ty_generics) -> ::std::result::Result<Self, #error_ident> {
                 let value = Self(data);
                 if value.__bityzba_invariant() {
                     ::std::result::Result::Ok(value)
                 } else {
-                    ::std::result::Result::Err(#error_ident #turbofish::invariant_violation())
+                    ::std::result::Result::Err(#error_ident::invariant_violation())
                 }
             }
 
@@ -618,7 +615,7 @@ fn generate_enum(
         }
 
         impl #impl_generics ::std::convert::TryFrom<#data_ident #ty_generics> for #wrapper_ident #ty_generics #where_clause {
-            type Error = #error_ident #ty_generics;
+            type Error = #error_ident;
 
             fn try_from(data: #data_ident #ty_generics) -> ::std::result::Result<Self, Self::Error> {
                 Self::try_from_data(data)

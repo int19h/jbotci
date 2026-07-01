@@ -2,6 +2,7 @@
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use std::{
     any::Any,
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet, VecDeque},
     fmt,
     marker::PhantomData,
@@ -722,14 +723,22 @@ fn add_generated_construct_warnings(
     tokens: &[Token],
     warnings: &mut Vec<SyntaxWarning>,
 ) {
-    let mut visitor = GeneratedConstructWarningVisitor { tokens, warnings };
+    let mut visitor = new!(GeneratedConstructWarningVisitor {
+        tokens,
+        warnings: RefCell::new(warnings),
+    });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
 }
 
-#[invariant(true)]
+#[invariant(
+    tokens
+        .iter()
+        .all(|token| token.core_word().byte_range().is_some()),
+    "generated warning anchors require source-backed syntax tokens"
+)]
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
-    warnings: &'a mut Vec<SyntaxWarning>,
+    warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
 impl GeneratedConstructWarningVisitor<'_> {
@@ -739,10 +748,13 @@ impl GeneratedConstructWarningVisitor<'_> {
     where
         T: generated::generated_model::TreeNode,
     {
-        let mut visitor = FirstTokenVisitor { token: None };
+        let mut visitor = new!(FirstTokenVisitor {
+            token: Cell::new(None),
+        });
         node.visit_in_order(&mut visitor);
-        if let Some(anchor) = visitor.token {
-            push_generated_construct_warning(self.warnings, self.tokens, construct, anchor);
+        if let Some(anchor) = visitor.token.get() {
+            let mut warnings = self.warnings.borrow_mut();
+            push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
         }
     }
 }
@@ -769,9 +781,14 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     }
 }
 
-#[invariant(true)]
+#[invariant(
+    token
+        .get()
+        .is_none_or(|token| token.core_word().byte_range().is_some()),
+    "captured warning anchor token must be source-backed"
+)]
 struct FirstTokenVisitor<'tree> {
-    token: Option<&'tree Token>,
+    token: Cell<Option<&'tree Token>>,
 }
 
 impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
@@ -781,11 +798,11 @@ impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
-        if self.token.is_some() {
+        if self.token.get().is_some() {
             return;
         }
         let generated::generated_model::AtomRef::Token(token) = atom;
-        self.token = Some(token);
+        self.token.set(Some(token));
     }
 }
 

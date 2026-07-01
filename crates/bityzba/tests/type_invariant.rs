@@ -72,6 +72,23 @@ enum PlainChoice {
     Named { name: String },
 }
 
+#[invariant(!items.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BorrowedItems<'a, T> {
+    items: &'a [T],
+}
+
+#[invariant(!self.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BorrowedLabel<'a>(&'a str);
+
+#[invariant(::Named { items } => !items.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum BorrowedChoice<'a, T> {
+    Empty,
+    Named { items: &'a [T] },
+}
+
 impl CustomSpan {
     fn new(start: usize, end: usize) -> Result<Self, &'static str> {
         if start > end {
@@ -336,4 +353,23 @@ fn true_type_invariant_is_only_a_marker() {
     };
     assert!(matches!(choice, PlainChoice::Named { .. }));
     assert!(matches!(PlainChoice::Empty, PlainChoice::Empty));
+}
+
+#[test]
+fn borrowed_generic_type_invariant_errors_are_not_generic() {
+    let values = [1, 2, 3];
+    let borrowed = new!(BorrowedItems { items: &values });
+    assert_eq!(borrowed.items, &[1, 2, 3]);
+
+    let empty: &[usize] = &[];
+    assert!(try_new!(BorrowedItems { items: empty }).is_err());
+
+    let label = new!(BorrowedLabel("cmavo"));
+    let data!(BorrowedLabel(label_text)) = label.as_data();
+    assert_eq!(*label_text, "cmavo");
+    assert!(try_new!(BorrowedLabel("")).is_err());
+
+    assert!(try_new!(BorrowedChoice::<usize>::Empty).is_ok());
+    assert!(try_new!(BorrowedChoice::Named { items: &values }).is_ok());
+    assert!(try_new!(BorrowedChoice::Named { items: empty }).is_err());
 }
