@@ -27883,6 +27883,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     quantifier.0.as_ref(),
                     self.source_for_node(quantifier, "quantity"),
                 ),
+            QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => self
+                .build_quantity_for_generated_mekso(
+                    quantifier.0.as_ref(),
+                    self.source_for_node(quantifier, "quantity"),
+                ),
         }
     }
 

@@ -235,7 +235,7 @@ pub mod generated_model {
         gihek_fragment,
         multiple_na_fragment,
         single_na_fragment,
-        when feature(ZantufaMex) zantufa_mekso_fragment,
+        zantufa_mekso_fragment,
         mekso_fragment,
         terms_fragment,
         relative_clause_fragment,
@@ -453,7 +453,7 @@ pub mod generated_model {
     }
 
     rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
-        when feature(ZantufaTerms) zantufa_grouped_bridi_tail,
+        zantufa_grouped_bridi_tail,
         bridi_tail_with_possible_tail_terms,
         bridi_tail_without_tail_terms,
     }
@@ -1092,10 +1092,15 @@ pub mod generated_model {
         field mekso <- arc(mekso);
     }
 
+    rule "quantifier" zantufa_priority_raw_mekso_quantifier(mekso) -> struct {
+        field mekso <- arc(mekso);
+    }
+
     rule "quantifier" quantifier(mekso, letter_tokens) -> enum {
-        when feature(ZantufaMex) zantufa_raw_mekso_quantifier,
+        when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier,
         mekso_quantifier,
         pa_run_quantifier,
+        zantufa_raw_mekso_quantifier,
     }
 
     rule "number mex" number_mekso(letter_tokens) -> struct {
@@ -1947,8 +1952,8 @@ pub mod generated_model {
     }
 
     rule "relative bridi" bridi_relative_clause(subbridi, statement) -> enum {
-        when feature(ZantufaTerms) zantufa_restrictive_statement_relative_clause,
-        when feature(ZantufaTerms) zantufa_incidental_statement_relative_clause,
+        zantufa_restrictive_statement_relative_clause,
+        zantufa_incidental_statement_relative_clause,
         restrictive_bridi_relative_clause,
         incidental_bridi_relative_clause,
     }

@@ -1336,6 +1336,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ForethoughtStatement",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PrenexStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1353,6 +1357,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TextGroupStatement",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaMeksoFragment",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaStatementTerms",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (

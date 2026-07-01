@@ -1,66 +1,78 @@
 # Zantufa Parser Conformance Ledger
 
-This ledger tracks parser conformance against Guskant's Zantufa fork, not v0
-compatibility. The checked upstream grammar is:
+This ledger tracks v1 parser behavior against Guskant's frozen Zantufa fork.
 
-- Source: https://raw.githubusercontent.com/guskant/gerna_cipra/master/zantufa-1.9999.peg
-- Header date in file: 2019-08-20 UTC
+- Grammar: https://raw.githubusercontent.com/guskant/gerna_cipra/master/zantufa-1.9999.peg
+- Grammar SHA-256: `79e7a1daec2aaa9760af3c650c9e67c393c1c4c1b1e40e1ce905e0a9b652a312`
+- Parser snapshot SHA-256: `127562f0f7b05bb805060ff9ba419b2cfadaa56e47b74aca30ab3bdb11787283`
 - Checked locally on: 2026-07-01
-- SHA-256: `79e7a1daec2aaa9760af3c650c9e67c393c1c4c1b1e40e1ce905e0a9b652a312`
+- Captured fixture: [tests/fixtures/zantufa/upstream-parity.json](/home/int19h.linux/git/jbotci/tests/fixtures/zantufa/upstream-parity.json)
 
-CLL forethought connectives remain binary (`gek P gik Q`). The Zantufa
-forethought-connective semantics page defines n-ary chains such as
-`ga P0 gi P1 gi ... gi Pn (gi'i)`, so the parser treats extra `gi` branches
-and `gi'i` as Zantufa connective syntax.
+CLL forethought connectives are binary. Zantufa permits n-ary forethought
+chains such as `ga P0 gi P1 gi ... gi Pn (gi'i)`. v1 represents those as
+ordered branch vectors and lowers logical n-ary statement forms left-to-right
+where the connective has an existing semantic operator.
 
 ## Gate Policy
 
-- `default-warning`: syntax is lexically or structurally distinguishable from
-  baseline CLL+xorlo, so it parses by default and emits an experimental warning.
-- `feature-required`: syntax changes the behavior of existing baseline
-  connective/tag grammar or otherwise has a plausible baseline parse, so the
-  specific Zantufa feature or `(zantufa)` is required.
-- `compatibility-only`: the public dialect feature exists for dialect formulas
-  and v0 compatibility, but it does not gate parser syntax.
+- `default-warning`: lexically or structurally distinguishable from baseline
+  CLL+xorlo; parses without a dialect flag and emits an experimental warning.
+- `feature-required`: changes behavior for a plausible baseline token stream;
+  requires the specific Zantufa feature or `(zantufa)`.
+- `compatibility-only`: public dialect/profile flag retained, but no syntax is
+  hidden behind it.
 
-There is intentionally no public `ZantufaCmavo` feature in v1. Fork-only cmavo
-are recognized by default and warned as experimental words.
+There is no v1 public `ZantufaCmavo` feature. Fork-only cmavo are recognized by
+default and warned as `ExperimentalZantufaCmavo`; surrounding experimental
+constructs may emit their own construct-specific warning as well.
 
 ## Rule Ledger
 
-| Zantufa rule(s) | Owner | Policy | v1 status | Warning(s) | Notes |
-| --- | --- | --- | --- | --- | --- |
-| `gek`, `gik`, `GIhI_elidible` inside `sentence`, `gek_bridi_tail`, `sumti_3`, `tanru_unit_1`, `gek_term` | `ZantufaConnectives` | `feature-required` | Partially implemented | `ExperimentalZantufaNaryForethought`, `ExperimentalZantufaForethoughtGihi` | Bridi, termset, sumti, selbri, and tanru-unit forethought forms now accept ordered extra `gi` branches under `ZantufaConnectives`. Extra branch separators match the fork's plain `GI`, not `GI NAI`. Semantics rejects n-ary lowering explicitly for now instead of dropping branches. |
-| `gek <- GI (joik / tag) / (joik / tag) GI / ... BO?` | `ZantufaConnectives` | `feature-required` | Partially implemented | `ExperimentalZantufaGek` | Existing parser has `gi`-initial, `joik gi`, `jek gi`, modal `gi`, and `bo`-extended forms. Full parity still needs a direct audit against the fork's `tag` operand because our tag grammar is not yet the fork's `tcita_selci` grammar. |
-| `term_2 <- KE !(sumti KEhE) term+ KEhE_elidible` | `ZantufaTerms` | `default-warning` | Implemented | `ExperimentalKeTermset` | Distinguishable KE term grouping parses by default. |
-| `gek_term <- gek term+ (gik term+)+ GIhI_elidible` | `ZantufaTerms`, `ZantufaConnectives` | `feature-required` for extra branches/`gi'i` | Implemented through `forethought_termset` | `ExperimentalZantufaNaryForethought`, `ExperimentalZantufaForethoughtGihi` | `nu'i` is accepted when present. Tests cover binary, n-ary, optional `nu'u`, and optional `gi'i`. |
-| `term_2 <- XOI_clause statement SEhU_elidible` | `ZantufaAdverbials` | `default-warning` | Implemented | `ExperimentalSoiAdverbial` | `xoi` is accepted through the SOI adverbial path with a full generated `statement` payload, including statement-level `I` connective forms. |
-| `FIhOI_clause statement` adverbial behavior | `ZantufaAdverbials` | `default-warning` | Implemented | `ExperimentalFihoiAdverbial` | FIhOI accepts a full generated `statement` payload. The legacy FIhAU terminator remains accepted for compatibility with existing v1/v0 examples. |
-| `brigahi <- POIhA free* selbri KU? / NA !bridi_tail !joik_gihek KU?` | `ZantufaTerms`, `ZantufaAdverbials` | `default-warning` where distinguishable | Partial | `ExperimentalZantufaPoihaBrigahi` | POIhA/NOIhA selbri term with `ku` parses by default, and the fork's `free*` slot before the selbri is implemented. TODO: the `NA` briga'i branch still needs a direct fork-conformance audit against existing bare-NA term behavior. |
-| `tag_term` with `JAI_clause tag?` | `ZantufaTags` | `feature-required` | Implemented | `ExperimentalZantufaJaiTagTerm` | Existing gate matches the conflict policy. Full fork guards around `tanru_unit_1`, `BO`, and `gek_bridi_tail` need a separate audit. |
-| `sumti_5 <- RAhOI_clause` | `ZantufaQuotes` | `default-warning` | Implemented | `ExperimentalZantufaRahoiQuote` | Fork-only quote cmavo parses by default. |
-| `sumti_5 <- LOhOI_clause ... statement KUhAU_elidible` | Zantufa quote/cmavo surface | `default-warning` | Implemented for current bridi-description surface | `ExperimentalLohOiBridiDescription`, `ExperimentalZantufaCmavo` for table-only variants | Current parser accepts the known LOhOI bridi-description forms and warns. A full audit against `statement` payload remains open. |
-| `tanru_unit_1 <- MUhOI_clause / GOhOI_clause / LUhEI_clause text LIhAU?` | `ZantufaQuotes` | `default-warning` | Implemented | `ExperimentalZantufaMuhoiSelbriUnit`, `ExperimentalGohoiSelbriUnit`, `ExperimentalZantufaLuheiSelbriUnit` | Distinguishable quote-as-selbri-unit forms parse by default. |
-| `relative_clause <- NOI_clause statement KUhO?` | Baseline relative clauses plus Zantufa statement widening | `feature-required` if it changes baseline parse | Not implemented | TBD | Current relative-clause parser does not intentionally widen NOI payloads to full Zantufa `statement`. |
-| `NU_clause (joik NU_clause)* statement KEI?` | Zantufa abstraction payload widening | `feature-required` if it changes baseline parse | Not implemented | TBD | Current NU payload remains the v1/CLL-shaped parser. This is needed for complete `{tu'e ... tu'u}`-style statement abstractions. |
-| `mex`, `mex_1`, `mex_2`, `mex_rp`, `mex_forethought`, `operator`, `operand` | `ZantufaMex` | `feature-required` for conflicting grammar, `default-warning` for fork-only cmavo | Partial | `ExperimentalZantufaMex` | Implemented gated parsing for MOhE-selbri operands, MAhO-selbri and MAhO-sumti operators, NAhE operands without BO, and KE-grouped mex operand sequences. Existing v1 forethought-call and reverse-Polish mex remain close to the fork but still need a rule-by-rule audit for `mex_2+`, recursive `mex_forethought`, and ME-as-selbri-unit payloads. |
-| `tag <- tcita_selci+ (joik tcita_selci+)*` and recursive `tcita_selci` | `ZantufaTags` | `feature-required` | Partial | `ExperimentalZantufaRecursiveTag` | Current parser only has the older limited recursive SE/NAhE tag prefix. TODO: replace with the fork's `tcita_selci` list shape. |
-| `free <- SEI statement ... / mex_2 MAI / xi_clause ...` | Mixed terms/mex/free surfaces | Mixed | Not fully audited | TBD | Existing free-modifier grammar is still CLL/v1-shaped. Zantufa statement and mex widenings should be implemented after `statement` and `ZantufaMex` parity. |
-| Fork-only cmavo table entries | No feature | `default-warning` | Implemented | `ExperimentalZantufaCmavo` | Word-level warning is emitted by token classification. Construct-specific warnings are still emitted when a surrounding experimental construct consumes the word. |
-| Non-cmavo morphology differences | `ZantufaMorphology` | `compatibility-only` | Not syntax-gated | None | Keep the public feature for dialect formulas. Concrete non-cmavo morphology differences should be tracked in morphology work, not hidden behind parser gates. |
+| Upstream rule surface | Owner | Policy | Parser status | Semantic status |
+| --- | --- | --- | --- | --- |
+| `gek_statement`, `sentence`, `gek_bridi_tail`, `sumti_3`, `tanru_unit_1`, `gek_term` n-ary `gik+` plus optional `GIhI` | `ZantufaConnectives` | `feature-required` | Accepted with ordered branch vectors and `GIhI` as `GIhI`, not baseline `GIhA` | Logical statement forethoughts lower left-to-right; unsupported modal/nonlogical forms report explicit Zantufa diagnostics |
+| Zantufa `gek` variants including `GI (joik/tag)`, `(joik/tag) GI`, and optional `BO` | `ZantufaConnectives`, `ZantufaTags` | `feature-required` | Accepted by the generated connective/tag grammar | Logical forms lower through existing connective semantics; unsupported modal forms diagnose explicitly |
+| `statement_terms <- statement IAU? terms?` | `ZantufaTerms` | mixed | Accepted under `ZantufaTerms`; `IhAU` preservation is dialect-sensitive so it is not swallowed as an indicator | Empty `IhAU` delegates to the inner statement; trailing terms diagnose unsupported Zantufa statement-level term semantics |
+| `bridi_tail_3 <- KE bridi_tail KEhE? tail_terms` | `ZantufaTerms` | `default-warning` | Accepted by default as `ZantufaGroupedBridiTail` | Traversal/reference handling recurses into inner bridi-tail and tail terms; semantic construction uses the same bridi-tail path when no unsupported tail-term shape is introduced |
+| `term_2 <- KE !(sumti KEhE) term+ KEhE?` | `ZantufaTerms` | `default-warning` | Accepted by default as KE term grouping | Uses existing termset semantics where representable |
+| `gek_term <- gek term+ (gik term+)+ GIhI?` | `ZantufaTerms`, `ZantufaConnectives` | `feature-required` for extra branches and `GIhI` | Accepted through `forethought_termset` | Binary forms use existing termset semantics; n-ary/modal gaps diagnose explicitly |
+| `term_2 <- XOI statement SEhU?` and `FIhOI statement` | `ZantufaAdverbials` | `default-warning` | Accepted with full generated `statement` payloads | Statement payloads are visited and bound like ordinary nested statements |
+| `brigahi <- POIhA free* selbri KU? / NA ... KU?` | `ZantufaTerms`, `ZantufaAdverbials` | `default-warning` where distinguishable | POIhA/NOIhA and NA briga'i forms are accepted by the generated term grammar | POIhA/NOIhA lower through existing relation/adverbial paths; unsupported NA briga'i semantics diagnose explicitly |
+| `tag_term` with `tag`, `FA (joik FA)*`, and `JAI tag?` | `ZantufaTags` | `feature-required` for conflicting tag behavior | Accepted under `ZantufaTags` | Tag terms feed existing tagged-term semantics where the tag has a semantic modal target |
+| `tag <- tcita_selci+ (joik tcita_selci+)*`, recursive `tcita_selci` | `ZantufaTags` | `feature-required` | Accepted by v1 connected tag grammar plus Zantufa recursive prefix atoms | Existing modal/tense semantics are reused; unsupported compound tags diagnose explicitly |
+| `relative_clause <- NOI statement KUhO?` | `ZantufaTerms` | `default-warning` | Accepted by default for restrictive and incidental relative clauses | Statement restrictions lower through the generated relative-clause builder; `ke'a` handling is preserved |
+| `LOhOI (joik LOhOI)* statement KUhAU?` | `ZantufaQuotes` | `default-warning` | Accepted by default for bridi-description sumti | Semantic lowering uses existing description/referent machinery where available |
+| `RAhOI`, `MUhOI`, `GOhOI`, `LUhEI ... LIhAU?` quote surfaces | `ZantufaQuotes` | `default-warning` | Accepted by default | Quote-as-sumti and quote-as-selbri-unit forms lower to existing sign/quote concepts where representable |
+| `NU (joik NU)* statement KEI?` | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` before ordinary NU so baseline abstractions do not warn | Reducible single-bridi statements lower to relation labels; connected/text/forethought statement payloads diagnose unsupported Zantufa abstraction semantics |
+| `ME (sumti / operator+ / mex / tag) MEhU? MOI?`, `mex MOI` | `ZantufaMex` | mixed | Accepted; fork-only payloads warn as `ExperimentalZantufaMex` | Sumti-compatible `ME` forms reuse existing semantics; operator/mex/tag relation-label forms currently diagnose explicit unsupported Zantufa semantics |
+| `mex`, `mex_1`, `mex_2`, `mex_rp`, `mex_forethought` | `ZantufaMex` | mixed | Accepted for raw mex fragments, raw mex quantifiers, BO-grouped mex, KE-grouped operand sequences, reverse-Polish tails, operator-first mex, and optional trailing operator forms | Ordinary binary/operator-call forms lower to existing math expressions; grouped or trailing-operator forms diagnose explicit unsupported Zantufa mex semantics |
+| `operator <- SE operator / NAhE operator / MAhO (mex/selbri/sumti) / VUhU / joik_ek !CU` | `ZantufaMex` | `feature-required` when it changes operator parsing | Accepted under `ZantufaMex`; connective operators are guarded from `CU` | Existing math-operator semantics are reused where the operator has a model label |
+| `operand <- number / lerfu / VEI mex / MOhE (selbri/sumti) / LAhE|NAhE BO mex / NAhE operand` | `ZantufaMex` | `feature-required` where it conflicts | Accepted under `ZantufaMex`, including scalar `NAhE operand` and selbri `MOhE` | Sumti/selbri operands lower where an existing math operand model exists; unsupported scalar/grouped cases diagnose explicitly |
+| `free <- SEI statement / mex_2 MAI / xi_clause / ...` | `ZantufaTerms`, `ZantufaMex` | mixed | `SEI statement` is feature-required where it shadows ordinary SEI; `mex_2 MAI` and `XI mex_2` are accepted when distinguishable | Nested statement and mex payloads are traversed; unsupported dangling mex semantics remain explicit |
+| Non-cmavo morphology differences | `ZantufaMorphology` | `compatibility-only` | No syntax is gated by this flag | Concrete non-cmavo morphology work is tracked outside the syntax parser |
 
-## Current Implementation Checkpoints
+## Captured Expectations
 
-- N-ary Zantufa forethought branches are represented in generated syntax as a
-  first branch plus ordered `additional_branches`, preserving input order.
-- `gi'i` is consumed as `GIhI` only in Zantufa forethought contexts, under
-  `ZantufaConnectives`.
-- `ZantufaAdverbials`, `ZantufaMex`, `ZantufaQuotes`, and `ZantufaTerms` are
-  now available to generated parser feature gates, not just dialect formulas.
-- XOI/FIhOI adverbial terms now carry generated `statement` payloads.
-- Zantufa mex now has gated parser coverage for the highest-confidence fork
-  operand/operator deltas listed above.
-- N-ary forethought semantic lowering is intentionally unsupported until the
-  semantic model defines n-ary truth-functional behavior.
-- Unit tests cover bridi and termset branch-count grids, optional `gi'i`, and a
-  sourced Guskant `ju'e gi ...` example.
+The one-shot capture helper
+[tests/support/capture-zantufa-expectations.sh](/home/int19h.linux/git/jbotci/tests/support/capture-zantufa-expectations.sh)
+checks the reviewed fixture against Guskant's parser snapshot. Normal tests do
+not invoke the upstream parser or use the network.
+
+The fixture currently covers:
+
+- default-warning bare mex fragments;
+- statement relative clauses;
+- grouped bridi tails;
+- n-ary forethought statement connectives with `gi'i`;
+- statement abstractions;
+- raw mex quantifiers with trailing operators and `MAI` free modifiers;
+- `XI` plus operator-first raw mex in a statement.
+
+## Semantic Boundary
+
+Zantufa syntax support is parser parity first. Semantics is implemented where
+the existing model has a correct target: logical n-ary statement folding,
+statement relative clauses, raw mex quantities, bare mex fragments as number
+mentions, and straightforward math/operator forms. For constructs without a
+sound model target, the builder returns explicit `Unsupported Zantufa ...`
+diagnostics with source context rather than silently dropping syntax.

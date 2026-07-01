@@ -1,0 +1,94 @@
+{
+  "upstream": {
+    "source": "https://raw.githubusercontent.com/guskant/gerna_cipra/master/zantufa-1.9999.peg",
+    "sha256": "79e7a1daec2aaa9760af3c650c9e67c393c1c4c1b1e40e1ce905e0a9b652a312",
+    "parserSha256": "127562f0f7b05bb805060ff9ba419b2cfadaa56e47b74aca30ab3bdb11787283",
+    "capturedAt": "2026-07-01"
+  },
+  "cases": [
+    {
+      "id": "bare-zantufa-mex-fragment",
+      "source": "su'i re",
+      "provenance": "zantufa-1.9999.peg fragment <- mex; operator-first mex_2",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": ["ExperimentalZantufaMex"],
+      "zantufaWarnings": ["ExperimentalZantufaMex"],
+      "shapeMarkers": ["ZantufaMeksoFragment", "ForethoughtCallMekso"]
+    },
+    {
+      "id": "statement-relative-clause",
+      "source": "mi poi broda i je do brode kuho cu klama",
+      "provenance": "zantufa-1.9999.peg relative_clause <- NOI_clause statement KUhO?",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": ["ExperimentalZantufaStatementRelativeClause"],
+      "zantufaWarnings": ["ExperimentalZantufaStatementRelativeClause"],
+      "shapeMarkers": ["ZantufaRestrictiveStatementRelativeClause", "IStatementConnection"]
+    },
+    {
+      "id": "grouped-bridi-tail",
+      "source": "ke broda gi'e brode ke'e mi",
+      "provenance": "zantufa-1.9999.peg bridi_tail_3 <- KE bridi_tail KEhE? tail_terms",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": ["ExperimentalZantufaGroupedBridiTail"],
+      "zantufaWarnings": ["ExperimentalZantufaGroupedBridiTail"],
+      "shapeMarkers": ["ZantufaGroupedBridiTail"]
+    },
+    {
+      "id": "nary-forethought-statement",
+      "source": "ga broda gi brode gi brodi gi'i",
+      "provenance": "zantufa jonma'o semantics page and zantufa-1.9999.peg gek_statement",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaNaryForethought",
+        "ExperimentalZantufaForethoughtGihi"
+      ],
+      "shapeMarkers": ["ForethoughtStatement", "additional_branches"]
+    },
+    {
+      "id": "statement-abstraction",
+      "source": "lo nu mi broda i je do brode kei cu fasnu",
+      "provenance": "zantufa-1.9999.peg tanru_unit_1 <- NU (joik NU)* statement KEI?",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": ["ExperimentalZantufaStatementAbstraction"],
+      "shapeMarkers": ["ZantufaStatementAbstractionTanruUnit", "IStatementConnection"]
+    },
+    {
+      "id": "trailing-operator-mex-quantifier",
+      "source": "pa su'i re mai mi broda",
+      "provenance": "zantufa-1.9999.peg mex <- mex_1 (operator+ mex_1?)* with mex_2 MAI free",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": ["ExperimentalZantufaMex"],
+      "shapeMarkers": [
+        "ZantufaPriorityRawMeksoQuantifier",
+        "ZantufaInfixMekso",
+        "right_expression\":null"
+      ]
+    },
+    {
+      "id": "xi-mex-free-with-statement-terms",
+      "source": "xi pa su'i re mi broda",
+      "provenance": "zantufa-1.9999.peg free <- xi_clause and statement_terms",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": ["ExperimentalZantufaMex"],
+      "zantufaWarnings": ["ExperimentalZantufaMex"],
+      "shapeMarkers": ["ZantufaPriorityRawMeksoQuantifier", "ForethoughtCallMekso"]
+    }
+  ]
+}

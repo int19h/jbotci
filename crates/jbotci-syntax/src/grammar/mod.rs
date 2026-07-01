@@ -19,6 +19,7 @@ use jbotci_diagnostics::{
 };
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_tree::TreeVisitor;
 
 use crate::{
     ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
@@ -701,15 +702,120 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     let tokens = syntax_tokens(words, options);
     let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
     let result = parsed.result.map(|parsed| {
+        let mut warnings = parsed.warnings;
+        add_generated_construct_warnings(&parsed.text, &tokens, &mut warnings);
         new!(GeneratedSyntaxParse {
             parse_tree: Box::new(parsed.text),
-            warnings: parsed.warnings,
+            warnings,
         })
     });
     GeneratedSyntaxParseAttempt {
         result,
         trace: parsed.trace,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn add_generated_construct_warnings(
+    text: &generated::generated_model::TextSyntax,
+    tokens: &[Token],
+    warnings: &mut Vec<SyntaxWarning>,
+) {
+    let mut visitor = GeneratedConstructWarningVisitor { tokens, warnings };
+    generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
+}
+
+#[invariant(true)]
+struct GeneratedConstructWarningVisitor<'a> {
+    tokens: &'a [Token],
+    warnings: &'a mut Vec<SyntaxWarning>,
+}
+
+impl GeneratedConstructWarningVisitor<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn warn_first_token<T>(&mut self, construct: ExperimentalConstruct, node: &T)
+    where
+        T: generated::generated_model::TreeNode,
+    {
+        let mut visitor = FirstTokenVisitor { token: None };
+        node.visit_in_order(&mut visitor);
+        if let Some(anchor) = visitor.token {
+            push_generated_construct_warning(self.warnings, self.tokens, construct, anchor);
+        }
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
+    type Node = generated::generated_model::NodeRef<'tree>;
+    type Atom = generated::generated_model::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        match node {
+            generated::generated_model::NodeRef::FragmentStatementSyntaxZantufaMeksoFragment(
+                fragment,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, fragment),
+            generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(
+                quantifier,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
+                quantifier,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            _ => {}
+        }
+    }
+}
+
+#[invariant(true)]
+struct FirstTokenVisitor<'tree> {
+    token: Option<&'tree Token>,
+}
+
+impl<'tree> TreeVisitor<'tree> for FirstTokenVisitor<'tree> {
+    type Node = generated::generated_model::NodeRef<'tree>;
+    type Atom = generated::generated_model::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        if self.token.is_some() {
+            return;
+        }
+        let generated::generated_model::AtomRef::Token(token) = atom;
+        self.token = Some(token);
+    }
+}
+
+#[requires(true)]
+#[ensures(warnings.len() == old(warnings.len()) || warnings.len() == old(warnings.len()) + 1)]
+fn push_generated_construct_warning(
+    warnings: &mut Vec<SyntaxWarning>,
+    tokens: &[Token],
+    construct: ExperimentalConstruct,
+    anchor: &Token,
+) {
+    let anchor_index = generated_warning_anchor_index(tokens, anchor);
+    let warning = SyntaxWarning::experimental_construct(
+        construct,
+        anchor_index,
+        Token::bare(anchor.core_word().clone()),
+    );
+    if !warnings.contains(&warning) {
+        warnings.push(warning);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= tokens.len())]
+fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
+    let anchor_range = anchor.core_word().byte_range();
+    tokens
+        .iter()
+        .position(|token| token.core_word().byte_range() == anchor_range)
+        .unwrap_or(tokens.len())
 }
 
 #[cfg(feature = "grammar-debug")]

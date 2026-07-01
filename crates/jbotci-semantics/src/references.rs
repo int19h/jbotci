@@ -3200,6 +3200,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
                 self.analyze_math_expression_nested(&quantifier.0);
             }
+            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
+                self.analyze_math_expression_nested(&quantifier.0);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
@@ -8746,6 +8749,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
                 self.visit_math_expression(&quantifier.0);
             }
+            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
+                self.visit_math_expression(&quantifier.0);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
@@ -10350,6 +10356,9 @@ fn generated_quantifier_to_usize(quantifier: &generated::QuantifierSyntax) -> Op
             generated_math_expression_to_usize(&quantifier.mekso)
         }
         generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
+            generated_math_expression_to_usize(&quantifier.0)
+        }
+        generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
             generated_math_expression_to_usize(&quantifier.0)
         }
     }
