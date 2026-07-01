@@ -1351,6 +1351,8 @@ struct GentufaInput {
     ascii: bool,
     #[arg(long = "detailed-errors")]
     detailed_errors: bool,
+    #[arg(long = "error-context", default_value_t = 1)]
+    error_context: usize,
     #[arg(long = "trace-phase", value_enum)]
     trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]
@@ -2477,6 +2479,7 @@ pub fn run_tool_gentufa(request: ToolGentufaRequest) -> Result<ToolRenderedOutpu
             file: None,
             ascii: false,
             detailed_errors: true,
+            error_context: 1,
             trace_phase: None,
             trace_limit: None,
             trace_list: false,
@@ -4372,7 +4375,8 @@ fn render_gentufa(
     };
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
-        .with_trace_options(syntax_trace_options);
+        .with_trace_options(syntax_trace_options)
+        .with_error_context_depth(input.error_context);
     let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &text,
@@ -6827,6 +6831,7 @@ mod tests {
         };
         assert!(!default_input.ascii);
         assert!(!default_input.detailed_errors);
+        assert_eq!(default_input.error_context, 1);
 
         let bare_cli =
             Cli::try_parse_from(["jbotci", "gentufa", "--color", "coi"]).expect("bare color");
@@ -6846,6 +6851,13 @@ mod tests {
             panic!("expected gentufa command");
         };
         assert!(detailed_input.detailed_errors);
+
+        let context_cli = Cli::try_parse_from(["jbotci", "gentufa", "--error-context", "3", "coi"])
+            .expect("error context");
+        let Command::Gentufa(context_input) = context_cli.command else {
+            panic!("expected gentufa command");
+        };
+        assert_eq!(context_input.error_context, 3);
 
         let ascii_cli =
             Cli::try_parse_from(["jbotci", "gentufa", "--ascii", "coi"]).expect("ascii flag");
@@ -7937,11 +7949,8 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(stderr.contains("unexpected cmavo"));
-            assert!(
-                stderr.contains("expected: free modifier or statement"),
-                "{stderr}"
-            );
-            assert!(stderr.contains("while parsing statement"), "{stderr}");
+            assert!(stderr.contains("expected: end of input"), "{stderr}");
+            assert!(!stderr.contains("while parsing"), "{stderr}");
             assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
             assert!(!stderr.contains("{be}"));
@@ -7957,17 +7966,8 @@ mod tests {
     #[ensures(true)]
     fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         run_on_normal_stack(|| {
-            let cli = Cli::try_parse_from([
-                "jbotci",
-                "gentufa",
-                "--detailed-errors",
-                "gleki",
-                "ku",
-                "klama",
-                "zei",
-                "klama",
-            ])
-            .expect("gentufa parses");
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--detailed-errors", "mi", "cu"])
+                .expect("gentufa parses");
             let mut output = Vec::new();
             let mut error = Vec::new();
             let status = run_cli_with_color_policy_and_width(
@@ -7982,8 +7982,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected: free modifier or statement"));
-            assert!(stderr.contains("while parsing statement"));
+            assert!(stderr.contains("expected: free modifier, terms,"));
+            assert!(stderr.contains("while parsing bridi"));
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
@@ -8027,17 +8027,8 @@ mod tests {
     #[ensures(true)]
     fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
         run_on_normal_stack(|| {
-            let cli = Cli::try_parse_from([
-                "jbotci",
-                "gentufa",
-                "--detailed-errors",
-                "gleki",
-                "ku",
-                "klama",
-                "zei",
-                "klama",
-            ])
-            .expect("gentufa detailed parses");
+            let cli = Cli::try_parse_from(["jbotci", "gentufa", "--detailed-errors", "mi", "cu"])
+                .expect("gentufa detailed parses");
             let mut output = Vec::new();
             let mut error = Vec::new();
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
@@ -8046,21 +8037,13 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("needs one of:"));
-            assert!(stderr.contains("linked arguments"));
-            assert!(stderr.contains("tanru unit"));
-            assert!(stderr.contains("statement"));
-            assert!(stderr.contains("text"));
+            assert!(stderr.contains("replacement phrase"));
+            assert!(stderr.contains("tag"));
+            assert!(stderr.contains("forethought bridi connection"));
+            assert!(stderr.contains("bridi"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(compact_stderr.contains("[continues statement]"));
-            assert!(compact_stderr.contains("[continues text]"));
+            assert!(compact_stderr.contains("[continues bridi]"));
             assert!(!stderr.contains("end of input (end of input)"));
-            let continuation = compact_stderr
-                .find("continues statement]")
-                .expect("statement continuation group");
-            let text = compact_stderr
-                .find("continues text]")
-                .expect("text continuation group");
-            assert!(continuation < text);
             assert!(!stderr.contains("\x1b["));
         });
     }
@@ -8080,9 +8063,9 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("mi cu"), "{stderr}");
-            assert!(stderr.contains("syntax.incomplete-selbri"), "{stderr}");
+            assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
             assert!(stderr.contains("needs one of:"), "{stderr}");
-            assert!(stderr.contains("tanru unit"), "{stderr}");
+            assert!(stderr.contains("replacement phrase"), "{stderr}");
             assert!(stderr.contains("forethought bridi connection"), "{stderr}");
             assert!(stderr.contains("while parsing bridi"), "{stderr}");
             assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");
@@ -8249,11 +8232,8 @@ mod tests {
                 "gentufa",
                 "--color=always",
                 "--detailed-errors",
-                "gleki",
-                "ku",
-                "klama",
-                "zei",
-                "klama",
+                "mi",
+                "cu",
             ])
             .expect("gentufa color parses");
             let mut output = Vec::new();
@@ -8264,8 +8244,8 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("\x1b["));
-            assert!(stderr.contains("NIhO"));
-            assert!(!stderr.contains("{i}"));
+            assert!(stderr.contains("lo'ai"));
+            assert!(!stderr.contains("{lo'ai}"));
         });
     }
 

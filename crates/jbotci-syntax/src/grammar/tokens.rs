@@ -1101,7 +1101,10 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
 
 #[requires(true)]
 #[ensures(matches!(ret, SyntaxError::Parse { ref reason, .. } if !reason.is_empty()) || !matches!(ret, SyntaxError::Parse { .. }))]
-pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
+pub(super) fn syntax_error(
+    errors: Vec<SyntaxParseError<'_>>,
+    error_context_depth: usize,
+) -> SyntaxError {
     let Some(error) = merge_farthest_errors(errors) else {
         return SyntaxError::Parse {
             kind: SyntaxErrorKind::InvalidConstruct,
@@ -1110,7 +1113,7 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
             reason: "unknown Chumsky syntax error".to_owned(),
             expected: Vec::new(),
             expectations: Vec::new(),
-            context: None,
+            contexts: Vec::new(),
         };
     };
     let preferred_context = error.preferred_context();
@@ -1119,6 +1122,7 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
     let expectations = error.expectations();
     let expected = error.expected_strings();
     let current_context = error.current_context().or(preferred_context);
+    let contexts = error.report_contexts(error_context_depth);
     let summary_context = error.summary_context().or_else(|| current_context.clone());
     let kind = syntax_error_kind(&error, &expectations, current_context.as_ref());
     let reason = syntax_error_reason(
@@ -1139,7 +1143,7 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
         reason,
         expected,
         expectations,
-        context: current_context,
+        contexts,
     }
 }
 
@@ -1148,10 +1152,12 @@ pub(super) fn syntax_error(errors: Vec<SyntaxParseError<'_>>) -> SyntaxError {
 pub(super) fn syntax_error_with_diagnostic_candidate<'tokens>(
     mut errors: Vec<SyntaxParseError<'tokens>>,
     diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
+    error_context_depth: usize,
 ) -> SyntaxError {
     if let Some(candidate) = diagnostic_candidate {
         let root_farthest_start = errors.iter().map(|error| error.span().start).max();
         if root_farthest_start.is_none_or(|start| candidate.span().start > start)
+            && diagnostic_candidate_refines_root_context(&candidate, &errors)
             || root_farthest_start.is_some_and(|start| {
                 candidate.span().start == start
                     && diagnostic_candidate_matches_root_context(&candidate, &errors)
@@ -1160,7 +1166,34 @@ pub(super) fn syntax_error_with_diagnostic_candidate<'tokens>(
             errors.push(candidate);
         }
     }
-    syntax_error(errors)
+    syntax_error(errors, error_context_depth)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn diagnostic_candidate_refines_root_context(
+    candidate: &SyntaxParseError<'_>,
+    errors: &[SyntaxParseError<'_>],
+) -> bool {
+    let Some(root_farthest_start) = errors.iter().map(|error| error.span().start).max() else {
+        return true;
+    };
+    let Some(candidate_context) = candidate.preferred_context() else {
+        return true;
+    };
+    errors
+        .iter()
+        .filter(|error| error.span().start == root_farthest_start)
+        .any(|error| match error.preferred_context() {
+            None => true,
+            Some(root) => {
+                candidate_context.construct == root.construct
+                    || syntax_construct_is_descendant_of(
+                        &candidate_context.construct,
+                        &root.construct,
+                    )
+            }
+        })
 }
 
 #[requires(true)]
@@ -1244,7 +1277,7 @@ fn syntax_incomplete_kind(
     context: Option<&SyntaxConstructContext>,
     expectations: &[SyntaxExpectation],
 ) -> SyntaxErrorKind {
-    if let Some(kind) = syntax_incomplete_kind_from_committed_expectations(expectations) {
+    if let Some(kind) = syntax_incomplete_kind_from_committed_expectations(expectations, context) {
         return kind;
     }
     if let Some(context) = context
@@ -1259,6 +1292,7 @@ fn syntax_incomplete_kind(
 #[ensures(true)]
 fn syntax_incomplete_kind_from_committed_expectations(
     expectations: &[SyntaxExpectation],
+    context: Option<&SyntaxConstructContext>,
 ) -> Option<SyntaxErrorKind> {
     let mut selected = None;
     for expectation in expectations {
@@ -1267,10 +1301,27 @@ fn syntax_incomplete_kind_from_committed_expectations(
         else {
             continue;
         };
+        if !incomplete_expectation_context_is_compatible(construct, context) {
+            continue;
+        }
         let candidate = syntax_incomplete_kind_candidate_for_construct(construct)?;
         selected = select_committed_incomplete_kind_candidate(selected, candidate);
     }
     selected.map(|candidate| candidate.kind)
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn incomplete_expectation_context_is_compatible(
+    construct: &str,
+    context: Option<&SyntaxConstructContext>,
+) -> bool {
+    let Some(context) = context else {
+        return true;
+    };
+    construct == context.construct
+        || syntax_construct_is_descendant_of(construct, &context.construct)
+        || syntax_construct_is_descendant_of(&context.construct, construct)
 }
 
 #[requires(true)]

@@ -2835,6 +2835,7 @@ pub mod generated_model {
             Err(errors) => Err(syntax_error_with_diagnostic_candidate(
                 errors,
                 diagnostic_candidate,
+                options.error_context_depth,
             )),
         };
         GeneratedParsedTextAttempt {

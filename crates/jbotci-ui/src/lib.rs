@@ -1708,6 +1708,8 @@ fn collect_settings_page_find_entries(
     push_page_find_entry(entries, "Download");
     push_page_find_entry(entries, "Update");
     push_page_find_entry(entries, "Remove");
+    push_page_find_entry(entries, "Parsing");
+    push_page_find_entry(entries, "Error context depth");
     if embedding_settings.remove_confirmation_open {
         push_page_find_entry(
             entries,
@@ -1973,6 +1975,7 @@ struct UserSettings {
     script: GentufaScript,
     stress: StressMark,
     glides: GlideMark,
+    error_context_depth: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2367,6 +2370,7 @@ impl Default for UserSettings {
             script: GentufaScript::Latin,
             stress: StressMark::Acute,
             glides: GlideMark::Breve,
+            error_context_depth: 1,
         }
     }
 }
@@ -17017,8 +17021,44 @@ fn render_settings(
                     { render_settings_commit_link(page_find) }
                 }
                 { render_embedding_settings(embedding_settings, &embedding_state, activity, page_find) }
+                { render_parsing_settings(settings, current_settings, page_find) }
                 { render_output_settings(settings, current_settings, page_find) }
                 { render_dialect_settings_section(dialect_settings, current_dialect_settings, selected_dialect, qr_uri, page_find) }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_parsing_settings(
+    mut settings: Signal<UserSettings>,
+    current: UserSettings,
+    page_find: &PageFindContext,
+) -> Element {
+    let value = current.error_context_depth.to_string();
+    rsx! {
+        section { class: "settings-section settings-parsing",
+            div { class: "settings-section-head",
+                h2 { { render_page_find_text(page_find, "Parsing") } }
+            }
+            label { class: "settings-field settings-number-field",
+                span { class: "settings-field-label",
+                    { render_page_find_text(page_find, "Error context depth") }
+                }
+                input {
+                    class: "settings-text-input settings-number-input",
+                    r#type: "number",
+                    min: "0",
+                    step: "1",
+                    value: "{value}",
+                    aria_label: "Error context depth",
+                    oninput: move |event| {
+                        if let Some(depth) = parse_error_context_depth(&event.value()) {
+                            set_error_context_depth(&mut settings, depth);
+                        }
+                    },
+                }
             }
         }
     }
@@ -18017,6 +18057,7 @@ fn web_options(
         show_elided: display.show_elided,
         show_glosses: display.show_glosses,
         show_definitions: false,
+        error_context_depth: settings.error_context_depth,
         phonemes: PhonemeRenderOptions {
             mark_stress: settings.stress,
             mark_glides: settings.glides,
@@ -18067,6 +18108,15 @@ fn set_stress_mark(settings: &mut Signal<UserSettings>, stress: StressMark) {
 fn set_glide_mark(settings: &mut Signal<UserSettings>, glides: GlideMark) {
     let mut next = *settings.read();
     next.glides = glides;
+    settings.set(next);
+    save_settings(&next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn set_error_context_depth(settings: &mut Signal<UserSettings>, depth: usize) {
+    let mut next = *settings.read();
+    next.error_context_depth = depth;
     settings.set(next);
     save_settings(&next);
 }
@@ -21724,6 +21774,11 @@ fn load_settings() -> UserSettings {
     {
         settings.glides = glides;
     }
+    if let Some(depth) = storage_get("jbotci.parsing.error-context-depth")
+        .and_then(|value| parse_error_context_depth(&value))
+    {
+        settings.error_context_depth = depth;
+    }
     settings
 }
 
@@ -21786,6 +21841,12 @@ fn parse_glide_mark(value: &str) -> Option<GlideMark> {
 }
 
 #[requires(true)]
+#[ensures(true)]
+fn parse_error_context_depth(value: &str) -> Option<usize> {
+    value.trim().parse().ok()
+}
+
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn stress_mark_storage_value(mark: StressMark) -> &'static str {
     match mark {
@@ -21816,6 +21877,10 @@ fn save_settings(settings: &UserSettings) {
     storage_set(
         "jbotci.output.glides",
         glide_mark_storage_value(settings.glides),
+    );
+    storage_set(
+        "jbotci.parsing.error-context-depth",
+        &settings.error_context_depth.to_string(),
     );
 }
 
@@ -22847,6 +22912,7 @@ mod tests {
                 script: GentufaScript::Latin,
                 stress: StressMark::None,
                 glides: GlideMark::None,
+                error_context_depth: 2,
             },
             &dialect_settings,
             "custom-visible",
@@ -22860,6 +22926,8 @@ mod tests {
             "Embedding model",
             "Status",
             "Download",
+            "Parsing",
+            "Error context depth",
             "Output",
             "Stress",
             "none",

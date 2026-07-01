@@ -195,10 +195,7 @@ where
             input.rewind(checkpoint);
             return Err(error);
         }
-        if !input
-            .state()
-            .enter_syntax_memo_rule(name, start_location)
-        {
+        if !input.state().enter_syntax_memo_rule(name, start_location) {
             let cursor = input.cursor();
             let found = input
                 .next()
@@ -280,8 +277,12 @@ pub(crate) fn syntax_context<'tokens, O: 'tokens>(
     trace_enter(construct)
         .ignore_then(custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(
             move |input| {
-                input.state().push_syntax_context(construct);
-                let result = input.parse(&parser);
+                let start_location = ParserInput::cursor_location(input.cursor().inner());
+                let byte_start = input.state().byte_offset_for_location(start_location);
+                input.state().push_syntax_context(construct, byte_start);
+                let result = input.parse(&parser).map_err(|error| {
+                    error.with_active_contexts(input.state().active_syntax_contexts())
+                });
                 input.state().pop_syntax_context();
                 result
             },

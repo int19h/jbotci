@@ -5,7 +5,7 @@ use chumsky::input::Input;
 use chumsky::util::MaybeRef;
 use std::sync::Arc;
 
-use super::{Span, Token};
+use super::{Span, SyntaxContextFrame, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
@@ -22,7 +22,7 @@ pub(super) struct SyntaxParseError<'tokens> {
     context_paths: Vec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
     custom_kind: Option<SyntaxParseCustomKind>,
-    active_contexts: Vec<&'static str>,
+    active_contexts: Vec<SyntaxContextFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
 }
@@ -205,13 +205,26 @@ impl<'tokens> SyntaxParseError<'tokens> {
     }
 
     #[requires(true)]
+    #[ensures(ret.len() <= limit)]
+    pub(super) fn report_contexts(&self, limit: usize) -> Vec<SyntaxConstructContext> {
+        if limit == 0 {
+            return Vec::new();
+        }
+        let mut contexts = select_report_contexts(&self.context_paths, usize::MAX);
+        if contexts.is_empty() {
+            self.current_context()
+                .or_else(|| self.preferred_context_hint.clone())
+                .into_iter()
+                .for_each(|context| contexts.push(context));
+        }
+        append_active_contexts_to_report_contexts(&mut contexts, &self.active_contexts, self.span);
+        let contexts = normalize_report_contexts(contexts, limit);
+        stretch_report_contexts_to_error(contexts, self.span)
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
     pub(super) fn preferred_context(&self) -> Option<SyntaxConstructContext> {
-        if let Some(context) =
-            preferred_context_from_active_contexts(&self.active_contexts, self.span)
-        {
-            return Some(context);
-        }
         if self.same_position_branches.is_empty() {
             return self
                 .current_context()
@@ -268,11 +281,15 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn with_active_contexts(mut self, contexts: &[&'static str]) -> Self {
+    pub(super) fn with_active_contexts(mut self, contexts: &[SyntaxContextFrame]) -> Self {
+        if self.active_contexts.len() > contexts.len() {
+            return self;
+        }
         self.active_contexts = contexts.to_vec();
-        self.preferred_context_hint =
-            preferred_context_from_active_contexts(&self.active_contexts, self.span)
-                .or_else(|| preferred_context_from_branches(&self.same_position_branches));
+        if self.preferred_context_hint.is_none() {
+            self.preferred_context_hint =
+                preferred_context_from_branches(&self.same_position_branches);
+        }
         self
     }
 
@@ -294,13 +311,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[ensures(ret.same_position_branches.is_empty())]
     pub(super) fn into_report_error(self) -> Self {
         if self.same_position_branches.is_empty() {
-            let mut error = self;
-            let active_contexts = std::mem::take(&mut error.active_contexts);
-            apply_active_contexts_to_leaf(&mut error, &active_contexts);
-            return error;
+            return self;
         }
         let mut error = self;
-        let active_contexts = std::mem::take(&mut error.active_contexts);
         let branches = std::mem::take(&mut error.same_position_branches);
         let mut merged = None;
         for branch in branches {
@@ -310,9 +323,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
                 Some(previous) => merge_report_errors(previous, branch),
             });
         }
-        let mut merged = merged.unwrap_or(error);
-        apply_active_contexts_to_leaf(&mut merged, &active_contexts);
-        merged
+        merged.unwrap_or(error)
     }
 }
 
@@ -758,12 +769,12 @@ fn select_parser_error<'tokens>(
         std::cmp::Ordering::Greater => right,
         std::cmp::Ordering::Less => left,
         std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
-        std::cmp::Ordering::Equal => match parser_error_context_depth(&right)
-            .cmp(&parser_error_context_depth(&left))
-        {
-            std::cmp::Ordering::Greater => right,
-            _ => left,
-        },
+        std::cmp::Ordering::Equal => {
+            match parser_error_context_depth(&right).cmp(&parser_error_context_depth(&left)) {
+                std::cmp::Ordering::Greater => right,
+                _ => left,
+            }
+        }
     }
 }
 
@@ -807,94 +818,66 @@ fn preferred_context_from_branches(
     selected
 }
 
+#[requires(!frame.construct().is_empty())]
+#[ensures(!ret.construct.is_empty())]
+#[ensures(ret.byte_start <= ret.byte_end)]
+fn syntax_context_from_frame(frame: &SyntaxContextFrame, span: Span) -> SyntaxConstructContext {
+    SyntaxConstructContext::new(
+        frame.construct().to_owned(),
+        frame.byte_start().min(span.end),
+        span.start.max(span.end),
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn apply_active_contexts_to_leaf(error: &mut SyntaxParseError<'_>, contexts: &[&'static str]) {
-    if contexts.is_empty() {
-        return;
-    }
-    for construct in contexts.iter().rev() {
+fn append_active_contexts_to_report_contexts(
+    contexts: &mut Vec<SyntaxConstructContext>,
+    active_contexts: &[SyntaxContextFrame],
+    span: Span,
+) {
+    let mut reached_report_context = contexts.is_empty();
+    for frame in active_contexts.iter().rev() {
+        let construct = frame.construct();
         if !syntax_construct_is_known(construct) {
             continue;
         }
-        let context = SyntaxConstructContext::new(
-            (*construct).to_owned(),
-            error.span.start.min(error.span.end),
-            error.span.start.max(error.span.end),
-        );
-        for group in &mut error.expected_groups {
-            apply_context_to_group(group, &context.construct);
+        if !reached_report_context {
+            reached_report_context = contexts.iter().any(|context| {
+                context.construct == construct
+                    || syntax_construct_is_descendant_of(&context.construct, construct)
+            });
+            if !reached_report_context {
+                continue;
+            }
+        }
+        let context = syntax_context_from_frame(frame, span);
+        if !contexts
+            .iter()
+            .any(|existing| existing.construct == context.construct)
+        {
+            contexts.push(context);
         }
     }
-    replace_context_paths_with_active_contexts(error, contexts);
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
-fn preferred_context_from_active_contexts(
-    contexts: &[&'static str],
-    span: Span,
-) -> Option<SyntaxConstructContext> {
-    contexts
-        .iter()
-        .rev()
-        .find(|construct| {
-            syntax_construct_is_known(construct) && !syntax_construct_is_root(construct)
-        })
-        .map(|construct| {
-            SyntaxConstructContext::new(
-                (*construct).to_owned(),
-                span.start.min(span.end),
-                span.start.max(span.end),
-            )
-        })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn replace_context_paths_with_active_contexts(
-    error: &mut SyntaxParseError<'_>,
-    contexts: &[&'static str],
-) {
-    let mut active_path = contexts
-        .iter()
-        .rev()
-        .filter(|construct| syntax_construct_is_known(construct))
-        .map(|construct| {
+fn stretch_report_contexts_to_error(
+    contexts: Vec<SyntaxConstructContext>,
+    span: Span,
+) -> Vec<SyntaxConstructContext> {
+    let byte_end = span.start.max(span.end);
+    contexts
+        .into_iter()
+        .map(|context| {
             SyntaxConstructContext::new(
-                (*construct).to_owned(),
-                error.span.start.min(error.span.end),
-                error.span.start.max(error.span.end),
+                context.construct.clone(),
+                context.byte_start.min(byte_end),
+                byte_end,
             )
         })
-        .collect::<Vec<_>>();
-    if active_path.is_empty() {
-        return;
-    }
-    let old_paths = std::mem::take(&mut error.context_paths);
-    if old_paths.is_empty() {
-        error.context_paths = vec![active_path];
-        return;
-    }
-    let mut paths = Vec::new();
-    for old_path in old_paths {
-        let mut path = active_path.clone();
-        for context in old_path {
-            if !path
-                .iter()
-                .any(|active| active.construct == context.construct)
-            {
-                path.push(context);
-            }
-        }
-        if !paths.contains(&path) {
-            paths.push(path);
-        }
-    }
-    if paths.is_empty() {
-        paths.push(std::mem::take(&mut active_path));
-    }
-    error.context_paths = paths;
+        .collect()
 }
 
 #[requires(true)]
@@ -907,6 +890,7 @@ fn merge_report_errors<'tokens>(
         deeper_preferred_context(left.preferred_context(), right.preferred_context());
     let mut left = left.into_report_error();
     let right = right.into_report_error();
+    left.active_contexts = deeper_active_context_stack(left.active_contexts, right.active_contexts);
     append_unique_groups(&mut left.expected_groups, right.expected_groups);
     append_unique_context_paths(&mut left.context_paths, right.context_paths);
     left.found = merge_optional_equal(left.found, right.found);
@@ -914,6 +898,19 @@ fn merge_report_errors<'tokens>(
     left.preferred_context_hint = preferred_context_hint;
     left.same_position_branches = Vec::new();
     left
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn deeper_active_context_stack(
+    left: Vec<SyntaxContextFrame>,
+    right: Vec<SyntaxContextFrame>,
+) -> Vec<SyntaxContextFrame> {
+    if right.len() > left.len() {
+        right
+    } else {
+        left
+    }
 }
 
 #[requires(true)]
@@ -967,6 +964,111 @@ fn merged_context_names(paths: &[Vec<SyntaxConstructContext>]) -> Vec<String> {
 #[ensures(ret.as_ref().is_none_or(|context| !context.construct.is_empty()))]
 fn select_current_context(paths: &[Vec<SyntaxConstructContext>]) -> Option<SyntaxConstructContext> {
     select_shared_innermost_context(paths).or_else(|| select_outer_common_context(paths))
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= limit)]
+fn select_report_contexts(
+    paths: &[Vec<SyntaxConstructContext>],
+    limit: usize,
+) -> Vec<SyntaxConstructContext> {
+    if limit == 0 || paths.is_empty() {
+        return Vec::new();
+    }
+    if let Some(current_context) = select_current_context(paths)
+        && let Some(path) = report_path_from_current_context(paths, &current_context)
+    {
+        return normalize_report_contexts(path, limit);
+    }
+    let prefix_len = common_innermost_prefix_len(paths);
+    let selected = if prefix_len > 0 {
+        paths[0][..prefix_len].to_vec()
+    } else {
+        common_outer_suffix(paths)
+    };
+    normalize_report_contexts(selected, limit)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn report_path_from_current_context(
+    paths: &[Vec<SyntaxConstructContext>],
+    current_context: &SyntaxConstructContext,
+) -> Option<Vec<SyntaxConstructContext>> {
+    let mut selected = None::<Vec<SyntaxConstructContext>>;
+    for path in paths {
+        let Some(index) = path
+            .iter()
+            .position(|context| context == current_context)
+            .or_else(|| {
+                path.iter()
+                    .position(|context| context.construct == current_context.construct)
+            })
+        else {
+            continue;
+        };
+        let suffix = path[index..].to_vec();
+        if selected
+            .as_ref()
+            .is_none_or(|previous| suffix.len() > previous.len())
+        {
+            selected = Some(suffix);
+        }
+    }
+    selected
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= limit)]
+fn normalize_report_contexts(
+    contexts: Vec<SyntaxConstructContext>,
+    limit: usize,
+) -> Vec<SyntaxConstructContext> {
+    contexts
+        .into_iter()
+        .filter(|context| !syntax_construct_is_root(&context.construct))
+        .fold(Vec::new(), |mut contexts, context| {
+            if !contexts.contains(&context) && contexts.len() < limit {
+                contexts.push(context);
+            }
+            contexts
+        })
+}
+
+#[requires(!paths.is_empty())]
+#[ensures(ret <= paths.iter().map(Vec::len).min().unwrap_or(0))]
+fn common_innermost_prefix_len(paths: &[Vec<SyntaxConstructContext>]) -> usize {
+    let shortest_path_len = paths.iter().map(Vec::len).min().unwrap_or(0);
+    let mut len = 0;
+    for index in 0..shortest_path_len {
+        let candidate = &paths[0][index];
+        if paths.iter().all(|path| path.get(index) == Some(candidate)) {
+            len += 1;
+        } else {
+            break;
+        }
+    }
+    len
+}
+
+#[requires(!paths.is_empty())]
+#[ensures(true)]
+fn common_outer_suffix(paths: &[Vec<SyntaxConstructContext>]) -> Vec<SyntaxConstructContext> {
+    let shortest_path_len = paths.iter().map(Vec::len).min().unwrap_or(0);
+    let mut contexts = Vec::new();
+    for outer_index in 0..shortest_path_len {
+        let candidate = &paths[0][paths[0].len() - 1 - outer_index];
+        if paths
+            .iter()
+            .all(|path| path.get(path.len() - 1 - outer_index) == Some(candidate))
+        {
+            contexts.push(candidate.clone());
+        } else {
+            break;
+        }
+    }
+    contexts.reverse();
+    contexts
 }
 
 #[requires(true)]

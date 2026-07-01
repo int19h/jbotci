@@ -98,6 +98,7 @@ pub struct GentufaWebOptions {
     pub show_elided: bool,
     pub show_glosses: bool,
     pub show_definitions: bool,
+    pub error_context_depth: usize,
     pub phonemes: PhonemeRenderOptions,
 }
 
@@ -113,6 +114,7 @@ impl Default for GentufaWebOptions {
             show_elided: false,
             show_glosses: false,
             show_definitions: false,
+            error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
         }
     }
@@ -426,7 +428,9 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         }
     };
 
-    let parse_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let parse_options = ParseOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_error_context_depth(request.options.error_context_depth);
     let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         source,
@@ -2543,6 +2547,7 @@ pub fn render_gentufa_state_web_export(
             show_elided: state.show_elided,
             show_glosses: state.show_glosses,
             show_definitions: false,
+            error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
         },
     };
@@ -2694,6 +2699,7 @@ fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta
             show_elided: state.show_elided,
             show_glosses: state.show_glosses,
             show_definitions: false,
+            error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
         },
     };

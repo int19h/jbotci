@@ -58,6 +58,37 @@ pub(crate) struct ParserCheckpoint {
     trace_save: bool,
 }
 
+#[invariant(!construct.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct SyntaxContextFrame {
+    construct: &'static str,
+    byte_start: usize,
+}
+
+impl SyntaxContextFrame {
+    #[requires(!construct.is_empty())]
+    #[ensures(ret.construct == construct)]
+    #[ensures(ret.byte_start == byte_start)]
+    pub(super) fn new(construct: &'static str, byte_start: usize) -> Self {
+        new!(SyntaxContextFrame {
+            construct,
+            byte_start,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub(super) fn construct(&self) -> &'static str {
+        self.construct
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn byte_start(&self) -> usize {
+        self.byte_start
+    }
+}
+
 #[derive(Clone)]
 #[invariant(true)]
 pub(super) struct SyntaxMemoValue {
@@ -84,6 +115,7 @@ pub(super) struct SyntaxMemoSuccess {
 #[invariant(true)]
 pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
+    syntax_location_byte_offsets: Vec<usize>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
     syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
     syntax_failure_memo: HashMap<(&'static str, usize), SyntaxParseError<'tokens>>,
@@ -91,7 +123,7 @@ pub(super) struct ParserState<'tokens> {
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
-    active_syntax_contexts: Vec<&'static str>,
+    active_syntax_contexts: Vec<SyntaxContextFrame>,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     _tokens: PhantomData<&'tokens ()>,
 }
@@ -102,6 +134,7 @@ impl<'tokens> ParserState<'tokens> {
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
+            syntax_location_byte_offsets: syntax_location_byte_offsets(words),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
             syntax_failure_memo: HashMap::new(),
@@ -276,8 +309,9 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!construct.is_empty())]
     #[ensures(self.active_syntax_contexts.len() == old(self.active_syntax_contexts.len()) + 1)]
-    pub(super) fn push_syntax_context(&mut self, construct: &'static str) {
-        self.active_syntax_contexts.push(construct);
+    pub(super) fn push_syntax_context(&mut self, construct: &'static str, byte_start: usize) {
+        self.active_syntax_contexts
+            .push(SyntaxContextFrame::new(construct, byte_start));
     }
 
     #[requires(!self.active_syntax_contexts.is_empty())]
@@ -295,6 +329,26 @@ impl<'tokens> ParserState<'tokens> {
             .clone()
             .into_iter()
             .reduce(SyntaxParseError::merge_for_report)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn byte_offset_for_location(&self, location: usize) -> usize {
+        self.syntax_location_byte_offsets
+            .get(location)
+            .copied()
+            .unwrap_or_else(|| {
+                self.syntax_location_byte_offsets
+                    .last()
+                    .copied()
+                    .unwrap_or(0)
+            })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn active_syntax_contexts(&self) -> &[SyntaxContextFrame] {
+        &self.active_syntax_contexts
     }
 
     #[requires(true)]
@@ -597,6 +651,22 @@ fn word_anchor_byte_start(word: &Token) -> Option<usize> {
 }
 
 #[requires(true)]
+#[ensures(ret.len() == words.len() + 1)]
+fn syntax_location_byte_offsets(words: &[Token]) -> Vec<usize> {
+    let mut offsets = words
+        .iter()
+        .map(|word| word.core_word().byte_range().map_or(0, |range| range.start))
+        .collect::<Vec<_>>();
+    offsets.push(
+        words
+            .last()
+            .and_then(|word| word.core_word().byte_range())
+            .map_or(0, |range| range.end),
+    );
+    offsets
+}
+
+#[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
     crate::generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
@@ -879,7 +949,7 @@ mod tests {
                 byte_start,
                 byte_end,
                 expected,
-                context,
+                contexts,
                 ..
             } = error
             else {
@@ -890,8 +960,8 @@ mod tests {
             assert_eq!(byte_end, 72);
             assert!(!expected.iter().any(|item| item == "end of input"));
             assert_eq!(
-                context.as_ref().map(|context| context.construct.as_str()),
-                Some("bridi")
+                contexts.first().map(|context| context.construct.as_str()),
+                Some("description tail")
             );
         });
     }

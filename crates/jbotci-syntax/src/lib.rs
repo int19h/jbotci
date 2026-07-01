@@ -144,6 +144,7 @@ fn is_indicator_word(word: &Word) -> bool {
 pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
+    pub error_context_depth: usize,
 }
 
 impl Default for ParseOptions {
@@ -153,6 +154,7 @@ impl Default for ParseOptions {
         Self {
             trace: TraceOptions::default(),
             dialect: DialectDefinition::default(),
+            error_context_depth: 1,
         }
     }
 }
@@ -185,6 +187,13 @@ impl ParseOptions {
         self.trace = trace;
         self
     }
+
+    #[requires(true)]
+    #[ensures(ret.error_context_depth == depth)]
+    pub fn with_error_context_depth(mut self, depth: usize) -> Self {
+        self.error_context_depth = depth;
+        self
+    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -201,7 +210,7 @@ pub enum SyntaxError {
         reason: String,
         expected: Vec<String>,
         expectations: Vec<SyntaxExpectation>,
-        context: Option<SyntaxConstructContext>,
+        contexts: Vec<SyntaxConstructContext>,
     },
 }
 
@@ -948,7 +957,7 @@ impl SyntaxError {
                 reason,
                 expected,
                 expectations,
-                context,
+                contexts,
             } => {
                 let span = source_span_from_byte_offsets(
                     source_id.clone(),
@@ -958,9 +967,9 @@ impl SyntaxError {
                 )
                 .expect("syntax errors store offsets derived from the same source text");
                 let mut labels = vec![DiagnosticLabel::new(span, reason.clone(), true)];
-                if let Some(context) = context {
+                for context in contexts {
                     let context_span = source_span_from_byte_offsets(
-                        source_id,
+                        source_id.clone(),
                         source,
                         context.byte_start,
                         context.byte_end,
@@ -2576,7 +2585,7 @@ mod tests {
         let SyntaxError::Parse {
             reason,
             expectations,
-            context: _,
+            contexts: _,
             ..
         } = &error
         else {
@@ -2643,9 +2652,9 @@ mod tests {
     #[ensures(true)]
     fn syntax_error_kinds_cover_generated_contexts() {
         assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
-        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteSelbri);
+        assert_error_kind("nu", SyntaxErrorKind::IncompleteSelbri);
         assert_error_kind("xi", SyntaxErrorKind::IncompleteFreeModifier);
-        assert_error_kind("li peho", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind("li peho suhi", SyntaxErrorKind::IncompleteMekso);
         assert_error_kind(
             "ga lo mlatu gi",
             SyntaxErrorKind::IncompleteForethoughtConnection,
@@ -2655,10 +2664,58 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn syntax_error_context_depth_controls_secondary_labels() {
+        run_on_fixture_worker_stack(|| {
+            let source = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo ku ce'u xendo je cnikansa ro lo jmive ta'i lo racli";
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
+
+            let no_context_error = parse_syntax_tree_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default().with_error_context_depth(0),
+            )
+            .expect_err("source should have a syntax error");
+            let SyntaxError::Parse { contexts, .. } = &no_context_error else {
+                panic!("expected syntax parse error");
+            };
+            assert!(contexts.is_empty());
+            assert_eq!(no_context_error.to_diagnostic(None, source).labels.len(), 1);
+
+            let nested_context_error = parse_syntax_tree_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default().with_error_context_depth(2),
+            )
+            .expect_err("source should have a syntax error");
+            let SyntaxError::Parse {
+                byte_end, contexts, ..
+            } = &nested_context_error
+            else {
+                panic!("expected syntax parse error");
+            };
+            assert_eq!(contexts.len(), 2);
+            assert_eq!(
+                nested_context_error
+                    .to_diagnostic(None, source)
+                    .labels
+                    .len(),
+                3
+            );
+            assert_eq!(contexts[0].byte_end, *byte_end);
+            assert_eq!(contexts[1].byte_end, *byte_end);
+            assert!(contexts[1].byte_start <= contexts[0].byte_start);
+            assert_ne!(contexts[0].byte_start, *byte_end);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn representative_constructs_appear_in_structured_expectations() {
         assert_error_mentions_construct("nu'i", "termset");
-        assert_error_mentions_construct("lo pa", "quantifier");
-        assert_error_mentions_construct("li peho", "operator");
+        assert_error_mentions_construct("vei", "quantifier");
+        assert_error_mentions_construct("li peho suhi", "operator");
         assert_error_mentions_construct("li nu", "forethought mex");
     }
 
@@ -2733,6 +2790,18 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
+    fn run_on_fixture_worker_stack(test: impl FnOnce() + Send + 'static) {
+        let handle = std::thread::Builder::new()
+            .stack_size(8 * 1024 * 1024)
+            .spawn(test)
+            .expect("fixture worker stack test thread should spawn");
+        if let Err(panic) = handle.join() {
+            std::panic::resume_unwind(panic);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn parser_source_wires_construct(parser_source: &str, construct: &str) -> bool {
         let normalized = parser_source
             .chars()
@@ -2801,15 +2870,15 @@ mod tests {
     fn syntax_error_mentions_construct(error: &SyntaxError, construct: &str) -> bool {
         let SyntaxError::Parse {
             expectations,
-            context,
+            contexts,
             ..
         } = error
         else {
             return false;
         };
-        context
-            .as_ref()
-            .is_some_and(|context| context.construct == construct)
+        contexts
+            .iter()
+            .any(|context| context.construct == construct)
             || expectations
                 .iter()
                 .any(|expectation| expectation.reason.construct() == construct)
