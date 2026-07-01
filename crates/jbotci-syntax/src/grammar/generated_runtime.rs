@@ -554,13 +554,6 @@ pub(crate) trait SyntaxFirstWord {
     fn first_word(&self) -> Option<&Token>;
 }
 
-#[contract_trait]
-impl SyntaxFirstWord for crate::tree::FreeModifierSyntax {
-    fn first_word(&self) -> Option<&Token> {
-        crate::tree::FreeModifierSyntax::first_word(self)
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn strict_cll_prohibited_free_modifier_list_parser<'tokens, F>(
@@ -594,8 +587,10 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn strict_empty_free_modifier_parser<'tokens>()
--> BoxedParser<'tokens, crate::tree::FreeModifierSyntax> {
+pub(crate) fn strict_empty_free_modifier_parser<'tokens, F>() -> BoxedParser<'tokens, F>
+where
+    F: 'tokens,
+{
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();

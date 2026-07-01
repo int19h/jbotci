@@ -114,7 +114,7 @@ fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn generated_syntax_assignment_handles_legacy_folded_islands() {
+fn generated_syntax_assignment_handles_folded_source_islands() {
     run_on_normal_stack(|| {
         for source in [
             "li re gu'e su'i gi pi'i re du li vo",
@@ -194,7 +194,7 @@ fn morphology_source_ranges(words: &[WordLike]) -> Vec<(usize, usize)> {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_source_ranges(tree: &jbotci_syntax::ast::TextSyntax) -> Vec<(usize, usize)> {
+fn syntax_source_ranges(tree: &jbotci_syntax::TextSyntax) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     tree.visit_source_spans(&mut |span| ranges.push(span_range(span)));
     ranges

@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{ExperimentalConstruct, Indicator, Token, WithIndicators};
+use crate::{ExperimentalConstruct, Token, WithIndicators};
 use bityzba::{data, invariant, new, requires};
 use chumsky::error::RichReason;
 use chumsky::input::MapExtra;
@@ -80,23 +80,6 @@ pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
 #[ensures(true)]
 pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Lahe)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn leading_indicator<'tokens>() -> BoxedParser<'tokens, Indicator> {
-    choice((selmaho(Selmaho::Ui), selmaho(Selmaho::Cai)))
-        .then(cmavo(Cmavo::Nai).or_not())
-        .map(|(indicator, nai)| {
-            let nai = nai.map(|nai| {
-                nai.core_word()
-                    .bare_word()
-                    .expect("NAI parser matched a visible word")
-                    .clone()
-            });
-            Indicator::new(indicator, nai)
-        })
-        .boxed()
 }
 
 #[requires(true)]

@@ -6,9 +6,6 @@ pub use tree::{
     elidable_terminator_for_absent_field_ref,
 };
 
-#[doc(hidden)]
-pub mod generated_tree;
-
 mod grammar;
 
 extern crate self as jbotci_syntax;
@@ -30,11 +27,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
-pub mod ast {
-    pub use crate::grammar::ast::*;
-}
-pub use ast::{Indicator, IndicatorData};
-
 #[doc(hidden)]
 pub mod generated_model {
     pub use crate::grammar::generated_model::*;
@@ -52,18 +44,6 @@ pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "token",
     "rewind",
 ];
-
-impl ast::TextSyntax {
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&jbotci_source::SourceSpan)) {
-        self.visit_words(&mut |word| {
-            for span in word.source_spans() {
-                visitor(span);
-            }
-        });
-    }
-}
 
 impl generated_model::TextSyntax {
     #[requires(true)]
@@ -131,22 +111,6 @@ pub(crate) fn text_syntax_leaf_spans_match_words(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn legacy_text_syntax_leaf_spans_match_words(
-    words: &[WordLike],
-    parse_tree: &ast::TextSyntax,
-) -> bool {
-    let mut expected_refs = Vec::new();
-    for word in words {
-        word.source_spans_into(&mut expected_refs);
-    }
-    let expected: Vec<_> = expected_refs.into_iter().cloned().collect();
-    let mut actual = Vec::new();
-    parse_tree.visit_source_spans(&mut |span| actual.push(span.clone()));
-    actual == expected
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn generated_model_text_syntax_leaf_spans_match_words(
     words: &[WordLike],
     parse_tree: &generated_model::TextSyntax,
@@ -165,15 +129,6 @@ pub fn generated_model_text_syntax_leaf_spans_match_words(
 #[ensures(true)]
 pub(crate) fn syntax_parse_leaf_spans_match_words(words: &[WordLike], parse: &SyntaxParse) -> bool {
     text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn legacy_syntax_parse_leaf_spans_match_words(
-    words: &[WordLike],
-    parse: &LegacySyntaxParse,
-) -> bool {
-    legacy_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
 }
 
 #[requires(true)]
@@ -213,14 +168,6 @@ pub struct SyntaxParseAttempt {
 #[invariant(true)]
 pub struct GeneratedSyntaxParseAttempt {
     pub result: Result<GeneratedSyntaxParse, SyntaxError>,
-    pub trace: Option<TraceReport>,
-}
-
-#[doc(hidden)]
-#[derive(Debug, Clone)]
-#[invariant(true)]
-pub struct LegacySyntaxParseAttempt {
-    pub result: Result<LegacySyntaxParse, SyntaxError>,
     pub trace: Option<TraceReport>,
 }
 
@@ -484,7 +431,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "tail terms",
         parent: Some("bridi"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "forethought bridi connection",
@@ -529,7 +476,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "pro-sumti",
         parent: Some("sumti"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "name",
@@ -739,7 +686,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "selbri relative phrase",
         parent: Some("tanru unit"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "subbridi",
@@ -754,7 +701,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "simple tense/modal",
         parent: Some("tag"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "FIhO modal",
@@ -819,7 +766,7 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "word quote",
         parent: Some("quote"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "text quote",
@@ -829,12 +776,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "word-sequence quote",
         parent: Some("quote"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "non-Lojban quote",
         parent: Some("quote"),
-        wiring: SyntaxConstructWiring::Parser,
+        wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "text",
@@ -1630,30 +1577,6 @@ pub struct GeneratedSyntaxParse {
     pub warnings: Vec<SyntaxWarning>,
 }
 
-#[doc(hidden)]
-#[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
-#[expensive_invariant({
-    let mut last_end = None;
-    let mut ordered = true;
-    parse_tree.visit_source_spans(&mut |span| {
-        if !ordered {
-            return;
-        }
-        if last_end.is_some_and(|end| end > span.byte_start) {
-            ordered = false;
-            return;
-        }
-        last_end = Some(span.byte_end);
-    });
-    ordered
-})]
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LegacySyntaxParse {
-    pub parse_tree: Box<ast::TextSyntax>,
-    #[serde(default)]
-    pub warnings: Vec<SyntaxWarning>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
@@ -2279,17 +2202,6 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options_attempt(
     grammar::parse_generated_model_syntax_tree_with_source_attempt(words, Some(source), options)
 }
 
-#[doc(hidden)]
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_syntax_tree_handwritten_with_source_and_options(
-    words: &[WordLike],
-    source: &str,
-    options: &ParseOptions,
-) -> Result<LegacySyntaxParse, SyntaxError> {
-    grammar::parse_handwritten_syntax_tree_with_source(words, Some(source), options)
-}
-
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |tree| syntax_tree_eq_ignoring_spans(parse_tree, tree)))]
@@ -2338,32 +2250,6 @@ mod tests {
     use bityzba::{data, ensures, new, requires};
 
     use super::*;
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn raw_syntax_tree_paths_round_trip_on_real_parse() {
-        use crate::ast::TreeNode as _;
-        use jbotci_tree::{TreePath, TreePathStep};
-
-        let words =
-            jbotci_morphology::segment_words_with_modifiers("mi klama").expect("valid morphology");
-        let parsed = parse_syntax_tree(&words).expect("valid syntax");
-        let tree = parsed.parse_tree.as_ref();
-        let paragraph = tree.paragraphs.first().expect("parse has a paragraph");
-        let target = ast::NodeRef::ParagraphSyntax(paragraph);
-
-        let path = tree.path_to_node(target).expect("paragraph is in tree");
-
-        assert_eq!(
-            path,
-            TreePath::from_steps(vec![
-                TreePathStep::field(Some("paragraphs"), 5),
-                TreePathStep::sequence_index(0),
-            ])
-        );
-        assert_eq!(tree.node_at_path(&path), Some(target));
-    }
 
     #[test]
     #[requires(true)]
@@ -2705,10 +2591,6 @@ mod tests {
         ));
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
-            data!(SyntaxExpectationReason::StartNested { construct }) if construct == "free modifier"
-        )));
-        assert!(expectations.iter().any(|expectation| matches!(
-            expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct }) if construct.contains("mex")
         )));
 
@@ -2730,7 +2612,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn parser_wires_all_parser_diagnostic_constructs() {
-        let parser_source = include_str!("grammar/parser.rs");
+        let parser_source = include_str!("grammar/generated.rs");
 
         for metadata in SYNTAX_CONSTRUCT_METADATA {
             if metadata.wiring == SyntaxConstructWiring::Synthetic {
@@ -2765,7 +2647,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn syntax_error_kinds_cover_temporary_legacy_contexts() {
+    fn syntax_error_kinds_cover_generated_contexts() {
         assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
         assert_error_kind("mi cu", SyntaxErrorKind::IncompleteBridi);
         assert_error_kind("mi sei", SyntaxErrorKind::IncompleteFreeModifier);
@@ -2781,9 +2663,9 @@ mod tests {
     #[ensures(true)]
     fn representative_constructs_appear_in_structured_expectations() {
         assert_error_mentions_construct("nu'i", "termset");
-        assert_error_mentions_construct("lo pa", "quantifier");
+        assert_error_mentions_construct("lo vei", "quantifier");
         assert_error_mentions_construct("li peho", "operator");
-        assert_error_mentions_construct("lo vei", "number sumti");
+        assert_error_mentions_construct("li nu", "number sumti");
     }
 
     #[test]
@@ -2867,6 +2749,9 @@ mod tests {
             .filter(|ch| !ch.is_whitespace())
             .collect::<String>();
         [
+            format!("rule\"{normalized_construct}\""),
+            format!("alias\"{normalized_construct}\""),
+            format!("context\"{normalized_construct}\""),
             format!("syntax_context(\"{normalized_construct}\""),
             format!("syntax_label(\"{normalized_construct}\""),
             format!(".labelled(\"{normalized_construct}\""),

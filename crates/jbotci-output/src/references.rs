@@ -7,18 +7,15 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_morphology::canonicalize_text;
 use jbotci_semantics::references::{
     DiscourseReferences, GeneratedReferenceAnalysis, GeneratedSyntaxIndex, PlaceAnalysis,
-    PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceAnalysis, ReferenceEdgeId, ReferenceKind,
-    ReferenceTarget, SelbriPlaceFrame, SelbriPlaceFrameId, SumtiPlaceAssignment,
-    SumtiPlaceAssignmentId, SyntaxIndex, SyntaxNodeMetadata,
-};
-use jbotci_syntax::ast::{
-    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, SelbriSyntax, TenseModalSyntax,
-    TenseModalSyntaxData, Token, TreeNode as SyntaxTreeNode,
+    PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceEdgeId, ReferenceKind, ReferenceTarget,
+    SelbriPlaceFrame, SelbriPlaceFrameId, SumtiPlaceAssignment, SumtiPlaceAssignmentId,
+    SyntaxNodeMetadata,
 };
 use jbotci_syntax::generated_model::{
     self as generated, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     SelbriSyntax as GeneratedSelbriSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
+use jbotci_syntax::tree::Token;
 use jbotci_tree::TreeVisitor;
 
 use crate::TreeRenderOptions;
@@ -149,17 +146,6 @@ struct ReferenceSourceName {
 impl ReferenceDisplayModel {
     #[requires(true)]
     #[ensures(true)]
-    pub(crate) fn new(
-        analysis: &ReferenceAnalysis<'_>,
-        tree: &TreeValue,
-        source: &str,
-        options: TreeRenderOptions,
-    ) -> Self {
-        Self::from_analysis_view(analysis, tree, source, options)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub(crate) fn new_generated(
         analysis: &GeneratedReferenceAnalysis<'_>,
         tree: &TreeValue,
@@ -266,12 +252,7 @@ impl ReferenceDisplayModel {
     ) where
         A: ReferenceAnalysisView<'tree>,
     {
-        for frame in analysis
-            .place_analysis()
-            .frames()
-            .iter()
-            .filter(|frame| is_displayed_place_frame(analysis, frame))
-        {
+        for frame in analysis.place_analysis().frames() {
             if analysis
                 .place_analysis()
                 .assignments_for_frame(frame.id)
@@ -279,22 +260,26 @@ impl ReferenceDisplayModel {
             {
                 continue;
             }
-            let Some(source_name) = source_names.get(&frame.node).cloned() else {
+            let Some(source_node) = displayed_place_frame_source_from_names(frame, source_names)
+            else {
+                continue;
+            };
+            let Some(source_name) = source_names.get(&source_node).cloned() else {
                 continue;
             };
             let base_name = source_name.name.clone();
             self.outgoing_by_node
-                .entry(frame.node)
+                .entry(source_node)
                 .or_default()
                 .insert(base_name.clone());
             self.rich_outgoing_by_node
-                .entry(frame.node)
+                .entry(source_node)
                 .or_default()
                 .push(new!(RichReferenceAnnotation {
                     name: base_name.clone(),
                     source: new!(ReferenceAnnotationSource::PlaceFrame {
                         frame: frame.id,
-                        source_node: frame.node,
+                        source_node,
                         display_word: source_name.display_word.clone(),
                         lookup_word: source_name.lookup_word.clone(),
                     }),
@@ -319,7 +304,7 @@ impl ReferenceDisplayModel {
                         source: new!(ReferenceAnnotationSource::PlaceAssignment {
                             frame: frame.id,
                             assignment: *assignment_id,
-                            source_node: frame.node,
+                            source_node,
                             target_node: assignment.sumti.0,
                             display_word: source_name.display_word.clone(),
                             lookup_word: source_name.lookup_word.clone(),
@@ -395,23 +380,6 @@ trait ReferenceAnalysisView<'tree> {
 }
 
 #[contract_trait]
-impl<'tree> ReferenceAnalysisView<'tree> for ReferenceAnalysis<'tree> {
-    type Index = SyntaxIndex<'tree>;
-
-    fn syntax_index(&self) -> &Self::Index {
-        &self.syntax_index
-    }
-
-    fn place_analysis(&self) -> &PlaceAnalysis {
-        &self.place_analysis
-    }
-
-    fn discourse_references(&self) -> &DiscourseReferences {
-        &self.discourse_references
-    }
-}
-
-#[contract_trait]
 impl<'tree> ReferenceAnalysisView<'tree> for GeneratedReferenceAnalysis<'tree> {
     type Index = GeneratedSyntaxIndex<'tree>;
 
@@ -437,10 +405,6 @@ trait ReferenceIndexView<'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn metadata(&self, id: RawSyntaxNodeId) -> Option<&SyntaxNodeMetadata>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn is_displayed_place_frame_node(&self, kind: PlaceFrameKind, node: RawSyntaxNodeId) -> bool;
 
     #[requires(true)]
     #[ensures(true)]
@@ -480,57 +444,6 @@ trait ReferenceIndexView<'tree> {
 }
 
 #[contract_trait]
-impl<'tree> ReferenceIndexView<'tree> for SyntaxIndex<'tree> {
-    fn node_count(&self) -> usize {
-        SyntaxIndex::node_count(self)
-    }
-
-    fn metadata(&self, id: RawSyntaxNodeId) -> Option<&SyntaxNodeMetadata> {
-        SyntaxIndex::metadata(self, id)
-    }
-
-    fn is_displayed_place_frame_node(&self, kind: PlaceFrameKind, node: RawSyntaxNodeId) -> bool {
-        match kind {
-            PlaceFrameKind::BaseSelbri => self
-                .node(node)
-                .is_some_and(|node| matches!(node, SyntaxNodeRef::SelbriSyntaxSelbriWord(_))),
-            PlaceFrameKind::TanruUnit => self
-                .node(node)
-                .is_some_and(|node| matches!(node, SyntaxNodeRef::TanruUnitSyntaxTanruUnitWord(_))),
-            _ => false,
-        }
-    }
-
-    fn termset_ancestor_for_term(&self, term: RawSyntaxNodeId) -> Option<RawSyntaxNodeId> {
-        let mut current = Some(term);
-        while let Some(node) = current {
-            if self
-                .node(node)
-                .is_some_and(|syntax| matches!(syntax, SyntaxNodeRef::TermSyntaxTermset(_)))
-            {
-                return Some(node);
-            }
-            current = SyntaxIndex::metadata(self, node).and_then(|metadata| metadata.parent);
-        }
-        None
-    }
-
-    fn sumti_is_omitted_placeholder(&self, sumti: RawSyntaxNodeId) -> bool {
-        self.node(sumti)
-            .is_some_and(|node| matches!(node, SyntaxNodeRef::SumtiSyntaxElidedSumti(_)))
-    }
-
-    fn modal_slot_words(
-        &self,
-        tag: RawSyntaxNodeId,
-        source: &str,
-        options: TreeRenderOptions,
-    ) -> Vec<String> {
-        modal_slot_words(self, tag, source, options)
-    }
-}
-
-#[contract_trait]
 impl<'tree> ReferenceIndexView<'tree> for GeneratedSyntaxIndex<'tree> {
     fn node_count(&self) -> usize {
         GeneratedSyntaxIndex::node_count(self)
@@ -540,20 +453,19 @@ impl<'tree> ReferenceIndexView<'tree> for GeneratedSyntaxIndex<'tree> {
         GeneratedSyntaxIndex::metadata(self, id)
     }
 
-    fn is_displayed_place_frame_node(&self, kind: PlaceFrameKind, node: RawSyntaxNodeId) -> bool {
-        match kind {
-            PlaceFrameKind::BaseSelbri | PlaceFrameKind::TanruUnit => self
-                .node(node)
-                .is_some_and(is_displayed_generated_relation_unit),
-            _ => false,
-        }
-    }
-
     fn termset_ancestor_for_term(&self, term: RawSyntaxNodeId) -> Option<RawSyntaxNodeId> {
         let mut current = Some(term);
         while let Some(node) = current {
             if self.node(node).is_some_and(|syntax| {
-                matches!(syntax, GeneratedSyntaxNodeRef::TermSyntaxTermsetGroup(_))
+                matches!(
+                    syntax,
+                    GeneratedSyntaxNodeRef::TermSyntaxTermsetGroup(_)
+                        | GeneratedSyntaxNodeRef::SimpleTermSyntaxNuhiTermset(_)
+                        | GeneratedSyntaxNodeRef::SimpleTermSyntaxKeTermset(_)
+                        | GeneratedSyntaxNodeRef::NuhiTermsetSyntax(_)
+                        | GeneratedSyntaxNodeRef::KeTermsetSyntax(_)
+                        | GeneratedSyntaxNodeRef::TermsetGroupSyntax(_)
+                )
             }) {
                 return Some(node);
             }
@@ -567,7 +479,8 @@ impl<'tree> ReferenceIndexView<'tree> for GeneratedSyntaxIndex<'tree> {
         self.node(sumti).is_some_and(|node| {
             matches!(
                 node,
-                GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
+                GeneratedSyntaxNodeRef::TaggedElidedSumtiSyntax(_)
+                    | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
             )
         })
     }
@@ -746,7 +659,6 @@ where
         .place_analysis()
         .frames()
         .iter()
-        .filter(|frame| is_displayed_place_frame(analysis, frame))
         .filter(|frame| {
             !analysis
                 .place_analysis()
@@ -754,7 +666,9 @@ where
                 .is_empty()
         })
     {
-        nodes.entry(frame.node).or_insert(false);
+        if let Some(source) = displayed_place_frame_source_in_tree(frame, tree) {
+            nodes.entry(source).or_insert(false);
+        }
     }
     for edge in analysis.discourse_references().edges() {
         let Some(target) = resolved_reference_target_node(analysis, &edge.target) else {
@@ -914,24 +828,42 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn is_displayed_place_frame<'tree, A>(analysis: &A, frame: &SelbriPlaceFrame) -> bool
-where
-    A: ReferenceAnalysisView<'tree>,
-{
-    analysis
-        .syntax_index()
-        .is_displayed_place_frame_node(frame.kind, frame.node)
+fn displayed_place_frame_source_from_names(
+    frame: &SelbriPlaceFrame,
+    source_names: &HashMap<RawSyntaxNodeId, ReferenceSourceName>,
+) -> Option<RawSyntaxNodeId> {
+    displayed_place_frame_candidates(frame).find(|node| source_names.contains_key(node))
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn reference_slot_name_for_place_slot(
-    slot: PlaceSlot,
-    index: &SyntaxIndex<'_>,
-    source: &str,
-    options: TreeRenderOptions,
-) -> ReferenceSlotName {
-    ReferenceIndexView::reference_slot_name_for_place_slot(index, slot, source, options)
+fn displayed_place_frame_source_in_tree(
+    frame: &SelbriPlaceFrame,
+    tree: &TreeValue,
+) -> Option<RawSyntaxNodeId> {
+    displayed_place_frame_candidates(frame).find(|node| word_for_syntax_id(tree, *node).is_some())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn displayed_place_frame_candidates(
+    frame: &SelbriPlaceFrame,
+) -> impl Iterator<Item = RawSyntaxNodeId> + '_ {
+    let displayable = matches!(
+        frame.kind,
+        PlaceFrameKind::BaseSelbri | PlaceFrameKind::TanruUnit
+    );
+    [
+        displayable.then_some(frame.node),
+        displayable
+            .then_some(())
+            .and_then(|_| frame.tanru_unit.map(|tanru_unit| tanru_unit.0)),
+        displayable
+            .then_some(())
+            .and_then(|_| frame.selbri.map(|selbri| selbri.0)),
+    ]
+    .into_iter()
+    .flatten()
 }
 
 #[requires(true)]
@@ -1031,52 +963,11 @@ where
 
 #[requires(true)]
 #[ensures(true)]
-fn termset_ancestor_for_term(
-    index: &SyntaxIndex<'_>,
-    term: RawSyntaxNodeId,
-) -> Option<RawSyntaxNodeId> {
-    let mut current = Some(term);
-    while let Some(node) = current {
-        if index
-            .node(node)
-            .is_some_and(|syntax| matches!(syntax, SyntaxNodeRef::TermSyntaxTermset(_)))
-        {
-            return Some(node);
-        }
-        current = index.metadata(node).and_then(|metadata| metadata.parent);
-    }
-    None
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn source_order_for_node<'tree, I>(index: &I, node: RawSyntaxNodeId) -> Option<usize>
 where
     I: ReferenceIndexView<'tree>,
 {
     index.metadata(node).map(|metadata| metadata.leaf_start)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn sumti_is_omitted_placeholder(index: &SyntaxIndex<'_>, sumti: RawSyntaxNodeId) -> bool {
-    index
-        .node(sumti)
-        .is_some_and(|node| matches!(node, SyntaxNodeRef::SumtiSyntaxElidedSumti(_)))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_displayed_generated_relation_unit(node: GeneratedSyntaxNodeRef<'_>) -> bool {
-    matches!(
-        node,
-        GeneratedSyntaxNodeRef::TanruUnitAtomBaseSyntaxWordTanruUnit(_)
-            | GeneratedSyntaxNodeRef::TanruUnitAtomBaseSyntaxGohaWordTanruUnit(_)
-            | GeneratedSyntaxNodeRef::TanruUnitAtomBaseSyntaxProBridiTanruUnit(_)
-            | GeneratedSyntaxNodeRef::TanruUnitAtomBaseForCeiSyntaxWordTanruUnit(_)
-            | GeneratedSyntaxNodeRef::TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit(_)
-            | GeneratedSyntaxNodeRef::TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit(_)
-    )
 }
 
 #[requires(true)]
@@ -1094,9 +985,33 @@ fn generated_modal_slot_words(
         Some(GeneratedSyntaxNodeRef::TenseModalSyntax(tense)) => {
             generated_words_for_tense_modal(tense, source, options)
         }
-        Some(node) => generated_words_for_node(node, source, options),
+        Some(node) => {
+            let words = generated_words_for_node(node, source, options);
+            if words.is_empty() {
+                generated_source_span_words(index, tag, source)
+            } else {
+                words
+            }
+        }
         None => Vec::new(),
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_source_span_words(
+    index: &GeneratedSyntaxIndex<'_>,
+    node: RawSyntaxNodeId,
+    source: &str,
+) -> Vec<String> {
+    index
+        .metadata(node)
+        .into_iter()
+        .flat_map(|metadata| metadata.source_spans.iter())
+        .filter_map(|span| source.get(span.byte_start..span.byte_end))
+        .filter(|word| !word.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 #[requires(true)]
@@ -1204,6 +1119,30 @@ fn generated_words_for_node(
         GeneratedSyntaxNodeRef::ConnectedTenseModalContinuationSyntax(value) => {
             value.visit_in_order(&mut collector)
         }
+        GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxPuBeforeNaheLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxPuDistanceBeforeTagLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxZiBeforeZiLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxVaBeforeVaLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxMohiBeforeMohiLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxCahaBeforeTagLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxIntervalPropertyLeadingTermTagTense(
+            value,
+        )
+        | GeneratedSyntaxNodeRef::LeadingTermTagTenseModalSyntaxTenseModal(value) => {
+            value.visit_in_order(&mut collector)
+        }
         GeneratedSyntaxNodeRef::TenseModalAtomSyntaxCompositeTense(value)
         | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxFihoTense(value)
         | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxModalTense(value)
@@ -1235,165 +1174,6 @@ fn generated_words_for_node(
         _ => {}
     }
     collector.words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn modal_slot_words(
-    index: &SyntaxIndex<'_>,
-    tag: RawSyntaxNodeId,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<String> {
-    match index.node(tag) {
-        Some(SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense)) => {
-            fiho_tense_modal_words(tense, source, options)
-        }
-        Some(SyntaxNodeRef::TenseModalSyntaxComposite(tense)) => {
-            composite_tense_modal_words(tense, source, options)
-        }
-        Some(node) => words_for_node(node, source, options),
-        None => Vec::new(),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn fiho_tense_modal_words(
-    tense: &TenseModalSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<String> {
-    match tense.as_data() {
-        data!(TenseModalSyntax::AdHocModal { selbri, .. }) => {
-            words_for_relation(selbri, source, options)
-        }
-        _ => words_for_node(
-            SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense),
-            source,
-            options,
-        ),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn composite_tense_modal_words(
-    tense: &TenseModalSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<String> {
-    let data!(TenseModalSyntax::Composite { parts }) = tense.as_data() else {
-        return words_for_node(
-            SyntaxNodeRef::TenseModalSyntaxComposite(tense),
-            source,
-            options,
-        );
-    };
-    let mut words = Vec::new();
-    for part in &parts.value {
-        match part.as_data() {
-            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::Cmavo(
-                word
-            )) => {
-                words.push(token_word_text(word, source, options));
-            }
-            data!(jbotci_syntax::ast::CompositeTenseModalPartSyntax::AdHocModal(fiho)) => {
-                if let Some(nahe) = &fiho.nahe {
-                    words.push(token_word_text(nahe, source, options));
-                }
-                words.extend(words_for_relation(&fiho.selbri, source, options));
-            }
-        }
-    }
-    words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn words_for_relation(
-    selbri: &SelbriSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<String> {
-    let mut collector = SyntaxWordCollector::new(source, options);
-    selbri.visit_in_order(&mut collector);
-    collector.words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn words_for_node(
-    node: SyntaxNodeRef<'_>,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Vec<String> {
-    let mut collector = SyntaxWordCollector::new(source, options);
-    match node {
-        SyntaxNodeRef::TenseModalSyntaxComposite(tense)
-        | SyntaxNodeRef::TenseModalSyntaxTimeDirection(tense)
-        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionDistance(tense)
-        | SyntaxNodeRef::TenseModalSyntaxTimeInterval(tense)
-        | SyntaxNodeRef::TenseModalSyntaxTimeDirectionActuality(tense)
-        | SyntaxNodeRef::TenseModalSyntaxSpaceDistance(tense)
-        | SyntaxNodeRef::TenseModalSyntaxSpaceDirection(tense)
-        | SyntaxNodeRef::TenseModalSyntaxSpaceMovement(tense)
-        | SyntaxNodeRef::TenseModalSyntaxModal(tense)
-        | SyntaxNodeRef::TenseModalSyntaxSticky(tense)
-        | SyntaxNodeRef::TenseModalSyntaxAdHocModal(tense)
-        | SyntaxNodeRef::TenseModalSyntaxActuality(tense)
-        | SyntaxNodeRef::TenseModalSyntaxEventContour(tense)
-        | SyntaxNodeRef::TenseModalSyntaxIntervalProperty(tense) => {
-            tense.visit_in_order(&mut collector)
-        }
-        _ => {}
-    }
-    collector.words
-}
-
-#[derive(Debug)]
-#[invariant(true)]
-struct SyntaxWordCollector<'source> {
-    source: &'source str,
-    options: TreeRenderOptions,
-    words: Vec<String>,
-}
-
-impl<'source> SyntaxWordCollector<'source> {
-    #[requires(true)]
-    #[ensures(ret.source == source)]
-    fn new(source: &'source str, options: TreeRenderOptions) -> Self {
-        Self {
-            source,
-            options,
-            words: Vec::new(),
-        }
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for SyntaxWordCollector<'_> {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            SyntaxAtomRef::Token(token) => {
-                self.words
-                    .push(token_word_text(token, self.source, self.options));
-            }
-            SyntaxAtomRef::Word(word) => {
-                if let Some(word) = first_word_label(&morphology_tree_value(
-                    &jbotci_morphology::WordLike::bare(word.clone()),
-                    self.source,
-                    self.options,
-                )) {
-                    self.words.push(word.text.clone());
-                }
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

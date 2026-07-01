@@ -440,7 +440,6 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
     use jbotci_morphology::segment_words_with_modifiers;
-    use jbotci_syntax::parse_syntax_tree;
 
     #[test]
     #[requires(true)]
@@ -458,27 +457,6 @@ mod tests {
                 compact_json_value(&words).expect("serde compact JSON")
             );
         }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn syntax_tree_json_matches_existing_compact_shape() {
-        run_on_normal_stack(|| {
-            for text in [
-                "mi klama",
-                ".ui mi klama",
-                "mi klama to coi toi",
-                "ba'e mi ui nai klama",
-            ] {
-                let words = segment_words_with_modifiers(text).expect("morphology");
-                let parsed = parse_syntax_tree(&words).expect("syntax");
-                assert_eq!(
-                    syntax_json_value(&parsed.parse_tree, JsonRenderOptions::default()),
-                    compact_json_value(&parsed.parse_tree).expect("serde compact JSON")
-                );
-            }
-        });
     }
 
     #[requires(true)]

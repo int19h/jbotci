@@ -7,9 +7,7 @@ use std::collections::HashMap;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_morphology::{
-    Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
-};
+use jbotci_morphology::{PhonemeRenderOptions, Word, WordKind, WordLike, WordLikeData};
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
     render_loose_latin_text_for_script,
@@ -20,17 +18,14 @@ use jbotci_output::{
     ReferenceName as OutputReferenceName, ReferenceSlotName as OutputReferenceSlotName,
     RichReferenceAnnotation,
 };
-use jbotci_semantics::references::{
-    GeneratedSyntaxIndex, RawSyntaxNodeId, ReferenceAnalysis, SyntaxNodeMetadata,
-};
+use jbotci_semantics::references::{GeneratedSyntaxIndex, RawSyntaxNodeId};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::ast::{AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax};
+use jbotci_syntax::WithIndicators;
 use jbotci_syntax::generated_model::{
     self, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
-use jbotci_syntax::tree::{Token, TreeNode};
-use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
+use jbotci_syntax::tree::Token;
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 
@@ -237,22 +232,6 @@ pub struct GentufaBlockAnnotation<Tooltip = ()> {
     pub tooltip: Option<Tooltip>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-pub struct RenderedLeaf {
-    pub range: WebSourceRange,
-    pub text: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-pub struct ElidedTerminator {
-    pub parent_id: RawSyntaxNodeId,
-    pub range: WebSourceRange,
-    pub dictionary_text: String,
-    pub text: String,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -271,77 +250,6 @@ impl Default for GentufaBlockOptions {
             show_elided: false,
             phonemes: PhonemeRenderOptions::default(),
         }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn rendered_leaves(
-    syntax: &TextSyntax,
-    source: &str,
-    options: &GentufaBlockOptions,
-) -> Vec<RenderedLeaf> {
-    let mut collector = LeafCollector::new(source, options);
-    syntax.visit_in_order(&mut collector);
-    collector.finish()
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn elided_terminators(
-    analysis: &ReferenceAnalysis<'_>,
-    syntax: &TextSyntax,
-    options: &GentufaBlockOptions,
-) -> Vec<ElidedTerminator> {
-    if !options.show_elided {
-        return Vec::new();
-    }
-    let mut collector = ElidedTerminatorCollector::new(analysis, options);
-    syntax.visit_in_order(&mut collector);
-    collector.finish()
-}
-
-#[requires(true)]
-#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
-pub fn blocks_layout<Tooltip: Clone>(
-    analysis: &ReferenceAnalysis<'_>,
-    reference_model: &ReferenceDisplayModel,
-    source: &str,
-    leaves: &[RenderedLeaf],
-    elided_terminators: &[ElidedTerminator],
-    annotations: &[GentufaBlockAnnotation<Tooltip>],
-    options: &GentufaBlockOptions,
-) -> GentufaBlocksLayout<Tooltip> {
-    let child_map = syntax_child_map(analysis);
-    let root_id = analysis.syntax_index.root().0;
-    let Some(root) = build_block_tree_node(
-        analysis,
-        reference_model,
-        &child_map,
-        root_id,
-        source,
-        leaves,
-        elided_terminators,
-        annotations,
-        options,
-    ) else {
-        return GentufaBlocksLayout {
-            blocks: Vec::new(),
-            max_col: 0,
-            max_row: 0,
-        };
-    };
-    let root = collapse_safe_multi_child_parents(collapse_single_child_chains(root));
-    let mut root = root;
-    assign_tree_depths_and_ancestors(&mut root);
-    let max_depth = block_tree_max_depth(&root);
-    let mut temp_blocks = Vec::new();
-    let max_col = push_positioned_blocks(&root, 0, max_depth, None, &mut temp_blocks);
-    let blocks = annotate_blocks(assign_block_colors(temp_blocks, max_depth), annotations);
-    GentufaBlocksLayout {
-        blocks,
-        max_col,
-        max_row: max_depth + 1,
     }
 }
 
@@ -388,31 +296,6 @@ pub fn generated_model_blocks_layout_with_references<Tooltip: Clone>(
         max_col,
         max_row: max_depth + 1,
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn display_text_for_spans(
-    spans: &[SourceSpan],
-    leaves: &[RenderedLeaf],
-    source: &str,
-    options: &GentufaBlockOptions,
-) -> String {
-    spans
-        .iter()
-        .map(|span| {
-            let range = range_from_span(span);
-            leaves
-                .iter()
-                .find(|leaf| leaf.range == range)
-                .map(|leaf| leaf.text.clone())
-                .unwrap_or_else(|| {
-                    render_loose_latin_surface(source_text_for_range(source, Some(range)), options)
-                })
-        })
-        .filter(|text| !text.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 #[requires(true)]
@@ -474,104 +357,6 @@ pub fn reference_label_plain_text(text: &str) -> String {
         output.push(normalized_reference_stem_char(ch).unwrap_or(ch));
     }
     output
-}
-
-#[derive(Debug)]
-#[invariant(true)]
-struct LeafCollector<'source, 'options> {
-    source: &'source str,
-    options: &'options GentufaBlockOptions,
-    leaves: Vec<RenderedLeaf>,
-}
-
-impl<'source, 'options> LeafCollector<'source, 'options> {
-    #[requires(true)]
-    #[ensures(ret.source == source)]
-    fn new(source: &'source str, options: &'options GentufaBlockOptions) -> Self {
-        Self {
-            source,
-            options,
-            leaves: Vec::new(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn finish(self) -> Vec<RenderedLeaf> {
-        self.leaves
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_word_like(&mut self, word_like: &WordLike) {
-        if let Some(range) = range_from_spans(word_like.source_spans()) {
-            self.leaves.push(RenderedLeaf {
-                range,
-                text: render_word_like(word_like, self.source, self.options),
-            });
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_with_indicators(&mut self, value: &WithIndicators<WordLike>) {
-        match value {
-            WithIndicators::Plain(word_like) => self.push_word_like(word_like),
-            WithIndicators::Emphasized {
-                bahe,
-                extra_bahe,
-                word_like,
-            } => {
-                self.push_word(bahe);
-                for bahe in extra_bahe {
-                    self.push_word(bahe);
-                }
-                self.push_word_like(word_like);
-            }
-            WithIndicators::WithIndicator {
-                base,
-                indicator_bahe,
-                indicator,
-                nai_bahe,
-                nai,
-            } => {
-                self.push_with_indicators(base);
-                for bahe in indicator_bahe {
-                    self.push_word(bahe);
-                }
-                self.push_word(indicator);
-                if let Some(nai) = nai {
-                    for bahe in nai_bahe {
-                        self.push_word(bahe);
-                    }
-                    self.push_word(nai);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_word(&mut self, word: &Word) {
-        self.leaves.push(RenderedLeaf {
-            range: range_from_span(word.span()),
-            text: render_word(word, self.options),
-        });
-    }
-}
-
-impl<'source, 'options, 'tree> TreeVisitor<'tree> for LeafCollector<'source, 'options> {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            SyntaxAtomRef::Token(token) => self.push_with_indicators(token.as_indicators()),
-            SyntaxAtomRef::Word(word) => self.push_word(word),
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -1187,135 +972,6 @@ fn generated_chain_link_element_field(constructor: &str) -> Option<&'static str>
         })
 }
 
-#[derive(Debug)]
-#[invariant(true)]
-struct ElidedTerminatorCollector<'analysis, 'options, 'tree> {
-    analysis: &'analysis ReferenceAnalysis<'tree>,
-    options: &'options GentufaBlockOptions,
-    node_stack: Vec<RawSyntaxNodeId>,
-    last_position: Option<RenderedPosition>,
-    terminators: Vec<ElidedTerminator>,
-}
-
-impl<'analysis, 'options, 'tree> ElidedTerminatorCollector<'analysis, 'options, 'tree> {
-    #[requires(true)]
-    #[ensures(ret.terminators.is_empty())]
-    fn new(
-        analysis: &'analysis ReferenceAnalysis<'tree>,
-        options: &'options GentufaBlockOptions,
-    ) -> Self {
-        Self {
-            analysis,
-            options,
-            node_stack: Vec::new(),
-            last_position: None,
-            terminators: Vec::new(),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn finish(self) -> Vec<ElidedTerminator> {
-        self.terminators
-    }
-}
-
-impl<'analysis, 'options, 'tree> TreeVisitor<'tree>
-    for ElidedTerminatorCollector<'analysis, 'options, 'tree>
-{
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_node(&mut self, node: Self::Node) {
-        if let Some(id) = self.analysis.syntax_index.id_of(node) {
-            self.node_stack.push(id);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_node(&mut self, node: Self::Node) {
-        if self.analysis.syntax_index.id_of(node).is_some() {
-            self.node_stack.pop();
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        self.last_position = syntax_atom_end_position(atom);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_absent_optional_field(&mut self, field: jbotci_tree::FieldRef) {
-        let Some(parent_id) = self.node_stack.last().copied() else {
-            return;
-        };
-        let Some(parent_node) = self.analysis.syntax_index.node(parent_id) else {
-            return;
-        };
-        let Some(cmavo) = elidable_terminator_for_absent_field(parent_node, field) else {
-            return;
-        };
-        let Some(position) = self.last_position.clone() else {
-            return;
-        };
-        self.terminators.push(ElidedTerminator {
-            parent_id,
-            range: WebSourceRange {
-                byte_start: position.byte_end,
-                byte_end: position.byte_end,
-                char_start: position.char_end,
-                char_end: position.char_end,
-            },
-            dictionary_text: cmavo.canonical_text().to_owned(),
-            text: render_elided_cmavo(cmavo, self.options),
-        });
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-struct RenderedPosition {
-    byte_end: usize,
-    char_end: usize,
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_atom_end_position(atom: SyntaxAtomRef<'_>) -> Option<RenderedPosition> {
-    match atom {
-        SyntaxAtomRef::Token(token) => token
-            .source_spans()
-            .into_iter()
-            .last()
-            .map(span_end_position),
-        SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
-    }
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[requires(span.char_start <= span.char_end)]
-#[ensures(ret.byte_end == span.byte_end)]
-fn span_end_position(span: &SourceSpan) -> RenderedPosition {
-    RenderedPosition {
-        byte_end: span.byte_end,
-        char_end: span.char_end,
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
-    let text = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
-        .expect("cmavo canonical text is valid phoneme text")
-        .render(options.phonemes);
-    render_latin_word_surface_for_script(options.script, WordKind::Cmavo, &text)
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct BlockTreeNode {
@@ -1364,170 +1020,6 @@ struct BlockTemp<Tooltip> {
     parent_id: Option<RawSyntaxNodeId>,
     child_ids: Vec<RawSyntaxNodeId>,
     block: GentufaBlock<Tooltip>,
-}
-
-#[requires(true)]
-#[ensures(ret.len() == analysis.syntax_index.node_count())]
-fn syntax_child_map(analysis: &ReferenceAnalysis<'_>) -> Vec<Vec<RawSyntaxNodeId>> {
-    let mut child_map = vec![Vec::new(); analysis.syntax_index.node_count()];
-    for raw_id in 0..analysis.syntax_index.node_count() {
-        let id = RawSyntaxNodeId(raw_id);
-        let Some(metadata) = analysis.syntax_index.metadata(id) else {
-            continue;
-        };
-        if let Some(parent) = metadata.parent
-            && let Some(children) = child_map.get_mut(parent.0)
-        {
-            children.push(id);
-        }
-    }
-    child_map
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn build_block_tree_node<Tooltip: Clone>(
-    analysis: &ReferenceAnalysis<'_>,
-    reference_model: &ReferenceDisplayModel,
-    child_map: &[Vec<RawSyntaxNodeId>],
-    id: RawSyntaxNodeId,
-    source: &str,
-    leaves: &[RenderedLeaf],
-    elided_terminators: &[ElidedTerminator],
-    annotations: &[GentufaBlockAnnotation<Tooltip>],
-    options: &GentufaBlockOptions,
-) -> Option<BlockTreeNode> {
-    let metadata = analysis.syntax_index.metadata(id)?;
-    let children = child_map
-        .get(id.0)
-        .into_iter()
-        .flatten()
-        .filter_map(|child| {
-            build_block_tree_node(
-                analysis,
-                reference_model,
-                child_map,
-                *child,
-                source,
-                leaves,
-                elided_terminators,
-                annotations,
-                options,
-            )
-        })
-        .collect::<Vec<_>>();
-    let span = range_from_spans(metadata.source_spans.iter());
-    let label = analysis
-        .syntax_index
-        .node(id)
-        .map(|node| syntax_constructor_name(node.constructor_name()).to_owned())
-        .unwrap_or_else(|| "Node".to_owned());
-    let leaf_parts = block_leaf_parts(
-        analysis.syntax_index.node_count(),
-        id,
-        metadata,
-        source,
-        leaves,
-        elided_terminators,
-        options,
-    );
-    if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
-        return None;
-    }
-    let display_text = leaf_parts
-        .iter()
-        .map(|part| part.display_text.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let leaf_word = if children.is_empty() && leaf_parts.len() == 1 && !display_text.is_empty() {
-        Some(display_text.clone())
-    } else {
-        None
-    };
-    Some(BlockTreeNode {
-        id,
-        field_label: None,
-        node_ids: vec![id],
-        label: label.clone(),
-        is_elided: false,
-        token_kind: leaf_word.as_deref().and_then(token_kind_for_text),
-        ref_markers: reference_markers_for_node(reference_model, id),
-        span,
-        source_spans: metadata.source_spans.clone(),
-        leaf_parts,
-        node_types: vec![label],
-        ancestors: Vec::new(),
-        depth: 0,
-        raw_text: source_text_for_range(source, span),
-        leaf_word,
-        computed_gloss: annotation_for_range_and_text(annotations, span, None)
-            .and_then(|annotation| annotation.glosses.first().cloned()),
-        children,
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn block_leaf_parts(
-    node_count: usize,
-    id: RawSyntaxNodeId,
-    metadata: &SyntaxNodeMetadata,
-    source: &str,
-    leaves: &[RenderedLeaf],
-    elided_terminators: &[ElidedTerminator],
-    options: &GentufaBlockOptions,
-) -> Vec<BlockLeafPart> {
-    let mut parts = metadata
-        .source_spans
-        .iter()
-        .enumerate()
-        .filter_map(|(index, span)| {
-            let range = range_from_span(span);
-            let display_text = leaves
-                .iter()
-                .find(|leaf| leaf.range == range)
-                .map(|leaf| leaf.text.clone())
-                .unwrap_or_else(|| {
-                    render_loose_latin_surface(source_text_for_range(source, Some(range)), options)
-                });
-            if display_text.is_empty() {
-                return None;
-            }
-            Some(BlockLeafPart {
-                id: synthetic_leaf_id(node_count, id, index),
-                range,
-                is_elided: false,
-                raw_text: source_text_for_range(source, Some(range)),
-                display_text,
-            })
-        })
-        .collect::<Vec<_>>();
-    let elided_offset = parts.len();
-    parts.extend(
-        elided_terminators
-            .iter()
-            .filter(|terminator| terminator.parent_id == id)
-            .enumerate()
-            .map(|(index, terminator)| BlockLeafPart {
-                id: synthetic_leaf_id(node_count, id, elided_offset + index),
-                range: terminator.range,
-                is_elided: true,
-                raw_text: String::new(),
-                display_text: terminator.text.clone(),
-            }),
-    );
-    parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
-    parts
-}
-
-#[requires(true)]
-#[ensures(ret.0 >= node_count)]
-fn synthetic_leaf_id(node_count: usize, parent: RawSyntaxNodeId, index: usize) -> RawSyntaxNodeId {
-    RawSyntaxNodeId(
-        node_count
-            .saturating_add(parent.0.saturating_add(1).saturating_mul(1_000_000))
-            .saturating_add(index),
-    )
 }
 
 #[requires(true)]

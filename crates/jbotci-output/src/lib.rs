@@ -29,7 +29,6 @@ pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
     ReferenceDisplayModel, ReferenceName, ReferenceSlotName, RichReferenceAnnotation,
     RichReferenceAnnotations, generated_reference_slot_name_for_place_slot,
-    reference_slot_name_for_place_slot,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -40,10 +39,7 @@ pub use surface::{
 use thiserror::Error;
 pub use trace::{TraceRenderOptions, render_trace_report};
 pub use tree::pretty_generated_model_tree_with_reference_display;
-pub use tree::reference_display_model_for_syntax_tree;
-pub use tree::{
-    GeneratedReferenceDisplay, generated_reference_display, generated_reference_display_from_legacy,
-};
+pub use tree::{GeneratedReferenceDisplay, generated_reference_display};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -602,29 +598,6 @@ pub fn pretty_generated_model_tree_with_options(
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
     tree::pretty_generated_model_tree_with_options(tree, source, options)
-}
-
-#[doc(hidden)]
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn pretty_generated_model_tree_with_legacy_references(
-    tree: &jbotci_syntax::generated_model::TextSyntax,
-    legacy_tree: &jbotci_syntax::ast::TextSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Result<String, OutputError> {
-    tree::pretty_generated_model_tree_with_legacy_references(tree, legacy_tree, source, options)
-}
-
-#[doc(hidden)]
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn pretty_legacy_as_generated_model_tree_with_options(
-    tree: &jbotci_syntax::ast::TextSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-) -> Result<String, OutputError> {
-    tree::pretty_legacy_as_generated_model_tree_with_options(tree, source, options)
 }
 
 #[requires(true)]
@@ -1674,8 +1647,8 @@ mod tests {
         )
         .expect("json");
         let value = serde_json::from_str(&json).expect("valid json");
-        assert!(has_elided_cmavo(&value, "boi", [5, 5]), "{json}");
         assert!(has_elided_cmavo(&value, "lo'o", [5, 5]), "{json}");
+        assert!(has_elided_cmavo(&value, "vau", [5, 5]), "{json}");
     }
 
     #[requires(!source.is_empty())]

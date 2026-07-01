@@ -11,7 +11,6 @@ use chumsky::{
 };
 use jbotci_morphology::{Cmavo, Selmaho};
 
-use super::ast::*;
 use super::generated_runtime;
 use super::tokens::{
     cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
@@ -26,6 +25,8 @@ use crate::{
 pub mod generated_model {
     #![allow(dead_code)]
 
+    use crate::tree::WithFreeModifiers;
+
     use super::*;
 
     jbotci_syntax_macros::syntax_grammar! {
@@ -39,7 +40,6 @@ pub mod generated_model {
     recursive {
         text: TextSyntax;
         paragraph: ParagraphSyntax;
-        paragraph_statement: ParagraphStatementSyntax;
         statement_or_fragment: StatementOrFragmentSyntax;
         statement: StatementSyntax;
         bridi: BridiSyntax;
@@ -1004,7 +1004,7 @@ pub mod generated_model {
         field quantifier <- boxed(pa_run_quantifier(letter_tokens));
     }
 
-    rule "operator" primitive_mekso_operator -> struct {
+    rule "VUhU operator" primitive_mekso_operator -> struct {
         field vuhu <- selmaho(Vuhu).wf();
     }
 
@@ -1630,7 +1630,7 @@ pub mod generated_model {
         field toi <- opt(cmavo(Toi).prohibited_wf());
     }
 
-    rule "metalinguistic bridi" sei_free_modifier(term, selbri) -> struct {
+    rule "metalinguistic comment" sei_free_modifier(term, selbri) -> struct {
         field sei <- selmaho(Sei).wf();
         field terms <- [zero_or_more term];
         field cu <- opt(cmavo(Cu).wf());
@@ -1671,7 +1671,7 @@ pub mod generated_model {
         field sehu <- opt(cmavo(Sehu).wf());
     }
 
-    rule "replacement free modifier" text_replacement_free_modifier -> enum {
+    rule "replacement phrase" text_replacement_free_modifier -> enum {
         full_text_replacement_free_modifier,
         new_only_text_replacement_free_modifier,
         close_only_text_replacement_free_modifier,
@@ -1683,7 +1683,7 @@ pub mod generated_model {
     alias "replacement free modifier word" word_before_lehai =
         word_not_cmavo(Lehai);
 
-    rule "replacement free modifier" full_text_replacement_free_modifier -> struct {
+    rule "replacement phrase" full_text_replacement_free_modifier -> struct {
         field lohai <- cmavo(Lohai);
         field old_words <- [zero_or_more word_before_sahai_or_lehai()];
         field sahai <- opt(cmavo(Sahai));
@@ -1691,13 +1691,13 @@ pub mod generated_model {
         field lehai <- cmavo(Lehai).wf();
     }
 
-    rule "replacement free modifier" new_only_text_replacement_free_modifier -> struct {
+    rule "replacement phrase" new_only_text_replacement_free_modifier -> struct {
         field sahai <- cmavo(Sahai);
         field new_words <- [zero_or_more word_before_lehai()];
         field lehai <- cmavo(Lehai).wf();
     }
 
-    rule "replacement free modifier" close_only_text_replacement_free_modifier -> struct {
+    rule "replacement phrase" close_only_text_replacement_free_modifier -> struct {
         field lehai <- cmavo(Lehai).wf();
     }
 
@@ -1752,7 +1752,7 @@ pub mod generated_model {
         field sumti <- boxed(sumti);
     }
 
-    rule "relative clause" bridi_relative_clause(subbridi) -> enum {
+    rule "relative bridi" bridi_relative_clause(subbridi) -> enum {
         restrictive_bridi_relative_clause,
         incidental_bridi_relative_clause,
     }
@@ -2450,7 +2450,7 @@ pub mod generated_model {
         field trailing_selbri <- boxed(tanru_selbri(tanru_unit));
     }
 
-    rule "selbri" tanru_selbri(tanru_unit) -> struct {
+    rule "tanru" tanru_selbri(tanru_unit) -> struct {
         field first_unit <- tanru_unit;
         field additional_units <- [zero_or_more tanru_unit];
     }
@@ -2657,7 +2657,7 @@ pub mod generated_model {
         field raho <- opt(cmavo(Raho).wf());
     }
 
-    rule "sumti selbri" sumti_selbri_tanru_unit(sumti, letter_string) -> struct {
+    rule "sumti-to-selbri" sumti_selbri_tanru_unit(sumti, letter_string) -> struct {
         field me <- cmavo(Me).wf();
         field sumti <- boxed(sumti_selbri_sumti(sumti, letter_string));
         field mehu <- opt(cmavo(Mehu).wf());

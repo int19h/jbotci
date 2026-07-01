@@ -2285,7 +2285,7 @@ struct GrammarTypeEnv {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StrictParserCallMode {
     Local,
-    Legacy,
+    External,
 }
 
 struct StrictParserGeneration<'a> {
@@ -2316,14 +2316,14 @@ impl StrictParserGeneration<'_> {
         })
     }
 
-    fn legacy_recursive_parser(&self, name: &Ident) -> TokenStream2 {
+    fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
         quote!(super::strict_generated_parser_family().#name)
     }
 
-    fn legacy_free_modifier_parser(&self) -> TokenStream2 {
+    fn external_free_modifier_parser(&self) -> TokenStream2 {
         let name = format_ident!("free_modifier");
         if self.recursive_has_local_parser("free_modifier") {
-            self.legacy_recursive_parser(&name)
+            self.external_recursive_parser(&name)
         } else {
             quote!(__generated_free_modifier.clone())
         }
@@ -2879,7 +2879,7 @@ fn strict_method_parser_expr_tokens(
             .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
             .collect::<Option<Vec<_>>>()?;
         let parser_name = format_ident!("strict_{}_parser", rule);
-        let parser_name = if mode == StrictParserCallMode::Legacy
+        let parser_name = if mode == StrictParserCallMode::External
             || (generation.generate_model && !generation.rule_has_local_parser(&rule))
         {
             quote!(super::#parser_name)
@@ -3231,10 +3231,10 @@ fn strict_rule_call_parser_tokens<'a>(
     if !generation.type_env.rules.contains_key(function) {
         return None;
     }
-    let call_mode = if mode == StrictParserCallMode::Legacy
+    let call_mode = if mode == StrictParserCallMode::External
         || (generation.generate_model && !generation.rule_has_local_parser(function))
     {
-        StrictParserCallMode::Legacy
+        StrictParserCallMode::External
     } else {
         StrictParserCallMode::Local
     };
@@ -3269,10 +3269,10 @@ fn strict_rule_call_by_argument_names(
     if !generation.type_env.rules.contains_key(function) {
         return None;
     }
-    let call_mode = if mode == StrictParserCallMode::Legacy
+    let call_mode = if mode == StrictParserCallMode::External
         || (generation.generate_model && !generation.rule_has_local_parser(function))
     {
-        StrictParserCallMode::Legacy
+        StrictParserCallMode::External
     } else {
         StrictParserCallMode::Local
     };
@@ -3299,7 +3299,7 @@ fn strict_rule_call_tokens(
     call_mode: StrictParserCallMode,
 ) -> Option<TokenStream2> {
     let parser_name = format_ident!("strict_{}_parser", function);
-    let parser_name = if call_mode == StrictParserCallMode::Legacy {
+    let parser_name = if call_mode == StrictParserCallMode::External {
         quote!(super::#parser_name)
     } else {
         quote!(#parser_name)
@@ -3322,10 +3322,10 @@ fn strict_argument_parser_tokens(
         return None;
     }
     let argument = format_ident!("{argument}");
-    if mode == StrictParserCallMode::Legacy
+    if mode == StrictParserCallMode::External
         && generation.recursive_has_local_parser(&argument.to_string())
     {
-        Some(generation.legacy_recursive_parser(&argument))
+        Some(generation.external_recursive_parser(&argument))
     } else {
         Some(quote!(#argument.clone()))
     }
@@ -3336,8 +3336,8 @@ fn strict_free_modifier_argument_tokens(
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> TokenStream2 {
-    if mode == StrictParserCallMode::Legacy {
-        generation.legacy_free_modifier_parser()
+    if mode == StrictParserCallMode::External {
+        generation.external_free_modifier_parser()
     } else {
         quote!(#free_modifier_parser.clone())
     }

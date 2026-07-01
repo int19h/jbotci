@@ -8,16 +8,264 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
-        "crates/bityzba/tests/type_invariant.rs:Tree::Branch",
-        "bityzba fixture intentionally exercises audited no-op enum arm syntax",
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Cukta",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gimfihi",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Jvozba",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlacku",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlasei",
+        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
+        "loaded embedding cache validity is owned by the native embedding service type",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unavailable",
+        "unavailable embedding cache stores a validated cached error message",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unloaded",
+        "embedding search cache starts empty and is initialized on first semantic tool use",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
+        "embedding worker request delegates payload validity to the typed cukta tool request",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
+        "embedding worker request delegates payload validity to the typed vlacku tool request",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Always",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Auto",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Never",
+        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Cukta",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Gentufa",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Gerna",
+        "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Gimfihi",
+        "CLI enum delegates validation to clap and gimfihi option handling",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Jvozba",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Mulgau",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Setup",
+        "CLI enum delegates validation to clap and setup option handling",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Tersmu",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Vlacku",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Vlasei",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Vlatai",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:Command::Zbasu",
+        "CLI enum delegates validation to clap and command option structs",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::All",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::None",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCollisionScope::Official",
+        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Html",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Markdown",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Raw",
+        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Example",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Meaning",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Section",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaMode::Word",
+        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
+        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Brackets",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Json",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Png",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Raw",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Svg",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
+        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Json",
+        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Table",
+        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Cmevla",
+        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Lujvo",
+        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::FixedRafsi",
+        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::Word",
+        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Lujvo",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Rafsi",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Sound",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
+        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Brackets",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Ipa",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Json",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Raw",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Tree",
+        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
+    ),
+    (
+        "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:DataChoice::Present",
+        "contract scanner fixture must contain an accepted no-op marker",
     ),
     (
         "crates/bityzba/tests/type_invariant.rs:PlainChoice::Named",
         "bityzba fixture covers plain enum arm marker behavior",
     ),
     (
-        "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:DataChoice::Present",
-        "contract scanner fixture must contain an accepted no-op marker",
+        "crates/bityzba/tests/type_invariant.rs:Tree::Branch",
+        "bityzba fixture intentionally exercises audited no-op enum arm syntax",
     ),
     (
         "crates/bityzba/tests/ui/fail/enum_duplicate_variant_invariant.rs:Choice::Named",
@@ -28,300 +276,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/bityzba/tests/ui/fail/enum_unknown_variant_invariant.rs:Choice::Named",
-        "trybuild failure fixture intentionally uses placeholder syntax",
-    ),
-    (
         "crates/bityzba/tests/ui/fail/enum_unknown_variant_invariant.rs:Choice::Missing",
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/jbotci-output/src/sexpr.rs:SExpr::Leaf",
-        "render tree leaf text is normalized by constructors and empty leaves collapse to nodes",
-    ),
-    (
-        "crates/jbotci-output/src/sexpr.rs:SExpr::Node",
-        "empty render nodes are meaningful intermediate values",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Text",
-        "bracket source fragments preserve renderer output, including empty intermediate text",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Span",
-        "bracket source spans preserve renderer grouping, including empty intermediate spans",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:OutputError::Json",
-        "error wrapper carries serde's diagnostic without adding semantic state",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:OutputError::Diagnostic",
-        "error wrapper carries Ariadne renderer diagnostics",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
-        "error wrapper carries pronunciation renderer diagnostics",
-    ),
-    (
-        "crates/jbotci-output/src/lib.rs:OutputError::References",
-        "error wrapper carries reference analysis diagnostics",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
-        "generic recovery slot wrapper delegates semantic validity to the contained recovered field state",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:Recovered::Error",
-        "generic recovery slot wrapper delegates missing versus invalid classification to the typed recovery item",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:Recovered::Prefix",
-        "generic recovery slot wrapper delegates prefix error validity to Vec1 and typed recovery items",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:DaSeriesScopeSource::Explicit",
-        "scope source variant carries borrowed syntax nodes whose validity is enforced by syntax model types",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:DaSeriesScopeSource::Bare",
-        "bare da-series scope source carries a borrowed syntax node whose validity is enforced by SumtiSyntax",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::Negation",
-        "negation scope carries optional source provenance only",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::Quantifier",
-        "quantifier scope validity is delegated to QuantifiedProSumtiScope and formula-typed restriction IDs",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::QuantifierBundle",
-        "bundle scope validity is delegated to QuantifierBundleScope and QuantifierBundleBindingScope",
-    ),
-    (
-        "crates/jbotci-semantics/src/builder.rs:PrenexFormulaScope::RelationQuantifier",
-        "relation quantifier scope validity is delegated to QuantifiedRelationVariableScope",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",
-        "all i64 values are valid math integer literal payloads",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Referent",
-        "referent ID prefixes carry a strongly typed semantic sort; graph validation checks sort/object agreement",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Structural",
-        "structural ID prefixes carry a strongly typed object kind; constructors choose the allowed structural kind",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
-        "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticOperator::Formula",
-        "formula operators are closed enum values with no additional payload constraint",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceSlot::PlaceQuestion",
-        "place-question slots are unit markers; numbered and modal variants carry the constrained payloads",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Environment",
-        "embedding error variant carries only an already formatted diagnostic message",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Io",
-        "embedding error variant wraps std::io::Error with contextual text",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Json",
-        "embedding error variant wraps serde_json::Error with contextual text",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Http",
-        "embedding error variant carries only an already formatted diagnostic message",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidModel",
-        "embedding error variant carries only an already formatted diagnostic message",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidIndex",
-        "embedding error variant carries only an already formatted diagnostic message",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::UnsupportedModel",
-        "embedding error variant carries the unsupported model key for rendering",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::MissingCompatiblePack",
-        "embedding error variant carries the requested model key for rendering",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::DimensionMismatch",
-        "embedding error variant carries expected and actual dimensions produced by validation paths",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Backend",
-        "embedding error variant carries only an already formatted backend diagnostic message",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ResolvingPaths",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingModel",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingModel",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingIndex",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::LoadingModel",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingIndex",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Indexing",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::WritingIndex",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ReusingIndex",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Complete",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Error",
-        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Auto",
-        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Always",
-        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Never",
-        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::Reused",
-        "embedding setup index source is a closed status selector reported to users",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::DownloadedPrecomputed",
-        "embedding setup index source is a closed status selector reported to users",
-    ),
-    (
-        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::BuiltLocal",
-        "embedding setup index source is a closed status selector reported to users",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
-        "internal fallback lujvo parser validates segment text before converting to Phonemes",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Hyphen",
-        "internal fallback lujvo parser only emits known hyphen segments before Phonemes validation",
-    ),
-    (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Lujvo",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Cmevla",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaMode::Lujvo",
-        "public build mode is a closed selector enum serialized directly for CLI and web callers",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaMode::Cmevla",
-        "public build mode is a closed selector enum serialized directly for CLI and web callers",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::Word",
-        "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
-        "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaSegmentKind::Rafsi",
-        "segment kind is a closed presentation selector with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaSegmentKind::Hyphen",
-        "segment kind is a closed presentation selector with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::RequiresAtLeastTwoInputs",
-        "jvozba error variant carries no payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
-        "jvozba error variant carries no payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NonFinalUniversalLongRafsi",
-        "error payload is created only from the validated jvozba build path and rendered immediately",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FinalConsonant",
-        "error payload is created only from the validated jvozba build path and rendered immediately",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoRafsiAvailable",
-        "error payload is created only from the validated jvozba build path and rendered immediately",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoDictionaryEntry",
-        "error payload is created only from the validated jvozba build path and rendered immediately",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildLujvo",
-        "jvozba error variant carries no payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildCompound",
-        "jvozba error variant carries no payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Word",
-        "web search mode is a closed UI selector serialized directly in URLs and local state",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Rafsi",
-        "web search mode is a closed UI selector serialized directly in URLs and local state",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Sound",
-        "web search mode is a closed UI selector serialized directly in URLs and local state",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Meaning",
-        "web search mode is a closed UI selector serialized directly in URLs and local state",
+        "crates/bityzba/tests/ui/fail/enum_unknown_variant_invariant.rs:Choice::Named",
+        "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
         "crates/jbotci-cll/src/lib.rs:CllBlock::BlockQuote",
@@ -496,6 +456,1162 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "cukta request variants are validated from CLI/web mode parsing before execution",
     ),
     (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetNotCharBoundary",
+        "diagnostic enum records rejected UTF-8 boundary inputs",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetOutOfBounds",
+        "diagnostic enum records rejected source offsets",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::CharOffsetOutOfBounds",
+        "diagnostic enum records rejected source offsets",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::SourceLocation",
+        "error wrapper delegates validity to SourceLocationError",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceOptionError::InvalidLevel",
+        "diagnostic enum records rejected trace levels",
+    ),
+    (
+        "crates/jbotci-diagnostics/src/lib.rs:TraceRecorder::Active",
+        "active recorder state owns trace invariants while the enum only selects enabled storage",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectDefinitionEntry::Cmavo",
+        "entry payload is validated by CmavoDialectEntry",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectDefinitionEntry::Feature",
+        "feature payload is closed over DialectFeature and toggle enums",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Atom",
+        "formula normalization drops empty atoms before rendering and this private parser state is not constructed outside dialect helpers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Group",
+        "grouped formula text is produced by the local parenthesis collector and normalized before rendering",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectToken::Atom",
+        "tokenizer emits atoms from non-empty spans before parser validation",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::Json",
+        "error wrapper carries serde's diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:RafsiField::List",
+        "raw import field accepts the upstream Lensisku list shape before normalization",
+    ),
+    (
+        "crates/jbotci-dictionary/src/import.rs:RafsiField::Text",
+        "raw import field accepts the upstream Lensisku scalar shape before normalization",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Hyphen",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Rafsi",
+        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
+        "validation error wrapper carries path and entry diagnostics",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidLujvoIndexEntry",
+        "validation error wrapper carries the lujvo index position and structural diagnostic",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidSoundIndexEntry",
+        "validation error wrapper carries the sound index position and structural diagnostic",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Backend",
+        "embedding error variant carries only an already formatted backend diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::DimensionMismatch",
+        "embedding error variant carries expected and actual dimensions produced by validation paths",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Environment",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Http",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidIndex",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::InvalidModel",
+        "embedding error variant carries only an already formatted diagnostic message",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Io",
+        "embedding error variant wraps std::io::Error with contextual text",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Json",
+        "embedding error variant wraps serde_json::Error with contextual text",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::MissingCompatiblePack",
+        "embedding error variant carries the requested model key for rendering",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::UnsupportedModel",
+        "embedding error variant carries the unsupported model key for rendering",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::BuiltLocal",
+        "embedding setup index source is a closed status selector reported to users",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::DownloadedPrecomputed",
+        "embedding setup index source is a closed status selector reported to users",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupIndexSource::Reused",
+        "embedding setup index source is a closed status selector reported to users",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Complete",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::DownloadingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Error",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::Indexing",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::LoadingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ResolvingPaths",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ReusingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::ValidatingModel",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:SetupProgressPhase::WritingIndex",
+        "embedding setup progress phase is a closed status selector serialized for UI progress reporting",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Always",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Auto",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-embeddings/src/lib.rs:UsePrecomputed::Never",
+        "embedding setup precomputed-pack policy is a closed CLI/API selector with no payload",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Leaf",
+        "internal borrowed layout cursor delegates validity to the referenced leaf part",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Node",
+        "internal borrowed layout cursor delegates validity to the referenced block tree node",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Chain",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Collection",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Field",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Node",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Fai",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Modal",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Numbered",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::PlaceQuestion",
+        "gentufa reference slot labels mirror the validated CLI reference display model",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::InvalidSize",
+        "export error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Png",
+        "export error variant wraps the PNG encoder diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Svg",
+        "export error variant wraps the SVG parser diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Xml",
+        "export error variant wraps the XML parser diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgNode::Element",
+        "typed SVG DOM node validity is delegated to the contained element",
+    ),
+    (
+        "crates/jbotci-gentufa/src/render.rs:SvgNode::Text",
+        "typed SVG DOM text is escaped during serialization before parser handoff",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::DuplicateSourceLanguage",
+        "duplicate source language is produced from normalized source input for diagnostics",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::ExtraPresetLanguage",
+        "extra preset language is produced from normalized source input for diagnostics",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidIpa",
+        "IPA error carries the rejected IPA string and a human-readable reason with no further constraint",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceSpec",
+        "gimfihi error variant carries raw invalid source text plus a diagnostic message",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceWord",
+        "invalid source word preserves normalized invalid input, including the empty word case",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidWeight",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingExplicitWeight",
+        "missing custom weight is reported against normalized source input for diagnostics",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingPresetLanguage",
+        "missing preset language is produced from the validated preset table",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownCollisionScope",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownPreset",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownShape",
+        "gimfihi error variant carries raw invalid user input, including possible empty text",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/transliterate.rs:Snap::Letters",
+        "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildCompound",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::CouldNotBuildLujvo",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FinalConsonant",
+        "error payload is created only from the validated jvozba build path and rendered immediately",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::FixedRafsiEmpty",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoDictionaryEntry",
+        "error payload is created only from the validated jvozba build path and rendered immediately",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NoRafsiAvailable",
+        "error payload is created only from the validated jvozba build path and rendered immediately",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::NonFinalUniversalLongRafsi",
+        "error payload is created only from the validated jvozba build path and rendered immediately",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::RequiresAtLeastTwoInputs",
+        "jvozba error variant carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
+        "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::Word",
+        "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaMode::Cmevla",
+        "public build mode is a closed selector enum serialized directly for CLI and web callers",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaMode::Lujvo",
+        "public build mode is a closed selector enum serialized directly for CLI and web callers",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaSegmentKind::Hyphen",
+        "segment kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaSegmentKind::Rafsi",
+        "segment kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Hyphen",
+        "internal fallback lujvo parser only emits known hyphen segments before Phonemes validation",
+    ),
+    (
+        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
+        "internal fallback lujvo parser validates segment text before converting to Phonemes",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Selmaho",
+        "selmaho strings come from the static morphology table",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
+        "diagnostic enum records rejected parser inputs",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::SourceSpan",
+        "error wrapper delegates validity to SourceLocationError",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyError::UnterminatedZoiQuote",
+        "diagnostic enum records rejected quote input",
+    ),
+    (
+        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Cmevla",
+        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
+    ),
+    (
+        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Lujvo",
+        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::ExperimentalCgv",
+        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::Standard",
+        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Emit",
+        "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::EmitText",
+        "private normalization event payload comes from the static zbalermorna normalization table",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Ignore",
+        "private normalization event is a unit signal with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
+        "private normalization event is a unit signal with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPreviousVowel",
+        "private normalization event is a unit signal with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Brivla",
+        "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Hyphen",
+        "Phonemes owns canonical non-empty phoneme validity",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Rafsi",
+        "Phonemes owns canonical non-empty phoneme validity",
+    ),
+    (
+        "crates/jbotci-morphology/src/tree.rs:WordLike::PlainWord",
+        "bare word-like values delegate all validity to the wrapped Word",
+    ),
+    (
+        "crates/jbotci-output/src/json.rs:JsonFrame::Field",
+        "JSON field frame permits empty values while traversal is in progress",
+    ),
+    (
+        "crates/jbotci-output/src/json.rs:JsonFrame::Node",
+        "JSON builder frame validity is governed by traversal sequencing",
+    ),
+    (
+        "crates/jbotci-output/src/json.rs:JsonFrame::Sequence",
+        "JSON sequence frame permits empty values while traversal is in progress",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Span",
+        "bracket source spans preserve renderer grouping, including empty intermediate spans",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:BracketSourceFragment::Text",
+        "bracket source fragments preserve renderer output, including empty intermediate text",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Diagnostic",
+        "error wrapper carries Ariadne renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Ipa",
+        "error wrapper carries pronunciation renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::Json",
+        "error wrapper carries serde's diagnostic without adding semantic state",
+    ),
+    (
+        "crates/jbotci-output/src/lib.rs:OutputError::References",
+        "error wrapper carries reference analysis diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Fai",
+        "unit slot marker carries no payload beyond the selected variant",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Modal",
+        "reference display slot words are renderer projections of validated syntax",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Numbered",
+        "reference display slot is projected from validated semantic PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-output/src/references.rs:ReferenceSlotName::PlaceQuestion",
+        "reference display slot is projected from validated semantic PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:SExpr::Leaf",
+        "render tree leaf text is normalized by constructors and empty leaves collapse to nodes",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:SExpr::Node",
+        "empty render nodes are meaningful intermediate values",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
+        "display spans are private renderer ranges produced from validated word spans before source-bound clipping",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:DisplaySpan::VerbatimText",
+        "verbatim display spans are private renderer ranges produced from validated quote spans before source-bound clipping",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedText",
+        "quoted text chunks preserve source text without an enum-level rule",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedWords",
+        "quoted word chunks may be empty for source-derived quote bodies",
+    ),
+    (
+        "crates/jbotci-output/src/surface.rs:SurfaceChunk::Word",
+        "surface chunks are intermediate render fragments filtered before output",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:MorphologyFrame::Field",
+        "field frame permits empty values while traversal is in progress",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
+        "builder stack frame validity is governed by enter/exit sequencing",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderEntry::Labelled",
+        "labels are static visitor metadata and TreeValue owns payload validity",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",
+        "render entry delegates all validity to TreeValue",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Chain",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Collection",
+        "collection frame permits empty values while traversal is in progress",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Field",
+        "field frame permits empty values while traversal is in progress",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Node",
+        "builder stack frame validity is governed by enter/exit sequencing",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Collection",
+        "empty render collections are valid intermediate output",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Node",
+        "render node payload owns constructor and entry shape",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Span",
+        "span field ordering is preserved from SourceSpan before rendering",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Syntax",
+        "syntax provenance wrapper delegates rendered value validity to its payload",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Text",
+        "text render payload is a source-derived scalar with no extra enum-level rule",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Verbatim",
+        "verbatim render text is source-derived and may be empty",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Word",
+        "word render fields are produced from validated morphology atoms",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Aspirated",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Back",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::High",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Lateral",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Long",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Manner",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Nasal",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Place",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Retroflex",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Round",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Syllabic",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Voice",
+        "ALINE feature enum is a closed selector set with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Text",
+        "IPA text chunks preserve source-derived quote text and may be empty before filtering",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Word",
+        "IPA chunks borrow validated morphology words",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Message",
+        "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
+    ),
+    (
+        "crates/jbotci-search/src/lib.rs:SearchError::DimensionMismatch",
+        "diagnostic enum records vector-search implementation errors",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",
+        "compiled glob patterns carry their validation in GlobPattern",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Regex",
+        "compiled regex patterns carry their validation in regex::Regex",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyMany",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyOne",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Consonant",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Literal",
+        "glob compiler normalizes literal tokens before constructing this internal matcher enum",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:GlobToken::Vowel",
+        "glob token variant is a closed matcher tag with no payload invariants",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Hyphen",
+        "composition kind is a closed display tag; surface/source fields carry data validity",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
+        "composition kind is a closed display tag; surface/source fields carry data validity",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Lujvo",
+        "CLI and search validation reject empty lujvo requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
+        "semantic query text is validated by CLI and embedded locally before vector search",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Rafsi",
+        "CLI and search validation reject empty rafsi requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
+        "sound query parsing validates request text before ALINE matching",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Valsi",
+        "CLI and search validation reject empty valsi requests before lookup execution",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Built",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Sumti",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiBound",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiForethought",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::Sumti",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::SumtiBound",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::NoGadriDescription",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::OuterQuantifiedDescription",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::QuantifiedSumti",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::ImplicitExistential",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::Term",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::Sumti",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiAfterthought",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiBound",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiForethought",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiGrouped",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Argument",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Forethought",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::LeadingTermTag",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::TenseModal",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Argument",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Bundle",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::ImplicitExistential",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Term",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Absent",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Fresh",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Negation",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Quantifier",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Argument",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Bundle",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::ImplicitExistential",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Term",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::Description",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::PropertyAbstraction",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantity::Value",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::GohaWord",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::ProBridi",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::GohaWord",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::ProBridi",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::MarkerOnly",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTermFormulaScope::Negation",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::Root",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::TrailingSeparator",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::Bridi",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::EkFragment",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::GihekFragment",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PrenexStatement",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PreposedStatementConnection",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::StatementConnection",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TermsFragment",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TextGroupStatement",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",
+        "all i64 values are valid math integer literal payloads",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Referent",
+        "referent ID prefixes carry a strongly typed semantic sort; graph validation checks sort/object agreement",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticIdPrefix::Structural",
+        "structural ID prefixes carry a strongly typed object kind; constructors choose the allowed structural kind",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticOperator::Formula",
+        "formula operators are closed enum values with no additional payload constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/model.rs:SemanticSort::Eventuality",
+        "eventuality sort payload is a closed EventualitySort enum and has no additional per-variant constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Compound",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::ConnectiveBranches",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Conversion",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Forward",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Jai",
+        "fixture frame propagation is a serialization projection of validated frame ids",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Modal",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Numbered",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::PlaceQuestion",
+        "fixture place slots are serialization projections of PlaceSlot values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::AmbiguousNodes",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedFrame",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedNode",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Unresolved",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Vague",
+        "fixture reference targets are serialization projections of ReferenceTarget values",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Co",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Compound",
+        "frame ids are validated through PlaceAnalysis lookup APIs and empty modifier lists are valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::ConnectiveBranches",
+        "connective-branch propagation may be temporarily empty for partially analyzed or unresolved selbri structures",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Conversion",
+        "NonZeroU8 owns converted-place non-zero validity and frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Forward",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Jai",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Modal",
+        "modal slot payload is an optional syntax node anchor and any option state is meaningful",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Numbered",
+        "NonZeroU8 owns the non-zero numbered place invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:PlaceSlot::PlaceQuestion",
+        "place-question slots are unit markers; numbered and modal variants carry the constrained payloads",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::AmbiguousNodes",
+        "an empty ambiguity set is valid while callers preserve an explicit unresolved state separately",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedFrame",
+        "frame ids are validated through PlaceAnalysis lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedNode",
+        "node ids are validated through SyntaxIndex lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Unresolved",
+        "unresolved diagnostic text is produced by constructors in this module and has no enum-level structural invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Vague",
+        "vagueness kind owns the payload validity",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0PlaceSlot::Modal",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:V0PlaceSlot::Numbered",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-source/src/lib.rs:SourceLocationError::ByteRangeInverted",
+        "diagnostic enum records rejected constructor inputs",
+    ),
+    (
+        "crates/jbotci-source/src/lib.rs:SourceLocationError::CharRangeInverted",
+        "diagnostic enum records rejected constructor inputs",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",
+        "diagnostic enum records parser error location and message",
+    ),
+    (
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Emphasized",
+        "constructor contracts enforce BAhE while generic payload owns word validity",
+    ),
+    (
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
+        "generic wrapper delegates word validity to the payload type",
+    ),
+    (
+        "crates/jbotci-syntax/src/tree.rs:WithIndicators::WithIndicator",
+        "constructor contracts enforce UI/CAI/Y and NAI marker shape",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Error",
+        "generic recovery slot wrapper delegates missing versus invalid classification to the typed recovery item",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Prefix",
+        "generic recovery slot wrapper delegates prefix error validity to Vec1 and typed recovery items",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:Recovered::Valid",
+        "generic recovery slot wrapper delegates semantic validity to the contained recovered field state",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:TreePathStep::SequenceIndex",
+        "tree path sequence indices accept every usize value",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:WrappedNode::Named",
+        "tree macro test wrapper has no marker-specific payload rule",
+    ),
+    (
+        "crates/jbotci-tree/src/lib.rs:WrappedNode::Tuple",
+        "tree macro test wrapper delegates validity to the wrapped payload",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Pair",
+        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Text",
+        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::F32",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxGather",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxMatmul",
+        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::F32",
+        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::U32",
+        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Cukta",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Export",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gentufa",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gimfihi",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Settings",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Vlacku",
+        "activity task kind is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Clear",
+        "native embedding clear command carries only a typed response channel",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Search",
+        "native embedding search command validity is enforced by worker-handle preconditions before sending",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Available",
+        "platform availability success state is a unit discriminant with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Unavailable",
+        "platform unavailability reason is produced by platform service implementations and serialized as display text",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:CuktaPageKind::Error",
         "web Cukta page variants are presentation states produced by build_cukta_web_page",
     ),
@@ -532,6 +1648,90 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web Cukta view is a closed route selector parsed from the current client URL",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Span",
+        "web bracket spans are presentation wrappers whose payload is validated by child fragments",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Text",
+        "web bracket fragments mirror renderer output, including empty fallback text",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
+        "error wrapper carries parser diagnostic text without additional semantic state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Blank",
+        "blank gentufa result is a unit state with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Error",
+        "web API result delegates payload constraints to GentufaError and construction path",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Success",
+        "web API result delegates payload constraints to GentufaSuccess and construction path",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Hyphen",
+        "composition piece kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Rafsi",
+        "composition piece kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::FixedRafsi",
+        "web jvozba item kind is a closed UI selector whose value is stored on the surrounding item",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::Word",
+        "web jvozba item kind is a closed UI selector whose value is stored on the surrounding item",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaMode::Cmevla",
+        "web jvozba mode is a closed UI selector serialized directly in local storage",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaMode::Lujvo",
+        "web jvozba mode is a closed UI selector serialized directly in local storage",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Empty",
+        "web jvozba output state carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Error",
+        "web jvozba error payload carries the shared builder diagnostic text",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::NeedsMore",
+        "web jvozba output state carries no payload beyond the discriminant",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Success",
+        "web jvozba success payload delegates validity to the shared jvozba builder output",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentKind::Hyphen",
+        "web jvozba segment kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentKind::Rafsi",
+        "web jvozba segment kind is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::Hyphen",
+        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::RafsiA",
+        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::RafsiB",
+        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:VlackuVoteDisplay::Hidden",
         "vote display variant carries no payload beyond the discriminant",
     ),
@@ -544,12 +1744,24 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vote display variant carries no payload beyond the discriminant",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Rafsi",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Meaning",
+        "web search mode is a closed UI selector serialized directly in URLs and local state",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuCompositionPieceKind::Hyphen",
-        "composition piece kind is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Rafsi",
+        "web search mode is a closed UI selector serialized directly in URLs and local state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Sound",
+        "web search mode is a closed UI selector serialized directly in URLs and local state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWebMode::Word",
+        "web search mode is a closed UI selector serialized directly in URLs and local state",
+    ),
+    (
+        "crates/jbotci-web-core/src/lib.rs:VlackuWordTypeSection::Brivla",
+        "word type section is a closed grouping selector derived from dictionary metadata",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:VlackuWordTypeSection::Cmavo",
@@ -560,1000 +1772,100 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word type section is a closed grouping selector derived from dictionary metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuWordTypeSection::Brivla",
-        "word type section is a closed grouping selector derived from dictionary metadata",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:VlackuWordTypeSection::Other",
         "word type section is a closed grouping selector derived from dictionary metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaMode::Lujvo",
-        "web jvozba mode is a closed UI selector serialized directly in local storage",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Export",
+        "compute error variant carries renderer diagnostic text",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaMode::Cmevla",
-        "web jvozba mode is a closed UI selector serialized directly in local storage",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Json",
+        "compute error variant carries serde's formatted diagnostic text",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::Word",
-        "web jvozba item kind is a closed UI selector whose value is stored on the surrounding item",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaItemKind::FixedRafsi",
-        "web jvozba item kind is a closed UI selector whose value is stored on the surrounding item",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaSemanticPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Empty",
-        "web jvozba output state carries no payload beyond the discriminant",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::EmbeddingCorpusJson",
+        "embedding corpus worker request has no input payload beyond the discriminant",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::NeedsMore",
-        "web jvozba output state carries no payload beyond the discriminant",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksPng",
+        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Success",
-        "web jvozba success payload delegates validity to the shared jvozba builder output",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksSvg",
+        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaOutput::Error",
-        "web jvozba error payload carries the shared builder diagnostic text",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentKind::Rafsi",
-        "web jvozba segment kind is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GimfihiPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentKind::Hyphen",
-        "web jvozba segment kind is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::RafsiA",
-        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuSemanticPage",
+        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::RafsiB",
-        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::CuktaPage",
+        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:VlackuJvozbaSegmentTone::Hyphen",
-        "web jvozba segment tone is a closed presentation selector with no payload to constrain",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::EmbeddingCorpusJson",
+        "embedding corpus response intentionally carries opaque JSON for the browser embedding worker",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Message",
-        "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksPng",
+        "export response carries renderer output and the runner converts renderer errors before constructing it",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Syllabic",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksSvg",
+        "export response carries renderer output and the runner converts renderer errors before constructing it",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Place",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaPage",
+        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Manner",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GimfihiPage",
+        "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Voice",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::VlackuPage",
+        "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Nasal",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Cukta",
+        "route variant delegates URL state constraints to CuktaWebState and canonical route builders",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Retroflex",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gentufa",
+        "route variant delegates URL state constraints to GentufaWebState and canonical route builders",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Lateral",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gimfihi",
+        "route variant delegates URL state constraints to GimfihiWebState and canonical route builders",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Aspirated",
-        "ALINE feature enum is a closed selector set with no payload invariants",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Settings",
+        "settings route is a unit state with no payload to constrain",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::High",
-        "ALINE feature enum is a closed selector set with no payload invariants",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Back",
-        "ALINE feature enum is a closed selector set with no payload invariants",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Round",
-        "ALINE feature enum is a closed selector set with no payload invariants",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:AlineFeature::Long",
-        "ALINE feature enum is a closed selector set with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Valsi",
-        "CLI and search validation reject empty valsi requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Rafsi",
-        "CLI and search validation reject empty rafsi requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Lujvo",
-        "CLI and search validation reject empty lujvo requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
-        "sound query parsing validates request text before ALINE matching",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
-        "semantic query text is validated by CLI and embedded locally before vector search",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",
-        "compiled glob patterns carry their validation in GlobPattern",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:ExactPattern::Regex",
-        "compiled regex patterns carry their validation in regex::Regex",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Hyphen",
-        "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:GlobToken::Literal",
-        "glob compiler normalizes literal tokens before constructing this internal matcher enum",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:GlobToken::Consonant",
-        "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:GlobToken::Vowel",
-        "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyOne",
-        "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyMany",
-        "glob token variant is a closed matcher tag with no payload invariants",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Forward",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Conversion",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Jai",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::ConnectiveBranches",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Compound",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",
-        "fixture frame propagation is a serialization projection of validated frame ids",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Numbered",
-        "fixture place slots are serialization projections of PlaceSlot values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::Modal",
-        "fixture place slots are serialization projections of PlaceSlot values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixturePlaceSlot::PlaceQuestion",
-        "fixture place slots are serialization projections of PlaceSlot values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedNode",
-        "fixture reference targets are serialization projections of ReferenceTarget values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::ResolvedFrame",
-        "fixture reference targets are serialization projections of ReferenceTarget values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::AmbiguousNodes",
-        "fixture reference targets are serialization projections of ReferenceTarget values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Unresolved",
-        "fixture reference targets are serialization projections of ReferenceTarget values",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:FixtureReferenceTarget::Vague",
-        "fixture reference targets are serialization projections of ReferenceTarget values",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::CharOffsetOutOfBounds",
-        "diagnostic enum records rejected source offsets",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetOutOfBounds",
-        "diagnostic enum records rejected source offsets",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::ByteOffsetNotCharBoundary",
-        "diagnostic enum records rejected UTF-8 boundary inputs",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:DiagnosticSpanError::SourceLocation",
-        "error wrapper delegates validity to SourceLocationError",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:TraceOptionError::InvalidLevel",
-        "diagnostic enum records rejected trace levels",
-    ),
-    (
-        "crates/jbotci-diagnostics/src/lib.rs:TraceRecorder::Active",
-        "active recorder state owns trace invariants while the enum only selects enabled storage",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",
-        "render entry delegates all validity to TreeValue",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:RenderEntry::Labelled",
-        "labels are static visitor metadata and TreeValue owns payload validity",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Node",
-        "render node payload owns constructor and entry shape",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Collection",
-        "empty render collections are valid intermediate output",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Syntax",
-        "syntax provenance wrapper delegates rendered value validity to its payload",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Word",
-        "word render fields are produced from validated morphology atoms",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Verbatim",
-        "verbatim render text is source-derived and may be empty",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Text",
-        "text render payload is a source-derived scalar with no extra enum-level rule",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:TreeValue::Span",
-        "span field ordering is preserved from SourceSpan before rendering",
-    ),
-    (
-        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Numbered",
-        "reference display slot is projected from validated semantic PlaceSlot values",
-    ),
-    (
-        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Modal",
-        "reference display slot words are renderer projections of validated syntax",
-    ),
-    (
-        "crates/jbotci-output/src/references.rs:ReferenceSlotName::PlaceQuestion",
-        "reference display slot is projected from validated semantic PlaceSlot values",
-    ),
-    (
-        "crates/jbotci-output/src/references.rs:ReferenceSlotName::Fai",
-        "unit slot marker carries no payload beyond the selected variant",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Node",
-        "builder stack frame validity is governed by enter/exit sequencing",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Field",
-        "field frame permits empty values while traversal is in progress",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:SyntaxFrame::Collection",
-        "collection frame permits empty values while traversal is in progress",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Gerna",
-        "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Numbered",
-        "NonZeroU8 owns the non-zero numbered place invariant",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceSlot::Modal",
-        "modal slot payload is an optional syntax node anchor and any option state is meaningful",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Forward",
-        "frame ids are validated through PlaceAnalysis lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Conversion",
-        "NonZeroU8 owns converted-place non-zero validity and frame ids are validated through PlaceAnalysis lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Jai",
-        "frame ids are validated through PlaceAnalysis lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::ConnectiveBranches",
-        "connective-branch propagation may be temporarily empty for partially analyzed or unresolved selbri structures",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Compound",
-        "frame ids are validated through PlaceAnalysis lookup APIs and empty modifier lists are valid",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:PlaceFramePropagation::Co",
-        "frame ids are validated through PlaceAnalysis lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedNode",
-        "node ids are validated through SyntaxIndex lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::ResolvedFrame",
-        "frame ids are validated through PlaceAnalysis lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::AmbiguousNodes",
-        "an empty ambiguity set is valid while callers preserve an explicit unresolved state separately",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Unresolved",
-        "unresolved diagnostic text is produced by constructors in this module and has no enum-level structural invariant",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:ReferenceTarget::Vague",
-        "vagueness kind owns the payload validity",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
-        "builder stack frame validity is governed by enter/exit sequencing",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:MorphologyFrame::Field",
-        "field frame permits empty values while traversal is in progress",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::Word",
-        "surface chunks are intermediate render fragments filtered before output",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedWords",
-        "quoted word chunks may be empty for source-derived quote bodies",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedText",
-        "quoted text chunks preserve source text without an enum-level rule",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Word",
-        "IPA chunks borrow validated morphology words",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaSurfaceChunk::Text",
-        "IPA text chunks preserve source-derived quote text and may be empty before filtering",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
-        "display spans are private renderer ranges produced from validated word spans before source-bound clipping",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:DisplaySpan::VerbatimText",
-        "verbatim display spans are private renderer ranges produced from validated quote spans before source-bound clipping",
-    ),
-    (
-        "crates/jbotci-output/src/json.rs:JsonFrame::Node",
-        "JSON builder frame validity is governed by traversal sequencing",
-    ),
-    (
-        "crates/jbotci-output/src/json.rs:JsonFrame::Field",
-        "JSON field frame permits empty values while traversal is in progress",
-    ),
-    (
-        "crates/jbotci-output/src/json.rs:JsonFrame::Sequence",
-        "JSON sequence frame permits empty values while traversal is in progress",
-    ),
-    (
-        "crates/jbotci-source/src/lib.rs:SourceLocationError::ByteRangeInverted",
-        "diagnostic enum records rejected constructor inputs",
-    ),
-    (
-        "crates/jbotci-source/src/lib.rs:SourceLocationError::CharRangeInverted",
-        "diagnostic enum records rejected constructor inputs",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:WrappedNode::Tuple",
-        "tree macro test wrapper delegates validity to the wrapped payload",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:WrappedNode::Named",
-        "tree macro test wrapper has no marker-specific payload rule",
-    ),
-    (
-        "crates/jbotci-tree/src/lib.rs:TreePathStep::SequenceIndex",
-        "tree path sequence indices accept every usize value",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidEntry",
-        "validation error wrapper carries path and entry diagnostics",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidSoundIndexEntry",
-        "validation error wrapper carries the sound index position and structural diagnostic",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:DictionaryValidationError::InvalidLujvoIndexEntry",
-        "validation error wrapper carries the lujvo index position and structural diagnostic",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Rafsi",
-        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:DictionaryLujvoSegmentKind::Hyphen",
-        "generated lujvo segment kind is a closed selector validated against segment source fields by Dictionary::validate",
-    ),
-    (
-        "crates/jbotci-dictionary/src/import.rs:RafsiField::Text",
-        "raw import field accepts the upstream Lensisku scalar shape before normalization",
-    ),
-    (
-        "crates/jbotci-dictionary/src/import.rs:RafsiField::List",
-        "raw import field accepts the upstream Lensisku list shape before normalization",
-    ),
-    (
-        "crates/jbotci-dictionary/src/import.rs:LensiskuImportError::Json",
-        "error wrapper carries serde's diagnostic without adding semantic state",
-    ),
-    (
-        "crates/jbotci-search/src/lib.rs:SearchError::DimensionMismatch",
-        "diagnostic enum records vector-search implementation errors",
-    ),
-    (
-        "crates/jbotci-dialect/src/lib.rs:DialectDefinitionEntry::Cmavo",
-        "entry payload is validated by CmavoDialectEntry",
-    ),
-    (
-        "crates/jbotci-dialect/src/lib.rs:DialectDefinitionEntry::Feature",
-        "feature payload is closed over DialectFeature and toggle enums",
-    ),
-    (
-        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Atom",
-        "formula normalization drops empty atoms before rendering and this private parser state is not constructed outside dialect helpers",
-    ),
-    (
-        "crates/jbotci-dialect/src/lib.rs:DialectFormulaComponent::Group",
-        "grouped formula text is produced by the local parenthesis collector and normalized before rendering",
-    ),
-    (
-        "crates/jbotci-dialect/src/lib.rs:DialectToken::Atom",
-        "tokenizer emits atoms from non-empty spans before parser validation",
-    ),
-    (
-        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Selmaho",
-        "selmaho strings come from the static morphology table",
-    ),
-    (
-        "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
-        "diagnostic enum records rejected parser inputs",
-    ),
-    (
-        "crates/jbotci-morphology/src/lib.rs:MorphologyError::UnterminatedZoiQuote",
-        "diagnostic enum records rejected quote input",
-    ),
-    (
-        "crates/jbotci-morphology/src/lib.rs:MorphologyError::SourceSpan",
-        "error wrapper delegates validity to SourceLocationError",
-    ),
-    (
-        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Rafsi",
-        "Phonemes owns canonical non-empty phoneme validity",
-    ),
-    (
-        "crates/jbotci-morphology/src/tree.rs:LujvoPart::Hyphen",
-        "Phonemes owns canonical non-empty phoneme validity",
-    ),
-    (
-        "crates/jbotci-morphology/src/tree.rs:WordLike::PlainWord",
-        "bare word-like values delegate all validity to the wrapped Word",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Emit",
-        "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::EmitText",
-        "private normalization event payload comes from the static zbalermorna normalization table",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPreviousVowel",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Ignore",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::Standard",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::ExperimentalCgv",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Brivla",
-        "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
-        "generic wrapper delegates word validity to the payload type",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Emphasized",
-        "constructor contracts enforce BAhE while generic payload owns word validity",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::WithIndicator",
-        "constructor contracts enforce UI/CAI/Y and NAI marker shape",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:SyntaxError::Parse",
-        "diagnostic enum records parser error location and message",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SimpleBridiTailSyntax::ForethoughtBridiTailConnection",
-        "variant delegates all grammar markers to ForethoughtBridiConnectionSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SubbridiSyntax::Bridi",
-        "plain subbridi is exactly a BridiSyntax payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::Bridi",
-        "variant delegates all grammar markers to BridiSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::ExperimentalBridiContinuation",
-        "variant combines two validated syntax payloads without its own marker",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:StatementSyntax::Fragment",
-        "variant delegates all grammar markers to FragmentSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Ek",
-        "fragment is exactly a validated afterthought connective",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::BridiTailConnective",
-        "fragment is exactly a validated predicate-tail connective",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Mekso",
-        "fragment delegates all grammar markers to MeksoSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:FragmentSyntax::Selbri",
-        "fragment delegates all grammar markers to SelbriSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:TermSyntax::Sumti",
-        "term is exactly a validated SumtiSyntax payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiTagSyntax::TenseModal",
-        "tag delegates all grammar markers to TenseModalSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::QuotedSumti",
-        "argument delegates all grammar markers to QuoteSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::QuantifiedSumti",
-        "variant combines validated quantifier and argument payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::TaggedSumti",
-        "variant combines a validated tag and argument payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::SumtiConnection",
-        "variant combines validated argument payloads through a validated connective",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SumtiSyntax::SelbriVocative",
-        "vocative relation has no required relative-clause marker beyond SelbriSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:RelativeClauseSyntax::RelativeClauseConnection",
-        "variant combines a validated connective and relative-clause payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:DescriptionTailElementSyntax::DescriptionTailSumti",
-        "tail element is exactly a validated SumtiSyntax payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:DescriptionTailElementSyntax::DescriptionTailQuantifier",
-        "tail element is exactly a validated QuantifierSyntax payload",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::NumberMekso",
-        "math expression delegates all marker checks to QuantifierSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::ForethoughtMeksoConnection",
-        "forethought math expression uses validated connective and expression payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::MeksoConnection",
-        "connected math expression uses validated connective and expression payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:MeksoSyntax::Infix",
-        "binary math expression uses a validated operator and expression payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:MeksoOperatorSyntax::OperatorConnection",
-        "connected math operator uses validated connective and operator payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::SelbriConnection",
-        "connected relation uses validated connective and relation payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::TaggedSelbri",
-        "relation prefix delegates marker checks to TenseModalSyntax",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:SelbriSyntax::Tanru",
-        "compound relation non-emptiness is enforced by TanruUnitVec",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:TanruUnitSyntax::TanruUnitConnection",
-        "connected tanru unit uses validated connective and unit payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:TanruUnitSyntax::SelbriGroupTanruUnit",
-        "wrapped tanru unit is exactly a validated SelbriSyntax payload",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Vlasei",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Vlatai",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Gentufa",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Mulgau",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Tersmu",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Vlacku",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Jvozba",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Gimfihi",
-        "CLI enum delegates validation to clap and gimfihi option handling",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Cukta",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Zbasu",
-        "CLI enum delegates validation to clap and command option structs",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:Command::Setup",
-        "CLI enum delegates validation to clap and setup option handling",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Auto",
-        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Always",
-        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:CliUsePrecomputed::Never",
-        "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Brackets",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Raw",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Json",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Svg",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Png",
-        "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Brackets",
-        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Tree",
-        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Ipa",
-        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Raw",
-        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Json",
-        "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Markdown",
-        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Html",
-        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Raw",
-        "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Section",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Example",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Word",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Meaning",
-        "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
-        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
-        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
-        "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Rafsi",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Lujvo",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Sound",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
-        "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Lujvo",
-        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Cmevla",
-        "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::Word",
-        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::FixedRafsi",
-        "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Table",
-        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Json",
-        "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::All",
-        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::Official",
-        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::None",
-        "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlasei",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlacku",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Cukta",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Jvozba",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gimfihi",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unloaded",
-        "embedding search cache starts empty and is initialized on first semantic tool use",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
-        "loaded embedding cache validity is owned by the native embedding service type",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Unavailable",
-        "unavailable embedding cache stores a validated cached error message",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
-        "embedding worker request delegates payload validity to the typed cukta tool request",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
-        "embedding worker request delegates payload validity to the typed vlacku tool request",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownPreset",
-        "gimfihi error variant carries raw invalid user input, including possible empty text",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownShape",
-        "gimfihi error variant carries raw invalid user input, including possible empty text",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::UnknownCollisionScope",
-        "gimfihi error variant carries raw invalid user input, including possible empty text",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceSpec",
-        "gimfihi error variant carries raw invalid source text plus a diagnostic message",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidWeight",
-        "gimfihi error variant carries raw invalid user input, including possible empty text",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingPresetLanguage",
-        "missing preset language is produced from the validated preset table",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::ExtraPresetLanguage",
-        "extra preset language is produced from normalized source input for diagnostics",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::DuplicateSourceLanguage",
-        "duplicate source language is produced from normalized source input for diagnostics",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::MissingExplicitWeight",
-        "missing custom weight is reported against normalized source input for diagnostics",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidSourceWord",
-        "invalid source word preserves normalized invalid input, including the empty word case",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/lib.rs:GimfihiError::InvalidIpa",
-        "IPA error carries the rejected IPA string and a human-readable reason with no further constraint",
-    ),
-    (
-        "crates/jbotci-gimfihi/src/transliterate.rs:Snap::Letters",
-        "Letters tags a static Lojban-letter string in the IPA segment table; the table is valid by construction",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:Provenance::Cll",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:Provenance::Muplis",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:Provenance::Corpus",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:Provenance::Adhoc",
-        "ad hoc provenance intentionally permits absent description",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:Provenance::Other",
-        "fixture tree validation checks custom provenance names at import time",
+        "crates/jbotci-web-core/src/lib.rs:WebRoute::Vlacku",
+        "route variant delegates URL state constraints to VlackuWebState and canonical route builders",
     ),
     (
         "tests/support/fixtures/mod.rs:BracketExpectations::Legacy",
@@ -1564,36 +1876,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture bracket expectation wrapper delegates per-script optionality to ScriptBracketExpectations",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::Read",
-        "fixture error wrapper carries filesystem diagnostics",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureError::Write",
-        "fixture error wrapper carries filesystem diagnostics",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureError::ParseToml",
-        "fixture error wrapper carries TOML parser diagnostics",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureError::EncodeToml",
-        "fixture error wrapper carries TOML encoder diagnostics",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureError::ParseJson",
-        "fixture error wrapper carries JSON parser diagnostics",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureError::Walk",
-        "fixture error wrapper carries directory traversal diagnostics",
-    ),
-    (
         "tests/support/fixtures/mod.rs:FixtureError::DuplicateId",
         "fixture error wrapper carries duplicate-id diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::UnknownFacet",
-        "fixture error wrapper carries facet-name diagnostics",
+        "tests/support/fixtures/mod.rs:FixtureError::EncodeToml",
+        "fixture error wrapper carries TOML encoder diagnostics",
     ),
     (
         "tests/support/fixtures/mod.rs:FixtureError::InvalidDialect",
@@ -1608,47 +1896,83 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture error wrapper carries legacy-format diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Lujvo",
-        "fixture jvozba mode is a closed serialization selector",
+        "tests/support/fixtures/mod.rs:FixtureError::ParseJson",
+        "fixture error wrapper carries JSON parser diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Cmevla",
-        "fixture jvozba mode is a closed serialization selector",
+        "tests/support/fixtures/mod.rs:FixtureError::ParseToml",
+        "fixture error wrapper carries TOML parser diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::Word",
-        "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
+        "tests/support/fixtures/mod.rs:FixtureError::Read",
+        "fixture error wrapper carries filesystem diagnostics",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:FixtureError::UnknownFacet",
+        "fixture error wrapper carries facet-name diagnostics",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:FixtureError::Walk",
+        "fixture error wrapper carries directory traversal diagnostics",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:FixtureError::Write",
+        "fixture error wrapper carries filesystem diagnostics",
     ),
     (
         "tests/support/fixtures/mod.rs:JvozbaFixtureInput::FixedRafsi",
         "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
-        "fixture jvozba segment kind is a closed expected-output selector",
+        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::Word",
+        "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Cmevla",
+        "fixture jvozba mode is a closed serialization selector",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Lujvo",
+        "fixture jvozba mode is a closed serialization selector",
     ),
     (
         "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Hyphen",
         "fixture jvozba segment kind is a closed expected-output selector",
     ),
     (
-        "xtask/src/main.rs:Command::Fmt",
-        "xtask command enum delegates validation to clap and option structs",
+        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
+        "fixture jvozba segment kind is a closed expected-output selector",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:Provenance::Adhoc",
+        "ad hoc provenance intentionally permits absent description",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:Provenance::Cll",
+        "fixture tree validation checks provenance completeness at import time",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:Provenance::Corpus",
+        "fixture tree validation checks provenance completeness at import time",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:Provenance::Muplis",
+        "fixture tree validation checks provenance completeness at import time",
+    ),
+    (
+        "tests/support/fixtures/mod.rs:Provenance::Other",
+        "fixture tree validation checks custom provenance names at import time",
     ),
     (
         "xtask/src/main.rs:Command::DesktopBuild",
         "xtask desktop build command delegates validation to clap and option structs",
     ),
     (
-        "xtask/src/main.rs:Command::DesktopServe",
-        "xtask desktop serve command delegates validation to clap and option structs",
-    ),
-    (
-        "xtask/src/main.rs:Command::DesktopBundleMacos",
+        "xtask/src/main.rs:Command::DesktopBundleLinux",
         "xtask desktop bundle command delegates validation to typed bundle target helpers",
     ),
     (
-        "xtask/src/main.rs:Command::DesktopBundleLinux",
+        "xtask/src/main.rs:Command::DesktopBundleMacos",
         "xtask desktop bundle command delegates validation to typed bundle target helpers",
     ),
     (
@@ -1656,7 +1980,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "xtask desktop bundle command delegates validation to typed bundle target helpers",
     ),
     (
+        "xtask/src/main.rs:Command::DesktopServe",
+        "xtask desktop serve command delegates validation to clap and option structs",
+    ),
+    (
         "xtask/src/main.rs:Command::DistServer",
+        "xtask command enum delegates validation to clap and option structs",
+    ),
+    (
+        "xtask/src/main.rs:Command::Fmt",
         "xtask command enum delegates validation to clap and option structs",
     ),
     (
@@ -1666,238 +1998,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask/src/main.rs:Command::RenderDockerRun",
         "xtask command enum delegates validation to clap and option structs",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Blank",
-        "blank gentufa result is a unit state with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Success",
-        "web API result delegates payload constraints to GentufaSuccess and construction path",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaWebResult::Error",
-        "web API result delegates payload constraints to GentufaError and construction path",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaWebError::Dialect",
-        "error wrapper carries parser diagnostic text without additional semantic state",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Text",
-        "web bracket fragments mirror renderer output, including empty fallback text",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:GentufaBracketFragment::Span",
-        "web bracket spans are presentation wrappers whose payload is validated by child fragments",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Numbered",
-        "gentufa reference slot labels mirror the validated CLI reference display model",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Modal",
-        "gentufa reference slot labels mirror the validated CLI reference display model",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::PlaceQuestion",
-        "gentufa reference slot labels mirror the validated CLI reference display model",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Fai",
-        "gentufa reference slot labels mirror the validated CLI reference display model",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Node",
-        "internal borrowed layout cursor delegates validity to the referenced block tree node",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Leaf",
-        "internal borrowed layout cursor delegates validity to the referenced leaf part",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Xml",
-        "export error variant wraps the XML parser diagnostic without adding semantic state",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Svg",
-        "export error variant wraps the SVG parser diagnostic without adding semantic state",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::Png",
-        "export error variant wraps the PNG encoder diagnostic without adding semantic state",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:GentufaExportError::InvalidSize",
-        "export error variant carries no payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:SvgNode::Element",
-        "typed SVG DOM node validity is delegated to the contained element",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:SvgNode::Text",
-        "typed SVG DOM text is escaped during serialization before parser handoff",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Text",
-        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Pair",
-        "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxMatmul",
-        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::Q4OnnxGather",
-        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Tensor::F32",
-        "WebGPU tensor variant validity is checked while loading the manifest and constructing buffers",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::U32",
-        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:UniformValue::F32",
-        "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gentufa",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Cukta",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Vlacku",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Gimfihi",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Settings",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncTaskKind::Export",
-        "activity task kind is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Search",
-        "native embedding search command validity is enforced by worker-handle preconditions before sending",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Clear",
-        "native embedding clear command carries only a typed response channel",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Available",
-        "platform availability success state is a unit discriminant with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-ui/src/platform.rs:PlatformAvailability::Unavailable",
-        "platform unavailability reason is produced by platform service implementations and serialized as display text",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::EmbeddingCorpusJson",
-        "embedding corpus worker request has no input payload beyond the discriminant",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaSemanticPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::VlackuSemanticPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GimfihiPage",
-        "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksSvg",
-        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::GentufaBlocksPng",
-        "export request is a serde protocol DTO and delegates block-layout validity to GentufaBlocksLayout",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaPage",
-        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::CuktaPage",
-        "compute response is a serde protocol DTO whose payloads are typed page data and metadata",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::VlackuPage",
-        "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GimfihiPage",
-        "compute response is a serde protocol DTO whose payloads are typed result data and metadata",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::EmbeddingCorpusJson",
-        "embedding corpus response intentionally carries opaque JSON for the browser embedding worker",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksSvg",
-        "export response carries renderer output and the runner converts renderer errors before constructing it",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeResponse::GentufaBlocksPng",
-        "export response carries renderer output and the runner converts renderer errors before constructing it",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Json",
-        "compute error variant carries serde's formatted diagnostic text",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Export",
-        "compute error variant carries renderer diagnostic text",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gentufa",
-        "route variant delegates URL state constraints to GentufaWebState and canonical route builders",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Cukta",
-        "route variant delegates URL state constraints to CuktaWebState and canonical route builders",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Vlacku",
-        "route variant delegates URL state constraints to VlackuWebState and canonical route builders",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Gimfihi",
-        "route variant delegates URL state constraints to GimfihiWebState and canonical route builders",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebRoute::Settings",
-        "settings route is a unit state with no payload to constrain",
     ),
 ];
 

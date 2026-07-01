@@ -6,23 +6,14 @@ use jbotci_morphology::{LujvoPart, Verbatim, Word, WordLike};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
     Token, WithIndicators,
-    ast::{
-        AbstractionSyntax, AbstractorConnectionSyntax, AdHocModalSyntax,
-        AdditionalLinkedSumtiSyntax, AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
-        BoundBridiTailConnectionSyntax, BridiStatementContinuationMarkerSyntax,
-        BridiStatementContinuationSyntax, BridiSyntax, BridiTailConnectionSyntax, BridiTailSyntax,
-        CompositeTenseModalPartSyntax, ConnectiveKind, ConnectiveSyntax,
-        DescriptionConnectionSyntax, DescriptionHeadSyntax, DescriptionSyntax,
-        DescriptionTailElementSyntax, ForethoughtBridiConnectionSyntax, FragmentSyntax,
-        FreeModifierSyntax, GroupedBridiTailConnectionSyntax, Indicator, IntervalTenseSyntax,
-        LinkedSumtiListSyntax, LinkedSumtiSyntax, MeksoOperatorSyntax, MeksoSyntax,
-        ParagraphStatementSyntax, ParagraphSyntax, ProBridiAssignmentSyntax, QuantifierSyntax,
-        QuoteSyntax, RelativeClauseSyntax, SelbriRelativePhraseSyntax, SelbriSyntax,
-        SimpleBridiTailSyntax, SimpleTenseModalSyntax, SpaceTenseSyntax, StatementSyntax,
-        SubbridiSyntax, SumtiAssociationPhraseSyntax, SumtiConnectionSyntax, SumtiSyntax,
-        SumtiTagSyntax, SumtiWrapperKindSyntax, TanruUnitSyntax, TenseModalSyntax, TermSyntax,
-        TextSyntax, TimeTenseSyntax, WithFreeModifiers,
+    generated_model::{
+        BridiStatementSyntax, BridiSyntax, BridiTailSyntax, DescriptionHeadSyntax,
+        FreeModifierSyntax, InitialParagraphStatementSyntax, LetterStringSyntax,
+        MeksoOperandSyntax, MeksoOperatorSyntax, MeksoSyntax, NumberWordsSyntax, ParagraphSyntax,
+        QuoteSyntax, SelbriSyntax, StatementSyntax, SumtiSyntax, TanruUnitSyntax, TenseModalSyntax,
+        TermSyntax, TextSyntax,
     },
+    tree::WithFreeModifiers,
 };
 
 const NODE_SIZE_LIMIT: usize = 1024;
@@ -44,117 +35,31 @@ fn ast_node_sizes_stay_within_stack_budget() {
         ("Token", size_of::<Token>()),
         (
             "WithFreeModifiers<Token>",
-            size_of::<WithFreeModifiers<Token>>(),
+            size_of::<WithFreeModifiers<Token, FreeModifierSyntax>>(),
         ),
-        ("Indicator", size_of::<Indicator>()),
         ("BridiSyntax", size_of::<BridiSyntax>()),
         ("BridiTailSyntax", size_of::<BridiTailSyntax>()),
-        (
-            "GroupedBridiTailConnectionSyntax",
-            size_of::<GroupedBridiTailConnectionSyntax>(),
-        ),
-        (
-            "AfterthoughtBridiTailSyntax",
-            size_of::<AfterthoughtBridiTailSyntax>(),
-        ),
-        (
-            "BridiTailConnectionSyntax",
-            size_of::<BridiTailConnectionSyntax>(),
-        ),
-        (
-            "BoGroupedBridiTailSyntax",
-            size_of::<BoGroupedBridiTailSyntax>(),
-        ),
-        (
-            "BoundBridiTailConnectionSyntax",
-            size_of::<BoundBridiTailConnectionSyntax>(),
-        ),
-        ("SimpleBridiTailSyntax", size_of::<SimpleBridiTailSyntax>()),
-        (
-            "ForethoughtBridiConnectionSyntax",
-            size_of::<ForethoughtBridiConnectionSyntax>(),
-        ),
-        ("SubbridiSyntax", size_of::<SubbridiSyntax>()),
         ("TextSyntax", size_of::<TextSyntax>()),
         ("ParagraphSyntax", size_of::<ParagraphSyntax>()),
         (
-            "ParagraphStatementSyntax",
-            size_of::<ParagraphStatementSyntax>(),
+            "InitialParagraphStatementSyntax",
+            size_of::<InitialParagraphStatementSyntax>(),
         ),
         ("FreeModifierSyntax", size_of::<FreeModifierSyntax>()),
         ("StatementSyntax", size_of::<StatementSyntax>()),
-        (
-            "BridiStatementContinuationSyntax",
-            size_of::<BridiStatementContinuationSyntax>(),
-        ),
-        (
-            "BridiStatementContinuationMarkerSyntax",
-            size_of::<BridiStatementContinuationMarkerSyntax>(),
-        ),
-        ("FragmentSyntax", size_of::<FragmentSyntax>()),
+        ("BridiStatementSyntax", size_of::<BridiStatementSyntax>()),
         ("TermSyntax", size_of::<TermSyntax>()),
-        (
-            "SumtiWrapperKindSyntax",
-            size_of::<SumtiWrapperKindSyntax>(),
-        ),
-        ("SumtiTagSyntax", size_of::<SumtiTagSyntax>()),
-        ("SumtiConnectionSyntax", size_of::<SumtiConnectionSyntax>()),
         ("SumtiSyntax", size_of::<SumtiSyntax>()),
-        ("RelativeClauseSyntax", size_of::<RelativeClauseSyntax>()),
-        (
-            "SumtiAssociationPhraseSyntax",
-            size_of::<SumtiAssociationPhraseSyntax>(),
-        ),
-        (
-            "SelbriRelativePhraseSyntax",
-            size_of::<SelbriRelativePhraseSyntax>(),
-        ),
         ("QuoteSyntax", size_of::<QuoteSyntax>()),
-        ("DescriptionSyntax", size_of::<DescriptionSyntax>()),
         ("DescriptionHeadSyntax", size_of::<DescriptionHeadSyntax>()),
-        (
-            "DescriptionConnectionSyntax",
-            size_of::<DescriptionConnectionSyntax>(),
-        ),
-        ("ConnectiveSyntax", size_of::<ConnectiveSyntax>()),
-        (
-            "AdditionalLinkedSumtiSyntax",
-            size_of::<AdditionalLinkedSumtiSyntax>(),
-        ),
-        ("LinkedSumtiSyntax", size_of::<LinkedSumtiSyntax>()),
-        ("LinkedSumtiListSyntax", size_of::<LinkedSumtiListSyntax>()),
-        ("ConnectiveKind", size_of::<ConnectiveKind>()),
-        (
-            "DescriptionTailElementSyntax",
-            size_of::<DescriptionTailElementSyntax>(),
-        ),
-        ("QuantifierSyntax", size_of::<QuantifierSyntax>()),
+        ("NumberWordsSyntax", size_of::<NumberWordsSyntax>()),
+        ("LetterStringSyntax", size_of::<LetterStringSyntax>()),
         ("MeksoSyntax", size_of::<MeksoSyntax>()),
+        ("MeksoOperandSyntax", size_of::<MeksoOperandSyntax>()),
         ("MeksoOperatorSyntax", size_of::<MeksoOperatorSyntax>()),
         ("SelbriSyntax", size_of::<SelbriSyntax>()),
-        ("TimeTenseSyntax", size_of::<TimeTenseSyntax>()),
-        ("SpaceTenseSyntax", size_of::<SpaceTenseSyntax>()),
-        ("IntervalTenseSyntax", size_of::<IntervalTenseSyntax>()),
-        (
-            "SimpleTenseModalSyntax",
-            size_of::<SimpleTenseModalSyntax>(),
-        ),
-        ("AdHocModalSyntax", size_of::<AdHocModalSyntax>()),
-        (
-            "CompositeTenseModalPartSyntax",
-            size_of::<CompositeTenseModalPartSyntax>(),
-        ),
         ("TenseModalSyntax", size_of::<TenseModalSyntax>()),
-        ("AbstractionSyntax", size_of::<AbstractionSyntax>()),
-        (
-            "AbstractorConnectionSyntax",
-            size_of::<AbstractorConnectionSyntax>(),
-        ),
         ("TanruUnitSyntax", size_of::<TanruUnitSyntax>()),
-        (
-            "ProBridiAssignmentSyntax",
-            size_of::<ProBridiAssignmentSyntax>(),
-        ),
     ];
     sizes.sort_by_key(|(_, size)| Reverse(*size));
 

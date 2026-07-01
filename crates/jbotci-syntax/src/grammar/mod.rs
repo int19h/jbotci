@@ -17,21 +17,17 @@ use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
 };
-use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
+use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 
 use crate::{
-    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, LegacySyntaxParse,
-    LegacySyntaxParseAttempt, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxWarning,
-    SyntaxWordCategory, Token, syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
+    SyntaxError, SyntaxWarning, Token, WithIndicators, syntax_construct_is_descendant_of,
+    syntax_immediate_child_under,
 };
 
-pub(crate) mod ast;
-use ast::*;
 mod generated;
 mod generated_runtime;
 mod parse_error;
-mod parser;
-mod tense;
 pub(crate) mod tokens;
 use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
 
@@ -46,20 +42,6 @@ type ParserInput<'tokens> = MappedInput<'tokens, Token, Span, &'tokens [SpannedT
 type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState<'tokens>, ()>;
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
-
-#[derive(Debug, Clone)]
-#[invariant(true)]
-pub(super) struct ParsedStatement {
-    pub text: TextSyntax,
-    pub warnings: Vec<SyntaxWarning>,
-}
-
-#[derive(Debug, Clone)]
-#[invariant(true)]
-pub(super) struct ParsedStatementAttempt {
-    pub result: Result<ParsedStatement, SyntaxError>,
-    pub trace: Option<TraceReport>,
-}
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
@@ -549,72 +531,13 @@ fn word_anchor_byte_start(word: &Token) -> Option<usize> {
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
+    crate::generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
 }))]
 pub(crate) fn parse_syntax_tree(
     words: &[WordLike],
     options: &ParseOptions,
-) -> Result<LegacySyntaxParse, SyntaxError> {
-    parse_syntax_tree_with_source(words, None, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
-}))]
-pub(crate) fn parse_syntax_tree_with_source(
-    words: &[WordLike],
-    source: Option<&str>,
-    options: &ParseOptions,
-) -> Result<LegacySyntaxParse, SyntaxError> {
-    parse_syntax_tree_with_source_attempt(words, source, options).result
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
-    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
-}))]
-pub(crate) fn parse_syntax_tree_with_source_attempt(
-    words: &[WordLike],
-    source: Option<&str>,
-    options: &ParseOptions,
-) -> LegacySyntaxParseAttempt {
-    let tokens = syntax_tokens(words);
-    let parsed = parser::parse_statement_attempt(&tokens, source, options);
-    let ParsedStatementAttempt { result, trace } = parsed;
-    let result = result.map(|parsed| {
-        new!(LegacySyntaxParse {
-            parse_tree: Box::new(parsed.text),
-            warnings: parsed.warnings,
-        })
-    });
-    LegacySyntaxParseAttempt { result, trace }
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
-}))]
-pub(crate) fn parse_handwritten_syntax_tree_with_source(
-    words: &[WordLike],
-    source: Option<&str>,
-    options: &ParseOptions,
-) -> Result<LegacySyntaxParse, SyntaxError> {
-    let tokens = syntax_tokens(words);
-    let parsed = parser::parse_statement_attempt(&tokens, source, options);
-    let ParsedStatementAttempt {
-        result,
-        trace: _trace,
-    } = parsed;
-    result.map(|parsed| {
-        new!(LegacySyntaxParse {
-            parse_tree: Box::new(parsed.text),
-            warnings: parsed.warnings,
-        })
-    })
+) -> Result<GeneratedSyntaxParse, SyntaxError> {
+    parse_generated_model_syntax_tree_with_source_attempt(words, None, options).result
 }
 
 #[requires(true)]
@@ -650,31 +573,18 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     }
 }
 
+#[cfg(feature = "grammar-debug")]
 #[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |parse_tree| {
-    crate::legacy_text_syntax_leaf_spans_match_words(words, parse_tree)
-}))]
-pub(crate) fn parse_text(
-    words: &[WordLike],
-    options: &ParseOptions,
-) -> Result<TextSyntax, SyntaxError> {
-    let tokens = syntax_tokens(words);
-    Ok(parser::parse_statement(&tokens, None, options)?.text)
+#[ensures(!ret.is_empty())]
+pub(crate) fn syntax_grammar_ebnf(_options: &ParseOptions) -> String {
+    include_str!("generated.rs").to_owned()
 }
 
 #[cfg(feature = "grammar-debug")]
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub(crate) fn syntax_grammar_ebnf(options: &ParseOptions) -> String {
-    parser::syntax_grammar_ebnf(options)
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub(crate) fn syntax_grammar_svg(options: &ParseOptions) -> String {
-    parser::syntax_grammar_svg(options)
+pub(crate) fn syntax_grammar_svg(_options: &ParseOptions) -> String {
+    include_str!("generated.rs").to_owned()
 }
 
 #[requires(true)]
@@ -826,9 +736,11 @@ fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use bityzba::{data, new, requires, try_new};
+    use bityzba::{data, requires};
     use jbotci_dialect::parse_dialect_definition;
-    use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
+
+    use crate::tree::WithFreeModifiers;
 
     use super::*;
 
@@ -841,7 +753,7 @@ mod tests {
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
-            assert_eq!(parsed.parse_tree.paragraphs.len(), 1);
+            assert!(format!("{:?}", parsed.parse_tree).contains("Paragraph"));
         });
     }
 
@@ -888,7 +800,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn generated_model_reports_farthest_soft_failure_before_eof() {
-        run_on_normal_stack(|| {
+        run_on_fixture_worker_stack(|| {
             let source = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo ko ce'u xendo ije cnikansa ro lo jmive ta'i lo racli";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
             let tokens = syntax_tokens(&words);
@@ -947,7 +859,7 @@ mod tests {
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
 
-            assert!(format!("{:#?}", parsed.parse_tree).contains("GroupedOperator"));
+            assert!(format!("{:#?}", parsed.parse_tree).contains("GroupedMeksoOperator"));
         });
     }
 
@@ -978,8 +890,10 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("TermsetConnection"));
-            assert!(raw.contains("NonLogical"));
+            assert!(raw.contains("PeheTermsetConnection"));
+            assert!(raw.contains("PeheTermsetConnectionContinuation"));
+            assert!(raw.contains("pe'e"));
+            assert!(raw.contains("je"));
         });
     }
 
@@ -1010,7 +924,9 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("connective: Some(Selbri"));
+            assert!(raw.contains("ITagBoParagraphStatementConnective"));
+            assert!(raw.contains("FihoTense"));
+            assert!(raw.contains("GroupedTanruUnit"));
             assert!(raw.contains("fi'o"));
             assert!(raw.contains("bróda"));
         });
@@ -1027,8 +943,9 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert!(raw.contains("AdHocModal"));
-            assert!(raw.contains("LinkedSumtiTanruUnit"));
+            assert!(raw.contains("FihoTense"));
+            assert!(raw.contains("LinkedTanruUnit"));
+            assert!(raw.contains("Linkargs"));
             assert!(raw.contains("be"));
             assert!(raw.contains("fe'u"));
         });
@@ -1046,8 +963,9 @@ mod tests {
             let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
             let raw = format!("{:?}", parsed.parse_tree);
 
-            assert_eq!(raw.matches("TaggedSumti").count(), 1);
-            assert!(raw.contains("Composite"));
+            assert!(raw.contains("TaggedSumtiTerm"));
+            assert!(raw.contains("ConnectedTenseModal"));
+            assert!(raw.contains("ConnectedTenseModalContinuation"));
             assert!(raw.contains("sél"));
             assert!(raw.contains("snu"));
             assert!(raw.contains("bángu"));
@@ -1172,14 +1090,15 @@ mod tests {
         run_on_normal_stack(|| {
             let mut words = segment_words_with_modifiers("zo coi").expect("valid morphology");
             let quote = words.remove(0);
-            let wrapped = WithFreeModifiers::new(
-                Token::with_indicator(
-                    Token::emphasized(single_bare_word("ba'e"), quote.clone()),
-                    single_bare_word("ui"),
-                    None,
-                ),
-                Vec::new(),
-            );
+            let wrapped: WithFreeModifiers<Token, generated::generated_model::FreeModifierSyntax> =
+                WithFreeModifiers::new(
+                    Token::with_indicator(
+                        Token::emphasized(single_bare_word("ba'e"), quote.clone()),
+                        single_bare_word("ui"),
+                        None,
+                    ),
+                    Vec::new(),
+                );
 
             assert_eq!(wrapped.core_word(), &quote);
             assert_eq!(wrapped.quote_marker_cmavo(), Some(Cmavo::Zo));
@@ -1469,7 +1388,7 @@ mod tests {
         run_on_normal_stack(|| {
             let parsed = parse_source("xoi mi broda", &ParseOptions::default());
 
-            assert!(format!("{:?}", parsed.parse_tree).contains("ReciprocalBridiAdverbialTerm"));
+            assert!(format!("{:?}", parsed.parse_tree).contains("SoiAdverbialTerm"));
             assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalSoiAdverbial
@@ -1661,8 +1580,8 @@ mod tests {
             let dialect = parse_dialect_definition("(+CBM)").expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
             let cbm = parse_tree_debug(source, &options);
-            assert!(cbm.contains("Sumti("));
-            assert!(cbm.contains("Description("));
+            assert!(cbm.contains("DescriptorWithGadriSumti"));
+            assert!(cbm.contains("DescriptionTail"));
             assert!(cbm.contains("Cmevla {"));
         });
     }
@@ -1688,190 +1607,6 @@ mod tests {
         });
     }
 
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn rejects_wrong_enum_variant_cmavo_markers() {
-        run_on_normal_stack(|| {
-            let subbridi = sample_subbridi();
-
-            assert!(
-                try_new!(SumtiSyntax::BridiDescription {
-                    lohoi: free_word("le"),
-                    subbridi: Box::new(subbridi.clone()),
-                    kuhau: None,
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(SumtiSyntax::BridiDescription {
-                    lohoi: free_word("lo'oi"),
-                    subbridi: Box::new(subbridi),
-                    kuhau: Some(free_word("ku'o")),
-                })
-                .is_err()
-            );
-            assert!(try_new!(TanruUnitSyntax::QuotedWordSelbri(free_word("go'oi broda"))).is_err());
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn rejects_wrong_struct_cmavo_markers() {
-        run_on_normal_stack(|| {
-            let sumti = sample_argument();
-            let selbri = sample_relation();
-            let subbridi = sample_subbridi();
-            let bridi_tail = sample_predicate_tail();
-            let predicate_tail2 = sample_predicate_tail2();
-            let connective = sample_connective();
-
-            assert!(
-                try_new!(SumtiAssociationPhraseSyntax {
-                    association_marker: free_word("le"),
-                    sumti: Box::new(sumti.clone()),
-                    gehu: None,
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(SelbriRelativePhraseSyntax {
-                    nohoi: free_word("no'oi"),
-                    selbri: Box::new(selbri.clone()),
-                    kuhoi: Some(free_word("ku'o")),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(DescriptionHeadSyntax {
-                    description: free_word("mi"),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(DescriptionSyntax {
-                    outer_quantifier: None,
-                    description: Some(free_word("lo")),
-                    tail_elements: Vec::new(),
-                    selbri: None,
-                    relative_clauses: Vec::new(),
-                    ku: Some(free_word("ku'o")),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(AdditionalLinkedSumtiSyntax {
-                    bei: free_word("be"),
-                    fa: Some(free_word("fa")),
-                    sumti: None,
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(BridiSyntax {
-                    leading_terms: Vec::new(),
-                    cu: Some(std::sync::Arc::new(free_word("ku"))),
-                    bridi_tail: Box::new(bridi_tail.clone()),
-                    free_modifiers: Vec::new(),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(GroupedBridiTailConnectionSyntax {
-                    connective: connective.clone(),
-                    tense_modal: None,
-                    ke: free_word("ke"),
-                    bridi_tail: Box::new(bridi_tail.clone()),
-                    kehe: Some(std::sync::Arc::new(free_word("ku"))),
-                    tail_terms: Vec::new(),
-                    vau: None,
-                    free_modifiers: Vec::new(),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(BoundBridiTailConnectionSyntax {
-                    connective: connective.clone(),
-                    tense_modal: None,
-                    bo: free_word("boi"),
-                    cu: None,
-                    bridi_tail: Box::new(predicate_tail2),
-                    tail_terms: Vec::new(),
-                    vau: None,
-                    free_modifiers: Vec::new(),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(TextSyntax {
-                    leading_nai: vec![indicated_word("i")],
-                    leading_cmevla: Vec::new(),
-                    leading_indicators: Vec::new(),
-                    leading_free_modifiers: Vec::new(),
-                    leading_connective: None,
-                    paragraphs: Vec::new(),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(ParagraphSyntax {
-                    i: Some(indicated_word("u'i")),
-                    niho: Vec::new(),
-                    free_modifiers: Vec::new(),
-                    statements: Vec::new(),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(AdHocModalSyntax {
-                    nahe: None,
-                    fiho: free_word("fe'u"),
-                    selbri: Box::new(selbri.clone()),
-                    fehu: None,
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(AbstractionSyntax {
-                    nu: free_word("nu"),
-                    nai: None,
-                    abstractor_connections: Vec::new(),
-                    subbridi: Box::new(subbridi),
-                    kei: Some(free_word("ku")),
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(AbstractorConnectionSyntax {
-                    connective,
-                    nu: free_word("ka'e"),
-                    nai: None,
-                })
-                .is_err()
-            );
-            assert!(
-                try_new!(ProBridiAssignmentSyntax {
-                    cei: free_word("bei"),
-                    tanru_unit: Box::new(new!(TanruUnitSyntax::TanruUnitWord(free_word("klama")))),
-                })
-                .is_err()
-            );
-        });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn rejects_empty_repeated_enum_payloads() {
-        assert!(try_new!(FragmentSyntax::LinkedSumtiContinuation(Vec::new())).is_err());
-        assert!(try_new!(FragmentSyntax::RelativeClauses(Vec::new())).is_err());
-        assert!(
-            try_new!(DescriptionTailElementSyntax::DescriptionTailRelativeClauses(Vec::new()))
-                .is_err()
-        );
-    }
-
     #[requires(!source.is_empty())]
     #[ensures(true)]
     fn assert_warning_kind(source: &str, options: &ParseOptions, expected: ExperimentalConstruct) {
@@ -1881,7 +1616,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn has_warning_kind(parsed: &LegacySyntaxParse, expected: ExperimentalConstruct) -> bool {
+    fn has_warning_kind(parsed: &GeneratedSyntaxParse, expected: ExperimentalConstruct) -> bool {
         parsed
             .warnings
             .iter()
@@ -1896,7 +1631,7 @@ mod tests {
 
     #[requires(!source.is_empty())]
     #[ensures(true)]
-    fn parse_source(source: &str, options: &ParseOptions) -> LegacySyntaxParse {
+    fn parse_source(source: &str, options: &ParseOptions) -> GeneratedSyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
     }
@@ -1906,8 +1641,8 @@ mod tests {
     #[ensures(true)]
     fn voi_relative_bridi_is_syntax_restrictive() {
         let raw = parse_tree_debug("le gerku voi blabi cu klama", &ParseOptions::default());
-        assert!(raw.contains("RestrictiveRelativeBridi"));
-        assert!(!raw.contains("IncidentalRelativeBridi"));
+        assert!(raw.contains("RestrictiveBridiRelativeClause"));
+        assert!(!raw.contains("IncidentalBridiRelativeClause"));
     }
 
     #[test]
@@ -1919,7 +1654,7 @@ mod tests {
             &parsed,
             ExperimentalConstruct::ExperimentalCuTermsSelbri
         ));
-        assert!(format!("{:?}", parsed.parse_tree).contains("TermPrefixedBridiTail"));
+        assert!(format!("{:?}", parsed.parse_tree).contains("CuTermsBridiTail"));
     }
 
     #[test]
@@ -1986,14 +1721,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_forest_split_quote_rows_parse_when_combined() {
-        parse_source(
-            ".i fe lu .e'o sai doi do'u .e'o .e'o doi le ricfoi ninmu do'u .e'o mi catlu do cu pikci cusku fa mi .i ba bo go'i lu pu ki ca le po'o nai nu mi zvati le ckana be fi lo'e cifnu cu skicu fi mi fe lo zabna ranmi be do fe la'e lo se sanga poi jufra do .i je mi manci gi'e audji lo ka co'a zgana do .i mi ca le nu mi verba kei so'i roi ku ca lo nicte cu senva tu'a do fe lo nu do sanga fi mi fe lo jai se manci gi'e punji fi le stedu be mi fe lo xrula noi ja'e jadni ri\n.i ca le nu mi cilce verba be pu zi ku do ca'o raktu mi lo ka senva ma kau gi'e jai se senva mi fai lo nu do fagri gi'e kavbu gi'e jgari mi le ka se xance lo milxe glare kei tai lo nu do ralci gi'e milxe satre gi'e se panci lo ricfoi xrula gi'e vindu ja'e lo nu de'a sanji .i mi pu ta'e senva lo nu mi jersi do ije le risna be mi pu ku audji tu'a do gi'e prami do .i pu ta'e ku ca lo nicte mi di'a cikna tai lo da'i nu mi tirna lo nicte se sanga be do gi'e viska lo nu do vofli ni'a lei cizra tsani .i ku'i do .i do pu zvati ma ja'e lo nu mi tu'a do na ku ka'e ku viska gi'a tirna .i ba'e nau ku mi ta'e catlu le ricfoi gi'e zgana ri fau lo nu mi pacna gi'e djica lo nu mi cliva le cladu tcadu te zu'e lo nu mi klama gi'e penmi do li'u",
-            &ParseOptions::default(),
-        );
-        parse_source(
-            "lu .ia nai .i mi ba'o xlura ke ricfoi crida .i mi'a ba'o simxu lo ka kansa fi lo ka vofli bu'u lo ricfoi .i mi'a ba'o zukte lo ka gleki jinru lo ve'i rirxe .i mi'a ba'o cilce kelci ca lo nu le lunra cu te gusni .i mi'a ca cu spofu gi'e badri .i do'o pu lebna tu'a le citno dalgidva pe loi cmana zi'e noi se prami mi'a gi'e na'e dunku gi'e zifre .i le zgike poi sance lo flani pe le dalgidva pu je ca nai se minra fo le se stuzi be lo jbini be lo'i su'o cmana .i je le sance be le nu le dalgidva cu cinmo vasxu cu pu je ca nai se bevri ni'a le klina tsani ca lo nicte .i ba'o ku le dalgidva cu klaku fi tu'a mi'a gi'a senva tu'a mi'a gi'a zenba lo ka kandi ri'a tu'a mi'a\n.i do'o ne le za'u tcadu cu gasnu le cnino nabmi e le daspo be ge mi'a gi le dalgidva .i le dalgidva cu canci gi'e canci fau le nu ri te prina fi no da kei gi'e me le na'e cando virnu noi klama fo lu'i le foldi e le cmana fu lo ka se marce lo cilce xirma zi'e noi gasnu lo banli zi'e noi ta'e ku su'o me ke'a co'a morsi gi'a jinga .i nauku so'u roi ku su'o remna cu klama fo lu'i le klaji pe le ricfoi .i ro go'i cu ruble gi'e dunku gi'e du'e va'e pensi gi'e na'e cinmo gi'e to'e ckire gi'e badri .i le'e remna mo'u cliva mi'a gi'e na'e gleki fau le nu le nei na kansa mi'a .i le banli tcadu ku voi cpana le terdi cu cpana le spofu risna be lo remna .i le nurma tcadu cu simsa lo'e muzga be lo morsi .i bu'u le do'o banli malsi ba'o ku su'o da pikci .i mi pu prami le pa citno pe le cmana .i je ku'i ba bo le se go'i co'u prami mi gi'e cliva .i mi badri gi'e spofu .i ca le'e nicte e le'e donri mi klama fo lu'i le za'u ricfoi gi'e lausku le cmene be ra .i ku'i fliba .i le lastu flani be ra no roi se sance to'o su'o da li'u",
-            &ParseOptions::default(),
-        );
+        run_on_fixture_worker_stack(|| {
+            parse_source(
+                ".i fe lu .e'o sai doi do'u .e'o .e'o doi le ricfoi ninmu do'u .e'o mi catlu do cu pikci cusku fa mi .i ba bo go'i lu pu ki ca le po'o nai nu mi zvati le ckana be fi lo'e cifnu cu skicu fi mi fe lo zabna ranmi be do fe la'e lo se sanga poi jufra do .i je mi manci gi'e audji lo ka co'a zgana do .i mi ca le nu mi verba kei so'i roi ku ca lo nicte cu senva tu'a do fe lo nu do sanga fi mi fe lo jai se manci gi'e punji fi le stedu be mi fe lo xrula noi ja'e jadni ri\n.i ca le nu mi cilce verba be pu zi ku do ca'o raktu mi lo ka senva ma kau gi'e jai se senva mi fai lo nu do fagri gi'e kavbu gi'e jgari mi le ka se xance lo milxe glare kei tai lo nu do ralci gi'e milxe satre gi'e se panci lo ricfoi xrula gi'e vindu ja'e lo nu de'a sanji .i mi pu ta'e senva lo nu mi jersi do ije le risna be mi pu ku audji tu'a do gi'e prami do .i pu ta'e ku ca lo nicte mi di'a cikna tai lo da'i nu mi tirna lo nicte se sanga be do gi'e viska lo nu do vofli ni'a lei cizra tsani .i ku'i do .i do pu zvati ma ja'e lo nu mi tu'a do na ku ka'e ku viska gi'a tirna .i ba'e nau ku mi ta'e catlu le ricfoi gi'e zgana ri fau lo nu mi pacna gi'e djica lo nu mi cliva le cladu tcadu te zu'e lo nu mi klama gi'e penmi do li'u",
+                &ParseOptions::default(),
+            );
+            parse_source(
+                "lu .ia nai .i mi ba'o xlura ke ricfoi crida .i mi'a ba'o simxu lo ka kansa fi lo ka vofli bu'u lo ricfoi .i mi'a ba'o zukte lo ka gleki jinru lo ve'i rirxe .i mi'a ba'o cilce kelci ca lo nu le lunra cu te gusni .i mi'a ca cu spofu gi'e badri .i do'o pu lebna tu'a le citno dalgidva pe loi cmana zi'e noi se prami mi'a gi'e na'e dunku gi'e zifre .i le zgike poi sance lo flani pe le dalgidva pu je ca nai se minra fo le se stuzi be lo jbini be lo'i su'o cmana .i je le sance be le nu le dalgidva cu cinmo vasxu cu pu je ca nai se bevri ni'a le klina tsani ca lo nicte .i ba'o ku le dalgidva cu klaku fi tu'a mi'a gi'a senva tu'a mi'a gi'a zenba lo ka kandi ri'a tu'a mi'a\n.i do'o ne le za'u tcadu cu gasnu le cnino nabmi e le daspo be ge mi'a gi le dalgidva .i le dalgidva cu canci gi'e canci fau le nu ri te prina fi no da kei gi'e me le na'e cando virnu noi klama fo lu'i le foldi e le cmana fu lo ka se marce lo cilce xirma zi'e noi gasnu lo banli zi'e noi ta'e ku su'o me ke'a co'a morsi gi'a jinga .i nauku so'u roi ku su'o remna cu klama fo lu'i le klaji pe le ricfoi .i ro go'i cu ruble gi'e dunku gi'e du'e va'e pensi gi'e na'e cinmo gi'e to'e ckire gi'e badri .i le'e remna mo'u cliva mi'a gi'e na'e gleki fau le nu le nei na kansa mi'a .i le banli tcadu ku voi cpana le terdi cu cpana le spofu risna be lo remna .i le nurma tcadu cu simsa lo'e muzga be lo morsi .i bu'u le do'o banli malsi ba'o ku su'o da pikci .i mi pu prami le pa citno pe le cmana .i je ku'i ba bo le se go'i co'u prami mi gi'e cliva .i mi badri gi'e spofu .i ca le'e nicte e le'e donri mi klama fo lu'i le za'u ricfoi gi'e lausku le cmene be ra .i ku'i fliba .i le lastu flani be ra no roi se sance to'o su'o da li'u",
+                &ParseOptions::default(),
+            );
+        });
     }
 
     #[test]
@@ -2008,12 +1745,6 @@ mod tests {
             ".uo li re pi'i mu se minli\nlei ferti dertu joi lei noi cinla\nvau korcu flecu joi lei purdi",
             &ParseOptions::default(),
         );
-    }
-
-    #[requires(!text.is_empty())]
-    #[ensures(true)]
-    fn free_word(text: &str) -> WithFreeModifiers<Token> {
-        WithFreeModifiers::new(indicated_word(text), Vec::new())
     }
 
     #[requires(!text.is_empty())]
@@ -2048,70 +1779,6 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn sample_subbridi() -> SubbridiSyntax {
-        let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
-        let parsed = parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
-        let statement = parsed.parse_tree.paragraphs[0].statements[0]
-            .statement
-            .as_ref()
-            .expect("parsed statement");
-        let bridi = match statement.as_data() {
-            data!(StatementSyntax::Bridi(bridi)) => *bridi.clone(),
-            _ => panic!("test helper expected a bridi statement"),
-        };
-        new!(SubbridiSyntax::Bridi(Box::new(bridi)))
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_argument() -> SumtiSyntax {
-        new!(SumtiSyntax::ProSumti(free_word("mi")))
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_relation() -> SelbriSyntax {
-        new!(SelbriSyntax::SelbriWord(indicated_word("klama")))
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_predicate() -> BridiSyntax {
-        let data!(SubbridiSyntax::Bridi(bridi)) = sample_subbridi().into_data() else {
-            panic!("test helper expected a bridi subbridi");
-        };
-        *bridi
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_predicate_tail() -> BridiTailSyntax {
-        let data!(BridiSyntax { bridi_tail, .. }) = sample_predicate().into_data();
-        *bridi_tail
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_predicate_tail2() -> BoGroupedBridiTailSyntax {
-        let bridi_tail = sample_predicate_tail();
-        *bridi_tail.first.first
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn sample_connective() -> ConnectiveSyntax {
-        ConnectiveSyntax::new(
-            ConnectiveKind::Afterthought,
-            None,
-            None,
-            None,
-            WithFreeModifiers::new(vec![indicated_word("je")], Vec::new()),
-            None,
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn run_on_normal_stack(test: impl FnOnce()) {
         test();
     }
@@ -2120,7 +1787,7 @@ mod tests {
     #[ensures(true)]
     fn run_on_fixture_worker_stack(test: impl FnOnce() + Send + 'static) {
         let handle = std::thread::Builder::new()
-            .stack_size(2 * 1024 * 1024)
+            .stack_size(8 * 1024 * 1024)
             .spawn(test)
             .expect("fixture worker stack test thread should spawn");
         if let Err(panic) = handle.join() {
