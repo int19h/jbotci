@@ -20,8 +20,8 @@ use jbotci_diagnostics::{
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike, WordLikeData};
 
 use crate::{
-    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
-    SyntaxError, SyntaxExpectedToken, SyntaxParse, SyntaxParseAttempt, SyntaxWarning,
+    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, LegacySyntaxParse,
+    LegacySyntaxParseAttempt, ParseOptions, SyntaxError, SyntaxExpectedToken, SyntaxWarning,
     SyntaxWordCategory, Token, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
@@ -549,60 +549,60 @@ fn word_anchor_byte_start(word: &Token) -> Option<usize> {
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::syntax_parse_leaf_spans_match_words(words, parse)
+    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
 }))]
 pub(crate) fn parse_syntax_tree(
     words: &[WordLike],
     options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
+) -> Result<LegacySyntaxParse, SyntaxError> {
     parse_syntax_tree_with_source(words, None, options)
 }
 
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::syntax_parse_leaf_spans_match_words(words, parse)
+    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
 }))]
 pub(crate) fn parse_syntax_tree_with_source(
     words: &[WordLike],
     source: Option<&str>,
     options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
+) -> Result<LegacySyntaxParse, SyntaxError> {
     parse_syntax_tree_with_source_attempt(words, source, options).result
 }
 
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
-    crate::syntax_parse_leaf_spans_match_words(words, parse)
+    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
 }))]
 pub(crate) fn parse_syntax_tree_with_source_attempt(
     words: &[WordLike],
     source: Option<&str>,
     options: &ParseOptions,
-) -> SyntaxParseAttempt {
+) -> LegacySyntaxParseAttempt {
     let tokens = syntax_tokens(words);
     let parsed = parser::parse_statement_attempt(&tokens, source, options);
     let ParsedStatementAttempt { result, trace } = parsed;
     let result = result.map(|parsed| {
-        new!(SyntaxParse {
+        new!(LegacySyntaxParse {
             parse_tree: Box::new(parsed.text),
             warnings: parsed.warnings,
         })
     });
-    SyntaxParseAttempt { result, trace }
+    LegacySyntaxParseAttempt { result, trace }
 }
 
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
-    crate::syntax_parse_leaf_spans_match_words(words, parse)
+    crate::legacy_syntax_parse_leaf_spans_match_words(words, parse)
 }))]
 pub(crate) fn parse_handwritten_syntax_tree_with_source(
     words: &[WordLike],
     source: Option<&str>,
     options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
+) -> Result<LegacySyntaxParse, SyntaxError> {
     let tokens = syntax_tokens(words);
     let parsed = parser::parse_statement_attempt(&tokens, source, options);
     let ParsedStatementAttempt {
@@ -610,7 +610,7 @@ pub(crate) fn parse_handwritten_syntax_tree_with_source(
         trace: _trace,
     } = parsed;
     result.map(|parsed| {
-        new!(SyntaxParse {
+        new!(LegacySyntaxParse {
             parse_tree: Box::new(parsed.text),
             warnings: parsed.warnings,
         })
@@ -653,7 +653,7 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
 #[requires(true)]
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse_tree| {
-    crate::text_syntax_leaf_spans_match_words(words, parse_tree)
+    crate::legacy_text_syntax_leaf_spans_match_words(words, parse_tree)
 }))]
 pub(crate) fn parse_text(
     words: &[WordLike],
@@ -1881,7 +1881,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn has_warning_kind(parsed: &SyntaxParse, expected: ExperimentalConstruct) -> bool {
+    fn has_warning_kind(parsed: &LegacySyntaxParse, expected: ExperimentalConstruct) -> bool {
         parsed
             .warnings
             .iter()
@@ -1896,7 +1896,7 @@ mod tests {
 
     #[requires(!source.is_empty())]
     #[ensures(true)]
-    fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
+    fn parse_source(source: &str, options: &ParseOptions) -> LegacySyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
     }

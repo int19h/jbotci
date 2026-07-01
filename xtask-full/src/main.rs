@@ -24,21 +24,19 @@ use jbotci_output::{
     BracketRenderOptions, JsonRenderOptions, LojbanScript, TreeRenderOptions,
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
-    pretty_legacy_as_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_tree_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
     references::{
         FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
-        analyze_references,
+        analyze_generated_references,
     },
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SyntaxError, SyntaxWarning, generated_model_text_syntax_leaf_spans_match_words,
+    ParseOptions, SyntaxError, SyntaxWarning,
     parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_handwritten_with_source_and_options,
     parse_syntax_tree_with_source_and_options,
 };
 use rayon::prelude::*;
@@ -284,8 +282,6 @@ struct FixtureRunArgs {
     failure_samples: Option<usize>,
     #[arg(long, hide = true)]
     chunk_worker: bool,
-    #[arg(long, hide = true)]
-    syntax_tree_oracle: bool,
 }
 
 #[derive(Debug, Args)]
@@ -311,10 +307,8 @@ struct SyntaxParserBenchmarkArgs {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 #[invariant(true)]
-#[invariant(::Handwritten => true)]
 #[invariant(::Generated => true)]
 enum SyntaxParserBenchmarkParser {
-    Handwritten,
     Generated,
 }
 
@@ -6562,7 +6556,7 @@ fn v1_reference_projection_for_v0_case(case: &V0RefsCase) -> Result<ReferenceFix
     .with_context(|| format!("{}: morphology failed", case.id))?;
     let parsed = parse_syntax_tree_with_source_and_options(&words, &case.lojban, &syntax_options)
         .with_context(|| format!("{}: syntax failed", case.id))?;
-    let analysis = analyze_references(&parsed.parse_tree)
+    let analysis = analyze_generated_references(&parsed.parse_tree)
         .with_context(|| format!("{}: reference analysis failed", case.id))?;
     Ok(analysis.fixture_projection())
 }
@@ -8346,7 +8340,7 @@ fn refresh_fixture_expectations(
                     )?;
                 }
                 if refresh_semantics_refs {
-                    let refs = analyze_references(&parsed.parse_tree)
+                    let refs = analyze_generated_references(&parsed.parse_tree)
                         .context("analyzing semantic references")?;
                     let raw = refs
                         .fixture_projection_json()
@@ -8587,9 +8581,7 @@ fn syntax_accepts_success_tree_refresh(syntax: &fixtures::SyntaxExpectation) -> 
 #[ensures(true)]
 fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let profile = merged_profile(&args)?;
-    let backend = NotImplementedBackend {
-        syntax_tree_oracle: args.syntax_tree_oracle,
-    };
+    let backend = NotImplementedBackend;
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
@@ -8642,12 +8634,7 @@ fn syntax_parser_benchmark(args: SyntaxParserBenchmarkArgs) -> Result<()> {
     let exe = std::env::current_exe().context("resolving xtask executable")?;
     let mut all_results = Vec::new();
     let parsers = args.parser.map_or_else(
-        || {
-            vec![
-                SyntaxParserBenchmarkParser::Handwritten,
-                SyntaxParserBenchmarkParser::Generated,
-            ]
-        },
+        || vec![SyntaxParserBenchmarkParser::Generated],
         |parser| vec![parser],
     );
     for parser in parsers {
@@ -8948,10 +8935,6 @@ fn run_syntax_parser_benchmark_parse(
     syntax_options: &ParseOptions,
 ) -> Result<(), SyntaxError> {
     match parser {
-        SyntaxParserBenchmarkParser::Handwritten => {
-            parse_syntax_tree_handwritten_with_source_and_options(words, source, syntax_options)
-                .map(drop)
-        }
         SyntaxParserBenchmarkParser::Generated => {
             parse_syntax_tree_generated_model_with_source_and_options(words, source, syntax_options)
                 .map(drop)
@@ -8979,7 +8962,6 @@ fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<F
         jobs: None,
         failure_samples: None,
         chunk_worker: false,
-        syntax_tree_oracle: false,
     };
     merged_profile(&run_args)
 }
@@ -9146,7 +9128,6 @@ fn parse_optional_u64_field(name: &str, value: &str) -> Result<Option<u64>> {
 #[ensures(ret.as_ref().is_ok_and(|parser| parser.as_str() == value) || ret.is_err())]
 fn parse_syntax_parser_benchmark_parser(value: &str) -> Result<SyntaxParserBenchmarkParser> {
     match value {
-        "handwritten" => Ok(SyntaxParserBenchmarkParser::Handwritten),
         "generated" => Ok(SyntaxParserBenchmarkParser::Generated),
         _ => bail!("unknown syntax parser benchmark parser `{value}`"),
     }
@@ -9184,13 +9165,6 @@ fn print_syntax_parser_benchmark_report(
     println!("  iterations: {}", args.iterations);
     for (parser, summaries) in results {
         print_syntax_parser_benchmark_parser_report(*parser, summaries);
-    }
-    if let Some(ratio) = syntax_parser_benchmark_wall_ratio(
-        results,
-        SyntaxParserBenchmarkParser::Generated,
-        SyntaxParserBenchmarkParser::Handwritten,
-    ) {
-        println!("  generated/handwritten wall ratio: {ratio:.3}x");
     }
 }
 
@@ -9231,29 +9205,6 @@ fn print_syntax_parser_benchmark_parser_report(
             mean_duration(summaries.iter().map(|summary| summary.wall_time))
         )
     );
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|ratio| ratio.is_finite()))]
-fn syntax_parser_benchmark_wall_ratio(
-    results: &[(
-        SyntaxParserBenchmarkParser,
-        Vec<SyntaxParserBenchmarkSummary>,
-    )],
-    numerator: SyntaxParserBenchmarkParser,
-    denominator: SyntaxParserBenchmarkParser,
-) -> Option<f64> {
-    let numerator = results
-        .iter()
-        .find(|(parser, _)| *parser == numerator)
-        .map(|(_, summaries)| mean_duration(summaries.iter().map(|summary| summary.wall_time)))?;
-    let denominator = results
-        .iter()
-        .find(|(parser, _)| *parser == denominator)
-        .map(|(_, summaries)| mean_duration(summaries.iter().map(|summary| summary.wall_time)))?;
-    (denominator > Duration::ZERO)
-        .then_some(numerator.as_secs_f64() / denominator.as_secs_f64())
-        .filter(|ratio| ratio.is_finite())
 }
 
 #[requires(true)]
@@ -9386,7 +9337,6 @@ impl SyntaxParserBenchmarkParser {
     #[ensures(!ret.is_empty())]
     fn as_str(self) -> &'static str {
         match self {
-            Self::Handwritten => "handwritten",
             Self::Generated => "generated",
         }
     }
@@ -9637,9 +9587,6 @@ fn fixture_test_chunk_output(
         command
             .arg("--failure-samples")
             .arg(failure_samples.to_string());
-    }
-    if args.syntax_tree_oracle {
-        command.arg("--syntax-tree-oracle");
     }
     for facet in &profile.facets {
         command.arg("--facet").arg(facet.to_string());
@@ -10098,9 +10045,6 @@ fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     if !args.facets.is_empty() {
         profile.facets = args.facets.clone();
     }
-    if args.syntax_tree_oracle {
-        profile.facets = vec![Facet::Syntax];
-    }
     Ok(profile)
 }
 
@@ -10200,9 +10144,7 @@ fn check_status(status: ExitStatus, command: &str) -> Result<()> {
 }
 
 #[invariant(true)]
-struct NotImplementedBackend {
-    syntax_tree_oracle: bool,
-}
+struct NotImplementedBackend;
 
 #[contract_trait]
 impl FixtureBackend for NotImplementedBackend {
@@ -10221,7 +10163,6 @@ impl FixtureBackend for NotImplementedBackend {
         match facet {
             Facet::Morphology => run_morphology_fixture(fixture),
             Facet::Jvozba => run_jvozba_fixture(fixture),
-            Facet::Syntax if self.syntax_tree_oracle => run_syntax_tree_oracle_fixture(fixture),
             Facet::Syntax => run_syntax_fixture(fixture),
             Facet::SemanticsRefs => run_semantics_refs_fixture(fixture),
             Facet::VlaseiBrackets => {
@@ -10918,7 +10859,7 @@ fn run_semantics_refs_fixture(fixture: &LoadedTestCase) -> FacetResult {
         Ok(parsed) => parsed,
         Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
     };
-    let actual = match analyze_references(&parsed.parse_tree) {
+    let actual = match analyze_generated_references(&parsed.parse_tree) {
         Ok(analysis) => match analysis.fixture_projection_json() {
             Ok(raw) => Ok(raw),
             Err(error) => Err(format!("semantic refs render error: {error}")),
@@ -11216,176 +11157,6 @@ fn normalize_cll_bracket_char(ch: char) -> Option<char> {
         'ŭ' | 'Ŭ' => Some('u'),
         other => Some(other),
     }
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[ensures(ret.is_valid())]
-fn run_syntax_tree_oracle_fixture(fixture: &LoadedTestCase) -> FacetResult {
-    let Some(expectation) = &fixture.test_case.expectations.syntax else {
-        return FacetResult::skipped("fixture has no syntax expectation");
-    };
-    if !syntax_accepts_success_tree_refresh(expectation) {
-        return FacetResult::skipped(format!(
-            "syntax tree oracle skips expectation whose accepted status is not success: {:?}",
-            expectation.status
-        ));
-    }
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &morphology_options,
-        Some(SourceId("<fixture>".to_owned())),
-    ) {
-        Ok(words) => words,
-        Err(error) => {
-            return FacetResult::failed(format!(
-                "syntax tree oracle blocked by morphology error: {error}"
-            ));
-        }
-    };
-
-    let legacy = match parse_syntax_tree_handwritten_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &syntax_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => return FacetResult::failed(format!("legacy syntax error: {error}")),
-    };
-    let generated = match parse_syntax_tree_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &syntax_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            return FacetResult::failed(format!("generated production syntax error: {error}"));
-        }
-    };
-    let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &syntax_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            return FacetResult::failed(format!("generated model syntax error: {error}"));
-        }
-    };
-    if !generated_model_text_syntax_leaf_spans_match_words(&words, &generated_model) {
-        let mut expected_refs = Vec::new();
-        for word in &words {
-            word.source_spans_into(&mut expected_refs);
-        }
-        let expected_spans = expected_refs.into_iter().cloned().collect::<Vec<_>>();
-        let mut actual_spans = Vec::new();
-        generated_model.visit_source_spans(&mut |span| actual_spans.push(span.clone()));
-        let first_mismatch = expected_spans
-            .iter()
-            .zip(actual_spans.iter())
-            .position(|(expected, actual)| expected != actual);
-        let mismatch_detail = first_mismatch
-            .map(|index| {
-                format!(
-                    "first mismatch at span #{index}: expected {:?}, got {:?}",
-                    expected_spans[index], actual_spans[index]
-                )
-            })
-            .unwrap_or_else(|| {
-                format!(
-                    "span count mismatch: expected {}, got {}",
-                    expected_spans.len(),
-                    actual_spans.len()
-                )
-            });
-        return FacetResult::failed(format!(
-            "generated model syntax tree token/source span order does not match morphology; {mismatch_detail}"
-        ));
-    }
-
-    for show_refs in [false, true] {
-        let options = TreeRenderOptions {
-            color: false,
-            indent: 2,
-            show_spans: true,
-            show_refs,
-            ..TreeRenderOptions::default()
-        };
-        let legacy_tree = match pretty_tree_with_options(
-            &legacy.parse_tree,
-            &fixture.test_case.lojban,
-            options,
-        ) {
-            Ok(tree) => tree,
-            Err(error) => {
-                return FacetResult::failed(format!(
-                    "legacy tree render error with show_refs={show_refs}: {error}"
-                ));
-            }
-        };
-        let generated_tree = match pretty_tree_with_options(
-            &generated.parse_tree,
-            &fixture.test_case.lojban,
-            options,
-        ) {
-            Ok(tree) => tree,
-            Err(error) => {
-                return FacetResult::failed(format!(
-                    "generated tree render error with show_refs={show_refs}: {error}"
-                ));
-            }
-        };
-        if legacy_tree != generated_tree {
-            return FacetResult::failed(format_text_mismatch(
-                &format!("syntax tree oracle show_refs={show_refs}"),
-                &legacy_tree,
-                &generated_tree,
-            ));
-        }
-    }
-
-    let options = TreeRenderOptions {
-        color: false,
-        indent: 2,
-        show_spans: true,
-        show_refs: false,
-        ..TreeRenderOptions::default()
-    };
-    let legacy_tree = match pretty_legacy_as_generated_model_tree_with_options(
-        &legacy.parse_tree,
-        &fixture.test_case.lojban,
-        options,
-    ) {
-        Ok(tree) => tree,
-        Err(error) => {
-            return FacetResult::failed(format!(
-                "legacy generated-model oracle tree render error: {error}"
-            ));
-        }
-    };
-    let generated_model_tree = match pretty_generated_model_tree_with_options(
-        &generated_model,
-        &fixture.test_case.lojban,
-        options,
-    ) {
-        Ok(tree) => tree,
-        Err(error) => {
-            return FacetResult::failed(format!("generated model tree render error: {error}"));
-        }
-    };
-    if legacy_tree != generated_model_tree {
-        return FacetResult::failed(format_text_mismatch(
-            "generated model syntax tree oracle",
-            &legacy_tree,
-            &generated_model_tree,
-        ));
-    }
-    FacetResult::passed()
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]

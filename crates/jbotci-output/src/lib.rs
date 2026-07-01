@@ -19,7 +19,7 @@ pub use jbotci_diagnostics::DiagnosticDetailMode;
 use jbotci_morphology::{Cmavo, Phonemes, WordLike};
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 pub use jbotci_orthography::LojbanScript;
-use jbotci_syntax::ast::TextSyntax;
+use jbotci_syntax::TextSyntax;
 use jbotci_tree::FieldRef;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
@@ -366,7 +366,7 @@ pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, O
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
 pub fn compact_syntax_json_value(tree: &TextSyntax) -> Result<Value, OutputError> {
-    Ok(json::syntax_json_value(tree, JsonRenderOptions::default()))
+    compact_generated_model_json_value(tree)
 }
 
 #[requires(true)]
@@ -375,11 +375,7 @@ pub fn compact_syntax_json_string_with_options(
     tree: &TextSyntax,
     options: JsonRenderOptions,
 ) -> Result<String, OutputError> {
-    Ok(format_compact_json_value(
-        &json::syntax_json_value(tree, options),
-        0,
-        options,
-    ))
+    compact_generated_model_json_string_with_options(tree, options)
 }
 
 #[requires(true)]
@@ -594,7 +590,7 @@ pub fn pretty_tree_with_options(
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
-    tree::pretty_tree_with_options(tree, source, options)
+    tree::pretty_generated_model_tree_with_options(tree, source, options)
 }
 
 #[doc(hidden)]
@@ -613,7 +609,7 @@ pub fn pretty_generated_model_tree_with_options(
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_generated_model_tree_with_legacy_references(
     tree: &jbotci_syntax::generated_model::TextSyntax,
-    legacy_tree: &TextSyntax,
+    legacy_tree: &jbotci_syntax::ast::TextSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
@@ -624,7 +620,7 @@ pub fn pretty_generated_model_tree_with_legacy_references(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_legacy_as_generated_model_tree_with_options(
-    tree: &TextSyntax,
+    tree: &jbotci_syntax::ast::TextSyntax,
     source: &str,
     options: TreeRenderOptions,
 ) -> Result<String, OutputError> {
@@ -1072,7 +1068,7 @@ pub fn pretty_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    brackets::pretty_brackets_with_options(tree, source, options)
+    brackets::pretty_generated_model_brackets_with_options(tree, source, options)
 }
 
 #[requires(true)]
@@ -1082,7 +1078,7 @@ pub fn pretty_bracket_source_fragments_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<Vec<BracketSourceFragment>, OutputError> {
-    brackets::pretty_bracket_source_fragments_with_options(tree, source, options)
+    brackets::pretty_generated_model_bracket_source_fragments_with_options(tree, source, options)
 }
 
 #[requires(true)]

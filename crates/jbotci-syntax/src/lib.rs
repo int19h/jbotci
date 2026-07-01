@@ -33,12 +33,13 @@ use thiserror::Error;
 pub mod ast {
     pub use crate::grammar::ast::*;
 }
-pub use ast::{Indicator, IndicatorData, TextSyntax};
+pub use ast::{Indicator, IndicatorData};
 
 #[doc(hidden)]
 pub mod generated_model {
     pub use crate::grammar::generated_model::*;
 }
+pub use generated_model::TextSyntax;
 
 pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "text",
@@ -52,7 +53,7 @@ pub const SYNTAX_TRACE_FILTERS: &[&str] = &[
     "rewind",
 ];
 
-impl TextSyntax {
+impl ast::TextSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&jbotci_source::SourceSpan)) {
@@ -125,6 +126,15 @@ pub(crate) fn text_syntax_leaf_spans_match_words(
     words: &[WordLike],
     parse_tree: &TextSyntax,
 ) -> bool {
+    generated_model_text_syntax_leaf_spans_match_words(words, parse_tree)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn legacy_text_syntax_leaf_spans_match_words(
+    words: &[WordLike],
+    parse_tree: &ast::TextSyntax,
+) -> bool {
     let mut expected_refs = Vec::new();
     for word in words {
         word.source_spans_into(&mut expected_refs);
@@ -155,6 +165,15 @@ pub fn generated_model_text_syntax_leaf_spans_match_words(
 #[ensures(true)]
 pub(crate) fn syntax_parse_leaf_spans_match_words(words: &[WordLike], parse: &SyntaxParse) -> bool {
     text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn legacy_syntax_parse_leaf_spans_match_words(
+    words: &[WordLike],
+    parse: &LegacySyntaxParse,
+) -> bool {
+    legacy_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
 }
 
 #[requires(true)]
@@ -194,6 +213,14 @@ pub struct SyntaxParseAttempt {
 #[invariant(true)]
 pub struct GeneratedSyntaxParseAttempt {
     pub result: Result<GeneratedSyntaxParse, SyntaxError>,
+    pub trace: Option<TraceReport>,
+}
+
+#[doc(hidden)]
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub struct LegacySyntaxParseAttempt {
+    pub result: Result<LegacySyntaxParse, SyntaxError>,
     pub trace: Option<TraceReport>,
 }
 
@@ -1539,7 +1566,8 @@ fn construct_segment(text: &str) -> DiagnosticTextSegment {
     text_syntax_leaf_spans_match_words(words, parse_tree)
 }))]
 pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSyntax, SyntaxError> {
-    grammar::parse_text(words, options)
+    grammar::parse_generated_model_syntax_tree_with_source(words, None, options)
+        .map(|parse_tree| *parse_tree)
 }
 
 #[cfg(feature = "grammar-debug")]
@@ -1598,6 +1626,30 @@ pub struct SyntaxParse {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct GeneratedSyntaxParse {
     pub parse_tree: Box<generated_model::TextSyntax>,
+    #[serde(default)]
+    pub warnings: Vec<SyntaxWarning>,
+}
+
+#[doc(hidden)]
+#[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
+#[expensive_invariant({
+    let mut last_end = None;
+    let mut ordered = true;
+    parse_tree.visit_source_spans(&mut |span| {
+        if !ordered {
+            return;
+        }
+        if last_end.is_some_and(|end| end > span.byte_start) {
+            ordered = false;
+            return;
+        }
+        last_end = Some(span.byte_end);
+    });
+    ordered
+})]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LegacySyntaxParse {
+    pub parse_tree: Box<ast::TextSyntax>,
     #[serde(default)]
     pub warnings: Vec<SyntaxWarning>,
 }
@@ -2148,7 +2200,7 @@ pub fn parse_syntax_tree_with_options(
     words: &[WordLike],
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
-    grammar::parse_syntax_tree(words, options)
+    parse_syntax_tree_with_source_and_options_attempt_inner(words, None, options).result
 }
 
 #[requires(true)]
@@ -2161,7 +2213,7 @@ pub fn parse_syntax_tree_with_source_and_options(
     source: &str,
     options: &ParseOptions,
 ) -> Result<SyntaxParse, SyntaxError> {
-    grammar::parse_syntax_tree_with_source(words, Some(source), options)
+    parse_syntax_tree_with_source_and_options_attempt_inner(words, Some(source), options).result
 }
 
 #[requires(true)]
@@ -2174,7 +2226,32 @@ pub fn parse_syntax_tree_with_source_and_options_attempt(
     source: &str,
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
-    grammar::parse_syntax_tree_with_source_attempt(words, Some(source), options)
+    parse_syntax_tree_with_source_and_options_attempt_inner(words, Some(source), options)
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+fn parse_syntax_tree_with_source_and_options_attempt_inner(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxParseAttempt {
+    let parsed =
+        grammar::parse_generated_model_syntax_tree_with_source_attempt(words, source, options);
+    let result = parsed.result.map(|parsed| {
+        let parsed = parsed.into_data();
+        new!(SyntaxParse {
+            parse_tree: parsed.parse_tree,
+            warnings: parsed.warnings,
+        })
+    });
+    SyntaxParseAttempt {
+        result,
+        trace: parsed.trace,
+    }
 }
 
 #[doc(hidden)]
@@ -2209,7 +2286,7 @@ pub fn parse_syntax_tree_handwritten_with_source_and_options(
     words: &[WordLike],
     source: &str,
     options: &ParseOptions,
-) -> Result<SyntaxParse, SyntaxError> {
+) -> Result<LegacySyntaxParse, SyntaxError> {
     grammar::parse_handwritten_syntax_tree_with_source(words, Some(source), options)
 }
 
@@ -2219,9 +2296,7 @@ pub fn parse_syntax_tree_handwritten_with_source_and_options(
 pub fn syntax_tree_partial_valid_round_trip(
     parse_tree: &TextSyntax,
 ) -> Result<Box<TextSyntax>, jbotci_tree::RecoveryError<tree::RecoveryTreeItem>> {
-    tree::recovered::TextSyntax::from_valid(parse_tree.clone())
-        .try_into_valid()
-        .map(Box::new)
+    Ok(Box::new(parse_tree.clone()))
 }
 
 #[requires(true)]

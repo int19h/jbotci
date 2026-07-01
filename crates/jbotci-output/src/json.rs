@@ -2,18 +2,11 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
-use jbotci_morphology::{
-    Cmavo, PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Word, WordLike,
-};
+use jbotci_morphology::{PhonemeRenderOptions, TreeNode as MorphologyTreeNode, Word, WordLike};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::ast::{
-    AtomRef as SyntaxAtomRef, NodeRef as SyntaxNodeRef, TextSyntax, TreeNode as SyntaxTreeNode,
-};
-use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field};
+use jbotci_syntax::WithIndicators;
 use jbotci_tree::{FieldRef, TreeVisitor};
 use serde_json::{Map, Value};
-
-use crate::JsonRenderOptions;
 
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
@@ -51,14 +44,6 @@ pub(crate) fn morphology_json_value(words: &[WordLike], phonemes: PhonemeRenderO
             .map(|word_like| morphology_word_like_value(word_like, phonemes))
             .collect(),
     )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn syntax_json_value(tree: &TextSyntax, options: JsonRenderOptions) -> Value {
-    let mut builder = SyntaxJsonBuilder::new(options);
-    tree.visit_in_order(&mut builder);
-    builder.finish()
 }
 
 #[requires(true)]
@@ -210,237 +195,6 @@ impl<'tree> TreeVisitor<'tree> for MorphologyJsonBuilder {
 struct MorphologyNodeInfo {
     constructor: &'static str,
     variant: bool,
-}
-
-#[derive(Debug)]
-#[invariant(true)]
-struct SyntaxJsonBuilder<'tree> {
-    options: JsonRenderOptions,
-    stack: Vec<JsonFrame<SyntaxNodeInfo<'tree>>>,
-    last_position: Option<RenderedPosition>,
-    root: Option<Value>,
-}
-
-impl SyntaxJsonBuilder<'_> {
-    #[requires(true)]
-    #[ensures(ret.options == options)]
-    fn new(options: JsonRenderOptions) -> Self {
-        Self {
-            options,
-            stack: Vec::new(),
-            last_position: None,
-            root: None,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn finish(self) -> Value {
-        self.root.expect("syntax JSON walk produced a root")
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_value(&mut self, value: Value) {
-        push_value(&mut self.stack, &mut self.root, value);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn push_entry(&mut self, entry: JsonEntry) {
-        push_entry(&mut self.stack, entry);
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-struct SyntaxNodeInfo<'tree> {
-    node_ref: SyntaxNodeRef<'tree>,
-    constructor: &'static str,
-    variant: bool,
-}
-
-impl<'tree> TreeVisitor<'tree> for SyntaxJsonBuilder<'tree> {
-    type Node = SyntaxNodeRef<'tree>;
-    type Atom = SyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_node(&mut self, node: Self::Node) {
-        self.stack.push(JsonFrame::Node {
-            node: SyntaxNodeInfo {
-                node_ref: node,
-                constructor: syntax_constructor_name(node.constructor_name()),
-                variant: node.is_variant(),
-            },
-            entries: Vec::new(),
-        });
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_node(&mut self, _node: Self::Node) {
-        let Some(JsonFrame::Node { node, entries }) = self.stack.pop() else {
-            panic!("syntax JSON walker exited a node without entering it");
-        };
-        let value = node_value(node.constructor, node.variant, entries);
-        self.push_value(value);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_field(&mut self, field: FieldRef) {
-        self.stack.push(JsonFrame::Field {
-            name: field.name,
-            values: Vec::new(),
-            nested_entries: Vec::new(),
-        });
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_field(&mut self, _field: FieldRef) {
-        let Some(JsonFrame::Field {
-            name,
-            values,
-            nested_entries,
-        }) = self.stack.pop()
-        else {
-            panic!("syntax JSON walker exited a field without entering it");
-        };
-        let Some(value) = field_value(values, nested_entries) else {
-            return;
-        };
-        if let Some(label) = name {
-            self.push_entry(JsonEntry {
-                label: Some(label),
-                value,
-            });
-        } else {
-            self.push_value(value);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_sequence(&mut self) {
-        self.stack.push(JsonFrame::Sequence { items: Vec::new() });
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_sequence(&mut self) {
-        let Some(JsonFrame::Sequence { items }) = self.stack.pop() else {
-            panic!("syntax JSON walker exited a sequence without entering it");
-        };
-        if !items.is_empty() {
-            self.push_value(Value::Array(items));
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        self.last_position = syntax_atom_end_position(atom);
-        self.push_value(match atom {
-            SyntaxAtomRef::Token(word) => {
-                with_indicators_value(word.as_indicators(), self.options.phonemes)
-            }
-            SyntaxAtomRef::Word(word) => morphology_word_value(word, self.options.phonemes),
-        });
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_absent_optional_field(&mut self, field: FieldRef) {
-        if !self.options.show_elided {
-            return;
-        }
-        let Some(node) = current_syntax_node(&self.stack) else {
-            return;
-        };
-        let Some(cmavo) = elidable_terminator_for_absent_field(node, field) else {
-            return;
-        };
-        let Some(position) = self.last_position.clone() else {
-            return;
-        };
-        self.push_value(elided_cmavo_token_value(cmavo, position, self.options));
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-struct RenderedPosition {
-    byte_end: usize,
-    char_end: usize,
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn current_syntax_node<'tree>(
-    stack: &[JsonFrame<SyntaxNodeInfo<'tree>>],
-) -> Option<SyntaxNodeRef<'tree>> {
-    stack.iter().rev().find_map(|frame| match frame {
-        JsonFrame::Node { node, .. } => Some(node.node_ref),
-        JsonFrame::Field { .. } | JsonFrame::Sequence { .. } => None,
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_atom_end_position(atom: SyntaxAtomRef<'_>) -> Option<RenderedPosition> {
-    match atom {
-        SyntaxAtomRef::Token(token) => token
-            .source_spans()
-            .into_iter()
-            .last()
-            .map(span_end_position),
-        SyntaxAtomRef::Word(word) => Some(span_end_position(word.span())),
-    }
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[requires(span.char_start <= span.char_end)]
-#[ensures(ret.byte_end == span.byte_end)]
-fn span_end_position(span: &SourceSpan) -> RenderedPosition {
-    RenderedPosition {
-        byte_end: span.byte_end,
-        char_end: span.char_end,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn elided_cmavo_token_value(
-    cmavo: Cmavo,
-    position: RenderedPosition,
-    options: JsonRenderOptions,
-) -> Value {
-    constructor_value(
-        "Plain",
-        constructor_value("PlainWord", elided_cmavo_value(cmavo, position, options)),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn elided_cmavo_value(
-    cmavo: Cmavo,
-    position: RenderedPosition,
-    options: JsonRenderOptions,
-) -> Value {
-    let phonemes = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
-        .expect("cmavo canonical text is valid phoneme text")
-        .render(options.phonemes);
-    let mut fields = Map::new();
-    fields.insert("phonemes".to_owned(), Value::String(phonemes));
-    fields.insert(
-        "span".to_owned(),
-        Value::Array(vec![position.char_end.into(), position.char_end.into()]),
-    );
-    fields.insert("elided".to_owned(), Value::Bool(true));
-    constructor_value("Cmavo", Value::Object(fields))
 }
 
 #[requires(true)]
@@ -677,12 +431,6 @@ fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRende
 #[ensures(true)]
 fn span_value(span: &SourceSpan) -> Value {
     Value::Array(vec![span.char_start.into(), span.char_end.into()])
-}
-
-#[requires(true)]
-#[ensures(!ret.ends_with("Syntax"))]
-fn syntax_constructor_name(constructor: &'static str) -> &'static str {
-    constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
 
 #[cfg(test)]
