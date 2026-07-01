@@ -579,7 +579,7 @@ fn merge_choice_errors<'tokens>(
         std::cmp::Ordering::Greater => error,
         std::cmp::Ordering::Less => previous,
         std::cmp::Ordering::Equal if previous.same_report_content(&error) => previous,
-        std::cmp::Ordering::Equal => previous.merge_for_report(error),
+        std::cmp::Ordering::Equal => previous.merge_for_parser(error),
     }
 }
 

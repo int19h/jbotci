@@ -2755,7 +2755,7 @@ mod tests {
         assert_error_mentions_construct("nu'i", "termset");
         assert_error_mentions_construct("vei", "quantifier");
         assert_error_mentions_construct("li peho suhi", "operator");
-        assert_error_mentions_construct("li nu", "forethought mex");
+        assert_error_mentions_construct("li ga pa gi", "forethought mex");
     }
 
     #[test]

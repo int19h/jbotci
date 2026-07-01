@@ -7982,7 +7982,7 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected: free modifier, terms,"));
+            assert!(stderr.contains("expected: free modifier or terms"));
             assert!(stderr.contains("while parsing bridi"));
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
@@ -8039,7 +8039,9 @@ mod tests {
             assert!(stderr.contains("needs one of:"));
             assert!(stderr.contains("replacement phrase"));
             assert!(stderr.contains("tag"));
-            assert!(stderr.contains("forethought bridi connection"));
+            assert!(stderr.contains("NA, NAhE, SE"));
+            assert!(stderr.contains("{nu'i}"));
+            assert!(stderr.contains("{pe'o}"));
             assert!(stderr.contains("bridi"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
             assert!(compact_stderr.contains("[continues bridi]"));
@@ -8066,7 +8068,8 @@ mod tests {
             assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
             assert!(stderr.contains("needs one of:"), "{stderr}");
             assert!(stderr.contains("replacement phrase"), "{stderr}");
-            assert!(stderr.contains("forethought bridi connection"), "{stderr}");
+            assert!(stderr.contains("{nu'i}"), "{stderr}");
+            assert!(stderr.contains("{pe'o}"), "{stderr}");
             assert!(stderr.contains("while parsing bridi"), "{stderr}");
             assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");
         });

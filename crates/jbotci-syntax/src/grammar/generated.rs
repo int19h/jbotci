@@ -1100,7 +1100,7 @@ pub mod generated_model {
         when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier,
         mekso_quantifier,
         pa_run_quantifier,
-        zantufa_raw_mekso_quantifier,
+        when feature(ZantufaMex) zantufa_raw_mekso_quantifier,
     }
 
     rule "number mex" number_mekso(letter_tokens) -> struct {
@@ -1952,8 +1952,8 @@ pub mod generated_model {
     }
 
     rule "relative bridi" bridi_relative_clause(subbridi, statement) -> enum {
-        zantufa_restrictive_statement_relative_clause,
-        zantufa_incidental_statement_relative_clause,
+        when feature(ZantufaTerms) zantufa_restrictive_statement_relative_clause,
+        when feature(ZantufaTerms) zantufa_incidental_statement_relative_clause,
         restrictive_bridi_relative_clause,
         incidental_bridi_relative_clause,
     }
