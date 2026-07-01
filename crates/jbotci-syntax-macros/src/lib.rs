@@ -475,6 +475,7 @@ impl SyntaxGrammar {
         let mut transparent_field_pairs = BTreeSet::<(String, String)>::new();
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
         let mut variant_struct_outputs = BTreeSet::<(String, String)>::new();
+        let mut constructor_labels = BTreeMap::<String, String>::new();
         for rule in &self.rules {
             collect_chain_link_element_fields_for_rule(
                 rule,
@@ -493,6 +494,7 @@ impl SyntaxGrammar {
                     }
                     let enum_constructor = generated_constructor_name(&output);
                     transparent_constructors.insert(enum_constructor.clone());
+                    constructor_labels.insert(enum_constructor.clone(), rule.context.value());
                     for branch in &rule.branches {
                         let branch_name = branch.name.to_string();
                         let Some(branch_output) = type_env
@@ -508,6 +510,11 @@ impl SyntaxGrammar {
                         let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                         let variant_constructor = variant.to_string();
                         transparent_constructors.insert(variant_constructor.clone());
+                        constructor_labels.insert(
+                            variant_constructor.clone(),
+                            self.rule_context_label(&branch.name)
+                                .unwrap_or_else(|| rule.context.value()),
+                        );
                         if let Some(branch_output_ident) = simple_type_ident(branch_output) {
                             variant_struct_outputs.insert((
                                 variant_constructor.clone(),
@@ -557,6 +564,9 @@ impl SyntaxGrammar {
                 let field_name = fields[0].name.to_string();
                 transparent_field_pairs.insert((constructor.clone(), field_name));
                 transparent_field_pairs.insert((constructor.clone(), snake_case(&constructor)));
+            }
+            if let Some(context) = &rule.context {
+                constructor_labels.insert(generated_constructor_name(&output), context.value());
             }
             if let Some(existing) = structs.get(&key) {
                 return Err(syn::Error::new_spanned(
@@ -609,6 +619,9 @@ impl SyntaxGrammar {
         let chain_link_element_fields = chain_link_element_fields
             .iter()
             .map(|(constructor, field)| quote!((#constructor, #field)));
+        let constructor_label_items = constructor_labels
+            .iter()
+            .map(|(constructor, label)| quote!((#constructor, #label)));
         let struct_field_order_items =
             structs
                 .values()
@@ -659,6 +672,11 @@ impl SyntaxGrammar {
             ];
 
             #[doc(hidden)]
+            pub const GENERATED_MODEL_CONSTRUCTOR_LABELS: &[(&str, &str)] = &[
+                #(#constructor_label_items,)*
+            ];
+
+            #[doc(hidden)]
             pub const GENERATED_MODEL_FIELD_ORDERS: &[GeneratedModelFieldOrder] = &[
                 #(#field_order_items,)*
             ];
@@ -667,6 +685,14 @@ impl SyntaxGrammar {
             tree_items: items,
             support_items,
         })
+    }
+
+    fn rule_context_label(&self, name: &Ident) -> Option<String> {
+        let name = name.to_string();
+        self.rules
+            .iter()
+            .find(|rule| rule.name().to_string() == name)
+            .and_then(Rule::context_label)
     }
 }
 
@@ -1556,6 +1582,14 @@ impl Rule {
             Rule::Alias(_) => None,
             Rule::Struct(rule) => Some(&rule.output),
             Rule::Enum(rule) => Some(&rule.output),
+        }
+    }
+
+    fn context_label(&self) -> Option<String> {
+        match self {
+            Rule::Alias(rule) => rule.context.as_ref().map(LitStr::value),
+            Rule::Struct(rule) => rule.context.as_ref().map(LitStr::value),
+            Rule::Enum(rule) => Some(rule.context.value()),
         }
     }
 
@@ -2607,9 +2641,7 @@ fn strict_postfix_parser_expr_tokens(
                 quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier))
             };
             Some(quote! {
-                #inner
-                    .then(#free_modifier_list)
-                    .map(|(value, free_modifiers)| WithFreeModifiers::new(value, free_modifiers))
+                generated_runtime::with_free_modifier_list(#inner, #free_modifier_list)
             })
         }
         _ => None,

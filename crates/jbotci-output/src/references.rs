@@ -655,17 +655,12 @@ where
     A: ReferenceAnalysisView<'tree>,
 {
     let mut nodes = BTreeMap::<RawSyntaxNodeId, bool>::new();
-    for frame in analysis
-        .place_analysis()
-        .frames()
-        .iter()
-        .filter(|frame| {
-            !analysis
-                .place_analysis()
-                .assignments_for_frame(frame.id)
-                .is_empty()
-        })
-    {
+    for frame in analysis.place_analysis().frames().iter().filter(|frame| {
+        !analysis
+            .place_analysis()
+            .assignments_for_frame(frame.id)
+            .is_empty()
+    }) {
         if let Some(source) = displayed_place_frame_source_in_tree(frame, tree) {
             nodes.entry(source).or_insert(false);
         }

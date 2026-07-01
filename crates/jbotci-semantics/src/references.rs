@@ -5231,13 +5231,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_boxed_terms<'term, I>(&mut self, terms: I)
+    fn visit_boxed_terms<'term, I, T>(&mut self, terms: I)
     where
-        I: IntoIterator<Item = &'term Box<generated::TermSyntax>>,
+        I: IntoIterator<Item = &'term T>,
+        T: AsRef<generated::TermSyntax> + 'term,
         'term: 'tree,
     {
         for term in terms {
-            self.visit_term(term);
+            self.visit_term(term.as_ref());
         }
     }
 
@@ -5659,16 +5660,17 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_boxed_terms<'term, I>(
+    fn collect_prenex_cei_assignment_sources_in_boxed_terms<'term, I, T>(
         &self,
         terms: I,
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) where
-        I: IntoIterator<Item = &'term Box<generated::TermSyntax>>,
+        I: IntoIterator<Item = &'term T>,
+        T: AsRef<generated::TermSyntax> + 'term,
         'term: 'tree,
     {
         for term in terms {
-            self.collect_prenex_cei_assignment_sources_in_term(term, sources);
+            self.collect_prenex_cei_assignment_sources_in_term(term.as_ref(), sources);
         }
     }
 
@@ -6695,13 +6697,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn bind_prenex_relation_variables_in_boxed_terms<'term, I>(&mut self, terms: I)
+    fn bind_prenex_relation_variables_in_boxed_terms<'term, I, T>(&mut self, terms: I)
     where
-        I: IntoIterator<Item = &'term Box<generated::TermSyntax>>,
+        I: IntoIterator<Item = &'term T>,
+        T: AsRef<generated::TermSyntax> + 'term,
         'term: 'tree,
     {
         for term in terms {
-            self.bind_prenex_relation_variables_in_term(term);
+            self.bind_prenex_relation_variables_in_term(term.as_ref());
         }
     }
 
@@ -8863,12 +8866,13 @@ fn advance_cursor_for_generated_terms_shape(
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_cursor_for_generated_boxed_terms_shape<'term, I>(cursor: &mut PlaceCursor, terms: I)
+fn advance_cursor_for_generated_boxed_terms_shape<'term, I, T>(cursor: &mut PlaceCursor, terms: I)
 where
-    I: IntoIterator<Item = &'term Box<generated::TermSyntax>>,
+    I: IntoIterator<Item = &'term T>,
+    T: AsRef<generated::TermSyntax> + 'term,
 {
     for term in terms {
-        advance_cursor_for_generated_term_shape(cursor, term);
+        advance_cursor_for_generated_term_shape(cursor, term.as_ref());
     }
 }
 

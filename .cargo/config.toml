@@ -5,5 +5,8 @@ build-web-release = "run -p xtask -- build-web-release"
 [build]
 jobs = 16
 
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=-zstack-size=8388608"]
+
 [env]
 RUST_TEST_THREADS = "16"

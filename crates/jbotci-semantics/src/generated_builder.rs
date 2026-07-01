@@ -28842,7 +28842,7 @@ fn generated_pro_bridi_replay_source_from_bridi(
                 .cloned()
                 .collect::<Vec<_>>();
             Ok(Some(new!(GeneratedProBridiReplaySource {
-                selbri: *simple_tail.selbri.clone(),
+                selbri: simple_tail.selbri.as_ref().clone(),
                 terms,
                 first_visible_place: 1,
             })))
@@ -28850,7 +28850,7 @@ fn generated_pro_bridi_replay_source_from_bridi(
         BridiSyntax::RelationOnlyBridi(RelationOnlyBridiSyntax(bridi_tail)) => {
             let simple_tail = simple_tail_from_bridi_tail(bridi_tail)?;
             Ok(Some(new!(GeneratedProBridiReplaySource {
-                selbri: *simple_tail.selbri.clone(),
+                selbri: simple_tail.selbri.as_ref().clone(),
                 terms: Vec::new(),
                 first_visible_place: 2,
             })))
@@ -31540,8 +31540,8 @@ fn connected_generated_bound_mekso_operator(
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     connected_generated_standard_mekso_operator(
         &operator.connective,
-        MeksoOperatorSyntax::SimpleMeksoOperator(*operator.left_operator.clone()),
-        *operator.right_operator.clone(),
+        MeksoOperatorSyntax::SimpleMeksoOperator(operator.left_operator.as_ref().clone()),
+        operator.right_operator.as_ref().clone(),
     )?
     .map_or_else(
         || connected_generated_simple_mekso_operator(&operator.left_operator),
@@ -31606,8 +31606,8 @@ fn connected_generated_forethought_mekso_operator(
     operator: &ForethoughtMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     Ok(Some(new!(GeneratedConnectedMeksoOperatorExpansion {
-        left_operator: *operator.left_operator.clone(),
-        right_operator: *operator.right_operator.clone(),
+        left_operator: operator.left_operator.as_ref().clone(),
+        right_operator: operator.right_operator.as_ref().clone(),
         operator: generated_guhek_connective_formula_operator(&operator.guhek),
         connector: Connector {
             source: generated_guhek_gik_connective_source(&operator.guhek, &operator.gik),
@@ -32922,15 +32922,21 @@ fn generated_modal_forethought_pair_source(
 }
 
 #[requires(true)]
-#[ensures(ret.len() == before_terms.len() + branch_terms.len() + after_terms.len())]
-fn generated_forethought_termset_branch_terms<'syntax>(
+#[ensures(ret.len() >= before_terms.len() + after_terms.len())]
+fn generated_forethought_termset_branch_terms<'syntax, I, T>(
     before_terms: &[&'syntax TermSyntax],
-    branch_terms: &'syntax [Box<TermSyntax>],
+    branch_terms: I,
     after_terms: &[&'syntax TermSyntax],
-) -> Vec<&'syntax TermSyntax> {
-    let mut terms = Vec::with_capacity(before_terms.len() + branch_terms.len() + after_terms.len());
+) -> Vec<&'syntax TermSyntax>
+where
+    I: IntoIterator<Item = &'syntax T>,
+    T: AsRef<TermSyntax> + 'syntax,
+{
+    let branch_terms = branch_terms.into_iter();
+    let mut terms =
+        Vec::with_capacity(before_terms.len() + branch_terms.size_hint().0 + after_terms.len());
     terms.extend_from_slice(before_terms);
-    terms.extend(branch_terms.iter().map(|term| term.as_ref()));
+    terms.extend(branch_terms.map(|term| term.as_ref()));
     terms.extend_from_slice(after_terms);
     terms
 }
@@ -33958,7 +33964,7 @@ fn bo_or_linked_tanru_unit_has_bo_connective(unit: &BoOrLinkedTanruUnitSyntax) -
 #[ensures(true)]
 fn linked_tanru_unit_from_cei(unit: &LinkedTanruUnitForCeiSyntax) -> LinkedTanruUnitSyntax {
     LinkedTanruUnitSyntax {
-        base: Box::new(tanru_unit_atom_from_cei(unit.base.as_ref())),
+        base: std::sync::Arc::new(tanru_unit_atom_from_cei(unit.base.as_ref())),
         linkargs: unit.linkargs.clone(),
     }
 }
@@ -33968,7 +33974,7 @@ fn linked_tanru_unit_from_cei(unit: &LinkedTanruUnitForCeiSyntax) -> LinkedTanru
 fn tanru_unit_atom_from_cei(unit: &TanruUnitAtomForCeiSyntax) -> TanruUnitAtomSyntax {
     TanruUnitAtomSyntax {
         conversions: unit.conversions.clone(),
-        base: Box::new(tanru_unit_atom_base_from_cei(unit.base.as_ref())),
+        base: std::sync::Arc::new(tanru_unit_atom_base_from_cei(unit.base.as_ref())),
     }
 }
 

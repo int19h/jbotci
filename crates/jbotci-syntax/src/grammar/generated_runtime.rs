@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    SyntaxWordCategory, Token,
+    SyntaxWordCategory, Token, tree::WithFreeModifiers,
 };
 
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
@@ -610,6 +610,25 @@ where
             )
             .boxed(),
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn with_free_modifier_list<'tokens, O, F, P>(
+    inner: P,
+    free_modifier_list: BoxedParser<'tokens, Vec<F>>,
+) -> BoxedParser<'tokens, WithFreeModifiers<O, F>>
+where
+    O: 'tokens,
+    F: 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let value = input.parse(&inner)?;
+        let free_modifiers = input.parse(&free_modifier_list)?;
+        Ok(WithFreeModifiers::new(value, free_modifiers))
+    })
+    .boxed()
 }
 
 #[requires(true)]

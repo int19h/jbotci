@@ -44,10 +44,11 @@ use jbotci_morphology::{
     normalize_lojban_input_text, segment_words_with_modifiers_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
-    BracketSourceFragment, BracketSourceRange, GlyphStyle, TreeRenderOptions,
+    BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle, TreeRenderOptions,
     format_definition_or_notes_line_with_indexed_places, generated_reference_display,
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_or_notes_line,
     ipa_morphology_text, phoneme_render_options_for_script,
+    pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
     pretty_generated_model_tree_with_reference_display, render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
@@ -490,17 +491,52 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             });
         }
     };
+    let bracket_options = bracket_render_options(&render_options);
+    let brackets_text = match pretty_generated_model_brackets_with_options(
+        &generated_model,
+        source,
+        bracket_options,
+    ) {
+        Ok(text) => text,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            });
+        }
+    };
+    let bracket_source_fragments = match pretty_bracket_source_fragments_with_options(
+        &generated_model,
+        source,
+        bracket_options,
+    ) {
+        Ok(fragments) => fragments,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            });
+        }
+    };
     let block_options = gentufa_block_options(&request.options);
     let generated_annotations = Vec::<GentufaBlockAnnotation<DictionaryTooltipCard>>::new();
+    let bare_blocks_layout = generated_syntax_blocks_layout_with_references(
+        &generated_model,
+        source,
+        Some(&reference_display.analysis.syntax_index),
+        Some(&reference_display.references),
+        &generated_annotations,
+        &block_options,
+    );
+    let bracket_fragments = gentufa_bracket_fragments_from_source(
+        &bracket_source_fragments,
+        &bare_blocks_layout,
+        &generated_annotations,
+    );
     let blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
-        generated_syntax_blocks_layout_with_references(
-            &generated_model,
-            source,
-            Some(&reference_display.analysis.syntax_index),
-            Some(&reference_display.references),
-            &generated_annotations,
-            &block_options,
-        ),
+        bare_blocks_layout,
         &reference_display.analysis,
         source,
         &block_options,
@@ -508,11 +544,6 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     );
     let tree_rows = generated_model_tree_rows_from_text(&tree_text);
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
-    let brackets_text = tree_text;
-    let bracket_fragments = vec![GentufaBracketFragment::Text {
-        text: brackets_text.clone(),
-        elided: false,
-    }];
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -878,6 +909,22 @@ fn tree_render_options(phonemes: PhonemeRenderOptions, show_elided: bool) -> Tre
         show_refs: true,
         decompose_lujvo: false,
         show_elided,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.script == options.script)]
+#[ensures(ret.phonemes == options.phonemes)]
+#[ensures(ret.show_elided == options.show_elided)]
+fn bracket_render_options(options: &GentufaWebOptions) -> BracketRenderOptions {
+    BracketRenderOptions {
+        color: false,
+        phonemes: options.phonemes,
+        script: options.script,
+        glyphs: GlyphStyle::Unicode,
+        decompose_lujvo: false,
+        insert_hair_space: false,
+        show_elided: options.show_elided,
     }
 }
 
@@ -4522,54 +4569,53 @@ fn gentufa_bracket_fragments_from_source(
     blocks_layout: &BareGentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
-    fragments
-        .iter()
-        .flat_map(|fragment| {
-            gentufa_bracket_fragment_from_source(fragment, blocks_layout, dictionary_annotations)
-        })
-        .collect()
+    let mut output = Vec::new();
+    append_gentufa_bracket_fragments_from_source(
+        fragments,
+        blocks_layout,
+        dictionary_annotations,
+        &mut output,
+    );
+    output
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn gentufa_bracket_fragment_from_source(
-    fragment: &BracketSourceFragment,
+fn append_gentufa_bracket_fragments_from_source(
+    fragments: &[BracketSourceFragment],
     blocks_layout: &BareGentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
-) -> Vec<GentufaBracketFragment> {
-    match fragment {
-        BracketSourceFragment::Text {
-            text,
-            range,
-            elided,
-        } => {
-            if text.is_empty() {
-                return Vec::new();
+    output: &mut Vec<GentufaBracketFragment>,
+) {
+    for fragment in fragments {
+        match fragment {
+            BracketSourceFragment::Text {
+                text,
+                range,
+                elided,
+            } => {
+                if text.is_empty() {
+                    continue;
+                }
+                output.extend(decorated_bracket_fragment(
+                    vec![GentufaBracketFragment::Text {
+                        text: text.clone(),
+                        elided: *elided,
+                    }],
+                    bracket_source_range_to_web(*range),
+                    Some(text),
+                    blocks_layout,
+                    dictionary_annotations,
+                ));
             }
-            decorated_bracket_fragment(
-                vec![GentufaBracketFragment::Text {
-                    text: text.clone(),
-                    elided: *elided,
-                }],
-                bracket_source_range_to_web(*range),
-                Some(text),
-                blocks_layout,
-                dictionary_annotations,
-            )
-        }
-        BracketSourceFragment::Span { range, children } => {
-            let children = gentufa_bracket_fragments_from_source(
-                children,
-                blocks_layout,
-                dictionary_annotations,
-            );
-            decorated_bracket_fragment(
-                children,
-                bracket_source_range_to_web(*range),
-                None,
-                blocks_layout,
-                dictionary_annotations,
-            )
+            BracketSourceFragment::Span { children, .. } => {
+                append_gentufa_bracket_fragments_from_source(
+                    children,
+                    blocks_layout,
+                    dictionary_annotations,
+                    output,
+                );
+            }
         }
     }
 }
@@ -5440,6 +5486,8 @@ mod tests {
     use jbotci_morphology::{GlideMark, StressMark};
     use std::collections::BTreeSet;
 
+    const DEFAULT_GENTUFA_SAMPLE: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
+
     #[requires(true)]
     #[ensures(ret.preset.as_deref() == Some("1995"))]
     fn gimfihi_sample_state(highlight: Option<&str>) -> GimfihiWebState {
@@ -5505,6 +5553,20 @@ mod tests {
             panic!("expected successful parse");
         };
         success
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_on_normal_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+        std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .name("jbotci-web-core-test".to_owned())
+                .stack_size(8 * 1024 * 1024)
+                .spawn_scoped(scope, f)
+                .expect("spawn normal-stack web-core test thread")
+                .join()
+                .expect("normal-stack web-core test thread panicked")
+        })
     }
 
     #[requires(true)]
@@ -5722,6 +5784,41 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragment_stats(fragments: &[GentufaBracketFragment]) -> (usize, usize) {
+        let mut count = 0;
+        let mut max_depth = 0;
+        let mut stack = fragments
+            .iter()
+            .map(|fragment| (fragment, 1usize))
+            .collect::<Vec<_>>();
+        while let Some((fragment, depth)) = stack.pop() {
+            count += 1;
+            max_depth = max_depth.max(depth);
+            if let GentufaBracketFragment::Span { children, .. } = fragment {
+                stack.extend(children.iter().map(|child| (child, depth + 1)));
+            }
+        }
+        (count, max_depth)
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn default_gentufa_bracket_fragments_are_flat_for_web_rendering() {
+        let success = run_on_normal_stack(|| parse_success(DEFAULT_GENTUFA_SAMPLE));
+        let (count, max_depth) = bracket_fragment_stats(&success.bracket_fragments);
+        assert_eq!(
+            bracket_fragment_text(&success.bracket_fragments),
+            success.brackets_text
+        );
+        assert!(
+            max_depth <= 2,
+            "bracket fragment tree is too deep for wasm/browser rendering: count={count}, max_depth={max_depth}",
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -5749,6 +5846,64 @@ mod tests {
         assert!(!success.tree_rows.is_empty());
         assert!(success.ipa_text.contains("ˈkla.ma"));
         assert!(success.surface_text.contains("mi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn simple_parse_builds_real_bracket_output() {
+        let success = parse_success("mi klama");
+        let fragment_text = bracket_fragment_text(&success.bracket_fragments);
+        assert_eq!(fragment_text, success.brackets_text);
+        assert!(
+            success.brackets_text.starts_with('('),
+            "{}",
+            success.brackets_text
+        );
+        assert!(
+            success.brackets_text.contains("mi"),
+            "{}",
+            success.brackets_text
+        );
+        assert!(
+            !success.brackets_text.contains("TextSyntax"),
+            "{}",
+            success.brackets_text
+        );
+        assert!(
+            !success.brackets_text.contains("@["),
+            "{}",
+            success.brackets_text
+        );
+        assert!(
+            success
+                .tree_rows
+                .iter()
+                .any(|row| row.cells.iter().any(|cell| cell.text.contains("@["))),
+            "{:?}",
+            success.tree_rows
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn simple_parse_uses_grammar_labels_for_nonleaf_blocks() {
+        let success = parse_success("mi klama");
+        let nonleaf_labels = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| !block.is_leaf)
+            .map(|block| block.label.as_str())
+            .collect::<Vec<_>>();
+        assert!(nonleaf_labels.iter().any(|label| *label == "bridi"));
+        assert!(
+            nonleaf_labels
+                .iter()
+                .all(|label| !label.contains("Syntax") && !label.contains("BridiTail")),
+            "{nonleaf_labels:?}"
+        );
     }
 
     #[test]

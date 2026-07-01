@@ -1474,7 +1474,7 @@ fn block_from_tree_node<Tooltip>(
         label: if is_leaf && !display_text.is_empty() {
             display_text.clone()
         } else {
-            node.label.clone()
+            syntax_constructor_display_label(&node.label).to_owned()
         },
         is_leaf,
         is_elided: node.is_elided,
@@ -1811,8 +1811,17 @@ fn token_kind_for_text(text: &str) -> Option<String> {
 
 #[requires(true)]
 #[ensures(!ret.ends_with("Syntax"))]
-pub fn syntax_constructor_name(constructor: &'static str) -> &'static str {
+pub fn syntax_constructor_name(constructor: &str) -> &str {
     constructor.strip_suffix("Syntax").unwrap_or(constructor)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn syntax_constructor_display_label<'a>(constructor: &'a str) -> &'a str {
+    generated_model::GENERATED_MODEL_CONSTRUCTOR_LABELS
+        .iter()
+        .find_map(|(candidate, label)| (*candidate == constructor).then_some(*label))
+        .unwrap_or_else(|| syntax_constructor_name(constructor))
 }
 
 #[requires(true)]
@@ -2088,7 +2097,12 @@ mod tests {
             generated_leaf_display_texts(&layout),
             vec!["mi", "mélbi", "je", "cmálu", "je", "blánu"]
         );
-        assert!(layout.blocks.iter().any(|block| block.label == "TanruUnit"));
+        assert!(
+            layout
+                .blocks
+                .iter()
+                .any(|block| block.label == "tanru unit")
+        );
     }
 
     #[test]
