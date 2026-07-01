@@ -1277,6 +1277,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         statement: &'tree generated::StatementOrFragmentSyntax,
     ) {
         match statement {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.analyze_statement(&statement.statement);
+                self.analyze_zantufa_statement_terms_tail(&statement.tail);
+            }
             generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
                 self.analyze_statement(&statement.0);
             }
@@ -1335,6 +1339,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
                 self.analyze_text_group_statement(statement);
             }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.analyze_forethought_statement(statement);
+            }
         }
     }
 
@@ -1390,6 +1397,22 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::StatementBaseSyntax::TextGroupStatement(statement) => {
                 self.analyze_text_group_statement(statement);
             }
+            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.analyze_forethought_statement(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_forethought_statement(
+        &mut self,
+        statement: &'tree generated::ForethoughtStatementSyntax,
+    ) {
+        self.analyze_statement(&statement.first);
+        self.analyze_statement(&statement.first_branch.statement);
+        for branch in &statement.additional_branches {
+            self.analyze_statement(&branch.statement);
         }
     }
 
@@ -1463,6 +1486,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
+            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+                let mut analysis =
+                    self.analyze_bridi_tail(&tail.bridi_tail, gek_branch_initial_place);
+                analysis.terms.extend(tail.tail_terms.iter());
+                analysis
+            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
             }
@@ -2255,6 +2284,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_none(),
                 )
             }
+            generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
+                self.analyze_zantufa_me_tanru_unit_nested(unit);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
+                self.analyze_math_expression_nested(&unit.expression);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
             generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => {
                 self.analyze_tense_modal_nested(&unit.tag);
                 self.add_frame(
@@ -2345,6 +2394,16 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation,
                 )
             }
+            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+                self.analyze_statement(&unit.statement);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::Abstraction,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
         }
     }
 
@@ -2369,6 +2428,26 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             ),
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.analyze_math_operator_nested(&unit.mekso_operator);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
+                self.analyze_zantufa_me_tanru_unit_nested(unit);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::TanruUnit,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
+                self.analyze_math_expression_nested(&unit.expression);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2466,6 +2545,39 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation,
                 )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
+                unit,
+            ) => {
+                self.analyze_statement(&unit.statement);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::Abstraction,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_none(),
+                )
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_zantufa_me_tanru_unit_nested(
+        &mut self,
+        unit: &'tree generated::ZantufaMeTanruUnitSyntax,
+    ) {
+        match unit.body.as_ref() {
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => {
+                for operator in &body.0 {
+                    self.analyze_math_operator_nested(operator);
+                }
+            }
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeMeksoSelbriBody(body) => {
+                self.analyze_math_expression_nested(&body.0);
+            }
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeTagSelbriBody(body) => {
+                self.analyze_tense_modal_nested(&body.0);
             }
         }
     }
@@ -2631,6 +2743,24 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn analyze_terms_nested(&mut self, terms: &'tree [generated::TermSyntax]) {
         for term in terms {
             self.analyze_term_nested(term);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_zantufa_statement_terms_tail(
+        &mut self,
+        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
+    ) {
+        match tail {
+            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+                self.analyze_terms_nested(&tail.terms);
+            }
+            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
+                for term in tail.0.iter() {
+                    self.analyze_term_nested(term);
+                }
+            }
         }
     }
 
@@ -2883,7 +3013,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_term_nested(&sumti.inner_term);
             }
             generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.analyze_subbridi(&sumti.subbridi);
+                self.analyze_statement(&sumti.statement);
             }
             generated::SumtiBaseSyntax::NumberSumti(sumti) => {
                 self.analyze_math_expression_nested(&sumti.expression);
@@ -2985,6 +3115,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::FragmentStatementSyntax::MeksoFragment(fragment) => {
                 self.analyze_quantifier_nested(&fragment.0);
             }
+            generated::FragmentStatementSyntax::ZantufaMeksoFragment(fragment) => {
+                self.analyze_math_expression_nested(&fragment.0);
+            }
             generated::FragmentStatementSyntax::EkFragment(_)
             | generated::FragmentStatementSyntax::GihekFragment(_)
             | generated::FragmentStatementSyntax::MultipleNaFragment(_)
@@ -3028,6 +3161,16 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.analyze_subbridi(&clause.subbridi);
                 }
+                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.analyze_statement(&clause.statement);
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.analyze_statement(&clause.statement);
+                }
             },
         }
     }
@@ -3050,8 +3193,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn analyze_quantifier_nested(&mut self, quantifier: &'tree generated::QuantifierSyntax) {
-        if let generated::QuantifierSyntax::MeksoQuantifier(quantifier) = quantifier {
-            self.analyze_math_expression_nested(&quantifier.mekso);
+        match quantifier {
+            generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
+                self.analyze_math_expression_nested(&quantifier.mekso);
+            }
+            generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
+                self.analyze_math_expression_nested(&quantifier.0);
+            }
+            generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
 
@@ -3059,6 +3208,29 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_math_expression_nested(&mut self, expression: &'tree generated::MeksoSyntax) {
         match expression {
+            generated::MeksoSyntax::ZantufaReversePolishMekso(expression) => {
+                for operand in &expression.operands {
+                    self.analyze_mekso_base_nested(operand);
+                }
+                self.analyze_math_operator_nested(&expression.operator);
+                for tail in &expression.tails {
+                    for operand in &tail.operands {
+                        self.analyze_mekso_base_nested(operand);
+                    }
+                    self.analyze_math_operator_nested(&tail.operator);
+                }
+            }
+            generated::MeksoSyntax::ZantufaInfixMekso(expression) => {
+                self.analyze_mekso_precedence_nested(&expression.first_expression);
+                for continuation in &expression.continuations {
+                    for operator in &continuation.operators {
+                        self.analyze_math_operator_nested(operator);
+                    }
+                    if let Some(right_expression) = &continuation.right_expression {
+                        self.analyze_mekso_precedence_nested(right_expression);
+                    }
+                }
+            }
             generated::MeksoSyntax::InfixMekso(expression) => {
                 self.analyze_mekso_precedence_nested(&expression.first_expression);
                 for continuation in &expression.continuations {
@@ -3096,6 +3268,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_math_operator_nested(&call.operator);
                 for operand in &call.operands {
                     self.analyze_mekso_base_nested(operand);
+                }
+            }
+            generated::MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+                self.analyze_mekso_operand_nested(&group.first);
+                for continuation in &group.continuations {
+                    self.analyze_mekso_operand_nested(&continuation.expression);
                 }
             }
             generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
@@ -3357,6 +3535,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_terms_nested(&free_modifier.terms);
                 self.analyze_relation(&free_modifier.selbri);
             }
+            generated::FreeModifierSyntax::ZantufaSeiStatementFreeModifier(free_modifier) => {
+                self.analyze_statement(&free_modifier.statement);
+            }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.analyze_text(&free_modifier.text);
             }
@@ -3367,6 +3548,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                 | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
             },
+            generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
+                self.analyze_math_expression_nested(&free_modifier.expression);
+            }
             generated::FreeModifierSyntax::SoiFreeModifier(free_modifier) => {
                 self.analyze_argument_nested(&free_modifier.leading_sumti);
                 if let Some(sumti) = free_modifier.trailing_sumti.as_deref() {
@@ -4796,6 +4980,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         statement: &'tree generated::StatementOrFragmentSyntax,
     ) {
         match statement {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.visit_statement(&statement.statement);
+                self.visit_zantufa_statement_terms_tail(&statement.tail);
+            }
             generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
                 self.visit_statement(&statement.0);
             }
@@ -4866,6 +5054,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
                 self.visit_text_group_statement(statement);
             }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.visit_forethought_statement(statement);
+            }
         }
     }
 
@@ -4894,6 +5085,22 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementBaseSyntax::TextGroupStatement(statement) => {
                 self.visit_text_group_statement(statement);
             }
+            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.visit_forethought_statement(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_forethought_statement(
+        &mut self,
+        statement: &'tree generated::ForethoughtStatementSyntax,
+    ) {
+        self.visit_statement(&statement.first);
+        self.visit_statement(&statement.first_branch.statement);
+        for branch in &statement.additional_branches {
+            self.visit_statement(&branch.statement);
         }
     }
 
@@ -5015,6 +5222,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_bridi_tail(&mut self, tail: &'tree generated::BridiTailSyntax) {
         match tail {
+            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+                self.visit_bridi_tail(&tail.bridi_tail);
+                self.visit_terms(&tail.tail_terms);
+            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.visit_afterthought_bridi_tail(&tail.first);
                 if let Some(continuation) = tail.ke_continuation.as_deref() {
@@ -5196,6 +5407,24 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn visit_zantufa_statement_terms_tail(
+        &mut self,
+        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
+    ) {
+        match tail {
+            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+                self.visit_terms(&tail.terms);
+            }
+            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
+                for term in tail.0.iter() {
+                    self.visit_term(term);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn visit_term(&mut self, term: &'tree generated::TermSyntax) {
         match term {
             generated::TermSyntax::SimpleTerm(term) => self.visit_simple_term(term),
@@ -5330,6 +5559,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::FragmentStatementSyntax::MeksoFragment(fragment) => {
                 self.visit_quantifier(&fragment.0);
             }
+            generated::FragmentStatementSyntax::ZantufaMeksoFragment(fragment) => {
+                self.visit_math_expression(&fragment.0);
+            }
             generated::FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
                 self.visit_relative_clause_list_without_head(&fragment.0);
             }
@@ -5414,6 +5646,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_terms(&free_modifier.terms);
                 self.visit_relation(&free_modifier.selbri);
             }
+            generated::FreeModifierSyntax::ZantufaSeiStatementFreeModifier(free_modifier) => {
+                self.visit_statement(&free_modifier.statement);
+            }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
                 self.visit_text(&free_modifier.text);
             }
@@ -5424,6 +5659,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                 | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
             },
+            generated::FreeModifierSyntax::ZantufaMeksoMaiFreeModifier(free_modifier) => {
+                self.visit_math_expression(&free_modifier.expression);
+            }
             generated::FreeModifierSyntax::SoiFreeModifier(free_modifier) => {
                 self.visit_argument(&free_modifier.leading_sumti);
                 if let Some(sumti) = free_modifier.trailing_sumti.as_deref() {
@@ -5542,7 +5780,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementBaseSyntax::PrenexStatement(statement) => {
                 self.statement_main_predicate_id(&statement.inner_statement)
             }
-            generated::StatementBaseSyntax::TextGroupStatement(_) => None,
+            generated::StatementBaseSyntax::TextGroupStatement(_)
+            | generated::StatementBaseSyntax::ForethoughtStatement(_) => None,
         }
     }
 
@@ -5944,7 +6183,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.collect_prenex_cei_assignment_sources_in_term(&sumti.inner_term, sources);
             }
             generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_subbridi(&sumti.subbridi, sources);
+                self.collect_prenex_cei_assignment_sources_in_statement(&sumti.statement, sources);
             }
             generated::SumtiBaseSyntax::NumberSumti(_)
             | generated::SumtiBaseSyntax::LerfuStringSumti(_)
@@ -6033,7 +6272,384 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         sources,
                     );
                 }
+                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.collect_prenex_cei_assignment_sources_in_statement(
+                        &clause.statement,
+                        sources,
+                    );
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.collect_prenex_cei_assignment_sources_in_statement(
+                        &clause.statement,
+                        sources,
+                    );
+                }
             },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_statement(
+        &self,
+        statement: &'tree generated::StatementSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match statement {
+            generated::StatementSyntax::StatementBase(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement_base(statement, sources);
+            }
+            generated::StatementSyntax::IStatementConnection(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement_base(
+                    &statement.leading_statement,
+                    sources,
+                );
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(
+                            tail,
+                        ) => self
+                            .collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
+                                &tail.trailing_statement,
+                                sources,
+                            ),
+                        generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
+                            tail,
+                        ) => self
+                            .collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
+                                &tail.trailing_statement,
+                                sources,
+                            ),
+                    }
+                }
+            }
+            generated::StatementSyntax::PreposedIStatementConnection(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement_base(
+                    &statement.leading_statement,
+                    sources,
+                );
+                self.collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
+                    &statement.trailing_statement,
+                    sources,
+                );
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_statement_base(
+        &self,
+        statement: &'tree generated::StatementBaseSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match statement {
+            generated::StatementBaseSyntax::BridiStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_bridi(&statement.bridi, sources);
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                            continuation,
+                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
+                            &continuation.trailing_subbridi,
+                            sources,
+                        ),
+                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                            continuation,
+                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
+                            &continuation.trailing_subbridi,
+                            sources,
+                        ),
+                    }
+                }
+            }
+            generated::StatementBaseSyntax::PrenexStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(
+                    &statement.inner_statement,
+                    sources,
+                );
+            }
+            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_text(&statement.text, sources);
+            }
+            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(&statement.first, sources);
+                self.collect_prenex_cei_assignment_sources_in_statement(
+                    &statement.first_branch.statement,
+                    sources,
+                );
+                for branch in &statement.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_statement(
+                        &branch.statement,
+                        sources,
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
+        &self,
+        statement: &'tree generated::StatementAfterIConnectiveSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match statement {
+            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_bridi(&statement.bridi, sources);
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                            continuation,
+                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
+                            &continuation.trailing_subbridi,
+                            sources,
+                        ),
+                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                            continuation,
+                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
+                            &continuation.trailing_subbridi,
+                            sources,
+                        ),
+                    }
+                }
+            }
+            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_text(&statement.text, sources);
+            }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(&statement.first, sources);
+                self.collect_prenex_cei_assignment_sources_in_statement(
+                    &statement.first_branch.statement,
+                    sources,
+                );
+                for branch in &statement.additional_branches {
+                    self.collect_prenex_cei_assignment_sources_in_statement(
+                        &branch.statement,
+                        sources,
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_text(
+        &self,
+        text: &'tree GeneratedTextSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match text {
+            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
+                self.collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
+                    &text.0, sources,
+                );
+            }
+            generated::TextSyntax::RegularText(text) => {
+                if let Some(paragraphs) = text.paragraphs.as_deref() {
+                    self.collect_prenex_cei_assignment_sources_in_text_paragraphs(
+                        paragraphs, sources,
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_text_paragraphs(
+        &self,
+        paragraphs: &'tree generated::TextParagraphsSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match paragraphs {
+            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
+                self.collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
+                    paragraphs, sources,
+                );
+            }
+            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
+                for paragraph in &paragraphs.0 {
+                    self.collect_prenex_cei_assignment_sources_in_niho_paragraph(
+                        paragraph, sources,
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
+        &self,
+        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        self.collect_prenex_cei_assignment_sources_in_paragraph(&paragraphs.first, sources);
+        for paragraph in &paragraphs.additional_niho {
+            self.collect_prenex_cei_assignment_sources_in_niho_paragraph(paragraph, sources);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_paragraph(
+        &self,
+        paragraph: &'tree generated::ParagraphSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match paragraph {
+            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
+                self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
+                    &paragraph.0,
+                    sources,
+                );
+            }
+            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
+                if let Some(statements) = paragraph.statements.as_deref() {
+                    self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
+                        statements, sources,
+                    );
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_niho_paragraph(
+        &self,
+        paragraph: &'tree generated::NihoParagraphSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        if let Some(statements) = paragraph.statements.as_deref() {
+            self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
+                statements, sources,
+            );
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
+        &self,
+        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        self.collect_prenex_cei_assignment_sources_in_statement_or_fragment(
+            &sequence.initial.0,
+            sources,
+        );
+        for following in &sequence.following {
+            if let Some(statement) = following.statement.as_deref() {
+                self.collect_prenex_cei_assignment_sources_in_statement_or_fragment(
+                    statement, sources,
+                );
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_statement_or_fragment(
+        &self,
+        statement: &'tree generated::StatementOrFragmentSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match statement {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(
+                    &statement.statement,
+                    sources,
+                );
+                self.collect_prenex_cei_assignment_sources_in_zantufa_statement_terms_tail(
+                    &statement.tail,
+                    sources,
+                );
+            }
+            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(&statement.0, sources);
+            }
+            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_fragment(fragment, sources);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_fragment(
+        &self,
+        fragment: &'tree generated::FragmentStatementSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match fragment {
+            generated::FragmentStatementSyntax::TermsFragment(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_terms(&fragment.terms, sources);
+            }
+            generated::FragmentStatementSyntax::PrenexFragment(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_terms(&fragment.terms, sources);
+            }
+            generated::FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_relative_clause_list(
+                    &fragment.0,
+                    sources,
+                );
+            }
+            generated::FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_linkargs(&fragment.0, sources);
+            }
+            generated::FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
+                for link in &fragment.0 {
+                    self.collect_prenex_cei_assignment_sources_in_linked_sumti(&link.link, sources);
+                }
+            }
+            generated::FragmentStatementSyntax::SelbriFragment(fragment) => {
+                self.collect_prenex_cei_assignment_sources_in_relation(&fragment.0, sources);
+            }
+            generated::FragmentStatementSyntax::EkFragment(_)
+            | generated::FragmentStatementSyntax::GihekFragment(_)
+            | generated::FragmentStatementSyntax::MeksoFragment(_)
+            | generated::FragmentStatementSyntax::ZantufaMeksoFragment(_)
+            | generated::FragmentStatementSyntax::MultipleNaFragment(_)
+            | generated::FragmentStatementSyntax::SingleNaFragment(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_terms(
+        &self,
+        terms: &'tree [generated::TermSyntax],
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        for term in terms {
+            self.collect_prenex_cei_assignment_sources_in_term(term, sources);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_prenex_cei_assignment_sources_in_zantufa_statement_terms_tail(
+        &self,
+        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
+        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+    ) {
+        match tail {
+            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+                self.collect_prenex_cei_assignment_sources_in_terms(&tail.terms, sources);
+            }
+            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
+                for term in tail.0.iter() {
+                    self.collect_prenex_cei_assignment_sources_in_term(term, sources);
+                }
+            }
         }
     }
 
@@ -6098,6 +6714,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         sources: &mut Vec<(String, RawSyntaxNodeId)>,
     ) {
         match tail {
+            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+                self.collect_prenex_cei_assignment_sources_in_bridi_tail(&tail.bridi_tail, sources);
+                self.collect_prenex_cei_assignment_sources_in_terms(&tail.tail_terms, sources);
+            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail(
                     &tail.first,
@@ -6436,6 +7056,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
                 self.collect_prenex_cei_assignment_sources_in_subbridi(&unit.subbridi, sources);
             }
+            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(&unit.statement, sources);
+            }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
                     &unit.sumti,
@@ -6443,6 +7066,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 );
             }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(_)
+            | generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_)
+            | generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
@@ -6507,6 +7132,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
                 self.collect_prenex_cei_assignment_sources_in_subbridi(&unit.subbridi, sources);
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
+                unit,
+            ) => {
+                self.collect_prenex_cei_assignment_sources_in_statement(&unit.statement, sources);
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
                     &unit.sumti,
@@ -6514,6 +7144,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 );
             }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(_)
+            | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(_)
+            | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
@@ -6947,7 +7579,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.bind_prenex_relation_variables_in_term(&sumti.inner_term);
             }
             generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_subbridi(&sumti.subbridi);
+                self.bind_prenex_relation_variables_in_statement(&sumti.statement);
             }
             generated::SumtiBaseSyntax::NumberSumti(_)
             | generated::SumtiBaseSyntax::LerfuStringSumti(_)
@@ -7018,7 +7650,340 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.bind_prenex_relation_variables_in_subbridi(&clause.subbridi);
                 }
+                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.bind_prenex_relation_variables_in_statement(&clause.statement);
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.bind_prenex_relation_variables_in_statement(&clause.statement);
+                }
             },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_statement(
+        &mut self,
+        statement: &'tree generated::StatementSyntax,
+    ) {
+        match statement {
+            generated::StatementSyntax::StatementBase(statement) => {
+                self.bind_prenex_relation_variables_in_statement_base(statement);
+            }
+            generated::StatementSyntax::IStatementConnection(statement) => {
+                self.bind_prenex_relation_variables_in_statement_base(&statement.leading_statement);
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(
+                            tail,
+                        ) => self.bind_prenex_relation_variables_in_statement_after_i_connective(
+                            &tail.trailing_statement,
+                        ),
+                        generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
+                            tail,
+                        ) => self.bind_prenex_relation_variables_in_statement_after_i_connective(
+                            &tail.trailing_statement,
+                        ),
+                    }
+                }
+            }
+            generated::StatementSyntax::PreposedIStatementConnection(statement) => {
+                self.bind_prenex_relation_variables_in_statement_base(&statement.leading_statement);
+                self.bind_prenex_relation_variables_in_statement_after_i_connective(
+                    &statement.trailing_statement,
+                );
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_statement_base(
+        &mut self,
+        statement: &'tree generated::StatementBaseSyntax,
+    ) {
+        match statement {
+            generated::StatementBaseSyntax::BridiStatement(statement) => {
+                self.bind_prenex_relation_variables_in_bridi(&statement.bridi);
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                            continuation,
+                        ) => self.bind_prenex_relation_variables_in_subbridi(
+                            &continuation.trailing_subbridi,
+                        ),
+                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                            continuation,
+                        ) => self.bind_prenex_relation_variables_in_subbridi(
+                            &continuation.trailing_subbridi,
+                        ),
+                    }
+                }
+            }
+            generated::StatementBaseSyntax::PrenexStatement(statement) => {
+                self.bind_prenex_relation_variables_in_statement(&statement.inner_statement);
+            }
+            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
+                self.bind_prenex_relation_variables_in_text(&statement.text);
+            }
+            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.bind_prenex_relation_variables_in_statement(&statement.first);
+                self.bind_prenex_relation_variables_in_statement(&statement.first_branch.statement);
+                for branch in &statement.additional_branches {
+                    self.bind_prenex_relation_variables_in_statement(&branch.statement);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_statement_after_i_connective(
+        &mut self,
+        statement: &'tree generated::StatementAfterIConnectiveSyntax,
+    ) {
+        match statement {
+            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+                self.bind_prenex_relation_variables_in_bridi(&statement.bridi);
+                for continuation in &statement.continuations {
+                    match continuation {
+                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                            continuation,
+                        ) => self.bind_prenex_relation_variables_in_subbridi(
+                            &continuation.trailing_subbridi,
+                        ),
+                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                            continuation,
+                        ) => self.bind_prenex_relation_variables_in_subbridi(
+                            &continuation.trailing_subbridi,
+                        ),
+                    }
+                }
+            }
+            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+                self.bind_prenex_relation_variables_in_text(&statement.text);
+            }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.bind_prenex_relation_variables_in_statement(&statement.first);
+                self.bind_prenex_relation_variables_in_statement(&statement.first_branch.statement);
+                for branch in &statement.additional_branches {
+                    self.bind_prenex_relation_variables_in_statement(&branch.statement);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_text(&mut self, text: &'tree GeneratedTextSyntax) {
+        match text {
+            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
+                self.bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(&text.0);
+            }
+            generated::TextSyntax::RegularText(text) => {
+                if let Some(paragraphs) = text.paragraphs.as_deref() {
+                    self.bind_prenex_relation_variables_in_text_paragraphs(paragraphs);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_text_paragraphs(
+        &mut self,
+        paragraphs: &'tree generated::TextParagraphsSyntax,
+    ) {
+        match paragraphs {
+            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
+                self.bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(
+                    paragraphs,
+                );
+            }
+            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
+                for paragraph in &paragraphs.0 {
+                    self.bind_prenex_relation_variables_in_niho_paragraph(paragraph);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(
+        &mut self,
+        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
+    ) {
+        self.bind_prenex_relation_variables_in_paragraph(&paragraphs.first);
+        for paragraph in &paragraphs.additional_niho {
+            self.bind_prenex_relation_variables_in_niho_paragraph(paragraph);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_paragraph(
+        &mut self,
+        paragraph: &'tree generated::ParagraphSyntax,
+    ) {
+        match paragraph {
+            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
+                self.bind_prenex_relation_variables_in_paragraph_statement_sequence(&paragraph.0);
+            }
+            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
+                if let Some(statements) = paragraph.statements.as_deref() {
+                    self.bind_prenex_relation_variables_in_paragraph_statement_sequence(statements);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_niho_paragraph(
+        &mut self,
+        paragraph: &'tree generated::NihoParagraphSyntax,
+    ) {
+        if let Some(statements) = paragraph.statements.as_deref() {
+            self.bind_prenex_relation_variables_in_paragraph_statement_sequence(statements);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_paragraph_statement_sequence(
+        &mut self,
+        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
+    ) {
+        self.bind_prenex_relation_variables_in_statement_or_fragment(&sequence.initial.0);
+        for following in &sequence.following {
+            if let Some(statement) = following.statement.as_deref() {
+                self.bind_prenex_relation_variables_in_statement_or_fragment(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_statement_or_fragment(
+        &mut self,
+        statement: &'tree generated::StatementOrFragmentSyntax,
+    ) {
+        match statement {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.bind_prenex_relation_variables_in_statement(&statement.statement);
+                self.bind_prenex_relation_variables_in_zantufa_statement_terms_tail(
+                    &statement.tail,
+                );
+            }
+            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
+                self.bind_prenex_relation_variables_in_statement(&statement.0);
+            }
+            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+                self.bind_prenex_relation_variables_in_fragment(fragment);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_fragment(
+        &mut self,
+        fragment: &'tree generated::FragmentStatementSyntax,
+    ) {
+        match fragment {
+            generated::FragmentStatementSyntax::TermsFragment(fragment) => {
+                self.bind_prenex_relation_variables_in_terms(&fragment.terms);
+            }
+            generated::FragmentStatementSyntax::PrenexFragment(fragment) => {
+                self.bind_prenex_relation_variables_in_terms(&fragment.terms);
+            }
+            generated::FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
+                self.bind_prenex_relation_variables_in_relative_clause_list(&fragment.0);
+            }
+            generated::FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
+                self.bind_prenex_relation_variables_in_linkargs(&fragment.0);
+            }
+            generated::FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
+                for link in &fragment.0 {
+                    self.bind_prenex_relation_variables_in_linked_sumti(&link.link);
+                }
+            }
+            generated::FragmentStatementSyntax::SelbriFragment(fragment) => {
+                self.bind_prenex_relation_variable_relation(&fragment.0);
+            }
+            generated::FragmentStatementSyntax::EkFragment(_)
+            | generated::FragmentStatementSyntax::GihekFragment(_)
+            | generated::FragmentStatementSyntax::MeksoFragment(_)
+            | generated::FragmentStatementSyntax::ZantufaMeksoFragment(_)
+            | generated::FragmentStatementSyntax::MultipleNaFragment(_)
+            | generated::FragmentStatementSyntax::SingleNaFragment(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_terms(&mut self, terms: &'tree [generated::TermSyntax]) {
+        for term in terms {
+            self.bind_prenex_relation_variables_in_term(term);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_zantufa_statement_terms_tail(
+        &mut self,
+        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
+    ) {
+        match tail {
+            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+                self.bind_prenex_relation_variables_in_terms(&tail.terms);
+            }
+            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
+                for term in tail.0.iter() {
+                    self.bind_prenex_relation_variables_in_term(term);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_linkargs(
+        &mut self,
+        linkargs: &'tree generated::LinkargsSyntax,
+    ) {
+        self.bind_prenex_relation_variables_in_linked_sumti(&linkargs.first_link);
+        for link in &linkargs.bei_links {
+            self.bind_prenex_relation_variables_in_linked_sumti(&link.link);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_prenex_relation_variables_in_linked_sumti(
+        &mut self,
+        link: &'tree generated::LinkedSumtiSyntax,
+    ) {
+        match link {
+            generated::LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
+                self.bind_prenex_relation_variables_in_argument(&sumti.0);
+            }
+            generated::LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
+                    self.bind_prenex_relation_variables_in_argument(sumti);
+                }
+            }
+            generated::LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
+                    self.bind_prenex_relation_variables_in_argument(sumti);
+                }
+            }
+            generated::LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
         }
     }
 
@@ -7070,6 +8035,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         tail: &'tree generated::BridiTailSyntax,
     ) {
         match tail {
+            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+                self.bind_prenex_relation_variables_in_bridi_tail(&tail.bridi_tail);
+                self.bind_prenex_relation_variables_in_terms(&tail.tail_terms);
+            }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.bind_prenex_relation_variables_in_afterthought_bridi_tail(&tail.first);
             }
@@ -7376,7 +8345,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 false
             }
             generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.visit_subbridi(&sumti.subbridi);
+                self.visit_statement(&sumti.statement);
                 false
             }
             generated::SumtiBaseSyntax::LaheSumti(sumti) => {
@@ -7575,6 +8544,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.visit_subbridi(&clause.subbridi);
                 }
+                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.visit_statement(&clause.statement);
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.visit_statement(&clause.statement);
+                }
             },
         }
     }
@@ -7600,6 +8579,20 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.relative_heads.push(reference_head_id);
                     self.visit_subbridi(&clause.subbridi);
+                    self.relative_heads.pop();
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.relative_heads.push(reference_head_id);
+                    self.visit_statement(&clause.statement);
+                    self.relative_heads.pop();
+                }
+                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                    clause,
+                ) => {
+                    self.relative_heads.push(reference_head_id);
+                    self.visit_statement(&clause.statement);
                     self.relative_heads.pop();
                 }
             },
@@ -7750,6 +8743,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
                 self.visit_math_expression(&quantifier.mekso);
             }
+            generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
+                self.visit_math_expression(&quantifier.0);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
@@ -7758,6 +8754,29 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_math_expression(&mut self, expression: &'tree generated::MeksoSyntax) {
         match expression {
+            generated::MeksoSyntax::ZantufaReversePolishMekso(expression) => {
+                for operand in &expression.operands {
+                    self.visit_mekso_base(operand);
+                }
+                self.visit_math_operator(&expression.operator);
+                for tail in &expression.tails {
+                    for operand in &tail.operands {
+                        self.visit_mekso_base(operand);
+                    }
+                    self.visit_math_operator(&tail.operator);
+                }
+            }
+            generated::MeksoSyntax::ZantufaInfixMekso(expression) => {
+                self.visit_mekso_precedence(&expression.first_expression);
+                for continuation in &expression.continuations {
+                    for operator in &continuation.operators {
+                        self.visit_math_operator(operator);
+                    }
+                    if let Some(right_expression) = &continuation.right_expression {
+                        self.visit_mekso_precedence(right_expression);
+                    }
+                }
+            }
             generated::MeksoSyntax::InfixMekso(expression) => {
                 self.visit_mekso_precedence(&expression.first_expression);
                 for continuation in &expression.continuations {
@@ -7790,6 +8809,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_operator(&call.operator);
                 for operand in &call.operands {
                     self.visit_mekso_base(operand);
+                }
+            }
+            generated::MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+                self.visit_mekso_operand(&group.first);
+                for continuation in &group.continuations {
+                    self.visit_mekso_operand(&continuation.expression);
                 }
             }
             generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
@@ -8138,11 +9163,22 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
+                unit,
+            ) => {
+                self.visit_statement(&unit.statement);
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.visit_sumti_selbri_sumti(&unit.sumti);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.visit_math_operator(&unit.mekso_operator);
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
+                self.visit_zantufa_me_tanru_unit(unit);
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
+                self.visit_math_expression(&unit.expression);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(unit) => {
                 self.visit_text(&unit.text);
@@ -8196,11 +9232,20 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
             }
+            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+                self.visit_statement(&unit.statement);
+            }
             generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
                 self.visit_sumti_selbri_sumti(&unit.sumti);
             }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(unit) => {
                 self.visit_math_operator(&unit.mekso_operator);
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
+                self.visit_zantufa_me_tanru_unit(unit);
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
+                self.visit_math_expression(&unit.expression);
             }
             generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => {
                 self.visit_text(&unit.text);
@@ -8214,6 +9259,24 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_me_tanru_unit(&mut self, unit: &'tree generated::ZantufaMeTanruUnitSyntax) {
+        match unit.body.as_ref() {
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => {
+                for operator in &body.0 {
+                    self.visit_math_operator(operator);
+                }
+            }
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeMeksoSelbriBody(body) => {
+                self.visit_math_expression(&body.0);
+            }
+            generated::ZantufaMeSelbriBodySyntax::ZantufaMeTagSelbriBody(body) => {
+                self.visit_tense_modal(&body.0);
+            }
         }
     }
 
@@ -9216,6 +10279,11 @@ fn generated_math_expression_to_usize(expression: &generated::MeksoSyntax) -> Op
         generated::MeksoSyntax::InfixMekso(expression) if expression.continuations.is_empty() => {
             generated_mekso_precedence_to_usize(&expression.first_expression)
         }
+        generated::MeksoSyntax::ZantufaInfixMekso(expression)
+            if expression.continuations.is_empty() =>
+        {
+            generated_mekso_precedence_to_usize(&expression.first_expression)
+        }
         _ => None,
     }
 }
@@ -9239,6 +10307,7 @@ fn generated_mekso_base_to_usize(expression: &generated::MeksoBaseSyntax) -> Opt
             generated_mekso_operand_to_usize(operand)
         }
         generated::MeksoBaseSyntax::ForethoughtCallMekso(_) => None,
+        generated::MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => None,
         generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => None,
     }
 }
@@ -9279,6 +10348,9 @@ fn generated_quantifier_to_usize(quantifier: &generated::QuantifierSyntax) -> Op
         }
         generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
             generated_math_expression_to_usize(&quantifier.mekso)
+        }
+        generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
+            generated_math_expression_to_usize(&quantifier.0)
         }
     }
 }

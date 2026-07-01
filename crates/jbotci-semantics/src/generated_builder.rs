@@ -29,32 +29,32 @@ use jbotci_syntax::generated_model::{
     ForethoughtBridiConnectionWithoutTailTermsSyntax, ForethoughtCallMeksoSyntax,
     ForethoughtMeksoOperandSyntax, ForethoughtMeksoOperatorSyntax,
     ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
-    ForethoughtSumtiSyntax, ForethoughtTermsetSyntax, FragmentStatementSyntax, FreeModifierSyntax,
-    GihekConnectiveSyntax, GihekFragmentSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
-    GroupedForethoughtBridiConnectionSyntax, GroupedTanruUnitSyntax, GuhekConnectiveSyntax,
-    IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
-    InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JoikConnectiveSyntax,
-    LaheSumtiSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
-    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
-    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiSyntax,
-    LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax, MeksoOperandSyntax,
-    MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax, NameSumtiSyntax,
-    NegatedForethoughtBridiConnectionSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
-    NoihaAdverbialTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax, NumberWordContinuationSyntax,
-    NumberWordsSyntax, OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
-    ParagraphStatementSequenceSyntax, ParagraphSyntax, ParenthesizedMeksoOperandSyntax,
-    PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax, PlainLinkedSumtiSyntax,
-    PlainRelativeSumtiSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
-    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
-    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
-    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
-    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
-    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseListSyntax,
-    RelativeClauseTailSyntax, RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax,
-    ReversePolishMeksoSyntax, ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax,
-    ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
-    ScalarNegatedTanruUnitSyntax, SelbriMeksoOperandSyntax, SelbriSimpleBridiTailSyntax,
-    SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
+    ForethoughtStatementSyntax, ForethoughtSumtiSyntax, ForethoughtTermsetSyntax,
+    FragmentStatementSyntax, FreeModifierSyntax, GihekConnectiveSyntax, GihekFragmentSyntax,
+    GikConnectiveSyntax, GohaWordTanruUnitSyntax, GroupedForethoughtBridiConnectionSyntax,
+    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IStatementConnectionSyntax,
+    IStatementConnectionTailSyntax, IStatementConnectiveSyntax, InfixMeksoSyntax,
+    JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
+    LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax,
+    LerfuStringSumtiSyntax, LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax,
+    LinkargsSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax,
+    MeksoBaseSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax,
+    ModalForethoughtConnectiveSyntax, NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax,
+    NihoParagraphSyntax, NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax,
+    NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
+    OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax, ParagraphStatementSequenceSyntax,
+    ParagraphSyntax, ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax,
+    PeheTermsetOperandSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
+    PrenexStatementSyntax, PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax,
+    ProBridiTanruUnitSyntax, ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
+    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
+    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    RelativeSumtiSyntax, RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax,
+    ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
+    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax, SelbriMeksoOperandSyntax,
+    SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax,
     SimpleParagraphSyntax, SimpleSumtiSyntax, SimpleTermSyntax, SoiFreeModifierSyntax,
     StandardStatementConnectiveSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
@@ -71,6 +71,10 @@ use jbotci_syntax::generated_model::{
     TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
     UntaggedSelbriSyntax, VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax,
     VocativeSumtiSyntax, VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax,
+    ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax, ZantufaInfixMeksoSyntax,
+    ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax,
+    ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
+    ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators};
 use jbotci_tree::TreeVisitor;
@@ -347,20 +351,26 @@ struct GeneratedProBridiReplaySource {
 #[invariant(::TermsFragment(_) => true)]
 #[invariant(::EkFragment(_) => true)]
 #[invariant(::GihekFragment(_) => true)]
+#[invariant(::ZantufaMeksoFragment(_) => true)]
 #[invariant(::StatementConnection(_) => true)]
 #[invariant(::PreposedStatementConnection(_) => true)]
 #[invariant(::PrenexStatement(_) => true)]
 #[invariant(::TextGroupStatement(_) => true)]
+#[invariant(::ForethoughtStatement(_) => true)]
+#[invariant(::ZantufaStatementTerms(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedTextRoot<'syntax> {
     Bridi(&'syntax BridiSyntax),
     TermsFragment(&'syntax TermsFragmentSyntax),
     EkFragment(&'syntax EkFragmentSyntax),
     GihekFragment(&'syntax GihekFragmentSyntax),
+    ZantufaMeksoFragment(&'syntax ZantufaMeksoFragmentSyntax),
     StatementConnection(&'syntax IStatementConnectionSyntax),
     PreposedStatementConnection(&'syntax PreposedIStatementConnectionSyntax),
     PrenexStatement(&'syntax PrenexStatementSyntax),
     TextGroupStatement(&'syntax TextGroupStatementSyntax),
+    ForethoughtStatement(&'syntax ForethoughtStatementSyntax),
+    ZantufaStatementTerms(&'syntax ZantufaStatementTermsStatementSyntax),
 }
 
 #[invariant(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
@@ -1533,6 +1543,20 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.add_generated_utterance_asides(utterance_id, asides);
                 Ok(utterance_id)
             }
+            GeneratedTextRoot::ZantufaMeksoFragment(fragment) => {
+                let previous_asides = std::mem::take(&mut self.pending_asides);
+                let content = self.build_zantufa_mekso_fragment_referent(fragment);
+                let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
+                let content = content?;
+                self.insert_generated_utterance(
+                    utterance_id,
+                    UtteranceForce::Mention,
+                    Some(content),
+                    self.source_for_node(fragment, "fragment"),
+                )?;
+                self.add_generated_utterance_asides(utterance_id, asides);
+                Ok(utterance_id)
+            }
             GeneratedTextRoot::PrenexStatement(statement) => self
                 .build_utterance_for_generated_prenex_statement(
                     utterance_id,
@@ -1540,12 +1564,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     truth_question,
                 ),
             GeneratedTextRoot::StatementConnection(_)
-            | GeneratedTextRoot::PreposedStatementConnection(_) => {
+            | GeneratedTextRoot::PreposedStatementConnection(_)
+            | GeneratedTextRoot::ForethoughtStatement(_) => {
                 Err(unsupported("statement connection as utterance"))
             }
             GeneratedTextRoot::TextGroupStatement(statement) => {
                 self.build_generated_text_group_statement_with_id(utterance_id, statement)
             }
+            GeneratedTextRoot::ZantufaStatementTerms(statement) => self
+                .build_utterance_for_generated_zantufa_statement_terms(
+                    utterance_id,
+                    statement,
+                    truth_question,
+                ),
         }
     }
 
@@ -1624,6 +1655,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self.add_generated_utterance_asides(utterance_id, asides);
                 Ok(utterance_id)
             }
+            GeneratedTextRoot::ZantufaMeksoFragment(fragment) => {
+                let utterance_id = self.next_utterance_id();
+                self.current_utterance = Some(utterance_id);
+                let previous_asides = std::mem::take(&mut self.pending_asides);
+                let content = self.build_zantufa_mekso_fragment_referent(fragment);
+                let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
+                let content = content?;
+                self.insert_generated_utterance(
+                    utterance_id,
+                    UtteranceForce::Mention,
+                    Some(content),
+                    self.source_for_node(fragment, "fragment"),
+                )?;
+                self.add_generated_utterance_asides(utterance_id, asides);
+                Ok(utterance_id)
+            }
             GeneratedTextRoot::StatementConnection(connection) => {
                 self.build_i_statement_connection_sequence(connection)
             }
@@ -1636,7 +1683,89 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             GeneratedTextRoot::TextGroupStatement(statement) => {
                 self.build_generated_text_group_statement(statement)
             }
+            GeneratedTextRoot::ForethoughtStatement(statement) => {
+                self.build_forethought_statement_connection_sequence(statement)
+            }
+            GeneratedTextRoot::ZantufaStatementTerms(statement) => {
+                self.build_discourse_item_for_generated_zantufa_statement_terms(statement)
+            }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
+    fn build_zantufa_mekso_fragment_referent(
+        &mut self,
+        fragment: &ZantufaMeksoFragmentSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let text = generated_number_descriptor_mekso_surface_text(fragment.0.as_ref())?;
+        let quantity = self.build_quantity_for_generated_mekso(
+            fragment.0.as_ref(),
+            self.source_for_node(fragment.0.as_ref(), "quantity"),
+        )?;
+        let id = self.next_referent_with_sort_id(SemanticSort::Number);
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Constant,
+                SemanticSort::Number,
+                None,
+                Some(Descriptor {
+                    kind: "number".to_owned(),
+                    word: "mex".to_owned(),
+                    speaker: None,
+                    body: None,
+                    veridical: None,
+                    relative_clauses: Vec::new(),
+                    quantity: Some(quantity),
+                    name: Some(text),
+                    scale: None,
+                    definiteness: None,
+                    operand: None,
+                }),
+                None,
+                self.source_for_node(fragment, "number-fragment"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
+    }
+
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|id| *id == utterance_id) || ret.is_err())]
+    fn build_utterance_for_generated_zantufa_statement_terms(
+        &mut self,
+        utterance_id: SemanticObjectId,
+        statement: &ZantufaStatementTermsStatementSyntax,
+        truth_question: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if !zantufa_statement_terms_tail_is_semantically_empty(&statement.tail) {
+            return Err(unsupported(
+                "Zantufa statement-level trailing terms semantics",
+            ));
+        }
+        let root = semantic_root_from_statement(&statement.statement)?;
+        if !generated_text_root_is_utterance(&root) {
+            return Err(unsupported(
+                "Zantufa statement-level reset around statement connection",
+            ));
+        }
+        self.build_utterance_for_generated_text_root(utterance_id, root, truth_question)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn build_discourse_item_for_generated_zantufa_statement_terms(
+        &mut self,
+        statement: &ZantufaStatementTermsStatementSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if !zantufa_statement_terms_tail_is_semantically_empty(&statement.tail) {
+            return Err(unsupported(
+                "Zantufa statement-level trailing terms semantics",
+            ));
+        }
+        let root = semantic_root_from_statement(&statement.statement)?;
+        self.build_discourse_item_for_generated_text_root(root)
     }
 
     #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
@@ -4595,6 +4724,277 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
+    fn build_forethought_statement_connection_sequence(
+        &mut self,
+        connection: &ForethoughtStatementSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let (item, _formula) =
+            self.build_forethought_statement_connection_item(connection, UtteranceForce::Assert)?;
+        if item.object_kind() == crate::model::SemanticObjectKind::Sequence {
+            Ok(item)
+        } else {
+            Err(invalid_graph(format!(
+                "forethought statement connection built non-sequence item {item}"
+            )))
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_forethought_statement_connection_item(
+        &mut self,
+        connection: &ForethoughtStatementSyntax,
+        force: UtteranceForce,
+    ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
+        let source = self.source_for_node(connection, "forethought-statement-connection");
+        let (first_item, first_formula) =
+            self.build_generated_statement_connection_item(&connection.first, force)?;
+        let (branch_item, branch_formula) = self.build_generated_statement_connection_item(
+            &connection.first_branch.statement,
+            UtteranceForce::Assert,
+        )?;
+        let mut items = vec![first_item, branch_item];
+        let logical = generated_modal_forethought_connective_is_logical(&connection.gek);
+        let mut formula = if logical {
+            match (first_formula, branch_formula) {
+                (Some(left), Some(right)) => Some(
+                    self.build_binary_formula_for_generated_forethought_statement_connective(
+                        &connection.gek,
+                        &connection.first_branch.gik,
+                        left,
+                        right,
+                        source.clone(),
+                    )?,
+                ),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let mut connection_claims = Vec::new();
+        let mut diagnostics = Vec::new();
+        if !logical {
+            if let Some(spec) =
+                generated_modal_statement_connection_spec_for_tense_modal(&connection.gek)
+            {
+                match self.build_generated_modal_statement_connection_claim(
+                    first_item,
+                    branch_item,
+                    &spec,
+                    source.clone(),
+                )? {
+                    Some(claim) => connection_claims.push(claim),
+                    None => diagnostics.push(diagnostic(
+                        "modal forethought statement connection could not find discourse items to relate",
+                    )),
+                }
+            } else {
+                diagnostics.push(diagnostic(
+                    "nonlogical forethought statement connection is not fully lowered",
+                ));
+            }
+        } else if formula.is_none() {
+            diagnostics.push(diagnostic(
+                "logical forethought statement connection could not find formula-bearing statements to connect",
+            ));
+        }
+
+        let mut previous_item = branch_item;
+        for branch in &connection.additional_branches {
+            let (next_item, next_formula) = self.build_generated_statement_connection_item(
+                &branch.statement,
+                UtteranceForce::Assert,
+            )?;
+            if logical {
+                if let (Some(left), Some(right)) = (formula, next_formula) {
+                    formula = Some(
+                        self.build_binary_formula_for_generated_extra_forethought_statement_connective(
+                            &connection.gek,
+                            &branch.gik,
+                            left,
+                            right,
+                            source.clone(),
+                        )?,
+                    );
+                } else {
+                    diagnostics.push(diagnostic(
+                        "logical forethought statement connection could not find formula-bearing statements to connect",
+                    ));
+                    formula = None;
+                }
+            } else if let Some(spec) =
+                generated_modal_statement_connection_spec_for_tense_modal(&connection.gek)
+            {
+                match self.build_generated_modal_statement_connection_claim(
+                    previous_item,
+                    next_item,
+                    &spec,
+                    source.clone(),
+                )? {
+                    Some(claim) => connection_claims.push(claim),
+                    None => diagnostics.push(diagnostic(
+                        "modal forethought statement connection could not find discourse items to relate",
+                    )),
+                }
+            }
+            items.push(next_item);
+            previous_item = next_item;
+        }
+
+        if formula.is_some() {
+            for item in &items {
+                self.mark_generated_discourse_item_subordinated(*item);
+            }
+        }
+        let sequence = self.next_sequence_id();
+        let mut object = SemanticObject::sequence_with_connection_claims(
+            items,
+            SequenceRelation::SameTopicContinuation,
+            connection_claims,
+            source,
+            diagnostics,
+        );
+        object.content = formula;
+        self.insert(sequence, object)?;
+        Ok((sequence, formula))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_generated_statement_connection_item(
+        &mut self,
+        statement: &StatementSyntax,
+        force: UtteranceForce,
+    ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
+        match statement {
+            StatementSyntax::StatementBase(statement) => {
+                self.build_generated_statement_base_connection_item(statement, force)
+            }
+            StatementSyntax::IStatementConnection(statement) => {
+                let item = self.build_i_statement_connection_sequence(statement)?;
+                let formula = self.content_formula_for_generated_discourse_item(item);
+                Ok((item, formula))
+            }
+            StatementSyntax::PreposedIStatementConnection(statement) => {
+                let item = self.build_preposed_i_statement_connection_sequence(statement)?;
+                let formula = self.content_formula_for_generated_discourse_item(item);
+                Ok((item, formula))
+            }
+        }
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_forethought_statement_connective(
+        &mut self,
+        connective: &ModalForethoughtConnectiveSyntax,
+        gik: &GikConnectiveSyntax,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_binary_formula_for_generated_forethought_statement_connective_core(
+            connective,
+            generated_gik_connective_negates_right(gik),
+            generated_modal_forethought_pair_source(connective, gik),
+            left,
+            right,
+            source,
+        )
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_extra_forethought_statement_connective(
+        &mut self,
+        connective: &ModalForethoughtConnectiveSyntax,
+        gik: &ZantufaExtraGikConnectiveSyntax,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let connector_source = format!(
+            "{} {}",
+            generated_modal_forethought_connective_source(connective),
+            token_text(&gik.0.value)
+        );
+        self.build_binary_formula_for_generated_forethought_statement_connective_core(
+            connective,
+            false,
+            connector_source,
+            left,
+            right,
+            source,
+        )
+    }
+
+    #[requires(!connector_source.is_empty())]
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_forethought_statement_connective_core(
+        &mut self,
+        connective: &ModalForethoughtConnectiveSyntax,
+        right_negated: bool,
+        connector_source: String,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.mark_generated_modal_forethought_whether_or_not_inert_operand(connective, left, right);
+        let left = if generated_modal_forethought_connective_negates_left(connective) {
+            self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
+        } else {
+            left
+        };
+        let right = if right_negated {
+            self.build_unary_formula(FormulaOperator::Not, right, source.clone())?
+        } else {
+            right
+        };
+        let operator = generated_modal_forethought_connective_formula_operator(connective);
+        let children = if generated_modal_forethought_connective_has_se(connective)
+            && operator != FormulaOperator::WhetherOrNot
+        {
+            vec![right, left]
+        } else {
+            vec![left, right]
+        };
+        let parameter = self
+            .build_generated_connective_question_parameter_for_modal_forethought_connective(
+                connective,
+            )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::connective_formula(
+                if parameter.is_some() {
+                    FormulaOperator::ConnectiveQuestion
+                } else {
+                    operator
+                },
+                children,
+                Some(Connector {
+                    source: connector_source,
+                    locus: "statement".to_owned(),
+                    truth_table:
+                        generated_modal_forethought_connective_truth_table_with_right_negated(
+                            connective,
+                            right_negated,
+                        ),
+                    parameter,
+                }),
+                source,
+                Vec::new(),
+            ),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     fn build_generated_statement_base_connection_item(
         &mut self,
@@ -4622,6 +5022,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 let formula = self.content_formula_for_generated_discourse_item(item);
                 Ok((item, formula))
             }
+            StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.build_forethought_statement_connection_item(statement, force)
+            }
         }
     }
 
@@ -4647,6 +5050,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 let item = self.build_generated_text_group_statement(statement)?;
                 let formula = self.content_formula_for_generated_discourse_item(item);
                 Ok((item, formula))
+            }
+            StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.build_forethought_statement_connection_item(statement, force)
             }
         }
     }
@@ -22879,6 +23285,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     head,
                     RelativeClauseKind::Incidental,
                 ),
+            BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(clause) => self
+                .lower_generated_relative_statement(
+                    clause.statement.as_ref(),
+                    head,
+                    RelativeClauseKind::Restrictive,
+                ),
+            BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(clause) => self
+                .lower_generated_relative_statement(
+                    clause.statement.as_ref(),
+                    head,
+                    RelativeClauseKind::Incidental,
+                ),
         }
     }
 
@@ -23009,6 +23427,38 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             kind,
             formula,
             self.source_for_generated_subbridi(subbridi, "relative-clause"),
+        ))
+    }
+
+    #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn lower_generated_relative_statement(
+        &mut self,
+        statement: &StatementSyntax,
+        head: SemanticObjectId,
+        kind: RelativeClauseKind,
+    ) -> Result<RelativeClause, SemanticsError> {
+        let mode = predication_mode_for_relative_clause_kind(kind);
+        let contains_keha = generated_statement_contains_current_level_keha(statement);
+        let previous_relative_head = self.relative_head;
+        self.relative_head = Some(head);
+        self.relative_head_stack.push(head);
+        let result = self
+            .build_generated_statement_connection_item(statement, UtteranceForce::Subordinated)
+            .and_then(|(_item, formula)| {
+                formula.ok_or_else(|| unsupported("relative statement without formula"))
+            });
+        self.relative_head_stack.pop();
+        self.relative_head = previous_relative_head;
+        let formula = result?;
+        if !contains_keha {
+            self.fill_first_elided_generated_formula_argument(formula, head)?;
+        }
+        self.set_formula_predication_mode(formula, mode);
+        Ok(RelativeClause::new(
+            kind,
+            formula,
+            self.source_for_node(statement, "relative-clause"),
         ))
     }
 
@@ -23912,6 +24362,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match expression {
+            MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
+                self.build_generated_zantufa_reverse_polish_mekso(reverse_polish, source)
+            }
+            MeksoSyntax::ZantufaInfixMekso(infix) => {
+                self.build_generated_zantufa_infix_mekso(infix, source)
+            }
             MeksoSyntax::InfixMekso(infix) => self.build_generated_infix_mekso(infix, source),
             MeksoSyntax::ReversePolishMekso(reverse_polish) => {
                 self.build_generated_reverse_polish_mekso(reverse_polish, source)
@@ -23928,6 +24384,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(SemanticObjectId, bool), SemanticsError> {
         match expression {
+            MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => self
+                .build_generated_zantufa_reverse_polish_mekso(reverse_polish, source)
+                .map(|id| (id, false)),
+            MeksoSyntax::ZantufaInfixMekso(infix) => self
+                .build_generated_zantufa_infix_mekso_with_connected_operator_replacement(
+                    infix,
+                    replacement_operator,
+                    source,
+                ),
             MeksoSyntax::InfixMekso(infix) => self
                 .build_generated_infix_mekso_with_connected_operator_replacement(
                     infix,
@@ -23991,6 +24456,68 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 };
                 expression = self.build_generated_math_operator_expression_for_operator(
                     &continuation.operator,
+                    vec![expression, right],
+                    expression_source,
+                )?;
+                replaced |= right_replaced;
+            }
+        }
+        Ok((expression, replaced))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_infix_mekso_with_connected_operator_replacement(
+        &mut self,
+        infix: &ZantufaInfixMeksoSyntax,
+        replacement_operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        if infix.continuations.is_empty() {
+            return self.build_generated_mekso_precedence_with_connected_operator_replacement(
+                &infix.first_expression,
+                replacement_operator,
+                source,
+            );
+        }
+        let (mut expression, mut replaced) = self
+            .build_generated_mekso_precedence_with_connected_operator_replacement(
+                &infix.first_expression,
+                replacement_operator,
+                None,
+            )?;
+        let last_index = infix.continuations.len() - 1;
+        for (index, continuation) in infix.continuations.iter().enumerate() {
+            let [operator] = continuation.operators.as_slice() else {
+                return Err(unsupported("Zantufa multi-operator mex semantics"));
+            };
+            let Some(right_expression) = &continuation.right_expression else {
+                return Err(unsupported("Zantufa trailing mex operator semantics"));
+            };
+            let expression_source = (index == last_index).then(|| source.clone()).flatten();
+            if !replaced && connected_generated_mekso_operator(operator)?.is_some() {
+                let right = self.build_generated_mekso_precedence(right_expression, None)?;
+                expression = self.build_generated_math_operator_expression_for_operator(
+                    replacement_operator,
+                    vec![expression, right],
+                    expression_source,
+                )?;
+                replaced = true;
+            } else {
+                let (right, right_replaced) = if replaced {
+                    (
+                        self.build_generated_mekso_precedence(right_expression, None)?,
+                        false,
+                    )
+                } else {
+                    self.build_generated_mekso_precedence_with_connected_operator_replacement(
+                        right_expression,
+                        replacement_operator,
+                        None,
+                    )?
+                };
+                expression = self.build_generated_math_operator_expression_for_operator(
+                    operator,
                     vec![expression, right],
                     expression_source,
                 )?;
@@ -24104,6 +24631,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     source,
                 )
                 .map(|id| (id, replaced))
+            }
+            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => {
+                Err(unsupported("Zantufa BO-grouped mex semantics"))
             }
             MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
                 "Zantufa grouped mex operand sequence semantics",
@@ -24330,6 +24860,37 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_infix_mekso(
+        &mut self,
+        infix: &ZantufaInfixMeksoSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if infix.continuations.is_empty() {
+            return self.build_generated_mekso_precedence(&infix.first_expression, source);
+        }
+        let mut expression =
+            self.build_generated_mekso_precedence(&infix.first_expression, None)?;
+        let last_index = infix.continuations.len() - 1;
+        for (index, continuation) in infix.continuations.iter().enumerate() {
+            let [operator] = continuation.operators.as_slice() else {
+                return Err(unsupported("Zantufa multi-operator mex semantics"));
+            };
+            let Some(right_expression) = &continuation.right_expression else {
+                return Err(unsupported("Zantufa trailing mex operator semantics"));
+            };
+            let right = self.build_generated_mekso_precedence(right_expression, None)?;
+            let expression_source = (index == last_index).then(|| source.clone()).flatten();
+            expression = self.build_generated_math_operator_expression_for_operator(
+                operator,
+                vec![expression, right],
+                expression_source,
+            )?;
+        }
+        Ok(expression)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     fn build_generated_mekso_precedence(
         &mut self,
         expression: &MeksoPrecedenceSyntax,
@@ -24360,6 +24921,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             MeksoBaseSyntax::ForethoughtCallMekso(call) => {
                 self.build_generated_forethought_call_mekso(call, source)
+            }
+            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => {
+                Err(unsupported("Zantufa BO-grouped mex semantics"))
             }
             MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
                 "Zantufa grouped mex operand sequence semantics",
@@ -24686,6 +25250,80 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .map(|operand| self.build_generated_mekso_base(operand, None))
             .collect::<Result<Vec<_>, _>>()?;
         self.build_generated_math_operator_expression_for_operator(&call.operator, operands, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_reverse_polish_mekso(
+        &mut self,
+        reverse_polish: &ZantufaReversePolishMeksoSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut stack = Vec::with_capacity(reverse_polish.operands.len() + 1);
+        for operand in &reverse_polish.operands {
+            stack.push(self.build_generated_mekso_base(operand, None)?);
+        }
+
+        let first_operator_source = reverse_polish
+            .tails
+            .is_empty()
+            .then(|| source.clone())
+            .flatten();
+        self.apply_generated_zantufa_reverse_polish_operator(
+            &mut stack,
+            &reverse_polish.operator,
+            first_operator_source,
+        )?;
+
+        let last_tail_index = reverse_polish.tails.len().saturating_sub(1);
+        for (index, tail) in reverse_polish.tails.iter().enumerate() {
+            for operand in &tail.operands {
+                stack.push(self.build_generated_mekso_base(operand, None)?);
+            }
+            let operator_source = (index == last_tail_index).then(|| source.clone()).flatten();
+            self.apply_generated_zantufa_reverse_polish_operator(
+                &mut stack,
+                &tail.operator,
+                operator_source,
+            )?;
+        }
+
+        if stack.len() != 1 {
+            return Err(unsupported(
+                "Zantufa reverse Polish mex stack did not reduce to one expression",
+            ));
+        }
+        stack.pop().ok_or_else(|| {
+            unsupported("Zantufa reverse Polish mex stack did not produce an expression")
+        })
+    }
+
+    #[requires(stack.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(stack.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    fn apply_generated_zantufa_reverse_polish_operator(
+        &mut self,
+        stack: &mut Vec<SemanticObjectId>,
+        operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(), SemanticsError> {
+        if stack.len() < 2 {
+            return Err(unsupported(
+                "Zantufa reverse Polish mex operator without two operands",
+            ));
+        }
+        let right = stack
+            .pop()
+            .ok_or_else(|| unsupported("Zantufa reverse Polish mex missing right operand"))?;
+        let left = stack
+            .pop()
+            .ok_or_else(|| unsupported("Zantufa reverse Polish mex missing left operand"))?;
+        let expression = self.build_generated_math_operator_expression_for_operator(
+            operator,
+            vec![left, right],
+            source,
+        )?;
+        stack.push(expression);
+        Ok(())
     }
 
     #[requires(true)]
@@ -27240,6 +27878,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     quantifier.mekso.as_ref(),
                     self.source_for_node(quantifier, "quantity"),
                 ),
+            QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => self
+                .build_quantity_for_generated_mekso(
+                    quantifier.0.as_ref(),
+                    self.source_for_node(quantifier, "quantity"),
+                ),
         }
     }
 
@@ -28578,6 +29221,9 @@ fn semantic_root_from_statement_or_fragment(
     statement_or_fragment: &StatementOrFragmentSyntax,
 ) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
     match statement_or_fragment {
+        StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+            Ok(GeneratedTextRoot::ZantufaStatementTerms(statement))
+        }
         StatementOrFragmentSyntax::StatementOrFragmentStatement(
             StatementOrFragmentStatementSyntax(statement),
         ) => semantic_root_from_statement(statement),
@@ -28590,6 +29236,9 @@ fn semantic_root_from_statement_or_fragment(
         StatementOrFragmentSyntax::FragmentStatement(FragmentStatementSyntax::GihekFragment(
             fragment,
         )) => Ok(GeneratedTextRoot::GihekFragment(fragment)),
+        StatementOrFragmentSyntax::FragmentStatement(
+            FragmentStatementSyntax::ZantufaMeksoFragment(fragment),
+        ) => Ok(GeneratedTextRoot::ZantufaMeksoFragment(fragment)),
         StatementOrFragmentSyntax::FragmentStatement(_) => Err(unsupported("non-terms fragment")),
     }
 }
@@ -28617,13 +29266,36 @@ fn generated_text_root_is_utterance(root: &GeneratedTextRoot<'_>) -> bool {
         GeneratedTextRoot::Bridi(_)
         | GeneratedTextRoot::TermsFragment(_)
         | GeneratedTextRoot::EkFragment(_)
-        | GeneratedTextRoot::GihekFragment(_) => true,
+        | GeneratedTextRoot::GihekFragment(_)
+        | GeneratedTextRoot::ZantufaMeksoFragment(_) => true,
         GeneratedTextRoot::PrenexStatement(statement) => {
             generated_statement_is_utterance(&statement.inner_statement)
         }
         GeneratedTextRoot::TextGroupStatement(_) => true,
+        GeneratedTextRoot::ZantufaStatementTerms(statement) => {
+            zantufa_statement_terms_tail_is_semantically_empty(&statement.tail)
+                && semantic_root_from_statement(&statement.statement)
+                    .is_ok_and(|root| generated_text_root_is_utterance(&root))
+        }
+        GeneratedTextRoot::ForethoughtStatement(_) => false,
         GeneratedTextRoot::StatementConnection(_)
         | GeneratedTextRoot::PreposedStatementConnection(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == match tail {
+    ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => tail.terms.is_empty(),
+    ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(_) => false,
+})]
+fn zantufa_statement_terms_tail_is_semantically_empty(
+    tail: &ZantufaStatementTermsTailSyntax,
+) -> bool {
+    match tail {
+        ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+            tail.terms.is_empty()
+        }
+        ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(_) => false,
     }
 }
 
@@ -28652,6 +29324,9 @@ fn bridi_from_statement_base(base: &StatementBaseSyntax) -> Result<&BridiSyntax,
             Ok(bridi)
         }
         StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group statement")),
+        StatementBaseSyntax::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement as bridi"))
+        }
     }
 }
 
@@ -28669,6 +29344,9 @@ fn semantic_root_from_statement_base(
         )),
         StatementBaseSyntax::TextGroupStatement(statement) => {
             Ok(GeneratedTextRoot::TextGroupStatement(statement))
+        }
+        StatementBaseSyntax::ForethoughtStatement(statement) => {
+            Ok(GeneratedTextRoot::ForethoughtStatement(statement))
         }
     }
 }
@@ -28692,6 +29370,7 @@ fn generated_statement_base_is_utterance(base: &StatementBaseSyntax) -> bool {
             generated_statement_is_utterance(&statement.inner_statement)
         }
         StatementBaseSyntax::TextGroupStatement(_) => false,
+        StatementBaseSyntax::ForethoughtStatement(_) => false,
     }
 }
 
@@ -28717,6 +29396,9 @@ fn bridi_from_statement_after_i_connective(
         }
         StatementAfterIConnectiveSyntax::TextGroupStatement(_) => {
             Err(unsupported("text group statement connection"))
+        }
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement as bridi"))
         }
     }
 }
@@ -30032,6 +30714,15 @@ fn relation_label_from_tanru_unit_atom_base(
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
         }
+        TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(abstraction) => {
+            abstraction_relation_label_from_zantufa_statement(abstraction)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_) => {
+            Err(unsupported("Zantufa ME selbri relation label"))
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_) => {
+            Err(unsupported("Zantufa mex MOI relation label"))
+        }
         TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
             relation_label_from_operator_selbri_tanru_unit(operator)
@@ -30955,6 +31646,10 @@ fn generated_simple_mekso_operator_surface_label(
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn generated_mekso_surface_text(expression: &MeksoSyntax) -> Result<String, SemanticsError> {
     match expression {
+        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
+            generated_zantufa_reverse_polish_surface_text(reverse_polish)
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => generated_zantufa_infix_mekso_surface_text(infix),
         MeksoSyntax::InfixMekso(infix) => generated_infix_mekso_surface_text(infix),
         MeksoSyntax::ReversePolishMekso(reverse_polish) => {
             generated_reverse_polish_surface_text(reverse_polish)
@@ -30969,6 +31664,13 @@ fn generated_mekso_surface_text_with_connected_operator_replacement(
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
     match expression {
+        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
+                infix,
+                replacement_operator,
+            )
+        }
         MeksoSyntax::InfixMekso(infix) => {
             generated_infix_mekso_surface_text_with_connected_operator_replacement(
                 infix,
@@ -31032,6 +31734,62 @@ fn generated_infix_mekso_surface_text_with_connected_operator_replacement(
                 generated_mekso_operator_surface_label(&continuation.operator)?,
                 right
             );
+        }
+    }
+    Ok(replaced.then_some(text))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+fn generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
+    infix: &ZantufaInfixMeksoSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    if infix.continuations.is_empty() {
+        return generated_mekso_precedence_surface_text_with_connected_operator_replacement(
+            &infix.first_expression,
+            replacement_operator,
+        );
+    }
+    let mut replaced = false;
+    let mut text = if let Some(first) =
+        generated_mekso_precedence_surface_text_with_connected_operator_replacement(
+            &infix.first_expression,
+            replacement_operator,
+        )? {
+        replaced = true;
+        first
+    } else {
+        generated_mekso_precedence_surface_text(&infix.first_expression)?
+    };
+    for continuation in &infix.continuations {
+        let mut operator_texts = Vec::with_capacity(continuation.operators.len());
+        for operator in &continuation.operators {
+            if !replaced && connected_generated_mekso_operator(operator)?.is_some() {
+                replaced = true;
+                operator_texts.push(generated_mekso_operator_surface_label(
+                    replacement_operator,
+                )?);
+            } else {
+                operator_texts.push(generated_mekso_operator_surface_label(operator)?);
+            }
+        }
+        text = format!("{} {}", text, operator_texts.join(" "));
+        if let Some(right_expression) = &continuation.right_expression {
+            let right = if replaced {
+                generated_mekso_precedence_surface_text(right_expression)?
+            } else if let Some(right) =
+                generated_mekso_precedence_surface_text_with_connected_operator_replacement(
+                    right_expression,
+                    replacement_operator,
+                )?
+            {
+                replaced = true;
+                right
+            } else {
+                generated_mekso_precedence_surface_text(right_expression)?
+            };
+            text = format!("{text} {right}");
         }
     }
     Ok(replaced.then_some(text))
@@ -31127,7 +31885,8 @@ fn generated_mekso_base_surface_text_with_connected_operator_replacement(
             }
             Ok(replaced.then(|| parts.join(" ")))
         }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok(None),
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_)
+        | MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok(None),
     }
 }
 
@@ -31347,6 +32106,16 @@ fn generated_number_descriptor_mekso_surface_text(
     expression: &MeksoSyntax,
 ) -> Result<String, SemanticsError> {
     match expression {
+        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
+            if generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish) {
+                Ok("mekso".to_owned())
+            } else {
+                generated_zantufa_reverse_polish_surface_text(reverse_polish)
+            }
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            generated_number_descriptor_zantufa_infix_mekso_surface_text(infix)
+        }
         MeksoSyntax::InfixMekso(infix) => {
             generated_number_descriptor_infix_mekso_surface_text(infix)
         }
@@ -31376,6 +32145,28 @@ fn generated_number_descriptor_infix_mekso_surface_text(
                 &continuation.right_expression,
             )?
         );
+    }
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_number_descriptor_zantufa_infix_mekso_surface_text(
+    infix: &ZantufaInfixMeksoSyntax,
+) -> Result<String, SemanticsError> {
+    let mut text =
+        generated_number_descriptor_mekso_precedence_surface_text(&infix.first_expression)?;
+    for continuation in &infix.continuations {
+        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
+        for operator in &continuation.operators {
+            parts.push(generated_mekso_operator_surface_label(operator)?);
+        }
+        if let Some(right_expression) = &continuation.right_expression {
+            parts.push(generated_number_descriptor_mekso_precedence_surface_text(
+                right_expression,
+            )?);
+        }
+        text = format!("{} {}", text, parts.join(" "));
     }
     Ok(text)
 }
@@ -31416,6 +32207,9 @@ fn generated_number_descriptor_mekso_base_surface_text(
             }
             Ok(parts.join(" "))
         }
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
+        }
         MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok("mekso".to_owned()),
     }
 }
@@ -31438,9 +32232,41 @@ fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match expression {
+        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            first_generated_connected_mekso_operator_in_zantufa_infix(infix)
+        }
         MeksoSyntax::InfixMekso(infix) => first_generated_connected_mekso_operator_in_infix(infix),
         MeksoSyntax::ReversePolishMekso(_) => Ok(None),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+fn first_generated_connected_mekso_operator_in_zantufa_infix(
+    infix: &ZantufaInfixMeksoSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    for continuation in &infix.continuations {
+        for operator in &continuation.operators {
+            if let Some(expansion) = connected_generated_mekso_operator(operator)? {
+                return Ok(Some(expansion));
+            }
+        }
+    }
+    if let Some(expansion) =
+        first_generated_connected_mekso_operator_in_precedence(&infix.first_expression)?
+    {
+        return Ok(Some(expansion));
+    }
+    for continuation in &infix.continuations {
+        if let Some(right_expression) = &continuation.right_expression
+            && let Some(expansion) =
+                first_generated_connected_mekso_operator_in_precedence(right_expression)?
+        {
+            return Ok(Some(expansion));
+        }
+    }
+    Ok(None)
 }
 
 #[requires(true)]
@@ -31512,6 +32338,21 @@ fn first_generated_connected_mekso_operator_in_base(
             for operand in &group.operands {
                 if let Some(expansion) =
                     first_generated_connected_mekso_operator_in_operand(operand)?
+                {
+                    return Ok(Some(expansion));
+                }
+            }
+            Ok(None)
+        }
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+            if let Some(expansion) =
+                first_generated_connected_mekso_operator_in_operand(&group.first)?
+            {
+                return Ok(Some(expansion));
+            }
+            for continuation in &group.continuations {
+                if let Some(expansion) =
+                    first_generated_connected_mekso_operator_in_operand(&continuation.expression)?
                 {
                     return Ok(Some(expansion));
                 }
@@ -31788,6 +32629,17 @@ fn generated_mekso_operator_from_bound_or_atom(
 #[ensures(true)]
 fn generated_mekso_contains_operand_connection(expression: &MeksoSyntax) -> bool {
     match expression {
+        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
+            generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish)
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
+                || infix.continuations.iter().any(|continuation| {
+                    continuation.right_expression.as_ref().is_some_and(|right| {
+                        generated_mekso_precedence_contains_operand_connection(right)
+                    })
+                })
+        }
         MeksoSyntax::InfixMekso(infix) => {
             generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
                 || infix.continuations.iter().any(|continuation| {
@@ -31800,6 +32652,22 @@ fn generated_mekso_contains_operand_connection(expression: &MeksoSyntax) -> bool
             generated_reverse_polish_parts_contains_operand_connection(&reverse_polish.parts)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_reverse_polish_contains_operand_connection(
+    reverse_polish: &ZantufaReversePolishMeksoSyntax,
+) -> bool {
+    reverse_polish
+        .operands
+        .iter()
+        .any(generated_mekso_base_contains_operand_connection)
+        || reverse_polish.tails.iter().any(|tail| {
+            tail.operands
+                .iter()
+                .any(generated_mekso_base_contains_operand_connection)
+        })
 }
 
 #[requires(true)]
@@ -31835,6 +32703,12 @@ fn generated_mekso_base_contains_operand_connection(expression: &MeksoBaseSyntax
             .operands
             .iter()
             .any(generated_mekso_base_contains_operand_connection),
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+            generated_mekso_operand_contains_operand_connection(&group.first)
+                || group.continuations.iter().any(|continuation| {
+                    generated_mekso_operand_contains_operand_connection(&continuation.expression)
+                })
+        }
         MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => group
             .operands
             .iter()
@@ -31938,6 +32812,25 @@ fn generated_infix_mekso_surface_text(infix: &InfixMeksoSyntax) -> Result<String
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_zantufa_infix_mekso_surface_text(
+    infix: &ZantufaInfixMeksoSyntax,
+) -> Result<String, SemanticsError> {
+    let mut text = generated_mekso_precedence_surface_text(&infix.first_expression)?;
+    for continuation in &infix.continuations {
+        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
+        for operator in &continuation.operators {
+            parts.push(generated_mekso_operator_surface_label(operator)?);
+        }
+        if let Some(right_expression) = &continuation.right_expression {
+            parts.push(generated_mekso_precedence_surface_text(right_expression)?);
+        }
+        text = format!("{} {}", text, parts.join(" "));
+    }
+    Ok(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn generated_mekso_precedence_surface_text(
     expression: &MeksoPrecedenceSyntax,
 ) -> Result<String, SemanticsError> {
@@ -31967,6 +32860,9 @@ fn generated_mekso_base_surface_text(
             }
             Ok(parts.join(" "))
         }
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
+        }
         MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
             let mut parts = Vec::with_capacity(group.operands.len() + 2);
             parts.push(token_text(&group.ke.value));
@@ -31979,6 +32875,22 @@ fn generated_mekso_base_surface_text(
             Ok(parts.join(" "))
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_zantufa_bo_grouped_mekso_base_surface_text(
+    group: &ZantufaBoGroupedMeksoBaseSyntax,
+) -> Result<String, SemanticsError> {
+    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
+    parts.push(generated_mekso_operand_surface_text(&group.first)?);
+    for continuation in &group.continuations {
+        parts.push(token_text(&continuation.bo.value));
+        parts.push(generated_mekso_operand_surface_text(
+            &continuation.expression,
+        )?);
+    }
+    Ok(parts.join(" "))
 }
 
 #[requires(true)]
@@ -32105,6 +33017,19 @@ fn generated_reverse_polish_surface_text(
     reverse_polish.visit_in_order(&mut visitor);
     if visitor.tokens.is_empty() {
         return Err(unsupported("empty reverse Polish mekso"));
+    }
+    Ok(token_list_text(visitor.tokens.iter()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_zantufa_reverse_polish_surface_text(
+    reverse_polish: &ZantufaReversePolishMeksoSyntax,
+) -> Result<String, SemanticsError> {
+    let mut visitor = GeneratedSpanCollector::default();
+    reverse_polish.visit_in_order(&mut visitor);
+    if visitor.tokens.is_empty() {
+        return Err(unsupported("empty Zantufa reverse Polish mex"));
     }
     Ok(token_list_text(visitor.tokens.iter()))
 }
@@ -32403,13 +33328,21 @@ fn generated_simple_pa_quantity_value_for_bound_or_simple_mekso_operand(
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
 fn generated_mekso_number_words_text(expression: &MeksoSyntax) -> Option<String> {
-    let MeksoSyntax::InfixMekso(infix) = expression else {
-        return None;
-    };
-    if !infix.continuations.is_empty() {
-        return None;
+    match expression {
+        MeksoSyntax::InfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            generated_mekso_precedence_number_words_text(&infix.first_expression)
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            generated_mekso_precedence_number_words_text(&infix.first_expression)
+        }
+        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
     }
-    generated_mekso_precedence_number_words_text(&infix.first_expression)
 }
 
 #[requires(true)]
@@ -32523,16 +33456,27 @@ fn generated_parenthesized_mekso_operand_from_mekso(
 fn generated_single_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&MeksoOperandSyntax> {
-    let MeksoSyntax::InfixMekso(infix) = expression else {
-        return None;
+    let first_expression = match expression {
+        MeksoSyntax::InfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            &infix.first_expression
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            &infix.first_expression
+        }
+        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => {
+            return None;
+        }
     };
-    if !infix.continuations.is_empty() {
-        return None;
-    }
     let MeksoPrecedenceSyntax {
         left_expression,
         tail,
-    } = &*infix.first_expression;
+    } = &**first_expression;
     if tail.is_some() {
         return None;
     }
@@ -32547,13 +33491,21 @@ fn generated_single_mekso_operand_from_mekso(
 fn generated_mekso_letteral_tokens<'syntax>(
     expression: &'syntax MeksoSyntax,
 ) -> Option<(Vec<Token>, Option<&'syntax [FreeModifierSyntax]>)> {
-    let MeksoSyntax::InfixMekso(infix) = expression else {
-        return None;
-    };
-    if !infix.continuations.is_empty() {
-        return None;
+    match expression {
+        MeksoSyntax::InfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            generated_mekso_precedence_letteral_tokens(&infix.first_expression)
+        }
+        MeksoSyntax::ZantufaInfixMekso(infix) => {
+            if !infix.continuations.is_empty() {
+                return None;
+            }
+            generated_mekso_precedence_letteral_tokens(&infix.first_expression)
+        }
+        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
     }
-    generated_mekso_precedence_letteral_tokens(&infix.first_expression)
 }
 
 #[requires(true)]
@@ -33813,6 +34765,18 @@ fn generated_modal_forethought_gik_connective_truth_table(
     connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
     gik: &GikConnectiveSyntax,
 ) -> Option<String> {
+    generated_modal_forethought_connective_truth_table_with_right_negated(
+        connective,
+        gik.nai.is_some(),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn generated_modal_forethought_connective_truth_table_with_right_negated(
+    connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
+    right_negated: bool,
+) -> Option<String> {
     if generated_modal_forethought_connective_question_token(connective).is_some()
         || !generated_modal_forethought_connective_is_logical(connective)
     {
@@ -33820,7 +34784,6 @@ fn generated_modal_forethought_gik_connective_truth_table(
     }
     let operator = generated_modal_forethought_connective_formula_operator(connective);
     let left_negated = generated_modal_forethought_connective_negates_left(connective);
-    let right_negated = gik.nai.is_some();
     let se = generated_modal_forethought_connective_tokens(connective)
         .iter()
         .any(|token| token.is_selmaho(Selmaho::Se));
@@ -33959,11 +34922,63 @@ fn abstraction_relation_label_from_generated(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn abstraction_relation_label_from_zantufa_statement(
+    abstraction: &ZantufaStatementAbstractionTanruUnitSyntax,
+) -> Result<String, SemanticsError> {
+    let abstractor = token_text(&abstraction.nu.value);
+    let relation = relation_label_from_statement(&abstraction.statement)?;
+    Ok(format!("{abstractor} {relation}"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn relation_label_from_statement(statement: &StatementSyntax) -> Result<String, SemanticsError> {
+    match statement {
+        StatementSyntax::StatementBase(statement) => relation_label_from_statement_base(statement),
+        StatementSyntax::IStatementConnection(_) => {
+            Err(unsupported("connected statement relation label"))
+        }
+        StatementSyntax::PreposedIStatementConnection(_) => {
+            Err(unsupported("preposed statement connection relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn relation_label_from_statement_base(
+    statement: &StatementBaseSyntax,
+) -> Result<String, SemanticsError> {
+    match statement {
+        StatementBaseSyntax::BridiStatement(statement) => {
+            if !statement.continuations.is_empty() {
+                return Err(unsupported("bridi statement continuation relation label"));
+            }
+            relation_label_from_bridi(&statement.bridi)
+        }
+        StatementBaseSyntax::PrenexStatement(statement) => {
+            relation_label_from_statement(&statement.inner_statement)
+        }
+        StatementBaseSyntax::TextGroupStatement(_) => Err(unsupported("text group relation label")),
+        StatementBaseSyntax::ForethoughtStatement(_) => {
+            Err(unsupported("forethought statement relation label"))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 fn relation_label_from_subbridi(subbridi: &SubbridiSyntax) -> Result<String, SemanticsError> {
     let SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) = subbridi else {
         return Err(unsupported("prenex subbridi relation label"));
     };
-    let tail = match bridi.as_ref() {
+    relation_label_from_bridi(bridi)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn relation_label_from_bridi(bridi: &BridiSyntax) -> Result<String, SemanticsError> {
+    let tail = match bridi {
         BridiSyntax::RelationOnlyBridi(RelationOnlyBridiSyntax(tail)) => tail,
         BridiSyntax::BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { bridi_tail, .. }) => {
             bridi_tail
@@ -34173,6 +35188,15 @@ fn tanru_unit_atom_base_from_cei(unit: &TanruUnitAtomBaseForCeiSyntax) -> TanruU
         }
         TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
             TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit.clone())
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+            TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit.clone())
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
+            TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit.clone())
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
+            TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit.clone())
         }
         TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
             TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit.clone())
@@ -34500,6 +35524,15 @@ fn relation_label_from_tanru_unit_atom(
         }
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(abstraction) => {
+            abstraction_relation_label_from_zantufa_statement(abstraction)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_) => {
+            Err(unsupported("Zantufa ME selbri relation label"))
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_) => {
+            Err(unsupported("Zantufa mex MOI relation label"))
         }
         TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
@@ -35846,6 +36879,9 @@ fn generated_statement_after_i_connective_contains_current_level_keha(
             generated_bridi_statement_contains_current_level_keha(statement)
         }
         StatementAfterIConnectiveSyntax::TextGroupStatement(_) => false,
+        StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+            generated_forethought_statement_contains_current_level_keha(statement)
+        }
     }
 }
 
@@ -35864,7 +36900,23 @@ fn generated_statement_base_contains_current_level_keha(statement: &StatementBas
             generated_bridi_statement_contains_current_level_keha(statement)
         }
         StatementBaseSyntax::TextGroupStatement(_) => false,
+        StatementBaseSyntax::ForethoughtStatement(statement) => {
+            generated_forethought_statement_contains_current_level_keha(statement)
+        }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_forethought_statement_contains_current_level_keha(
+    statement: &ForethoughtStatementSyntax,
+) -> bool {
+    generated_statement_contains_current_level_keha(&statement.first)
+        || generated_statement_contains_current_level_keha(&statement.first_branch.statement)
+        || statement
+            .additional_branches
+            .iter()
+            .any(|branch| generated_statement_contains_current_level_keha(&branch.statement))
 }
 
 #[requires(true)]
@@ -35955,6 +37007,13 @@ fn generated_bridi_contains_current_level_keha(bridi: &BridiSyntax) -> bool {
 #[ensures(true)]
 fn generated_bridi_tail_contains_current_level_keha(tail: &BridiTailSyntax) -> bool {
     match tail {
+        BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+            generated_bridi_tail_contains_current_level_keha(&tail.bridi_tail)
+                || tail
+                    .tail_terms
+                    .iter()
+                    .any(generated_term_contains_current_level_keha)
+        }
         BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
             generated_afterthought_bridi_tail_contains_current_level_keha(&tail.first)
                 || tail.ke_continuation.as_ref().is_some_and(|continuation| {
@@ -36360,8 +37419,10 @@ fn generated_sumti_base_contains_current_level_keha(sumti: &SumtiBaseSyntax) -> 
             generated_term_contains_current_level_keha(&term.inner_term)
         }
         SumtiBaseSyntax::ProSumti(pro_sumti) => pro_sumti.0.value.cmavo() == Some(Cmavo::Keha),
-        SumtiBaseSyntax::BridiDescriptionSumti(_)
-        | SumtiBaseSyntax::NameSumti(_)
+        SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
+            generated_statement_contains_current_level_keha(&sumti.statement)
+        }
+        SumtiBaseSyntax::NameSumti(_)
         | SumtiBaseSyntax::DescriptionConnectionSumti(_)
         | SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(_)
         | SumtiBaseSyntax::DescriptorWithGadriSumti(_)
@@ -36544,6 +37605,15 @@ fn generated_tanru_unit_atom_base_contains_current_level_keha(
         TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
             generated_sumti_selbri_sumti_contains_current_level_keha(&unit.sumti)
         }
+        TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+            generated_statement_contains_current_level_keha(&unit.statement)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
+            generated_zantufa_me_tanru_unit_contains_current_level_keha(unit)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
+            generated_node_contains_cmavo(unit.expression.as_ref(), Cmavo::Keha)
+        }
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
             generated_connected_selbri_contains_current_level_keha(&unit.selbri)
         }
@@ -36581,6 +37651,15 @@ fn generated_tanru_unit_atom_base_for_cei_contains_current_level_keha(
         TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
             generated_sumti_selbri_sumti_contains_current_level_keha(&unit.sumti)
         }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
+            generated_statement_contains_current_level_keha(&unit.statement)
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(unit) => {
+            generated_zantufa_me_tanru_unit_contains_current_level_keha(unit)
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(unit) => {
+            generated_node_contains_cmavo(unit.expression.as_ref(), Cmavo::Keha)
+        }
         TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
             generated_connected_selbri_contains_current_level_keha(&unit.selbri)
         }
@@ -36596,6 +37675,25 @@ fn generated_tanru_unit_atom_base_for_cei_contains_current_level_keha(
         | TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(_)
         | TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(_)
         | TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_me_tanru_unit_contains_current_level_keha(
+    unit: &ZantufaMeTanruUnitSyntax,
+) -> bool {
+    match unit.body.as_ref() {
+        ZantufaMeSelbriBodySyntax::ZantufaMeMeksoSelbriBody(body) => {
+            generated_node_contains_cmavo(body.0.as_ref(), Cmavo::Keha)
+        }
+        ZantufaMeSelbriBodySyntax::ZantufaMeTagSelbriBody(body) => {
+            generated_node_contains_cmavo(body.0.as_ref(), Cmavo::Keha)
+        }
+        ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => body
+            .0
+            .iter()
+            .any(|operator| generated_node_contains_cmavo(operator, Cmavo::Keha)),
     }
 }
 
@@ -39565,6 +40663,9 @@ fn generated_bridi_is_connected_bridi_tail(bridi: &BridiSyntax) -> bool {
 #[ensures(true)]
 fn generated_bridi_tail_is_connected(tail: &BridiTailSyntax) -> bool {
     match tail {
+        BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+            generated_bridi_tail_is_connected(&tail.bridi_tail)
+        }
         BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
             !tail.first.0.links.is_empty()
                 || tail.first.0.first.bo_continuation.is_some()

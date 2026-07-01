@@ -193,13 +193,34 @@ pub mod generated_model {
 
     rule "statement" statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> enum {
         prenex_statement,
+        when feature(ZantufaConnectives) forethought_statement,
         bridi_statement,
         text_group_statement,
     }
 
     rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> enum {
+        when feature(ZantufaTerms) zantufa_statement_terms_statement,
         statement_or_fragment_statement,
         fragment_statement,
+    }
+
+    rule "paragraph statement" zantufa_statement_terms_statement(statement, term) -> struct {
+        field statement <- arc(statement);
+        field tail <- zantufa_statement_terms_tail(term);
+    }
+
+    rule "paragraph statement" zantufa_statement_terms_tail(term) -> enum {
+        zantufa_iau_statement_terms_tail,
+        zantufa_bare_statement_terms_tail,
+    }
+
+    rule "paragraph statement" zantufa_iau_statement_terms_tail(term) -> struct {
+        field iau <- cmavo(Ihau).warn(ExperimentalIauReset).wf();
+        field terms <- [zero_or_more term];
+    }
+
+    rule "paragraph statement" zantufa_bare_statement_terms_tail(term) -> struct {
+        field terms <- [one_or_more arc(term)];
     }
 
     rule "paragraph statement" statement_or_fragment_statement(statement) -> struct {
@@ -207,21 +228,23 @@ pub mod generated_model {
         field statement <- statement;
     }
 
-    rule "fragment" fragment_statement(term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> enum {
+    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens) -> enum {
         prenex_fragment,
         selbri_fragment,
         ek_fragment,
         gihek_fragment,
         multiple_na_fragment,
         single_na_fragment,
-        terms_fragment,
+        when feature(ZantufaMex) zantufa_mekso_fragment,
         mekso_fragment,
+        terms_fragment,
         relative_clause_fragment,
         linked_sumti_continuation_fragment,
         linked_sumti_fragment,
     }
 
-    rule "statement" statement_after_i_connective(bridi, subbridi, tense_modal, text) -> enum {
+    rule "statement" statement_after_i_connective(statement, bridi, subbridi, tense_modal, text) -> enum {
+        when feature(ZantufaConnectives) forethought_statement,
         bridi_statement,
         text_group_statement,
     }
@@ -266,20 +289,20 @@ pub mod generated_model {
         field pending <- [one_or_more pending_i_connective];
         field i <- cmavo(I);
         field connective <- i_statement_connective(tense_modal);
-        field trailing_statement <- arc(statement_after_i_connective(bridi, subbridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     rule "statement connection" simple_i_connective_statement_tail(statement, bridi, term, sumti, subbridi, selbri, mekso, tense_modal, text, letter_tokens) -> struct {
         field i <- cmavo(I);
         field connective <- i_statement_connective(tense_modal);
-        field trailing_statement <- arc(statement_after_i_connective(bridi, subbridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     rule "statement connection" preposed_i_statement_connection(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens) -> struct {
         field leading_statement <- arc(statement_base(statement, bridi, term, sumti, subbridi, selbri, mekso, text, tense_modal, letter_tokens));
         field connective <- statement_connective;
         field i <- cmavo(I);
-        field trailing_statement <- arc(statement_after_i_connective(bridi, subbridi, tense_modal, text));
+        field trailing_statement <- arc(statement_after_i_connective(statement, bridi, subbridi, tense_modal, text));
     }
 
     rule "text group" text_group_statement(text, tense_modal) -> struct {
@@ -302,6 +325,25 @@ pub mod generated_model {
         field inner_statement <- arc(statement);
     }
 
+    rule "statement" forethought_statement(statement, tense_modal) -> struct {
+        field gek <- modal_forethought_connective(tense_modal);
+        field first <- arc(statement);
+        field first_branch <- forethought_statement_branch(statement);
+        field additional_branches <- [zero_or_more zantufa_forethought_statement_branch(statement)];
+        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
+    }
+
+    rule "statement branch" forethought_statement_branch(statement) -> struct {
+        field gik <- gik_connective;
+        field statement <- arc(statement);
+    }
+
+    rule "statement branch" zantufa_forethought_statement_branch(statement) -> struct {
+        assert feature(ZantufaConnectives);
+        field gik <- zantufa_extra_gik_connective;
+        field statement <- arc(statement);
+    }
+
     rule "statement" bridi_statement(bridi, subbridi, tense_modal) -> struct {
         #[tree_child(primary)]
         field bridi <- arc(bridi);
@@ -314,6 +356,7 @@ pub mod generated_model {
     }
 
     rule "bridi continuation" bo_bridi_statement_continuation(subbridi, tense_modal) -> struct {
+        assert feature(ZantufaConnectives).not();
         field connective <- bridi_tail_connective;
         field tense_modal <- opt(arc(tense_modal));
         field bo <- cmavo(Bo).wf();
@@ -321,6 +364,7 @@ pub mod generated_model {
     }
 
     rule "bridi continuation" ke_bridi_statement_continuation(subbridi, tense_modal) -> struct {
+        assert feature(ZantufaConnectives).not();
         field connective <- relation_afterthought_connective;
         field tense_modal <- opt(arc(tense_modal));
         field ke <- cmavo(Ke).wf();
@@ -344,14 +388,19 @@ pub mod generated_model {
         field quantifier <- arc(quantifier(mekso, letter_tokens));
     }
 
-    rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal) -> struct {
-        field first <- relative_clause_atom(sumti, subbridi, tense_modal);
-        field additional <- [zero_or_more relative_clause_tail(sumti, subbridi, tense_modal)];
+    rule "mex" zantufa_mekso_fragment(mekso) -> struct {
+        #[tree_child(primary)]
+        field expression <- arc(mekso);
     }
 
-    rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal) -> struct {
+    rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement) -> struct {
+        field first <- relative_clause_atom(sumti, subbridi, tense_modal, statement);
+        field additional <- [zero_or_more relative_clause_tail(sumti, subbridi, tense_modal, statement)];
+    }
+
+    rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal, statement) -> struct {
         #[tree_child(primary)]
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
     }
 
     rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal) -> struct {
@@ -404,8 +453,17 @@ pub mod generated_model {
     }
 
     rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
+        when feature(ZantufaTerms) zantufa_grouped_bridi_tail,
         bridi_tail_with_possible_tail_terms,
         bridi_tail_without_tail_terms,
+    }
+
+    rule "bridi tail" zantufa_grouped_bridi_tail(bridi_tail, term) -> struct {
+        field ke <- cmavo(Ke).warn(ExperimentalZantufaGroupedBridiTail).wf();
+        field bridi_tail <- arc(bridi_tail);
+        field kehe <- opt(cmavo(Kehe).wf());
+        field tail_terms <- [zero_or_more term];
+        field vau <- opt(arc(cmavo(Vau).wf()));
     }
 
     rule "bridi tail" bridi_tail_without_tail_terms(bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
@@ -895,32 +953,32 @@ pub mod generated_model {
         field maybe_ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal) -> struct {
+    rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal, statement) -> struct {
         field base_sumti <- arc(sumti_grouped);
-        field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal));
+        field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "sumti connection" sumti_grouped(sumti, sumti_afterthought, tense_modal) -> struct {
+    rule "sumti connection" sumti_grouped(sumti, sumti_afterthought, tense_modal, statement) -> struct {
         field leading_sumti <- arc(sumti_afterthought);
         field grouped_tail <- opt(grouped_sumti_tail(sumti, tense_modal));
     }
 
-    rule "sumti connection" sumti_afterthought(sumti_bound) -> struct {
+    rule "sumti connection" sumti_afterthought(sumti_bound, statement) -> struct {
         field leading_sumti <- arc(sumti_bound);
         field continuations <- [zero_or_more sumti_afterthought_tail(sumti_bound)];
     }
 
-    rule "sumti connection" sumti_bound(sumti_bound, sumti_forethought, tense_modal) -> struct {
+    rule "sumti connection" sumti_bound(sumti_bound, sumti_forethought, tense_modal, statement) -> struct {
         field leading_sumti <- arc(sumti_forethought);
         field bound_tail <- opt(bound_sumti_tail(sumti_bound, tense_modal));
     }
 
-    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> enum {
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> enum {
         forethought_sumti,
         simple_sumti,
     }
 
-    rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal) -> struct {
+    rule "forethought sumti connection" forethought_sumti(sumti, sumti_forethought, tense_modal, statement) -> struct {
         field gek <- modal_forethought_connective(tense_modal);
         field leading_sumti <- arc(sumti);
         field first_branch <- forethought_sumti_branch(sumti_forethought);
@@ -959,14 +1017,14 @@ pub mod generated_model {
         field kehe <- opt(cmavo(Kehe).wf());
     }
 
-    rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal) -> enum {
+    rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> enum {
         vuho_relative_sumti_attachment_tail,
         vuho_connected_sumti_attachment_tail,
     }
 
-    rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal) -> struct {
+    rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
         field vuho <- cmavo(Vuho).wf();
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
         field sumti_connection <- opt(arc(sumti_connection_tail(sumti)));
     }
 
@@ -975,17 +1033,17 @@ pub mod generated_model {
         field sumti_connection <- arc(sumti_connection_tail(sumti));
     }
 
-    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
-        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> struct {
+        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> enum {
+    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> enum {
         sumti_base,
         quantified_sumti,
     }
 
-    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement) -> enum {
         scalar_negated_sumti_with_bo,
         scalar_negated_sumti,
         lahe_sumti,
@@ -1009,9 +1067,9 @@ pub mod generated_model {
         field inner_sumti <- arc(sumti_base);
     }
 
-    rule "sumti relative phrase" sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens) -> struct {
-        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens));
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+    rule "sumti relative phrase" sumti_with_relative_clauses(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> struct {
+        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement));
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
     }
 
     rule "sumti connective" sumti_connection_tail(sumti) -> struct {
@@ -1030,7 +1088,12 @@ pub mod generated_model {
         field veho <- opt(cmavo(Veho).wf());
     }
 
+    rule "quantifier" zantufa_raw_mekso_quantifier(mekso) -> struct {
+        field mekso <- arc(mekso);
+    }
+
     rule "quantifier" quantifier(mekso, letter_tokens) -> enum {
+        when feature(ZantufaMex) zantufa_raw_mekso_quantifier,
         mekso_quantifier,
         pa_run_quantifier,
     }
@@ -1302,9 +1365,20 @@ pub mod generated_model {
     }
 
     rule "mex" mekso_base(mekso, mekso_base, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
+        when feature(ZantufaMex) zantufa_bo_grouped_mekso_base,
         mekso_operand,
         forethought_call_mekso,
         when feature(ZantufaMex) zantufa_grouped_mekso_operand_sequence,
+    }
+
+    rule "grouped mex" zantufa_bo_grouped_mekso_base(mekso_operand) -> struct {
+        field first <- arc(mekso_operand);
+        field continuations <- [one_or_more zantufa_bo_grouped_mekso_continuation(mekso_operand)];
+    }
+
+    rule "grouped mex" zantufa_bo_grouped_mekso_continuation(mekso_operand) -> struct {
+        field bo <- cmavo(Bo).warn(ExperimentalZantufaMex).wf();
+        field expression <- arc(mekso_operand);
     }
 
     rule "grouped mex" zantufa_grouped_mekso_operand_sequence(mekso_operand) -> struct {
@@ -1334,6 +1408,16 @@ pub mod generated_model {
         field right_expression <- arc(mekso_precedence);
     }
 
+    rule "mex" zantufa_infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
+        field first_expression <- arc(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
+        field continuations <- [zero_or_more zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator)];
+    }
+
+    rule "mex continuation" zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator) -> struct {
+        field operators <- [one_or_more arc(mekso_operator)];
+        field right_expression <- opt(arc(mekso_precedence));
+    }
+
     rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
         field peho <- opt(cmavo(Peho).wf());
         field operator <- arc(mekso_operator);
@@ -1342,8 +1426,23 @@ pub mod generated_model {
     }
 
     rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> enum {
+        when feature(ZantufaMex) zantufa_reverse_polish_mekso,
+        when feature(ZantufaMex) zantufa_infix_mekso,
         infix_mekso,
         reverse_polish_mekso,
+    }
+
+    rule "reverse Polish mex" zantufa_reverse_polish_mekso(mekso_base, mekso_operator) -> struct {
+        field fuha <- cmavo(Fuha).warn(ExperimentalZantufaMex).wf();
+        field operands <- [one_or_more mekso_base];
+        field operator <- arc(mekso_operator);
+        field tails <- [zero_or_more zantufa_reverse_polish_tail(mekso_base, mekso_operator)];
+        field kuhe <- opt(cmavo(Kuhe).wf());
+    }
+
+    rule "reverse Polish mex tail" zantufa_reverse_polish_tail(mekso_base, mekso_operator) -> struct {
+        field operands <- [zero_or_more mekso_base];
+        field operator <- arc(mekso_operator);
     }
 
     rule "reverse Polish mex" reverse_polish_parts(reverse_polish_parts, mekso_operand, mekso_operator) -> struct {
@@ -1376,9 +1475,9 @@ pub mod generated_model {
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
-    rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal) -> struct {
+    rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal, statement) -> struct {
         field lahe <- selmaho(Lahe).wf();
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         #[tree_child(primary)]
         field inner_sumti <- arc(sumti);
         field luhu <- opt(cmavo(Luhu).wf());
@@ -1421,11 +1520,17 @@ pub mod generated_model {
         field luhu <- opt(cmavo(Luhu).wf());
     }
 
-    rule "bridi description" bridi_description_sumti(subbridi) -> struct {
+    rule "bridi description" bridi_description_sumti(statement) -> struct {
         field lohoi <- selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
+        field additional_heads <- [zero_or_more lohoi_description_head_continuation()];
         #[tree_child(primary)]
-        field subbridi <- arc(subbridi);
+        field statement <- arc(statement);
         field kuhau <- opt(cmavo(Kuhau).wf());
+    }
+
+    rule "bridi description" lohoi_description_head_continuation -> struct {
+        field connective <- joik_connective;
+        field lohoi <- selmaho(Lohoi).warn(ExperimentalLohOiBridiDescription).wf();
     }
 
     rule "sumti" pro_sumti -> struct {
@@ -1445,49 +1550,49 @@ pub mod generated_model {
         field connective <- arc(jek_connective);
     }
 
-    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
         field leading_description_head <- arc(description_head());
         field connective <- description_head_connective();
         field trailing_description_head <- arc(description_head());
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
         field description <- description_head();
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens) -> struct {
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
         field outer_quantifier <- quantifier(mekso, letter_tokens);
         field description <- description_head();
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field quantifier <- quantifier(mekso, letter_tokens);
         assert !selmaho(Roi);
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
-        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal);
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens));
+    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
+        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement);
+        field tail <- arc(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement));
     }
 
-    rule "description tail" description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> enum {
+    rule "description tail" description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> enum {
         quantifier_relation_description_tail,
         quantifier_sumti_description_tail,
         relation_description_tail,
     }
 
-    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal) -> struct {
+    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement) -> struct {
         field tail_sumti <- opt(description_tail_sumti(sumti_base));
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     rule "description tail" description_tail_sumti(sumti_base) -> struct {
@@ -1495,16 +1600,16 @@ pub mod generated_model {
         field sumti <- arc(sumti_base);
     }
 
-    rule "description tail" relation_description_tail(sumti, subbridi, selbri, tense_modal) -> struct {
+    rule "description tail" relation_description_tail(sumti, subbridi, selbri, tense_modal, statement) -> struct {
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field quantifier <- quantifier(mekso, letter_tokens);
         assert !selmaho(Roi);
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> struct {
@@ -1512,34 +1617,34 @@ pub mod generated_model {
         field sumti <- arc(sumti);
     }
 
-    rule "description" relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
-        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
         field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" outer_quantified_relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" outer_quantified_relative_tail_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field outer_quantifier <- quantifier(mekso, letter_tokens);
         field description <- choice((selmaho(Le), selmaho(La))).wf();
-        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal);
+        field leading_relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
         field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" sumti_tail_relation_description_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
+    rule "description" sumti_tail_relation_description_sumti(sumti, subbridi, selbri, tense_modal, statement) -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
         assert !pa_word();
         field tail_sumti <- arc(sumti);
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
@@ -1551,28 +1656,28 @@ pub mod generated_model {
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
         field tail_quantifier <- quantifier(mekso, letter_tokens);
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field tail_quantifier <- quantifier(mekso, letter_tokens);
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" simple_description_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
+    rule "description" simple_description_sumti(sumti, subbridi, selbri, tense_modal, statement) -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
@@ -1585,13 +1690,13 @@ pub mod generated_model {
         field ku <- opt(cmavo(Ku).wf());
     }
 
-    rule "description" outer_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens) -> struct {
+    rule "description" outer_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field outer_quantifier <- quantifier(mekso, letter_tokens);
         field description <- choice((selmaho(Le), selmaho(La))).wf();
         field tail_quantifier <- opt(quantifier(mekso, letter_tokens));
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field ku <- opt(cmavo(Ku).wf());
     }
 
@@ -1643,20 +1748,20 @@ pub mod generated_model {
         field quote <- arc(quote(text));
     }
 
-    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal) -> struct {
-        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, tense_modal, statement) -> struct {
+        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         #[tree_child(primary)]
         field selbri <- arc(selbri);
-        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal) -> struct {
-        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+    rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal, statement) -> struct {
+        field leading_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         field names <- [one_or_more cmevla_word()].wf();
-        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal));
+        field trailing_relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, tense_modal) -> enum {
+    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, tense_modal, statement) -> enum {
         selbri_vocative_sumti,
         cmevla_vocative_sumti,
         sumti,
@@ -1683,19 +1788,21 @@ pub mod generated_model {
         field doi <- cmavo(Doi);
     }
 
-    rule "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier, statement) -> enum {
         text_replacement_free_modifier,
+        when feature(ZantufaTerms) zantufa_sei_statement_free_modifier,
         sei_free_modifier,
         xi_free_modifier,
         mai_free_modifier,
+        when feature(ZantufaMex) zantufa_mekso_mai_free_modifier,
         soi_free_modifier,
         parenthetical_text,
         vocative_free_modifier,
     }
 
-    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal) -> struct {
+    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal, statement) -> struct {
         field vocative_markers <- vocative_marker_words().wf();
-        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, tense_modal)));
+        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, tense_modal, statement)));
         field dohu <- opt(cmavo(Dohu).prohibited_wf());
     }
 
@@ -1710,6 +1817,12 @@ pub mod generated_model {
         field terms <- [zero_or_more term];
         field cu <- opt(cmavo(Cu).wf());
         field selbri <- arc(selbri);
+        field sehu <- opt(cmavo(Sehu).prohibited_wf());
+    }
+
+    rule "metalinguistic comment" zantufa_sei_statement_free_modifier(statement) -> struct {
+        field sei <- selmaho(Sei).warn(ExperimentalZantufaStatementFreeModifier).wf();
+        field statement <- arc(statement);
         field sehu <- opt(cmavo(Sehu).prohibited_wf());
     }
 
@@ -1735,8 +1848,14 @@ pub mod generated_model {
     }
 
     rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {
-        field number <- number_or_letter_words(letter_tokens, letter_string);
+        field number <- number_or_letter_words(letter_tokens, letter_string)
+            .followed_by(selmaho(Mai).ignored());
         field mai <- selmaho(Mai).wf();
+    }
+
+    rule "utterance ordinal" zantufa_mekso_mai_free_modifier(mekso) -> struct {
+        field expression <- arc(mekso.followed_by(selmaho(Mai).ignored()));
+        field mai <- selmaho(Mai).warn(ExperimentalZantufaMex).wf();
     }
 
     rule "reciprocal" soi_free_modifier(sumti) -> struct {
@@ -1776,19 +1895,19 @@ pub mod generated_model {
         field lehai <- cmavo(Lehai).wf();
     }
 
-    rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal) -> enum {
+    rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal, statement) -> enum {
         joined_relative_clause_tail,
         connected_relative_clause_tail,
     }
 
-    rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
+    rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
         field zihe <- cmavo(Zihe).wf();
-        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal));
+        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
-    rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal) -> struct {
+    rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
         field connective <- relative_clause_connective;
-        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal));
+        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
     rule "relative clause connective" relative_clause_connective -> enum {
@@ -1796,7 +1915,7 @@ pub mod generated_model {
         jek_connective,
     }
 
-    rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal) -> enum {
+    rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal, statement) -> enum {
         sumti_association_relative_clause,
         bridi_relative_clause,
     }
@@ -1827,12 +1946,34 @@ pub mod generated_model {
         field sumti <- arc(sumti);
     }
 
-    rule "relative bridi" bridi_relative_clause(subbridi) -> enum {
+    rule "relative bridi" bridi_relative_clause(subbridi, statement) -> enum {
+        when feature(ZantufaTerms) zantufa_restrictive_statement_relative_clause,
+        when feature(ZantufaTerms) zantufa_incidental_statement_relative_clause,
         restrictive_bridi_relative_clause,
         incidental_bridi_relative_clause,
     }
 
-    rule "relative clause" restrictive_bridi_relative_clause(subbridi) -> struct {
+    rule "relative clause" zantufa_restrictive_statement_relative_clause(statement) -> struct {
+        field poi <- choice((
+            cmavo(Poi),
+            cmavo(Pohoi),
+            cmavo(Voi),
+            cmavo(Voihi),
+        )).warn(ExperimentalZantufaStatementRelativeClause).wf();
+        field statement <- arc(statement);
+        field kuho <- opt(cmavo(Kuho).wf());
+    }
+
+    rule "relative clause" zantufa_incidental_statement_relative_clause(statement) -> struct {
+        field noi <- choice((
+            cmavo(Noi),
+            cmavo(Nohoi),
+        )).warn(ExperimentalZantufaStatementRelativeClause).wf();
+        field statement <- arc(statement);
+        field kuho <- opt(cmavo(Kuho).wf());
+    }
+
+    rule "relative clause" restrictive_bridi_relative_clause(subbridi, statement) -> struct {
         field poi <- choice((
             cmavo(Poi),
             cmavo(Pohoi),
@@ -1843,7 +1984,7 @@ pub mod generated_model {
         field kuho <- opt(cmavo(Kuho).wf());
     }
 
-    rule "relative clause" incidental_bridi_relative_clause(subbridi) -> struct {
+    rule "relative clause" incidental_bridi_relative_clause(subbridi, statement) -> struct {
         field noi <- choice((
             cmavo(Noi),
             cmavo(Nohoi),
@@ -2481,20 +2622,20 @@ pub mod generated_model {
         field ki <- cmavo(Ki).wf();
     }
 
-    rule "selbri" selbri(selbri, co_selbri, tense_modal) -> enum {
+    rule "selbri" selbri(selbri, co_selbri, tense_modal, statement) -> enum {
         tagged_selbri,
         untagged_selbri,
     }
 
-    rule "selbri" untagged_selbri(selbri, co_selbri) -> enum {
+    rule "selbri" untagged_selbri(selbri, co_selbri, statement) -> enum {
         negated_selbri,
         co_selbri,
         forethought_selbri_connection,
     }
 
-    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal) -> struct {
+    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal, statement) -> struct {
         field tense_modal <- arc(tense_modal);
-        field inner_selbri <- arc(untagged_selbri(selbri, co_selbri));
+        field inner_selbri <- arc(untagged_selbri(selbri, co_selbri, statement));
     }
 
     rule "negated selbri" negated_selbri(selbri) -> struct {
@@ -2502,8 +2643,8 @@ pub mod generated_model {
         field inner_selbri <- arc(selbri);
     }
 
-    rule "selbri" co_selbri(co_selbri, tanru_unit) -> struct {
-        field leading_selbri <- arc(connected_selbri(tanru_unit));
+    rule "selbri" co_selbri(co_selbri, tanru_unit, statement) -> struct {
+        field leading_selbri <- arc(connected_selbri(tanru_unit, statement));
         field co_tail <- opt(co_selbri_tail(co_selbri));
     }
 
@@ -2531,102 +2672,105 @@ pub mod generated_model {
         field selbri <- arc(selbri);
     }
 
-    rule "selbri connection" connected_selbri(tanru_unit) -> struct {
-        field leading_selbri <- arc(tanru_selbri(tanru_unit));
-        field continuations <- [zero_or_more connected_selbri_continuation(tanru_unit)];
+    rule "selbri connection" connected_selbri(tanru_unit, statement) -> struct {
+        field leading_selbri <- arc(tanru_selbri(tanru_unit, statement));
+        field continuations <- [zero_or_more connected_selbri_continuation(tanru_unit, statement)];
     }
 
-    rule "selbri connection continuation" connected_selbri_continuation(tanru_unit) -> struct {
+    rule "selbri connection continuation" connected_selbri_continuation(tanru_unit, statement) -> struct {
         field connective <- relation_afterthought_connective;
-        field trailing_selbri <- arc(tanru_selbri(tanru_unit));
+        field trailing_selbri <- arc(tanru_selbri(tanru_unit, statement));
     }
 
-    rule "tanru" tanru_selbri(tanru_unit) -> struct {
+    rule "tanru" tanru_selbri(tanru_unit, statement) -> struct {
         field first_unit <- tanru_unit;
         field additional_units <- [zero_or_more tanru_unit];
     }
 
-    rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit) -> struct {
+    rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit, statement) -> struct {
         field units <- chain(
             first: arc(bo_or_linked_tanru_unit),
-            zero_or_more: tanru_unit_continuation(bo_or_linked_tanru_unit),
+            zero_or_more: tanru_unit_continuation(bo_or_linked_tanru_unit, statement),
             element: trailing_unit,
         );
     }
 
-    rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit) -> struct {
+    rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit, statement) -> struct {
         field connective <- relation_afterthought_connective;
         field trailing_unit <- arc(bo_or_linked_tanru_unit);
     }
 
-    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> enum {
         forethought_selbri_group_tanru_unit,
         bound_tanru_unit,
         assigned_pro_bridi_tanru_unit,
         linked_tanru_unit,
     }
 
-    rule "forethought selbri connection" forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri) -> struct {
+    rule "forethought selbri connection" forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri, statement) -> struct {
         field guhek <- guhek_connective;
         field leading_selbri <- arc(selbri);
-        field first_branch <- forethought_selbri_group_branch(bo_or_linked_tanru_unit);
-        field additional_branches <- [zero_or_more zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit)];
+        field first_branch <- forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement);
+        field additional_branches <- [zero_or_more zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement)];
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)));
     }
 
-    rule "forethought selbri connection" forethought_selbri_group_branch(bo_or_linked_tanru_unit) -> struct {
+    rule "forethought selbri connection" forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
         field gik <- gik_connective;
         field unit <- arc(bo_or_linked_tanru_unit);
     }
 
-    rule "forethought selbri connection" zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit) -> struct {
+    rule "forethought selbri connection" zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
         assert feature(ZantufaConnectives);
         field gik <- zantufa_extra_gik_connective;
         field unit <- arc(bo_or_linked_tanru_unit);
     }
 
-    rule "BO-grouped tanru unit" bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal) -> struct {
-        field leading_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal));
+    rule "BO-grouped tanru unit" bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal, statement) -> struct {
+        field leading_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement));
         field bo_connective <- opt(arc(relation_afterthought_connective));
         field bo_tense_modal <- opt(arc(tense_modal));
         field bo <- cmavo(Bo).wf();
         field trailing_unit <- arc(bo_or_linked_tanru_unit);
     }
 
-    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
-        field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
-        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string)];
+    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
+        field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
+        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement)];
     }
 
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
         field cei <- cmavo(Cei).wf();
-        field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+        field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
-    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal) -> struct {
+    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement) -> struct {
         field base <- arc(tanru_unit_atom);
         field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
-    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
-        field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
+        field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
         field linkargs <- opt(linkargs(sumti, tense_modal));
     }
 
-    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
         field conversions <- [zero_or_more selmaho(Se).wf()];
-        field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+        field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
-    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> enum {
         pro_bridi_tanru_unit,
         ordinal_tanru_unit,
         word_tanru_unit,
         preposed_linkargs_tanru_unit,
         jai_modal_tanru_unit,
         scalar_negated_tanru_unit,
+        when feature(ZantufaTerms) zantufa_statement_abstraction_tanru_unit,
         abstraction_tanru_unit,
+        zantufa_me_tanru_unit,
         sumti_selbri_tanru_unit,
+        zantufa_mex_moi_tanru_unit,
         operator_selbri_tanru_unit,
         quoted_bridi_selbri_tanru_unit,
         quoted_text_selbri_tanru_unit,
@@ -2636,19 +2780,22 @@ pub mod generated_model {
         grouped_tanru_unit,
     }
 
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> struct {
         field conversions <- [zero_or_more selmaho(Se).wf()];
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement));
     }
 
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso_operator, letter_tokens, letter_string) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement) -> enum {
         ordinal_tanru_unit,
         word_tanru_unit,
         preposed_linkargs_tanru_unit,
         jai_modal_tanru_unit,
         scalar_negated_tanru_unit,
+        when feature(ZantufaTerms) zantufa_statement_abstraction_tanru_unit,
         abstraction_tanru_unit,
+        zantufa_me_tanru_unit,
         sumti_selbri_tanru_unit,
+        zantufa_mex_moi_tanru_unit,
         operator_selbri_tanru_unit,
         quoted_bridi_selbri_tanru_unit,
         quoted_text_selbri_tanru_unit,
@@ -2659,22 +2806,22 @@ pub mod generated_model {
         grouped_tanru_unit,
     }
 
-    rule "tagged selbri" tagged_selbri_group_tanru_unit(tanru_unit, tense_modal) -> struct {
+    rule "tagged selbri" tagged_selbri_group_tanru_unit(tanru_unit, tense_modal, statement) -> struct {
         field tense_modal <- arc(tense_modal);
-        field inner_selbri <- arc(connected_selbri(tanru_unit));
+        field inner_selbri <- arc(connected_selbri(tanru_unit, statement));
     }
 
-    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal) -> struct {
+    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal, statement) -> struct {
         field linkargs <- linkargs(sumti, tense_modal);
         field base <- arc(tanru_unit);
     }
 
-    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal) -> struct {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal, statement) -> struct {
         field nahe <- selmaho(Nahe).wf();
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal));
+        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal, statement));
     }
 
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal) -> enum {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal, statement) -> enum {
         tagged_selbri_group_tanru_unit,
         pro_bridi_tanru_unit,
         tanru_unit_atom,
@@ -2766,6 +2913,36 @@ pub mod generated_model {
         field moi_marker <- opt(selmaho(Moi).wf());
     }
 
+    rule "sumti-to-selbri" zantufa_me_tanru_unit(mekso, mekso_operator, tense_modal) -> struct {
+        field me <- cmavo(Me).warn(ExperimentalZantufaMex).wf();
+        field body <- arc(zantufa_me_selbri_body(mekso, mekso_operator, tense_modal));
+        field mehu <- opt(cmavo(Mehu).wf());
+        field moi_marker <- opt(selmaho(Moi).wf());
+    }
+
+    rule "sumti-to-selbri" zantufa_me_selbri_body(mekso, mekso_operator, tense_modal) -> enum {
+        zantufa_me_operator_selbri_body,
+        zantufa_me_mekso_selbri_body,
+        zantufa_me_tag_selbri_body,
+    }
+
+    rule "sumti-to-selbri" zantufa_me_operator_selbri_body(mekso_operator) -> struct {
+        field operators <- [one_or_more mekso_operator];
+    }
+
+    rule "sumti-to-selbri" zantufa_me_mekso_selbri_body(mekso) -> struct {
+        field expression <- arc(mekso);
+    }
+
+    rule "sumti-to-selbri" zantufa_me_tag_selbri_body(tense_modal) -> struct {
+        field tag <- arc(tense_modal);
+    }
+
+    rule "mex selbri" zantufa_mex_moi_tanru_unit(mekso) -> struct {
+        field expression <- arc(mekso);
+        field moi <- selmaho(Moi).warn(ExperimentalZantufaMex).wf();
+    }
+
     rule "sumti selbri" sumti_selbri_sumti(sumti, letter_string) -> enum {
         sumti,
         me_lerfu_sumti,
@@ -2780,9 +2957,9 @@ pub mod generated_model {
         field mekso_operator <- arc(mekso_operator);
     }
 
-    rule "grouped tanru" grouped_tanru_unit(tanru_unit) -> struct {
+    rule "grouped tanru" grouped_tanru_unit(tanru_unit, statement) -> struct {
         field ke <- cmavo(Ke).wf();
-        field selbri <- arc(connected_selbri(tanru_unit));
+        field selbri <- arc(connected_selbri(tanru_unit, statement));
         field kehe <- opt(cmavo(Kehe).wf());
     }
 
@@ -2854,6 +3031,20 @@ pub mod generated_model {
     rule "abstractor connection" abstractor_connection -> struct {
         field connective <- standard_statement_connective;
         field nu <- selmaho(Nu).wf();
+        field nai <- opt(cmavo(Nai).wf());
+    }
+
+    rule "abstraction" zantufa_statement_abstraction_tanru_unit(statement) -> struct {
+        field nu <- selmaho(Nu).warn(ExperimentalZantufaStatementAbstraction).wf();
+        field nai <- opt(cmavo(Nai).wf());
+        field abstractor_connections <- [zero_or_more zantufa_abstractor_connection()];
+        field statement <- arc(statement);
+        field kei <- opt(cmavo(Kei).wf());
+    }
+
+    rule "abstractor connection" zantufa_abstractor_connection -> struct {
+        field connective <- joik_connective;
+        field nu <- selmaho(Nu).warn(ExperimentalZantufaStatementAbstraction).wf();
         field nai <- opt(cmavo(Nai).wf());
     }
     }

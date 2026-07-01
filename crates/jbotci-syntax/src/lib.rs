@@ -1647,6 +1647,11 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
     ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaGroupedBridiTail,
+    ExperimentalZantufaStatementTerms,
+    ExperimentalZantufaStatementRelativeClause,
+    ExperimentalZantufaStatementFreeModifier,
+    ExperimentalZantufaStatementAbstraction,
     ExperimentalZantufaMex,
     ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
@@ -1786,6 +1791,21 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaRecursiveTag => {
                 "syntax.warning.experimental-zantufa-recursive-tag"
             }
+            Self::ExperimentalZantufaGroupedBridiTail => {
+                "syntax.warning.experimental-zantufa-grouped-bridi-tail"
+            }
+            Self::ExperimentalZantufaStatementTerms => {
+                "syntax.warning.experimental-zantufa-statement-terms"
+            }
+            Self::ExperimentalZantufaStatementRelativeClause => {
+                "syntax.warning.experimental-zantufa-statement-relative-clause"
+            }
+            Self::ExperimentalZantufaStatementFreeModifier => {
+                "syntax.warning.experimental-zantufa-statement-free-modifier"
+            }
+            Self::ExperimentalZantufaStatementAbstraction => {
+                "syntax.warning.experimental-zantufa-statement-abstraction"
+            }
             Self::ExperimentalZantufaMex => "syntax.warning.experimental-zantufa-mex",
             Self::ExperimentalZantufaRahoiQuote => {
                 "syntax.warning.experimental-zantufa-rahoi-quote"
@@ -1901,6 +1921,17 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
             Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
+            Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",
+            Self::ExperimentalZantufaStatementRelativeClause => {
+                "Zantufa statement payload in relative clause"
+            }
+            Self::ExperimentalZantufaStatementFreeModifier => {
+                "Zantufa statement payload in SEI free modifier"
+            }
+            Self::ExperimentalZantufaStatementAbstraction => {
+                "Zantufa statement payload in abstraction"
+            }
             Self::ExperimentalZantufaMex => "Zantufa mex grammar form",
             Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",
             Self::ExperimentalZantufaMuhoiSelbriUnit => {

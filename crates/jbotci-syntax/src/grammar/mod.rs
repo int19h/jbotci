@@ -17,6 +17,7 @@ use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
 };
+use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 
 use crate::{
@@ -697,7 +698,7 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     _source: Option<&str>,
     options: &ParseOptions,
 ) -> GeneratedSyntaxParseAttempt {
-    let tokens = syntax_tokens(words);
+    let tokens = syntax_tokens(words, options);
     let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
     let result = parsed.result.map(|parsed| {
         new!(GeneratedSyntaxParse {
@@ -727,10 +728,14 @@ pub(crate) fn syntax_grammar_svg(_options: &ParseOptions) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn syntax_tokens(words: &[WordLike]) -> Vec<Token> {
-    attach_indicators(attach_bahe(
-        words.iter().cloned().map(Token::bare).collect(),
-    ))
+fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
+    attach_indicators(
+        attach_bahe(words.iter().cloned().map(Token::bare).collect()),
+        options
+            .dialect
+            .features
+            .contains(&DialectFeature::ZantufaTerms),
+    )
 }
 
 #[requires(true)]
@@ -760,7 +765,7 @@ fn is_bahe_word(word: &Token) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
+fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token> {
     let mut out = Vec::new();
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
@@ -782,7 +787,9 @@ fn attach_indicators(words: Vec<Token>) -> Vec<Token> {
                         .last()
                         .and_then(modifier_word)
                         .is_some_and(|word| is_indicator_word(&word));
-                if prev_is_leading_indicator_nai || !should_attach_indicator(&prev, &indicator) {
+                if prev_is_leading_indicator_nai
+                    || !should_attach_indicator(&prev, &indicator, preserve_zantufa_iau)
+                {
                     out.push(prev);
                     out.push(word);
                     if let Some((nai_bahe, nai)) = nai {
@@ -866,7 +873,10 @@ fn is_indicator_word(word: &Word) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn should_attach_indicator(prev: &Token, indicator: &Word) -> bool {
+fn should_attach_indicator(prev: &Token, indicator: &Word, preserve_zantufa_iau: bool) -> bool {
+    if preserve_zantufa_iau && indicator.is_cmavo(Cmavo::Ihau) {
+        return false;
+    }
     !(indicator.is_selmaho(Selmaho::Roi)
         && modifier_word(prev).is_some_and(|prev| prev.is_selmaho(Selmaho::Pa)))
 }
@@ -901,7 +911,7 @@ mod tests {
     fn generated_model_strict_parser_parses_basic_text() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("mi klama").expect("valid morphology");
-            let tokens = syntax_tokens(&words);
+            let tokens = syntax_tokens(&words, &ParseOptions::default());
 
             let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect("valid generated-model syntax");
@@ -921,7 +931,7 @@ mod tests {
     fn generated_model_strict_parser_keeps_leading_i_statement_marker() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("i mi klama").expect("valid morphology");
-            let tokens = syntax_tokens(&words);
+            let tokens = syntax_tokens(&words, &ParseOptions::default());
 
             let parsed = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect("valid generated-model syntax");
@@ -941,7 +951,7 @@ mod tests {
         run_on_fixture_worker_stack(|| {
             let source = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo ko ce'u xendo ije cnikansa ro lo jmive ta'i lo racli";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
-            let tokens = syntax_tokens(&words);
+            let tokens = syntax_tokens(&words, &ParseOptions::default());
 
             let error = generated::generated_model::parse_text(&tokens, &ParseOptions::default())
                 .expect_err("syntax should reject the malformed description tail");
