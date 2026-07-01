@@ -206,9 +206,15 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 [profile.desktop-dev]
 inherits = "dev"
 
+[profile.wasm-dev]
+inherits = "dev"
+
 [profile.dev.build-override]
 opt-level = 3
 codegen-units = 16
+
+[profile.wasm-dev.package.jbotci-syntax]
+opt-level = 1
 
 [profile.release.build-override]
 opt-level = 3

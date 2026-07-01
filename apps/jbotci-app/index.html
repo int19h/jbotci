@@ -27,6 +27,11 @@
         generatedJsPath.startsWith("assets/")
         || generatedJsPath.startsWith("./assets/")
         || generatedJsPath.includes("/assets/");
+      const localDevelopmentOrigin =
+        window.location.hostname === "localhost"
+        || window.location.hostname === "127.0.0.1"
+        || window.location.hostname === "[::1]"
+        || window.location.hostname === "::1";
 
       function appendBootstrapLink(rel, href, attributes = {}) {
         const link = document.createElement("link");
@@ -59,7 +64,7 @@
         }, { once: true });
       }
 
-      function unregisterDebugServiceWorker() {
+      function unregisterLocalServiceWorker() {
         if (!("serviceWorker" in navigator)) {
           return;
         }
@@ -70,7 +75,11 @@
             }
             const scriptUrl = serviceWorkerScriptUrl(registration);
             if (scriptUrl.endsWith("/service-worker.js")) {
-              return registration.unregister();
+              return registration.unregister().then((unregistered) => {
+                if (unregistered && navigator.serviceWorker.controller) {
+                  window.location.reload();
+                }
+              });
             }
           })
           .catch((error) => {
@@ -95,10 +104,12 @@
         serviceWorkerUrl,
       });
 
-      if (releaseBuild) {
+      if (localDevelopmentOrigin) {
+        unregisterLocalServiceWorker();
+      } else if (releaseBuild) {
         registerReleaseServiceWorker();
       } else {
-        unregisterDebugServiceWorker();
+        unregisterLocalServiceWorker();
       }
 
       import(mainModuleUrl);
