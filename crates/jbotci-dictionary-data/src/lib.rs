@@ -206,6 +206,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn embedded_lujvo_index_splits_r_hyphen_after_initial_cvv_rafsi() {
+        let ciartai = lujvo_entry_for_word("ci'artai").expect("lujvo entry for ci'artai");
+        let segments = ciartai
+            .segments
+            .iter()
+            .map(|segment| (segment.kind, segment.surface, segment.source_word))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            segments,
+            [
+                (DictionaryLujvoSegmentKind::Rafsi, "ci'á", Some("ciska")),
+                (DictionaryLujvoSegmentKind::Hyphen, "r", None),
+                (DictionaryLujvoSegmentKind::Rafsi, "taĭ", Some("tarmi")),
+            ]
+        );
+        assert_eq!(ciartai.source_words, ["ciska", "tarmi"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn normalized_word_lookup_preserves_collisions() {
         let words = english()
             .lookup_words("internet")

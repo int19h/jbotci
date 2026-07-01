@@ -2523,7 +2523,7 @@ mod tests {
                 "nalselmorjyvalsi",
                 &["nal", "sel", "morj", "y", "válsi"][..],
             ),
-            ("li'orklirysilna", &["li'or", "klir", "y", "sílna"][..]),
+            ("li'orklirysilna", &["li'o", "r", "klir", "y", "sílna"][..]),
             ("cavgauri'i", &["cav", "gaŭ", "rí'i"][..]),
             ("selgu'era'a", &["sel", "gu'e", "rá'a"][..]),
             ("sornairauci'e", &["sor", "naĭ", "raŭ", "cí'e"][..]),
@@ -2695,7 +2695,7 @@ mod tests {
             ("soigri", &["soi", "gri"][..]),
             ("cmali'i", &["cma", "lí'i"][..]),
             ("nelcu'a", &["nel", "cú'a"][..]),
-            ("reirsisku", &["reĭr", "sísku"][..]),
+            ("reirsisku", &["reĭ", "r", "sísku"][..]),
             ("befti'e", &["bef", "tí'e"][..]),
             (
                 "jimtu'uci'eselri'u",

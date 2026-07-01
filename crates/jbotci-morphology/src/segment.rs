@@ -666,6 +666,47 @@ impl LujvoParseFailure {
     }
 }
 
+#[invariant(self.start < self.end, "lujvo part ranges must cover a non-empty span")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LujvoPartRange {
+    kind: LujvoPartRangeKind,
+    start: usize,
+    end: usize,
+}
+
+impl LujvoPartRange {
+    #[requires(start < end)]
+    #[ensures(ret.kind == LujvoPartRangeKind::Rafsi)]
+    #[ensures(ret.start == start)]
+    #[ensures(ret.end == end)]
+    fn rafsi(start: usize, end: usize) -> Self {
+        new!(LujvoPartRange {
+            kind: LujvoPartRangeKind::Rafsi,
+            start: start,
+            end: end,
+        })
+    }
+
+    #[requires(start < end)]
+    #[ensures(ret.kind == LujvoPartRangeKind::Hyphen)]
+    #[ensures(ret.start == start)]
+    #[ensures(ret.end == end)]
+    fn hyphen(start: usize, end: usize) -> Self {
+        new!(LujvoPartRange {
+            kind: LujvoPartRangeKind::Hyphen,
+            start: start,
+            end: end,
+        })
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LujvoPartRangeKind {
+    Rafsi,
+    Hyphen,
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
 fn analyze_lujvo_parts(word: &str) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
@@ -689,7 +730,7 @@ fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoPar
 #[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.as_ref().is_err())]
 fn analyze_lujvo_part_ranges_chars(
     chars: &[char],
-) -> Result<Vec1<Range<usize>>, LujvoParseFailure> {
+) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
     let mut cache = LujvoRecognitionCache::new(chars.len());
     analyze_lujvo_part_ranges_chars_with_cache(chars, &mut cache)
 }
@@ -699,7 +740,7 @@ fn analyze_lujvo_part_ranges_chars(
 fn analyze_lujvo_part_ranges_chars_with_cache(
     chars: &[char],
     cache: &mut LujvoRecognitionCache,
-) -> Result<Vec1<Range<usize>>, LujvoParseFailure> {
+) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
     let mut failure = None;
     if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
         record_lujvo_failure(&mut failure, 0, false);
@@ -871,7 +912,7 @@ fn rn_hyphenated_classifier_ends(chars: &[char], index: usize) -> Vec<usize> {
         .into_iter()
         .chain(cvc_rafsi_end(chars, index))
         .chain(ccv_rafsi_end(chars, index))
-        .chain(cvv_rafsi_ends(chars, index))
+        .chain(cvv_rafsi_base_ends(chars, index))
     {
         if let Some(end) = r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end)) {
             ends.push(end);
@@ -2452,7 +2493,7 @@ fn lujvo_part_ranges_from(
     index: usize,
     has_initial_rafsi: bool,
     failure: &mut Option<LujvoParseFailure>,
-) -> Option<Vec<Range<usize>>> {
+) -> Option<Vec<LujvoPartRange>> {
     let mut cache = LujvoRecognitionCache::new(chars.len());
     lujvo_part_ranges_from_with_cache(
         chars,
@@ -2475,7 +2516,7 @@ fn lujvo_part_ranges_from_with_cache(
     has_initial_rafsi: bool,
     failure: &mut Option<LujvoParseFailure>,
     cache: &mut LujvoRecognitionCache,
-) -> Option<Vec<Range<usize>>> {
+) -> Option<Vec<LujvoPartRange>> {
     if index >= end {
         record_lujvo_failure(failure, index, has_initial_rafsi);
         return None;
@@ -2492,7 +2533,7 @@ fn lujvo_part_ranges_from_with_cache(
         return Some(ranges);
     }
     if !has_initial_rafsi && is_lujvo_final_rafsi_alone_until(chars, index, end) {
-        return Some(vec![index..end]);
+        return Some(vec![LujvoPartRange::rafsi(index, end)]);
     }
     for next in initial_rafsi_ends_until_with_cache(chars, index, end, cache) {
         if next <= index {
@@ -2514,15 +2555,12 @@ fn lujvo_part_ranges_from_with_cache(
 #[requires(!ranges.is_empty())]
 #[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<Range<usize>>) -> Option<Vec<LujvoPart>> {
+fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<LujvoPartRange>) -> Option<Vec<LujvoPart>> {
     ranges
         .into_iter()
-        .map(|range| {
-            if is_rafsi_hyphen_start(chars, range.start) {
-                hyphen_part(chars, range.start, range.end)
-            } else {
-                rafsi_part(chars, range.start, range.end)
-            }
+        .map(|range| match range.kind {
+            LujvoPartRangeKind::Rafsi => rafsi_part(chars, range.start, range.end),
+            LujvoPartRangeKind::Hyphen => hyphen_part(chars, range.start, range.end),
         })
         .collect()
 }
@@ -2530,12 +2568,21 @@ fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<Range<usize>>) -> Option<Ve
 #[requires(start < end && end <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
 #[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= end)))]
-fn initial_rafsi_ranges(chars: &[char], start: usize, end: usize) -> Option<Vec<Range<usize>>> {
+fn initial_rafsi_ranges(chars: &[char], start: usize, end: usize) -> Option<Vec<LujvoPartRange>> {
     if let Some(hyphen_start) = (start + 1..end).find(|index| is_rafsi_hyphen_start(chars, *index))
     {
-        return Some(vec![start..hyphen_start, hyphen_start..end]);
+        return Some(vec![
+            LujvoPartRange::rafsi(start, hyphen_start),
+            LujvoPartRange::hyphen(hyphen_start, end),
+        ]);
     }
-    Some(vec![start..end])
+    if let Some(hyphen_start) = cvv_rafsi_hyphen_start_for_initial_end(chars, start, end) {
+        return Some(vec![
+            LujvoPartRange::rafsi(start, hyphen_start),
+            LujvoPartRange::hyphen(hyphen_start, end),
+        ]);
+    }
+    Some(vec![LujvoPartRange::rafsi(start, end)])
 }
 
 #[requires(index < chars.len())]
@@ -2603,7 +2650,7 @@ fn is_lujvo_core(chars: &[char], index: usize) -> bool {
 #[requires(index <= chars.len())]
 #[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
 #[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= chars.len())))]
-fn lujvo_core_part_ranges(chars: &[char], index: usize) -> Option<Vec<Range<usize>>> {
+fn lujvo_core_part_ranges(chars: &[char], index: usize) -> Option<Vec<LujvoPartRange>> {
     let mut cache = LujvoRecognitionCache::new(chars.len());
     lujvo_core_part_ranges_until(chars, index, chars.len(), &mut cache)
 }
@@ -2617,17 +2664,17 @@ fn lujvo_core_part_ranges_until(
     index: usize,
     end: usize,
     cache: &mut LujvoRecognitionCache,
-) -> Option<Vec<Range<usize>>> {
+) -> Option<Vec<LujvoPartRange>> {
     if is_gismu_slice(chars, index, end)
         || is_short_final_rafsi_slice(chars, index, end)
         || is_cvv_final_rafsi_slice(chars, index, end)
         || is_fuhivla_shape_slice_with_cache(chars, index, end, cache)
     {
-        return Some(vec![index..end]);
+        return Some(vec![LujvoPartRange::rafsi(index, end)]);
     }
     let split = stressed_initial_rafsi_short_final_split_with_cache(chars, index, end, cache)?;
     let mut ranges = initial_rafsi_ranges(chars, index, split)?;
-    ranges.push(split..end);
+    ranges.push(LujvoPartRange::rafsi(split, end));
     Some(ranges)
 }
 
@@ -3493,7 +3540,7 @@ fn y_less_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     if let Some(end) = ccv_rafsi_end(chars, index) {
         ends.push(end);
     }
-    ends.extend(cvv_rafsi_ends(chars, index));
+    ends.extend(initial_cvv_rafsi_ends(chars, index));
     ends.retain(|end| chars.get(*end) != Some(&'\''));
     ends
 }
@@ -3519,7 +3566,7 @@ fn hy_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     }
     for base_end in ccv_rafsi_end(chars, index)
         .into_iter()
-        .chain(cvv_rafsi_ends(chars, index))
+        .chain(cvv_rafsi_base_ends(chars, index))
     {
         if let Some(end) = hy_rafsi_hyphen_end(chars, base_end) {
             ends.push(end);
@@ -3600,18 +3647,45 @@ fn ccv_rafsi_end(chars: &[char], index: usize) -> Option<usize> {
 #[requires(index <= chars.len())]
 #[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
 fn cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    cvv_rafsi_base_ends(chars, index)
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn initial_cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
     let mut ends = Vec::new();
-    if index < chars.len() && is_consonant(chars[index]) {
-        for vowel_end in vowel_pair_ends(chars, index + 1) {
-            if let Some(end) =
-                r_hyphen_end(chars, vowel_end).or_else(|| n_hyphen_end(chars, vowel_end))
-            {
-                ends.push(end);
-            }
-            ends.push(vowel_end);
+    for base_end in cvv_rafsi_base_ends(chars, index) {
+        if let Some(end) = r_hyphen_end(chars, base_end).or_else(|| n_hyphen_end(chars, base_end)) {
+            ends.push(end);
         }
+        ends.push(base_end);
     }
     ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn cvv_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = Vec::new();
+    if index < chars.len() && is_consonant(chars[index]) {
+        ends.extend(vowel_pair_ends(chars, index + 1));
+    }
+    ends
+}
+
+#[requires(start < end && end <= chars.len())]
+#[ensures(ret.is_none_or(|hyphen_start| start < hyphen_start && hyphen_start < end))]
+fn cvv_rafsi_hyphen_start_for_initial_end(
+    chars: &[char],
+    start: usize,
+    end: usize,
+) -> Option<usize> {
+    cvv_rafsi_base_ends(chars, start)
+        .into_iter()
+        .find(|base_end| {
+            r_hyphen_end(chars, *base_end) == Some(end)
+                || n_hyphen_end(chars, *base_end) == Some(end)
+        })
 }
 
 #[requires(index <= chars.len())]

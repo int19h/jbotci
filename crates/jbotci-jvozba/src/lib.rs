@@ -1075,6 +1075,28 @@ mod tests {
         assert_eq!(decomposition.source_words, ["jenjigu", "dirce"]);
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_lujvo_with_r_hyphen_after_initial_cvv_rafsi() {
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "ci'artai")
+            .expect("morphology-backed lujvo decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["ci'á", "r", "taĭ"]);
+        assert_eq!(sources, [Some("ciska"), None, Some("tarmi")]);
+        assert_eq!(decomposition.source_words, ["ciska", "tarmi"]);
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn assert_segment_texts(result: &JvozbaBuildResult, expected: &[&str]) {

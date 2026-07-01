@@ -2214,6 +2214,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn exact_lujvo_search_uses_dictionary_backed_r_hyphen_decomposition() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("ci'artai".to_owned())],
+            &VlackuSearchOptions {
+                decompose_lujvo: true,
+                ..VlackuSearchOptions::default()
+            },
+        );
+
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert_eq!(
+            result.cards.first().map(|card| card.word.as_str()),
+            Some("ci'artai")
+        );
+        assert!(result.cards.iter().any(|card| card.word == "ciska"));
+        assert!(result.cards.iter().any(|card| card.word == "tarmi"));
+        let headword = result.cards.first().expect("headword card");
+        let decomposition = headword
+            .decomposition
+            .iter()
+            .map(|piece| (piece.kind, piece.surface.as_str(), piece.source.as_deref()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            decomposition,
+            [
+                (VlackuCompositionKind::Rafsi, "ci'á", Some("ciska")),
+                (VlackuCompositionKind::Hyphen, "r", None),
+                (VlackuCompositionKind::Rafsi, "taĭ", Some("tarmi")),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn exact_garden_path_fuhivla_search_does_not_add_lujvo_source_cards() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
