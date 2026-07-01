@@ -3760,7 +3760,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         self.add_assignment(
             cursor.frame,
             slot,
-            SumtiNodeId(self.raw_for_node(sumti)),
+            SumtiNodeId(self.raw_for_elided_sumti(sumti)),
             None,
             AssignmentSource::LinkedSumti,
             true,

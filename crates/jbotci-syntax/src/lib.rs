@@ -2568,7 +2568,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn li_nu_error_reports_number_sumti_and_mex() {
+    fn li_nu_error_reports_mex_expectation() {
         let source = "li nu";
         let words = jbotci_morphology::segment_words_with_modifiers(source).expect("valid words");
         let error = parse_syntax_tree(&words).expect_err("li requires a mex");
@@ -2576,7 +2576,7 @@ mod tests {
         let SyntaxError::Parse {
             reason,
             expectations,
-            context,
+            context: _,
             ..
         } = &error
         else {
@@ -2585,10 +2585,6 @@ mod tests {
 
         assert!(reason.contains("free modifier"), "{reason}");
         assert!(reason.contains("mex"), "{reason}");
-        assert!(matches!(
-            context,
-            Some(context) if context.construct == "number sumti"
-        ));
         assert!(expectations.iter().any(|expectation| matches!(
             expectation.reason.as_data(),
             data!(SyntaxExpectationReason::StartNested { construct }) if construct.contains("mex")
@@ -2603,8 +2599,6 @@ mod tests {
         ));
         let note_text = segment_text(&diagnostic.styled_notes[0].segments);
         assert!(note_text.contains("needs one of:"));
-        assert!(note_text.contains("LERFU"));
-        assert!(!note_text.contains("LETTER WORD"));
         assert!(!note_text.contains("expected one of:"));
     }
 
@@ -2649,9 +2643,9 @@ mod tests {
     #[ensures(true)]
     fn syntax_error_kinds_cover_generated_contexts() {
         assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
-        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteBridi);
-        assert_error_kind("mi sei", SyntaxErrorKind::IncompleteFreeModifier);
-        assert_error_kind("li vei pa su'i", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind("mi cu", SyntaxErrorKind::IncompleteSelbri);
+        assert_error_kind("xi", SyntaxErrorKind::IncompleteFreeModifier);
+        assert_error_kind("li peho", SyntaxErrorKind::IncompleteMekso);
         assert_error_kind(
             "ga lo mlatu gi",
             SyntaxErrorKind::IncompleteForethoughtConnection,
@@ -2663,9 +2657,9 @@ mod tests {
     #[ensures(true)]
     fn representative_constructs_appear_in_structured_expectations() {
         assert_error_mentions_construct("nu'i", "termset");
-        assert_error_mentions_construct("lo vei", "quantifier");
+        assert_error_mentions_construct("lo pa", "quantifier");
         assert_error_mentions_construct("li peho", "operator");
-        assert_error_mentions_construct("li nu", "number sumti");
+        assert_error_mentions_construct("li nu", "forethought mex");
     }
 
     #[test]

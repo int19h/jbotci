@@ -18,7 +18,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { 
 
 [expectations.syntax]
 status = "success"
-raw = 'TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [UtteranceOrdinal { number: [Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }))], mai: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "maĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None } })), free_modifiers: [] } }], leading_connective: None, paragraphs: [] }'
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [MaiFreeModifier(MaiFreeModifierSyntax { number: NumberWords(NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), continuations: [] }), mai: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "maĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 5, char_start: 2, char_end: 5, start: None, end: None } })), free_modifiers: [] } })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
 
 [expectations.semantics.refs]
 status = "success"
@@ -43,4 +43,4 @@ MaiFreeModifier @[0‥5) {
 json = '{"RegularText":{"leading_free_modifiers":[{"MaiFreeModifier":{"number":{"NumberWords":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[0,2]}}}}}},"mai":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"maĭ","span":[2,5]}}}}}}]}}'
 
 [expectations.output.tersmu]
-json = '''{"version":"lojban-semantics-json-1","root":"sequence:5","objects":{"sequence:5":{"type":"sequence","relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":5},"text":"romai","construct":"text"}}}}'''
+json = '{"version":"lojban-semantics-json-1","root":"sequence:5","objects":{"sequence:5":{"type":"sequence","relation":"same-topic-continuation","source":{"span":{"byteStart":0,"byteEnd":5},"text":"romai","construct":"text"}}}}'

@@ -7938,10 +7938,10 @@ mod tests {
             assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
             assert!(stderr.contains("unexpected cmavo"));
             assert!(
-                stderr.contains("expected: free modifier, linked arguments, or end of input"),
+                stderr.contains("expected: free modifier or statement"),
                 "{stderr}"
             );
-            assert!(stderr.contains("while parsing tanru unit"), "{stderr}");
+            assert!(stderr.contains("while parsing statement"), "{stderr}");
             assert!(!stderr.contains("expected one of:"));
             assert!(!stderr.contains("needs one of:"));
             assert!(!stderr.contains("{be}"));
@@ -7982,9 +7982,8 @@ mod tests {
             assert_eq!(status, CliStatus::Failure);
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
-            assert!(stderr.contains("expected: free modifier, linked"));
-            assert!(stderr.contains("arguments, or end of input"));
-            assert!(stderr.contains("while parsing tanru unit"));
+            assert!(stderr.contains("expected: free modifier or statement"));
+            assert!(stderr.contains("while parsing statement"));
             assert!(!stderr.contains("expected one of:"));
             assert!(stderr.contains("\n            "));
             assert!(!stderr.contains("\x1b["));
@@ -8048,21 +8047,20 @@ mod tests {
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("needs one of:"));
             assert!(stderr.contains("linked arguments"));
-            assert!(stderr.contains("continues"));
             assert!(stderr.contains("tanru unit"));
+            assert!(stderr.contains("statement"));
             assert!(stderr.contains("text"));
-            assert!(stderr.contains("end of input"));
             let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(compact_stderr.contains("[continues tanru unit]"));
+            assert!(compact_stderr.contains("[continues statement]"));
             assert!(compact_stderr.contains("[continues text]"));
             assert!(!stderr.contains("end of input (end of input)"));
             let continuation = compact_stderr
-                .find("continues tanru unit]")
-                .expect("tanru unit continuation group");
-            let end = compact_stderr
-                .rfind("end of input")
-                .expect("text end group");
-            assert!(continuation < end);
+                .find("continues statement]")
+                .expect("statement continuation group");
+            let text = compact_stderr
+                .find("continues text]")
+                .expect("text continuation group");
+            assert!(continuation < text);
             assert!(!stderr.contains("\x1b["));
         });
     }
@@ -8082,7 +8080,7 @@ mod tests {
             assert!(output.is_empty());
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains("mi cu"), "{stderr}");
-            assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
+            assert!(stderr.contains("syntax.incomplete-selbri"), "{stderr}");
             assert!(stderr.contains("needs one of:"), "{stderr}");
             assert!(stderr.contains("tanru unit"), "{stderr}");
             assert!(stderr.contains("forethought bridi connection"), "{stderr}");

@@ -2,7 +2,7 @@
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use std::{
     any::Any,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt,
     marker::PhantomData,
     sync::Arc,
@@ -86,7 +86,9 @@ pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
     syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
-    diagnostic_candidate: Option<SyntaxParseError<'tokens>>,
+    syntax_failure_memo: HashMap<(&'static str, usize), SyntaxParseError<'tokens>>,
+    syntax_memo_in_progress: HashSet<(&'static str, usize)>,
+    diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
     active_syntax_contexts: Vec<&'static str>,
@@ -102,7 +104,9 @@ impl<'tokens> ParserState<'tokens> {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
-            diagnostic_candidate: None,
+            syntax_failure_memo: HashMap::new(),
+            syntax_memo_in_progress: HashSet::new(),
+            diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             active_syntax_contexts: Vec::new(),
@@ -149,6 +153,18 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(!rule_name.is_empty())]
+    #[ensures(true)]
+    pub(super) fn syntax_memo_failure(
+        &self,
+        rule_name: &'static str,
+        start_location: usize,
+    ) -> Option<SyntaxParseError<'tokens>> {
+        self.active_syntax_failure_memo()
+            .get(&(rule_name, start_location))
+            .cloned()
+    }
+
+    #[requires(!rule_name.is_empty())]
     #[requires(end_location >= start_location)]
     #[ensures(true)]
     pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
@@ -170,6 +186,36 @@ impl<'tokens> ParserState<'tokens> {
             .insert((rule_name, start_location), success);
     }
 
+    #[requires(!rule_name.is_empty())]
+    #[ensures(true)]
+    pub(super) fn store_syntax_memo_failure(
+        &mut self,
+        rule_name: &'static str,
+        start_location: usize,
+        error: SyntaxParseError<'tokens>,
+    ) {
+        self.active_syntax_failure_memo_mut()
+            .insert((rule_name, start_location), error);
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[ensures(ret -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
+    pub(super) fn enter_syntax_memo_rule(
+        &mut self,
+        rule_name: &'static str,
+        start_location: usize,
+    ) -> bool {
+        self.syntax_memo_in_progress
+            .insert((rule_name, start_location))
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[ensures(!self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
+    pub(super) fn exit_syntax_memo_rule(&mut self, rule_name: &'static str, start_location: usize) {
+        self.syntax_memo_in_progress
+            .remove(&(rule_name, start_location));
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn active_syntax_memo(&self) -> &HashMap<(&'static str, usize), SyntaxMemoSuccess> {
@@ -184,28 +230,47 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn active_syntax_failure_memo(
+        &self,
+    ) -> &HashMap<(&'static str, usize), SyntaxParseError<'tokens>> {
+        &self.syntax_failure_memo
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn active_syntax_failure_memo_mut(
+        &mut self,
+    ) -> &mut HashMap<(&'static str, usize), SyntaxParseError<'tokens>> {
+        &mut self.syntax_failure_memo
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
         let error = error.with_active_contexts(&self.active_syntax_contexts);
-        match &mut self.diagnostic_candidate {
-            None => {
-                self.diagnostic_candidate = Some(error);
+        let Some(farthest_start) = self
+            .diagnostic_candidates
+            .first()
+            .map(|candidate| candidate.span().start)
+        else {
+            self.diagnostic_candidates.push(error);
+            return;
+        };
+        match error.span().start.cmp(&farthest_start) {
+            std::cmp::Ordering::Greater => {
+                self.diagnostic_candidates.clear();
+                self.diagnostic_candidates.push(error);
             }
-            Some(candidate) if error.span().start > candidate.span().start => {
-                self.diagnostic_candidate = Some(error);
-            }
-            Some(candidate) if candidate.same_report_content(&error) => {}
-            Some(candidate) if error.span().start == candidate.span().start => {
-                if !diagnostic_contexts_are_compatible(candidate, &error) {
-                    if diagnostic_context_can_refine(candidate, &error) {
-                        self.diagnostic_candidate = Some(error);
-                    } else if diagnostic_context_covers_descendant(&error, candidate) {
-                        self.diagnostic_candidate = Some(error);
-                    }
-                    return;
+            std::cmp::Ordering::Equal => {
+                if !self
+                    .diagnostic_candidates
+                    .iter()
+                    .any(|candidate| candidate.same_report_content(&error))
+                {
+                    self.diagnostic_candidates.push(error);
                 }
-                *candidate = candidate.clone().merge_for_parser(error);
             }
-            Some(_) => {}
+            std::cmp::Ordering::Less => {}
         }
     }
 
@@ -226,7 +291,10 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn diagnostic_candidate(&self) -> Option<SyntaxParseError<'tokens>> {
-        self.diagnostic_candidate.clone()
+        self.diagnostic_candidates
+            .clone()
+            .into_iter()
+            .reduce(SyntaxParseError::merge_for_report)
     }
 
     #[requires(true)]
@@ -823,7 +891,7 @@ mod tests {
             assert!(!expected.iter().any(|item| item == "end of input"));
             assert_eq!(
                 context.as_ref().map(|context| context.construct.as_str()),
-                Some("description tail")
+                Some("bridi")
             );
         });
     }
@@ -1709,12 +1777,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_repeated_cehe_termset_group_parses_forest_row() {
-        let parsed = parse_source(
-            ".i ko klama doi cilce je ricfoi ninmu .i ko klama .i mi prami do .i .au mi skicu fi le prenu noi ke'a fi do co'u morji ce'e fe le nu do ca'o renvi gi'e ca'o melbi ce'e fe le nu le risna be do ca'o ka'e prami ce'e fe le nu do badri gi'e se betri",
-            &ParseOptions::default(),
-        );
-        let raw = format!("{:?}", parsed.parse_tree);
-        assert!(raw.matches("TermsetGroup").count() >= 3);
+        run_on_normal_stack(|| {
+            let parsed = parse_source(
+                ".i ko klama doi cilce je ricfoi ninmu .i ko klama .i mi prami do .i .au mi skicu fi le prenu noi ke'a fi do co'u morji ce'e fe le nu do ca'o renvi gi'e ca'o melbi ce'e fe le nu le risna be do ca'o ka'e prami ce'e fe le nu do badri gi'e se betri",
+                &ParseOptions::default(),
+            );
+            let raw = format!("{:?}", parsed.parse_tree);
+            assert!(raw.matches("TermsetGroup").count() >= 3);
+        });
     }
 
     #[test]
@@ -1737,14 +1807,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_kubla_split_poem_rows_parse_when_combined() {
-        parse_source(
-            "la .alf. noi censa rirxe lei\nnoi so'i mei vau kevna fo",
-            &ParseOptions::default(),
-        );
-        parse_source(
-            ".uo li re pi'i mu se minli\nlei ferti dertu joi lei noi cinla\nvau korcu flecu joi lei purdi",
-            &ParseOptions::default(),
-        );
+        run_on_normal_stack(|| {
+            parse_source(
+                "la .alf. noi censa rirxe lei\nnoi so'i mei vau kevna fo",
+                &ParseOptions::default(),
+            );
+            parse_source(
+                ".uo li re pi'i mu se minli\nlei ferti dertu joi lei noi cinla\nvau korcu flecu joi lei purdi",
+                &ParseOptions::default(),
+            );
+        });
     }
 
     #[requires(!text.is_empty())]
@@ -1779,8 +1851,16 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack(test: impl FnOnce()) {
-        test();
+    fn run_on_normal_stack(test: impl FnOnce() + Send) {
+        std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .name("jbotci-syntax-test".to_owned())
+                .stack_size(16 * 1024 * 1024)
+                .spawn_scoped(scope, test)
+                .expect("spawn normal-stack syntax test thread")
+                .join()
+                .expect("normal-stack syntax test thread panicked");
+        });
     }
 
     #[requires(true)]

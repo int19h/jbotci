@@ -4022,7 +4022,15 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn run_on_normal_stack<R>(f: impl FnOnce() -> R) -> R {
-        f()
+    fn run_on_normal_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+        std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .name("jbotci-output-tree-test".to_owned())
+                .stack_size(16 * 1024 * 1024)
+                .spawn_scoped(scope, f)
+                .expect("spawn normal-stack output test thread")
+                .join()
+                .expect("normal-stack output test thread panicked")
+        })
     }
 }

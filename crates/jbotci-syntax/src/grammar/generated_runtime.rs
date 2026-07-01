@@ -191,6 +191,27 @@ where
             input.state().extend_warnings(&warnings);
             return Ok(output);
         }
+        if let Some(error) = input.state().syntax_memo_failure(name, start_location) {
+            input.rewind(checkpoint);
+            return Err(error);
+        }
+        if !input
+            .state()
+            .enter_syntax_memo_rule(name, start_location)
+        {
+            let cursor = input.cursor();
+            let found = input
+                .next()
+                .map(|token| new!(SyntaxFound::Token(token)))
+                .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
+            let span = input.span_since(&cursor);
+            input.rewind(checkpoint);
+            return Err(SyntaxParseError::expected_found(
+                span,
+                vec![new!(SyntaxExpectedToken::Named(name.to_owned()))],
+                found,
+            ));
+        }
         let warning_start = input.state().warning_count();
         match input.parse(&parser) {
             Ok(output) => {
@@ -203,10 +224,15 @@ where
                     output.clone(),
                     warnings,
                 );
+                input.state().exit_syntax_memo_rule(name, start_location);
                 Ok(output)
             }
             Err(error) => {
                 input.rewind(checkpoint);
+                input
+                    .state()
+                    .store_syntax_memo_failure(name, start_location, error.clone());
+                input.state().exit_syntax_memo_rule(name, start_location);
                 Err(error)
             }
         }

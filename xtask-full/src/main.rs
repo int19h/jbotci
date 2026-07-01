@@ -352,6 +352,7 @@ struct FixtureRewriteArgs {
     syntax_only: bool,
     #[arg(long, hide = true)]
     gentufa_output_only: bool,
+    #[arg(long, hide = true)]
     only_semantics_refs: bool,
     #[arg(long, hide = true)]
     chunk_worker: bool,

@@ -213,7 +213,9 @@ impl<'tokens> SyntaxParseError<'tokens> {
             return Some(context);
         }
         if self.same_position_branches.is_empty() {
-            return self.current_context();
+            return self
+                .current_context()
+                .or_else(|| self.preferred_context_hint.clone());
         }
         self.preferred_context_hint.clone()
     }
@@ -246,19 +248,22 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn merge_for_report(self, other: Self) -> Self {
+        let preferred_context_hint =
+            deeper_preferred_context(self.preferred_context(), other.preferred_context());
         let mut merged = self.into_report_error();
         let other = other.into_report_error();
         append_unique_groups(&mut merged.expected_groups, other.expected_groups);
         append_unique_context_paths(&mut merged.context_paths, other.context_paths);
         merged.found = merge_optional_equal(merged.found, other.found);
         merged.custom_kind = merge_optional_equal(merged.custom_kind, other.custom_kind);
+        merged.preferred_context_hint = preferred_context_hint;
         merged
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn merge_for_parser(self, other: Self) -> Self {
-        lazy_merge_errors(self, other)
+        select_parser_error(self, other)
     }
 
     #[requires(true)]
@@ -319,7 +324,7 @@ where
     #[requires(true)]
     #[ensures(true)]
     fn merge(self, other: Self) -> Self {
-        lazy_merge_errors(self, other)
+        select_parser_error(self, other)
     }
 }
 
@@ -745,7 +750,7 @@ fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn lazy_merge_errors<'tokens>(
+fn select_parser_error<'tokens>(
     left: SyntaxParseError<'tokens>,
     right: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
@@ -753,57 +758,22 @@ fn lazy_merge_errors<'tokens>(
         std::cmp::Ordering::Greater => right,
         std::cmp::Ordering::Less => left,
         std::cmp::Ordering::Equal if left.same_report_content(&right) => left,
-        std::cmp::Ordering::Equal => lazy_merge_same_position_errors(left, right),
-    }
-}
-
-#[requires(left.span.start == right.span.start)]
-#[ensures(true)]
-fn lazy_merge_same_position_errors<'tokens>(
-    left: SyntaxParseError<'tokens>,
-    right: SyntaxParseError<'tokens>,
-) -> SyntaxParseError<'tokens> {
-    let span = Span::from(left.span.start.min(right.span.start)..left.span.end.max(right.span.end));
-    let preferred_context_hint =
-        deeper_preferred_context(left.preferred_context(), right.preferred_context());
-    let mut same_position_branches = Vec::new();
-    push_same_position_branch(&mut same_position_branches, left);
-    push_same_position_branch(&mut same_position_branches, right);
-    SyntaxParseError {
-        span,
-        inner: Rich::custom(span, "unexpected input".to_owned()),
-        expected_groups: Vec::new(),
-        context_paths: Vec::new(),
-        found: None,
-        custom_kind: None,
-        active_contexts: Vec::new(),
-        preferred_context_hint,
-        same_position_branches,
+        std::cmp::Ordering::Equal => match parser_error_context_depth(&right)
+            .cmp(&parser_error_context_depth(&left))
+        {
+            std::cmp::Ordering::Greater => right,
+            _ => left,
+        },
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn push_same_position_branch<'tokens>(
-    target: &mut Vec<Arc<SyntaxParseError<'tokens>>>,
-    error: SyntaxParseError<'tokens>,
-) {
-    if can_flatten_same_position_bundle(&error) {
-        target.extend(error.same_position_branches);
-    } else {
-        target.push(Arc::new(error));
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn can_flatten_same_position_bundle(error: &SyntaxParseError<'_>) -> bool {
-    !error.same_position_branches.is_empty()
-        && error.expected_groups.is_empty()
-        && error.context_paths.is_empty()
-        && error.found.is_none()
-        && error.custom_kind.is_none()
-        && error.active_contexts.is_empty()
+fn parser_error_context_depth(error: &SyntaxParseError<'_>) -> usize {
+    error
+        .preferred_context()
+        .map(|context| syntax_construct_depth(&context.construct))
+        .unwrap_or(0)
 }
 
 #[requires(true)]
@@ -933,12 +903,15 @@ fn merge_report_errors<'tokens>(
     left: SyntaxParseError<'tokens>,
     right: SyntaxParseError<'tokens>,
 ) -> SyntaxParseError<'tokens> {
+    let preferred_context_hint =
+        deeper_preferred_context(left.preferred_context(), right.preferred_context());
     let mut left = left.into_report_error();
     let right = right.into_report_error();
     append_unique_groups(&mut left.expected_groups, right.expected_groups);
     append_unique_context_paths(&mut left.context_paths, right.context_paths);
     left.found = merge_optional_equal(left.found, right.found);
     left.custom_kind = merge_optional_equal(left.custom_kind, right.custom_kind);
+    left.preferred_context_hint = preferred_context_hint;
     left.same_position_branches = Vec::new();
     left
 }
@@ -1149,27 +1122,20 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parser_merge_keeps_same_position_leaves_arc_boxed_and_flat() {
-        let first = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
-        let second = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
-        let third = SyntaxParseError::expected(Span::from(4..6), vec![named_token("la")]);
+    fn parser_merge_selects_deeper_context_without_branch_bundle() {
+        let mut shallow = SyntaxParseError::expected(Span::from(4..6), vec![named_token("lo")]);
+        in_context(&mut shallow, "text");
+        let mut deep = SyntaxParseError::expected(Span::from(4..6), vec![named_token("le")]);
+        in_context(&mut deep, "sumti");
 
-        let merged = first.merge_for_parser(second).merge_for_parser(third);
+        let merged = shallow.merge_for_parser(deep);
 
-        assert_eq!(merged.same_position_branches.len(), 3);
-        assert!(
-            merged
-                .same_position_branches
-                .iter()
-                .all(|branch| branch.same_position_branches.is_empty())
-        );
+        assert!(merged.same_position_branches.is_empty());
         assert_eq!(
-            std::mem::size_of_val(&merged.same_position_branches[0]),
-            std::mem::size_of::<Arc<SyntaxParseError<'_>>>()
-        );
-        assert!(
-            std::mem::size_of::<Arc<SyntaxParseError<'_>>>()
-                < std::mem::size_of::<SyntaxParseError<'_>>()
+            merged
+                .preferred_context()
+                .map(|context| context.construct.clone()),
+            Some("sumti".to_owned())
         );
     }
 
