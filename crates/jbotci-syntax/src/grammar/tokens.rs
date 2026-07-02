@@ -37,10 +37,11 @@ pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         selmaho.name(),
         selmaho.name(),
         vec![new!(SyntaxExpectedToken::Selmaho(selmaho))],
+        ExperimentalCmavoContext::Selmaho(selmaho),
         move |word, state| parser_word_is_selmaho(state, word, selmaho),
     )
 }
@@ -97,12 +98,13 @@ pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         "KOhA sumti",
         "KOhA sumti",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::ProSumti,
         ))],
+        ExperimentalCmavoContext::Selmaho(Selmaho::Koha),
         |word, state| parser_word_is_selmaho(state, word, Selmaho::Koha),
     )
 }
@@ -170,12 +172,13 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         "lerfu",
         "LERFU",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::LetterWord,
         ))],
+        ExperimentalCmavoContext::Selmaho(Selmaho::By),
         |word, _state| is_letter_word(word),
     )
 }
@@ -187,6 +190,25 @@ pub(super) fn token_matching<'tokens>(
     label: &'static str,
     debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
+    bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
+) -> BoxedParser<'tokens, Token> {
+    token_matching_with_experimental_context(
+        label,
+        debug_label,
+        expected,
+        ExperimentalCmavoContext::Label(label),
+        bridi,
+    )
+}
+
+#[requires(!label.is_empty())]
+#[requires(!debug_label.is_empty())]
+#[ensures(true)]
+pub(super) fn token_matching_with_experimental_context<'tokens>(
+    label: &'static str,
+    debug_label: &'static str,
+    expected: Vec<SyntaxExpectedToken>,
+    experimental_context: ExperimentalCmavoContext,
     bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
     assert!(
@@ -205,7 +227,7 @@ pub(super) fn token_matching<'tokens>(
             {
                 let span = word.core_word().byte_range().unwrap_or(0..0);
                 let state: &mut ParserState = input.state();
-                warn_experimental_cmavo(state, label, &word);
+                warn_experimental_cmavo(state, experimental_context, &word);
                 state.trace_event(
                     TraceLevel::Primitives,
                     TraceEventKind::TerminalSuccess,
@@ -261,6 +283,26 @@ pub(super) fn token_matching<'tokens>(
     .boxed()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Label(_) => true)]
+#[invariant(::Selmaho(_) => true)]
+pub(super) enum ExperimentalCmavoContext {
+    Label(&'static str),
+    Selmaho(Selmaho),
+}
+
+impl ExperimentalCmavoContext {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn name(self) -> &'static str {
+        match self {
+            ExperimentalCmavoContext::Label(label) => label,
+            ExperimentalCmavoContext::Selmaho(selmaho) => selmaho.name(),
+        }
+    }
+}
+
 #[requires(!expected.is_empty())]
 #[ensures(!ret.is_empty())]
 fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
@@ -274,21 +316,28 @@ fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
     )
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &Token) {
+fn warn_experimental_cmavo(
+    state: &mut ParserState,
+    context: ExperimentalCmavoContext,
+    word: &Token,
+) {
     if let Some(cmavo) = parser_word_cmavo(state, word)
-        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+        && let Some(construct) = experimental_construct_for_cmavo(context, cmavo)
     {
         state.warn(construct, word);
     }
     warn_experimental_indicators(state, word);
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<ExperimentalConstruct> {
-    match (label, cmavo) {
+fn experimental_construct_for_cmavo(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> Option<ExperimentalConstruct> {
+    match (context.name(), cmavo) {
         ("COI", Cmavo::Ahoi | Cmavo::Ohai) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative)
         }
@@ -318,10 +367,10 @@ fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<Experim
         ("cmavo", Cmavo::Luhei) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
         ("cmavo", Cmavo::Muhoi) => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit),
         ("cmavo", Cmavo::Xohi) => Some(ExperimentalConstruct::ExperimentalXohiTagSelbri),
-        _ if is_general_experimental_cmavo_for_context(label, cmavo) => {
+        _ if is_general_experimental_cmavo_for_context(context, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalCmavo)
         }
-        _ if is_zantufa_experimental_cmavo_for_context(label, cmavo) => {
+        _ if is_zantufa_experimental_cmavo_for_context(context, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
         }
         _ => None,
@@ -353,32 +402,35 @@ fn warn_experimental_indicators_inner(
 
     warn_experimental_indicators_inner(state, base, context);
 
-    if let Some(label) = indicator_cmavo_context(indicator)
+    if let Some(cmavo_context) = indicator_cmavo_context(indicator)
         && let Some(cmavo) = indicator.cmavo()
-        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+        && let Some(construct) = experimental_construct_for_cmavo(cmavo_context, cmavo)
     {
         state.warn_word(construct, context, indicator);
     }
 
     if let Some(nai) = nai
-        && let Some(construct) = experimental_construct_for_cmavo("NAI", Cmavo::Nai)
+        && let Some(construct) = experimental_construct_for_cmavo(
+            ExperimentalCmavoContext::Selmaho(Selmaho::Nai),
+            Cmavo::Nai,
+        )
     {
         state.warn_word(construct, context, nai);
     }
 }
 
 #[requires(true)]
-#[ensures(ret.is_none_or(|label| !label.is_empty()))]
-fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
+#[ensures(true)]
+fn indicator_cmavo_context(indicator: &Word) -> Option<ExperimentalCmavoContext> {
     let cmavo = indicator.cmavo()?;
     if cmavo.is_selmaho(Selmaho::Noi) {
-        Some("NOI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Noi))
     } else if cmavo.is_selmaho(Selmaho::Ui) {
-        Some("UI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Ui))
     } else if cmavo.is_selmaho(Selmaho::Cai) {
-        Some("CAI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Cai))
     } else if cmavo == Cmavo::Y {
-        Some("Y")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Y))
     } else {
         None
     }
@@ -408,10 +460,13 @@ fn parser_word_is_selmaho(state: &mut ParserState, word: &Token, selmaho: Selmah
     parser_word_cmavo(state, word).is_some_and(|cmavo| selmaho.contains(cmavo))
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
-    match label {
+fn is_general_experimental_cmavo_for_context(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> bool {
+    match context.name() {
         "BAI" => matches!(
             cmavo,
             Cmavo::Behei
@@ -486,10 +541,13 @@ fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
         _ => false,
     }
 }
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
-    match label {
+fn is_zantufa_experimental_cmavo_for_context(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> bool {
+    match context.name() {
         "BAI" => matches!(
             cmavo,
             Cmavo::Baihau

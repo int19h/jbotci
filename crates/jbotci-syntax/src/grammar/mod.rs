@@ -1526,6 +1526,40 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn koha_category_terminal_warns_for_experimental_cmavo() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("mi'ai klama", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalCmavo)
+                .expect("experimental KOhA warning");
+
+            assert_eq!(warning_span(warning), [0, 5]);
+            assert!(warning.anchor.is_cmavo(Cmavo::Mihai));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn by_category_terminal_warns_for_experimental_cmavo() {
+        run_on_normal_stack(|| {
+            let parsed = parse_source("a'y cmene", &ParseOptions::default());
+            let warning = parsed
+                .warnings
+                .iter()
+                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalCmavo)
+                .expect("experimental BY warning");
+
+            assert_eq!(warning_span(warning), [0, 3]);
+            assert!(warning.anchor.is_cmavo(Cmavo::Ahy));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn parses_experimental_muhei_roi_tense_with_warning() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi so'emu'ei spuda", &ParseOptions::default());

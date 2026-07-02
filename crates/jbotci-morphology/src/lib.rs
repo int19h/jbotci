@@ -577,12 +577,14 @@ impl Word {
 
     #[requires(true)]
     #[ensures(true)]
+    pub fn selmaho_kind(&self) -> Option<Selmaho> {
+        self.cmavo().and_then(Cmavo::primary_selmaho)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub fn selmaho(&self) -> Option<&'static str> {
-        if self.is_cmavo_word() {
-            selmaho(self.phonemes().as_str())
-        } else {
-            None
-        }
+        self.selmaho_kind().map(Selmaho::name)
     }
 }
 
@@ -2527,79 +2529,6 @@ pub fn cmavo_phonemes(text: &str) -> Option<Phonemes> {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn selmaho(cmavo: &str) -> Option<&'static str> {
-    match canonicalize_text(cmavo).as_str() {
-        "a" | "e" | "ji" | "o" | "u" => Some("A"),
-        "ba" | "ca" | "pu" => Some("PU"),
-        "ba'e" | "za'e" => Some("BAhE"),
-        "be" => Some("BE"),
-        "bei" => Some("BEI"),
-        "be'o" => Some("BEhO"),
-        "by" | "cy" | "dy" | "fy" | "gy" | "jy" | "ky" | "ly" | "my" | "ny" | "py" | "ry"
-        | "sy" | "ty" | "vy" | "xy" | "y'y" | "zy" => Some("BY"),
-        "cai" | "cu'i" | "pei" | "ru'e" | "sai" => Some("CAI"),
-        "ce'e" => Some("CEhE"),
-        "co" => Some("CO"),
-        "coi" | "co'o" | "je'e" | "ju'i" | "mi'e" | "mu'o" | "ta'a" => Some("COI"),
-        "cu" => Some("CU"),
-        "da" | "de" | "di" | "do" | "fo'a" | "fo'e" | "fo'i" | "fo'o" | "fo'u" | "ko" | "ko'a"
-        | "ko'e" | "ko'i" | "ko'o" | "ko'u" | "ma" | "mi" | "ra" | "ri" | "ru" | "ta" | "ti"
-        | "tu" | "vo'a" | "vo'e" | "vo'i" | "vo'o" | "vo'u" | "zo'e" | "zu'i" => Some("KOhA"),
-        "fa" | "fai" | "fe" | "fi" | "fi'a" | "fo" | "fu" => Some("FA"),
-        "fa'o" => Some("FAhO"),
-        "fu'a" => Some("FUhA"),
-        "ge'a" | "pa'i" | "re'a" | "sa'i" | "sa'o" | "su'i" | "te'a" | "va'a" | "vu'u" | "cu'a"
-        | "de'o" | "fe'a" | "fe'i" | "fu'u" | "ju'u" | "ne'o" | "pi'a" | "pi'i" | "ri'o" => {
-            Some("VUhU")
-        }
-        "goi" | "ne" | "no'u" | "pe" | "po" | "po'e" | "po'u" => Some("GOI"),
-        "i" => Some("I"),
-        "ja" | "je" | "jo" | "ju" => Some("JA"),
-        "jei" | "ka" | "li'i" | "mu'e" | "ni" | "nu" | "pu'u" | "si'o" | "su'u" | "za'i"
-        | "zu'o" => Some("NU"),
-        "jo'i" => Some("JOhI"),
-        "joi" | "ce" | "ce'o" | "fa'u" | "jo'e" | "jo'u" | "ju'e" | "ku'a" | "pi'u" => Some("JOI"),
-        "la" | "lai" | "la'i" => Some("LA"),
-        "le" | "lei" | "le'e" | "le'i" | "lo" | "loi" | "lo'e" | "lo'i" => Some("LE"),
-        "li" | "me'o" => Some("LI"),
-        "la'e" | "lu'a" | "lu'e" | "lu'i" | "lu'o" | "tu'a" | "vu'i" => Some("LAhE"),
-        "li'u" => Some("LIhU"),
-        "lo'o" => Some("LOhO"),
-        "ni'o" => Some("NIhO"),
-        "lu" => Some("LU"),
-        "tu'e" => Some("TUhE"),
-        "to" => Some("TO"),
-        "toi" => Some("TOI"),
-        "zo" | "ma'oi" => Some("ZO"),
-        "zoi" | "la'o" | "mu'oi" => Some("ZOI"),
-        "lo'u" => Some("LOhU"),
-        "le'u" => Some("LEhU"),
-        "bu" => Some("BU"),
-        "zei" => Some("ZEI"),
-        "na" | "ja'a" => Some("NA"),
-        "nai" => Some("NAI"),
-        "na'e" | "je'a" | "no'e" | "to'e" => Some("NAhE"),
-        "noi" | "poi" | "voi" => Some("NOI"),
-        "pa" | "re" | "ci" | "vo" | "mu" | "xa" | "ze" | "bi" | "so" | "no" | "pi" => Some("PA"),
-        "pe'e" => Some("PEhE"),
-        "sa" => Some("SA"),
-        "se" | "te" | "ve" | "xe" => Some("SE"),
-        "si" => Some("SI"),
-        "su" => Some("SU"),
-        "va" | "vi" | "vu" => Some("VA"),
-        "vau" => Some("VAU"),
-        "vei" => Some("VEI"),
-        "ve'o" => Some("VEhO"),
-        "xi" => Some("XI"),
-        "y" => Some("Y"),
-        "za" | "zi" | "zu" => Some("ZI"),
-        "zo'u" => Some("ZOhU"),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
     match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word.selmaho(),
@@ -3848,10 +3777,16 @@ mod tests {
         assert_eq!(Cmavo::from_text("NÁ'E"), Some(Cmavo::Nahe));
         assert_eq!(Cmavo::Nahe.canonical_text(), "na'e");
         assert!(Selmaho::Nahe.contains(Cmavo::Nahe));
+        assert_eq!(Cmavo::Nahe.primary_selmaho(), Some(Selmaho::Nahe));
 
         assert!(Selmaho::Bai.contains(Cmavo::Lahei));
         assert!(Selmaho::Le.contains(Cmavo::Lahei));
         assert!(Selmaho::Ui.contains(Cmavo::Lahei));
+        assert_eq!(Cmavo::A.primary_selmaho(), Some(Selmaho::A));
+
+        let word = test_word(WordKind::Cmavo, "na'e", 0);
+        assert_eq!(word.selmaho_kind(), Some(Selmaho::Nahe));
+        assert_eq!(word.selmaho(), Some("NAhE"));
     }
 
     #[test]

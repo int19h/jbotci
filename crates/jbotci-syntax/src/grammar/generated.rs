@@ -1582,6 +1582,7 @@ pub mod generated_model {
         #[tree_child(primary)]
         field selbri <- arc(selbri);
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
+        field ku <- opt(cmavo(Ku).wf());
     }
 
     rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
@@ -1663,14 +1664,6 @@ pub mod generated_model {
 
     rule "description" tail_quantified_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field description <- choice((selmaho(Le), selmaho(La))).wf();
-        field tail_quantifier <- quantifier(mekso, letter_tokens);
-        #[tree_child(primary)]
-        field selbri <- arc(selbri);
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
-        field ku <- opt(cmavo(Ku).wf());
-    }
-
-    rule "description" gadri_elided_description_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
         field tail_quantifier <- quantifier(mekso, letter_tokens);
         #[tree_child(primary)]
         field selbri <- arc(selbri);
