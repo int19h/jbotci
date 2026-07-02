@@ -1,0 +1,41 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-test:
+    name: Cargo tests
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1-bookworm
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates clang cmake git libclang-dev pkg-config
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Run workspace tests
+        run: cargo test -r
+
+      - name: Run dictionary import tests
+        run: cargo test -r -p jbotci-dictionary --features import
