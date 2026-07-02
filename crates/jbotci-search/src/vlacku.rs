@@ -1520,7 +1520,7 @@ impl GlobPattern {
     #[requires(true)]
     #[ensures(true)]
     fn matches(&self, target: &str) -> bool {
-        glob_matches_from(&self.tokens, 0, &target.chars().collect::<Vec<_>>(), 0)
+        glob_matches(&self.tokens, &target.chars().collect::<Vec<_>>())
     }
 }
 
@@ -1592,10 +1592,18 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
             '$' => tokens.push(GlobToken::Consonant),
             '@' => tokens.push(GlobToken::Vowel),
             '?' => tokens.push(GlobToken::AnyOne),
-            '*' => tokens.push(GlobToken::AnyMany),
+            '*' => {
+                if tokens.last() != Some(&GlobToken::AnyMany) {
+                    tokens.push(GlobToken::AnyMany);
+                }
+            }
             value => {
                 if let Some(normalized) = normalize_glob_literal(value) {
                     tokens.push(GlobToken::Literal(normalized));
+                } else {
+                    return Err(format!(
+                        "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
+                    ));
                 }
             }
         }
@@ -1656,27 +1664,31 @@ fn entry_has_matching_rafsi_pattern(entry: &DictionaryEntry<'_>, pattern: &Exact
             })
 }
 
-#[requires(token_index <= tokens.len())]
-#[requires(target_index <= target.len())]
+#[requires(true)]
 #[ensures(true)]
-fn glob_matches_from(
-    tokens: &[GlobToken],
-    token_index: usize,
-    target: &[char],
-    target_index: usize,
-) -> bool {
-    if token_index == tokens.len() {
-        return target_index == target.len();
-    }
-    match tokens[token_index] {
-        GlobToken::AnyMany => (target_index..=target.len())
-            .any(|next_index| glob_matches_from(tokens, token_index + 1, target, next_index)),
-        token => {
-            target_index < target.len()
-                && glob_token_matches(token, target[target_index])
-                && glob_matches_from(tokens, token_index + 1, target, target_index + 1)
+fn glob_matches(tokens: &[GlobToken], target: &[char]) -> bool {
+    let mut previous = vec![false; target.len() + 1];
+    previous[0] = true;
+
+    for token in tokens {
+        let mut current = vec![false; target.len() + 1];
+        match token {
+            GlobToken::AnyMany => {
+                current[0] = previous[0];
+                for target_index in 1..=target.len() {
+                    current[target_index] = previous[target_index] || current[target_index - 1];
+                }
+            }
+            token => {
+                for target_index in 1..=target.len() {
+                    current[target_index] = previous[target_index - 1]
+                        && glob_token_matches(*token, target[target_index - 1]);
+                }
+            }
         }
+        previous = current;
     }
+    previous[target.len()]
 }
 
 #[requires(true)]
@@ -1900,6 +1912,42 @@ mod tests {
             },
         );
         assert!(broad.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_glob_collapses_repeated_stars_and_matches_with_dp() {
+        let repeated_stars = "*".repeat(512);
+        let pattern =
+            compile_glob_pattern(&format!("{repeated_stars}x")).expect("valid glob pattern");
+
+        assert_eq!(
+            pattern.tokens,
+            vec![GlobToken::AnyMany, GlobToken::Literal('x')]
+        );
+        assert!(pattern.matches(&format!("{}x", "a".repeat(512))));
+        assert!(!pattern.matches(&"a".repeat(512)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_reports_invalid_characters() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("kl!m*".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Invalid);
+        assert!(result.cards.is_empty());
+        assert!(
+            result
+                .diagnostics
+                .first()
+                .is_some_and(|message| message.contains("Invalid glob pattern"))
+        );
     }
 
     #[test]

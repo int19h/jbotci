@@ -9,6 +9,7 @@ use jbotci_morphology::{
     segment_words_with_modifiers,
 };
 use thiserror::Error;
+use unicode_normalization::UnicodeNormalization;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -330,12 +331,17 @@ pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, P
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
 pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> {
     let mut segments = Vec::new();
-    let mut remaining = text.trim();
+    let normalized = normalize_ipa_query(text);
+    let mut remaining = normalized.trim();
     while !remaining.is_empty() {
         let Some(first) = remaining.chars().next() else {
             break;
         };
         if is_ipa_boundary(first) {
+            remaining = &remaining[first.len_utf8()..];
+            continue;
+        }
+        if is_ipa_ignored_modifier(first) {
             remaining = &remaining[first.len_utf8()..];
             continue;
         }
@@ -349,6 +355,13 @@ pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> 
             .expect("IPA tokenizer only produces segment ids from the segment table");
         segments.push(segment_id);
         remaining = &remaining[segment_text.len()..];
+        while let Some(modifier) = remaining.chars().next() {
+            if is_ipa_ignored_modifier(modifier) {
+                remaining = &remaining[modifier.len_utf8()..];
+            } else {
+                break;
+            }
+        }
     }
     if segments.is_empty() {
         Err(PhoneticError::Message(
@@ -357,6 +370,18 @@ pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> 
     } else {
         Ok(make_token_sequence(segments))
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_ipa_query(text: &str) -> String {
+    text.nfd()
+        .filter_map(|value| match value {
+            '\u{0261}' => Some('g'),
+            value if is_ipa_tie_bar(value) => None,
+            value => Some(value),
+        })
+        .collect()
 }
 
 #[requires(true)]
@@ -448,7 +473,23 @@ fn bracketed_ipa_query(raw_query: &str) -> Result<Option<String>, PhoneticError>
 #[requires(true)]
 #[ensures(true)]
 fn is_ipa_boundary(value: char) -> bool {
-    value.is_whitespace() || matches!(value, '.' | '/' | 'ˈ' | 'ˌ')
+    value.is_whitespace()
+        || matches!(value, '.' | '/' | '|' | '‖' | 'ˈ' | 'ˌ')
+        || ('\u{02E5}'..='\u{02E9}').contains(&value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_ipa_tie_bar(value: char) -> bool {
+    matches!(value, '\u{0361}' | '\u{035C}')
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_ipa_ignored_modifier(value: char) -> bool {
+    matches!(value, '\u{0300}'..='\u{036F}' | '\u{02B0}'..='\u{02FF}')
+        && !is_ipa_boundary(value)
+        && !is_ipa_tie_bar(value)
 }
 
 #[requires(!remaining.is_empty())]
@@ -1125,6 +1166,23 @@ mod tests {
             aline_phonetic_similarity(tied_affricate.view(), plain_affricate.view())
                 > aline_phonetic_similarity(tied_affricate.view(), separated.view())
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn aline_tokenizer_accepts_gimfihi_ipa_normalization_inputs() {
+        let normalized = tokenize_ipa_text("ɡátʰ").expect("normalized IPA input");
+        let plain = tokenize_ipa_text("gat").expect("plain IPA input");
+        let tied = tokenize_ipa_text("d͡ʒa").expect("tie-bar affricate");
+        let untied = tokenize_ipa_text("dʒa").expect("untied affricate");
+
+        assert_eq!(normalized.segment_count(), 3);
+        assert_eq!(
+            aline_phonetic_similarity(normalized.view(), plain.view()),
+            1.0
+        );
+        assert_eq!(aline_phonetic_similarity(tied.view(), untied.view()), 1.0);
     }
 
     #[test]

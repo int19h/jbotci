@@ -1510,10 +1510,15 @@ fn is_expansion_operator(op: &str) -> bool {
 #[requires(!raw_word.is_empty(), "dialect words must not be empty")]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|word| is_normalized_cmavo(word)))]
 fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
-    let normalized: String = raw_word
-        .chars()
-        .filter_map(normalize_dialect_char)
-        .collect();
+    let mut normalized = String::new();
+    for value in raw_word.chars() {
+        let Some(normalized_char) = normalize_dialect_char(value) else {
+            return Err(DialectError::new(format!(
+                "Dialect token contains unsupported character `{value}`: {raw_word}"
+            )));
+        };
+        normalized.push(normalized_char);
+    }
     parse_cmavo_form(&normalized).ok_or_else(|| {
         DialectError::new(format!(
             "Dialect token is not exactly one morphologically valid cmavo word: {raw_word}"
@@ -1967,6 +1972,17 @@ mod tests {
                 }),
             ]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_unmappable_dialect_word_characters() {
+        let error = parse_dialect_definition("((c%3e <-> ce))")
+            .expect_err("unsupported characters must not be dropped");
+
+        assert!(error.message().contains("unsupported character"), "{error}");
+        assert!(error.message().contains("c%3e"), "{error}");
     }
 
     #[test]
