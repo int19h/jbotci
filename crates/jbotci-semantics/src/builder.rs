@@ -114,6 +114,10 @@ pub fn dictionary_relation_place_count(
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_definition_place_count(definition: &str) -> Option<usize> {
+    // Jbovlaste definitions encode place structure in prose rather than typed
+    // metadata. Pin the conventions seen in the export: direct `$x_1$` markers,
+    // braced `$x_{1}$` markers, angle markers such as `<1>`/`⟨1⟩`, and lujvo
+    // component variables such as `$x_1$` plus `$z_1$`.
     let mut max_place = 0usize;
     let mut chars = definition.chars().peekable();
     while let Some(character) = chars.next() {
@@ -176,6 +180,9 @@ fn dictionary_definition_place_count(definition: &str) -> Option<usize> {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_lujvo_definition_place_count(definition: &str) -> Option<usize> {
+    // Lujvo definitions use x-places for the resulting predicate and non-x
+    // variables for component places. Jbovlaste's visible place count is the
+    // highest x-place plus each distinct non-x component variable.
     let place_ids = collect_definition_place_ids(definition);
     if place_ids.is_empty() {
         return None;
@@ -223,12 +230,15 @@ fn first_definition_place_id(block: &str) -> Option<DefinitionPlaceId> {
             let (digits, rest_digits) = span_ascii_digits(rest);
             if !digits.is_empty() {
                 if let Some(stripped) = rest_digits.strip_prefix('}') {
-                    return definition_place_id(letter, digits).or_else(|| {
-                        remaining = stripped;
-                        None
-                    });
+                    if let Some(place_id) = definition_place_id(letter, digits) {
+                        return Some(place_id);
+                    }
+                    remaining = stripped;
+                    continue;
                 }
-                return definition_place_id(letter, digits);
+                if let Some(place_id) = definition_place_id(letter, digits) {
+                    return Some(place_id);
+                }
             }
         }
         let mut chars = remaining.chars();
@@ -348,4 +358,47 @@ fn word_type_is_brivla_like(word_type: WordType) -> bool {
 struct DefinitionPlaceId {
     letter: String,
     index: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_place_count_pins_jbovlaste_marker_conventions() {
+        assert_eq!(
+            dictionary_definition_place_count("agent $x_1$ acts on $x_{2}$ at <3> and ⟨4⟩"),
+            Some(4)
+        );
+        assert_eq!(
+            dictionary_definition_place_count("lujvo result $x_1$ from $z_1$ and $r_1$"),
+            Some(3)
+        );
+        assert_eq!(
+            dictionary_definition_place_count("repeated component $x_1$ and $z_1$ and $z_1$"),
+            Some(2)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn first_definition_place_id_continues_after_invalid_braced_marker() {
+        assert_eq!(
+            first_definition_place_id("x_{0} noise x_{3}"),
+            Some(new!(DefinitionPlaceId {
+                letter: "x".to_owned(),
+                index: 3,
+            }))
+        );
+        assert_eq!(
+            dictionary_definition_place_count("bad first marker $x_{0} noise x_{3}$"),
+            Some(3)
+        );
+    }
 }
