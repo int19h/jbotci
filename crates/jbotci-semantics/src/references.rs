@@ -1078,6 +1078,9 @@ fn span_key_for_generated_node(
 fn fixture_span_key_from_syntax_span(key: &SyntaxSpanKey) -> Option<FixtureSpanKey> {
     let length = key.byte_end.checked_sub(key.byte_start)?;
     if length == 0 {
+        // Fixture projections are keyed by visible byte ranges; zero-width
+        // generated nodes cannot be represented there, so their containing
+        // projection record is omitted instead of inventing a synthetic range.
         return None;
     }
     Some(FixtureSpanKey {

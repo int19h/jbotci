@@ -3349,6 +3349,9 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
         .with_context(|| format!("fetching Lensisku dictionary from `{download_url}`"))?;
     let imported = parse_lensisku_json(&dictionary_text)
         .with_context(|| format!("validating Lensisku dictionary from `{download_url}`"))?;
+    if imported.entries.is_empty() {
+        bail!("Lensisku dictionary export from `{download_url}` contained no entries");
+    }
     let pretty_json = pretty_json(&dictionary_text)
         .with_context(|| format!("pretty-printing Lensisku dictionary from `{download_url}`"))?;
     let sha256 = sha256_hex(pretty_json.as_bytes());
@@ -10089,8 +10092,8 @@ fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
     }
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())

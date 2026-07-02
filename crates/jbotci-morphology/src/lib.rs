@@ -2054,7 +2054,7 @@ pub fn segment_words_for_display_with_options_and_source_id(
 }
 
 #[requires(!phonemes.as_str().is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
 pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, String> {
     segment::pronunciation_syllable_texts(phonemes.as_str())
         .ok_or_else(|| format!("could not syllabify `{}`", phonemes.as_str()))

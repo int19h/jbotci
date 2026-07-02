@@ -48,6 +48,25 @@ fn parse_result_expensively(input: &str) -> Result<usize, String> {
     input.parse().map_err(|error| format!("{error}"))
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| *value > 0) || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
+fn parse_result_with_error_contract(input: &str) -> Result<usize, String> {
+    input.parse().map_err(|error| format!("{error}"))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_err() && ret.as_ref().is_ok_and(|value| *value > 0))]
+fn infallible_result_contract() -> Result<usize, String> {
+    Ok(1)
+}
+
+#[requires(true)]
+#[ensures(probe.as_ref().is_ok_and(|value| *value > 0) || probe.is_err())]
+fn unrelated_result_probe_contract(probe: Result<usize, String>) -> Result<(), String> {
+    let _ = probe;
+    Ok(())
+}
+
 impl Marker {
     #[requires(true)]
     #[expensive_ensures(true)]

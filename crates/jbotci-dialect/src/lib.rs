@@ -1159,8 +1159,8 @@ fn parse_dialect_definition_with_reference_resolver(
     Ok(definition_from_entries(entries))
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(entries, rest)| !entries.is_empty() || rest.is_empty()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(entries, rest)| !entries.is_empty() || rest.is_empty()))]
 fn parse_dialect_token_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -1178,8 +1178,8 @@ fn parse_dialect_token_entries<'a>(
     }
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() <= tokens.len()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() <= tokens.len()))]
 fn parse_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     mut acc: Vec<DialectDefinitionEntry>,
@@ -1198,8 +1198,8 @@ fn parse_entries<'a>(
     }
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() < tokens.len()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() < tokens.len()))]
 fn parse_entry<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -1304,8 +1304,8 @@ fn parse_entry<'a>(
     }
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.is_none_or(|(_, feature)| DialectFeature::all().contains(&feature))))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.is_none_or(|(_, feature)| DialectFeature::all().contains(&feature))))]
 fn parse_feature_toggle_atom(
     atom_text: &str,
 ) -> Result<Option<(DialectFeatureToggle, DialectFeature)>, DialectError> {

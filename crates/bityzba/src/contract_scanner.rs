@@ -366,9 +366,9 @@ impl FileScanner {
                     self.path.clone(),
                     attr_line,
                     format!(
-                        "Result-returning {item_kind} `{item_name}` has an `is_ok_and` postcondition without an `is_err` escape"
+                        "Result-returning {item_kind} `{item_name}` has an `is_ok_and` postcondition without a Result error escape"
                     ),
-                    "write Result postconditions as `ret.as_ref().is_ok_and(...) || ret.is_err()` so legitimate Err returns do not panic",
+                    "write Result postconditions with an explicit `ret.is_err()` or `ret.as_ref().err()` escape so legitimate Err returns do not panic",
                 ));
             }
         }
@@ -430,16 +430,90 @@ fn is_result_postcondition_without_err_escape(attr: &Attribute) -> bool {
     let syn::Meta::List(list) = &attr.meta else {
         return false;
     };
-    token_stream_contains_ident(list.tokens.clone(), "is_ok_and")
-        && !token_stream_contains_ident(list.tokens.clone(), "is_err")
+    // This is intentionally syntactic: it catches the project-standard
+    // `ret.as_ref().is_ok_and(...)` form and requires the same postcondition to
+    // expose an explicit `ret.is_err()` or `ret.as_ref().err()` escape. It does
+    // not try to prove arbitrary Result predicates equivalent.
+    token_stream_has_ret_method(list.tokens.clone(), "is_ok_and")
+        && !token_stream_has_ret_error_escape(list.tokens.clone())
 }
 
-fn token_stream_contains_ident(tokens: TokenStream, name: &str) -> bool {
-    tokens.into_iter().any(|token| match token {
-        TokenTree::Ident(ident) => ident == name,
-        TokenTree::Group(group) => token_stream_contains_ident(group.stream(), name),
+fn token_stream_has_ret_error_escape(tokens: TokenStream) -> bool {
+    token_stream_has_ret_method_outside_method_args(tokens.clone(), "is_err", &["is_ok_and"])
+        || token_stream_has_ret_method_outside_method_args(tokens, "err", &["is_ok_and"])
+}
+
+fn token_stream_has_ret_method(tokens: TokenStream, name: &str) -> bool {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    tokens.iter().enumerate().any(|(index, token)| match token {
+        TokenTree::Ident(ident)
+            if ident == "ret" && ret_chain_has_method(&tokens[index + 1..], name) =>
+        {
+            true
+        }
+        TokenTree::Group(group) => token_stream_has_ret_method(group.stream(), name),
         _ => false,
     })
+}
+
+fn token_stream_has_ret_method_outside_method_args(
+    tokens: TokenStream,
+    name: &str,
+    skipped_method_args: &[&str],
+) -> bool {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    tokens.iter().enumerate().any(|(index, token)| match token {
+        TokenTree::Ident(ident)
+            if ident == "ret" && ret_chain_has_method(&tokens[index + 1..], name) =>
+        {
+            true
+        }
+        TokenTree::Group(group) if !group_is_method_args(&tokens, index, skipped_method_args) => {
+            token_stream_has_ret_method_outside_method_args(
+                group.stream(),
+                name,
+                skipped_method_args,
+            )
+        }
+        _ => false,
+    })
+}
+
+fn group_is_method_args(tokens: &[TokenTree], index: usize, method_names: &[&str]) -> bool {
+    let Some(TokenTree::Ident(method)) = index.checked_sub(1).and_then(|index| tokens.get(index))
+    else {
+        return false;
+    };
+    if !method_names.iter().any(|name| method == *name) {
+        return false;
+    }
+    matches!(
+        index.checked_sub(2).and_then(|index| tokens.get(index)),
+        Some(TokenTree::Punct(punct)) if punct.as_char() == '.'
+    )
+}
+
+fn ret_chain_has_method(tokens: &[TokenTree], name: &str) -> bool {
+    let mut index = 0usize;
+    while index < tokens.len() {
+        match tokens.get(index) {
+            Some(TokenTree::Punct(punct)) if punct.as_char() == '.' => {
+                index += 1;
+            }
+            _ => return false,
+        }
+        let Some(TokenTree::Ident(method)) = tokens.get(index) else {
+            return false;
+        };
+        if method == name {
+            return true;
+        }
+        index += 1;
+        if matches!(tokens.get(index), Some(TokenTree::Group(_))) {
+            index += 1;
+        }
+    }
+    false
 }
 
 fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {

@@ -2467,9 +2467,14 @@ fn remote_pack_child_url(
     remote_pack_url(base_url, &relative_path)
 }
 
-#[requires(!value.is_empty())]
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|path| !path.as_os_str().is_empty()) || ret.is_err())]
 fn safe_pack_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
+    if value.is_empty() {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "remote pack path must not be empty".to_owned(),
+        });
+    }
     let path = Path::new(value);
     if path.is_absolute() {
         return Err(EmbeddingError::InvalidIndex {
@@ -2487,17 +2492,28 @@ fn safe_pack_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
     Ok(path.to_owned())
 }
 
-#[requires(!value.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|path| path != Path::new("manifest.json")) || ret.is_err())]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| !pack_data_path_is_reserved(path)) || ret.is_err())]
 fn safe_pack_data_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
     let path = safe_pack_relative_path(value)?;
-    if path == Path::new("manifest.json") {
+    if pack_data_path_is_reserved(&path) {
         return Err(EmbeddingError::InvalidIndex {
             message: "remote pack child path `manifest.json` is reserved for the pack manifest"
                 .to_owned(),
         });
     }
     Ok(path)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn pack_data_path_is_reserved(path: &Path) -> bool {
+    path.parent()
+        .is_none_or(|parent| parent.as_os_str().is_empty())
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("manifest.json"))
 }
 
 #[requires(true)]
@@ -3408,6 +3424,40 @@ mod tests {
         assert_eq!(progress_percent(100, 100), Some(100));
     }
 
+    #[requires(true)]
+    #[ensures(ret.dimensions == 4)]
+    fn sample_pack_manifest() -> EmbeddingPackManifest {
+        EmbeddingPackManifest {
+            schema_version: INDEX_SCHEMA_VERSION,
+            model_key: DEFAULT_MODEL_KEY.to_owned(),
+            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
+            pack_id: "pack".to_owned(),
+            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+            built_by: EmbeddingRuntime {
+                runtime: "test".to_owned(),
+                version: "test".to_owned(),
+            },
+            dimensions: 4,
+            element_type: "f32le".to_owned(),
+            normalized: true,
+            distance: "dot".to_owned(),
+            compatible_query_runtimes: vec![EmbeddingRuntime {
+                runtime: "llama-cpp-4".to_owned(),
+                version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
+            }],
+            corpora: vec![CorpusManifest {
+                corpus_id: VLACKU_CORPUS_ID.to_owned(),
+                input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+                fingerprint: "f".repeat(64),
+                row_count: 0,
+                dimensions: 4,
+                items_url: "corpora/vlacku-en/items.json".to_owned(),
+                items_sha256: "0".repeat(64),
+                shards: Vec::new(),
+            }],
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -3437,40 +3487,26 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn native_pack_remote_paths_reject_reserved_manifest_child_path() {
-        let manifest = EmbeddingPackManifest {
-            schema_version: INDEX_SCHEMA_VERSION,
-            model_key: DEFAULT_MODEL_KEY.to_owned(),
-            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
-            pack_id: "pack".to_owned(),
-            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
-            built_by: EmbeddingRuntime {
-                runtime: "test".to_owned(),
-                version: "test".to_owned(),
-            },
-            dimensions: 4,
-            element_type: "f32le".to_owned(),
-            normalized: true,
-            distance: "dot".to_owned(),
-            compatible_query_runtimes: vec![EmbeddingRuntime {
-                runtime: "llama-cpp-4".to_owned(),
-                version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
-            }],
-            corpora: vec![CorpusManifest {
-                corpus_id: VLACKU_CORPUS_ID.to_owned(),
-                input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
-                fingerprint: "f".repeat(64),
-                row_count: 0,
-                dimensions: 4,
-                items_url: "manifest.json".to_owned(),
-                items_sha256: "0".repeat(64),
-                shards: Vec::new(),
-            }],
-        };
+        for path in ["manifest.json", "MANIFEST.JSON"] {
+            let mut manifest = sample_pack_manifest();
+            manifest.corpora[0].items_url = path.to_owned();
+            let error = native_pack_remote_paths(&manifest).expect_err("reserved path");
 
-        let error = native_pack_remote_paths(&manifest).expect_err("reserved path");
+            assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
+            assert!(error.to_string().contains("manifest.json"));
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_pack_remote_paths_reject_empty_child_path() {
+        let mut manifest = sample_pack_manifest();
+        manifest.corpora[0].items_url.clear();
+        let error = native_pack_remote_paths(&manifest).expect_err("empty path");
 
         assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
-        assert!(error.to_string().contains("manifest.json"));
+        assert!(error.to_string().contains("must not be empty"));
     }
 
     #[test]
@@ -3480,35 +3516,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let pack_dir = dir.path().join("pack");
         std::fs::create_dir_all(&pack_dir).expect("pack dir");
-        let missing_items_manifest = EmbeddingPackManifest {
-            schema_version: INDEX_SCHEMA_VERSION,
-            model_key: DEFAULT_MODEL_KEY.to_owned(),
-            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
-            pack_id: "pack".to_owned(),
-            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
-            built_by: EmbeddingRuntime {
-                runtime: "test".to_owned(),
-                version: "test".to_owned(),
-            },
-            dimensions: 4,
-            element_type: "f32le".to_owned(),
-            normalized: true,
-            distance: "dot".to_owned(),
-            compatible_query_runtimes: vec![EmbeddingRuntime {
-                runtime: "llama-cpp-4".to_owned(),
-                version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
-            }],
-            corpora: vec![CorpusManifest {
-                corpus_id: VLACKU_CORPUS_ID.to_owned(),
-                input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
-                fingerprint: "f".repeat(64),
-                row_count: 0,
-                dimensions: 4,
-                items_url: "corpora/vlacku-en/items.json".to_owned(),
-                items_sha256: "0".repeat(64),
-                shards: Vec::new(),
-            }],
-        };
+        let missing_items_manifest = sample_pack_manifest();
         write_json_file(&pack_dir.join("manifest.json"), &missing_items_manifest)
             .expect("missing items manifest");
         let error = validate_pack_dir(&pack_dir).expect_err("missing items");

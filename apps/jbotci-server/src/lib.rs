@@ -188,7 +188,7 @@ fn embedding_worker_loop(
 #[requires(true)]
 #[ensures(
     ret.as_ref().is_ok_and(|model_key| !model_key.as_str().trim().is_empty())
-        || ret.is_err()
+        || ret.as_ref().err().is_some_and(|error| !error.message.trim().is_empty())
 )]
 fn configured_embedding_search_startup()
 -> std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError> {
@@ -201,7 +201,7 @@ fn configured_embedding_search_startup()
 #[requires(true)]
 #[ensures(
     ret.as_ref().is_ok_and(|model_key| !model_key.as_str().trim().is_empty())
-        || ret.is_err()
+        || ret.as_ref().err().is_some_and(|message| !message.trim().is_empty())
 )]
 fn configured_embedding_model_key() -> std::result::Result<ServerEmbeddingModelKey, String> {
     let model_key = std::env::var(SERVER_EMBEDDING_MODEL_KEY_ENV)

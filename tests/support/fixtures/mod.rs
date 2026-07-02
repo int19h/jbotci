@@ -1124,8 +1124,8 @@ pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, 
     Ok(loaded)
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
 pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureError> {
     let root = root.as_ref();
     let mut paths = Vec::new();
@@ -1173,8 +1173,8 @@ where
     Ok(count)
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
 pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, FixtureError> {
     let root = root.as_ref();
     let mut seen = BTreeMap::new();
@@ -1272,8 +1272,8 @@ pub fn fixture_matches_selector(
     matches_selector(root, fixture, selector)
 }
 
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
 pub fn import_export_file(
     input_path: impl AsRef<Path>,
     output_root: impl AsRef<Path>,

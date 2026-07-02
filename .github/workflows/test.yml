@@ -21,7 +21,10 @@ jobs:
     container:
       image: rust:1-bookworm
     env:
+      CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
       CARGO_BUILD_JOBS: 4
+      RUSTUP_HOME: /usr/local/rustup
     steps:
       - name: Install build dependencies
         run: |
@@ -34,8 +37,28 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Run workspace tests
-        run: cargo test -r
+      - name: Restore cargo cache
+        id: cargo-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            .github-cache/cargo
+            .github-cache/cargo-target/test
+          key: jbotci-test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-test-${{ runner.os }}-
 
-      - name: Run dictionary import tests
-        run: cargo test -r -p jbotci-dictionary --features import
+      - name: Run workspace tests with import feature
+        run: cargo test -r --workspace --features jbotci-dictionary/import
+
+      - name: Run fixture tests
+        run: cargo run -r -p xtask-full -- fixture-test --profile all
+
+      - name: Save cargo cache
+        if: success() && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            .github-cache/cargo
+            .github-cache/cargo-target/test
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}

@@ -1189,8 +1189,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[ensures(ret.is_err() || self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(ret.is_err() || self.index <= self.chars.len())]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
         loop {
             let before = self.index;

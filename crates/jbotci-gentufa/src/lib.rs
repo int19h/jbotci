@@ -1636,6 +1636,8 @@ fn weighted_circular_mean_hue(values: &[(f64, usize)]) -> Option<f64> {
         y += radians.sin() * weight;
     }
     let mut degrees = y.atan2(x).to_degrees().rem_euclid(360.0);
+    // Floating-point remainder can round a tiny negative angle to the upper
+    // boundary; hues are represented as the half-open range [0, 360).
     if degrees >= 360.0 {
         degrees = 0.0;
     }
@@ -1810,7 +1812,7 @@ fn token_kind_for_text(text: &str) -> Option<String> {
 }
 
 #[requires(true)]
-#[ensures(ret == constructor.strip_suffix("Syntax").unwrap_or(constructor))]
+#[ensures((constructor.ends_with("Syntax") && ret.len() + "Syntax".len() == constructor.len()) || (!constructor.ends_with("Syntax") && ret == constructor))]
 pub fn syntax_constructor_name(constructor: &str) -> &str {
     constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }

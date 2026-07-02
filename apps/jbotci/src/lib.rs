@@ -5231,8 +5231,8 @@ fn render_vlatai_phonemes(phonemes: &str, options: PhonemeRenderOptions) -> Stri
 
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
-#[ensures(diagnostics.is_empty() -> (ret.as_ref().is_ok_and(String::is_empty) || ret.is_err()))]
-#[ensures(!diagnostics.is_empty() -> ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+#[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
+#[ensures(!diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(|text| !text.is_empty())))]
 fn render_source_diagnostics(
     source_label: &str,
     source: &str,
@@ -6002,6 +6002,7 @@ mod tests {
     use clap::error::ErrorKind;
     use jbotci_dialect::DialectFeature;
     use jbotci_embeddings::{EMBEDDING_INDEX_DIR_ENV, EMBEDDING_MODEL_DIR_ENV};
+    use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::path::Path;
     use std::sync::{Mutex, OnceLock};
 
@@ -6164,7 +6165,10 @@ mod tests {
 
         assert_eq!(output.status, ToolStatus::InvalidInput);
         assert!(output.stdout.is_empty());
-        assert_eq!(output.stderr, "vlacku: Invalid Lojban word: !!!\n");
+        assert_eq!(
+            output.stderr,
+            format!("vlacku: {INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!\n")
+        );
     }
 
     #[test]
@@ -9057,7 +9061,10 @@ mod tests {
 
         assert_eq!(run.status, CliStatus::InvalidInput);
         assert!(run.stdout.is_empty(), "{}", run.stdout);
-        assert!(run.stderr.contains("Invalid Lojban word: aa"));
+        assert!(
+            run.stderr
+                .contains(&format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}aa"))
+        );
     }
 
     #[test]
@@ -9068,7 +9075,10 @@ mod tests {
 
         assert_eq!(run.status, CliStatus::InvalidInput);
         assert!(run.stdout.is_empty(), "{}", run.stdout);
-        assert!(run.stderr.contains("Invalid Lojban word: !!!"));
+        assert!(
+            run.stderr
+                .contains(&format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!"))
+        );
     }
 
     #[test]

@@ -1,5 +1,7 @@
 //! Lensisku JSON import support.
 
+#[allow(unused_imports)]
+use bityzba::expensive_ensures;
 use bityzba::{invariant, requires};
 use serde::{Deserialize, Deserializer};
 use thiserror::Error;
@@ -81,7 +83,7 @@ pub enum LensiskuImportError {
 
 /// Parse a Lensisku JSON dictionary snapshot.
 #[requires(true)]
-#[ensures(true)]
+#[expensive_ensures(ret.as_ref().is_ok_and(|dictionary| dictionary.entries.iter().all(|entry| entry.selmaho.as_ref().is_none_or(|text| !text.trim().is_empty()))) || ret.is_err())]
 pub fn parse_lensisku_json(input: &str) -> Result<ImportedDictionary, LensiskuImportError> {
     let entries = serde_json::from_str::<Vec<ImportedDictionaryEntry>>(input)?;
     Ok(ImportedDictionary { entries })
