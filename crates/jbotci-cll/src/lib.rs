@@ -2796,14 +2796,10 @@ fn parse_cmavo_list_block(
     let header_cells = child_element(node, "cmavo-list-head")
         .map(|head| head.children().filter(Node::is_element).collect::<Vec<_>>())
         .unwrap_or_default();
-    let headers = (0..column_count)
-        .map(|index| {
-            header_cells
-                .get(index)
-                .map(|cell| trim_inline_runs(parse_inlines(*cell)))
-                .filter(|body| !body.is_empty())
-                .unwrap_or_else(|| vec![CllInline::Text(cmavo_column_label(index))])
-        })
+    let headers = header_cells
+        .iter()
+        .map(|cell| trim_inline_runs(parse_inlines(*cell)))
+        .filter(|body| !body.is_empty())
         .collect::<Vec<_>>();
     let rows = entry_rows
         .iter()
@@ -2831,18 +2827,6 @@ fn parse_cmavo_list_block(
         headers,
         rows,
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn cmavo_column_label(index: usize) -> String {
-    match index {
-        0 => "cmavo",
-        1 => "selma'o",
-        2 => "description",
-        _ => "",
-    }
-    .to_owned()
 }
 
 #[requires(node.is_element())]
@@ -5257,24 +5241,31 @@ fn render_cmavo_list_markdown(
         output.push_str(&render_inlines_markdown(site, title));
         output.push_str("**\n\n");
     }
-    let header = if headers.is_empty() {
-        Vec::new()
-    } else {
-        headers
-            .iter()
-            .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
-            .collect::<Vec<_>>()
-    };
+    if headers.is_empty() {
+        for row in rows {
+            let rendered_cells = row
+                .iter()
+                .map(|cell| render_inlines_markdown(site, cell).trim().to_owned())
+                .filter(|cell| !cell.is_empty())
+                .collect::<Vec<_>>();
+            if rendered_cells.is_empty() {
+                continue;
+            }
+            output.push_str(&rendered_cells.join(" | "));
+            output.push_str("\n\n");
+        }
+        return;
+    }
+    let header = headers
+        .iter()
+        .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
+        .collect::<Vec<_>>();
     let rendered_rows = rows.iter().map(|row| {
         row.iter()
             .map(|cell| markdown_table_cell_text(&render_inlines_markdown(site, cell)))
             .collect::<Vec<_>>()
     });
-    if header.is_empty() {
-        render_markdown_table_rows(rendered_rows, output);
-    } else {
-        render_markdown_table_rows(std::iter::once(header).chain(rendered_rows), output);
-    }
+    render_markdown_table_rows(std::iter::once(header).chain(rendered_rows), output);
 }
 
 #[requires(true)]
@@ -6312,6 +6303,97 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn headerless_cmavo_lists_do_not_synthesize_headers() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-vocative-scales")
+            .expect("vocative scales section should exist");
+        let cmavo_lists = section
+            .blocks
+            .iter()
+            .filter_map(|block| match block {
+                CllBlock::CmavoList { headers, rows, .. } => Some((headers, rows)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(cmavo_lists.len() > 5);
+        assert!(
+            cmavo_lists
+                .iter()
+                .take(6)
+                .all(|(headers, _)| headers.is_empty())
+        );
+        assert_eq!(
+            cmavo_list_row_texts(&cmavo_lists[0].1[0]),
+            vec!["coi".to_owned(), "greetings".to_owned()]
+        );
+        assert_eq!(
+            cmavo_list_row_texts(&cmavo_lists[2].1[0]),
+            vec!["co'o".to_owned(), "partings".to_owned()]
+        );
+        assert_eq!(
+            cmavo_list_row_texts(&cmavo_lists[4].1[0]),
+            vec![
+                "ju'i".to_owned(),
+                "[jundi]".to_owned(),
+                "attention".to_owned(),
+                "at ease".to_owned(),
+                "ignore me/us".to_owned(),
+            ]
+        );
+
+        let html = render_section(site, section, CllRenderFormat::Html);
+        assert!(!html.contains("<th>cmavo</th>"));
+        assert!(html.contains("<tr><td>coi</td><td>greetings</td></tr>"));
+        assert!(html.contains(
+            "<tr><td>ju'i</td><td>[jundi]</td><td>attention</td><td>at ease</td><td>ignore me/us</td></tr>"
+        ));
+
+        let markdown = render_section(site, section, CllRenderFormat::Markdown);
+        assert!(!markdown.contains("| cmavo |"));
+        assert!(!markdown.contains("| --- |"));
+        assert!(markdown.contains("coi | greetings\n\n"));
+        assert!(markdown.contains("ju'i | [jundi] | attention | at ease | ignore me/us\n\n"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn explicit_cmavo_list_headers_are_preserved() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = cll_lookup_section(site, "section-irregular-BAI")
+            .expect("irregular BAI section should exist");
+        let (headers, _rows) = section
+            .blocks
+            .iter()
+            .find_map(|block| match block {
+                CllBlock::CmavoList { headers, rows, .. } if !headers.is_empty() => {
+                    Some((headers, rows))
+                }
+                _ => None,
+            })
+            .expect("section should contain an explicitly headed cmavo list");
+
+        assert_eq!(
+            cmavo_list_row_texts(headers),
+            vec![
+                "cmavo".to_owned(),
+                "gismu".to_owned(),
+                "comments".to_owned()
+            ]
+        );
+
+        let html = render_section(site, section, CllRenderFormat::Html);
+        assert!(html.contains("<th>cmavo</th><th>gismu</th><th>comments</th>"));
+
+        let markdown = render_section(site, section, CllRenderFormat::Markdown);
+        assert!(markdown.contains("| cmavo | gismu | comments |"));
+        assert!(markdown.contains("| --- | --- | --- |"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn bridgehead_anchors_render_as_heading_ids() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-index").expect("section should exist");
@@ -6573,6 +6655,15 @@ mod tests {
                 row
             );
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|cell| !cell.is_empty()))]
+    fn cmavo_list_row_texts(row: &[Vec<CllInline>]) -> Vec<String> {
+        row.iter()
+            .map(|cell| inline_plain_text(cell))
+            .filter(|cell| !cell.is_empty())
+            .collect()
     }
 
     #[requires(true)]
