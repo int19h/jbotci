@@ -5484,6 +5484,7 @@ mod tests {
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
     use jbotci_morphology::{GlideMark, StressMark};
+    use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
 
     const DEFAULT_GENTUFA_SAMPLE: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
@@ -7766,7 +7767,26 @@ mod tests {
             result
                 .errors
                 .iter()
-                .any(|error| error.contains("Invalid Lojban word"))
+                .any(|error| error.contains(INVALID_LOJBAN_WORD_MESSAGE_PREFIX))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_punctuation_only_word_search_reports_invalid_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "!!!".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.cards.is_empty(), "{:?}", result.cards);
+        let expected = format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!");
+        assert_eq!(
+            result.errors.first().map(String::as_str),
+            Some(expected.as_str())
         );
     }
 

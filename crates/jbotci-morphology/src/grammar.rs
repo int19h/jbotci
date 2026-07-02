@@ -1096,7 +1096,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
@@ -1189,8 +1189,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[ensures(ret.as_ref().is_err() || self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(ret.is_err() || self.index <= self.chars.len())]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
         loop {
             let before = self.index;
@@ -1592,7 +1592,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
     fn source_span(&self, start: usize, end: usize) -> Result<SourceSpan, MorphologyError> {
         SourceSpan::new(
             self.source_id.clone(),
@@ -1605,7 +1605,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|verbatim| verbatim.span.char_start == start && verbatim.span.char_end == end))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|verbatim| verbatim.span.char_start == start && verbatim.span.char_end == end))]
     fn verbatim(&self, start: usize, end: usize) -> Result<Verbatim, MorphologyError> {
         Ok(Verbatim::new(
             self.source_span(start, end)?,

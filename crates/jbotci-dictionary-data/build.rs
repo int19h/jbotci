@@ -408,7 +408,7 @@ fn leak_str(value: &str) -> &'static str {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|metadata| !metadata.lensisku_created_at.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|metadata| !metadata.lensisku_created_at.is_empty()) || ret.is_err())]
 fn load_dictionary_metadata(path: &Path) -> Result<DictionaryMetadata, Box<dyn Error>> {
     let input = fs::read_to_string(path)?;
     Ok(toml::from_str(&input)?)

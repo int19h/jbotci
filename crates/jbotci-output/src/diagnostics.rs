@@ -44,8 +44,8 @@ impl Default for DiagnosticRenderOptions {
 
 #[requires(!source_label.is_empty())]
 #[requires(options.terminal_width > 0)]
-#[ensures(diagnostics.is_empty() -> ret.as_ref().is_ok_and(String::is_empty))]
-#[ensures(!diagnostics.is_empty() -> ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+#[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
+#[ensures(!diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(|text| !text.is_empty())))]
 pub fn render_diagnostics(
     source_label: &str,
     source: &str,

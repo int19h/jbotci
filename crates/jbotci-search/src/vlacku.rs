@@ -16,6 +16,7 @@ use regex::Regex;
 
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
+pub const INVALID_LOJBAN_WORD_MESSAGE_PREFIX: &str = "Invalid Lojban word: ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -568,7 +569,9 @@ fn cards_for_valsi(
         return cards_for_valsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     if !entries.is_empty() {
@@ -619,7 +622,9 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let cards = filter_and_limit(
         dictionary
@@ -649,7 +654,9 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let normalized = normalize_lookup_query(query);
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -660,7 +667,7 @@ fn cards_for_lujvo(
         let cards = match classify_exact_word(query, &normalized) {
             Some(classification) => vec![unknown_card(classification, decomposition.as_ref())],
             None => {
-                return invalid_output(format!("Invalid Lojban word: {query}"));
+                return invalid_lojban_word_output(query);
             }
         };
         runtime_decomposition = decomposition;
@@ -866,9 +873,16 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || query.trim().is_empty())]
-fn normalize_exact_lojban_query(query: &str) -> String {
-    normalize_lookup_query(&normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()))
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || query.trim().is_empty()))]
+fn normalize_exact_lojban_query(query: &str) -> Option<String> {
+    let normalized = normalize_lookup_query(
+        &normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()),
+    );
+    if normalized.is_empty() && !query.trim().is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
 }
 
 #[requires(true)]
@@ -879,6 +893,12 @@ fn invalid_output(message: String) -> VlackuSearchOutput {
         outcome: VlackuOutcome::Invalid,
         diagnostics: vec![message],
     }
+}
+
+#[requires(true)]
+#[ensures(ret.outcome == VlackuOutcome::Invalid)]
+fn invalid_lojban_word_output(query: &str) -> VlackuSearchOutput {
+    invalid_output(format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}"))
 }
 
 #[requires(true)]
@@ -907,7 +927,7 @@ fn missing_exact_output(
                 diagnostics: Vec::new(),
             }
         }
-        None => invalid_output(format!("Invalid Lojban word: {query}")),
+        None => invalid_lojban_word_output(query),
     }
 }
 
@@ -2167,6 +2187,31 @@ mod tests {
                 .first()
                 .is_some_and(|message| message.contains("Invalid regex pattern"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn punctuation_only_exact_queries_are_invalid() {
+        for request in [
+            VlackuRequest::Valsi("!!!".to_owned()),
+            VlackuRequest::Rafsi("!!!".to_owned()),
+            VlackuRequest::Lujvo("!!!".to_owned()),
+        ] {
+            let result = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[request],
+                &VlackuSearchOptions::default(),
+            );
+
+            assert_eq!(result.outcome, VlackuOutcome::Invalid);
+            assert!(result.cards.is_empty(), "{:?}", result.cards);
+            let expected = format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!");
+            assert_eq!(
+                result.diagnostics.first().map(String::as_str),
+                Some(expected.as_str())
+            );
+        }
     }
 
     #[test]

@@ -295,7 +295,7 @@ impl Default for TreeRenderOptions {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+#[ensures(true)]
 pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError> {
     let mut bytes = Vec::new();
     let mut serializer = serde_json::Serializer::new(&mut bytes);
@@ -552,25 +552,25 @@ fn render_phoneme_fields_in_json_value(value: &mut Value, phonemes: PhonemeRende
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_brackets(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
     pretty_brackets_with_options(tree, source, BracketRenderOptions::default())
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_tree(tree: &TextSyntax, source: &str) -> Result<String, OutputError> {
     pretty_tree_with_options(tree, source, TreeRenderOptions::default())
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_morphology_tree(words: &[WordLike], source: &str) -> Result<String, OutputError> {
     pretty_morphology_tree_with_options(words, source, TreeRenderOptions::default())
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_morphology_tree_with_options(
     words: &[WordLike],
     source: &str,
@@ -580,7 +580,7 @@ pub fn pretty_morphology_tree_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_tree_with_options(
     tree: &TextSyntax,
     source: &str,
@@ -1035,7 +1035,7 @@ fn is_omitted_compact_value(value: &Value) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_brackets_with_options(
     tree: &TextSyntax,
     source: &str,
@@ -1045,7 +1045,7 @@ pub fn pretty_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()) || ret.is_err())]
 pub fn pretty_bracket_source_fragments_with_options(
     tree: &TextSyntax,
     source: &str,
@@ -1055,7 +1055,7 @@ pub fn pretty_bracket_source_fragments_with_options(
 }
 
 #[requires(true)]
-#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_morphology_brackets_with_options(
     words: &[WordLike],
     source: &str,
@@ -1103,6 +1103,15 @@ mod tests {
         assert_eq!(GlyphStyle::Ascii.span_leader(), "..");
         assert_eq!(GlyphStyle::Ascii.numeric_suffix(12), "12");
         assert_eq!(GlyphStyle::Ascii.lujvo_separator(), "~");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compact_json_value_allows_root_null() {
+        let value = compact_json_value(&Option::<usize>::None).expect("serialize null");
+
+        assert_eq!(value, Value::Null);
     }
 
     #[test]

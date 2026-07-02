@@ -430,14 +430,14 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
     pub fn fixture_projection_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(&self.fixture_projection())
     }
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0))]
+#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0) || ret.is_err())]
 pub fn analyze_generated_references<'tree>(
     syntax: &'tree GeneratedTextSyntax,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
@@ -1075,15 +1075,28 @@ fn span_key_for_generated_node(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| key.length > 0))]
+fn fixture_span_key_from_syntax_span(key: &SyntaxSpanKey) -> Option<FixtureSpanKey> {
+    let length = key.byte_end.checked_sub(key.byte_start)?;
+    if length == 0 {
+        // Fixture projections are keyed by visible byte ranges; zero-width
+        // generated nodes cannot be represented there, so their containing
+        // projection record is omitted instead of inventing a synthetic range.
+        return None;
+    }
+    Some(FixtureSpanKey {
+        offset: key.byte_start,
+        length,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| key.length > 0))]
 fn fixture_span_key_for_generated_node(
     index: &GeneratedSyntaxIndex<'_>,
     node: RawSyntaxNodeId,
 ) -> Option<FixtureSpanKey> {
     let key = span_key_for_generated_node(index, node)?;
-    Some(FixtureSpanKey {
-        offset: key.byte_start,
-        length: key.byte_end.saturating_sub(key.byte_start),
-    })
+    fixture_span_key_from_syntax_span(&key)
 }
 
 impl DiscourseReferences {
@@ -4552,7 +4565,7 @@ struct GeneratedIndexedSyntaxNode<'tree> {
 
 impl<'tree> GeneratedSyntaxIndex<'tree> {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()) || ret.is_err())]
     pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
         let mut builder = GeneratedSyntaxIndexBuilder::new();
         root.visit_in_order(&mut builder);
@@ -10929,6 +10942,32 @@ mod tests {
     #[ensures(ret.offset == offset && ret.length == length)]
     fn span_key(offset: usize, length: usize) -> FixtureSpanKey {
         FixtureSpanKey { offset, length }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fixture_span_key_from_syntax_span_rejects_zero_width_spans() {
+        let zero_width = SyntaxSpanKey {
+            source_id: None,
+            byte_start: 4,
+            byte_end: 4,
+            char_start: 4,
+            char_end: 4,
+        };
+        let normal = SyntaxSpanKey {
+            source_id: None,
+            byte_start: 4,
+            byte_end: 9,
+            char_start: 4,
+            char_end: 9,
+        };
+
+        assert_eq!(fixture_span_key_from_syntax_span(&zero_width), None);
+        assert_eq!(
+            fixture_span_key_from_syntax_span(&normal),
+            Some(span_key(4, 5))
+        );
     }
 
     #[test]

@@ -18,6 +18,27 @@ trait MissingTrait {
 
 fn parse_term() {}
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| *value > 0))]
+fn unsound_result_contract() -> Result<usize, String> {
+    Ok(1)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| *value > 0 || probe.is_err()))]
+fn unsound_result_contract_with_unrelated_error_probe(
+    probe: Result<(), String>,
+) -> Result<usize, String> {
+    let _ = probe;
+    Ok(1)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| *value > 0 || ret.is_err()))]
+fn unsound_result_contract_with_nested_ret_error_probe() -> Result<usize, String> {
+    Ok(1)
+}
+
 impl MissingType {
     fn update(&mut self) {
         self.value += 1;

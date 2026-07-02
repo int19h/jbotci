@@ -3349,6 +3349,9 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
         .with_context(|| format!("fetching Lensisku dictionary from `{download_url}`"))?;
     let imported = parse_lensisku_json(&dictionary_text)
         .with_context(|| format!("validating Lensisku dictionary from `{download_url}`"))?;
+    if imported.entries.is_empty() {
+        bail!("Lensisku dictionary export from `{download_url}` contained no entries");
+    }
     let pretty_json = pretty_json(&dictionary_text)
         .with_context(|| format!("pretty-printing Lensisku dictionary from `{download_url}`"))?;
     let sha256 = sha256_hex(pretty_json.as_bytes());
@@ -5510,7 +5513,7 @@ fn human_bytes(bytes: u64) -> String {
 }
 
 #[requires(!url.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn fetch_text(url: &str) -> Result<String> {
     let text = ureq::get(url)
         .call()
@@ -5524,7 +5527,7 @@ fn fetch_text(url: &str) -> Result<String> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.ends_with('\n')))]
+#[ensures(ret.as_ref().is_ok_and(|text| text.ends_with('\n')) || ret.is_err())]
 fn pretty_json(input: &str) -> Result<String> {
     let value = serde_json::from_str::<serde_json::Value>(input)?;
     let mut text = serde_json::to_string_pretty(&value)?;
@@ -5754,7 +5757,7 @@ fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureSelector::is_valid))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureSelector::is_valid))]
 fn merged_cll_fixture_metadata_audit_selector(
     args: &CllFixtureMetadataAuditArgs,
 ) -> Result<FixtureSelector> {
@@ -6199,7 +6202,7 @@ fn source_paths_have_same_file_name(left: &str, right: &str) -> bool {
 #[requires(!field.is_empty())]
 #[requires(!status.as_str().is_empty())]
 #[requires(!severity.as_str().is_empty())]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|row| row.field == field))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|row| row.field == field))]
 fn cll_fixture_metadata_audit_row(
     fixture: &LoadedTestCase,
     provenance: &Provenance,
@@ -7001,7 +7004,7 @@ fn fixture_rewrite_subprocess_chunks(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
 fn fixture_rewrite_chunk_output(
     exe: &Path,
     chunk: &[PathBuf],
@@ -7039,7 +7042,7 @@ fn fixture_rewrite_chunk_output(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
 fn parse_fixture_rewrite_summary(stdout: &str) -> Result<RewriteSummary> {
     let line = stdout
         .lines()
@@ -7080,7 +7083,7 @@ impl RewriteSummary {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
 fn fixture_rewrite_paths(
     paths: Vec<PathBuf>,
     report_progress: bool,
@@ -9567,7 +9570,7 @@ fn fixture_test_subprocess_chunks(
 
 #[requires(profile.is_valid())]
 #[requires(jobs > 0)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
 fn fixture_test_chunk_output(
     exe: &Path,
     args: &FixtureRunArgs,
@@ -9940,7 +9943,7 @@ fn percentile(sorted: &[usize], percentile: usize) -> usize {
 }
 
 #[requires(profile.is_valid())]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.selected_fixtures * profile.facets.len()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.selected_fixtures * profile.facets.len()))]
 fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     root: &Path,
     profile: &FixtureProfile,
@@ -10035,7 +10038,7 @@ const DEFAULT_TEST_JOBS: usize = 16;
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
     let mut profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)
@@ -10089,8 +10092,8 @@ fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
     }
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())

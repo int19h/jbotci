@@ -1,4 +1,7 @@
-use bityzba::{data, ensures, requires};
+use bityzba::data;
+use bityzba::requires;
+#[allow(unused_imports)]
+use bityzba::{ensures, expensive_ensures};
 
 use crate::{Verbatim, Word, WordLike, WordLikeData};
 
@@ -114,8 +117,9 @@ pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
         && strip_diacritics(left.phonemes().as_str()) == strip_diacritics(right.phonemes().as_str())
 }
 
-#[ensures(!ret.is_empty() || text.is_empty())]
 #[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.chars().all(|value| strip_diacritic(value) == Some(value)))]
 pub fn strip_diacritics(text: &str) -> String {
     text.chars().filter_map(strip_diacritic).collect()
 }

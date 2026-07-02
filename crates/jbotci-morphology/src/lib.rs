@@ -3646,6 +3646,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn strip_diacritics_allows_combining_marks_only() {
+        assert_eq!(strip_diacritics("\u{0301}\u{0300}\u{0306}"), "");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn syntax_equivalence_ignores_zoi_verbatim_spans_not_text() {
         let left = WordLike::zoi_quote(
             test_word(WordKind::Cmavo, "zoĭ", 0),
