@@ -2240,7 +2240,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 current_section_id: Some(section.section_id.clone()),
                 page_kind: CuktaPageKind::Section {
                     section_heading: format_section_display_title(section),
-                    section_parse_href: chrestomathy_section_parse_href(section),
+                    section_parse_href: chrestomathy_section_parse_href(site, section),
                     chapter_title: cll_section_chapter_title(site, &section.section_id),
                     previous_section: cll_previous_section_id(site, &section.section_id).and_then(
                         |section_id| build_cukta_section_link(site, base_path, section_id),
@@ -3231,7 +3231,7 @@ fn cukta_section_social_image(
     {
         return None;
     }
-    first_social_image_from_blocks(base_path, &chapter.prelude_blocks)
+    first_social_image_from_blocks(base_path, site, &chapter.prelude_blocks)
 }
 
 #[requires(true)]
@@ -3260,19 +3260,28 @@ fn section_chapter_number(section: &jbotci_cll::CllSection) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn first_social_image_from_blocks(base_path: &str, blocks: &[CllBlock]) -> Option<SocialImage> {
+fn first_social_image_from_blocks(
+    base_path: &str,
+    site: &jbotci_cll::CllSite,
+    blocks: &[CllBlock],
+) -> Option<SocialImage> {
     for block in blocks {
         match block {
             CllBlock::Media { src, .. } => return social_image_for_cll_media(base_path, src),
             CllBlock::List { items, .. } => {
                 for item in items {
-                    if let Some(image) = first_social_image_from_blocks(base_path, item) {
+                    if let Some(image) = first_social_image_from_blocks(base_path, site, item) {
                         return Some(image);
                     }
                 }
             }
-            CllBlock::Example(example) => {
-                if let Some(image) = first_social_image_from_blocks(base_path, &example.blocks) {
+            CllBlock::Example { example_id } => {
+                let Some(example) = jbotci_cll::cll_lookup_example(site, example_id) else {
+                    continue;
+                };
+                if let Some(image) =
+                    first_social_image_from_blocks(base_path, site, &example.blocks)
+                {
                     return Some(image);
                 }
             }
@@ -3282,20 +3291,24 @@ fn first_social_image_from_blocks(base_path: &str, blocks: &[CllBlock]) -> Optio
                 ..
             } => {
                 for cell in header_rows.iter().chain(body_rows.iter()).flatten() {
-                    if let Some(image) = first_social_image_from_blocks(base_path, &cell.blocks) {
+                    if let Some(image) =
+                        first_social_image_from_blocks(base_path, site, &cell.blocks)
+                    {
                         return Some(image);
                     }
                 }
             }
             CllBlock::VariableList { entries, .. } => {
                 for entry in entries {
-                    if let Some(image) = first_social_image_from_blocks(base_path, &entry.blocks) {
+                    if let Some(image) =
+                        first_social_image_from_blocks(base_path, site, &entry.blocks)
+                    {
                         return Some(image);
                     }
                 }
             }
-            CllBlock::BlockQuote { blocks, .. } => {
-                if let Some(image) = first_social_image_from_blocks(base_path, blocks) {
+            CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
+                if let Some(image) = first_social_image_from_blocks(base_path, site, blocks) {
                     return Some(image);
                 }
             }

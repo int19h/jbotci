@@ -1023,6 +1023,7 @@ fn collect_cukta_page_find_entries(
     page: &CuktaPageData,
     script: GentufaScript,
 ) {
+    let site = embedded_cll_site().ok();
     match &page.page_kind {
         CuktaPageKind::Section {
             section_heading,
@@ -1034,10 +1035,10 @@ fn collect_cukta_page_find_entries(
         } => {
             push_page_find_entry(entries, section_heading.clone());
             for block in chapter_prelude_blocks {
-                collect_cll_block_page_find_entries(entries, block, script);
+                collect_cll_block_page_find_entries(entries, site, block, script);
             }
             for block in blocks {
-                collect_cll_block_page_find_entries(entries, block, script);
+                collect_cll_block_page_find_entries(entries, site, block, script);
             }
             if let Some(previous) = previous_section {
                 push_page_find_entry(entries, previous.label.clone());
@@ -1095,6 +1096,7 @@ fn collect_cukta_search_card_page_find_entries(
 #[ensures(true)]
 fn collect_cll_block_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
+    site: Option<&jbotci_cll::CllSite>,
     block: &CllBlock,
     script: GentufaScript,
 ) {
@@ -1109,22 +1111,26 @@ fn collect_cll_block_page_find_entries(
         CllBlock::List { items, .. } => {
             for item in items {
                 for child in item {
-                    collect_cll_block_page_find_entries(entries, child, script);
+                    collect_cll_block_page_find_entries(entries, site, child, script);
                 }
             }
         }
-        CllBlock::Example(example) => {
-            push_page_find_entry(entries, example.label.clone());
-            if example.blocks.is_empty() {
-                for line in &example.lines {
-                    push_page_find_entry(
-                        entries,
-                        cll_display_text_for_kind(script, &line.kind, &line.text),
-                    );
-                }
-            } else {
-                for child in &example.blocks {
-                    collect_cll_block_page_find_entries(entries, child, script);
+        CllBlock::Example { example_id } => {
+            if let Some(example) =
+                site.and_then(|site| jbotci_cll::cll_lookup_example(site, example_id))
+            {
+                push_page_find_entry(entries, example.label.clone());
+                if example.blocks.is_empty() {
+                    for line in &example.lines {
+                        push_page_find_entry(
+                            entries,
+                            cll_display_text_for_kind(script, &line.kind, &line.text),
+                        );
+                    }
+                } else {
+                    for child in &example.blocks {
+                        collect_cll_block_page_find_entries(entries, site, child, script);
+                    }
                 }
             }
         }
@@ -1139,7 +1145,7 @@ fn collect_cll_block_page_find_entries(
             }
             for row in header_rows.iter().chain(body_rows.iter()) {
                 for cell in row {
-                    collect_cll_table_cell_page_find_entries(entries, cell, script);
+                    collect_cll_table_cell_page_find_entries(entries, site, cell, script);
                 }
             }
         }
@@ -1156,7 +1162,7 @@ fn collect_cll_block_page_find_entries(
             for entry in items {
                 collect_cll_inlines_page_find_entries(entries, &entry.term, script, false);
                 for child in &entry.blocks {
-                    collect_cll_block_page_find_entries(entries, child, script);
+                    collect_cll_block_page_find_entries(entries, site, child, script);
                 }
             }
         }
@@ -1168,7 +1174,7 @@ fn collect_cll_block_page_find_entries(
         CllBlock::Rule { term, body, .. } => {
             push_page_find_entry(entries, term.clone());
             for child in body {
-                collect_cll_block_page_find_entries(entries, child, script);
+                collect_cll_block_page_find_entries(entries, site, child, script);
             }
         }
         CllBlock::Code { text, .. } => push_page_find_entry(entries, text.clone()),
@@ -1178,7 +1184,7 @@ fn collect_cll_block_page_find_entries(
         }
         CllBlock::BlockQuote { blocks, .. } => {
             for child in blocks {
-                collect_cll_block_page_find_entries(entries, child, script);
+                collect_cll_block_page_find_entries(entries, site, child, script);
             }
         }
         CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
@@ -1251,11 +1257,12 @@ fn collect_cll_block_page_find_entries(
 #[ensures(true)]
 fn collect_cll_table_cell_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
+    site: Option<&jbotci_cll::CllSite>,
     cell: &CllTableCell,
     script: GentufaScript,
 ) {
     for child in &cell.blocks {
-        collect_cll_block_page_find_entries(entries, child, script);
+        collect_cll_block_page_find_entries(entries, site, child, script);
     }
 }
 
@@ -8107,6 +8114,7 @@ fn render_cukta_section(
     page_find: &PageFindContext,
 ) -> Element {
     let _ = chapter_title;
+    let site = embedded_cll_site().ok();
     rsx! {
         article { class: "cll-section-content",
             div { class: "cll-section-heading",
@@ -8122,12 +8130,12 @@ fn render_cukta_section(
             if !prelude_blocks.is_empty() {
                 div { class: "cll-chapter-prelude",
                     for block in prelude_blocks.iter() {
-                        { render_cll_block(block, pending_cukta_scroll, base_path, script, page_find) }
+                        { render_cll_block(site, block, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
             for block in blocks.iter() {
-                { render_cll_block(block, pending_cukta_scroll, base_path, script, page_find) }
+                { render_cll_block(site, block, pending_cukta_scroll, base_path, script, page_find) }
             }
             if previous.is_some() || next.is_some() {
                 nav { class: "cll-section-pager",
@@ -8507,6 +8515,7 @@ fn render_cukta_search_card(
 #[requires(true)]
 #[ensures(true)]
 fn render_cll_block(
+    site: Option<&jbotci_cll::CllSite>,
     block: &CllBlock,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
@@ -8543,7 +8552,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                                    { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                                 }
                             }
                         }
@@ -8555,7 +8564,7 @@ fn render_cll_block(
                         for item in items.iter() {
                             li {
                                 for child in item.iter() {
-                                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                                    { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                                 }
                             }
                         }
@@ -8563,36 +8572,44 @@ fn render_cll_block(
                 }
             }
         }
-        CllBlock::Example(example) => rsx! {
-            figure { id: "{example.anchor_id}", class: "cll-example",
-                figcaption { class: "cll-example-head",
-                    span { class: "cll-example-title",
-                        { render_page_find_text(page_find, &example.label) }
-                    }
-                    if let Some(parse_href) = &example.parse_href {
-                        { render_cll_parse_link(
-                            "cll-parse-example spa-cll-link spa-cll-link-parse",
-                            parse_href,
-                            base_path,
-                        ) }
-                    }
-                }
-                if example.blocks.is_empty() {
-                    div { class: "cll-interlinear",
-                        for line in example.lines.iter() {
-                            {
-                                let text = cll_display_text_for_kind(script, &line.kind, &line.text);
-                                rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", { render_page_find_text(page_find, &text) } } }
+        CllBlock::Example { example_id } => {
+            if let Some(example) =
+                site.and_then(|site| jbotci_cll::cll_lookup_example(site, example_id))
+            {
+                rsx! {
+                    figure { id: "{example.anchor_id}", class: "cll-example",
+                        figcaption { class: "cll-example-head",
+                            span { class: "cll-example-title",
+                                { render_page_find_text(page_find, &example.label) }
+                            }
+                            if let Some(parse_href) = &example.parse_href {
+                                { render_cll_parse_link(
+                                    "cll-parse-example spa-cll-link spa-cll-link-parse",
+                                    parse_href,
+                                    base_path,
+                                ) }
+                            }
+                        }
+                        if example.blocks.is_empty() {
+                            div { class: "cll-interlinear",
+                                for line in example.lines.iter() {
+                                    {
+                                        let text = cll_display_text_for_kind(script, &line.kind, &line.text);
+                                        rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", { render_page_find_text(page_find, &text) } } }
+                                    }
+                                }
+                            }
+                        } else {
+                            for child in example.blocks.iter() {
+                                { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                             }
                         }
                     }
-                } else {
-                    for child in example.blocks.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
-                    }
                 }
+            } else {
+                rsx! {}
             }
-        },
+        }
         CllBlock::Table {
             id,
             caption,
@@ -8635,7 +8652,7 @@ fn render_cll_block(
                                             }
                                         }
                                         for child in cell.blocks.iter() {
-                                            { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                                            { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                                         }
                                     }
                                 }
@@ -8669,7 +8686,7 @@ fn render_cll_block(
                                         }
                                     }
                                     for child in cell.blocks.iter() {
-                                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                                        { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                                     }
                                 }
                             }
@@ -8722,7 +8739,7 @@ fn render_cll_block(
                     }
                     dd {
                         for child in entry.blocks.iter() {
-                            { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                            { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                         }
                     }
                 }
@@ -8753,7 +8770,7 @@ fn render_cll_block(
                 dt { { render_page_find_text(page_find, term) } }
                 dd {
                     for child in body.iter() {
-                        { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                        { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                     }
                 }
             }
@@ -8783,7 +8800,7 @@ fn render_cll_block(
         CllBlock::BlockQuote { id, blocks } => rsx! {
             blockquote { id: id.clone().unwrap_or_default(), class: "cll-blockquote",
                 for child in blocks.iter() {
-                    { render_cll_block(child, pending_cukta_scroll, base_path, script, page_find) }
+                    { render_cll_block(site, child, pending_cukta_scroll, base_path, script, page_find) }
                 }
             }
         },

@@ -117,6 +117,7 @@ pub fn qr_logo_layers() -> Vec<QrLogoLayer> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
 pub fn encode_qr_alphanumeric_h(source_text: &str) -> Result<QrCode, String> {
+    validate_alphanumeric_payload(source_text)?;
     let version = select_version(source_text)?;
     let data_codewords = make_data_codewords(version, source_text)?;
     let all_codewords = add_error_correction_and_interleave(version, &data_codewords);
@@ -430,6 +431,19 @@ fn select_version(source_text: &str) -> Result<i32, String> {
         .ok_or_else(|| {
             "QR payload is too large for a version 40-H alphanumeric QR code.".to_owned()
         })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+fn validate_alphanumeric_payload(source_text: &str) -> Result<(), String> {
+    for ch in source_text.chars() {
+        if alphanumeric_value(ch).is_none() {
+            return Err(format!(
+                "Character is not valid in QR alphanumeric mode: {ch}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[requires(version >= 1 && version <= 40)]
@@ -1260,5 +1274,14 @@ mod tests {
                 side: 11
             })
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn invalid_qr_alphanumeric_character_errors_before_version_search() {
+        let error = encode_qr_alphanumeric_h("WEB+JOHAU:-na").expect_err("lowercase is invalid");
+
+        assert_eq!(error, "Character is not valid in QR alphanumeric mode: n");
     }
 }

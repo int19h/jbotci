@@ -16,8 +16,6 @@ use crate::{GlyphStyle, OutputError};
 
 pub const DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH: usize = 80;
 
-const DIAGNOSTIC_NOTE_PREFIX_WIDTH: usize = 12;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 pub struct DiagnosticRenderOptions {
@@ -391,8 +389,6 @@ fn continuation_indent(line_text: &str) -> String {
 #[ensures(ret > 0)]
 fn diagnostic_note_wrap_width(terminal_width: usize) -> usize {
     terminal_width
-        .saturating_sub(DIAGNOSTIC_NOTE_PREFIX_WIDTH)
-        .max(1)
 }
 
 #[requires(true)]
