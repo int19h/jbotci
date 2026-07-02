@@ -2948,6 +2948,33 @@ fn strict_method_parser_expr_tokens(
             mode,
         )?;
         Some(quote!(generated_runtime::followed_by(#inner, #guard)))
+    } else if method.method == "complete_statement_item" && method.args.is_empty() {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Some(quote!(generated_runtime::complete_statement_item(
+            #inner,
+            "complete statement item",
+        )))
+    } else if method.method == "complete_before_selmaho" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let selmaho = method.args.first().and_then(path_expr_last_segment)?;
+        let selmaho = format_ident!("{selmaho}");
+        Some(quote!(generated_runtime::complete_before_selmaho(
+            #inner,
+            Selmaho::#selmaho,
+            "complete form before selma'o",
+        )))
     } else if method.method == "lookahead" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,

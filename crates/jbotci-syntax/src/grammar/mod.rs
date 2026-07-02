@@ -310,6 +310,40 @@ impl<'tokens> ParserState<'tokens> {
         }
     }
 
+    #[requires(true)]
+    #[ensures(ret.len() == self.diagnostic_candidates.len())]
+    pub(super) fn diagnostic_candidates_snapshot(&self) -> Vec<SyntaxParseError<'tokens>> {
+        self.diagnostic_candidates.clone()
+    }
+
+    #[requires(true)]
+    #[ensures(self.diagnostic_candidates.len() == old(snapshot.len()))]
+    pub(super) fn restore_diagnostic_candidates(
+        &mut self,
+        snapshot: Vec<SyntaxParseError<'tokens>>,
+    ) {
+        self.diagnostic_candidates = snapshot;
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn restore_diagnostic_candidates_preserving_start(
+        &mut self,
+        snapshot: Vec<SyntaxParseError<'tokens>>,
+        start: usize,
+    ) {
+        let preserved = self
+            .diagnostic_candidates
+            .iter()
+            .filter(|candidate| candidate.span().start == start)
+            .cloned()
+            .collect::<Vec<_>>();
+        self.diagnostic_candidates = snapshot;
+        for candidate in preserved {
+            self.record_diagnostic_candidate(candidate);
+        }
+    }
+
     #[requires(!construct.is_empty())]
     #[ensures(self.active_syntax_contexts.len() == old(self.active_syntax_contexts.len()) + 1)]
     pub(super) fn push_syntax_context(&mut self, construct: &'static str, byte_start: usize) {

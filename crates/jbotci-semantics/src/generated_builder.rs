@@ -71,8 +71,9 @@ use jbotci_syntax::generated_model::{
     TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax, TextSyntax, TreeNode,
     UntaggedSelbriSyntax, VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax,
     VocativeSumtiSyntax, VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax,
-    ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax, ZantufaInfixMeksoSyntax,
-    ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax,
+    ZantufaBoGroupedMeksoBaseSyntax, ZantufaExtraGikConnectiveSyntax,
+    ZantufaGroupedMeksoOperandSequenceSyntax, ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax,
+    ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax,
     ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
     ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
 };
@@ -1739,12 +1740,24 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         statement: &ZantufaStatementTermsStatementSyntax,
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if !zantufa_statement_terms_tail_is_semantically_empty(&statement.tail) {
-            return Err(unsupported(
-                "Zantufa statement-level trailing terms semantics",
-            ));
-        }
         let root = semantic_root_from_statement(&statement.statement)?;
+        let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
+        if !suffix_terms.is_empty() {
+            let GeneratedTextRoot::Bridi(bridi) = root else {
+                return Err(unsupported(
+                    "Zantufa statement-level trailing terms on non-bridi statement",
+                ));
+            };
+            return self
+                .build_bridi_utterance_with_force_and_suffix_terms(
+                    utterance_id,
+                    bridi,
+                    generated_bridi_force(bridi, truth_question),
+                    &suffix_terms,
+                    statement,
+                )
+                .map(|(utterance, _formula)| utterance);
+        }
         if !generated_text_root_is_utterance(&root) {
             return Err(unsupported(
                 "Zantufa statement-level reset around statement connection",
@@ -1759,12 +1772,26 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         statement: &ZantufaStatementTermsStatementSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if !zantufa_statement_terms_tail_is_semantically_empty(&statement.tail) {
-            return Err(unsupported(
-                "Zantufa statement-level trailing terms semantics",
-            ));
-        }
         let root = semantic_root_from_statement(&statement.statement)?;
+        let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
+        if !suffix_terms.is_empty() {
+            let GeneratedTextRoot::Bridi(bridi) = root else {
+                return Err(unsupported(
+                    "Zantufa statement-level trailing terms on non-bridi statement",
+                ));
+            };
+            let utterance_id = self.next_utterance_id();
+            self.current_utterance = Some(utterance_id);
+            return self
+                .build_bridi_utterance_with_force_and_suffix_terms(
+                    utterance_id,
+                    bridi,
+                    generated_bridi_force(bridi, false),
+                    &suffix_terms,
+                    statement,
+                )
+                .map(|(utterance, _formula)| utterance);
+        }
         self.build_discourse_item_for_generated_text_root(root)
     }
 
@@ -3301,6 +3328,25 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         bridi: &BridiSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
+        self.build_bridi_utterance_with_force_and_suffix_terms(
+            utterance_id,
+            bridi,
+            force,
+            &[],
+            bridi,
+        )
+    }
+
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|(utterance, formula)| *utterance == utterance_id && formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_bridi_utterance_with_force_and_suffix_terms<N: TreeNode>(
+        &mut self,
+        utterance_id: SemanticObjectId,
+        bridi: &BridiSyntax,
+        force: UtteranceForce,
+        suffix_terms: &[&TermSyntax],
+        source_node: &N,
+    ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
         let question_start = self.argument_question_parameters.len();
         let place_question_start = self.place_question_parameters.len();
         let relation_question_start = self.relation_question_parameters.len();
@@ -3312,14 +3358,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let previous_da_series_bindings = std::mem::take(&mut self.implicit_da_series_bindings);
         let previous_recorded_implicit_existentials =
             std::mem::take(&mut self.recorded_implicit_existential_variables);
-        let formula = self.build_bridi_formula(bridi);
+        let formula = if suffix_terms.is_empty() {
+            self.build_bridi_formula(bridi)
+        } else {
+            self.build_bridi_formula_with_suffix_terms(source_node, bridi, suffix_terms)
+        };
         self.implicit_da_series_bindings = previous_da_series_bindings;
         self.recorded_implicit_existential_variables = previous_recorded_implicit_existentials;
         let formula = formula?;
         self.record_completed_generated_pro_bridi_frame_from_bridi(
             bridi,
             formula,
-            self.source_for_node(bridi, "predication"),
+            self.source_for_node(source_node, "predication"),
         )?;
         let asides = std::mem::replace(&mut self.pending_asides, previous_asides);
         let existentials = self
@@ -3363,7 +3413,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         SemanticSort::TruthValue,
                         formula,
                         Vec::new(),
-                        self.source_for_node(bridi, "question"),
+                        self.source_for_node(source_node, "question"),
                     )?,
                 )
             } else {
@@ -3382,7 +3432,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::Relation,
                     formula,
                     relation_question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else if place_question_parameters.is_empty()
@@ -3398,7 +3448,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::Entity,
                     formula,
                     question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else if question_parameters.is_empty()
@@ -3414,7 +3464,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::Place,
                     formula,
                     place_question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else if question_parameters.is_empty()
@@ -3430,7 +3480,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::TenseModal,
                     formula,
                     tense_question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else if question_parameters.is_empty()
@@ -3446,7 +3496,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::Connective,
                     formula,
                     connective_question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else if question_parameters.is_empty()
@@ -3462,7 +3512,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     SemanticSort::MathOperator,
                     formula,
                     math_operator_question_parameters,
-                    self.source_for_node(bridi, "question"),
+                    self.source_for_node(source_node, "question"),
                 )?,
             )
         } else {
@@ -3472,7 +3522,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             utterance_id,
             force,
             Some(content),
-            self.source_for_node(bridi, "bridi"),
+            self.source_for_node(source_node, "bridi"),
         )?;
         if let Some(selbri) = main_generated_selbri_for_bridi(bridi) {
             self.attach_generated_indicator_displays_with_target_focus(
@@ -4897,8 +4947,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_binary_formula_for_generated_forethought_statement_connective_core(
             connective,
+            generated_modal_forethought_connective_negates_left(connective),
             generated_gik_connective_negates_right(gik),
             generated_modal_forethought_pair_source(connective, gik),
+            "statement",
             left,
             right,
             source,
@@ -4924,7 +4976,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.build_binary_formula_for_generated_forethought_statement_connective_core(
             connective,
             false,
+            false,
             connector_source,
+            "statement",
             left,
             right,
             source,
@@ -4938,14 +4992,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_binary_formula_for_generated_forethought_statement_connective_core(
         &mut self,
         connective: &ModalForethoughtConnectiveSyntax,
+        left_negated: bool,
         right_negated: bool,
         connector_source: String,
+        connector_locus: &str,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.mark_generated_modal_forethought_whether_or_not_inert_operand(connective, left, right);
-        let left = if generated_modal_forethought_connective_negates_left(connective) {
+        let left = if left_negated {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
         } else {
             left
@@ -4979,12 +5035,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 children,
                 Some(Connector {
                     source: connector_source,
-                    locus: "statement".to_owned(),
-                    truth_table:
-                        generated_modal_forethought_connective_truth_table_with_right_negated(
-                            connective,
-                            right_negated,
-                        ),
+                    locus: connector_locus.to_owned(),
+                    truth_table: generated_modal_forethought_connective_truth_table_with_negations(
+                        connective,
+                        left_negated,
+                        right_negated,
+                    ),
                     parameter,
                 }),
                 source,
@@ -5319,6 +5375,42 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         bridi: &BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_bridi_formula_with_options(bridi, None, PredicationMode::Asserted)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_bridi_formula_with_suffix_terms<N: TreeNode>(
+        &mut self,
+        source_node: &N,
+        bridi: &BridiSyntax,
+        suffix_terms: &[&TermSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        self.pro_bridi_scope_stack.push(bridi.clone());
+        let result = match bridi {
+            BridiSyntax::BridiWithLeadingTerms(bridi) => self
+                .build_bridi_with_leading_terms_formula_with_suffix_terms(
+                    source_node,
+                    bridi,
+                    suffix_terms,
+                ),
+            BridiSyntax::RelationOnlyBridi(bridi) => self
+                .build_relation_only_bridi_formula_with_suffix_terms(
+                    source_node,
+                    &bridi.0,
+                    suffix_terms,
+                ),
+            BridiSyntax::BareCuBridi(bridi) => self
+                .build_relation_only_bridi_formula_with_suffix_terms(
+                    source_node,
+                    &bridi.bridi_tail,
+                    suffix_terms,
+                ),
+            BridiSyntax::BridiWithPostCuTerms(_) | BridiSyntax::BareCuTermsBridi(_) => {
+                Err(unsupported("Zantufa statement terms with post-CU bridi"))
+            }
+        };
+        self.pro_bridi_scope_stack.pop();
+        result
     }
 
     #[requires(true)]
@@ -5801,6 +5893,67 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_relation_only_bridi_formula_with_suffix_terms<N: TreeNode>(
+        &mut self,
+        source_node: &N,
+        tail: &BridiTailSyntax,
+        suffix_terms: &[&TermSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if generated_bridi_tail_is_connected(tail) {
+            return self.build_connected_bridi_tail_formula_with_shared_terms(
+                source_node,
+                tail,
+                &[],
+                suffix_terms,
+                2,
+                None,
+                PredicationMode::Asserted,
+                false,
+                true,
+                true,
+            );
+        }
+        if let Some(connection) = forethought_connection_from_bridi_tail(tail)? {
+            return self.build_forethought_bridi_connection_formula_with_shared_terms(
+                connection,
+                &[],
+                suffix_terms,
+                None,
+                PredicationMode::Asserted,
+            );
+        }
+        let simple_tail = simple_tail_from_bridi_tail(tail)?;
+        let mut terms = Vec::with_capacity(simple_tail.terms.len() + suffix_terms.len());
+        terms.extend(simple_tail.terms.iter());
+        terms.extend_from_slice(suffix_terms);
+        let shared_tail_start = (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
+        if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
+            source_node,
+            simple_tail,
+            &terms,
+            2,
+            None,
+            PredicationMode::Asserted,
+        )? {
+            return Ok(formula);
+        }
+        self.build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct(
+            source_node,
+            simple_tail,
+            &BTreeMap::new(),
+            &[],
+            terms,
+            shared_tail_start,
+            2,
+            None,
+            PredicationMode::Asserted,
+            false,
+            "bridi-formula",
+        )
+    }
+
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn build_bridi_with_leading_terms_formula(
         &mut self,
@@ -5883,6 +6036,82 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )
     }
 
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_bridi_with_leading_terms_formula_with_suffix_terms<N: TreeNode>(
+        &mut self,
+        source_node: &N,
+        bridi: &BridiWithLeadingTermsSyntax,
+        suffix_terms: &[&TermSyntax],
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let leading_terms: Vec<&TermSyntax> = bridi.leading_terms.iter().collect();
+        if generated_bridi_tail_is_connected(&bridi.bridi_tail) {
+            return self.build_connected_bridi_tail_formula_with_shared_terms(
+                source_node,
+                &bridi.bridi_tail,
+                &leading_terms,
+                suffix_terms,
+                1,
+                None,
+                PredicationMode::Asserted,
+                true,
+                true,
+                true,
+            );
+        }
+        if let Some(connection) = forethought_connection_from_bridi_tail(&bridi.bridi_tail)? {
+            return self.build_forethought_bridi_connection_formula_with_shared_terms(
+                connection,
+                &leading_terms,
+                suffix_terms,
+                None,
+                PredicationMode::Asserted,
+            );
+        }
+        let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
+        let mut terms =
+            Vec::with_capacity(leading_terms.len() + simple_tail.terms.len() + suffix_terms.len());
+        terms.extend(leading_terms.iter().copied());
+        terms.extend(simple_tail.terms.iter());
+        terms.extend_from_slice(suffix_terms);
+        let shared_tail_start =
+            (!suffix_terms.is_empty()).then_some(leading_terms.len() + simple_tail.terms.len());
+        if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
+            source_node,
+            simple_tail,
+            &terms,
+            1,
+            None,
+            PredicationMode::Asserted,
+        )? {
+            return Ok(formula);
+        }
+        if let Some(formula) = self.build_generated_pehe_termset_connection_formula(
+            simple_tail,
+            &terms,
+            1,
+            None,
+            PredicationMode::Asserted,
+        )? {
+            return Ok(formula);
+        }
+        let first_visible_place =
+            generated_bridi_with_leading_terms_first_visible_place(&leading_terms)?;
+        self.build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct(
+            source_node,
+            simple_tail,
+            &BTreeMap::new(),
+            &[],
+            terms,
+            shared_tail_start,
+            first_visible_place,
+            None,
+            PredicationMode::Asserted,
+            true,
+            "bridi-formula",
+        )
+    }
+
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
@@ -5918,9 +6147,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if eventuality.is_some() {
             return Err(unsupported("scoped forethought termset connection"));
         }
-        if !termset.additional_branches.is_empty() {
-            return Err(unsupported("n-ary forethought termset semantics"));
-        }
 
         let before_terms = &terms[..position];
         let after_terms = &terms[position + 1..];
@@ -5932,10 +6158,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             after_terms,
         );
         let source = self.source_for_node(termset, "termset-connection-formula");
+        let modal_connection_spec =
+            generated_modal_statement_connection_spec_for_tense_modal(&termset.gek);
+        if !termset.additional_branches.is_empty()
+            && (!generated_modal_forethought_connective_is_logical(&termset.gek)
+                || generated_modal_forethought_connective_primary_cmavo(&termset.gek)
+                    == Some(Cmavo::Fahu)
+                || modal_connection_spec.is_some())
+        {
+            return Err(unsupported(
+                "n-ary modal, nonlogical, or FAhU forethought termset semantics",
+            ));
+        }
         if !generated_modal_forethought_connective_is_logical(&termset.gek)
             && generated_modal_forethought_connective_primary_cmavo(&termset.gek)
                 != Some(Cmavo::Fahu)
-            && generated_modal_statement_connection_spec_for_tense_modal(&termset.gek).is_none()
+            && modal_connection_spec.is_none()
         {
             return self
                 .build_generated_nonlogical_forethought_termset_connection_formula(
@@ -5996,12 +6234,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             vec![left, right]
         };
         let mut diagnostics = Vec::new();
-        if let Some(spec) = generated_modal_statement_connection_spec_for_tense_modal(&termset.gek)
-        {
+        if let Some(spec) = &modal_connection_spec {
             match self.build_generated_modal_formula_connection_claim(
                 leading,
                 trailing,
-                &spec,
+                spec,
                 source.clone(),
             )? {
                 Some(claim) => children.push(claim),
@@ -6034,16 +6271,44 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         &termset.gek,
                         &termset.first_branch.gik,
                     )
-                    .or_else(|| {
-                        generated_modal_statement_connection_spec_for_tense_modal(&termset.gek)
-                            .map(|_| "TFFF".to_owned())
-                    }),
+                    .or_else(|| modal_connection_spec.map(|_| "TFFF".to_owned())),
                     parameter: connector_parameter,
                 }),
-                source,
+                source.clone(),
                 diagnostics,
             ),
         )?;
+        let mut formula = formula;
+        for branch in &termset.additional_branches {
+            let branch_terms = generated_forethought_termset_branch_terms(
+                before_terms,
+                &branch.terms,
+                after_terms,
+            );
+            let branch_formula = self.build_generated_termset_branch_formula(
+                simple_tail,
+                branch_terms,
+                first_visible_place,
+                mode,
+                source.clone(),
+            )?;
+            let connector_source = format!(
+                "{} {}",
+                generated_modal_forethought_connective_source(&termset.gek),
+                token_text(&branch.gik.0.value)
+            );
+            formula = self
+                .build_binary_formula_for_generated_forethought_statement_connective_core(
+                    &termset.gek,
+                    false,
+                    false,
+                    connector_source,
+                    "termset",
+                    formula,
+                    branch_formula,
+                    source.clone(),
+                )?;
+        }
         Ok(Some(formula))
     }
 
@@ -8474,8 +8739,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         prefix_terms: &[&TermSyntax],
         suffix_terms: &[&TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if !connection.additional_branches.is_empty() {
-            return Err(unsupported("n-ary forethought bridi semantics"));
+        let modal_connection_spec =
+            generated_modal_statement_connection_spec_for_tense_modal(&connection.gek);
+        if !connection.additional_branches.is_empty()
+            && (!generated_modal_forethought_connective_is_logical(&connection.gek)
+                || modal_connection_spec.is_some())
+        {
+            return Err(unsupported(
+                "n-ary modal or nonlogical forethought bridi semantics",
+            ));
         }
         let first_eventuality = if prefix_terms.is_empty()
             || generated_subbridi_is_connected_bridi_tail(&connection.first)
@@ -8557,8 +8829,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         };
         let base_operator =
             generated_modal_forethought_connective_formula_operator(&connection.gek);
-        let modal_connection_spec =
-            generated_modal_statement_connection_spec_for_tense_modal(&connection.gek);
         let pure_modal_connection = !prefix_terms.is_empty()
             && modal_connection_spec.is_some()
             && generated_modal_forethought_connective_is_pure_modal(&connection.gek);
@@ -8622,7 +8892,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .build_generated_connective_question_parameter_for_modal_forethought_connective(
                 &connection.gek,
             )?;
-        let formula = self.next_formula_id();
+        let mut formula = self.next_formula_id();
         self.insert(
             formula,
             SemanticObject::connective_formula(
@@ -8644,6 +8914,50 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 diagnostics,
             ),
         )?;
+        for branch in &connection.additional_branches {
+            let branch_eventuality = if prefix_terms.is_empty() {
+                None
+            } else {
+                Some(self.build_eventuality(self.source_for_node(&branch.branch, "predication"))?)
+            };
+            let branch_formula = self.build_forethought_subbridi_branch_formula(
+                &branch.branch,
+                &prefix_context.assignments.visible_arguments,
+                first_visible_place,
+                &branch_suffix_terms,
+                branch_eventuality,
+                &branch_prenex_existentials,
+            )?;
+            for modal_argument in &prefix_context.modal_arguments {
+                self.attach_modal_argument_to_generated_formula(branch_formula, modal_argument)?;
+            }
+            if let Some(anchor) = self.current_utterance {
+                self.attach_generated_indicator_displays_with_target_focus(
+                    indicator_parts_for_generated_node(&branch.gik),
+                    branch_formula,
+                    anchor,
+                    "indicator",
+                    None,
+                    false,
+                )?;
+            }
+            let connector_source = format!(
+                "{} {}",
+                generated_modal_forethought_connective_source(&connection.gek),
+                token_text(&branch.gik.0.value)
+            );
+            formula = self
+                .build_binary_formula_for_generated_forethought_statement_connective_core(
+                    &connection.gek,
+                    false,
+                    false,
+                    connector_source,
+                    "bridi",
+                    formula,
+                    branch_formula,
+                    None,
+                )?;
+        }
         self.wrap_formula_with_generated_assignment_scopes(
             formula,
             prefix_context.assignments.formula_scopes,
@@ -10759,6 +11073,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     negated: forethought.first_branch.gik.nai.is_some(),
                 },
             )?;
+            for branch in &forethought.additional_branches {
+                insert_generated_alternative_argument(
+                    &mut alternatives,
+                    place,
+                    GeneratedAlternativeArgumentSource::SumtiForethought {
+                        sumti: &branch.sumti,
+                        negated: false,
+                    },
+                )?;
+            }
         }
 
         if connective.is_none() && !has_duplicate_numbered_assignments {
@@ -11306,6 +11630,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     negated: forethought.first_branch.gik.nai.is_some(),
                 },
             )?;
+            for branch in &forethought.additional_branches {
+                insert_generated_alternative_argument(
+                    &mut alternatives,
+                    place,
+                    GeneratedAlternativeArgumentSource::SumtiForethought {
+                        sumti: &branch.sumti,
+                        negated: false,
+                    },
+                )?;
+            }
         }
 
         if connective.is_none() && !has_duplicate_numbered_assignments {
@@ -15201,9 +15535,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connector_locus: &str,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        if !connection.additional_branches.is_empty() {
-            return Err(unsupported("n-ary forethought selbri semantics"));
-        }
         if !visible_arguments.contains_key(&1) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             insert_visible_argument(
@@ -15221,19 +15552,36 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         let trailing = self.build_selbri_formula_for_visible_arguments(
             connection.first_branch.selbri.as_ref(),
-            visible_arguments,
+            visible_arguments.clone(),
             source.clone(),
             connector_locus,
             None,
         )?;
-        let formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
+        let mut formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &connection.guhek,
             &connection.first_branch.gik,
             connector_locus,
             leading.formula,
             trailing.formula,
-            source,
+            source.clone(),
         )?;
+        for branch in &connection.additional_branches {
+            let trailing = self.build_selbri_formula_for_visible_arguments(
+                branch.selbri.as_ref(),
+                visible_arguments.clone(),
+                source.clone(),
+                connector_locus,
+                None,
+            )?;
+            formula = self.build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                &connection.guhek,
+                &branch.gik,
+                connector_locus,
+                formula,
+                trailing.formula,
+                source.clone(),
+            )?;
+        }
         Ok(GeneratedTanruFormulaForArgument::from_data(data!(
             GeneratedTanruFormulaForArgument {
                 formula,
@@ -15254,9 +15602,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         connector_locus: &str,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        if !unit.additional_branches.is_empty() {
-            return Err(unsupported("n-ary forethought selbri-group semantics"));
-        }
         if !visible_arguments.contains_key(&1) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             insert_visible_argument(
@@ -15274,19 +15619,36 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         let trailing = self.build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit(
             unit.first_branch.unit.as_ref(),
-            visible_arguments,
+            visible_arguments.clone(),
             None,
             source.clone(),
             connector_locus,
         )?;
-        let formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
+        let mut formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &unit.guhek,
             &unit.first_branch.gik,
             connector_locus,
             leading.formula,
             trailing.formula,
-            source,
+            source.clone(),
         )?;
+        for branch in &unit.additional_branches {
+            let trailing = self.build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit(
+                branch.unit.as_ref(),
+                visible_arguments.clone(),
+                None,
+                source.clone(),
+                connector_locus,
+            )?;
+            formula = self.build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                &unit.guhek,
+                &branch.gik,
+                connector_locus,
+                formula,
+                trailing.formula,
+                source.clone(),
+            )?;
+        }
         Ok(GeneratedTanruFormulaForArgument::from_data(data!(
             GeneratedTanruFormulaForArgument {
                 formula,
@@ -17269,11 +17631,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if !unit.additional_branches.is_empty() {
-            return Err(unsupported(
-                "n-ary forethought selbri-group property semantics",
-            ));
-        }
         let leading = self.build_property_formula_for_forethought_tanru_branch_selbri(
             unit.leading_selbri.as_ref(),
             parameter,
@@ -17284,14 +17641,30 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             parameter,
             source.clone(),
         )?;
-        self.build_binary_formula_for_generated_forethought_selbri_connective(
+        let mut formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &unit.guhek,
             &unit.first_branch.gik,
             "property-abstraction",
             leading,
             trailing,
-            source,
-        )
+            source.clone(),
+        )?;
+        for branch in &unit.additional_branches {
+            let trailing = self.build_property_formula_for_bo_or_linked_tanru_unit(
+                branch.unit.as_ref(),
+                parameter,
+                source.clone(),
+            )?;
+            formula = self.build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                &unit.guhek,
+                &branch.gik,
+                "property-abstraction",
+                formula,
+                trailing,
+                source.clone(),
+            )?;
+        }
+        Ok(formula)
     }
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
@@ -18805,13 +19178,74 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
+        self.build_formula_for_generated_forethought_selbri_connective_core(
+            guhek,
+            generated_guhek_connective_negates_left(guhek),
+            generated_gik_connective_negates_right(gik),
+            generated_guhek_connective_source(guhek),
+            generated_guhek_gik_connective_truth_table(guhek, gik),
+            locus,
+            left,
+            right,
+            source,
+        )
+    }
+
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!locus.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_binary_formula_for_generated_extra_forethought_selbri_connective(
+        &mut self,
+        guhek: &GuhekConnectiveSyntax,
+        gik: &ZantufaExtraGikConnectiveSyntax,
+        locus: &str,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let connector_source = format!(
+            "{} {}",
+            generated_guhek_connective_source(guhek),
+            token_text(&gik.0.value)
+        );
+        self.build_formula_for_generated_forethought_selbri_connective_core(
+            guhek,
+            false,
+            false,
+            connector_source,
+            generated_guhek_connective_truth_table_with_negations(guhek, false, false),
+            locus,
+            left,
+            right,
+            source,
+        )
+    }
+
+    #[requires(!connector_source.is_empty())]
+    #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(!locus.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    fn build_formula_for_generated_forethought_selbri_connective_core(
+        &mut self,
+        guhek: &GuhekConnectiveSyntax,
+        left_negated: bool,
+        right_negated: bool,
+        connector_source: String,
+        truth_table: Option<String>,
+        locus: &str,
+        left: SemanticObjectId,
+        right: SemanticObjectId,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
         let operator = generated_guhek_connective_formula_operator(guhek);
-        let left_formula = if generated_guhek_connective_negates_left(guhek) {
+        let left_formula = if left_negated {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
         } else {
             left
         };
-        let right_formula = if generated_gik_connective_negates_right(gik) {
+        let right_formula = if right_negated {
             self.build_unary_formula(FormulaOperator::Not, right, source.clone())?
         } else {
             right
@@ -18831,9 +19265,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 operator,
                 children,
                 Some(Connector {
-                    source: generated_guhek_connective_source(guhek),
+                    source: connector_source,
                     locus: locus.to_owned(),
-                    truth_table: generated_guhek_gik_connective_truth_table(guhek, gik),
+                    truth_table,
                     parameter: None,
                 }),
                 source,
@@ -23767,19 +24201,23 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 builder.build_simple_sumti_referent(simple)
             }
             SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
-                if !sumti.additional_branches.is_empty() {
-                    return Err(unsupported("n-ary forethought sumti semantics"));
-                }
-                let leading = builder.build_sumti_referent(&sumti.leading_sumti)?;
+                let mut leading = builder.build_sumti_referent(&sumti.leading_sumti)?;
                 let trailing =
                     builder.build_sumti_forethought_referent(&sumti.first_branch.sumti)?;
-                builder.build_connected_generated_forethought_sumti_referent(
+                leading = builder.build_connected_generated_forethought_sumti_referent(
                     sumti,
                     leading,
                     &sumti.gek,
                     &sumti.first_branch.gik,
                     trailing,
-                )
+                )?;
+                for branch in &sumti.additional_branches {
+                    let trailing = builder.build_sumti_forethought_referent(&branch.sumti)?;
+                    leading = builder.build_connected_generated_extra_forethought_sumti_referent(
+                        sumti, leading, &sumti.gek, trailing,
+                    )?;
+                }
+                Ok(leading)
             }
         })
         .map(|(referent, _built)| referent)
@@ -24488,43 +24926,110 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )?;
         let last_index = infix.continuations.len() - 1;
         for (index, continuation) in infix.continuations.iter().enumerate() {
-            let [operator] = continuation.operators.as_slice() else {
-                return Err(unsupported("Zantufa multi-operator mex semantics"));
-            };
-            let Some(right_expression) = &continuation.right_expression else {
-                return Err(unsupported("Zantufa trailing mex operator semantics"));
-            };
             let expression_source = (index == last_index).then(|| source.clone()).flatten();
-            if !replaced && connected_generated_mekso_operator(operator)?.is_some() {
-                let right = self.build_generated_mekso_precedence(right_expression, None)?;
-                expression = self.build_generated_math_operator_expression_for_operator(
-                    replacement_operator,
-                    vec![expression, right],
-                    expression_source,
-                )?;
-                replaced = true;
-            } else {
-                let (right, right_replaced) = if replaced {
-                    (
+            let (operands, operand_replaced) = match &continuation.right_expression {
+                Some(right_expression) if replaced => (
+                    vec![
+                        expression,
                         self.build_generated_mekso_precedence(right_expression, None)?,
-                        false,
-                    )
-                } else {
-                    self.build_generated_mekso_precedence_with_connected_operator_replacement(
-                        right_expression,
-                        replacement_operator,
-                        None,
-                    )?
-                };
-                expression = self.build_generated_math_operator_expression_for_operator(
-                    operator,
-                    vec![expression, right],
+                    ],
+                    false,
+                ),
+                Some(right_expression) => {
+                    let (right, right_replaced) = self
+                        .build_generated_mekso_precedence_with_connected_operator_replacement(
+                            right_expression,
+                            replacement_operator,
+                            None,
+                        )?;
+                    (vec![expression, right], right_replaced)
+                }
+                None => (vec![expression], false),
+            };
+            let (next_expression, operator_replaced) = if replaced {
+                (
+                    self.build_generated_zantufa_operator_sequence_expression(
+                        &continuation.operators,
+                        operands,
+                        expression_source,
+                    )?,
+                    false,
+                )
+            } else {
+                self.build_generated_zantufa_operator_sequence_expression_with_connected_operator_replacement(
+                    &continuation.operators,
+                    replacement_operator,
+                    operands,
                     expression_source,
-                )?;
-                replaced |= right_replaced;
-            }
+                )?
+            };
+            expression = next_expression;
+            replaced |= operand_replaced || operator_replaced;
         }
         Ok((expression, replaced))
+    }
+
+    #[requires(!operators.is_empty())]
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_operator_sequence_expression<O: AsRef<MeksoOperatorSyntax>>(
+        &mut self,
+        operators: &[O],
+        operands: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let [operator] = operators {
+            return self.build_generated_math_operator_expression_for_operator(
+                operator.as_ref(),
+                operands,
+                source,
+            );
+        }
+        self.build_generated_math_operator_expression(
+            generated_zantufa_mekso_operator_sequence_label(operators)?,
+            operands,
+            source,
+        )
+    }
+
+    #[requires(!operators.is_empty())]
+    #[requires(!operands.is_empty())]
+    #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_operator_sequence_expression_with_connected_operator_replacement<
+        O: AsRef<MeksoOperatorSyntax>,
+    >(
+        &mut self,
+        operators: &[O],
+        replacement_operator: &MeksoOperatorSyntax,
+        operands: Vec<SemanticObjectId>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        if let [operator] = operators {
+            if connected_generated_mekso_operator(operator.as_ref())?.is_some() {
+                return self
+                    .build_generated_math_operator_expression_for_operator(
+                        replacement_operator,
+                        operands,
+                        source,
+                    )
+                    .map(|id| (id, true));
+            }
+            return self
+                .build_generated_math_operator_expression_for_operator(
+                    operator.as_ref(),
+                    operands,
+                    source,
+                )
+                .map(|id| (id, false));
+        }
+        let (label, replaced) = generated_zantufa_mekso_operator_sequence_label_with_replacement(
+            operators,
+            replacement_operator,
+        )?;
+        self.build_generated_math_operator_expression(label, operands, source)
+            .map(|id| (id, replaced))
     }
 
     #[requires(true)]
@@ -24632,13 +25137,81 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )
                 .map(|id| (id, replaced))
             }
-            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => {
-                Err(unsupported("Zantufa BO-grouped mex semantics"))
-            }
-            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
-                "Zantufa grouped mex operand sequence semantics",
-            )),
+            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => self
+                .build_generated_zantufa_bo_grouped_mekso_base_with_connected_operator_replacement(
+                    group,
+                    replacement_operator,
+                    source,
+                ),
+            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => self
+                .build_generated_zantufa_grouped_mekso_operand_sequence_with_connected_operator_replacement(
+                    group,
+                    replacement_operator,
+                    source,
+                ),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_bo_grouped_mekso_base_with_connected_operator_replacement(
+        &mut self,
+        group: &ZantufaBoGroupedMeksoBaseSyntax,
+        replacement_operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        let (first, mut replaced) = self
+            .build_generated_mekso_operand_with_connected_operator_replacement(
+                &group.first,
+                replacement_operator,
+                None,
+            )?;
+        let mut operands = Vec::with_capacity(group.continuations.len() + 1);
+        operands.push(first);
+        for continuation in &group.continuations {
+            if replaced {
+                operands.push(self.build_generated_mekso_operand(&continuation.expression, None)?);
+            } else {
+                let (operand, operand_replaced) = self
+                    .build_generated_mekso_operand_with_connected_operator_replacement(
+                        &continuation.expression,
+                        replacement_operator,
+                        None,
+                    )?;
+                replaced = operand_replaced;
+                operands.push(operand);
+            }
+        }
+        self.build_generated_math_operator_expression("boGroup".to_owned(), operands, source)
+            .map(|id| (id, replaced))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_grouped_mekso_operand_sequence_with_connected_operator_replacement(
+        &mut self,
+        group: &ZantufaGroupedMeksoOperandSequenceSyntax,
+        replacement_operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        let mut operands = Vec::with_capacity(group.operands.len());
+        let mut replaced = false;
+        for operand in &group.operands {
+            if replaced {
+                operands.push(self.build_generated_mekso_operand(operand, None)?);
+            } else {
+                let (operand, operand_replaced) = self
+                    .build_generated_mekso_operand_with_connected_operator_replacement(
+                        operand,
+                        replacement_operator,
+                        None,
+                    )?;
+                replaced = operand_replaced;
+                operands.push(operand);
+            }
+        }
+        self.build_generated_math_operator_expression("operandGroup".to_owned(), operands, source)
+            .map(|id| (id, replaced))
     }
 
     #[requires(true)]
@@ -24872,17 +25445,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             self.build_generated_mekso_precedence(&infix.first_expression, None)?;
         let last_index = infix.continuations.len() - 1;
         for (index, continuation) in infix.continuations.iter().enumerate() {
-            let [operator] = continuation.operators.as_slice() else {
-                return Err(unsupported("Zantufa multi-operator mex semantics"));
-            };
-            let Some(right_expression) = &continuation.right_expression else {
-                return Err(unsupported("Zantufa trailing mex operator semantics"));
-            };
-            let right = self.build_generated_mekso_precedence(right_expression, None)?;
             let expression_source = (index == last_index).then(|| source.clone()).flatten();
-            expression = self.build_generated_math_operator_expression_for_operator(
-                operator,
-                vec![expression, right],
+            let operands = match &continuation.right_expression {
+                Some(right_expression) => vec![
+                    expression,
+                    self.build_generated_mekso_precedence(right_expression, None)?,
+                ],
+                None => vec![expression],
+            };
+            expression = self.build_generated_zantufa_operator_sequence_expression(
+                &continuation.operators,
+                operands,
                 expression_source,
             )?;
         }
@@ -24922,13 +25495,43 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             MeksoBaseSyntax::ForethoughtCallMekso(call) => {
                 self.build_generated_forethought_call_mekso(call, source)
             }
-            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => {
-                Err(unsupported("Zantufa BO-grouped mex semantics"))
+            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+                self.build_generated_zantufa_bo_grouped_mekso_base(group, source)
             }
-            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Err(unsupported(
-                "Zantufa grouped mex operand sequence semantics",
-            )),
+            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+                self.build_generated_zantufa_grouped_mekso_operand_sequence(group, source)
+            }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_bo_grouped_mekso_base(
+        &mut self,
+        group: &ZantufaBoGroupedMeksoBaseSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut operands = Vec::with_capacity(group.continuations.len() + 1);
+        operands.push(self.build_generated_mekso_operand(&group.first, None)?);
+        for continuation in &group.continuations {
+            operands.push(self.build_generated_mekso_operand(&continuation.expression, None)?);
+        }
+        self.build_generated_math_operator_expression("boGroup".to_owned(), operands, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    fn build_generated_zantufa_grouped_mekso_operand_sequence(
+        &mut self,
+        group: &ZantufaGroupedMeksoOperandSequenceSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let operands = group
+            .operands
+            .iter()
+            .map(|operand| self.build_generated_mekso_operand(operand, None))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.build_generated_math_operator_expression("operandGroup".to_owned(), operands, source)
     }
 
     #[requires(true)]
@@ -25958,6 +26561,63 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     collective,
                     scalar_negated,
                     complement,
+                    endpoint_inclusion,
+                })),
+                self.source_for_node(node, "connected-sumti"),
+                Vec::new(),
+            ),
+        )?;
+        Ok(id)
+    }
+
+    #[requires(source.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[requires(trailing.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    fn build_connected_generated_extra_forethought_sumti_referent<N: TreeNode>(
+        &mut self,
+        node: &N,
+        source: SemanticObjectId,
+        connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
+        trailing: SemanticObjectId,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let logical_connective = generated_modal_forethought_connective_is_logical(connective);
+        let operator_parameter = self
+            .build_generated_connective_question_parameter_for_modal_forethought_connective(
+                connective,
+            )?;
+        let operator = if operator_parameter.is_some() {
+            "connectiveQuestion".to_owned()
+        } else if logical_connective {
+            "joint".to_owned()
+        } else {
+            generated_nonlogical_modal_forethought_composition_operator(connective)?
+        };
+        let reverse_members =
+            generated_modal_forethought_connective_reverses_composition_members(connective);
+        let (first, second) = if reverse_members {
+            (trailing, source)
+        } else {
+            (source, trailing)
+        };
+        let collective = (operator == "mass").then_some(true);
+        let endpoint_inclusion =
+            generated_modal_forethought_connective_endpoint_inclusion(connective, reverse_members);
+        let id = self.next_referent_id();
+        self.insert(
+            id,
+            SemanticObject::referent(
+                ReferentCategory::Composite,
+                SemanticSort::Entity,
+                None,
+                None,
+                Some(new!(Composition {
+                    operator,
+                    operator_parameter,
+                    members: vec![first, second],
+                    excluded_members: Vec::new(),
+                    collective,
+                    scalar_negated: None,
+                    complement: None,
                     endpoint_inclusion,
                 })),
                 self.source_for_node(node, "connected-sumti"),
@@ -28997,6 +29657,17 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn generated_node_surface_text<N: TreeNode>(node: &N) -> Result<String, SemanticsError> {
+    let mut visitor = GeneratedSpanCollector::default();
+    node.visit_in_order(&mut visitor);
+    if visitor.tokens.is_empty() {
+        return Err(unsupported("empty generated node surface text"));
+    }
+    Ok(token_list_text(visitor.tokens.iter()))
+}
+
+#[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 fn generated_text_plan_from_text(
     syntax: &TextSyntax,
@@ -29278,9 +29949,14 @@ fn generated_text_root_is_utterance(root: &GeneratedTextRoot<'_>) -> bool {
         }
         GeneratedTextRoot::TextGroupStatement(_) => true,
         GeneratedTextRoot::ZantufaStatementTerms(statement) => {
-            zantufa_statement_terms_tail_is_semantically_empty(&statement.tail)
-                && semantic_root_from_statement(&statement.statement)
-                    .is_ok_and(|root| generated_text_root_is_utterance(&root))
+            let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
+            semantic_root_from_statement(&statement.statement).is_ok_and(|root| {
+                if suffix_terms.is_empty() {
+                    generated_text_root_is_utterance(&root)
+                } else {
+                    matches!(root, GeneratedTextRoot::Bridi(_))
+                }
+            })
         }
         GeneratedTextRoot::ForethoughtStatement(_) => false,
         GeneratedTextRoot::StatementConnection(_)
@@ -29301,6 +29977,19 @@ fn zantufa_statement_terms_tail_is_semantically_empty(
             tail.terms.is_empty()
         }
         ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(tail, ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(_)) -> !ret.is_empty())]
+fn zantufa_statement_terms_tail_terms(tail: &ZantufaStatementTermsTailSyntax) -> Vec<&TermSyntax> {
+    match tail {
+        ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
+            tail.terms.iter().collect()
+        }
+        ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
+            tail.0.iter().map(|term| term.as_ref()).collect()
+        }
     }
 }
 
@@ -30722,11 +31411,11 @@ fn relation_label_from_tanru_unit_atom_base(
         TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_zantufa_statement(abstraction)
         }
-        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_) => {
-            Err(unsupported("Zantufa ME selbri relation label"))
+        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
+            relation_label_from_zantufa_me_tanru_unit(unit)
         }
-        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_) => {
-            Err(unsupported("Zantufa mex MOI relation label"))
+        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
+            relation_label_from_zantufa_mex_moi_tanru_unit(unit)
         }
         TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
@@ -31429,6 +32118,40 @@ fn relation_label_from_operator_selbri_tanru_unit(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn relation_label_from_zantufa_me_tanru_unit(
+    unit: &ZantufaMeTanruUnitSyntax,
+) -> Result<String, SemanticsError> {
+    let mut parts = vec![token_text(&unit.me.value)];
+    match unit.body.as_ref() {
+        ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => {
+            for operator in &body.0 {
+                parts.push(generated_mekso_operator_surface_label(operator)?);
+            }
+        }
+        ZantufaMeSelbriBodySyntax::ZantufaMeMeksoSelbriBody(body) => {
+            parts.push(generated_mekso_surface_text(body.0.as_ref())?);
+        }
+        ZantufaMeSelbriBodySyntax::ZantufaMeTagSelbriBody(body) => {
+            parts.push(generated_node_surface_text(body.0.as_ref())?);
+        }
+    }
+    Ok(parts.join(" "))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn relation_label_from_zantufa_mex_moi_tanru_unit(
+    unit: &ZantufaMexMoiTanruUnitSyntax,
+) -> Result<String, SemanticsError> {
+    Ok(format!(
+        "{} {}",
+        generated_mekso_surface_text(&unit.expression)?,
+        token_text(&unit.moi.value)
+    ))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 fn generated_mekso_operator_label(
     operator: &MeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
@@ -31543,6 +32266,41 @@ fn generated_mekso_operator_surface_label(
             generated_simple_mekso_operator_surface_label(operator)
         }
     }
+}
+
+#[requires(!operators.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<MeksoOperatorSyntax>>(
+    operators: &[O],
+) -> Result<String, SemanticsError> {
+    operators
+        .iter()
+        .map(|operator| generated_mekso_operator_surface_label(operator.as_ref()))
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parts| parts.join(" "))
+}
+
+#[requires(!operators.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|(label, _)| !label.is_empty()) || ret.is_err())]
+fn generated_zantufa_mekso_operator_sequence_label_with_replacement<
+    O: AsRef<MeksoOperatorSyntax>,
+>(
+    operators: &[O],
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<(String, bool), SemanticsError> {
+    let mut replaced = false;
+    let mut parts = Vec::with_capacity(operators.len());
+    for operator in operators {
+        if !replaced && connected_generated_mekso_operator(operator.as_ref())?.is_some() {
+            parts.push(generated_mekso_operator_surface_label(
+                replacement_operator,
+            )?);
+            replaced = true;
+        } else {
+            parts.push(generated_mekso_operator_surface_label(operator.as_ref())?);
+        }
+    }
+    Ok((parts.join(" "), replaced))
 }
 
 #[requires(true)]
@@ -31890,9 +32648,89 @@ fn generated_mekso_base_surface_text_with_connected_operator_replacement(
             }
             Ok(replaced.then(|| parts.join(" ")))
         }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_)
-        | MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok(None),
+        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
+            generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
+                group,
+                replacement_operator,
+            )
+        }
+        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
+            generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
+                group,
+                replacement_operator,
+            )
+        }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+fn generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
+    group: &ZantufaBoGroupedMeksoBaseSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    let mut replaced = false;
+    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
+    if let Some(first) = generated_mekso_operand_surface_text_with_connected_operator_replacement(
+        &group.first,
+        replacement_operator,
+    )? {
+        replaced = true;
+        parts.push(first);
+    } else {
+        parts.push(generated_mekso_operand_surface_text(&group.first)?);
+    }
+    for continuation in &group.continuations {
+        parts.push(token_text(&continuation.bo.value));
+        if replaced {
+            parts.push(generated_mekso_operand_surface_text(
+                &continuation.expression,
+            )?);
+        } else if let Some(expression) =
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                &continuation.expression,
+                replacement_operator,
+            )?
+        {
+            replaced = true;
+            parts.push(expression);
+        } else {
+            parts.push(generated_mekso_operand_surface_text(
+                &continuation.expression,
+            )?);
+        }
+    }
+    Ok(replaced.then(|| parts.join(" ")))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+fn generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
+    group: &ZantufaGroupedMeksoOperandSequenceSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    let mut replaced = false;
+    let mut parts = Vec::with_capacity(group.operands.len() + 2);
+    parts.push(token_text(&group.ke.value));
+    for operand in &group.operands {
+        if replaced {
+            parts.push(generated_mekso_operand_surface_text(operand)?);
+        } else if let Some(text) =
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                operand,
+                replacement_operator,
+            )?
+        {
+            replaced = true;
+            parts.push(text);
+        } else {
+            parts.push(generated_mekso_operand_surface_text(operand)?);
+        }
+    }
+    if let Some(kehe) = &group.kehe {
+        parts.push(token_text(&kehe.value));
+    }
+    Ok(replaced.then(|| parts.join(" ")))
 }
 
 #[requires(true)]
@@ -34782,13 +35620,26 @@ fn generated_modal_forethought_connective_truth_table_with_right_negated(
     connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
     right_negated: bool,
 ) -> Option<String> {
+    generated_modal_forethought_connective_truth_table_with_negations(
+        connective,
+        generated_modal_forethought_connective_negates_left(connective),
+        right_negated,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn generated_modal_forethought_connective_truth_table_with_negations(
+    connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
+    left_negated: bool,
+    right_negated: bool,
+) -> Option<String> {
     if generated_modal_forethought_connective_question_token(connective).is_some()
         || !generated_modal_forethought_connective_is_logical(connective)
     {
         return None;
     }
     let operator = generated_modal_forethought_connective_formula_operator(connective);
-    let left_negated = generated_modal_forethought_connective_negates_left(connective);
     let se = generated_modal_forethought_connective_tokens(connective)
         .iter()
         .any(|token| token.is_selmaho(Selmaho::Se));
@@ -35533,11 +36384,11 @@ fn relation_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_zantufa_statement(abstraction)
         }
-        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_) => {
-            Err(unsupported("Zantufa ME selbri relation label"))
+        TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(unit) => {
+            relation_label_from_zantufa_me_tanru_unit(unit)
         }
-        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_) => {
-            Err(unsupported("Zantufa mex MOI relation label"))
+        TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
+            relation_label_from_zantufa_mex_moi_tanru_unit(unit)
         }
         TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
@@ -35829,9 +36680,6 @@ fn generated_logical_sumti_connection_for_branch(
             let SumtiForethoughtSyntax::ForethoughtSumti(forethought) = sumti else {
                 return Ok(None);
             };
-            if !forethought.additional_branches.is_empty() {
-                return Err(unsupported("n-ary forethought sumti distribution"));
-            }
             if generated_modal_forethought_connective_is_logical(&forethought.gek)
                 && !generated_modal_forethought_connective_is_interval(&forethought.gek)
             {
@@ -42187,9 +43035,21 @@ fn generated_guhek_gik_connective_truth_table(
     guhek: &GuhekConnectiveSyntax,
     gik: &GikConnectiveSyntax,
 ) -> Option<String> {
+    generated_guhek_connective_truth_table_with_negations(
+        guhek,
+        generated_guhek_connective_negates_left(guhek),
+        generated_gik_connective_negates_right(gik),
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn generated_guhek_connective_truth_table_with_negations(
+    guhek: &GuhekConnectiveSyntax,
+    left_negated: bool,
+    right_negated: bool,
+) -> Option<String> {
     let operator = generated_guhek_connective_formula_operator(guhek);
-    let left_negated = generated_guhek_connective_negates_left(guhek);
-    let right_negated = generated_gik_connective_negates_right(gik);
     let se = generated_guhek_connective_has_se(guhek);
     Some(
         [(true, true), (true, false), (false, true), (false, false)]

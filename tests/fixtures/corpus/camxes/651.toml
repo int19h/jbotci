@@ -11,8 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "geĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [0, 3], source-text = "gei", message = "unexpected cmavo" }]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(ZantufaMeksoFragment(ZantufaMeksoFragmentSyntax(InfixMekso(InfixMeksoSyntax { first_expression: MeksoPrecedenceSyntax { left_expression: ForethoughtCallMekso(ForethoughtCallMeksoSyntax { peho: None, operator: AfterthoughtMeksoOperator(AfterthoughtMeksoOperatorSyntax(Chain { first: SimpleMeksoOperator(PrimitiveMeksoOperator(PrimitiveMeksoOperatorSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "geĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), free_modifiers: [] }))), links: [] })), operands: [MeksoOperand(AfterthoughtMeksoOperand(AfterthoughtMeksoOperandSyntax(Chain { first: SimpleMeksoOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: WithFreeModifiers { value: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), continuations: [NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "no" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }))))] }, free_modifiers: [] }, boi: None }))), links: [] })))], kuhe: None }), tail: None }, continuations: [] }))))), following: [], trailing: [] })), additional_niho: [] })) })'
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-mex", byte-span = [0, 3], source-text = "gei", message = "experimental syntax: Zantufa mex grammar form", word-index = 0 }]
 
 [expectations.output.vlasei]
 brackets = "(geĭ re no)"
@@ -23,3 +24,18 @@ tree = """
   Cmavo @[6‥8) "no",
 ]"""
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"geĭ","span":[0,3]}}},{"PlainWord":{"Cmavo":{"phonemes":"re","span":[4,6]}}},{"PlainWord":{"Cmavo":{"phonemes":"no","span":[6,8]}}}]'
+
+[expectations.output.gentufa]
+tree = """
+ForethoughtCallMekso @[0‥8) {
+  operator: Cmavo @[0‥3) "geĭ",
+  operands: [
+    NumberWords @[4‥8) {
+      first_number: Cmavo @[4‥6) "re",
+      continuations: [
+        Cmavo @[6‥8) "no",
+      ],
+    },
+  ],
+}"""
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"ZantufaMeksoFragment":{"InfixMekso":{"first_expression":{"left_expression":{"ForethoughtCallMekso":{"operator":{"AfterthoughtMeksoOperator":{"first":{"SimpleMeksoOperator":{"PrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"geĭ","span":[0,3]}}}}}}}},"operands":[{"MeksoOperand":{"AfterthoughtMeksoOperand":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[4,6]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"no","span":[6,8]}}}}}]}}}}}}}]}}}}}}}}}}}}}'

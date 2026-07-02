@@ -2776,6 +2776,26 @@ mod tests {
         }
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse_tree_wrapper_accepts_baseline_quantified_fragments() {
+        for source in ["iso'i melbi nixli", "vei ny. lo prenu", "reroi"] {
+            let words =
+                jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+            parse_syntax_tree_generated_model_with_source_and_options(
+                &words,
+                source,
+                &ParseOptions::default(),
+            )
+            .unwrap_or_else(|error| {
+                panic!("{source:?} should parse as generated model, got {error}")
+            });
+            parse_syntax_tree_with_source_and_options(&words, source, &ParseOptions::default())
+                .unwrap_or_else(|error| panic!("{source:?} should parse, got {error}"));
+        }
+    }
+
     #[cfg(feature = "grammar-debug")]
     #[test]
     #[requires(true)]

@@ -779,6 +779,128 @@ where
     .boxed()
 }
 
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+pub(crate) fn complete_statement_item<'tokens, O, P>(
+    inner: P,
+    expected: &'static str,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let before = input.save();
+        let start_location = ParserInput::cursor_location(before.cursor().inner());
+        let start_byte = input.state().byte_offset_for_location(start_location);
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        match input.parse(&inner) {
+            Ok(value) => {
+                let after_inner = input.save();
+                let at_boundary = input.next().is_none_or(|token| {
+                    token.is_selmaho(Selmaho::I) || token.is_selmaho(Selmaho::Niho)
+                });
+                input.rewind(after_inner);
+                if at_boundary {
+                    Ok(value)
+                } else {
+                    input.rewind(before);
+                    input
+                        .state()
+                        .restore_diagnostic_candidates(diagnostic_snapshot);
+                    Err(expected_found_at_current(input, expected))
+                }
+            }
+            Err(error) => {
+                input.rewind(before);
+                input
+                    .state()
+                    .restore_diagnostic_candidates_preserving_start(
+                        diagnostic_snapshot,
+                        start_byte,
+                    );
+                if error.span().start == start_byte {
+                    Err(error)
+                } else {
+                    Err(expected_found_at_current(input, expected))
+                }
+            }
+        }
+    })
+    .boxed()
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+pub(crate) fn complete_before_selmaho<'tokens, O, P>(
+    inner: P,
+    selmaho: Selmaho,
+    expected: &'static str,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let before = input.save();
+        let start_location = ParserInput::cursor_location(before.cursor().inner());
+        let start_byte = input.state().byte_offset_for_location(start_location);
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        match input.parse(&inner) {
+            Ok(value) => {
+                let after_inner = input.save();
+                let at_boundary = input.next().is_some_and(|token| token.is_selmaho(selmaho));
+                input.rewind(after_inner);
+                if at_boundary {
+                    Ok(value)
+                } else {
+                    input.rewind(before);
+                    input
+                        .state()
+                        .restore_diagnostic_candidates(diagnostic_snapshot);
+                    Err(expected_found_at_current(input, expected))
+                }
+            }
+            Err(error) => {
+                input.rewind(before);
+                input
+                    .state()
+                    .restore_diagnostic_candidates_preserving_start(
+                        diagnostic_snapshot,
+                        start_byte,
+                    );
+                if error.span().start == start_byte {
+                    Err(error)
+                } else {
+                    Err(expected_found_at_current(input, expected))
+                }
+            }
+        }
+    })
+    .boxed()
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+fn expected_found_at_current<'tokens>(
+    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    expected: &'static str,
+) -> SyntaxParseError<'tokens> {
+    let checkpoint = input.save();
+    let cursor = input.cursor();
+    let found = input
+        .next()
+        .map(|token| new!(SyntaxFound::Token(token)))
+        .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
+    let span = input.span_since(&cursor);
+    input.rewind(checkpoint);
+    SyntaxParseError::expected_found(
+        span,
+        vec![new!(SyntaxExpectedToken::Named(expected.to_owned()))],
+        found,
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn lookahead<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, O>

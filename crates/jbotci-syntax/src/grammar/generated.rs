@@ -235,12 +235,12 @@ pub mod generated_model {
         gihek_fragment,
         multiple_na_fragment,
         single_na_fragment,
-        zantufa_mekso_fragment,
-        mekso_fragment,
         terms_fragment,
+        mekso_fragment,
         relative_clause_fragment,
         linked_sumti_continuation_fragment,
         linked_sumti_fragment,
+        zantufa_mekso_fragment,
     }
 
     rule "statement" statement_after_i_connective(statement, bridi, subbridi, tense_modal, text) -> enum {
@@ -390,7 +390,7 @@ pub mod generated_model {
 
     rule "mex" zantufa_mekso_fragment(mekso) -> struct {
         #[tree_child(primary)]
-        field expression <- arc(mekso);
+        field expression: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_statement_item());
     }
 
     rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement) -> struct {
@@ -453,7 +453,7 @@ pub mod generated_model {
     }
 
     rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
-        zantufa_grouped_bridi_tail,
+        when feature(ZantufaTerms) zantufa_grouped_bridi_tail,
         bridi_tail_with_possible_tail_terms,
         bridi_tail_without_tail_terms,
     }
@@ -2773,8 +2773,8 @@ pub mod generated_model {
         scalar_negated_tanru_unit,
         when feature(ZantufaTerms) zantufa_statement_abstraction_tanru_unit,
         abstraction_tanru_unit,
-        zantufa_me_tanru_unit,
         sumti_selbri_tanru_unit,
+        zantufa_me_tanru_unit,
         zantufa_mex_moi_tanru_unit,
         operator_selbri_tanru_unit,
         quoted_bridi_selbri_tanru_unit,
@@ -2798,8 +2798,8 @@ pub mod generated_model {
         scalar_negated_tanru_unit,
         when feature(ZantufaTerms) zantufa_statement_abstraction_tanru_unit,
         abstraction_tanru_unit,
-        zantufa_me_tanru_unit,
         sumti_selbri_tanru_unit,
+        zantufa_me_tanru_unit,
         zantufa_mex_moi_tanru_unit,
         operator_selbri_tanru_unit,
         quoted_bridi_selbri_tanru_unit,
@@ -2944,7 +2944,7 @@ pub mod generated_model {
     }
 
     rule "mex selbri" zantufa_mex_moi_tanru_unit(mekso) -> struct {
-        field expression <- arc(mekso);
+        field expression: std::sync::Arc<MeksoSyntax> <- arc(mekso.complete_before_selmaho(Moi));
         field moi <- selmaho(Moi).warn(ExperimentalZantufaMex).wf();
     }
 
