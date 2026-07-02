@@ -49,7 +49,7 @@ use jbotci_output::{
     generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_or_notes_line,
     ipa_morphology_text, phoneme_render_options_for_script,
     pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
-    pretty_generated_model_tree_with_reference_display, render_lojban_text_for_script_with_options,
+    render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -463,7 +463,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         show_spans: true,
         show_refs: true,
         decompose_lujvo: false,
-        show_elided: false,
+        show_elided: request.options.show_elided,
     };
     let reference_display =
         match generated_reference_display(&generated_model, source, tree_options) {
@@ -476,21 +476,6 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
                 });
             }
         };
-    let tree_text = match pretty_generated_model_tree_with_reference_display(
-        &generated_model,
-        source,
-        tree_options,
-        &reference_display,
-    ) {
-        Ok(text) => text,
-        Err(error) => {
-            return GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            });
-        }
-    };
     let bracket_options = bracket_render_options(&render_options);
     let brackets_text = match pretty_generated_model_brackets_with_options(
         &generated_model,
@@ -521,7 +506,8 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         }
     };
     let block_options = gentufa_block_options(&request.options);
-    let generated_annotations = Vec::<GentufaBlockAnnotation<DictionaryTooltipCard>>::new();
+    let mut generated_annotations =
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), &words, "");
     let bare_blocks_layout = generated_syntax_blocks_layout_with_references(
         &generated_model,
         source,
@@ -530,6 +516,10 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &generated_annotations,
         &block_options,
     );
+    generated_annotations.extend(dictionary_annotations_for_elided_blocks(
+        &bare_blocks_layout.blocks,
+        "",
+    ));
     let bracket_fragments = gentufa_bracket_fragments_from_source(
         &bracket_source_fragments,
         &bare_blocks_layout,
@@ -541,9 +531,11 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         source,
         &block_options,
         "",
+        &generated_annotations,
     );
-    let tree_rows = generated_model_tree_rows_from_text(&tree_text);
+    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
     let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
+    let features = web_feature_availability_for_annotations(&generated_annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -553,49 +545,109 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         blocks_layout,
         tree_rows,
         diagnostics,
-        features: WebFeatureAvailability {
-            ..WebFeatureAvailability::default()
-        },
+        features,
     })
 }
 
-#[requires(!tree_text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn generated_model_tree_rows_from_text(tree_text: &str) -> Vec<GentufaTreeRow> {
-    tree_text
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .enumerate()
-        .map(|(index, line)| {
-            let depth = line
-                .chars()
-                .take_while(|character| character.is_whitespace())
-                .count()
-                / 2;
-            GentufaTreeRow {
-                node_id: index,
-                parent_id: None,
-                depth,
-                label: generated_model_tree_row_label(line),
-                color: color_for_node(depth, index),
-                guides: Vec::new(),
-                has_children: false,
-                cells: vec![GentufaCell {
-                    text: line.trim().to_owned(),
-                    is_word: false,
-                    quoted: false,
-                    tooltip: None,
-                    is_elided: false,
-                    transform: None,
-                }],
-                computed_gloss: None,
-                ref_markers: Vec::new(),
-                glosses: Vec::new(),
-                definition: None,
-                rafsi_breakdown: Vec::new(),
-            }
+#[requires(true)]
+#[ensures(ret.len() == layout.blocks.len())]
+fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<GentufaTreeRow> {
+    let mut blocks = layout.blocks.iter().collect::<Vec<_>>();
+    blocks.sort_by_key(|block| {
+        (
+            block.row,
+            block.col,
+            usize::from(block.is_leaf),
+            &block.block_id,
+        )
+    });
+    let mut rows = Vec::with_capacity(blocks.len());
+    let mut parent_stack: Vec<(usize, String)> = Vec::new();
+    for block in blocks {
+        let node_id = block_id_number(&block.block_id);
+        parent_stack.truncate(block.row);
+        let parent_id = block
+            .row
+            .checked_sub(1)
+            .and_then(|parent_depth| parent_stack.get(parent_depth))
+            .map(|(parent_id, _)| *parent_id);
+        let guides = parent_stack
+            .iter()
+            .map(|(_, color)| GentufaTreeGuide {
+                color: color.clone(),
+                line_top: true,
+                line_bottom: true,
+            })
+            .collect::<Vec<_>>();
+        if parent_stack.len() == block.row {
+            parent_stack.push((node_id, block.color.clone()));
+        } else if let Some(slot) = parent_stack.get_mut(block.row) {
+            *slot = (node_id, block.color.clone());
+        }
+        rows.push(GentufaTreeRow {
+            node_id,
+            parent_id,
+            depth: block.row,
+            label: block.label.clone(),
+            color: block.color.clone(),
+            guides,
+            has_children: false,
+            cells: vec![GentufaCell {
+                text: block.display_text.clone(),
+                is_word: block.is_leaf,
+                quoted: false,
+                tooltip: None,
+                is_elided: block.is_elided,
+                transform: block.transform.clone(),
+            }],
+            computed_gloss: block.computed_gloss.clone(),
+            ref_markers: block.ref_markers.clone(),
+            glosses: block.glosses.clone(),
+            definition: block.definition.clone(),
+            rafsi_breakdown: rafsi_breakdown_for_block(block),
+        });
+    }
+    annotate_generated_model_tree_row_parent_state(rows)
+}
+
+#[requires(block_id.starts_with('n'))]
+#[ensures(true)]
+fn block_id_number(block_id: &str) -> usize {
+    block_id
+        .strip_prefix('n')
+        .and_then(|suffix| suffix.parse::<usize>().ok())
+        .unwrap_or(0)
+}
+
+#[requires(true)]
+#[ensures(ret.len() == old(rows.len()))]
+fn annotate_generated_model_tree_row_parent_state(
+    mut rows: Vec<GentufaTreeRow>,
+) -> Vec<GentufaTreeRow> {
+    let parent_ids = rows
+        .iter()
+        .filter_map(|row| row.parent_id)
+        .collect::<BTreeSet<_>>();
+    for row in &mut rows {
+        row.has_children = parent_ids.contains(&row.node_id);
+    }
+    rows
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rafsi_breakdown_for_block(block: &GentufaBlock) -> Vec<String> {
+    block
+        .tooltip
+        .as_ref()
+        .map(|tooltip| {
+            tooltip
+                .decomposition
+                .iter()
+                .map(|piece| piece.display_surface.clone())
+                .collect()
         })
-        .collect()
+        .unwrap_or_default()
 }
 
 #[requires(true)]
@@ -606,6 +658,7 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
     source: &str,
     options: &GentufaBlockOptions,
     base_path: &str,
+    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
     GentufaBlocksLayout {
         blocks: layout
@@ -613,7 +666,12 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
             .into_iter()
             .map(|block| {
                 attach_generated_reference_tooltips_to_block(
-                    block, analysis, source, options, base_path,
+                    block,
+                    analysis,
+                    source,
+                    options,
+                    base_path,
+                    dictionary_annotations,
                 )
             })
             .collect(),
@@ -630,6 +688,7 @@ fn attach_generated_reference_tooltips_to_block(
     source: &str,
     options: &GentufaBlockOptions,
     base_path: &str,
+    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlock {
     let jbotci_gentufa::GentufaBlock {
         block_id,
@@ -656,6 +715,11 @@ fn attach_generated_reference_tooltips_to_block(
         computed_gloss,
         tooltip,
     } = block;
+    let dictionary_annotation = annotation_for_range_and_text(
+        dictionary_annotations,
+        span,
+        is_elided.then_some(display_text.as_str()),
+    );
     GentufaBlock {
         block_id,
         node_ids,
@@ -682,10 +746,12 @@ fn attach_generated_reference_tooltips_to_block(
         raw_text,
         display_text,
         transform,
-        glosses,
-        definition,
+        glosses: merge_block_glosses(glosses, dictionary_annotation),
+        definition: definition
+            .or_else(|| dictionary_annotation.and_then(|annotation| annotation.definition.clone())),
         computed_gloss,
-        tooltip,
+        tooltip: tooltip
+            .or_else(|| dictionary_annotation.and_then(|annotation| annotation.tooltip.clone())),
     }
 }
 
@@ -871,23 +937,6 @@ fn source_text_for_spans(source: &str, spans: &[jbotci_source::SourceSpan]) -> S
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_model_tree_row_label(line: &str) -> String {
-    let trimmed = line.trim_start();
-    let end = trimmed
-        .find(|character: char| {
-            character.is_whitespace() || matches!(character, '(' | '[' | '{' | ':')
-        })
-        .unwrap_or(trimmed.len());
-    let label = trimmed[..end].trim_end_matches(',');
-    if label.is_empty() {
-        "GeneratedSyntax".to_owned()
-    } else {
-        label.to_owned()
-    }
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, GentufaWebError> {
     match source.map(str::trim).filter(|source| !source.is_empty()) {
@@ -923,7 +972,7 @@ fn bracket_render_options(options: &GentufaWebOptions) -> BracketRenderOptions {
         script: options.script,
         glyphs: GlyphStyle::Unicode,
         decompose_lujvo: false,
-        insert_hair_space: false,
+        insert_hair_space: true,
         show_elided: options.show_elided,
     }
 }
@@ -953,6 +1002,42 @@ fn gentufa_block_options(options: &GentufaWebOptions) -> GentufaBlockOptions {
 fn tooltip_definition_text(card: &DictionaryTooltipCard) -> Option<String> {
     let text = inline_plain_text(&card.definition);
     (!text.trim().is_empty()).then_some(text)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn merge_block_glosses(
+    glosses: Vec<String>,
+    annotation: Option<&GentufaBlockAnnotation<DictionaryTooltipCard>>,
+) -> Vec<String> {
+    if glosses.is_empty() {
+        annotation
+            .map(|annotation| annotation.glosses.clone())
+            .unwrap_or_default()
+    } else {
+        glosses
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.gentufa)]
+fn web_feature_availability_for_annotations(
+    annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+) -> WebFeatureAvailability {
+    let mut features = WebFeatureAvailability::default();
+    features.glosses = annotations
+        .iter()
+        .any(|annotation| !annotation.glosses.is_empty());
+    features.definitions = annotations
+        .iter()
+        .any(|annotation| annotation.definition.is_some());
+    features.rafsi_breakdown = annotations.iter().any(|annotation| {
+        annotation
+            .tooltip
+            .as_ref()
+            .is_some_and(|card| !card.rafsi.is_empty() || !card.decomposition.is_empty())
+    });
+    features
 }
 
 #[requires(true)]
@@ -4342,6 +4427,29 @@ fn dictionary_annotations_for_words(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_annotations_for_elided_blocks(
+    blocks: &[BareGentufaBlock],
+    base_path: &str,
+) -> Vec<GentufaBlockAnnotation<DictionaryTooltipCard>> {
+    blocks
+        .iter()
+        .filter(|block| block.is_leaf && block.is_elided)
+        .filter_map(|block| {
+            let range = block.span?;
+            let card = dictionary_tooltip_for_word(base_path, &block.display_text)?;
+            Some(GentufaBlockAnnotation {
+                range,
+                text: Some(block.display_text.clone()),
+                glosses: card.glosses.clone(),
+                definition: tooltip_definition_text(&card),
+                tooltip: Some(card),
+            })
+        })
+        .collect()
+}
+
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
 #[ensures(ret.range.byte_start == parsed_match.byte_start)]
@@ -4665,7 +4773,13 @@ fn annotation_for_range_and_text<'a>(
     range: Option<WebSourceRange>,
     text: Option<&str>,
 ) -> Option<&'a GentufaBlockAnnotation<DictionaryTooltipCard>> {
-    let range = range?;
+    let Some(range) = range else {
+        let text = text?;
+        return dictionary_annotations.iter().find(|annotation| {
+            annotation.range.byte_start == annotation.range.byte_end
+                && annotation.text.as_deref() == Some(text)
+        });
+    };
     if let Some(text) = text {
         let exact = dictionary_annotations.iter().find(|annotation| {
             same_byte_range(annotation.range, range) && annotation.text.as_deref() == Some(text)
@@ -5448,7 +5562,7 @@ fn percent_decode(input: &str) -> String {
             output.push(b' ');
             index += 1;
         } else if bytes[index] == b'%' && index + 2 < bytes.len() {
-            if let Ok(value) = u8::from_str_radix(&input[index + 1..index + 3], 16) {
+            if let Some(value) = percent_hex_byte(bytes[index + 1], bytes[index + 2]) {
                 output.push(value);
                 index += 3;
             } else {
@@ -5461,6 +5575,23 @@ fn percent_decode(input: &str) -> String {
         }
     }
     String::from_utf8_lossy(&output).into_owned()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn percent_hex_byte(high: u8, low: u8) -> Option<u8> {
+    Some(hex_nibble(high)? << 4 | hex_nibble(low)?)
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|value| value < 16))]
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 #[requires(true)]
@@ -5880,10 +6011,13 @@ mod tests {
             success
                 .tree_rows
                 .iter()
-                .any(|row| row.cells.iter().any(|cell| cell.text.contains("@["))),
-            "{:?}",
-            success.tree_rows
+                .all(|row| row.cells.iter().all(|cell| !cell.text.contains("@[")))
         );
+        assert!(success.tree_rows.iter().any(|row| {
+            row.cells
+                .iter()
+                .any(|cell| cell.is_word && cell.text == "kláma")
+        }));
     }
 
     #[test]
@@ -5908,7 +6042,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables elided terminator rendering"]
     #[requires(true)]
     #[ensures(true)]
     fn elided_terminators_only_render_when_requested() {
@@ -5939,11 +6072,9 @@ mod tests {
             panic!("expected successful parse");
         };
         assert!(shown.tree_rows.iter().any(|row| {
-            row.label == "Cmavo"
-                && row
-                    .cells
-                    .iter()
-                    .any(|cell| cell.is_word && cell.is_elided && cell.text == "vau")
+            row.cells
+                .iter()
+                .any(|cell| cell.is_word && cell.is_elided && cell.text == "vau")
                 && !row.glosses.is_empty()
                 && row.definition.is_some()
         }));
@@ -5978,7 +6109,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables elided terminator rendering"]
     #[requires(true)]
     #[ensures(true)]
     fn tree_rows_place_elided_terminators_after_preceding_source_text() {
@@ -6008,11 +6138,9 @@ mod tests {
             .tree_rows
             .iter()
             .position(|row| {
-                row.label == "SelbriWord"
-                    && row
-                        .cells
-                        .iter()
-                        .any(|cell| !cell.is_elided && cell.text == "cádga")
+                row.cells
+                    .iter()
+                    .any(|cell| !cell.is_elided && cell.text == "cádga")
             })
             .unwrap_or_else(|| panic!("{:?}", rows_for_failure()));
         let first_elided_vau_row = success
@@ -6029,7 +6157,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables old block metadata"]
     #[requires(true)]
     #[ensures(true)]
     fn single_synthetic_elided_leaf_keeps_elided_block_metadata() {
@@ -6044,36 +6171,38 @@ mod tests {
         let GentufaWebResult::Success(success) = parse_gentufa_for_web(&request) else {
             panic!("expected successful parse");
         };
-        let ku_blocks = success
+        let elided_blocks = success
             .blocks_layout
             .blocks
             .iter()
-            .filter(|block| block.is_leaf && block.label == "ku")
+            .filter(|block| block.is_leaf && block.is_elided)
             .collect::<Vec<_>>();
-        assert!(!ku_blocks.is_empty(), "{:?}", success.blocks_layout.blocks);
         assert!(
-            ku_blocks.iter().all(|block| block.is_elided),
-            "{ku_blocks:?}"
+            !elided_blocks.is_empty(),
+            "{:?}",
+            success.blocks_layout.blocks
         );
         assert!(
-            ku_blocks.iter().all(|block| block
+            elided_blocks.iter().all(|block| block.is_elided),
+            "{elided_blocks:?}"
+        );
+        assert!(
+            elided_blocks.iter().all(|block| block
                 .span
                 .is_some_and(|range| range.byte_start == range.byte_end)),
-            "{ku_blocks:?}"
+            "{elided_blocks:?}"
         );
         assert!(
-            ku_blocks.iter().any(|block| block
-                .tooltip
-                .as_ref()
-                .is_some_and(|card| card.word == "ku")
-                && !block.glosses.is_empty()
-                && block.definition.is_some()),
-            "{ku_blocks:?}"
+            elided_blocks
+                .iter()
+                .any(|block| block.tooltip.as_ref().is_some()
+                    && !block.glosses.is_empty()
+                    && block.definition.is_some()),
+            "{elided_blocks:?}"
         );
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables old block layout"]
     #[requires(true)]
     #[ensures(true)]
     fn simple_parse_builds_v0_style_block_spans() {
@@ -6118,7 +6247,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables old block layout"]
     #[requires(true)]
     #[ensures(true)]
     fn reported_fiho_compound_leaves_do_not_span_phantom_bottom_row() {
@@ -6142,7 +6270,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily uses raw generated tree rows"]
     #[requires(true)]
     #[ensures(true)]
     fn tree_rows_keep_depth_order_color_and_math_label_data() {
@@ -6197,7 +6324,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables old bracket rendering"]
     #[requires(true)]
     #[ensures(true)]
     fn bracket_output_inserts_hair_spaces() {
@@ -6206,7 +6332,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables dictionary block annotations"]
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_dictionary_annotations_fill_glosses_and_tooltips() {
@@ -6234,7 +6359,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "generated syntax web output temporarily disables old bracket fragment coloring"]
     #[requires(true)]
     #[ensures(true)]
     fn gentufa_bracket_fragments_are_colored_and_linked() {
@@ -6714,6 +6838,16 @@ mod tests {
         };
 
         assert!(zbalermorna_success.surface_text.contains('\u{eda8}'));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn percent_decode_handles_percent_next_to_multibyte_utf8() {
+        assert_eq!(percent_decode("zo%C4%AD%25"), "zoĭ%");
+        assert_eq!(percent_decode("zoĭ%"), "zoĭ%");
+        assert_eq!(percent_decode("zoĭ%2G"), "zoĭ%2G");
+        assert_eq!(percent_decode("coi+rodo"), "coi rodo");
     }
 
     #[test]
