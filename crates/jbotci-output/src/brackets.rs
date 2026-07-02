@@ -25,7 +25,7 @@ struct BracketContext<'source> {
 }
 
 #[requires(true)]
-#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(words.is_empty() || ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub(crate) fn pretty_morphology_brackets_with_options(
     words: &[WordLike],
     source: &str,
@@ -45,7 +45,7 @@ pub(crate) fn pretty_morphology_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub(crate) fn pretty_generated_model_brackets_with_options(
     tree: &GeneratedTextSyntax,
     source: &str,
@@ -59,7 +59,7 @@ pub(crate) fn pretty_generated_model_brackets_with_options(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()) || ret.is_err())]
 pub(crate) fn pretty_generated_model_bracket_source_fragments_with_options(
     tree: &GeneratedTextSyntax,
     source: &str,

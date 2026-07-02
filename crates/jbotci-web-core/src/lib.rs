@@ -7773,6 +7773,24 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn vlacku_punctuation_only_word_search_reports_invalid_query() {
+        let result = build_vlacku_web_result(&VlackuWebState {
+            mode: VlackuWebMode::Word,
+            query: "!!!".to_owned(),
+            count: 20,
+            word_types: Vec::new(),
+        });
+
+        assert!(result.cards.is_empty(), "{:?}", result.cards);
+        assert_eq!(
+            result.errors.first().map(String::as_str),
+            Some("Invalid Lojban word: !!!")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vlacku_segmented_word_lookup_does_not_apply_to_rafsi_mode() {
         let result = build_vlacku_web_result(&VlackuWebState {
             mode: VlackuWebMode::Rafsi,

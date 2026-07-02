@@ -640,7 +640,7 @@ struct BlockParseState {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()) || ret.is_err())]
 pub fn embedded_cll_site() -> Result<&'static CllSite, CllError> {
     EMBEDDED_SITE
         .get_or_init(load_embedded_cll_site)
@@ -649,7 +649,7 @@ pub fn embedded_cll_site() -> Result<&'static CllSite, CllError> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()) || ret.is_err())]
 pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     let mut chapters = Vec::new();
     let mut sections_by_id = BTreeMap::new();
@@ -705,7 +705,7 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
     let mut decoder = BzDecoder::new(compressed);
     let mut bytes = Vec::new();
@@ -726,7 +726,7 @@ fn sanitize_xml_entities(xml: &str) -> String {
 #[requires(root.is_element())]
 #[requires(chapter_number > 0)]
 #[requires(!source_path.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.chapter_number == chapter_number))]
+#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.chapter_number == chapter_number) || ret.is_err())]
 fn parse_chapter(
     root: Node<'_, '_>,
     chapter_number: u16,
@@ -826,7 +826,7 @@ fn chapter_xref_label(chapter_number: u16) -> String {
 #[requires(section_node.is_element())]
 #[requires(chapter_number > 0)]
 #[requires(section_index > 0)]
-#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.chapter_number == chapter_number))]
+#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.chapter_number == chapter_number) || ret.is_err())]
 fn parse_section(
     section_node: Node<'_, '_>,
     chapter_id: &str,

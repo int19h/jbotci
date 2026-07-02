@@ -708,14 +708,14 @@ enum LujvoPartRangeKind {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
+#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.is_err())]
 fn analyze_lujvo_parts(word: &str) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
     let chars = text_chars(word);
     analyze_lujvo_parts_chars(&chars)
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.as_ref().is_err())]
+#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.is_err())]
 fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
     let ranges = analyze_lujvo_part_ranges_chars(chars)?;
     let parts = lujvo_ranges_to_parts(chars, ranges.into_iter().collect()).ok_or_else(|| {
@@ -727,7 +727,7 @@ fn analyze_lujvo_parts_chars(chars: &[char]) -> Result<Vec1<LujvoPart>, LujvoPar
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.as_ref().is_err())]
+#[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.is_err())]
 fn analyze_lujvo_part_ranges_chars(
     chars: &[char],
 ) -> Result<Vec1<LujvoPartRange>, LujvoParseFailure> {
@@ -736,7 +736,7 @@ fn analyze_lujvo_part_ranges_chars(
 }
 
 #[requires(cache.char_count == chars.len())]
-#[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.as_ref().is_err())]
+#[ensures(ret.as_ref().is_ok_and(|ranges| !ranges.is_empty()) || ret.is_err())]
 fn analyze_lujvo_part_ranges_chars_with_cache(
     chars: &[char],
     cache: &mut LujvoRecognitionCache,

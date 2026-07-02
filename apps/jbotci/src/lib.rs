@@ -5231,7 +5231,7 @@ fn render_vlatai_phonemes(phonemes: &str, options: PhonemeRenderOptions) -> Stri
 
 #[requires(!source_label.is_empty())]
 #[requires(diagnostic_terminal_width > 0)]
-#[ensures(diagnostics.is_empty() -> ret.as_ref().is_ok_and(String::is_empty))]
+#[ensures(diagnostics.is_empty() -> (ret.as_ref().is_ok_and(String::is_empty) || ret.is_err()))]
 #[ensures(!diagnostics.is_empty() -> ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn render_source_diagnostics(
     source_label: &str,
@@ -6144,6 +6144,27 @@ mod tests {
         assert_eq!(output.status, ToolStatus::InvalidInput);
         assert!(output.stdout.is_empty());
         assert_eq!(output.stderr, "vlacku: cached embedding load failed\n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tool_vlacku_punctuation_only_query_reports_invalid_input_status() {
+        let output = run_tool_vlacku(ToolVlackuRequest {
+            mode: ToolVlackuMode::Word,
+            query: "!!!".to_owned(),
+            count: Some(1),
+            word_types: Vec::new(),
+            min_votes: None,
+            min_similarity: None,
+            decompose_lujvo: true,
+            show_etymology: false,
+        })
+        .expect("tool output");
+
+        assert_eq!(output.status, ToolStatus::InvalidInput);
+        assert!(output.stdout.is_empty());
+        assert_eq!(output.stderr, "vlacku: Invalid Lojban word: !!!\n");
     }
 
     #[test]
@@ -9037,6 +9058,17 @@ mod tests {
         assert_eq!(run.status, CliStatus::InvalidInput);
         assert!(run.stdout.is_empty(), "{}", run.stdout);
         assert!(run.stderr.contains("Invalid Lojban word: aa"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vlacku_punctuation_only_query_reports_invalid_input_status() {
+        let run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "!!!"], false);
+
+        assert_eq!(run.status, CliStatus::InvalidInput);
+        assert!(run.stdout.is_empty(), "{}", run.stdout);
+        assert!(run.stderr.contains("Invalid Lojban word: !!!"));
     }
 
     #[test]

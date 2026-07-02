@@ -29661,10 +29661,8 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
 fn generated_node_surface_text<N: TreeNode>(node: &N) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     node.visit_in_order(&mut visitor);
-    if visitor.tokens.is_empty() {
-        return Err(unsupported("empty generated node surface text"));
-    }
-    Ok(token_list_text(visitor.tokens.iter()))
+    non_empty_token_list_text(visitor.tokens.iter())
+        .ok_or_else(|| unsupported("empty generated node surface text"))
 }
 
 #[requires(true)]
@@ -33858,10 +33856,8 @@ fn generated_reverse_polish_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
-    if visitor.tokens.is_empty() {
-        return Err(unsupported("empty reverse Polish mekso"));
-    }
-    Ok(token_list_text(visitor.tokens.iter()))
+    non_empty_token_list_text(visitor.tokens.iter())
+        .ok_or_else(|| unsupported("empty reverse Polish mekso"))
 }
 
 #[requires(true)]
@@ -33871,10 +33867,8 @@ fn generated_zantufa_reverse_polish_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
-    if visitor.tokens.is_empty() {
-        return Err(unsupported("empty Zantufa reverse Polish mex"));
-    }
-    Ok(token_list_text(visitor.tokens.iter()))
+    non_empty_token_list_text(visitor.tokens.iter())
+        .ok_or_else(|| unsupported("empty Zantufa reverse Polish mex"))
 }
 
 #[requires(true)]
@@ -43671,9 +43665,16 @@ fn is_lojban_period(value: char) -> bool {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
+#[ensures(true)]
 fn token_list_text<'a>(tokens: impl Iterator<Item = &'a Token>) -> String {
     tokens.map(token_text).collect::<Vec<_>>().join(" ")
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn non_empty_token_list_text<'a>(tokens: impl Iterator<Item = &'a Token>) -> Option<String> {
+    let text = token_list_text(tokens);
+    if text.is_empty() { None } else { Some(text) }
 }
 
 #[requires(true)]
@@ -43681,10 +43682,8 @@ fn token_list_text<'a>(tokens: impl Iterator<Item = &'a Token>) -> String {
 fn generated_selbri_surface_text(selbri: &SelbriSyntax) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     selbri.visit_in_order(&mut visitor);
-    if visitor.tokens.is_empty() {
-        return relation_label_from_selbri(selbri);
-    }
-    Ok(token_list_text(visitor.tokens.iter()))
+    non_empty_token_list_text(visitor.tokens.iter())
+        .map_or_else(|| relation_label_from_selbri(selbri), Ok)
 }
 
 #[requires(true)]
@@ -43961,5 +43960,23 @@ fn unsupported(what: &str) -> SemanticsError {
     SemanticsError {
         kind: SemanticsErrorKind::InvalidGraph,
         message: format!("generated semantic builder does not yet support {what}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn token_list_text_allows_empty_token_lists_explicitly() {
+        assert_eq!(token_list_text(std::iter::empty::<&Token>()), "");
+        assert_eq!(
+            non_empty_token_list_text(std::iter::empty::<&Token>()),
+            None
+        );
     }
 }

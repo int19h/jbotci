@@ -1381,7 +1381,7 @@ fn render_release_service_worker(cache_version: &str, precache_paths: &[String])
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path.to_path_buf())

@@ -2487,6 +2487,19 @@ fn safe_pack_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
     Ok(path.to_owned())
 }
 
+#[requires(!value.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path != Path::new("manifest.json")) || ret.is_err())]
+fn safe_pack_data_relative_path(value: &str) -> Result<PathBuf, EmbeddingError> {
+    let path = safe_pack_relative_path(value)?;
+    if path == Path::new("manifest.json") {
+        return Err(EmbeddingError::InvalidIndex {
+            message: "remote pack child path `manifest.json` is reserved for the pack manifest"
+                .to_owned(),
+        });
+    }
+    Ok(path)
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|paths| !paths.contains(&"manifest.json".to_owned())) || ret.is_err())]
 fn native_pack_remote_paths(
@@ -2494,10 +2507,10 @@ fn native_pack_remote_paths(
 ) -> Result<Vec<String>, EmbeddingError> {
     let mut paths = BTreeSet::new();
     for corpus in &manifest.corpora {
-        let items_path = safe_pack_relative_path(&corpus.items_url)?;
+        let items_path = safe_pack_data_relative_path(&corpus.items_url)?;
         paths.insert(items_path.to_string_lossy().into_owned());
         for shard in &corpus.shards {
-            let shard_path = safe_pack_relative_path(&shard.url)?;
+            let shard_path = safe_pack_data_relative_path(&shard.url)?;
             paths.insert(shard_path.to_string_lossy().into_owned());
         }
     }
@@ -2625,9 +2638,9 @@ fn validate_native_corpus_manifest(
             actual: corpus.dimensions,
         });
     }
-    let _ = safe_pack_relative_path(&corpus.items_url)?;
+    let _ = safe_pack_data_relative_path(&corpus.items_url)?;
     for shard in &corpus.shards {
-        let _ = safe_pack_relative_path(&shard.url)?;
+        let _ = safe_pack_data_relative_path(&shard.url)?;
     }
     Ok(())
 }
@@ -3418,6 +3431,46 @@ mod tests {
         let error = load_latest_pack(dir.path(), &spec.model_key).expect_err("missing manifest");
         assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
         assert!(error.to_string().contains("manifest"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn native_pack_remote_paths_reject_reserved_manifest_child_path() {
+        let manifest = EmbeddingPackManifest {
+            schema_version: INDEX_SCHEMA_VERSION,
+            model_key: DEFAULT_MODEL_KEY.to_owned(),
+            model_revision: DEFAULT_MODEL_REVISION.to_owned(),
+            pack_id: "pack".to_owned(),
+            input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+            built_by: EmbeddingRuntime {
+                runtime: "test".to_owned(),
+                version: "test".to_owned(),
+            },
+            dimensions: 4,
+            element_type: "f32le".to_owned(),
+            normalized: true,
+            distance: "dot".to_owned(),
+            compatible_query_runtimes: vec![EmbeddingRuntime {
+                runtime: "llama-cpp-4".to_owned(),
+                version: LLAMA_CPP_4_RUNTIME_VERSION.to_owned(),
+            }],
+            corpora: vec![CorpusManifest {
+                corpus_id: VLACKU_CORPUS_ID.to_owned(),
+                input_format_version: DEFAULT_INPUT_FORMAT_VERSION.to_owned(),
+                fingerprint: "f".repeat(64),
+                row_count: 0,
+                dimensions: 4,
+                items_url: "manifest.json".to_owned(),
+                items_sha256: "0".repeat(64),
+                shards: Vec::new(),
+            }],
+        };
+
+        let error = native_pack_remote_paths(&manifest).expect_err("reserved path");
+
+        assert!(matches!(error, EmbeddingError::InvalidIndex { .. }));
+        assert!(error.to_string().contains("manifest.json"));
     }
 
     #[test]

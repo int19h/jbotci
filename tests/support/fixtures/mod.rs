@@ -1124,7 +1124,7 @@ pub fn load_fixture_tree(root: impl AsRef<Path>) -> Result<Vec<LoadedTestCase>, 
     Ok(loaded)
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|paths| paths.iter().all(|path| path.extension().is_some_and(|ext| ext == "toml"))))]
 #[requires(true)]
 pub fn fixture_paths(root: impl AsRef<Path>) -> Result<Vec<PathBuf>, FixtureError> {
     let root = root.as_ref();
@@ -1173,7 +1173,7 @@ where
     Ok(count)
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.fixture_count > 0))]
 #[requires(true)]
 pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, FixtureError> {
     let root = root.as_ref();
@@ -1236,7 +1236,7 @@ pub fn load_profiles(
 }
 
 #[requires(!name.is_empty(), "fixture profile names must not be empty")]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
@@ -1272,7 +1272,7 @@ pub fn fixture_matches_selector(
     matches_selector(root, fixture, selector)
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.written > 0))]
 #[requires(true)]
 pub fn import_export_file(
     input_path: impl AsRef<Path>,

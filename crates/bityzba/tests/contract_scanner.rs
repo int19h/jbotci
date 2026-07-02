@@ -51,6 +51,9 @@ fn missing_contracts_report_separate_diagnostics() {
     assert!(
         output.contains("src/lib.rs:19: missing bityzba postcondition on function `parse_term`")
     );
+    assert!(output.contains(
+        "src/lib.rs:22: Result-returning function `unsound_result_contract` has an `is_ok_and` postcondition without an `is_err` escape"
+    ));
     assert!(output.contains("only use `#[requires(true)]` as a last resort"));
     assert!(output.contains("only use `#[ensures(true)]` as a last resort"));
     assert!(output.contains(

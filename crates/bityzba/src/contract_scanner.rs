@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
 use syn::{
     Attribute, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct,
-    ItemTrait, TraitItem, TraitItemFn,
+    ItemTrait, ReturnType, TraitItem, TraitItemFn, Type,
 };
 use walkdir::WalkDir;
 
@@ -229,6 +229,7 @@ impl FileScanner {
     fn scan_free_function(&mut self, item: &ItemFn) {
         self.require_function_contracts(
             &item.attrs,
+            &item.sig.output,
             "function",
             &item.sig.ident.to_string(),
             item.sig.ident.span(),
@@ -301,6 +302,7 @@ impl FileScanner {
     fn scan_trait_method(&mut self, trait_name: &str, method: &TraitItemFn) {
         self.require_function_contracts(
             &method.attrs,
+            &method.sig.output,
             "trait method",
             &format!("{trait_name}::{}", method.sig.ident),
             method.sig.ident.span(),
@@ -316,6 +318,7 @@ impl FileScanner {
             if let ImplItem::Fn(method) = impl_item {
                 self.require_function_contracts(
                     &method.attrs,
+                    &method.sig.output,
                     "method",
                     &method.sig.ident.to_string(),
                     method.sig.ident.span(),
@@ -327,6 +330,7 @@ impl FileScanner {
     fn require_function_contracts(
         &mut self,
         attrs: &[Attribute],
+        output: &ReturnType,
         item_kind: &str,
         item_name: &str,
         span: Span,
@@ -347,6 +351,26 @@ impl FileScanner {
                 format!("missing bityzba postcondition on {item_kind} `{item_name}`"),
                 "add `#[ensures(...)]`; reason carefully about what the postcondition must be, and only use `#[ensures(true)]` as a last resort",
             ));
+        }
+        if is_result_return_type(output) {
+            for attr in attrs {
+                if !is_result_postcondition_without_err_escape(attr) {
+                    continue;
+                }
+                let attr_line = attr
+                    .path()
+                    .segments
+                    .last()
+                    .map_or(line, |segment| segment.ident.span().start().line);
+                self.diagnostics.push(Diagnostic::new(
+                    self.path.clone(),
+                    attr_line,
+                    format!(
+                        "Result-returning {item_kind} `{item_name}` has an `is_ok_and` postcondition without an `is_err` escape"
+                    ),
+                    "write Result postconditions as `ret.as_ref().is_ok_and(...) || ret.is_err()` so legitimate Err returns do not panic",
+                ));
+            }
         }
     }
 }
@@ -374,6 +398,48 @@ fn has_any_attr_named(attrs: &[Attribute], names: &[&str]) -> bool {
 
 fn has_attr_named(attrs: &[Attribute], name: &str) -> bool {
     has_any_attr_named(attrs, &[name])
+}
+
+fn is_result_return_type(output: &ReturnType) -> bool {
+    match output {
+        ReturnType::Default => false,
+        ReturnType::Type(_, ty) => type_ends_with_result(ty),
+    }
+}
+
+fn type_ends_with_result(ty: &Type) -> bool {
+    match ty {
+        Type::Group(ty) => type_ends_with_result(&ty.elem),
+        Type::Paren(ty) => type_ends_with_result(&ty.elem),
+        Type::Path(ty) => ty
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "Result"),
+        _ => false,
+    }
+}
+
+fn is_result_postcondition_without_err_escape(attr: &Attribute) -> bool {
+    if !has_any_attr_named(
+        std::slice::from_ref(attr),
+        &["ensures", "expensive_ensures"],
+    ) {
+        return false;
+    }
+    let syn::Meta::List(list) = &attr.meta else {
+        return false;
+    };
+    token_stream_contains_ident(list.tokens.clone(), "is_ok_and")
+        && !token_stream_contains_ident(list.tokens.clone(), "is_err")
+}
+
+fn token_stream_contains_ident(tokens: TokenStream, name: &str) -> bool {
+    tokens.into_iter().any(|token| match token {
+        TokenTree::Ident(ident) => ident == name,
+        TokenTree::Group(group) => token_stream_contains_ident(group.stream(), name),
+        _ => false,
+    })
 }
 
 fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {

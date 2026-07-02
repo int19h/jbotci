@@ -1635,9 +1635,9 @@ fn weighted_circular_mean_hue(values: &[(f64, usize)]) -> Option<f64> {
         x += radians.cos() * weight;
         y += radians.sin() * weight;
     }
-    let mut degrees = y.atan2(x).to_degrees();
-    if degrees < 0.0 {
-        degrees += 360.0;
+    let mut degrees = y.atan2(x).to_degrees().rem_euclid(360.0);
+    if degrees >= 360.0 {
+        degrees = 0.0;
     }
     Some(degrees)
 }
@@ -1810,7 +1810,7 @@ fn token_kind_for_text(text: &str) -> Option<String> {
 }
 
 #[requires(true)]
-#[ensures(!ret.ends_with("Syntax"))]
+#[ensures(ret == constructor.strip_suffix("Syntax").unwrap_or(constructor))]
 pub fn syntax_constructor_name(constructor: &str) -> &str {
     constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
@@ -1821,7 +1821,10 @@ fn syntax_constructor_display_label<'a>(constructor: &'a str) -> &'a str {
     generated_model::GENERATED_MODEL_CONSTRUCTOR_LABELS
         .iter()
         .find_map(|(candidate, label)| (*candidate == constructor).then_some(*label))
-        .unwrap_or_else(|| syntax_constructor_name(constructor))
+        .unwrap_or_else(|| {
+            let label = syntax_constructor_name(constructor);
+            if label.is_empty() { "unknown" } else { label }
+        })
 }
 
 #[requires(true)]
@@ -2067,6 +2070,25 @@ mod tests {
             ])),
             "𝗆𝗅𝖾𝖼𝖺 𝖻𝖾𝗋𝗏𝗂"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn weighted_circular_mean_hue_stays_in_half_open_range() {
+        let hue = weighted_circular_mean_hue(&[(360.0, 1)]).expect("hue");
+
+        assert!((0.0..360.0).contains(&hue), "{hue}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_constructor_labels_degrade_to_non_empty_text() {
+        assert_eq!(syntax_constructor_name("FooSyntaxSyntax"), "FooSyntax");
+        assert_eq!(syntax_constructor_name("Syntax"), "");
+        assert_eq!(syntax_constructor_display_label("Syntax"), "unknown");
+        assert_eq!(syntax_constructor_display_label(""), "unknown");
     }
 
     #[test]

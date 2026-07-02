@@ -568,7 +568,9 @@ fn cards_for_valsi(
         return cards_for_valsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_output(format!("Invalid Lojban word: {query}"));
+    };
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     if !entries.is_empty() {
@@ -619,7 +621,9 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_output(format!("Invalid Lojban word: {query}"));
+    };
     let query = query.as_str();
     let cards = filter_and_limit(
         dictionary
@@ -649,7 +653,9 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_output(format!("Invalid Lojban word: {query}"));
+    };
     let query = query.as_str();
     let normalized = normalize_lookup_query(query);
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -866,9 +872,16 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || query.trim().is_empty())]
-fn normalize_exact_lojban_query(query: &str) -> String {
-    normalize_lookup_query(&normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()))
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || query.trim().is_empty()))]
+fn normalize_exact_lojban_query(query: &str) -> Option<String> {
+    let normalized = normalize_lookup_query(
+        &normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()),
+    );
+    if normalized.is_empty() && !query.trim().is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
 }
 
 #[requires(true)]
@@ -2167,6 +2180,30 @@ mod tests {
                 .first()
                 .is_some_and(|message| message.contains("Invalid regex pattern"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn punctuation_only_exact_queries_are_invalid() {
+        for request in [
+            VlackuRequest::Valsi("!!!".to_owned()),
+            VlackuRequest::Rafsi("!!!".to_owned()),
+            VlackuRequest::Lujvo("!!!".to_owned()),
+        ] {
+            let result = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[request],
+                &VlackuSearchOptions::default(),
+            );
+
+            assert_eq!(result.outcome, VlackuOutcome::Invalid);
+            assert!(result.cards.is_empty(), "{:?}", result.cards);
+            assert_eq!(
+                result.diagnostics.first().map(String::as_str),
+                Some("Invalid Lojban word: !!!")
+            );
+        }
     }
 
     #[test]

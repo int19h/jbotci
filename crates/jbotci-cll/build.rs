@@ -64,7 +64,7 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|bytes| !bytes.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|bytes| !bytes.is_empty()) || ret.is_err())]
 fn compress_bzip2(source: &[u8]) -> Result<Vec<u8>, std::io::Error> {
     let mut encoder = BzEncoder::new(Vec::new(), Compression::best());
     encoder.write_all(source)?;

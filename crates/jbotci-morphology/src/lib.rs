@@ -2054,7 +2054,7 @@ pub fn segment_words_for_display_with_options_and_source_id(
 }
 
 #[requires(!phonemes.as_str().is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.as_ref().err().is_some_and(|message| !message.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|syllables| !syllables.is_empty() && syllables.iter().all(|syllable| !syllable.is_empty())) || ret.is_err())]
 pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, String> {
     segment::pronunciation_syllable_texts(phonemes.as_str())
         .ok_or_else(|| format!("could not syllabify `{}`", phonemes.as_str()))
@@ -3641,6 +3641,13 @@ mod tests {
         ));
 
         assert!(word_like_syntax_eq(&left.remove(0), &right.remove(0)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strip_diacritics_allows_combining_marks_only() {
+        assert_eq!(strip_diacritics("\u{0301}\u{0300}\u{0306}"), "");
     }
 
     #[test]

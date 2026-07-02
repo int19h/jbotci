@@ -36,6 +36,18 @@ fn parse_term(input: &str) -> usize {
     input.len()
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| *value > 0) || ret.is_err())]
+fn parse_result(input: &str) -> Result<usize, String> {
+    input.parse().map_err(|error| format!("{error}"))
+}
+
+#[requires(true)]
+#[expensive_ensures(ret.as_ref().is_ok_and(|value| *value > 0) || ret.is_err())]
+fn parse_result_expensively(input: &str) -> Result<usize, String> {
+    input.parse().map_err(|error| format!("{error}"))
+}
+
 impl Marker {
     #[requires(true)]
     #[expensive_ensures(true)]
