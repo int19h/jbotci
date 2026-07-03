@@ -1,9 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 
-#[invariant(true)]
-#[invariant(::Lujvo => true)]
-#[invariant(::Cmevla => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LujvoBuildMode {
     Lujvo,

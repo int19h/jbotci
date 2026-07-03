@@ -4988,13 +4988,12 @@ fn render_vlatai_classification_text_with_prefix(
     phoneme_options: PhonemeRenderOptions,
     prefix: &str,
 ) {
-    match classification.kind {
+    match classification.kind() {
         ValsiClassificationKind::PlainWord => {
             render_plain_word_classification_text(
                 out,
                 classification
-                    .word
-                    .as_ref()
+                    .word()
                     .expect("plain-word classification carries word"),
                 phoneme_options,
                 prefix,
@@ -5004,16 +5003,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: quoted-word\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quoted word marker"),
+                classification.marker().expect("quoted word marker"),
                 phoneme_options,
                 "marker ",
             );
             render_plain_word_classification_text(
                 out,
-                classification
-                    .quoted_word
-                    .as_ref()
-                    .expect("quoted word payload"),
+                classification.quoted_word().expect("quoted word payload"),
                 phoneme_options,
                 "quoted ",
             );
@@ -5022,13 +5018,12 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: delimited-non-lojban-quote\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quote marker"),
+                classification.marker().expect("quote marker"),
                 phoneme_options,
                 "marker ",
             );
             let delimiter = classification
-                .delimiter
-                .as_ref()
+                .delimiter()
                 .expect("delimited quote carries delimiter");
             out.push_str(&format!("{prefix}delimiter: {delimiter}\n"));
         }
@@ -5036,13 +5031,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: quoted-words\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quoted words marker"),
+                classification.marker().expect("quoted words marker"),
                 phoneme_options,
                 "marker ",
             );
             out.push_str(&format!(
                 "{prefix}quoted word count: {}\n",
-                classification.quoted_words.len()
+                classification.quoted_words().len()
             ));
         }
         ValsiClassificationKind::DelimitedWordQuote => {
@@ -5050,8 +5045,7 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!(
                 "{prefix}marker: {}\n",
                 classification
-                    .marker_text
-                    .as_ref()
+                    .marker_text()
                     .expect("delimited word quote marker")
             ));
         }
@@ -5059,13 +5053,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: lerfu-word\n"));
             render_vlatai_classification_text_with_prefix(
                 out,
-                classification.base.as_ref().expect("lerfu base"),
+                classification.base().expect("lerfu base"),
                 phoneme_options,
                 "base ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.suffix.as_ref().expect("lerfu suffix"),
+                classification.suffix().expect("lerfu suffix"),
                 phoneme_options,
                 "suffix ",
             );
@@ -5074,19 +5068,19 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: zei-compound\n"));
             render_vlatai_classification_text_with_prefix(
                 out,
-                classification.left.as_ref().expect("zei left"),
+                classification.left().expect("zei left"),
                 phoneme_options,
                 "left ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.link.as_ref().expect("zei link"),
+                classification.link().expect("zei link"),
                 phoneme_options,
                 "link ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.right.as_ref().expect("zei right"),
+                classification.right().expect("zei right"),
                 phoneme_options,
                 "right ",
             );
@@ -5204,11 +5198,10 @@ fn vlatai_classification_json(
     classification: &ValsiClassification,
     phoneme_options: PhonemeRenderOptions,
 ) -> serde_json::Value {
-    match classification.kind {
+    match classification.kind() {
         ValsiClassificationKind::PlainWord => plain_word_classification_json(
             classification
-                .word
-                .as_ref()
+                .word()
                 .expect("plain-word classification carries word"),
             phoneme_options,
         ),

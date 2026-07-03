@@ -844,46 +844,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic enum records rejected quote input",
     ),
     (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Cmevla",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Lujvo",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::ExperimentalCgv",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::Standard",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Emit",
-        "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::EmitText",
-        "private normalization event payload comes from the static zbalermorna normalization table",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Ignore",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPreviousVowel",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Brivla",
-        "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
         "crates/jbotci-morphology/src/tree.rs:LujvoPart::Hyphen",
         "Phonemes owns canonical non-empty phoneme validity",
     ),
