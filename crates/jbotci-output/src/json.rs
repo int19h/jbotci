@@ -2,9 +2,11 @@
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
-use jbotci_morphology::{PhonemeRenderOptions, TreeNode as MorphologyTreeNode, Word, WordLike};
+use jbotci_morphology::{
+    Cmavo, PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Word, WordLike,
+};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{WithIndicators, WithIndicatorsData};
+use jbotci_syntax::{WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref};
 use jbotci_tree::{FieldRef, TreeVisitor};
 use serde_json::{Map, Value};
 
@@ -292,7 +294,17 @@ fn variant_payload(constructor: &'static str, entries: Vec<JsonEntry>) -> Value 
 #[requires(true)]
 #[ensures(true)]
 fn compact_single_payload(constructor: &str, entries: &[JsonEntry]) -> Option<Value> {
-    let field = match constructor {
+    let field = constructor_single_payload_field(constructor)?;
+    if entries.len() == 1 && entries[0].label == Some(field) {
+        return Some(entries[0].value.clone());
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|field| !field.is_empty()))]
+pub(crate) fn constructor_single_payload_field(constructor: &str) -> Option<&'static str> {
+    Some(match constructor {
         "PlainWord" => "word",
         "ForethoughtBridiTailConnection" => "forethought_bridi_tail_connection",
         "Sumti" => "sumti",
@@ -304,11 +316,7 @@ fn compact_single_payload(constructor: &str, entries: &[JsonEntry]) -> Option<Va
         "DescriptionConnection" => "description_connection",
         "Abstraction" => "abstraction",
         _ => return None,
-    };
-    if entries.len() == 1 && entries[0].label == Some(field) {
-        return Some(entries[0].value.clone());
-    }
-    None
+    })
 }
 
 #[requires(true)]
@@ -351,6 +359,167 @@ fn word_fields(entries: Vec<JsonEntry>) -> Map<String, Value> {
 #[ensures(true)]
 fn constructor_value(constructor: &str, payload: Value) -> Value {
     Value::Object([(constructor.to_owned(), payload)].into_iter().collect())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_elided_cmavo_token_value(
+    cmavo: Cmavo,
+    char_end: usize,
+    options: crate::JsonRenderOptions,
+) -> Value {
+    let phonemes = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text")
+        .render(options.phonemes);
+    let mut cmavo_fields = Map::new();
+    cmavo_fields.insert("phonemes".to_owned(), Value::String(phonemes));
+    cmavo_fields.insert(
+        "span".to_owned(),
+        Value::Array(vec![char_end.into(), char_end.into()]),
+    );
+    cmavo_fields.insert("elided".to_owned(), Value::Bool(true));
+
+    constructor_value(
+        "Plain",
+        constructor_value(
+            "PlainWord",
+            constructor_value("Cmavo", Value::Object(cmavo_fields)),
+        ),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn insert_generated_model_elided_terminators(
+    value: &mut Value,
+    options: crate::JsonRenderOptions,
+) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                insert_generated_model_elided_terminators(item, options);
+            }
+        }
+        Value::Object(object) => {
+            let constructor = if object.len() == 1 {
+                object.keys().next().cloned()
+            } else {
+                None
+            };
+            if let Some(constructor) = constructor {
+                if let Some(inner) = object.get_mut(&constructor) {
+                    insert_generated_model_elided_terminators(inner, options);
+                    if let Value::Object(fields) = inner {
+                        insert_generated_model_elided_terminator_fields(
+                            &constructor,
+                            fields,
+                            options,
+                        );
+                    }
+                }
+            } else {
+                for child in object.values_mut() {
+                    insert_generated_model_elided_terminators(child, options);
+                }
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(true)]
+fn insert_generated_model_elided_terminator_fields(
+    constructor: &str,
+    fields: &mut Map<String, Value>,
+    options: crate::JsonRenderOptions,
+) {
+    let Some(order) = generated_model_field_order(constructor) else {
+        return;
+    };
+    let mut original = std::mem::take(fields);
+    let mut rebuilt = Map::new();
+    let mut previous_end = None;
+    for (index, field) in order.iter().copied().enumerate() {
+        if let Some(value) = original.remove(field) {
+            previous_end = json_value_char_end_position(&value).or(previous_end);
+            rebuilt.insert(field.to_owned(), value);
+            continue;
+        }
+        let field_ref = FieldRef::new(Some(field), index, false);
+        let Some(cmavo) = elidable_terminator_for_absent_field_ref(field_ref) else {
+            continue;
+        };
+        let Some(char_end) = previous_end else {
+            continue;
+        };
+        rebuilt.insert(
+            field.to_owned(),
+            generated_elided_cmavo_token_value(cmavo, char_end, options),
+        );
+    }
+    for (key, value) in original {
+        rebuilt.insert(key, value);
+    }
+    *fields = rebuilt;
+}
+
+#[requires(!constructor.is_empty())]
+#[ensures(ret.is_none_or(|fields| !fields.is_empty()))]
+fn generated_model_field_order(constructor: &str) -> Option<&'static [&'static str]> {
+    jbotci_syntax::generated_model::GENERATED_MODEL_FIELD_ORDERS
+        .iter()
+        .find(|order| order.constructor == constructor)
+        .map(|order| order.fields)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn json_value_char_end_position(value: &Value) -> Option<usize> {
+    match value {
+        Value::Array(items) => items.iter().filter_map(json_value_char_end_position).max(),
+        Value::Object(object) => {
+            if let Some(Value::Array(span)) = object.get("span")
+                && span.len() == 2
+                && let Some(end) = span.get(1).and_then(Value::as_u64)
+            {
+                return usize::try_from(end).ok();
+            }
+            object
+                .values()
+                .filter_map(json_value_char_end_position)
+                .max()
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn render_phoneme_fields_in_json_value(
+    value: &mut Value,
+    phonemes: PhonemeRenderOptions,
+) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                render_phoneme_fields_in_json_value(item, phonemes);
+            }
+        }
+        Value::Object(object) => {
+            for (key, value) in object {
+                if key == "phonemes"
+                    && let Value::String(text) = value
+                    && let Ok(parsed) = Phonemes::from_canonical(text.clone())
+                {
+                    *text = parsed.render(phonemes);
+                } else {
+                    render_phoneme_fields_in_json_value(value, phonemes);
+                }
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+    }
 }
 
 #[requires(true)]

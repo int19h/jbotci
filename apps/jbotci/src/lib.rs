@@ -59,9 +59,10 @@ use jbotci_output::{
     PhonemeRenderOptions, StressMark, TraceRenderOptions, TreeRenderOptions,
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, format_definition_or_notes_line_with_indexed_places,
-    generated_reference_display, ipa_morphology_text, pretty_generated_model_brackets_with_options,
-    pretty_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, render_diagnostics, render_trace_report,
+    generated_reference_display, ipa_morphology_text, json_string_with_options,
+    pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    render_diagnostics, render_json_value_with_options, render_trace_report,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
@@ -2250,9 +2251,10 @@ fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                             indent: input.indent.unwrap_or(2),
                             phonemes: phoneme_options,
                             show_elided: false,
+                            color: color_policy.stdout,
                         },
                     )?;
-                    writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
+                    writeln!(stdout, "{rendered}")?;
                 }
                 VlaseiFormat::Brackets => {
                     let rendered = pretty_morphology_brackets_with_options(
@@ -2334,9 +2336,13 @@ fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
                     stdout.write_all(rendered.as_bytes())?;
                 }
                 VlataiFormat::Json => {
-                    let rendered =
-                        render_vlatai_json(&analyses, phoneme_options, input.indent.unwrap_or(2))?;
-                    writeln!(stdout, "{}", colorize_json(&rendered, color_policy.stdout))?;
+                    let rendered = render_vlatai_json(
+                        &analyses,
+                        phoneme_options,
+                        input.indent.unwrap_or(2),
+                        color_policy.stdout,
+                    )?;
+                    writeln!(stdout, "{rendered}")?;
                 }
             }
             Ok(status)
@@ -4519,9 +4525,10 @@ fn render_gentufa(
                     indent: input.indent.unwrap_or(2),
                     phonemes: phoneme_options,
                     show_elided: false,
+                    color: color_policy.stdout,
                 },
             )?;
-            stdout.push_str(&colorize_json(&rendered, color_policy.stdout));
+            stdout.push_str(&rendered);
             stdout.push('\n');
         }
     }
@@ -4664,10 +4671,16 @@ fn render_tersmu(
         }
     };
     let mut rendered = match input.format {
-        TersmuFormat::Json => graph.to_json_string(input.indent.unwrap_or(0))?,
+        TersmuFormat::Json => json_string_with_options(
+            &graph,
+            JsonRenderOptions {
+                indent: input.indent.unwrap_or(0),
+                color: color_policy.stdout,
+                ..JsonRenderOptions::default()
+            },
+        )?,
     };
     rendered.push('\n');
-    let rendered = colorize_json(&rendered, color_policy.stdout);
     Ok(new!(TersmuRendered {
         status: CliStatus::Success,
         stdout: rendered.into_bytes(),
@@ -4864,6 +4877,7 @@ fn render_vlatai_json(
     analyses: &[ValsiAnalysis],
     phoneme_options: PhonemeRenderOptions,
     indent: usize,
+    color: bool,
 ) -> Result<String> {
     let reports = analyses
         .iter()
@@ -4871,11 +4885,14 @@ fn render_vlatai_json(
         .map(|(index, analysis)| vlatai_json_value(index, analysis, phoneme_options))
         .collect::<Result<Vec<_>>>()?;
     let value = serde_json::Value::Array(reports);
-    if indent == 0 {
-        Ok(serde_json::to_string(&value)?)
-    } else {
-        Ok(serde_json::to_string_pretty(&value)?)
-    }
+    Ok(render_json_value_with_options(
+        &value,
+        JsonRenderOptions {
+            indent,
+            color,
+            ..JsonRenderOptions::default()
+        },
+    ))
 }
 
 #[requires(true)]
@@ -5901,104 +5918,6 @@ fn stderr_terminal_width() -> usize {
         .map(|(terminal_size::Width(width), _height)| usize::from(width))
         .filter(|width| *width > 0)
         .unwrap_or(DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH)
-}
-
-#[requires(true)]
-#[ensures(!enabled -> ret == text)]
-fn colorize_json(text: &str, enabled: bool) -> String {
-    if !enabled {
-        return text.to_owned();
-    }
-    let chars = text.chars().collect::<Vec<_>>();
-    let mut output = String::new();
-    let mut index = 0;
-    while index < chars.len() {
-        match chars[index] {
-            '{' | '}' | '[' | ']' | '(' | ')' | '@' | ':' | ',' => {
-                output.push_str(&chars[index].to_string().bright_black().to_string());
-                index += 1;
-            }
-            '"' => {
-                let start = index;
-                index += 1;
-                let mut escaped = false;
-                while index < chars.len() {
-                    let ch = chars[index];
-                    index += 1;
-                    if escaped {
-                        escaped = false;
-                    } else if ch == '\\' {
-                        escaped = true;
-                    } else if ch == '"' {
-                        break;
-                    }
-                }
-                let token = chars[start..index].iter().collect::<String>();
-                if json_string_is_key(&chars, index) {
-                    if json_string_token_is_constructor_key(&token) {
-                        output.push_str(&token.bright_blue().to_string());
-                    } else {
-                        output.push_str(&token.green().to_string());
-                    }
-                } else {
-                    output.push_str(&token.yellow().to_string());
-                }
-            }
-            ch if ch.is_ascii_digit() || ch == '-' => {
-                let start = index;
-                index += 1;
-                while index < chars.len()
-                    && matches!(chars[index], '0'..='9' | '.' | 'e' | 'E' | '+' | '-')
-                {
-                    index += 1;
-                }
-                output.push_str(
-                    &chars[start..index]
-                        .iter()
-                        .collect::<String>()
-                        .magenta()
-                        .to_string(),
-                );
-            }
-            ch if ch.is_ascii_alphabetic() => {
-                let start = index;
-                index += 1;
-                while index < chars.len() && chars[index].is_ascii_alphabetic() {
-                    index += 1;
-                }
-                output.push_str(
-                    &chars[start..index]
-                        .iter()
-                        .collect::<String>()
-                        .magenta()
-                        .to_string(),
-                );
-            }
-            ch => {
-                output.push(ch);
-                index += 1;
-            }
-        }
-    }
-    output
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn json_string_is_key(chars: &[char], mut index: usize) -> bool {
-    while index < chars.len() && chars[index].is_whitespace() {
-        index += 1;
-    }
-    index < chars.len() && chars[index] == ':'
-}
-
-#[requires(token.starts_with('"'))]
-#[ensures(true)]
-fn json_string_token_is_constructor_key(token: &str) -> bool {
-    token
-        .chars()
-        .nth(1)
-        .is_some_and(|ch| ch.is_ascii_uppercase())
 }
 
 #[requires(true)]
@@ -8629,19 +8548,6 @@ mod tests {
             assert!(!output.contains("\x1b["));
             assert!(error.is_empty());
         });
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn json_colorizer_distinguishes_keys_from_string_values() {
-        let output = colorize_json(r#"{"key":"value","Bridi":{}}"#, true);
-        assert!(output.contains("\x1b[32m\"key\"\x1b[39m"));
-        assert!(output.contains("\x1b[33m\"value\"\x1b[39m"));
-        assert!(output.contains("\x1b[94m\"Bridi\"\x1b[39m"));
-        assert!(output.contains("\x1b[90m{\x1b[39m"));
-        assert!(output.contains("\x1b[90m}\x1b[39m"));
-        assert!(!output.contains("\x1b[36m"));
     }
 
     #[test]

@@ -16,11 +16,11 @@ pub use diagnostics::{
     DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticRenderOptions, render_diagnostics,
 };
 pub use jbotci_diagnostics::DiagnosticDetailMode;
-use jbotci_morphology::{Cmavo, Phonemes, WordLike};
+use jbotci_morphology::WordLike;
 pub use jbotci_morphology::{GlideMark, PhonemeRenderOptions, StressMark};
 pub use jbotci_orthography::LojbanScript;
 use jbotci_syntax::TextSyntax;
-use jbotci_tree::FieldRef;
+use owo_colors::OwoColorize;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
     indexed_place_spans_for_definition_or_notes_line,
@@ -31,7 +31,7 @@ pub use references::{
     RichReferenceAnnotations, generated_reference_slot_name_for_place_slot,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 pub use surface::{
     phoneme_render_options_for_script, render_lojban_text_for_script,
     render_lojban_text_for_script_with_options,
@@ -241,6 +241,7 @@ pub struct JsonRenderOptions {
     pub indent: usize,
     pub phonemes: PhonemeRenderOptions,
     pub show_elided: bool,
+    pub color: bool,
 }
 
 impl Default for JsonRenderOptions {
@@ -248,11 +249,13 @@ impl Default for JsonRenderOptions {
     #[ensures(ret.indent == 2)]
     #[ensures(ret.phonemes == PhonemeRenderOptions::default())]
     #[ensures(!ret.show_elided)]
+    #[ensures(!ret.color)]
     fn default() -> Self {
         Self {
             indent: 2,
             phonemes: PhonemeRenderOptions::default(),
             show_elided: false,
+            color: false,
         }
     }
 }
@@ -312,9 +315,39 @@ pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError>
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
+pub fn json_value<T: Serialize>(value: &T) -> Result<Value, OutputError> {
+    let mut bytes = Vec::new();
+    let mut serializer = serde_json::Serializer::new(&mut bytes);
+    let serializer = serde_stacker::Serializer::new(&mut serializer);
+    value
+        .serialize(serializer)
+        .map_err(|source| OutputError::Json(source.to_string()))?;
+    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
+    deserializer.disable_recursion_limit();
+    let deserializer = serde_stacker::Deserializer::new(&mut deserializer);
+    Value::deserialize(deserializer).map_err(|source| OutputError::Json(source.to_string()))
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn compact_json_string<T: Serialize>(value: &T) -> Result<String, OutputError> {
     compact_json_string_with_options(value, JsonRenderOptions::default())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub fn json_string_with_options<T: Serialize>(
+    value: &T,
+    options: JsonRenderOptions,
+) -> Result<String, OutputError> {
+    Ok(render_json_value_with_options(&json_value(value)?, options))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn render_json_value_with_options(value: &Value, options: JsonRenderOptions) -> String {
+    format_standard_json_value(value, 0, options)
 }
 
 #[requires(true)]
@@ -390,165 +423,10 @@ pub fn compact_generated_model_json_string_with_options(
 ) -> Result<String, OutputError> {
     let mut value = compact_json_value(tree)?;
     if options.show_elided {
-        insert_generated_model_elided_terminators(&mut value, options);
+        json::insert_generated_model_elided_terminators(&mut value, options);
     }
-    render_phoneme_fields_in_json_value(&mut value, options.phonemes);
+    json::render_phoneme_fields_in_json_value(&mut value, options.phonemes);
     Ok(format_compact_json_value(&value, 0, options))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn insert_generated_model_elided_terminators(value: &mut Value, options: JsonRenderOptions) {
-    match value {
-        Value::Array(items) => {
-            for item in items {
-                insert_generated_model_elided_terminators(item, options);
-            }
-        }
-        Value::Object(object) => {
-            let constructor = if object.len() == 1 {
-                object.keys().next().cloned()
-            } else {
-                None
-            };
-            if let Some(constructor) = constructor {
-                if let Some(inner) = object.get_mut(&constructor) {
-                    insert_generated_model_elided_terminators(inner, options);
-                    if let Value::Object(fields) = inner {
-                        insert_generated_model_elided_terminator_fields(
-                            &constructor,
-                            fields,
-                            options,
-                        );
-                    }
-                }
-            } else {
-                for child in object.values_mut() {
-                    insert_generated_model_elided_terminators(child, options);
-                }
-            }
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-    }
-}
-
-#[requires(!constructor.is_empty())]
-#[ensures(true)]
-fn insert_generated_model_elided_terminator_fields(
-    constructor: &str,
-    fields: &mut Map<String, Value>,
-    options: JsonRenderOptions,
-) {
-    let Some(order) = generated_model_field_order(constructor) else {
-        return;
-    };
-    let mut original = std::mem::take(fields);
-    let mut rebuilt = Map::new();
-    let mut previous_end = None;
-    for (index, field) in order.iter().copied().enumerate() {
-        if let Some(value) = original.remove(field) {
-            previous_end = json_value_char_end_position(&value).or(previous_end);
-            rebuilt.insert(field.to_owned(), value);
-            continue;
-        }
-        let field_ref = FieldRef::new(Some(field), index, false);
-        let Some(cmavo) = jbotci_syntax::elidable_terminator_for_absent_field_ref(field_ref) else {
-            continue;
-        };
-        let Some(char_end) = previous_end else {
-            continue;
-        };
-        rebuilt.insert(
-            field.to_owned(),
-            generated_elided_cmavo_token_value(cmavo, char_end, options),
-        );
-    }
-    for (key, value) in original {
-        rebuilt.insert(key, value);
-    }
-    *fields = rebuilt;
-}
-
-#[requires(!constructor.is_empty())]
-#[ensures(ret.is_none_or(|fields| !fields.is_empty()))]
-fn generated_model_field_order(constructor: &str) -> Option<&'static [&'static str]> {
-    jbotci_syntax::generated_model::GENERATED_MODEL_FIELD_ORDERS
-        .iter()
-        .find(|order| order.constructor == constructor)
-        .map(|order| order.fields)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn json_value_char_end_position(value: &Value) -> Option<usize> {
-    match value {
-        Value::Array(items) => items.iter().filter_map(json_value_char_end_position).max(),
-        Value::Object(object) => {
-            if let Some(Value::Array(span)) = object.get("span")
-                && span.len() == 2
-                && let Some(end) = span.get(1).and_then(Value::as_u64)
-            {
-                return usize::try_from(end).ok();
-            }
-            object
-                .values()
-                .filter_map(json_value_char_end_position)
-                .max()
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_elided_cmavo_token_value(
-    cmavo: Cmavo,
-    char_end: usize,
-    options: JsonRenderOptions,
-) -> Value {
-    let phonemes = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
-        .expect("cmavo canonical text is valid phoneme text")
-        .render(options.phonemes);
-    let mut cmavo_fields = Map::new();
-    cmavo_fields.insert("phonemes".to_owned(), Value::String(phonemes));
-    cmavo_fields.insert(
-        "span".to_owned(),
-        Value::Array(vec![char_end.into(), char_end.into()]),
-    );
-    cmavo_fields.insert("elided".to_owned(), Value::Bool(true));
-
-    let mut cmavo_value = Map::new();
-    cmavo_value.insert("Cmavo".to_owned(), Value::Object(cmavo_fields));
-    let mut plain_word_value = Map::new();
-    plain_word_value.insert("PlainWord".to_owned(), Value::Object(cmavo_value));
-    let mut plain_value = Map::new();
-    plain_value.insert("Plain".to_owned(), Value::Object(plain_word_value));
-    Value::Object(plain_value)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_phoneme_fields_in_json_value(value: &mut Value, phonemes: PhonemeRenderOptions) {
-    match value {
-        Value::Array(items) => {
-            for item in items {
-                render_phoneme_fields_in_json_value(item, phonemes);
-            }
-        }
-        Value::Object(object) => {
-            for (key, value) in object {
-                if key == "phonemes"
-                    && let Value::String(text) = value
-                    && let Ok(parsed) = Phonemes::from_canonical(text.clone())
-                {
-                    *text = parsed.render(phonemes);
-                } else {
-                    render_phoneme_fields_in_json_value(value, phonemes);
-                }
-            }
-        }
-        _ => {}
-    }
 }
 
 #[requires(true)]
@@ -683,7 +561,7 @@ fn compact_json_shape(value: Value) -> Value {
 fn format_compact_json_value(value: &Value, indent: usize, options: JsonRenderOptions) -> String {
     match value {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-            serde_json::to_string(value).expect("serializing JSON scalar cannot fail")
+            format_json_scalar(value, options)
         }
         Value::Array(items) => format_compact_json_array(items, indent, options),
         Value::Object(object) if is_constructor_object(object) => {
@@ -710,34 +588,155 @@ fn format_compact_json_field_value(
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRenderOptions) -> String {
-    if items.is_empty() {
-        return "[]".to_owned();
+fn format_standard_json_value(value: &Value, indent: usize, options: JsonRenderOptions) -> String {
+    match value {
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+            format_json_scalar(value, options)
+        }
+        Value::Array(items) => format_standard_json_array(items, indent, options),
+        Value::Object(object) => format_standard_json_object(object, indent, options),
     }
-    if options.indent == 0 || items.iter().all(is_compact_json_scalar) {
-        let separator = if options.indent == 0 { "," } else { ", " };
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_standard_json_array(
+    items: &[Value],
+    indent: usize,
+    options: JsonRenderOptions,
+) -> String {
+    if items.is_empty() {
+        return format!(
+            "{}{}",
+            json_punctuation("[", options),
+            json_punctuation("]", options)
+        );
+    }
+    if options.indent == 0 {
+        let separator = json_punctuation(",", options);
         let items = items
             .iter()
-            .map(|item| format_compact_json_value(item, indent, options))
+            .map(|item| format_standard_json_value(item, indent, options))
             .collect::<Vec<_>>()
-            .join(separator);
-        return format!("[{items}]");
+            .join(&separator);
+        return format!(
+            "{}{items}{}",
+            json_punctuation("[", options),
+            json_punctuation("]", options)
+        );
     }
 
     let item_indent = indent + options.indent;
     let pad = " ".repeat(item_indent);
     let end = " ".repeat(indent);
-    let mut output = String::from("[\n");
+    let mut output = format!("{}\n", json_punctuation("[", options));
     for (index, item) in items.iter().enumerate() {
         output.push_str(&pad);
-        output.push_str(&format_compact_json_value(item, item_indent, options));
+        output.push_str(&format_standard_json_value(item, item_indent, options));
         if index + 1 != items.len() {
-            output.push(',');
+            output.push_str(&json_punctuation(",", options));
         }
         output.push('\n');
     }
     output.push_str(&end);
-    output.push(']');
+    output.push_str(&json_punctuation("]", options));
+    output
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_standard_json_object(
+    object: &serde_json::Map<String, Value>,
+    indent: usize,
+    options: JsonRenderOptions,
+) -> String {
+    if object.is_empty() {
+        return format!(
+            "{}{}",
+            json_punctuation("{", options),
+            json_punctuation("}", options)
+        );
+    }
+    let constructor_object = is_constructor_object(object);
+    if options.indent == 0 {
+        let separator = json_punctuation(",", options);
+        let fields = object
+            .iter()
+            .map(|(key, value)| {
+                format!(
+                    "{}{}{}",
+                    json_key(key, constructor_object, options),
+                    json_punctuation(":", options),
+                    format_standard_json_value(value, indent, options)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(&separator);
+        return format!(
+            "{}{fields}{}",
+            json_punctuation("{", options),
+            json_punctuation("}", options)
+        );
+    }
+
+    let field_indent = indent + options.indent;
+    let pad = " ".repeat(field_indent);
+    let end = " ".repeat(indent);
+    let mut output = format!("{}\n", json_punctuation("{", options));
+    for (index, (key, value)) in object.iter().enumerate() {
+        output.push_str(&pad);
+        output.push_str(&json_key(key, constructor_object, options));
+        output.push_str(&json_punctuation(":", options));
+        output.push(' ');
+        output.push_str(&format_standard_json_value(value, field_indent, options));
+        if index + 1 != object.len() {
+            output.push_str(&json_punctuation(",", options));
+        }
+        output.push('\n');
+    }
+    output.push_str(&end);
+    output.push_str(&json_punctuation("}", options));
+    output
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_compact_json_array(items: &[Value], indent: usize, options: JsonRenderOptions) -> String {
+    if items.is_empty() {
+        return "[]".to_owned();
+    }
+    if options.indent == 0 || items.iter().all(is_compact_json_scalar) {
+        let separator = if options.indent == 0 {
+            json_punctuation(",", options)
+        } else {
+            format!("{} ", json_punctuation(",", options))
+        };
+        let items = items
+            .iter()
+            .map(|item| format_compact_json_value(item, indent, options))
+            .collect::<Vec<_>>()
+            .join(&separator);
+        return format!(
+            "{}{items}{}",
+            json_punctuation("[", options),
+            json_punctuation("]", options)
+        );
+    }
+
+    let item_indent = indent + options.indent;
+    let pad = " ".repeat(item_indent);
+    let end = " ".repeat(indent);
+    let mut output = format!("{}\n", json_punctuation("[", options));
+    for (index, item) in items.iter().enumerate() {
+        output.push_str(&pad);
+        output.push_str(&format_compact_json_value(item, item_indent, options));
+        if index + 1 != items.len() {
+            output.push_str(&json_punctuation(",", options));
+        }
+        output.push('\n');
+    }
+    output.push_str(&end);
+    output.push_str(&json_punctuation("]", options));
     output
 }
 
@@ -749,43 +748,53 @@ fn format_compact_json_object(
     options: JsonRenderOptions,
 ) -> String {
     if object.is_empty() {
-        return "{}".to_owned();
+        return format!(
+            "{}{}",
+            json_punctuation("{", options),
+            json_punctuation("}", options)
+        );
     }
     if options.indent == 0 {
         let fields = object
             .iter()
             .map(|(key, value)| {
                 format!(
-                    "{}:{}",
-                    json_string(key),
+                    "{}{}{}",
+                    json_key(key, false, options),
+                    json_punctuation(":", options),
                     format_compact_json_field_value(value, indent, options)
                 )
             })
             .collect::<Vec<_>>()
-            .join(",");
-        return format!("{{{fields}}}");
+            .join(&json_punctuation(",", options));
+        return format!(
+            "{}{fields}{}",
+            json_punctuation("{", options),
+            json_punctuation("}", options)
+        );
     }
 
     let field_indent = indent + options.indent;
     let pad = " ".repeat(field_indent);
     let end = " ".repeat(indent);
-    let mut output = String::from("{\n");
+    let mut output = format!("{}\n", json_punctuation("{", options));
     for (index, (key, value)) in object.iter().enumerate() {
         output.push_str(&pad);
-        output.push_str(&json_string(key));
-        output.push_str(": ");
+        output.push_str(&json_key(key, false, options));
+        output.push_str(&json_punctuation(":", options));
+        output.push(' ');
         output.push_str(&format_compact_json_field_value(
             value,
             field_indent,
             options,
         ));
         if index + 1 != object.len() {
-            output.push(',');
+            output.push_str(&json_punctuation(",", options));
         }
         output.push('\n');
     }
     output.push_str(&end);
-    output.push('}');
+    output.push_str(&json_punctuation("}", options));
     output
 }
 
@@ -797,56 +806,92 @@ fn format_compact_json_constructor(
     options: JsonRenderOptions,
 ) -> String {
     let (constructor, payload) = object.iter().next().expect("constructor object has item");
-    let constructor = json_string(constructor);
+    let constructor = json_key(constructor, true, options);
     match payload {
         Value::Object(fields) if fields.is_empty() && options.indent == 0 => {
-            format!("{{{constructor}:{{}}}}")
+            format!(
+                "{}{constructor}{}{}{}{}",
+                json_punctuation("{", options),
+                json_punctuation(":", options),
+                json_punctuation("{", options),
+                json_punctuation("}", options),
+                json_punctuation("}", options)
+            )
         }
-        Value::Object(fields) if fields.is_empty() => format!("{{{constructor}: {{}}}}"),
+        Value::Object(fields) if fields.is_empty() => format!(
+            "{}{constructor}{} {}{}{}",
+            json_punctuation("{", options),
+            json_punctuation(":", options),
+            json_punctuation("{", options),
+            json_punctuation("}", options),
+            json_punctuation("}", options)
+        ),
         Value::Object(fields) if options.indent == 0 => {
             let fields = fields
                 .iter()
                 .map(|(key, value)| {
                     format!(
-                        "{}:{}",
-                        json_string(key),
+                        "{}{}{}",
+                        json_key(key, false, options),
+                        json_punctuation(":", options),
                         format_compact_json_field_value(value, constructor_indent, options)
                     )
                 })
                 .collect::<Vec<_>>()
-                .join(",");
-            format!("{{{constructor}:{{{fields}}}}}")
+                .join(&json_punctuation(",", options));
+            format!(
+                "{}{constructor}{}{}{}{}{}",
+                json_punctuation("{", options),
+                json_punctuation(":", options),
+                json_punctuation("{", options),
+                fields,
+                json_punctuation("}", options),
+                json_punctuation("}", options)
+            )
         }
         Value::Object(fields) => {
             let field_indent = constructor_indent + options.indent;
             let pad = " ".repeat(field_indent);
             let end = " ".repeat(constructor_indent);
-            let mut output = format!("{{{constructor}: {{\n");
+            let mut output = format!(
+                "{}{constructor}{} {}\n",
+                json_punctuation("{", options),
+                json_punctuation(":", options),
+                json_punctuation("{", options)
+            );
             for (index, (key, value)) in fields.iter().enumerate() {
                 output.push_str(&pad);
-                output.push_str(&json_string(key));
-                output.push_str(": ");
+                output.push_str(&json_key(key, false, options));
+                output.push_str(&json_punctuation(":", options));
+                output.push(' ');
                 output.push_str(&format_compact_json_field_value(
                     value,
                     field_indent,
                     options,
                 ));
                 if index + 1 != fields.len() {
-                    output.push(',');
+                    output.push_str(&json_punctuation(",", options));
                 }
                 output.push('\n');
             }
             output.push_str(&end);
-            output.push_str("}}");
+            output.push_str(&json_punctuation("}", options));
+            output.push_str(&json_punctuation("}", options));
             output
         }
         other if options.indent == 0 => format!(
-            "{{{constructor}:{}}}",
-            format_compact_json_value(other, constructor_indent, options)
+            "{}{constructor}{}{}{}",
+            json_punctuation("{", options),
+            json_punctuation(":", options),
+            format_compact_json_value(other, constructor_indent, options),
+            json_punctuation("}", options)
         ),
         other => format!(
-            "{{{constructor}: {}}}",
-            format_compact_json_value(other, constructor_indent + options.indent, options)
+            "{}{constructor}{} {}{}",
+            json_punctuation("{", options),
+            json_punctuation(":", options),
+            format_compact_json_value(other, constructor_indent + options.indent, options),
+            json_punctuation("}", options)
         ),
     }
 }
@@ -874,6 +919,60 @@ fn is_compact_json_scalar(value: &Value) -> bool {
 #[ensures(ret.starts_with('"') && ret.ends_with('"'))]
 fn json_string(value: &str) -> String {
     serde_json::to_string(value).expect("serializing JSON string cannot fail")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum JsonColorRole {
+    Punctuation,
+    ConstructorKey,
+    FieldKey,
+    String,
+    Number,
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn format_json_scalar(value: &Value, options: JsonRenderOptions) -> String {
+    let text = serde_json::to_string(value).expect("serializing JSON scalar cannot fail");
+    let role = match value {
+        Value::String(_) => JsonColorRole::String,
+        Value::Null | Value::Bool(_) | Value::Number(_) => JsonColorRole::Number,
+        Value::Array(_) | Value::Object(_) => unreachable!("caller passes only JSON scalars"),
+    };
+    json_color_token(&text, role, options)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn json_key(key: &str, constructor: bool, options: JsonRenderOptions) -> String {
+    let role = if constructor {
+        JsonColorRole::ConstructorKey
+    } else {
+        JsonColorRole::FieldKey
+    };
+    json_color_token(&json_string(key), role, options)
+}
+
+#[requires(!token.is_empty())]
+#[ensures(!ret.is_empty())]
+fn json_punctuation(token: &str, options: JsonRenderOptions) -> String {
+    json_color_token(token, JsonColorRole::Punctuation, options)
+}
+
+#[requires(!token.is_empty())]
+#[ensures(!ret.is_empty())]
+fn json_color_token(token: &str, role: JsonColorRole, options: JsonRenderOptions) -> String {
+    if !options.color {
+        return token.to_owned();
+    }
+    match role {
+        JsonColorRole::Punctuation => token.bright_black().to_string(),
+        JsonColorRole::ConstructorKey => token.bright_blue().to_string(),
+        JsonColorRole::FieldKey => token.green().to_string(),
+        JsonColorRole::String => token.yellow().to_string(),
+        JsonColorRole::Number => token.magenta().to_string(),
+    }
 }
 
 #[requires(true)]
@@ -950,31 +1049,8 @@ fn compact_constructor_object(object: &serde_json::Map<String, Value>) -> Option
         return None;
     }
     let (constructor, payload) = object.iter().next()?;
-    match constructor.as_str() {
-        "PlainWord" => {
-            let Value::Object(payload) = payload else {
-                return None;
-            };
-            if let Some(value) = payload.get("word") {
-                return Some(compact_constructor_value(constructor, value.clone()));
-            }
-            None
-        }
-        "ForethoughtBridiTailConnection" => {
-            single_payload_field(constructor, payload, "forethought_bridi_tail_connection")
-        }
-        "Sumti" => single_payload_field(constructor, payload, "sumti"),
-        "LinkedSumtiContinuation" => single_payload_field(constructor, payload, "bei_only_links"),
-        "RelativeClauses" => single_payload_field(constructor, payload, "relative_clauses"),
-        "Mekso" => single_payload_field(constructor, payload, "mekso"),
-        "Selbri" => single_payload_field(constructor, payload, "selbri"),
-        "Description" => single_payload_field(constructor, payload, "description"),
-        "DescriptionConnection" => {
-            single_payload_field(constructor, payload, "description_connection")
-        }
-        "Abstraction" => single_payload_field(constructor, payload, "abstraction"),
-        _ => None,
-    }
+    let field = json::constructor_single_payload_field(constructor)?;
+    single_payload_field(constructor, payload, field)
 }
 
 #[requires(true)]
@@ -1658,6 +1734,72 @@ mod tests {
         let value = serde_json::from_str(&json).expect("valid json");
         assert!(has_elided_cmavo(&value, "lo'o", [5, 5]), "{json}");
         assert!(has_elided_cmavo(&value, "vau", [5, 5]), "{json}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn json_formatter_colorizes_typed_roles() {
+        let options = JsonRenderOptions {
+            indent: 0,
+            color: true,
+            ..JsonRenderOptions::default()
+        };
+        let value = serde_json::json!({
+            "field": { "Bridi": {} },
+            "string": "value",
+        });
+        let standard = render_json_value_with_options(&value, options);
+
+        assert!(
+            standard.contains("\x1b[32m\"field\"\x1b[39m"),
+            "{standard:?}"
+        );
+        assert!(
+            standard.contains("\x1b[94m\"Bridi\"\x1b[39m"),
+            "{standard:?}"
+        );
+        assert!(
+            standard.contains("\x1b[33m\"value\"\x1b[39m"),
+            "{standard:?}"
+        );
+        assert!(standard.contains("\x1b[90m{\x1b[39m"), "{standard:?}");
+        assert!(standard.contains("\x1b[90m}\x1b[39m"), "{standard:?}");
+        assert!(!standard.contains("\x1b[36m"));
+
+        let compact = format_compact_json_value(&serde_json::json!({ "Bridi": {} }), 0, options);
+        assert!(compact.contains("\x1b[94m\"Bridi\"\x1b[39m"), "{compact:?}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn standard_json_formatter_matches_serde_without_color() {
+        let value = serde_json::json!({
+            "array": [1, true, null, "value"],
+            "object": { "field": "text" },
+        });
+
+        assert_eq!(
+            render_json_value_with_options(
+                &value,
+                JsonRenderOptions {
+                    indent: 0,
+                    ..JsonRenderOptions::default()
+                },
+            ),
+            serde_json::to_string(&value).expect("value serializes")
+        );
+        assert_eq!(
+            render_json_value_with_options(
+                &value,
+                JsonRenderOptions {
+                    indent: 2,
+                    ..JsonRenderOptions::default()
+                },
+            ),
+            serde_json::to_string_pretty(&value).expect("value serializes")
+        );
     }
 
     #[requires(!source.is_empty())]
