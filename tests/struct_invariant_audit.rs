@@ -1876,115 +1876,107 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture test backend stores scripted outputs and captured invocations",
     ),
     (
-        "tests/support/fixtures/mod.rs:CllSelector",
+        "xtask-common/src/fixtures/mod.rs:CllSelector",
         "fixture selector validity is checked by fixture profile loading",
     ),
     (
-        "tests/support/fixtures/mod.rs:CommandOutputExpectation",
+        "xtask-common/src/fixtures/mod.rs:CommandOutputExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:DiagnosticExpectation",
+        "xtask-common/src/fixtures/mod.rs:DiagnosticExpectation",
         "fixture diagnostic payload is validated by exact runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:Expectations",
+        "xtask-common/src/fixtures/mod.rs:Expectations",
         "fixture expectation aggregate permits absent facets",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureExport",
+        "xtask-common/src/fixtures/mod.rs:FixtureExport",
         "fixture export is a serialization aggregate",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureProfile",
-        "fixture profile validity is checked while loading and selecting tests",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureSelector",
-        "fixture selector validity is checked by selector matching code",
-    ),
-    (
-        "tests/support/fixtures/mod.rs:FixtureSummary",
+        "xtask-common/src/fixtures/mod.rs:FixtureSummary",
         "fixture summary is derived reporting data",
     ),
     (
-        "tests/support/fixtures/mod.rs:GentufaOutputExpectation",
+        "xtask-common/src/fixtures/mod.rs:GentufaOutputExpectation",
         "fixture expectation aggregate permits absent gentufa output formats",
     ),
     (
-        "tests/support/fixtures/mod.rs:ImportSummary",
+        "xtask-common/src/fixtures/mod.rs:ImportSummary",
         "fixture import summary is derived reporting data",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaExpectation",
+        "xtask-common/src/fixtures/mod.rs:JvozbaExpectation",
         "jvozba fixture expectations are checked by exact fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaOutputExpectation",
+        "xtask-common/src/fixtures/mod.rs:JvozbaOutputExpectation",
         "jvozba output fixture expectations are checked by exact fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaSegmentExpectation",
+        "xtask-common/src/fixtures/mod.rs:JvozbaSegmentExpectation",
         "jvozba segment fixture expectations are checked by exact fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:LoadedTestCase",
+        "xtask-common/src/fixtures/mod.rs:LoadedTestCase",
         "loaded fixture combines a test case with its source path",
     ),
     (
-        "tests/support/fixtures/mod.rs:MorphologyExpectation",
+        "xtask-common/src/fixtures/mod.rs:MorphologyExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:MuplisSelector",
+        "xtask-common/src/fixtures/mod.rs:MuplisSelector",
         "fixture selector validity is checked by fixture profile loading",
     ),
     (
-        "tests/support/fixtures/mod.rs:OutputExpectations",
+        "xtask-common/src/fixtures/mod.rs:OutputExpectations",
         "fixture expectation aggregate permits absent output formats",
     ),
     (
-        "tests/support/fixtures/mod.rs:ReferenceExpectation",
+        "xtask-common/src/fixtures/mod.rs:ReferenceExpectation",
         "semantic refs expectation payload is checked by fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:ScriptBracketExpectations",
+        "xtask-common/src/fixtures/mod.rs:ScriptBracketExpectations",
         "fixture expectation aggregate permits absent script-specific outputs",
     ),
     (
-        "tests/support/fixtures/mod.rs:SemanticsExpectations",
+        "xtask-common/src/fixtures/mod.rs:SemanticsExpectations",
         "fixture expectation aggregate permits absent semantic facets",
     ),
     (
-        "tests/support/fixtures/mod.rs:SyntaxExpectation",
+        "xtask-common/src/fixtures/mod.rs:SyntaxExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:TersmuOutputExpectation",
+        "xtask-common/src/fixtures/mod.rs:TersmuOutputExpectation",
         "tersmu fixture expectation payload is checked by exact fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:TestCase",
+        "xtask-common/src/fixtures/mod.rs:TestCase",
         "fixture loading validates ids, facets, and expectation shape",
     ),
     (
-        "tests/support/fixtures/mod.rs:TextExpectation",
+        "xtask-common/src/fixtures/mod.rs:TextExpectation",
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
-        "tests/support/fixtures/mod.rs:VlaseiOutputExpectation",
+        "xtask-common/src/fixtures/mod.rs:VlaseiOutputExpectation",
         "fixture expectation aggregate permits absent vlasei output formats",
     ),
     (
-        "tests/support/fixtures/mod.rs:XfailExpectation",
+        "xtask-common/src/fixtures/mod.rs:XfailExpectation",
         "fixture xfail reason validation is handled by fixture loading",
     ),
     (
-        "tests/support/fixtures/runner.rs:FacetResult",
+        "xtask-common/src/fixtures/runner.rs:FacetResult",
         "runner result combines facet status with diagnostic messages",
     ),
     (
-        "tests/support/fixtures/runner.rs:RunSummary",
+        "xtask-common/src/fixtures/runner.rs:RunSummary",
         "runner summary is derived reporting data",
     ),
     (
@@ -2049,7 +2041,7 @@ fn allowed_placeholder_keys() -> BTreeSet<String> {
 fn struct_placeholder_invariants() -> BTreeSet<String> {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut placeholders = BTreeSet::new();
-    for root in ["crates", "apps", "tests", "xtask"] {
+    for root in ["crates", "apps", "tests", "xtask", "xtask-common"] {
         let source_root = workspace.join(root);
         if source_root.exists() {
             collect_struct_placeholder_invariants(workspace, &source_root, &mut placeholders);

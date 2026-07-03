@@ -30,6 +30,7 @@ members = [
     "crates/jbotci-ui",
     "crates/jbotci-web-core",
     "xtask",
+    "xtask-common",
     "xtask-full",
 ]
 default-members = [
@@ -122,6 +123,8 @@ rfd = "0.15.4"
 syn = { version = "2", features = ["full", "extra-traits"] }
 thiserror = "2"
 toml = { version = "0.9", features = ["unbounded"] }
+toml_edit = "0.25"
+xtask-common = { path = "xtask-common" }
 unicode-normalization = "0.1"
 unicode-width = "0.2"
 ureq = "3"
@@ -199,6 +202,7 @@ rayon.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 walkdir.workspace = true
+xtask-common.workspace = true
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
