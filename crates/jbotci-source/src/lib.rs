@@ -44,7 +44,19 @@ impl LineColumn {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceSpan {
     pub source_id: Option<SourceId>,
+    /// Byte start offset in the source text.
+    ///
+    /// This is reliable for spans constructed from source text or verbose JSON.
+    /// Compact span JSON stores only character offsets, so compact-deserialized
+    /// spans mirror character offsets into this field for compatibility; callers
+    /// must not use those mirrored byte offsets for slicing non-ASCII text.
     pub byte_start: usize,
+    /// Byte end offset in the source text.
+    ///
+    /// This is reliable for spans constructed from source text or verbose JSON.
+    /// Compact span JSON stores only character offsets, so compact-deserialized
+    /// spans mirror character offsets into this field for compatibility; callers
+    /// must not use those mirrored byte offsets for slicing non-ASCII text.
     pub byte_end: usize,
     pub char_start: usize,
     pub char_end: usize,
@@ -89,6 +101,9 @@ impl<'de> Deserialize<'de> for SourceSpan {
 
         match EncodedSpan::deserialize(deserializer)? {
             EncodedSpan::Compact([char_start, char_end]) => {
+                // Compact spans are serialized as character offsets only. Keep
+                // mirroring those values into byte offsets for compatibility,
+                // but those byte offsets are unreliable for non-ASCII source.
                 SourceSpan::new(None, char_start, char_end, char_start, char_end)
             }
             EncodedSpan::Verbose {
@@ -219,6 +234,33 @@ mod tests {
             error
                 .to_string()
                 .contains("byte range end 3 precedes start 4")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compact_round_trip_preserves_chars_but_not_non_ascii_bytes() {
+        let source = "aébc";
+        let original = SourceSpan::new(None, 0, 3, 0, 2)
+            .expect("test span uses real byte and character offsets");
+
+        let encoded = serde_json::to_string(&original).expect("compact span serializes");
+        assert_eq!(encoded, "[0,2]");
+
+        let decoded: SourceSpan =
+            serde_json::from_str(&encoded).expect("compact span deserializes");
+
+        assert_eq!((decoded.char_start, decoded.char_end), (0, 2));
+        assert_eq!((decoded.byte_start, decoded.byte_end), (0, 2));
+        assert_ne!(decoded.byte_end, original.byte_end);
+        assert!(
+            source.get(decoded.byte_start..decoded.byte_end).is_none(),
+            "compact-deserialized byte offsets can point inside a UTF-8 codepoint"
+        );
+        assert_eq!(
+            serde_json::to_string(&decoded).expect("compact span reserializes"),
+            encoded
         );
     }
 }
