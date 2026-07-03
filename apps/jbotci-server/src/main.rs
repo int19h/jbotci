@@ -138,7 +138,11 @@ fn run_setup_args(args: &[OsString]) -> Result<()> {
     .map_err(|error| anyhow!(error.to_string()))?;
     println!(
         "Embedding setup complete.\nmodel: {}\nindex: {}\npack: {}\nsource: {}\ndictionary rows: {}\nCLL rows: {}",
-        report.model_path.display(),
+        report
+            .model_path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "not checked".to_owned()),
         report.index_root.display(),
         report.pack_id,
         report.index_source.as_str(),

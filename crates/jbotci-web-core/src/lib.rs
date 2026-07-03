@@ -1079,9 +1079,9 @@ pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
 pub const WEB_EMBEDDING_MODEL_KEY: &str = jbotci_embedding_inputs::DEFAULT_MODEL_KEY;
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn embedding_worker_corpus_json() -> String {
-    embedding_input_corpus_json()
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+pub fn embedding_worker_corpus_json() -> Result<String, WebComputeError> {
+    embedding_input_corpus_json().map_err(|error| WebComputeError::Embedding(error.to_string()))
 }
 
 #[requires(!request_json.is_empty())]
@@ -1149,7 +1149,7 @@ pub fn run_web_compute_request(
             Ok(WebComputeResponse::GimfihiPage { result, meta })
         }
         WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
-            json: embedding_worker_corpus_json(),
+            json: embedding_worker_corpus_json()?,
         }),
         WebComputeRequest::GentufaBlocksSvg {
             layout,
@@ -1695,11 +1695,14 @@ pub enum WebComputeResponse {
 #[invariant(true)]
 #[invariant(::Json(_) => true)]
 #[invariant(::Export(_) => true)]
+#[invariant(::Embedding(_) => true)]
 pub enum WebComputeError {
     #[error("web compute JSON error: {0}")]
     Json(String),
     #[error("gentufa export failed: {0}")]
     Export(String),
+    #[error("embedding input export failed: {0}")]
+    Embedding(String),
 }
 
 #[invariant(true)]
@@ -8498,7 +8501,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn embedding_worker_corpus_json_uses_browser_worker_schema() {
-        let json = embedding_worker_corpus_json();
+        let json = embedding_worker_corpus_json().expect("embedding worker corpus JSON");
         let value = serde_json::from_str::<serde_json::Value>(&json)
             .expect("embedding worker corpus should be valid JSON");
 

@@ -30,13 +30,60 @@ const N_PARALLEL: usize = 32;
 static BACKEND: OnceLock<Result<LlamaBackend, String>> = OnceLock::new();
 static SUPPRESS_LLAMA_LOGS: Once = Once::new();
 
-pub type NativeGemmaEmbeddingBackend = NativeLlamaEmbeddingBackend;
+#[derive(Debug)]
+#[invariant(true)]
+struct OwnedLlamaContext {
+    // Rust drops struct fields in declaration order. The llama context carries
+    // a reference into model storage, so context must be dropped before model.
+    context: LlamaContext<'static>,
+    model: Box<LlamaModel>,
+}
+
+impl OwnedLlamaContext {
+    #[requires(path.is_file())]
+    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    fn load(path: &Path, context_params: LlamaContextParams) -> Result<Self, EmbeddingError> {
+        let backend = global_backend()?;
+        let model = Box::new(
+            LlamaModel::load_from_file(backend, path, &LlamaModelParams::default()).map_err(
+                |source| EmbeddingError::Backend {
+                    message: format!("llama.cpp failed to load `{}`: {source}", path.display()),
+                },
+            )?,
+        );
+        let model_ref: &'static LlamaModel = {
+            let ptr: *const LlamaModel = model.as_ref();
+            // Safety: the model is heap-allocated in a Box whose allocation is
+            // stable after moves. OwnedLlamaContext stores the context before
+            // the model so drop order destroys context first, exposes no cloned
+            // owner, and never returns this extended reference to callers.
+            unsafe { &*ptr }
+        };
+        let context = model_ref
+            .new_context(backend, context_params)
+            .map_err(|source| EmbeddingError::Backend {
+                message: format!("llama.cpp failed to create embedding context: {source}"),
+            })?;
+        Ok(Self { context, model })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn model(&self) -> &LlamaModel {
+        &self.model
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn context_mut(&mut self) -> &mut LlamaContext<'static> {
+        &mut self.context
+    }
+}
 
 #[derive(Debug)]
 #[invariant(true)]
 pub struct NativeLlamaEmbeddingBackend {
-    model: &'static LlamaModel,
-    context: LlamaContext<'static>,
+    owned: OwnedLlamaContext,
     dimensions: usize,
     max_tokens_per_call: usize,
 }
@@ -45,12 +92,6 @@ impl NativeLlamaEmbeddingBackend {
     #[requires(path.is_file())]
     #[ensures(ret.as_ref().is_ok_and(|backend| backend.dimensions == spec.dimensions) || ret.is_err())]
     pub fn load(spec: &EmbeddingModelSpec, path: &Path) -> Result<Self, EmbeddingError> {
-        let backend = global_backend()?;
-        let model = LlamaModel::load_from_file(backend, path, &LlamaModelParams::default())
-            .map_err(|source| EmbeddingError::Backend {
-                message: format!("llama.cpp failed to load `{}`: {source}", path.display()),
-            })?;
-        let model = Box::leak(Box::new(model));
         let threads = std::thread::available_parallelism()
             .map(|count| count.get().min(N_PARALLEL))
             .unwrap_or(1)
@@ -62,13 +103,9 @@ impl NativeLlamaEmbeddingBackend {
             .with_n_ubatch(N_UBATCH)
             .with_n_threads(threads as i32)
             .with_n_threads_batch(threads as i32);
-        let context = model
-            .new_context(backend, context_params)
-            .map_err(|source| EmbeddingError::Backend {
-                message: format!("llama.cpp failed to create embedding context: {source}"),
-            })?;
+        let owned = OwnedLlamaContext::load(path, context_params)?;
         let dimensions =
-            usize::try_from(model.n_embd_out()).map_err(|_| EmbeddingError::Backend {
+            usize::try_from(owned.model().n_embd_out()).map_err(|_| EmbeddingError::Backend {
                 message: "llama.cpp reported invalid embedding dimension".to_owned(),
             })?;
         if dimensions != spec.dimensions {
@@ -78,12 +115,11 @@ impl NativeLlamaEmbeddingBackend {
             });
         }
         let max_tokens_per_call =
-            usize::try_from(context.n_ubatch()).map_err(|_| EmbeddingError::Backend {
+            usize::try_from(owned.context.n_ubatch()).map_err(|_| EmbeddingError::Backend {
                 message: "llama.cpp reported invalid n_ubatch".to_owned(),
             })?;
         Ok(Self {
-            model,
-            context,
+            owned,
             dimensions,
             max_tokens_per_call,
         })
@@ -104,8 +140,10 @@ impl NativeLlamaEmbeddingBackend {
                 ),
             });
         }
-        let _ = self
-            .context
+        let has_encoder_only =
+            self.owned.model().has_encoder() && !self.owned.model().has_decoder();
+        let context = self.owned.context_mut();
+        let _ = context
             .clear_kv_cache_seq(Some(0), None, None)
             .map_err(|source| EmbeddingError::Backend {
                 message: format!("llama.cpp failed to clear context memory: {source}"),
@@ -118,23 +156,22 @@ impl NativeLlamaEmbeddingBackend {
                     message: format!("llama.cpp failed to prepare embedding batch: {source}"),
                 })?;
         }
-        if self.model.has_encoder() && !self.model.has_decoder() {
-            self.context
+        if has_encoder_only {
+            context
                 .encode(&mut batch)
                 .map_err(|source| EmbeddingError::Backend {
                     message: format!("llama.cpp embedding encode failed: {source}"),
                 })?;
         } else {
-            self.context
+            context
                 .decode(&mut batch)
                 .map_err(|source| EmbeddingError::Backend {
                     message: format!("llama.cpp embedding decode failed: {source}"),
                 })?;
         }
-        let embedding = self
-            .context
+        let embedding = context
             .embeddings_seq_ith(0)
-            .or_else(|_| self.context.embeddings_ith(tokens.len() as i32 - 1))
+            .or_else(|_| context.embeddings_ith(tokens.len() as i32 - 1))
             .map_err(|source| EmbeddingError::Backend {
                 message: format!("llama.cpp did not return an embedding: {source}"),
             })?;
@@ -183,7 +220,8 @@ impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
     #[ensures(ret.as_ref().is_ok_and(|embedding| embedding.values.len() == self.dimensions) || ret.is_err())]
     fn embed(&mut self, input: &str) -> Result<QueryEmbedding, EmbeddingError> {
         let tokens = self
-            .model
+            .owned
+            .model()
             .str_to_token(input, AddBos::Always)
             .map_err(|source| EmbeddingError::Backend {
                 message: format!("llama.cpp tokenization failed: {source}"),
@@ -199,22 +237,19 @@ impl EmbeddingBackend for NativeLlamaEmbeddingBackend {
             });
         }
         let mut pooled = vec![0.0; self.dimensions];
-        let mut window_count = 0usize;
+        let mut token_count = 0usize;
         let window_size = self.max_tokens_per_call.max(1);
         for window in tokens.chunks(window_size) {
             let embedding = self.embed_tokens(window)?;
             for (accumulator, value) in pooled.iter_mut().zip(embedding.iter()) {
-                *accumulator += *value;
+                *accumulator += *value * window.len() as f32;
             }
-            window_count += 1;
+            token_count += window.len();
         }
-        if window_count == 0 {
-            return Err(EmbeddingError::Backend {
-                message: "cannot pool embeddings from an empty token window list".to_owned(),
-            });
-        }
+        // Weight windows by token count so a short tail window contributes in
+        // proportion to its share of the source sequence.
         for value in &mut pooled {
-            *value /= window_count as f32;
+            *value /= token_count as f32;
         }
         normalize_vector(&mut pooled);
         Ok(QueryEmbedding { values: pooled })
@@ -295,7 +330,7 @@ fn setup_embeddings_with_progress_inner(
             options.skip_validation,
             progress,
         )?;
-        report.model_path = model_path;
+        report.model_path = Some(model_path);
         return Ok(report);
     }
 
@@ -316,7 +351,7 @@ fn setup_embeddings_with_progress_inner(
                 &options.precomputed_base_url,
                 progress,
             )?;
-            report.model_path = model_path;
+            report.model_path = Some(model_path);
             return Ok(report);
         }
         UsePrecomputed::Auto => {
@@ -329,7 +364,7 @@ fn setup_embeddings_with_progress_inner(
                 progress,
             ) {
                 Ok(mut report) => {
-                    report.model_path = model_path;
+                    report.model_path = Some(model_path);
                     return Ok(report);
                 }
                 Err(error) => {
@@ -360,7 +395,7 @@ fn setup_embeddings_with_progress_inner(
         options.force,
         progress,
     )?;
-    report.model_path = model_path;
+    report.model_path = Some(model_path);
     Ok(report)
 }
 

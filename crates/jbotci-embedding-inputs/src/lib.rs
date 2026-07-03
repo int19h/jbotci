@@ -7,6 +7,7 @@ use jbotci_dictionary::{Dictionary, DictionaryEntry};
 use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_filter};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use thiserror::Error;
 
 pub const DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 pub const DEFAULT_MODEL_REVISION: &str = "e76f54804b54782f5bed93c09f63201e38a1a99b";
@@ -44,6 +45,16 @@ pub struct EmbeddingInputDocument {
     pub kind: Option<String>,
 }
 
+#[derive(Debug, Error)]
+#[invariant(::Cll(_) => true)]
+#[invariant(::Json(_) => true)]
+pub enum EmbeddingInputError {
+    #[error("failed to load embedded CLL for embedding inputs: {0}")]
+    Cll(#[from] jbotci_cll::CllError),
+    #[error("failed to serialize embedding input corpus JSON: {0}")]
+    Json(#[from] serde_json::Error),
+}
+
 #[requires(true)]
 #[ensures(ret.starts_with(RETRIEVAL_QUERY_PREFIX))]
 pub fn build_retrieval_query_input(content: &str) -> String {
@@ -58,9 +69,7 @@ pub fn build_retrieval_document_input(content: &str, title: &str) -> String {
     } else {
         title
     };
-    RETRIEVAL_DOCUMENT_PREFIX
-        .replace("{title}", safe_title)
-        .replace("{text}", content)
+    format!("title: {safe_title} | text: {content}")
 }
 
 #[requires(true)]
@@ -182,12 +191,12 @@ fn filter_not_blank<const N: usize>(values: [&str; N]) -> Vec<String> {
 #[requires(true)]
 #[ensures(ret.len() == 64)]
 pub fn sha256_hex_bytes(bytes: &[u8]) -> String {
-    hex_digest(Sha256::digest(bytes))
+    lowercase_hex(Sha256::digest(bytes))
 }
 
 #[requires(true)]
-#[ensures(ret.len() == 64)]
-fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
+#[ensures(ret.len() == bytes.as_ref().len() * 2)]
+pub fn lowercase_hex(bytes: impl AsRef<[u8]>) -> String {
     bytes
         .as_ref()
         .iter()
@@ -208,7 +217,7 @@ pub fn dictionary_fingerprint(dictionary: &Dictionary<'_>) -> String {
         hasher.update(input.as_bytes());
         hasher.update([0]);
     }
-    hex_digest(hasher.finalize())
+    lowercase_hex(hasher.finalize())
 }
 
 #[requires(true)]
@@ -222,17 +231,15 @@ pub fn cll_fingerprint(chunks: &[CllSearchChunk]) -> String {
         hasher.update(input.as_bytes());
         hasher.update([0]);
     }
-    hex_digest(hasher.finalize())
+    lowercase_hex(hasher.finalize())
 }
 
 #[requires(true)]
-#[ensures(!ret.dictionary.is_empty())]
-pub fn embedding_input_corpus() -> EmbeddingInputCorpus {
+#[ensures(ret.as_ref().is_ok_and(|corpus| !corpus.dictionary.is_empty()) || ret.is_err())]
+pub fn embedding_input_corpus() -> Result<EmbeddingInputCorpus, EmbeddingInputError> {
     let dictionary = jbotci_dictionary_data::english();
-    let cll = jbotci_cll::embedded_cll_site()
-        .map(|site| cll_search_all_chunks(site).to_vec())
-        .unwrap_or_default();
-    embedding_input_corpus_from_parts(dictionary, &cll)
+    let cll = cll_search_all_chunks(jbotci_cll::embedded_cll_site()?).to_vec();
+    Ok(embedding_input_corpus_from_parts(dictionary, &cll))
 }
 
 #[requires(true)]
@@ -305,7 +312,7 @@ fn input_documents_hash(corpus_id: &str, documents: &[EmbeddingInputDocument]) -
         }
         hasher.update([0]);
     }
-    hex_digest(hasher.finalize())
+    lowercase_hex(hasher.finalize())
 }
 
 #[requires(true)]
@@ -326,13 +333,13 @@ fn combined_input_hash(dictionary_hash: &str, cll_hash: &str) -> String {
     hasher.update(dictionary_hash.as_bytes());
     hasher.update([0]);
     hasher.update(cll_hash.as_bytes());
-    hex_digest(hasher.finalize())
+    lowercase_hex(hasher.finalize())
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn embedding_input_corpus_json() -> String {
-    serde_json::to_string(&embedding_input_corpus()).unwrap_or_else(|_| "{}".to_owned())
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+pub fn embedding_input_corpus_json() -> Result<String, EmbeddingInputError> {
+    serde_json::to_string(&embedding_input_corpus()?).map_err(EmbeddingInputError::from)
 }
 
 #[requires(true)]
@@ -466,7 +473,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn exported_corpus_has_whole_and_per_entry_hashes() {
-        let corpus = embedding_input_corpus();
+        let corpus = embedding_input_corpus().unwrap();
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
@@ -488,5 +495,17 @@ mod tests {
                 .all(|doc| doc.input_hash.len() == 64)
         );
         assert!(corpus.cll.iter().all(|doc| doc.input_hash.len() == 64));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exported_corpus_json_propagates_successfully() {
+        let json = embedding_input_corpus_json().unwrap();
+        let value = serde_json::from_str::<serde_json::Value>(&json).unwrap();
+        assert_eq!(
+            value.get("modelKey").and_then(serde_json::Value::as_str),
+            Some(DEFAULT_MODEL_KEY)
+        );
     }
 }
