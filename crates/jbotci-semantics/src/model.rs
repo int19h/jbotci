@@ -79,6 +79,174 @@ impl Serialize for PlaceIndex {
     }
 }
 
+const RELATION_LABEL_IDENTITY_TEXT: &str = "identity";
+const RELATION_LABEL_DU_TEXT: &str = "du";
+
+#[invariant(::Brivla { word } => !word.is_empty())]
+#[invariant(::Identity => !RELATION_LABEL_IDENTITY_TEXT.is_empty())]
+#[invariant(::Du => !RELATION_LABEL_DU_TEXT.is_empty())]
+#[invariant(::ProBridi { word } => !word.is_empty())]
+#[invariant(::Abstraction { abstractor, relation, .. } =>
+    !abstractor.is_empty() && relation.is_displayable())]
+#[invariant(::NuhaOperator { operator } => !operator.is_empty())]
+#[invariant(::MeksoMoi { expression, moi } => !expression.is_empty() && !moi.is_empty())]
+#[invariant(::ZeiCompound { text } => !text.is_empty())]
+#[invariant(::Constructed { text } => !text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RelationLabel {
+    Brivla {
+        word: String,
+    },
+    Identity,
+    Du,
+    ProBridi {
+        word: String,
+    },
+    Abstraction {
+        kind: AbstractionKind,
+        abstractor: String,
+        relation: Box<RelationLabel>,
+    },
+    NuhaOperator {
+        operator: String,
+    },
+    MeksoMoi {
+        expression: String,
+        moi: String,
+    },
+    ZeiCompound {
+        text: String,
+    },
+    Constructed {
+        text: String,
+    },
+}
+
+impl RelationLabel {
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn brivla(word: String) -> Self {
+        new!(RelationLabel::Brivla { word })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_displayable())]
+    pub fn identity() -> Self {
+        new!(RelationLabel::Identity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_displayable())]
+    pub fn du() -> Self {
+        new!(RelationLabel::Du)
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn pro_bridi(word: String) -> Self {
+        new!(RelationLabel::ProBridi { word })
+    }
+
+    #[requires(!abstractor.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn abstraction(kind: AbstractionKind, abstractor: String, relation: Self) -> Self {
+        new!(RelationLabel::Abstraction {
+            kind,
+            abstractor,
+            relation: Box::new(relation),
+        })
+    }
+
+    #[requires(!operator.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn nuha_operator(operator: String) -> Self {
+        new!(RelationLabel::NuhaOperator { operator })
+    }
+
+    #[requires(!expression.is_empty())]
+    #[requires(!moi.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn mekso_moi(expression: String, moi: String) -> Self {
+        new!(RelationLabel::MeksoMoi { expression, moi })
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn zei_compound(text: String) -> Self {
+        new!(RelationLabel::ZeiCompound { text })
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn constructed(text: String) -> Self {
+        new!(RelationLabel::Constructed { text })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_displayable(&self) -> bool {
+        match self.as_data() {
+            data!(RelationLabel::Brivla { word }) | data!(RelationLabel::ProBridi { word }) => {
+                !word.is_empty()
+            }
+            data!(RelationLabel::Identity) | data!(RelationLabel::Du) => true,
+            data!(RelationLabel::Abstraction {
+                abstractor,
+                relation,
+                ..
+            }) => !abstractor.is_empty() && relation.is_displayable(),
+            data!(RelationLabel::NuhaOperator { operator }) => !operator.is_empty(),
+            data!(RelationLabel::MeksoMoi { expression, moi }) => {
+                !expression.is_empty() && !moi.is_empty()
+            }
+            data!(RelationLabel::ZeiCompound { text })
+            | data!(RelationLabel::Constructed { text }) => !text.is_empty(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn display_text(&self) -> String {
+        match self.as_data() {
+            data!(RelationLabel::Brivla { word })
+            | data!(RelationLabel::ProBridi { word })
+            | data!(RelationLabel::ZeiCompound { text: word })
+            | data!(RelationLabel::Constructed { text: word }) => word.clone(),
+            data!(RelationLabel::Identity) => RELATION_LABEL_IDENTITY_TEXT.to_owned(),
+            data!(RelationLabel::Du) => RELATION_LABEL_DU_TEXT.to_owned(),
+            data!(RelationLabel::Abstraction {
+                abstractor,
+                relation,
+                ..
+            }) => format!("{abstractor} {relation}"),
+            data!(RelationLabel::NuhaOperator { operator }) => format!("nu'a {operator}"),
+            data!(RelationLabel::MeksoMoi { expression, moi }) => {
+                format!("{expression} {moi}")
+            }
+        }
+    }
+}
+
+impl fmt::Display for RelationLabel {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.display_text())
+    }
+}
+
+impl Serialize for RelationLabel {
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
+
 #[invariant(*index > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticObjectId {
@@ -3562,21 +3730,25 @@ impl Connector {
 
 #[invariant(head.object_kind() == SemanticObjectKind::Predication)]
 #[invariant(argument_object_kind_can_fill(modifier.object_kind()), "tanru modifier must be a semantic argument value")]
-#[invariant(!relation_label.is_empty(), "tanru relation label must be displayable")]
+#[invariant(relation_label.is_displayable(), "tanru relation label must be displayable")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TanruLink {
     pub head: SemanticObjectId,
     pub modifier: SemanticObjectId,
-    pub relation_label: String,
+    pub relation_label: RelationLabel,
 }
 
 impl TanruLink {
     #[requires(head.object_kind() == SemanticObjectKind::Predication)]
     #[requires(argument_object_kind_can_fill(modifier.object_kind()))]
-    #[requires(!relation_label.is_empty())]
+    #[requires(relation_label.is_displayable())]
     #[ensures(ret.head == head)]
-    pub fn new(head: SemanticObjectId, modifier: SemanticObjectId, relation_label: String) -> Self {
+    pub fn new(
+        head: SemanticObjectId,
+        modifier: SemanticObjectId,
+        relation_label: RelationLabel,
+    ) -> Self {
         Self::from_data(data!(TanruLink {
             head,
             modifier,

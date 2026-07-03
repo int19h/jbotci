@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_dictionary::Dictionary;
 use jbotci_morphology::{
     Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
@@ -96,13 +96,14 @@ use crate::model::{
     PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm, QuantityScale,
     QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
     RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
-    TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
-    displayed_content_target_kind_is_allowed, source_from_spans,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelationLabel, RelationLabelData,
+    RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind,
+    SelectionSource, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
+    SemanticSort, SequenceRelation, SignKind, SourceByteSpan, SpaceInterval, SpatialMotion,
+    SpatialMotionKind, Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep,
+    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce,
+    argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
+    source_from_spans,
 };
 
 #[requires(true)]
@@ -316,21 +317,21 @@ struct GeneratedTanruFormulaForArgument {
     head_predication: SemanticObjectId,
 }
 
-#[invariant(relation.as_ref().is_some_and(|relation| !relation.is_empty()) != tanru.is_some(), "assigned pro-bridi binding must have exactly one target")]
+#[invariant(relation.as_ref().is_some_and(|relation| relation.is_displayable()) != tanru.is_some(), "assigned pro-bridi binding must have exactly one target")]
 #[invariant(visible_arguments.keys().all(|place| *place > 0), "visible places are 1-based")]
 #[derive(Debug, Clone)]
 struct GeneratedAssignedProBridiBinding {
-    relation: Option<String>,
+    relation: Option<RelationLabel>,
     tanru: Option<Box<TanruSelbriSyntax>>,
     source: Option<crate::model::SemanticSource>,
     visible_arguments: BTreeMap<usize, ArgumentValue>,
 }
 
-#[invariant(!relation.is_empty())]
+#[invariant(relation.is_displayable())]
 #[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[derive(Debug, Clone)]
 struct GeneratedProBridiFrame {
-    relation: String,
+    relation: RelationLabel,
     arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     place_count: Option<usize>,
     event_tense: Option<TenseModalSyntax>,
@@ -6586,6 +6587,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             (members[0], members[1])
         };
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
+        let relation_text = relation.display_text();
         let place_count = relation_place_count(self.dictionary, &relation);
         let place_limit = place_count.unwrap_or_else(|| {
             leading_assignments
@@ -6597,7 +6599,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .unwrap_or(1)
         });
         let leading_replaced = self.build_generated_fahu_termset_branch_formula_from_assignments(
-            &relation,
+            &relation_text,
             &leading_assignments,
             &BTreeMap::from([(composite, first)]),
             place_limit,
@@ -6605,7 +6607,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             source.clone(),
         )?;
         let trailing_replaced = self.build_generated_fahu_termset_branch_formula_from_assignments(
-            &relation,
+            &relation_text,
             &trailing_assignments,
             &BTreeMap::from([(composite, second)]),
             place_limit,
@@ -6957,7 +6959,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -7200,7 +7202,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let predication = self.next_predication_id();
         let mut object = SemanticObject::predication(
-            relation.clone(),
+            relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -7351,7 +7353,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let predication = self.next_predication_id();
         let mut object = SemanticObject::predication(
-            relation.clone(),
+            relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -7380,6 +7382,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
+        let relation_text = relation.display_text();
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
@@ -7394,7 +7397,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         };
         if let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
-            &relation,
+            &relation_text,
             &terms,
             first_visible_place,
             place_limit,
@@ -7429,7 +7432,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.apply_generated_tagged_term_event_modifiers_in_terms(eventuality, &terms)?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -7599,6 +7602,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             Ok(relation) => semantic_relation_label(relation),
             Err(_) => return Ok(None),
         };
+        let relation_text = relation.display_text();
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
@@ -7615,7 +7619,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let predication_source = self.source_for_node(source_node, "predication");
         let formula_source = self.source_for_node(source_node, formula_construct);
         if let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
-            &relation,
+            &relation_text,
             &terms,
             first_visible_place,
             place_limit,
@@ -7629,7 +7633,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if let Some(formula) = self.build_generated_logical_modal_connection_formula_for_terms(
             self.source_for_node(source_node, "modal-branch-formula"),
             self.source_for_node(source_node, "modal-connection-formula"),
-            &relation,
+            &relation_text,
             place_count,
             place_limit,
             prefix_terms,
@@ -7709,7 +7713,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -8086,7 +8090,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri) else {
             return Ok(None);
         };
-        if semantic_relation_label(relation) != "identity" {
+        if !matches!(
+            semantic_relation_label(relation).as_data(),
+            data!(RelationLabel::Identity)
+        ) {
             return Ok(None);
         }
         let Ok(assignments) =
@@ -8554,7 +8561,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let predication_mode = predication_mode_for_relation(&relation, mode);
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation,
+            relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode,
@@ -8714,7 +8721,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         );
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation,
+            relation.display_text(),
             Some(eventuality),
             arguments,
             PredicationMode::Asserted,
@@ -10093,7 +10100,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             let predication = self.next_predication_id();
             let mut predication_object = SemanticObject::predication(
-                relation.clone(),
+                relation.display_text(),
                 Some(branch_eventuality),
                 arguments,
                 predication_mode_for_relation(&relation, mode),
@@ -10595,6 +10602,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let relation = relation_label_from_co_selbri(selbri)?;
         let relation = semantic_relation_label(relation);
+        let relation_text = relation.display_text();
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
@@ -10609,7 +10617,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         };
         if let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
-            &relation,
+            &relation_text,
             &terms,
             first_visible_place,
             place_limit,
@@ -10633,7 +10641,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     .or_else(|| predication_source.clone()),
                 "modal-connection-formula",
             ),
-            &relation,
+            &relation_text,
             place_count,
             place_limit,
             &[],
@@ -10691,7 +10699,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -13502,7 +13510,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Some(&arguments),
             )?;
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -13671,11 +13679,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         {
             let relation =
                 semantic_relation_label(relation_label_from_grouped_tanru_unit(grouped)?);
+            let relation_text = relation.display_text();
             let mut conversions = atom.conversions.clone();
             conversions.extend(inner_conversions.iter().cloned());
             if let Some(formula) = self
                 .build_scalar_generated_logical_sumti_connection_formula_for_terms(
-                    &relation,
+                    &relation_text,
                     &terms,
                     first_visible_place,
                     relation_place_count(self.dictionary, &relation)
@@ -13765,6 +13774,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
             atom.base.as_ref(),
         )?);
+        let relation_text = relation.display_text();
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let jai_unit = generated_jai_modal_tanru_unit(atom.base.as_ref());
@@ -13775,7 +13785,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         };
         if linkargs.is_none()
             && let Some(formula) = self.build_generated_logical_sumti_connection_formula_for_terms(
-                &relation,
+                &relation_text,
                 &terms,
                 first_visible_place,
                 place_count.unwrap_or_else(|| terms.len().max(1)),
@@ -13801,7 +13811,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         .or_else(|| predication_source.clone()),
                     "modal-connection-formula",
                 ),
-                &relation,
+                &relation_text,
                 place_count,
                 place_count.unwrap_or_else(|| terms.len().max(1)),
                 &[],
@@ -14027,7 +14037,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     .map(|moved_operand| (jai_unit, moved_operand, raised_operand))
             });
         let mut predication_object = SemanticObject::predication(
-            relation,
+            relation_text,
             Some(eventuality),
             arguments,
             predication_mode,
@@ -14217,7 +14227,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_distributed_relation_formula_for_argument(
         &mut self,
-        relation: String,
+        relation: RelationLabel,
         argument: ArgumentValue,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -14252,7 +14262,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                relation,
+                relation.display_text(),
                 Some(eventuality),
                 arguments,
                 predication_mode,
@@ -14272,7 +14282,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_relation_formula_for_argument(
         &mut self,
-        relation: String,
+        relation: RelationLabel,
         argument: ArgumentValue,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -14310,7 +14320,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                relation,
+                relation.display_text(),
                 Some(eventuality),
                 arguments,
                 predication_mode,
@@ -16291,14 +16301,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let x1_argument = visible_x1_argument
             .or_else(|| arguments.get(&argument_key(1)).cloned())
             .ok_or_else(|| unsupported("tanru without visible x1"))?;
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation,
+            relation_text,
             Some(eventuality),
             arguments,
             PredicationMode::Asserted,
@@ -17985,14 +17996,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
             }
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             predication_source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             eventuality,
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -18095,14 +18107,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
             }
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             predication_source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation,
+            relation_text,
             predication_eventuality,
             arguments,
             PredicationMode::Restrictive,
@@ -18299,14 +18312,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
             }
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             predication_source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             eventuality,
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -18419,14 +18433,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(key, ArgumentValue::elided(elided, "zo'e".to_owned(), None));
             }
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             predication_source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             eventuality,
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -18538,14 +18553,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )?,
             );
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             predication_source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             eventuality,
             arguments,
             predication_mode_for_relation(&relation, mode),
@@ -18827,12 +18843,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
     }
 
-    #[requires(!relation.is_empty())]
+    #[requires(relation.is_displayable())]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_property_atom_for_relation(
         &mut self,
-        relation: String,
+        relation: RelationLabel,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -18846,12 +18862,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )
     }
 
-    #[requires(!relation.is_empty())]
+    #[requires(relation.is_displayable())]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_property_atom_for_relation_with_eventuality(
         &mut self,
-        relation: String,
+        relation: RelationLabel,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         eventuality: GeneratedPredicationEventuality,
@@ -18883,7 +18899,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                relation,
+                relation.display_text(),
                 eventuality,
                 arguments,
                 PredicationMode::Restrictive,
@@ -18991,7 +19007,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                target.relation.clone(),
+                target.relation.display_text(),
                 eventuality,
                 arguments,
                 PredicationMode::Restrictive,
@@ -19100,7 +19116,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "tanru".to_owned(),
                 None,
                 arguments,
-                TanruLink::new(head_predication, modifier, relation_label),
+                TanruLink::new(
+                    head_predication,
+                    modifier,
+                    RelationLabel::constructed(relation_label),
+                ),
                 mode,
                 source.clone(),
                 Vec::new(),
@@ -20783,7 +20803,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| !frame.relation.is_empty())) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     fn generated_completed_pro_bridi_frame_from_formula(
         &self,
         bridi: &BridiSyntax,
@@ -20891,7 +20911,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
-            target.relation.clone(),
+            target.relation.display_text(),
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&target.relation, mode),
@@ -20920,7 +20940,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| !frame.relation.is_empty())) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     fn generated_pro_bridi_target_frame(
         &mut self,
         cmavo: Cmavo,
@@ -20977,7 +20997,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| !frame.relation.is_empty())) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     fn generated_pro_bridi_frame_from_bridi(
         &mut self,
         bridi: &BridiSyntax,
@@ -21057,7 +21077,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(first_visible_place > 0)]
-    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| !frame.relation.is_empty())) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     fn generated_pro_bridi_frame_from_selbri_and_terms(
         &mut self,
         selbri: &SelbriSyntax,
@@ -28342,7 +28362,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                relation,
+                relation.display_text(),
                 None,
                 arguments,
                 PredicationMode::Restrictive,
@@ -28441,14 +28461,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             self.bind_generated_modal_argument_to_host_event(&mut modal_argument, eventuality);
             modal_arguments.push(modal_argument);
         }
+        let relation_text = relation.display_text();
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
-            &relation,
+            &relation_text,
             source.clone(),
         )?;
         let predication = self.next_predication_id();
         let mut object = SemanticObject::predication(
-            relation.clone(),
+            relation_text,
             Some(eventuality),
             arguments,
             predication_mode_for_relation(&relation, PredicationMode::Restrictive),
@@ -28517,7 +28538,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(
             predication,
             SemanticObject::predication(
-                relation,
+                relation.display_text(),
                 eventuality,
                 arguments,
                 PredicationMode::Restrictive,
@@ -30248,8 +30269,8 @@ fn forethought_connection_from_bridi_tail(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn relation_label_from_selbri(selbri: &SelbriSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
+fn relation_label_from_selbri(selbri: &SelbriSyntax) -> Result<RelationLabel, SemanticsError> {
     let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(CoSelbriSyntax {
         leading_selbri: _,
         co_tail: _,
@@ -30276,10 +30297,10 @@ fn generated_relation_is_pro_bridi_label(relation: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| relation.as_ref().is_none_or(|relation| !relation.is_empty())) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.as_ref().is_none_or(|relation| relation.is_displayable())) || ret.is_err())]
 fn generated_pro_bridi_target_relation_label(
     selbri: &SelbriSyntax,
-) -> Result<Option<String>, SemanticsError> {
+) -> Result<Option<RelationLabel>, SemanticsError> {
     match selbri {
         SelbriSyntax::TaggedSelbri(tagged) => {
             generated_pro_bridi_target_relation_label_for_untagged(tagged.inner_selbri.as_ref())
@@ -30333,13 +30354,13 @@ fn generated_pro_bridi_event_tense_from_selbri(selbri: &SelbriSyntax) -> Option<
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| relation.as_ref().is_none_or(|relation| !relation.is_empty())) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.as_ref().is_none_or(|relation| relation.is_displayable())) || ret.is_err())]
 fn generated_pro_bridi_target_relation_label_for_untagged(
     selbri: &UntaggedSelbriSyntax,
-) -> Result<Option<String>, SemanticsError> {
+) -> Result<Option<RelationLabel>, SemanticsError> {
     match selbri {
         UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
-            tanru_label_from_co_selbri(co_selbri).map(Some)
+            generated_pro_bridi_target_relation_label_from_co_selbri(co_selbri).map(Some)
         }
         UntaggedSelbriSyntax::NegatedSelbri(negated) => {
             generated_pro_bridi_target_relation_label(&negated.inner_selbri)
@@ -30349,8 +30370,17 @@ fn generated_pro_bridi_target_relation_label_for_untagged(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn relation_label_from_co_selbri(selbri: &CoSelbriSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
+fn generated_pro_bridi_target_relation_label_from_co_selbri(
+    selbri: &CoSelbriSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    relation_label_from_co_selbri(selbri)
+        .or_else(|_| tanru_label_from_co_selbri(selbri).map(RelationLabel::constructed))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
+fn relation_label_from_co_selbri(selbri: &CoSelbriSyntax) -> Result<RelationLabel, SemanticsError> {
     if selbri.co_tail.is_some() {
         return Err(unsupported("CO selbri"));
     }
@@ -31368,18 +31398,18 @@ fn generated_jai_modal_tanru_unit_with_tense_from_scalar_negated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_generated_tanru_unit(
     unit: &TanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let mut label = relation_label_from_bo_or_linked_tanru_unit(&unit.0.first)?;
     for link in &unit.0.links {
-        label = format!(
+        label = RelationLabel::constructed(format!(
             "{} {} {}",
             label,
             relation_afterthought_connective_label(&link.connective)?,
             relation_label_from_bo_or_linked_tanru_unit(&link.trailing_unit)?
-        );
+        ));
     }
     Ok(label)
 }
@@ -31388,25 +31418,25 @@ fn relation_label_from_generated_tanru_unit(
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 fn tanru_unit_label_from_generated_unit(unit: &TanruUnitSyntax) -> Result<String, SemanticsError> {
     if !unit.0.links.is_empty() {
-        return relation_label_from_generated_tanru_unit(unit);
+        return relation_label_from_generated_tanru_unit(unit).map(|label| label.display_text());
     }
     tanru_unit_label_from_bo_or_linked_tanru_unit(&unit.0.first)
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_tanru_unit_atom_base(
     base: &TanruUnitAtomBaseSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match base {
         TanruUnitAtomBaseSyntax::OrdinalTanruUnit(ordinal) => {
             relation_label_from_ordinal_tanru_unit(ordinal)
         }
         TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
-            Ok(token_text(&word.value))
+            Ok(relation_label_from_token(&word.value))
         }
         TanruUnitAtomBaseSyntax::GohaWordTanruUnit(GohaWordTanruUnitSyntax(word)) => {
-            Ok(token_text(&word.value))
+            Ok(relation_label_from_token(&word.value))
         }
         TanruUnitAtomBaseSyntax::ProBridiTanruUnit(pro_bridi) => {
             Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
@@ -31429,7 +31459,9 @@ fn relation_label_from_tanru_unit_atom_base(
         TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
             relation_label_from_zantufa_mex_moi_tanru_unit(unit)
         }
-        TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
+        TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => {
+            Ok(RelationLabel::constructed("referentOf".to_owned()))
+        }
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
             relation_label_from_operator_selbri_tanru_unit(operator)
         }
@@ -31489,13 +31521,13 @@ fn generated_lujvo_rafsi_parts_for_token(token: &Token) -> Option<Vec<String>> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_jai_inner_tanru_unit(
     unit: &JaiInnerTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match unit {
         JaiInnerTanruUnitSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
-            Ok(token_text(&word.value))
+            Ok(relation_label_from_token(&word.value))
         }
         JaiInnerTanruUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
             Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
@@ -31506,7 +31538,9 @@ fn relation_label_from_jai_inner_tanru_unit(
         JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(operator) => {
             relation_label_from_operator_selbri_tanru_unit(operator)
         }
-        JaiInnerTanruUnitSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
+        JaiInnerTanruUnitSyntax::SumtiSelbriTanruUnit(_) => {
+            Ok(RelationLabel::constructed("referentOf".to_owned()))
+        }
         JaiInnerTanruUnitSyntax::ConvertedJaiInnerTanruUnit(unit) => {
             relation_label_from_jai_inner_tanru_unit(&unit.inner_unit)
         }
@@ -31521,34 +31555,33 @@ fn relation_label_from_jai_inner_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_connected_jai_inner_selbri(
     selbri: &jbotci_syntax::generated_model::ConnectedJaiInnerSelbriSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let mut label = relation_label_from_tanru_jai_inner_selbri(&selbri.leading_selbri)?;
     for continuation in &selbri.continuations {
-        label = format!(
+        label = RelationLabel::constructed(format!(
             "{} {} {}",
             label,
             relation_afterthought_connective_label(&continuation.connective)?,
             relation_label_from_tanru_jai_inner_selbri(&continuation.trailing_selbri)?
-        );
+        ));
     }
     Ok(label)
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_tanru_jai_inner_selbri(
     selbri: &jbotci_syntax::generated_model::TanruJaiInnerSelbriSyntax,
-) -> Result<String, SemanticsError> {
-    let mut labels = vec![relation_label_from_jai_inner_tanru_unit(
-        &selbri.first_unit,
-    )?];
+) -> Result<RelationLabel, SemanticsError> {
+    let mut labels =
+        vec![relation_label_from_jai_inner_tanru_unit(&selbri.first_unit)?.display_text()];
     for unit in &selbri.additional_units {
-        labels.push(relation_label_from_jai_inner_tanru_unit(unit)?);
+        labels.push(relation_label_from_jai_inner_tanru_unit(unit)?.display_text());
     }
-    Ok(labels.join("-"))
+    Ok(RelationLabel::constructed(labels.join("-")))
 }
 
 #[requires(true)]
@@ -31919,10 +31952,10 @@ fn scalar_negated_tanru_unit_inner_grouped(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match unit.inner_unit.as_ref() {
         ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
             relation_label_from_tanru_unit_atom_base(atom.base.as_ref())
@@ -31937,11 +31970,11 @@ fn relation_label_from_scalar_negated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_grouped_tanru_unit(
     grouped: &GroupedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    relation_phrase_label_from_connected_selbri(&grouped.selbri)
+) -> Result<RelationLabel, SemanticsError> {
+    relation_label_from_connected_selbri(&grouped.selbri)
 }
 
 #[requires(true)]
@@ -31977,6 +32010,17 @@ fn relation_phrase_label_from_selbri(selbri: &SelbriSyntax) -> Result<String, Se
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_connected_selbri(
+    selbri: &ConnectedSelbriSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    if selbri.continuations.is_empty() {
+        return relation_label_from_tanru_selbri(&selbri.leading_selbri);
+    }
+    relation_phrase_label_from_connected_selbri(selbri).map(RelationLabel::constructed)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 fn relation_phrase_label_from_connected_selbri(
     selbri: &ConnectedSelbriSyntax,
@@ -31993,15 +32037,26 @@ fn relation_phrase_label_from_connected_selbri(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_tanru_selbri(
+    tanru: &TanruSelbriSyntax,
+) -> Result<RelationLabel, SemanticsError> {
+    if tanru.additional_units.is_empty() {
+        return relation_label_from_generated_tanru_unit(&tanru.first_unit);
+    }
+    relation_phrase_label_from_tanru_selbri(tanru).map(RelationLabel::constructed)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 fn relation_phrase_label_from_tanru_selbri(
     tanru: &TanruSelbriSyntax,
 ) -> Result<String, SemanticsError> {
-    let mut label = relation_label_from_generated_tanru_unit(&tanru.first_unit)?;
+    let mut label = relation_label_from_generated_tanru_unit(&tanru.first_unit)?.display_text();
     for unit in &tanru.additional_units {
         label = format!(
             "{label} {}",
-            relation_label_from_generated_tanru_unit(unit)?
+            relation_label_from_generated_tanru_unit(unit)?.display_text()
         );
     }
     Ok(label)
@@ -32098,41 +32153,46 @@ fn relation_afterthought_connective_label(
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn relation_label_from_pro_bridi_tanru_unit(unit: &ProBridiTanruUnitSyntax) -> String {
-    token_text(&unit.goha.value)
+#[ensures(ret.is_displayable())]
+fn relation_label_from_pro_bridi_tanru_unit(unit: &ProBridiTanruUnitSyntax) -> RelationLabel {
+    RelationLabel::pro_bridi(token_text(&unit.goha.value))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_ordinal_tanru_unit(
     ordinal: &OrdinalTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     ordinal.visit_in_order(&mut visitor);
-    if visitor.tokens.is_empty() {
+    if visitor.tokens.len() < 2 {
         return Err(unsupported("empty ordinal tanru unit"));
     }
-    Ok(token_list_text(visitor.tokens.iter()))
+    let moi = token_text(
+        visitor
+            .tokens
+            .last()
+            .expect("checked above that ordinal has tokens"),
+    );
+    let expression = token_list_text(visitor.tokens[..visitor.tokens.len() - 1].iter());
+    Ok(RelationLabel::mekso_moi(expression, moi))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_operator_selbri_tanru_unit(
     unit: &OperatorSelbriTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    Ok(format!(
-        "{} {}",
-        token_text(&unit.nuha.value),
-        generated_mekso_operator_label(&unit.mekso_operator)?
+) -> Result<RelationLabel, SemanticsError> {
+    Ok(RelationLabel::nuha_operator(
+        generated_mekso_operator_label(&unit.mekso_operator)?,
     ))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_zantufa_me_tanru_unit(
     unit: &ZantufaMeTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let mut parts = vec![token_text(&unit.me.value)];
     match unit.body.as_ref() {
         ZantufaMeSelbriBodySyntax::ZantufaMeOperatorSelbriBody(body) => {
@@ -32147,18 +32207,17 @@ fn relation_label_from_zantufa_me_tanru_unit(
             parts.push(generated_node_surface_text(body.0.as_ref())?);
         }
     }
-    Ok(parts.join(" "))
+    Ok(RelationLabel::constructed(parts.join(" ")))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_zantufa_mex_moi_tanru_unit(
     unit: &ZantufaMexMoiTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    Ok(format!(
-        "{} {}",
+) -> Result<RelationLabel, SemanticsError> {
+    Ok(RelationLabel::mekso_moi(
         generated_mekso_surface_text(&unit.expression)?,
-        token_text(&unit.moi.value)
+        token_text(&unit.moi.value),
     ))
 }
 
@@ -32247,11 +32306,11 @@ fn generated_simple_mekso_operator_label(
             generated_mekso_operator_label(&operator.right_operator)?
         )),
         SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
-            relation_label_from_selbri(&operator.selbri)
+            relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
         SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
         SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
-            relation_label_from_selbri(&operator.selbri)
+            relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
         SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => {
             Ok("sumti-operator".to_owned())
@@ -32394,13 +32453,13 @@ fn generated_simple_mekso_operator_surface_label(
             generated_mekso_operator_surface_label(&operator.right_operator)?
         )),
         SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
-            relation_label_from_selbri(&operator.selbri)
+            relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
         SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
         SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => Ok(format!(
             "{} {}",
             token_text(&operator.maho.value),
-            relation_label_from_selbri(&operator.selbri)?
+            relation_label_from_selbri(&operator.selbri)?.display_text()
         )),
         SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
             let mut visitor = GeneratedSpanCollector::default();
@@ -33841,12 +33900,12 @@ fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => Ok(format!(
             "{} {}",
             token_text(&operand.nihe.value),
-            relation_label_from_selbri(&operand.selbri)?
+            relation_label_from_selbri(&operand.selbri)?.display_text()
         )),
         SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => Ok(format!(
             "{} {}",
             token_text(&operand.mohe.value),
-            relation_label_from_selbri(&operand.selbri)?
+            relation_label_from_selbri(&operand.selbri)?.display_text()
         )),
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
             .expressions
@@ -34046,7 +34105,7 @@ fn generated_selbri_base_letter(selbri: &SelbriSyntax) -> Option<String> {
     let label = generated_pro_bridi_target_relation_label(selbri)
         .ok()
         .flatten()?;
-    generated_text_base_letter(&label)
+    generated_text_base_letter(&label.display_text())
 }
 
 #[requires(true)]
@@ -35777,28 +35836,38 @@ fn generated_pro_sumti_positive_xi_offset(pro_sumti: &ProSumtiSyntax) -> Option<
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn abstraction_relation_label_from_generated(
     abstraction: &AbstractionTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let abstractor = token_text(&abstraction.nu.value);
     let relation = relation_label_from_subbridi(&abstraction.subbridi)?;
-    Ok(format!("{abstractor} {relation}"))
+    Ok(RelationLabel::abstraction(
+        abstraction_kind_for_nu(abstraction),
+        abstractor,
+        relation,
+    ))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn abstraction_relation_label_from_zantufa_statement(
     abstraction: &ZantufaStatementAbstractionTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let abstractor = token_text(&abstraction.nu.value);
     let relation = relation_label_from_statement(&abstraction.statement)?;
-    Ok(format!("{abstractor} {relation}"))
+    Ok(RelationLabel::abstraction(
+        abstraction_kind_for_cmavo(abstraction.nu.value.cmavo()),
+        abstractor,
+        relation,
+    ))
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-fn relation_label_from_statement(statement: &StatementSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_statement(
+    statement: &StatementSyntax,
+) -> Result<RelationLabel, SemanticsError> {
     match statement {
         StatementSyntax::StatementBase(statement) => relation_label_from_statement_base(statement),
         StatementSyntax::IStatementConnection(_) => {
@@ -35811,10 +35880,10 @@ fn relation_label_from_statement(statement: &StatementSyntax) -> Result<String, 
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_statement_base(
     statement: &StatementBaseSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match statement {
         StatementBaseSyntax::BridiStatement(statement) => {
             if !statement.continuations.is_empty() {
@@ -35833,8 +35902,10 @@ fn relation_label_from_statement_base(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-fn relation_label_from_subbridi(subbridi: &SubbridiSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_subbridi(
+    subbridi: &SubbridiSyntax,
+) -> Result<RelationLabel, SemanticsError> {
     let SubbridiSyntax::BridiSubbridi(BridiSubbridiSyntax(bridi)) = subbridi else {
         return Err(unsupported("prenex subbridi relation label"));
     };
@@ -35842,8 +35913,8 @@ fn relation_label_from_subbridi(subbridi: &SubbridiSyntax) -> Result<String, Sem
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-fn relation_label_from_bridi(bridi: &BridiSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+fn relation_label_from_bridi(bridi: &BridiSyntax) -> Result<RelationLabel, SemanticsError> {
     let tail = match bridi {
         BridiSyntax::RelationOnlyBridi(RelationOnlyBridiSyntax(tail)) => tail,
         BridiSyntax::BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { bridi_tail, .. }) => {
@@ -36168,16 +36239,16 @@ fn assigned_pro_bridi_reference_label_for_token(token: &Token) -> Option<String>
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn relation_label_from_tanru_unit(unit: &TanruUnitSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
+fn relation_label_from_tanru_unit(unit: &TanruUnitSyntax) -> Result<RelationLabel, SemanticsError> {
     relation_label_from_generated_tanru_unit(unit)
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_bo_or_linked_tanru_unit(
     unit: &BoOrLinkedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match unit {
         BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
             relation_label_from_linked_tanru_unit(unit)
@@ -36196,50 +36267,53 @@ fn relation_label_from_bo_or_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_linked_tanru_unit(
     unit: &LinkedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     relation_label_from_tanru_unit_atom(&unit.base)
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_bound_tanru_unit(
     unit: &BoundTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let leading = relation_label_from_linked_tanru_unit(&unit.leading_unit)?;
     let trailing = relation_label_from_bo_or_linked_tanru_unit(&unit.trailing_unit)?;
     if let Some(connective) = &unit.bo_connective {
-        Ok(format!(
+        Ok(RelationLabel::constructed(format!(
             "{} {} {}",
             leading,
             relation_afterthought_connective_label(connective)?,
             trailing
-        ))
+        )))
     } else {
-        Ok(format!("{leading} bo {trailing}"))
+        Ok(RelationLabel::constructed(format!(
+            "{leading} bo {trailing}"
+        )))
     }
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
 fn relation_label_from_forethought_selbri_group_tanru_unit(
     unit: &ForethoughtSelbriGroupTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     let mut parts = vec![
         generated_guhek_connective_source(&unit.guhek),
         relation_phrase_label_from_selbri(unit.leading_selbri.as_ref())?,
         token_text(&unit.first_branch.gik.gi.value),
-        relation_label_from_bo_or_linked_tanru_unit(unit.first_branch.unit.as_ref())?,
+        relation_label_from_bo_or_linked_tanru_unit(unit.first_branch.unit.as_ref())?
+            .display_text(),
     ];
     for branch in &unit.additional_branches {
         parts.push(token_text(&branch.gik.0.value));
-        parts.push(relation_label_from_bo_or_linked_tanru_unit(
-            branch.unit.as_ref(),
-        )?);
+        parts.push(
+            relation_label_from_bo_or_linked_tanru_unit(branch.unit.as_ref())?.display_text(),
+        );
     }
-    Ok(parts.join(" "))
+    Ok(RelationLabel::constructed(parts.join(" ")))
 }
 
 #[requires(true)]
@@ -36256,6 +36330,7 @@ fn tanru_unit_label_from_bo_or_linked_tanru_unit(
         }
         BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
             relation_label_from_forethought_selbri_group_tanru_unit(unit)
+                .map(|label| label.display_text())
         }
         BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
             let base = linked_tanru_unit_from_cei(unit.base.as_ref());
@@ -36344,7 +36419,7 @@ fn tanru_unit_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
             tanru_label_from_connected_selbri(&grouped.selbri)
         }
-        _ => relation_label_from_tanru_unit_atom(unit),
+        _ => relation_label_from_tanru_unit_atom(unit).map(|label| label.display_text()),
     }
 }
 
@@ -36358,7 +36433,7 @@ fn tanru_unit_label_from_scalar_negated_tanru_unit(
             tanru_unit_label_from_tanru_unit_atom(atom)
         }
         ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
-            Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
+            Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi).display_text())
         }
         ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => {
             Err(unsupported("tagged scalar-negated tanru unit"))
@@ -36367,17 +36442,17 @@ fn tanru_unit_label_from_scalar_negated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_tanru_unit_atom(
     unit: &TanruUnitAtomSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<RelationLabel, SemanticsError> {
     match unit.base.as_ref() {
         TanruUnitAtomBaseSyntax::OrdinalTanruUnit(ordinal) => {
             relation_label_from_ordinal_tanru_unit(ordinal)
         }
         TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word))
         | TanruUnitAtomBaseSyntax::GohaWordTanruUnit(GohaWordTanruUnitSyntax(word)) => {
-            Ok(token_text(&word.value))
+            Ok(relation_label_from_token(&word.value))
         }
         TanruUnitAtomBaseSyntax::ProBridiTanruUnit(pro_bridi) => {
             Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
@@ -36400,7 +36475,9 @@ fn relation_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(unit) => {
             relation_label_from_zantufa_mex_moi_tanru_unit(unit)
         }
-        TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => Ok("referentOf".to_owned()),
+        TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(_) => {
+            Ok(RelationLabel::constructed("referentOf".to_owned()))
+        }
         TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(operator) => {
             relation_label_from_operator_selbri_tanru_unit(operator)
         }
@@ -40754,26 +40831,131 @@ fn modal_relation_for_marker(marker: &str) -> String {
     }
 }
 
-#[requires(!relation.is_empty())]
-#[ensures(true)]
-fn relation_place_count(dictionary: &Dictionary<'_>, relation: &str) -> Option<usize> {
-    if relation_has_open_place_structure(relation) {
-        return None;
-    }
-    if let Some(place_count) = constructed_relation_place_count(relation) {
-        return Some(place_count);
-    }
-    dictionary_relation_place_count(dictionary, relation)
+#[contract_trait]
+trait RelationDispatch {
+    #[requires(true)]
+    #[ensures(true)]
+    fn relation_place_count(&self, dictionary: &Dictionary<'_>) -> Option<usize>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn has_open_place_structure(&self) -> bool;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn asserted_predication_mode(&self) -> PredicationMode;
 }
 
-#[requires(!relation.is_empty())]
+#[contract_trait]
+impl RelationDispatch for RelationLabel {
+    #[requires(self.is_displayable())]
+    #[ensures(true)]
+    fn relation_place_count(&self, dictionary: &Dictionary<'_>) -> Option<usize> {
+        if self.has_open_place_structure() {
+            return None;
+        }
+        if let Some(place_count) = constructed_relation_place_count(self) {
+            return Some(place_count);
+        }
+        match self.as_data() {
+            data!(RelationLabel::Brivla { word }) => {
+                dictionary_relation_place_count(dictionary, word)
+            }
+            _ => None,
+        }
+    }
+
+    #[requires(self.is_displayable())]
+    #[ensures(true)]
+    fn has_open_place_structure(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(RelationLabel::Identity)
+                | data!(RelationLabel::Du)
+                | data!(RelationLabel::NuhaOperator { .. })
+        )
+    }
+
+    #[requires(self.is_displayable())]
+    #[ensures(true)]
+    fn asserted_predication_mode(&self) -> PredicationMode {
+        if matches!(
+            self.as_data(),
+            data!(RelationLabel::Identity) | data!(RelationLabel::Du)
+        ) {
+            PredicationMode::Definitional
+        } else {
+            PredicationMode::Asserted
+        }
+    }
+}
+
+#[contract_trait]
+impl RelationDispatch for str {
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn relation_place_count(&self, dictionary: &Dictionary<'_>) -> Option<usize> {
+        if self.has_open_place_structure() {
+            return None;
+        }
+        constructed_relation_text_place_count(self)
+            .or_else(|| dictionary_relation_place_count(dictionary, self))
+    }
+
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn has_open_place_structure(&self) -> bool {
+        self == "identity"
+    }
+
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn asserted_predication_mode(&self) -> PredicationMode {
+        if self == "identity" {
+            PredicationMode::Definitional
+        } else {
+            PredicationMode::Asserted
+        }
+    }
+}
+
+#[contract_trait]
+impl RelationDispatch for String {
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn relation_place_count(&self, dictionary: &Dictionary<'_>) -> Option<usize> {
+        self.as_str().relation_place_count(dictionary)
+    }
+
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn has_open_place_structure(&self) -> bool {
+        self.as_str().has_open_place_structure()
+    }
+
+    #[requires(!self.is_empty())]
+    #[ensures(true)]
+    fn asserted_predication_mode(&self) -> PredicationMode {
+        self.as_str().asserted_predication_mode()
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn relation_place_count<R: RelationDispatch + ?Sized>(
+    dictionary: &Dictionary<'_>,
+    relation: &R,
+) -> Option<usize> {
+    relation.relation_place_count(dictionary)
+}
+
+#[requires(relation.is_displayable())]
 #[ensures(ret.is_some() -> *ret.as_ref().unwrap() > 0)]
-fn constructed_relation_place_count(relation: &str) -> Option<usize> {
-    if relation == "referentOf" {
-        Some(2)
-    } else if matches!(
-        relation,
-        "eventOf"
+fn constructed_relation_place_count(relation: &RelationLabel) -> Option<usize> {
+    match relation.as_data() {
+        data!(RelationLabel::Constructed { text }) => match text.as_str() {
+            "referentOf" => Some(2),
+            "eventOf"
             | "propertyOf"
             | "amountOf"
             | "truthValueOf"
@@ -40782,41 +40964,64 @@ fn constructed_relation_place_count(relation: &str) -> Option<usize> {
             | "involves"
             | "memberOf"
             | "specificallyAssociatedWith"
-            | "intrinsicallyPossessedBy"
-    ) {
-        Some(2)
-    } else if matches!(relation, "conceptOf" | "experienceOf" | "abstractionOf") {
-        Some(3)
-    } else if relation == "describedAs" {
-        Some(3)
-    } else if relation.starts_with("nu ") {
-        Some(1)
-    } else if relation.ends_with(" moi") || relation.ends_with(" mei") {
-        Some(3)
-    } else {
-        None
+            | "intrinsicallyPossessedBy" => Some(2),
+            "conceptOf" | "experienceOf" | "abstractionOf" | "describedAs" => Some(3),
+            _ => None,
+        },
+        data!(RelationLabel::Abstraction { kind, .. }) if *kind == AbstractionKind::Event => {
+            Some(1)
+        }
+        data!(RelationLabel::MeksoMoi { .. }) => Some(3),
+        data!(RelationLabel::Brivla { .. })
+        | data!(RelationLabel::Identity)
+        | data!(RelationLabel::Du)
+        | data!(RelationLabel::ProBridi { .. })
+        | data!(RelationLabel::Abstraction { .. })
+        | data!(RelationLabel::NuhaOperator { .. })
+        | data!(RelationLabel::ZeiCompound { .. }) => None,
     }
 }
 
 #[requires(!relation.is_empty())]
-#[ensures(true)]
-fn relation_has_open_place_structure(relation: &str) -> bool {
-    relation == "identity" || relation.starts_with("nu'a ")
-}
-
-#[requires(!relation.is_empty())]
-#[ensures(true)]
-fn asserted_predication_mode_for_relation(relation: &str) -> PredicationMode {
-    if relation == "identity" {
-        PredicationMode::Definitional
-    } else {
-        PredicationMode::Asserted
+#[ensures(ret.is_some() -> *ret.as_ref().unwrap() > 0)]
+fn constructed_relation_text_place_count(relation: &str) -> Option<usize> {
+    match relation {
+        "referentOf" => Some(2),
+        "eventOf"
+        | "propertyOf"
+        | "amountOf"
+        | "truthValueOf"
+        | "propositionOf"
+        | "associatedWith"
+        | "involves"
+        | "memberOf"
+        | "specificallyAssociatedWith"
+        | "intrinsicallyPossessedBy" => Some(2),
+        "conceptOf" | "experienceOf" | "abstractionOf" | "describedAs" => Some(3),
+        _ => None,
     }
 }
 
-#[requires(!relation.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn predication_mode_for_relation(relation: &str, mode: PredicationMode) -> PredicationMode {
+fn relation_has_open_place_structure<R: RelationDispatch + ?Sized>(relation: &R) -> bool {
+    relation.has_open_place_structure()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn asserted_predication_mode_for_relation<R: RelationDispatch + ?Sized>(
+    relation: &R,
+) -> PredicationMode {
+    relation.asserted_predication_mode()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn predication_mode_for_relation<R: RelationDispatch + ?Sized>(
+    relation: &R,
+    mode: PredicationMode,
+) -> PredicationMode {
     if mode == PredicationMode::Asserted {
         asserted_predication_mode_for_relation(relation)
     } else {
@@ -43688,8 +43893,10 @@ fn non_empty_token_list_text<'a>(tokens: impl Iterator<Item = &'a Token>) -> Opt
 fn generated_selbri_surface_text(selbri: &SelbriSyntax) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     selbri.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter())
-        .map_or_else(|| relation_label_from_selbri(selbri), Ok)
+    non_empty_token_list_text(visitor.tokens.iter()).map_or_else(
+        || relation_label_from_selbri(selbri).map(|label| label.display_text()),
+        Ok,
+    )
 }
 
 #[requires(true)]
@@ -43915,11 +44122,33 @@ fn invalid_graph(message: String) -> SemanticsError {
     }
 }
 
-#[requires(!relation.is_empty())]
-#[ensures(!ret.is_empty())]
-fn semantic_relation_label(relation: String) -> String {
-    if relation == "du" {
-        "identity".to_owned()
+#[requires(true)]
+#[ensures(ret.is_displayable())]
+fn relation_label_from_token(token: &Token) -> RelationLabel {
+    let text = token_text(token);
+    match token.core_word().as_data() {
+        data!(WordLike::ZeiCompound { .. }) => RelationLabel::zei_compound(text),
+        data!(WordLike::PlainWord(word)) => match word.cmavo() {
+            Some(Cmavo::Du) => RelationLabel::du(),
+            Some(cmavo) if generated_relation_is_pro_bridi_label(cmavo.canonical_text()) => {
+                RelationLabel::pro_bridi(text)
+            }
+            _ => match word.kind() {
+                jbotci_morphology::WordKind::Gismu
+                | jbotci_morphology::WordKind::Lujvo
+                | jbotci_morphology::WordKind::Fuhivla => RelationLabel::brivla(text),
+                _ => RelationLabel::constructed(text),
+            },
+        },
+        _ => RelationLabel::constructed(text),
+    }
+}
+
+#[requires(relation.is_displayable())]
+#[ensures(ret.is_displayable())]
+fn semantic_relation_label(relation: RelationLabel) -> RelationLabel {
+    if matches!(relation.as_data(), data!(RelationLabel::Du)) {
+        RelationLabel::identity()
     } else {
         relation
     }
@@ -43983,6 +44212,59 @@ mod tests {
         assert_eq!(
             non_empty_token_list_text(std::iter::empty::<&Token>()),
             None
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nu_initial_zei_compound_relation_keeps_unknown_place_structure() {
+        const SOURCE: &str = "lo nu zei broda cu brode";
+        const UNKNOWN_PLACE_STRUCTURE_WARNING: &str = "relation place structure is unavailable; only places required by explicit assignments are represented";
+
+        let words = jbotci_morphology::segment_words_with_modifiers_with_options(
+            SOURCE,
+            &jbotci_morphology::MorphologyOptions::default(),
+        )
+        .expect("source should segment");
+        let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            SOURCE,
+            &jbotci_syntax::ParseOptions::default(),
+        )
+        .expect("source should parse");
+        let graph = build_generated_semantic_graph_with_dictionary(
+            &syntax,
+            Some(SOURCE),
+            jbotci_dictionary_data::english(),
+        )
+        .expect("source should build semantics");
+
+        let compound_predication = graph
+            .objects
+            .values()
+            .find(|object| {
+                matches!(
+                    object.object_type,
+                    crate::model::SemanticObjectKind::Predication
+                ) && object.relation.as_deref().is_some_and(|relation| {
+                    relation.starts_with("cmavo:nu-") && relation.contains("-gismu:")
+                })
+            })
+            .expect("nu-initial ZEI compound relation should be present");
+
+        let argument_places = compound_predication
+            .arguments
+            .keys()
+            .map(|place| place.get())
+            .collect::<Vec<_>>();
+        assert_eq!(argument_places, vec![1]);
+        assert!(
+            compound_predication
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message == UNKNOWN_PLACE_STRUCTURE_WARNING),
+            "ZEI compound should not inherit the one-place nu abstraction structure",
         );
     }
 }
