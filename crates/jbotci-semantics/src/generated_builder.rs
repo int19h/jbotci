@@ -1711,7 +1711,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Number,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "number".to_owned(),
                     word: "mex".to_owned(),
                     speaker: None,
@@ -1723,7 +1723,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(fragment, "number-fragment"),
                 Vec::new(),
@@ -3186,7 +3186,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ReferentCategory::Constant,
             SemanticSort::Entity,
             None,
-            Some(Descriptor {
+            Some(new!(Descriptor {
                 kind: "name".to_owned(),
                 word: "la".to_owned(),
                 speaker: Some(self.current_speaker()),
@@ -3198,7 +3198,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 scale: None,
                 definiteness: None,
                 operand: None,
-            }),
+            })),
             None,
             self.source_for_node(&sumti.names, "sumti"),
             Vec::new(),
@@ -3240,7 +3240,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "speakerDescription".to_owned(),
                     word: "le".to_owned(),
                     speaker: Some(self.current_speaker()),
@@ -3252,7 +3252,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.exact_source_for_node(sumti, "vocative-description"),
                 Vec::new(),
@@ -4042,13 +4042,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for object in self.objects.values_mut() {
             replace_generated_formula_option(&mut object.content, old_id, new_id);
             replace_generated_formula_vec(&mut object.connection_claims, old_id, new_id);
-            if let Some(descriptor) = &mut object.descriptor {
+            if let Some(descriptor) = object.descriptor.take() {
+                let mut descriptor = descriptor.into_data();
                 replace_generated_formula_option(&mut descriptor.body, old_id, new_id);
                 replace_generated_relative_clause_formula_references(
                     &mut descriptor.relative_clauses,
                     old_id,
                     new_id,
                 );
+                object.descriptor = Some(Descriptor::from_data(descriptor));
             }
             replace_generated_relative_clause_formula_references(
                 &mut object.relative_clauses,
@@ -5033,7 +5035,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     operator
                 },
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: connector_source,
                     locus: connector_locus.to_owned(),
                     truth_table: generated_modal_forethought_connective_truth_table_with_negations(
@@ -5042,7 +5044,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         right_negated,
                     ),
                     parameter,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -5275,12 +5277,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: connector_source,
                     locus: "statement".to_owned(),
                     truth_table: Some(truth_table),
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -6261,7 +6263,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: generated_modal_forethought_pair_source(
                         &termset.gek,
                         &termset.first_branch.gik,
@@ -6273,7 +6275,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     )
                     .or_else(|| modal_connection_spec.map(|_| "TFFF".to_owned())),
                     parameter: connector_parameter,
-                }),
+                })),
                 source.clone(),
                 diagnostics,
             ),
@@ -6426,6 +6428,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 self,
                 &continuation.connective,
             )?;
+        let connector_source =
+            generated_statement_connective_core_source(&continuation.connective)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -6436,17 +6440,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     operator
                 },
                 children,
-                Some(Connector {
-                    source: format!(
-                        "pe'e {}",
-                        generated_statement_connective_core_source(&continuation.connective)?
-                    ),
+                Some(new!(Connector {
+                    source: format!("pe'e {connector_source}"),
                     locus: "termset".to_owned(),
                     truth_table: generated_statement_connective_core_truth_table(
                         &continuation.connective,
                     ),
                     parameter: connector_parameter,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -6528,12 +6529,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![leading_replaced, trailing_replaced],
-                Some(Connector {
+                Some(new!(Connector {
                     source: generated_modal_forethought_connective_source(&termset.gek),
                     locus: "termset".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source.clone(),
                 Vec::new(),
             ),
@@ -6721,7 +6722,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![leading_replaced, trailing_replaced],
-                Some(Connector {
+                Some(new!(Connector {
                     source: if generated_modal_forethought_connective_primary_cmavo(connective)
                         == Some(Cmavo::Fahu)
                     {
@@ -6732,7 +6733,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     locus: "termset".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source.clone(),
                 Vec::new(),
             ),
@@ -7744,12 +7745,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 connection.operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: connection.source.clone(),
                     locus: "modal".to_owned(),
                     truth_table: Some(connection.truth_table.clone()),
                     parameter: None,
-                }),
+                })),
                 connection_formula_source,
                 Vec::new(),
             ),
@@ -8150,7 +8151,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticObject::connective_formula(
                     operator,
                     children,
-                    Some(Connector {
+                    Some(new!(Connector {
                         source: generated_modal_forethought_pair_source(&operand.gek, &operand.gik),
                         locus: "operand".to_owned(),
                         truth_table: generated_modal_forethought_gik_connective_truth_table(
@@ -8158,7 +8159,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                             &operand.gik,
                         ),
                         parameter: None,
-                    }),
+                    })),
                     source,
                     diagnostics,
                 ),
@@ -8898,7 +8899,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: generated_modal_forethought_pair_source(
                         &connection.gek,
                         &connection.first_branch.gik,
@@ -8909,7 +8910,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                         &connection.first_branch.gik,
                     ),
                     parameter: connector_parameter,
-                }),
+                })),
                 None,
                 diagnostics,
             ),
@@ -9485,24 +9486,23 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )),
             }
         }
+        let connector_source =
+            generated_bridi_tail_connective_source_with_tense_modal(connective, tense_modal)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
-                    source: generated_bridi_tail_connective_source_with_tense_modal(
-                        connective,
-                        tense_modal,
-                    )?,
+                Some(new!(Connector {
+                    source: connector_source,
                     locus: "bridiTail".to_owned(),
                     truth_table: connector_parameter
                         .is_none()
                         .then(|| generated_bridi_tail_connective_truth_table(connective))
                         .flatten(),
                     parameter: connector_parameter,
-                }),
+                })),
                 source,
                 diagnostics,
             ),
@@ -10084,12 +10084,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source,
                     locus: "tense".to_owned(),
                     truth_table,
                     parameter: connector_parameter,
-                }),
+                })),
                 formula_source,
                 Vec::new(),
             ),
@@ -10712,12 +10712,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "selbri-inversion".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -10814,12 +10814,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "selbri-inversion".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -11959,6 +11959,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )),
             }
         }
+        let connector_source =
+            generated_distributed_sumti_connective_source(connection.connective)?;
         let formula = self.next_formula_id();
         let connector_parameter = self
             .build_generated_connective_question_parameter_for_distributed_sumti_connective(
@@ -11969,14 +11971,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 generated_distributed_sumti_connective_formula_operator(connection.connective),
                 children,
-                Some(Connector {
-                    source: generated_distributed_sumti_connective_source(connection.connective)?,
+                Some(new!(Connector {
+                    source: connector_source,
                     locus: "sumti".to_owned(),
                     truth_table: generated_distributed_sumti_connective_truth_table(
                         connection.connective,
                     ),
                     parameter: connector_parameter,
-                }),
+                })),
                 source_with_construct(
                     formula_source.or(predication_source),
                     "sumti-connection-formula",
@@ -14160,12 +14162,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![leading, trailing],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "e".to_owned(),
                     locus: "sumti".to_owned(),
                     truth_table: Some("TFFF".to_owned()),
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -15268,12 +15270,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "selbri".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -15811,12 +15813,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: connector_locus.to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -16785,12 +16787,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head_formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "property-inversion".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -16847,12 +16849,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![head_formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "property-inversion".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -17045,12 +17047,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: context.connector_locus().to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -17271,12 +17273,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: context.connector_locus().to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -17735,12 +17737,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "tanru".to_owned(),
                     locus: "property-abstraction".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -19152,12 +19154,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: connector_source,
                     locus: locus.to_owned(),
                     truth_table: generated_relation_afterthought_connective_truth_table(connective),
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -19264,12 +19266,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 operator,
                 children,
-                Some(Connector {
+                Some(new!(Connector {
                     source: connector_source,
                     locus: locus.to_owned(),
                     truth_table,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -19441,7 +19443,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Scale,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "scale".to_owned(),
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
@@ -19453,7 +19455,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: definition,
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -22142,12 +22144,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticObject::connective_formula(
                 FormulaOperator::And,
                 vec![atom_formula, involvement],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "jai".to_owned(),
                     locus: "bare-jai-raised-participant".to_owned(),
                     truth_table: None,
                     parameter: None,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -23243,7 +23245,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Variable,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "proSumti".to_owned(),
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
@@ -23255,7 +23257,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(pro_sumti, "sumti"),
                 Vec::new(),
@@ -24313,27 +24315,30 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let source = self.source_for_node(sumti, "quotation");
         let source_text = source.as_ref().and_then(|source| source.text.clone());
         let quotation = match sumti.0.as_ref() {
-            QuoteSyntax::TextQuote(quote) => Quotation {
-                mode: "parsed".to_owned(),
-                utterance: self.build_generated_quoted_text_group(
+            QuoteSyntax::TextQuote(quote) => {
+                let utterance = self.build_generated_quoted_text_group(
                     &quote.text,
                     &quote.lu.free_modifiers,
                     source.clone(),
-                )?,
-                delimiter: None,
-                text: source_text,
-            },
+                )?;
+                new!(Quotation {
+                    mode: "parsed".to_owned(),
+                    utterance,
+                    delimiter: None,
+                    text: source_text,
+                })
+            }
             _ => {
                 let delimiter = self
                     .tokens_for_node(sumti)
                     .first()
                     .map(quote_delimiter_text);
-                Quotation {
+                new!(Quotation {
                     mode: "opaque".to_owned(),
                     utterance: None,
                     delimiter,
                     text: source_text,
-                }
+                })
             }
         };
         let id = self.next_sign_id();
@@ -24565,7 +24570,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
                     word,
                     speaker: Some(self.current_speaker()),
@@ -24577,7 +24582,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: Some(scale),
                     definiteness: descriptor_definiteness_for_scalar_negated_sumti(cmavo),
                     operand: Some(operand),
-                }),
+                })),
                 None,
                 self.source_for_node(node, "sumti"),
                 Vec::new(),
@@ -24615,7 +24620,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "unloweredSumti".to_owned(),
                     word: "sumti".to_owned(),
                     speaker: None,
@@ -24627,7 +24632,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(node, "sumti"),
                 vec![diagnostic(message)],
@@ -24686,7 +24691,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Number,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "number".to_owned(),
                     word: token_text(&li.value),
                     speaker: None,
@@ -24698,7 +24703,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -26318,7 +26323,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: referent_qualifier_kind(sumti.lahe.value.cmavo()).to_owned(),
                     word: token_text(&sumti.lahe.value),
                     speaker: Some(self.current_speaker()),
@@ -26330,7 +26335,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: Some(operand),
-                }),
+                })),
                 None,
                 self.source_for_node(sumti, "sumti"),
                 Vec::new(),
@@ -26353,7 +26358,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "description".to_owned(),
                     word: String::new(),
                     speaker: None,
@@ -26365,7 +26370,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(description, "description"),
                 Vec::new(),
@@ -26377,12 +26382,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find no-gadri description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.as_mut() else {
+        let Some(descriptor) = object.descriptor.take() else {
             return Err(invalid_graph(format!(
                 "semantic builder no-gadri description referent {id} has no descriptor"
             )));
         };
-        descriptor.body = Some(body);
+        object.descriptor = Some(descriptor.with_data(data! {
+            body: Some(body),
+        }));
         Ok(id)
     }
 
@@ -26769,7 +26776,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Variable,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "proSumti".to_owned(),
                     word,
                     speaker: None,
@@ -26781,7 +26788,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -26908,7 +26915,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 category,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "proSumti".to_owned(),
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
@@ -26920,7 +26927,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(pro_sumti, "sumti"),
                 Vec::new(),
@@ -27087,7 +27094,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Variable,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "proSumti".to_owned(),
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
@@ -27099,7 +27106,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 source.clone(),
                 Vec::new(),
@@ -27129,7 +27136,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "typicalPlaceValue".to_owned(),
                     word: token_text(&pro_sumti.0.value),
                     speaker: Some(self.current_speaker()),
@@ -27141,7 +27148,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(pro_sumti, "sumti"),
                 Vec::new(),
@@ -27177,7 +27184,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ReferentCategory::Constant,
             SemanticSort::Sign,
             None,
-            Some(Descriptor {
+            Some(new!(Descriptor {
                 kind: "utteranceReference".to_owned(),
                 word,
                 speaker: Some(self.current_speaker()),
@@ -27189,7 +27196,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 scale: None,
                 definiteness: None,
                 operand: None,
-            }),
+            })),
             None,
             self.source_for_node(pro_sumti, "sumti"),
             diagnostics,
@@ -27237,7 +27244,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: name_description_kind_for_cmavo(name.la.value.cmavo()).to_owned(),
                     word: token_text(&name.la.value),
                     speaker: Some(self.current_speaker()),
@@ -27249,7 +27256,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_name_sumti(name, "sumti"),
                 Vec::new(),
@@ -27381,7 +27388,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind,
                     word,
                     speaker: Some(self.current_speaker()),
@@ -27395,7 +27402,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 description_source.clone(),
                 Vec::new(),
@@ -27487,15 +27494,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.as_mut() else {
+        let Some(descriptor) = object.descriptor.take() else {
             return Err(invalid_graph(format!(
                 "semantic builder description referent {id} has no descriptor"
             )));
         };
-        descriptor.body = body;
-        descriptor.operand = descriptor_operand;
-        descriptor.quantity = quantity;
-        descriptor.relative_clauses = lowered_relative_clauses;
+        object.descriptor = Some(descriptor.with_data(data! {
+            body: body,
+            operand: descriptor_operand,
+            quantity: quantity,
+            relative_clauses: lowered_relative_clauses,
+        }));
         Ok(id)
     }
 
@@ -27529,7 +27538,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 spec.sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind,
                     word,
                     speaker: Some(self.current_speaker()),
@@ -27541,7 +27550,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(description_node, "description"),
                 Vec::new(),
@@ -27571,13 +27580,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find aggregate description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.as_mut() else {
+        let Some(descriptor) = object.descriptor.take() else {
             return Err(invalid_graph(format!(
                 "semantic builder aggregate description referent {id} has no descriptor"
             )));
         };
-        descriptor.body = Some(body);
-        descriptor.relative_clauses = lowered_relative_clauses;
+        object.descriptor = Some(descriptor.with_data(data! {
+            body: Some(body),
+            relative_clauses: lowered_relative_clauses,
+        }));
         Ok(id)
     }
 
@@ -27618,7 +27629,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::Entity,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: description_kind_for_cmavo(Some(spec.member_cmavo)).to_owned(),
                     word: spec.member_word.to_owned(),
                     speaker: Some(self.current_speaker()),
@@ -27630,7 +27641,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 self.source_for_node(description_node, "aggregate-member-description"),
                 Vec::new(),
@@ -27678,15 +27689,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find aggregate member referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.as_mut() else {
+        let Some(descriptor) = object.descriptor.take() else {
             return Err(invalid_graph(format!(
                 "semantic builder aggregate member referent {id} has no descriptor"
             )));
         };
-        descriptor.body = body;
-        descriptor.operand = descriptor_operand;
-        descriptor.quantity = quantity;
-        descriptor.relative_clauses = lowered_relative_clauses;
+        object.descriptor = Some(descriptor.with_data(data! {
+            body: body,
+            operand: descriptor_operand,
+            quantity: quantity,
+            relative_clauses: lowered_relative_clauses,
+        }));
         Ok(id)
     }
 
@@ -27760,7 +27773,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find abstraction description output {id}"
             ))
         })?;
-        object.descriptor = Some(Descriptor {
+        object.descriptor = Some(new!(Descriptor {
             kind,
             word,
             speaker: Some(speaker),
@@ -27774,7 +27787,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             scale: None,
             definiteness: None,
             operand: None,
-        });
+        }));
         object.source = source;
         Ok(id)
     }
@@ -27802,7 +27815,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 output_sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind,
                     word,
                     speaker: Some(self.current_speaker()),
@@ -27816,7 +27829,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -27828,8 +27841,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find connected abstraction description output {id}"
             ))
         })?;
-        if let Some(descriptor) = &mut object.descriptor {
-            descriptor.body = Some(body);
+        if let Some(descriptor) = object.descriptor.take() {
+            object.descriptor = Some(descriptor.with_data(data! {
+                body: Some(body),
+            }));
         }
         Ok(id)
     }
@@ -27967,6 +27982,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             build_generated_connective_question_parameter_for_statement_connective(
                 self, connective,
             )?;
+        let connector_source = generated_statement_connective_core_source(connective)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -27977,12 +27993,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     operator
                 },
                 children,
-                Some(Connector {
-                    source: generated_statement_connective_core_source(connective)?,
+                Some(new!(Connector {
+                    source: connector_source,
                     locus: "abstraction".to_owned(),
                     truth_table: Some(truth_table),
                     parameter: connector_parameter,
-                }),
+                })),
                 source,
                 Vec::new(),
             ),
@@ -28637,7 +28653,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             left_negated: generated_modal_forethought_connective_negates_left(&operand.gek),
             right_negated: generated_gik_connective_negates_right(&operand.gik),
             operator: generated_modal_forethought_connective_formula_operator(&operand.gek),
-            connector: Connector {
+            connector: new!(Connector {
                 source: generated_modal_forethought_connective_source(&operand.gek),
                 locus: locus.to_owned(),
                 truth_table: generated_modal_forethought_gik_connective_truth_table(
@@ -28645,7 +28661,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     &operand.gik,
                 ),
                 parameter: None,
-            },
+            }),
             source,
         }))
     }
@@ -28676,12 +28692,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             left_negated: generated_operand_connective_negates_left(connective),
             right_negated: generated_operand_connective_negates_right(connective),
             operator: generated_operand_connective_formula_operator(connective),
-            connector: Connector {
+            connector: new!(Connector {
                 source: generated_operand_connective_source(connective),
                 locus: locus.to_owned(),
                 truth_table: generated_operand_connective_truth_table(connective),
                 parameter: None,
-            },
+            }),
             source,
         }))
     }
@@ -29080,7 +29096,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 sort,
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "elided".to_owned(),
                     word: label,
                     speaker: None,
@@ -29092,7 +29108,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: None,
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -29117,7 +29133,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ReferentCategory::Constant,
                 SemanticSort::eventuality(),
                 None,
-                Some(Descriptor {
+                Some(new!(Descriptor {
                     kind: "abstractionAbout".to_owned(),
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
@@ -29129,7 +29145,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     scale: None,
                     definiteness: None,
                     operand: Some(operand),
-                }),
+                })),
                 None,
                 source,
                 Vec::new(),
@@ -33415,12 +33431,12 @@ fn connected_generated_standard_mekso_operator(
         left_operator,
         right_operator,
         operator: generated_statement_connective_formula_operator_for_core(&connective),
-        connector: Connector {
+        connector: new!(Connector {
             source,
             locus: "mekso-operator".to_owned(),
             truth_table: generated_statement_connective_core_truth_table(&connective),
             parameter: None,
-        },
+        }),
     })))
 }
 
@@ -33433,12 +33449,12 @@ fn connected_generated_forethought_mekso_operator(
         left_operator: operator.left_operator.as_ref().clone(),
         right_operator: operator.right_operator.as_ref().clone(),
         operator: generated_guhek_connective_formula_operator(&operator.guhek),
-        connector: Connector {
+        connector: new!(Connector {
             source: generated_guhek_gik_connective_source(&operator.guhek, &operator.gik),
             locus: "mekso-operator".to_owned(),
             truth_table: generated_guhek_gik_connective_truth_table(&operator.guhek, &operator.gik),
             parameter: None,
-        },
+        }),
     })))
 }
 
@@ -35413,12 +35429,13 @@ fn generated_distributed_sumti_connector(
     let Some(connective) = connective else {
         return Ok(None);
     };
-    Ok(Some(Connector {
-        source: generated_distributed_sumti_connective_source(connective)?,
+    let source = generated_distributed_sumti_connective_source(connective)?;
+    Ok(Some(new!(Connector {
+        source,
         locus: "sumti".to_owned(),
         truth_table: generated_distributed_sumti_connective_truth_table(connective),
         parameter,
-    }))
+    })))
 }
 
 #[requires(true)]
@@ -42366,14 +42383,15 @@ fn generated_i_statement_nonlogical_connection(
         Some(core) => generated_nonlogical_statement_composition_operator(core)?,
         None => format!("nonlogical:{source}"),
     };
+    let truth_table = generated_statement_connective_truth_table(connective)?;
     Ok(NonlogicalConnection::new(
         operator,
-        Connector {
+        new!(Connector {
             source,
             locus: "statement".to_owned(),
-            truth_table: generated_statement_connective_truth_table(connective)?,
+            truth_table,
             parameter: None,
-        },
+        }),
     ))
 }
 

@@ -4,14 +4,14 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_source::SourceSpan;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 
 pub const SEMANTIC_JSON_VERSION: &str = "lojban-semantics-json-1";
 
-#[invariant(true)]
+#[invariant(*index > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticObjectId {
     prefix: SemanticIdPrefix,
@@ -37,7 +37,7 @@ impl SemanticObjectId {
         )
     }
 
-    #[requires(true)]
+    #[requires(index > 0)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Referent)]
     #[ensures(ret.referent_sort() == Some(SemanticSort::eventuality()))]
     pub fn eventuality(index: usize) -> Self {
@@ -178,7 +178,10 @@ impl SemanticObjectId {
     #[requires(index > 0)]
     #[ensures(ret.prefix == prefix)]
     fn numbered(prefix: SemanticIdPrefix, index: usize) -> Self {
-        Self { prefix, index }
+        new!(SemanticObjectId {
+            prefix: prefix,
+            index: index,
+        })
     }
 
     #[requires(true)]
@@ -298,7 +301,14 @@ impl SemanticObjectKind {
     }
 }
 
-#[invariant(true)]
+#[invariant(*version == SEMANTIC_JSON_VERSION)]
+#[invariant(objects.contains_key(root))]
+#[expensive_invariant(semantic_object_ids_match_types(objects))]
+#[expensive_invariant(semantic_object_references_are_defined(objects))]
+#[expensive_invariant(semantic_object_references_match_roles(objects))]
+#[expensive_invariant(semantic_object_arguments_are_valid(objects))]
+#[expensive_invariant(semantic_object_compositions_are_valid(objects))]
+#[expensive_invariant(semantic_object_question_slots_are_valid(objects))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticGraph {
@@ -308,42 +318,89 @@ pub struct SemanticGraph {
     pub objects: BTreeMap<SemanticObjectId, SemanticObject>,
 }
 
+#[invariant(::ObjectIdTypeMismatch(message) => !message.is_empty())]
+#[invariant(::UndefinedReference { source, missing } => source != missing)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SemanticGraphError {
+    ObjectIdTypeMismatch(String),
+    UndefinedReference {
+        source: SemanticObjectId,
+        missing: SemanticObjectId,
+    },
+    ReferenceRoleMismatch,
+    InvalidArguments,
+    InvalidCompositions,
+    InvalidQuestionSlots,
+}
+
+impl fmt::Display for SemanticGraphError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(SemanticGraphError::ObjectIdTypeMismatch(message)) => {
+                write!(
+                    formatter,
+                    "semantic object ID prefixes must match object types: {message}"
+                )
+            }
+            data!(SemanticGraphError::UndefinedReference { source, missing }) => {
+                write!(
+                    formatter,
+                    "semantic object references must not dangle: {source} references missing {missing}"
+                )
+            }
+            data!(SemanticGraphError::ReferenceRoleMismatch) => {
+                formatter.write_str("semantic object references must match semantic roles")
+            }
+            data!(SemanticGraphError::InvalidArguments) => formatter.write_str(
+                "semantic arguments must use valid numbered places and argument fillers",
+            ),
+            data!(SemanticGraphError::InvalidCompositions) => {
+                formatter.write_str("semantic compositions must use coherent parameters")
+            }
+            data!(SemanticGraphError::InvalidQuestionSlots) => {
+                formatter.write_str("semantic question slots must use coherent parameters")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SemanticGraphError {}
+
 impl SemanticGraph {
     #[requires(objects.contains_key(&root))]
     #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
     pub fn new(
         root: SemanticObjectId,
         objects: BTreeMap<SemanticObjectId, SemanticObject>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, SemanticGraphError> {
         if let Some(mismatch) = first_semantic_object_id_type_mismatch(&objects) {
-            return Err(format!(
-                "semantic object ID prefixes must match object types: {mismatch}"
-            ));
+            return Err(new!(SemanticGraphError::ObjectIdTypeMismatch(mismatch)));
         }
         if let Some((source, missing)) = first_undefined_semantic_reference(&objects) {
-            return Err(format!(
-                "semantic object references must not dangle: {source} references missing {missing}"
-            ));
+            return Err(new!(SemanticGraphError::UndefinedReference {
+                source,
+                missing,
+            }));
         }
         if !semantic_object_references_match_roles(&objects) {
-            return Err("semantic object references must match semantic roles".to_owned());
+            return Err(new!(SemanticGraphError::ReferenceRoleMismatch));
         }
         if !semantic_object_arguments_are_valid(&objects) {
-            return Err(
-                "semantic arguments must use valid numbered places and argument fillers".to_owned(),
-            );
+            return Err(new!(SemanticGraphError::InvalidArguments));
         }
         if !semantic_object_compositions_are_valid(&objects) {
-            return Err("semantic compositions must use coherent parameters".to_owned());
+            return Err(new!(SemanticGraphError::InvalidCompositions));
         }
         if !semantic_object_question_slots_are_valid(&objects) {
-            return Err("semantic question slots must use coherent parameters".to_owned());
+            return Err(new!(SemanticGraphError::InvalidQuestionSlots));
         }
-        Ok(Self {
+        Ok(new!(SemanticGraph {
             version: SEMANTIC_JSON_VERSION,
-            root,
-            objects,
-        })
+            root: root,
+            objects: objects,
+        }))
     }
 
     #[requires(true)]
@@ -1432,8 +1489,10 @@ impl SemanticObject {
     #[requires(quantity.object_kind() == SemanticObjectKind::Quantity)]
     #[ensures(true)]
     pub fn set_descriptor_quantity(&mut self, quantity: SemanticObjectId) {
-        if let Some(descriptor) = &mut self.descriptor {
-            descriptor.quantity = Some(quantity);
+        if let Some(descriptor) = self.descriptor.take() {
+            self.descriptor = Some(descriptor.with_data(data! {
+                quantity: Some(quantity),
+            }));
         }
     }
 
@@ -2384,7 +2443,7 @@ pub enum IndexicalKind {
     DistalDemonstrative,
 }
 
-#[invariant(true)]
+#[invariant(!kind.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Descriptor {
@@ -3219,7 +3278,8 @@ impl QuantifierBinding {
     }
 }
 
-#[invariant(true)]
+#[invariant(!source.is_empty())]
+#[invariant(!locus.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Connector {
@@ -3406,7 +3466,7 @@ pub enum LetteralUnitKind {
     Compound,
 }
 
-#[invariant(true)]
+#[invariant(!mode.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Quotation {
@@ -4608,6 +4668,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn semantic_object_id_rejects_zero_index_data() {
+        let invalid = SemanticObjectId::try_from_data(data!(SemanticObjectId {
+            prefix: SemanticIdPrefix::Structural(SemanticObjectKind::Formula),
+            index: 0,
+        }));
+
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn semantic_graph_rejects_dangling_object_references() {
         let root = SemanticObjectId::formula(1);
         let mut objects = BTreeMap::new();
@@ -4617,7 +4689,7 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
-        assert!(error.contains("must not dangle"));
+        assert!(error.to_string().contains("must not dangle"));
     }
 
     #[test]
@@ -4647,7 +4719,7 @@ mod tests {
         objects.insert(predication, object);
 
         let error = SemanticGraph::new(root, objects).expect_err("dangling scale reference");
-        assert!(error.contains("must not dangle"));
+        assert!(error.to_string().contains("must not dangle"));
     }
 
     #[test]
@@ -4681,7 +4753,7 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("wrong reference kind");
-        assert!(error.contains("match semantic roles"));
+        assert!(error.to_string().contains("match semantic roles"));
     }
 
     #[test]
@@ -4698,7 +4770,7 @@ mod tests {
         objects.insert(root, display);
 
         let error = SemanticGraph::new(root, objects).expect_err("malformed displayed content");
-        assert!(error.contains("match semantic roles"));
+        assert!(error.to_string().contains("match semantic roles"));
     }
 
     #[test]
@@ -4741,7 +4813,7 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("malformed argument place");
-        assert!(error.contains("valid numbered places"));
+        assert!(error.to_string().contains("valid numbered places"));
     }
 
     #[test]
@@ -4766,7 +4838,7 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("wrong parameter sort");
-        assert!(error.contains("coherent parameters"));
+        assert!(error.to_string().contains("coherent parameters"));
     }
 
     #[test]
@@ -4784,12 +4856,12 @@ mod tests {
             SemanticObject::connective_formula(
                 FormulaOperator::ConnectiveQuestion,
                 vec![child],
-                Some(Connector {
+                Some(new!(Connector {
                     source: "je'i".to_owned(),
                     locus: "tense".to_owned(),
                     truth_table: Some("je".to_owned()),
                     parameter: Some(parameter),
-                }),
+                })),
                 None,
                 Vec::new(),
             ),
@@ -4820,7 +4892,7 @@ mod tests {
         );
 
         let error = SemanticGraph::new(root, objects).expect_err("impossible connector");
-        assert!(error.contains("coherent parameters"));
+        assert!(error.to_string().contains("coherent parameters"));
     }
 
     #[test]

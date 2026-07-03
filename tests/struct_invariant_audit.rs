@@ -900,16 +900,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "actuality is a single closed enum field",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:Connector",
-        "connector DTOs are reserved semantic output fields not externally constructed yet",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:DeicticGround",
         "deictic ground is assembled by the utterance constructor from fixed special referents",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:Descriptor",
-        "descriptor DTOs are assembled by typed referent builder helpers before graph validation",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:IntervalEndpointInclusion",
@@ -924,10 +916,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "question slots are produced only when builder-created parameters appear in the body formula",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:Quotation",
-        "quotation DTOs are reserved semantic output fields not externally constructed yet",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:RelationExpansion",
         "relation expansion DTOs are reserved metadata fields not externally constructed yet",
     ),
@@ -936,16 +924,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic diagnostics are produced by constructors with nonempty messages",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:SemanticGraph",
-        "semantic graph validity is enforced by SemanticGraph::new with ID-type and dangling-reference checks",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:SemanticObject",
         "semantic objects are assembled through typed constructors and sealed by SemanticGraph::new",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticObjectId",
-        "semantic object IDs have private fields and are constructed through typed ID constructors",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:SemanticSource",
@@ -1056,10 +1036,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw syntax node ids are opaque SyntaxIndex keys whose bounds are checked by node lookup",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
-        "reference edge source and target validity is checked by DiscourseReferences and SyntaxIndex lookup",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
         "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
     ),
@@ -1070,10 +1046,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:SelbriNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrame",
-        "place frame referential validity is checked through PlaceAnalysis and SyntaxIndex lookup APIs",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrameId",
@@ -1092,20 +1064,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignment",
-        "assignment referential validity is cross-checked through PlaceAnalysis frame and argument indexes",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignmentId",
         "assignment ids are opaque PlaceAnalysis keys whose bounds are checked by assignment lookup",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SyntaxNodeMetadata",
-        "syntax node metadata is derived from generated traversal order and morphology leaf spans",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SyntaxSpanKey",
-        "span keys are compatibility/debug projections derived from SourceSpan metadata",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:TanruUnitNodeId",
