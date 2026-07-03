@@ -24,20 +24,21 @@ use jbotci_output::{
     qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
     render_lojban_text_for_script,
 };
+use jbotci_web_core::CollisionScope;
 #[cfg(test)]
 use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
     APPLE_TOUCH_ICON_ASSET_PATH, CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption,
-    CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSemanticSearchHit, CuktaTargetOption,
-    CuktaTocNode, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
-    DictionaryTooltipCard, FAVICON_ASSET_PATH, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSearchTarget, CuktaSemanticSearchHit,
+    CuktaTargetOption, CuktaTocNode, CuktaWebMode, CuktaWebSearchState, CuktaWebState,
+    CuktaWebView, DictionaryTooltipCard, FAVICON_ASSET_PATH, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GentufaBlock, GentufaBlocksLayout, GentufaBracketFragment, GentufaCell,
     GentufaError, GentufaScript, GentufaSuccess, GentufaTreeGuide, GentufaTreeRow,
     GentufaWebOptions, GentufaWebRequest, GentufaWebResult, GentufaWebState, GentufaWebViewMode,
     GimfihiCandidate, GimfihiOutput, GimfihiPreset, GimfihiPresetOption, GimfihiWebResult,
-    GimfihiWebSource, GimfihiWebState, MANIFEST_ASSET_PATH, PageMeta, RafsiAvailability,
-    RafsiCandidate, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole, ReferenceTooltip,
-    ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
+    GimfihiWebSource, GimfihiWebState, GismuShape, MANIFEST_ASSET_PATH, PageMeta,
+    RafsiAvailability, RafsiCandidate, ReferenceLabel, ReferenceMarker, ReferenceMarkerRole,
+    ReferenceTooltip, ReferenceTooltipInline, ReferenceTooltipInlineData, ReferenceTooltipRow,
     VLACKU_WEB_DEFAULT_COUNT, VLACKU_WEB_MAX_COUNT, VlackuCompositionPiece,
     VlackuCompositionPieceKind, VlackuDictionaryCountNode, VlackuDictionaryInfo, VlackuInline,
     VlackuInlineData, VlackuJvozbaItem, VlackuJvozbaItemKind, VlackuJvozbaMode, VlackuJvozbaOutput,
@@ -6128,11 +6129,10 @@ fn cukta_semantic_worker_limit(state: &CuktaWebSearchState) -> usize {
 fn cukta_semantic_worker_kind_filters(state: &CuktaWebSearchState) -> Vec<String> {
     let mut filters = Vec::new();
     for target in &state.targets {
-        match target.trim().to_ascii_lowercase().as_str() {
-            "section" | "sections" => push_unique_filter(&mut filters, "section"),
-            "paragraph" | "paragraphs" => push_unique_filter(&mut filters, "paragraph"),
-            "example" | "examples" => push_unique_filter(&mut filters, "example"),
-            _ => {}
+        match target {
+            CuktaSearchTarget::Section => push_unique_filter(&mut filters, "section"),
+            CuktaSearchTarget::Paragraph => push_unique_filter(&mut filters, "paragraph"),
+            CuktaSearchTarget::Example => push_unique_filter(&mut filters, "example"),
         }
     }
     if filters.is_empty() {
@@ -10193,17 +10193,17 @@ fn cukta_draft_mode_options(selected: CuktaWebMode) -> Vec<CuktaModeOption> {
 
 #[requires(true)]
 #[ensures(ret.len() == 3)]
-fn cukta_draft_target_options(selected_targets: &[String]) -> Vec<CuktaTargetOption> {
+fn cukta_draft_target_options(selected_targets: &[CuktaSearchTarget]) -> Vec<CuktaTargetOption> {
     [
-        ("section", "Sections"),
-        ("paragraph", "Paragraphs"),
-        ("example", "Examples"),
+        (CuktaSearchTarget::Section, "Sections"),
+        (CuktaSearchTarget::Paragraph, "Paragraphs"),
+        (CuktaSearchTarget::Example, "Examples"),
     ]
     .iter()
-    .map(|(value, label)| CuktaTargetOption {
-        value: (*value).to_owned(),
+    .map(|(target, label)| CuktaTargetOption {
+        value: target.as_str().to_owned(),
         label: (*label).to_owned(),
-        selected: selected_targets.iter().any(|target| target == value),
+        selected: selected_targets.iter().any(|selected| selected == target),
     })
     .collect()
 }
@@ -10343,7 +10343,11 @@ fn render_gimfihi_controls(
     mut gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
     state: &GimfihiWebState,
 ) -> Element {
-    let current_preset = state.preset.clone().unwrap_or_default();
+    let current_preset = state
+        .preset
+        .map(|preset| preset.as_str().to_owned())
+        .unwrap_or_default();
+    let collision_scope = state.check_collisions.as_str();
     let preset_options = gimfihi_preset_options_for_state(state);
     let language_suggestions = gimfihi_language_suggestions();
     rsx! {
@@ -10402,8 +10406,8 @@ fn render_gimfihi_controls(
             }
             div { class: "gimfihi-option-row",
                 div { class: "gimfihi-shape-group", role: "group", aria_label: "Gismu shapes",
-                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, "ccvcv") }
-                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, "cvccv") }
+                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, GismuShape::Ccvcv) }
+                    { render_gimfihi_shape_toggle(gimfihi_draft_state, state, GismuShape::Cvccv) }
                 }
                 label { class: "compact-check gimfihi-checkbox",
                     input {
@@ -10421,10 +10425,12 @@ fn render_gimfihi_controls(
                     span { "collisions" }
                     select {
                         class: "gimfihi-select",
-                        value: "{state.check_collisions}",
+                        value: "{collision_scope}",
                         onchange: move |event| {
                             let mut next = gimfihi_draft_state.read().clone();
-                            next.check_collisions = event.value();
+                            if let Ok(scope) = event.value().parse::<CollisionScope>() {
+                                next.check_collisions = scope;
+                            }
                             gimfihi_draft_state.set(next);
                         },
                         option { value: "all", "all" }
@@ -10619,15 +10625,15 @@ fn render_gimfihi_add_source_row(mut gimfihi_draft_state: Signal<GimfihiWebState
     }
 }
 
-#[requires(!shape.is_empty())]
+#[requires(true)]
 #[ensures(true)]
 fn render_gimfihi_shape_toggle(
     mut gimfihi_draft_state: Signal<GimfihiWebState>,
     state: &GimfihiWebState,
-    shape: &'static str,
+    shape: GismuShape,
 ) -> Element {
-    let selected = state.shapes.iter().any(|current| current == shape);
-    let label = shape.to_ascii_uppercase();
+    let selected = state.shapes.iter().any(|current| *current == shape);
+    let label = shape.as_str().to_ascii_uppercase();
     rsx! {
         label { class: class_names("compact-check gimfihi-shape-toggle", &[("is-selected", selected)]),
             input {
@@ -10792,7 +10798,7 @@ fn gimfihi_preset_options_for_state(state: &GimfihiWebState) -> Vec<GimfihiPrese
         .map(|preset| GimfihiPresetOption {
             value: preset.as_str().to_owned(),
             label: preset.as_str().to_owned(),
-            selected: state.preset.as_deref() == Some(preset.as_str()),
+            selected: state.preset == Some(*preset),
         })
         .collect()
 }
@@ -10839,7 +10845,7 @@ fn gimfihi_state_for_selected_preset(
         Some((language, source.word.clone()))
     }));
     let mut next = state.clone();
-    next.preset = Some(preset.as_str().to_owned());
+    next.preset = Some(preset);
     next.sources = gimfihi_sources_for_preset(preset)
         .into_iter()
         .map(|mut source| {
@@ -10909,10 +10915,7 @@ fn gimfihi_source_language_key(language: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.preset.is_none())]
 fn gimfihi_state_with_explicit_custom_weights(state: &GimfihiWebState) -> GimfihiWebState {
-    let preset = state
-        .preset
-        .as_deref()
-        .and_then(|value| value.parse::<GimfihiPreset>().ok());
+    let preset = state.preset;
     let mut next = state.clone();
     next.preset = None;
     for source in &mut next.sources {
@@ -10934,11 +10937,7 @@ fn gimfihi_state_with_source_language(
     if let Some(source) = next.sources.get_mut(index) {
         source.language = language.to_owned();
     }
-    let Some(preset) = state
-        .preset
-        .as_deref()
-        .and_then(|value| value.parse::<GimfihiPreset>().ok())
-    else {
+    let Some(preset) = state.preset else {
         return next;
     };
     if gimfihi_language_multiset(&next.sources) == gimfihi_preset_language_multiset(preset) {
@@ -10990,14 +10989,14 @@ fn gimfihi_state_without_source(state: &GimfihiWebState, index: usize) -> Gimfih
     next
 }
 
-#[requires(!shape.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn gimfihi_state_with_shape_toggled(state: &GimfihiWebState, shape: &str) -> GimfihiWebState {
+fn gimfihi_state_with_shape_toggled(state: &GimfihiWebState, shape: GismuShape) -> GimfihiWebState {
     let mut next = state.clone();
-    if let Some(index) = next.shapes.iter().position(|current| current == shape) {
+    if let Some(index) = next.shapes.iter().position(|current| *current == shape) {
         next.shapes.remove(index);
     } else {
-        next.shapes.push(shape.to_owned());
+        next.shapes.push(shape);
     }
     next
 }
@@ -11044,13 +11043,10 @@ fn gimfihi_preset_language_multiset(preset: GimfihiPreset) -> Vec<String> {
 #[requires(true)]
 #[ensures(true)]
 fn gimfihi_source_weight_value(state: &GimfihiWebState, source: &GimfihiWebSource) -> String {
-    source.weight.clone().unwrap_or_else(|| {
-        let preset = state
-            .preset
-            .as_deref()
-            .and_then(|value| value.parse::<GimfihiPreset>().ok());
-        gimfihi_preset_weight_text(preset, &source.language)
-    })
+    source
+        .weight
+        .clone()
+        .unwrap_or_else(|| gimfihi_preset_weight_text(state.preset, &source.language))
 }
 
 #[requires(true)]
@@ -22522,7 +22518,7 @@ mod tests {
 
         let next = gimfihi_state_for_selected_preset(&state, Some(GimfihiPreset::Ilmen6), &memory);
 
-        assert_eq!(next.preset.as_deref(), Some("ilmen6"));
+        assert_eq!(next.preset, Some(GimfihiPreset::Ilmen6));
         assert_eq!(next.sources[0].language, "eng");
         assert_eq!(next.sources[0].word, "ekspekt");
         assert_eq!(next.sources[1].language, "cmn");
@@ -24373,7 +24369,7 @@ mod tests {
             mode: CuktaWebMode::Word,
             query: "klama".to_owned(),
             count: 80,
-            targets: vec!["example".to_owned()],
+            targets: vec![CuktaSearchTarget::Example],
         };
 
         let next = cukta_search_state_with_query(&state, "ciska");
@@ -24381,7 +24377,7 @@ mod tests {
         assert_eq!(next.mode, CuktaWebMode::Word);
         assert_eq!(next.query, "ciska");
         assert_eq!(next.count, CUKTA_WEB_DEFAULT_COUNT);
-        assert_eq!(next.targets, vec!["example".to_owned()]);
+        assert_eq!(next.targets, vec![CuktaSearchTarget::Example]);
     }
 
     #[test]

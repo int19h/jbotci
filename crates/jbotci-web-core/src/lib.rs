@@ -27,14 +27,14 @@ use jbotci_gentufa::{
     generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
     reference_slot_label_from_output,
 };
-use jbotci_gimfihi::{
-    CollisionScope, GimfihiRequest, GimfihiSourceInput, compose_gismu, default_shapes,
-    parse_collision_scope, parse_preset, parse_shape, parse_weight, preset_language_suggestions,
-};
 pub use jbotci_gimfihi::{
-    GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT, GIMFIHI_MIN_WEIGHT,
-    GimfihiCandidate, GimfihiOutput, GimfihiPreset, RafsiAvailability, RafsiCandidate,
-    ResolvedSource, all_presets,
+    CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
+    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiPreset, GismuShape,
+    RafsiAvailability, RafsiCandidate, ResolvedSource, all_presets,
+};
+use jbotci_gimfihi::{
+    GimfihiRequest, GimfihiSourceInput, compose_gismu, default_shapes, parse_collision_scope,
+    parse_preset, parse_shape, parse_weight, preset_language_suggestions,
 };
 use jbotci_jvozba::{
     JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegment, JvozbaSegmentKind,
@@ -1193,6 +1193,27 @@ impl From<CuktaWebMode> for CuktaSearchMode {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CuktaSearchTarget {
+    Section,
+    Paragraph,
+    Example,
+}
+
+impl CuktaSearchTarget {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Section => "section",
+            Self::Paragraph => "paragraph",
+            Self::Example => "example",
+        }
+    }
+}
+
+#[invariant(true)]
 #[invariant(::Section { .. } => true)]
 #[invariant(::Index => true)]
 #[invariant(::Search(_) => true)]
@@ -1230,7 +1251,7 @@ pub struct CuktaWebSearchState {
     pub mode: CuktaWebMode,
     pub query: String,
     pub count: usize,
-    pub targets: Vec<String>,
+    pub targets: Vec<CuktaSearchTarget>,
 }
 
 impl Default for CuktaWebSearchState {
@@ -1418,11 +1439,11 @@ pub struct GimfihiWebSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GimfihiWebState {
-    pub preset: Option<String>,
+    pub preset: Option<GimfihiPreset>,
     pub sources: Vec<GimfihiWebSource>,
-    pub shapes: Vec<String>,
+    pub shapes: Vec<GismuShape>,
     pub all_letters: bool,
-    pub check_collisions: String,
+    pub check_collisions: CollisionScope,
     pub show_collisions: bool,
     pub require_free_short_rafsi: bool,
     pub count: usize,
@@ -1431,12 +1452,12 @@ pub struct GimfihiWebState {
 
 impl Default for GimfihiWebState {
     #[requires(true)]
-    #[ensures(ret.preset.as_deref() == Some("1995"))]
+    #[ensures(ret.preset == Some(GimfihiPreset::Data1995))]
     #[ensures(ret.count == GIMFIHI_WEB_DEFAULT_COUNT)]
     fn default() -> Self {
         let preset = GimfihiPreset::Data1995;
         Self {
-            preset: Some(preset.as_str().to_owned()),
+            preset: Some(preset),
             sources: preset
                 .entries()
                 .iter()
@@ -1446,12 +1467,9 @@ impl Default for GimfihiWebState {
                     word: String::new(),
                 })
                 .collect(),
-            shapes: default_shapes()
-                .into_iter()
-                .map(|shape| shape.as_str().to_owned())
-                .collect(),
+            shapes: default_shapes(),
             all_letters: false,
-            check_collisions: CollisionScope::All.as_str().to_owned(),
+            check_collisions: CollisionScope::All,
             show_collisions: false,
             require_free_short_rafsi: false,
             count: GIMFIHI_WEB_DEFAULT_COUNT,
@@ -2021,7 +2039,7 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
         Err(error) => (None, vec![error]),
     };
     GimfihiWebResult {
-        preset_options: gimfihi_preset_options(normalized.preset.as_deref()),
+        preset_options: gimfihi_preset_options(normalized.preset),
         language_suggestions: preset_language_suggestions(),
         state: normalized,
         output,
@@ -2032,31 +2050,17 @@ pub fn build_gimfihi_web_result(state: &GimfihiWebState) -> GimfihiWebResult {
 #[requires(true)]
 #[ensures(true)]
 fn gimfihi_request_from_web_state(state: &GimfihiWebState) -> Result<GimfihiRequest, String> {
-    let preset = state
-        .preset
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .map(parse_preset)
-        .transpose()
-        .map_err(|error| error.to_string())?;
     let sources = state
         .sources
         .iter()
         .map(gimfihi_source_input_from_web_source)
         .collect::<Result<Vec<_>, _>>()?;
-    let shapes = state
-        .shapes
-        .iter()
-        .map(|shape| parse_shape(shape).map_err(|error| error.to_string()))
-        .collect::<Result<Vec<_>, _>>()?;
-    let check_collisions =
-        parse_collision_scope(&state.check_collisions).map_err(|error| error.to_string())?;
     Ok(GimfihiRequest {
-        preset,
+        preset: state.preset,
         sources,
-        shapes,
+        shapes: state.shapes.clone(),
         all_letters: state.all_letters,
-        check_collisions,
+        check_collisions: state.check_collisions,
         show_collisions: state.show_collisions,
         require_free_short_rafsi: state.require_free_short_rafsi,
         count: state.count.clamp(1, GIMFIHI_WEB_MAX_COUNT),
@@ -2087,13 +2091,13 @@ fn gimfihi_source_input_from_web_source(
 
 #[requires(true)]
 #[ensures(true)]
-fn gimfihi_preset_options(selected: Option<&str>) -> Vec<GimfihiPresetOption> {
+fn gimfihi_preset_options(selected: Option<GimfihiPreset>) -> Vec<GimfihiPresetOption> {
     jbotci_gimfihi::all_presets()
         .iter()
         .map(|preset| GimfihiPresetOption {
             value: preset.as_str().to_owned(),
             label: preset.as_str().to_owned(),
-            selected: selected == Some(preset.as_str()),
+            selected: selected == Some(*preset),
         })
         .collect()
 }
@@ -3519,7 +3523,9 @@ pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
                         search.targets.clear();
                         target_seen = true;
                     }
-                    search.targets.push(value);
+                    search
+                        .targets
+                        .extend(parse_cukta_target_query_values(&value));
                 }
                 _ => {}
             }
@@ -3553,7 +3559,7 @@ pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
                 pairs.push(("count".to_owned(), search.count.to_string()));
             }
             for target in non_default_cukta_targets(&search.targets) {
-                pairs.push(("target".to_owned(), target));
+                pairs.push(("target".to_owned(), target.as_str().to_owned()));
             }
             if pairs.is_empty() {
                 format!("{prefix}/cukta/search")
@@ -3573,18 +3579,20 @@ pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn toggle_cukta_target_selection(current: &[String], value: &str) -> Vec<String> {
+pub fn toggle_cukta_target_selection(
+    current: &[CuktaSearchTarget],
+    value: &str,
+) -> Vec<CuktaSearchTarget> {
     let mut targets = normalize_cukta_targets(current);
-    let normalized = normalize_cukta_target(value);
-    if normalized.is_empty() {
+    let Some(target) = parse_cukta_target(value) else {
         return targets;
-    }
-    if targets.iter().any(|target| target == &normalized) {
+    };
+    if targets.iter().any(|current| *current == target) {
         if targets.len() > 1 {
-            targets.retain(|target| target != &normalized);
+            targets.retain(|current| *current != target);
         }
     } else {
-        targets.push(normalized);
+        targets.push(target);
         targets = normalize_cukta_targets(&targets);
     }
     targets
@@ -3710,32 +3718,29 @@ fn cukta_mode_options(selected: CuktaWebMode) -> Vec<CuktaModeOption> {
 
 #[requires(true)]
 #[ensures(true)]
-fn cukta_target_options(selected_targets: &[String]) -> Vec<CuktaTargetOption> {
+fn cukta_target_options(selected_targets: &[CuktaSearchTarget]) -> Vec<CuktaTargetOption> {
     let selected = normalize_cukta_targets(selected_targets);
     [
-        ("section", "Sections"),
-        ("paragraph", "Paragraphs"),
-        ("example", "Examples"),
+        (CuktaSearchTarget::Section, "Sections"),
+        (CuktaSearchTarget::Paragraph, "Paragraphs"),
+        (CuktaSearchTarget::Example, "Examples"),
     ]
     .iter()
-    .map(|(value, label)| CuktaTargetOption {
-        value: (*value).to_owned(),
+    .map(|(target, label)| CuktaTargetOption {
+        value: target.as_str().to_owned(),
         label: (*label).to_owned(),
-        selected: selected.iter().any(|target| target == value),
+        selected: selected.iter().any(|selected| selected == target),
     })
     .collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn normalize_cukta_targets(raw_targets: &[String]) -> Vec<String> {
+fn normalize_cukta_targets(raw_targets: &[CuktaSearchTarget]) -> Vec<CuktaSearchTarget> {
     let mut targets = Vec::new();
     for raw in raw_targets {
-        for part in raw.split(',') {
-            let normalized = normalize_cukta_target(part);
-            if !normalized.is_empty() && !targets.iter().any(|target| target == &normalized) {
-                targets.push(normalized);
-            }
+        if !targets.iter().any(|target| target == raw) {
+            targets.push(*raw);
         }
     }
     if targets.is_empty() {
@@ -3747,7 +3752,7 @@ fn normalize_cukta_targets(raw_targets: &[String]) -> Vec<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn non_default_cukta_targets(targets: &[String]) -> Vec<String> {
+fn non_default_cukta_targets(targets: &[CuktaSearchTarget]) -> Vec<CuktaSearchTarget> {
     let normalized = normalize_cukta_targets(targets);
     if normalized == default_cukta_target_values() {
         Vec::new()
@@ -3758,33 +3763,45 @@ fn non_default_cukta_targets(targets: &[String]) -> Vec<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn default_cukta_target_values() -> Vec<String> {
+fn default_cukta_target_values() -> Vec<CuktaSearchTarget> {
     vec![
-        "section".to_owned(),
-        "paragraph".to_owned(),
-        "example".to_owned(),
+        CuktaSearchTarget::Section,
+        CuktaSearchTarget::Paragraph,
+        CuktaSearchTarget::Example,
     ]
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn normalize_cukta_target(value: &str) -> String {
+fn parse_cukta_target(value: &str) -> Option<CuktaSearchTarget> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "section" | "sections" => "section".to_owned(),
-        "paragraph" | "paragraphs" => "paragraph".to_owned(),
-        "example" | "examples" => "example".to_owned(),
-        _ => String::new(),
+        "section" | "sections" => Some(CuktaSearchTarget::Section),
+        "paragraph" | "paragraphs" => Some(CuktaSearchTarget::Paragraph),
+        "example" | "examples" => Some(CuktaSearchTarget::Example),
+        _ => None,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn cukta_target_filter(targets: &[String]) -> CuktaTargetFilter {
+fn parse_cukta_target_query_values(value: &str) -> Vec<CuktaSearchTarget> {
+    value.split(',').filter_map(parse_cukta_target).collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_target_filter(targets: &[CuktaSearchTarget]) -> CuktaTargetFilter {
     let normalized = normalize_cukta_targets(targets);
     CuktaTargetFilter {
-        sections: normalized.iter().any(|target| target == "section"),
-        paragraphs: normalized.iter().any(|target| target == "paragraph"),
-        examples: normalized.iter().any(|target| target == "example"),
+        sections: normalized
+            .iter()
+            .any(|target| *target == CuktaSearchTarget::Section),
+        paragraphs: normalized
+            .iter()
+            .any(|target| *target == CuktaSearchTarget::Paragraph),
+        examples: normalized
+            .iter()
+            .any(|target| *target == CuktaSearchTarget::Example),
     }
 }
 
@@ -3926,12 +3943,26 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
     state.shapes.clear();
     for (key, value) in parse_query_pairs(query) {
         match key.as_str() {
-            "preset" => state.preset = non_empty_string(value),
+            "preset" => {
+                state.preset = if value.trim().is_empty() {
+                    None
+                } else {
+                    parse_preset(&value).ok()
+                };
+            }
             "source" => state.sources.push(parse_gimfihi_web_source(&value)),
-            "shape" => state.shapes.push(value),
+            "shape" => {
+                if let Ok(shape) = parse_shape(&value) {
+                    state.shapes.push(shape);
+                }
+            }
             "letters" => state.all_letters = value == "all",
             "all-letters" | "all_letters" => state.all_letters = parse_bool_query_value(&value),
-            "check-collisions" | "check_collisions" => state.check_collisions = value,
+            "check-collisions" | "check_collisions" => {
+                if let Ok(scope) = parse_collision_scope(&value) {
+                    state.check_collisions = scope;
+                }
+            }
             "show-collisions" | "show_collisions" => {
                 state.show_collisions = parse_bool_query_value(&value);
             }
@@ -3993,12 +4024,7 @@ fn non_empty_string(value: String) -> Option<String> {
 #[requires(true)]
 #[ensures(true)]
 pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
-    let preset = state
-        .preset
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_ascii_lowercase);
+    let preset = state.preset;
     let mut sources = state
         .sources
         .iter()
@@ -4014,7 +4040,7 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
         })
         .collect::<Vec<_>>();
     if sources.is_empty()
-        && let Some(preset) = preset.as_deref().and_then(|value| parse_preset(value).ok())
+        && let Some(preset) = preset
     {
         sources = preset
             .entries()
@@ -4028,23 +4054,15 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
     }
     let shapes = if state.shapes.is_empty() {
         default_shapes()
-            .into_iter()
-            .map(|shape| shape.as_str().to_owned())
-            .collect()
     } else {
-        state
-            .shapes
-            .iter()
-            .map(|shape| shape.trim().to_ascii_lowercase())
-            .filter(|shape| !shape.is_empty())
-            .collect()
+        state.shapes.clone()
     };
     GimfihiWebState {
         preset,
         sources,
         shapes,
         all_letters: state.all_letters,
-        check_collisions: state.check_collisions.trim().to_ascii_lowercase(),
+        check_collisions: state.check_collisions,
         show_collisions: state.show_collisions,
         require_free_short_rafsi: state.require_free_short_rafsi,
         count: state.count.clamp(1, GIMFIHI_WEB_MAX_COUNT),
@@ -4106,13 +4124,13 @@ pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
     let prefix = base_path.trim_end_matches('/');
     let mut pairs = Vec::new();
     if let Some(preset) = &state.preset {
-        pairs.push(("preset".to_owned(), preset.clone()));
+        pairs.push(("preset".to_owned(), preset.as_str().to_owned()));
     }
     for source in &state.sources {
         pairs.push(("source".to_owned(), gimfihi_web_source_query_value(source)));
     }
     for shape in &state.shapes {
-        pairs.push(("shape".to_owned(), shape.clone()));
+        pairs.push(("shape".to_owned(), shape.as_str().to_owned()));
     }
     pairs.push((
         "letters".to_owned(),
@@ -4120,7 +4138,7 @@ pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
     ));
     pairs.push((
         "check-collisions".to_owned(),
-        state.check_collisions.clone(),
+        state.check_collisions.as_str().to_owned(),
     ));
     pairs.push((
         "show-collisions".to_owned(),
@@ -5657,10 +5675,10 @@ mod tests {
     const DEFAULT_GENTUFA_SAMPLE: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
 
     #[requires(true)]
-    #[ensures(ret.preset.as_deref() == Some("1995"))]
+    #[ensures(ret.preset == Some(GimfihiPreset::Data1995))]
     fn gimfihi_sample_state(highlight: Option<&str>) -> GimfihiWebState {
         GimfihiWebState {
-            preset: Some("1995".to_owned()),
+            preset: Some(GimfihiPreset::Data1995),
             sources: vec![
                 GimfihiWebSource {
                     language: "cmn".to_owned(),
@@ -5693,9 +5711,9 @@ mod tests {
                     word: "mulud".to_owned(),
                 },
             ],
-            shapes: vec!["ccvcv".to_owned(), "cvccv".to_owned()],
+            shapes: vec![GismuShape::Ccvcv, GismuShape::Cvccv],
             all_letters: false,
-            check_collisions: "none".to_owned(),
+            check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
             count: 5,
@@ -7042,7 +7060,7 @@ mod tests {
         assert_eq!(search_state.count, 40);
         assert_eq!(
             search_state.targets,
-            vec!["section".to_owned(), "example".to_owned()]
+            vec![CuktaSearchTarget::Section, CuktaSearchTarget::Example]
         );
 
         let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
@@ -7543,7 +7561,7 @@ mod tests {
                     mode: CuktaWebMode::Meaning,
                     query: "lojban".to_owned(),
                     count: 1,
-                    targets: vec!["section".to_owned()],
+                    targets: vec![CuktaSearchTarget::Section],
                 }),
             },
             &[

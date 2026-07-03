@@ -7,16 +7,16 @@ use axum::http::{HeaderMap, Response, StatusCode};
 use bityzba::{invariant, new, requires};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use jbotci_cli::{
-    GimfihiSourceWordKind, ToolCollisionScope, ToolCuktaMode, ToolCuktaRequest, ToolGentufaFormat,
-    ToolGentufaRequest, ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiSource, ToolJvozbaMode,
-    ToolJvozbaPart, ToolJvozbaPartKind, ToolJvozbaRequest, ToolRenderedOutput, ToolVlackuMode,
-    ToolVlackuRequest, ToolVlaseiFormat, ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi,
-    run_tool_jvozba, run_tool_vlasei,
+    GimfihiSourceWordKind, ToolCollisionScope, ToolCuktaMode, ToolCuktaRequest,
+    ToolCuktaSearchResultKind, ToolGentufaFormat, ToolGentufaRequest, ToolGimfihiFormat,
+    ToolGimfihiRequest, ToolGimfihiSource, ToolJvozbaMode, ToolJvozbaPart, ToolJvozbaPartKind,
+    ToolJvozbaRequest, ToolRenderedOutput, ToolVlackuMode, ToolVlackuRequest, ToolVlaseiFormat,
+    ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei,
 };
 use jbotci_web_core::{
-    CUKTA_WEB_DEFAULT_COUNT, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
-    GentufaWebState, GentufaWebViewMode, VLACKU_WEB_DEFAULT_COUNT, VlackuWebMode, VlackuWebState,
-    WebRoute, web_route_url,
+    CUKTA_WEB_DEFAULT_COUNT, CuktaSearchTarget, CuktaWebMode, CuktaWebSearchState, CuktaWebState,
+    CuktaWebView, GentufaWebState, GentufaWebViewMode, VLACKU_WEB_DEFAULT_COUNT, VlackuWebMode,
+    VlackuWebState, WebRoute, web_route_url,
 };
 use serde_json::{Value, json};
 
@@ -520,13 +520,23 @@ fn cukta_link(request: &ToolCuktaRequest) -> Option<String> {
                 targets: request
                     .search_result_kinds
                     .iter()
-                    .map(|kind| kind.as_str().to_owned())
+                    .map(|kind| cukta_search_target_from_tool_kind(*kind))
                     .collect(),
             }),
         }),
         ToolCuktaMode::Example => return Some(absolute_web_url("/cukta")),
     };
     Some(absolute_web_url(&web_route_url("", &route)))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cukta_search_target_from_tool_kind(kind: ToolCuktaSearchResultKind) -> CuktaSearchTarget {
+    match kind {
+        ToolCuktaSearchResultKind::Section => CuktaSearchTarget::Section,
+        ToolCuktaSearchResultKind::Paragraph => CuktaSearchTarget::Paragraph,
+        ToolCuktaSearchResultKind::Example => CuktaSearchTarget::Example,
+    }
 }
 
 #[requires(true)]
