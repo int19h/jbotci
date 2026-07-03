@@ -17,6 +17,38 @@ pub struct LujvoCandidate {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RafsiShape {
+    Cvccv,
+    Cvcc,
+    Ccvcv,
+    Ccvc,
+    Cvc,
+    CvhV,
+    Ccv,
+    Cvv,
+    Other,
+}
+
+impl RafsiShape {
+    #[requires(true)]
+    #[ensures(ret >= 0 && ret <= 8)]
+    pub const fn score(self) -> i32 {
+        match self {
+            Self::Cvccv => 1,
+            Self::Cvcc => 2,
+            Self::Ccvcv => 3,
+            Self::Ccvc => 4,
+            Self::Cvc => 5,
+            Self::CvhV => 6,
+            Self::Ccv => 7,
+            Self::Cvv => 8,
+            Self::Other => 0,
+        }
+    }
+}
+
+#[invariant(true)]
 #[invariant(::Rafsi(text) => !text.is_empty())]
 #[invariant(::BrivlaCore(text) => !text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,6 +271,29 @@ pub fn syllables_pattern(text: &str) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
+pub fn rafsi_shape(text: &str) -> RafsiShape {
+    let mut pattern = text.chars().map(classify_syllable_char);
+    let first = pattern.next().flatten();
+    let second = pattern.next().flatten();
+    let third = pattern.next().flatten();
+    let fourth = pattern.next().flatten();
+    let fifth = pattern.next().flatten();
+    let sixth = pattern.next().flatten();
+    match (first, second, third, fourth, fifth, sixth) {
+        (Some('C'), Some('V'), Some('C'), Some('C'), Some('V'), None) => RafsiShape::Cvccv,
+        (Some('C'), Some('V'), Some('C'), Some('C'), None, None) => RafsiShape::Cvcc,
+        (Some('C'), Some('C'), Some('V'), Some('C'), Some('V'), None) => RafsiShape::Ccvcv,
+        (Some('C'), Some('C'), Some('V'), Some('C'), None, None) => RafsiShape::Ccvc,
+        (Some('C'), Some('V'), Some('C'), None, None, None) => RafsiShape::Cvc,
+        (Some('C'), Some('V'), Some('\''), Some('V'), None, None) => RafsiShape::CvhV,
+        (Some('C'), Some('C'), Some('V'), None, None, None) => RafsiShape::Ccv,
+        (Some('C'), Some('V'), Some('V'), None, None, None) => RafsiShape::Cvv,
+        _ => RafsiShape::Other,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub fn is_vowel(value: char) -> bool {
     matches!(value, 'a' | 'e' | 'i' | 'o' | 'u')
 }
@@ -306,10 +361,10 @@ fn classify_syllable_char(value: char) -> Option<char> {
 #[requires(true)]
 #[ensures(true)]
 fn needs_y_hyphen(previous: &str, next: &str) -> bool {
-    let previous_pattern = syllables_pattern(previous);
+    let previous_shape = rafsi_shape(previous);
     let previous_tail = previous.chars().last();
     let next_head = next.chars().next();
-    matches!(previous_pattern.as_deref(), Some("CVCC" | "CCVC"))
+    matches!(previous_shape, RafsiShape::Cvcc | RafsiShape::Ccvc)
         || matches!(
             (previous_tail, next_head),
             (Some(left), Some(right))
@@ -374,10 +429,8 @@ fn starts_with_vowel_nucleus_after_y(text: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn should_insert_cvv_hyphen(first_rafsi: &str, second: &str, rafsi_count: usize) -> bool {
-    matches!(
-        syllables_pattern(first_rafsi).as_deref(),
-        Some("CVV" | "CV'V")
-    ) && (rafsi_count > 2 || syllables_pattern(second).as_deref() != Some("CCV"))
+    matches!(rafsi_shape(first_rafsi), RafsiShape::Cvv | RafsiShape::CvhV)
+        && (rafsi_count > 2 || rafsi_shape(second) != RafsiShape::Ccv)
 }
 
 #[requires(true)]
@@ -394,12 +447,12 @@ fn tosmabru(parts: &[String]) -> bool {
         return heads.len() > 1
             && heads
                 .iter()
-                .all(|part| syllables_pattern(part).as_deref() == Some("CVC"))
+                .all(|part| rafsi_shape(part) == RafsiShape::Cvc)
             && heads
                 .windows(2)
                 .all(|pair| consonant_pair_is_rank_two(&pair[0], &pair[1]));
     }
-    if syllables_pattern(last_part).as_deref() == Some("CVCCV") {
+    if rafsi_shape(last_part) == RafsiShape::Cvccv {
         let chars = last_part.chars().collect::<Vec<_>>();
         if chars.len() >= 4
             && is_consonant(chars[2])
@@ -410,7 +463,7 @@ fn tosmabru(parts: &[String]) -> bool {
             return !heads.is_empty()
                 && heads
                     .iter()
-                    .all(|part| syllables_pattern(part).as_deref() == Some("CVC"))
+                    .all(|part| rafsi_shape(part) == RafsiShape::Cvc)
                 && parts
                     .windows(2)
                     .all(|pair| consonant_pair_is_rank_two(&pair[0], &pair[1]));
@@ -443,18 +496,7 @@ fn lujvo_score(rafsi_sequence: &[String]) -> i32 {
         .count() as i32;
     let rafsi_shape_score = rafsi_sequence
         .iter()
-        .filter_map(|part| syllables_pattern(part))
-        .map(|pattern| match pattern.as_str() {
-            "CVCCV" => 1,
-            "CVCC" => 2,
-            "CCVCV" => 3,
-            "CCVC" => 4,
-            "CVC" => 5,
-            "CV'V" => 6,
-            "CCV" => 7,
-            "CVV" => 8,
-            _ => 0,
-        })
+        .map(|part| rafsi_shape(part).score())
         .sum::<i32>();
     let vowel_count = lujvo_text.chars().filter(|value| is_vowel(*value)).count() as i32;
     1000 * total_length - 500 * apostrophe_count + 100 * hyphen_count

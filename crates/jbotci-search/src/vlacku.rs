@@ -1062,16 +1062,18 @@ fn cards_for_sound(
     };
 
     let mut scratch = AlineSimilarityScratch::default();
-    let mut scored = dictionary
-        .sound_index()
+    let query_view = query_sound.view();
+    let entries = dictionary.entries();
+    let sound_index = dictionary.sound_index();
+    let mut scored = sound_index
         .iter()
         .filter_map(|sound_entry| {
-            let entry = dictionary.entries().get(sound_entry.entry_index.get())?;
+            let entry = entries.get(sound_entry.entry_index.get())?;
             if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
                 return None;
             }
             let similarity = aline_phonetic_similarity_with_scratch(
-                query_sound.view(),
+                query_view,
                 sound_entry.token_sequence,
                 &mut scratch,
             ) as f32;

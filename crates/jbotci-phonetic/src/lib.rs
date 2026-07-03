@@ -15,10 +15,37 @@ use unicode_normalization::UnicodeNormalization;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Message(_) => true)]
+#[invariant(::Morphology { .. } => true)]
+#[invariant(::NoPronounceableWords { .. } => true)]
+#[invariant(::UnsupportedSegment { .. } => true)]
+#[invariant(::EmptyQuery => true)]
+#[invariant(::EmptyBracketedIpa => true)]
+#[invariant(::NestedBrackets => true)]
+#[invariant(::MissingClosingBracket => true)]
+#[invariant(::MissingOpeningBracket => true)]
+#[invariant(::PartialBracketedQuery => true)]
+#[invariant(::Syllabification { .. } => true)]
 pub enum PhoneticError {
-    #[error("{0}")]
-    Message(String),
+    #[error("{message}")]
+    Morphology { message: String },
+    #[error("no pronounceable words in `{input}`")]
+    NoPronounceableWords { input: String },
+    #[error("Unsupported IPA segment near `{near}` for ALINE sound search.")]
+    UnsupportedSegment { near: String },
+    #[error("Sound search requires at least one IPA segment.")]
+    EmptyQuery,
+    #[error("Bracketed IPA input must not be empty.")]
+    EmptyBracketedIpa,
+    #[error("IPA input must use one pair of brackets around the whole query.")]
+    NestedBrackets,
+    #[error("IPA input starts with `[` but does not end with `]`.")]
+    MissingClosingBracket,
+    #[error("IPA input ends with `]` but does not start with `[`.")]
+    MissingOpeningBracket,
+    #[error("Use `[ ... ]` around the whole IPA query.")]
+    PartialBracketedQuery,
+    #[error("{message}")]
+    Syllabification { message: String },
 }
 
 #[invariant((self.as_data().0 as usize) < IPA_SEGMENT_SYMBOLS.len())]
@@ -336,8 +363,10 @@ pub fn sound_query_to_ipa(raw_query: &str) -> Result<String, PhoneticError> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.trim().is_empty()) || ret.is_err())]
 pub fn lojban_text_to_ipa(raw_text: &str) -> Result<String, PhoneticError> {
-    let words = segment_words_with_modifiers(raw_text)
-        .map_err(|error| PhoneticError::Message(error.to_string()))?;
+    let words =
+        segment_words_with_modifiers(raw_text).map_err(|error| PhoneticError::Morphology {
+            message: error.to_string(),
+        })?;
     ipa_morphology_text(&words, raw_text)
 }
 
@@ -360,9 +389,9 @@ pub fn ipa_morphology_text(words: &[WordLike], source: &str) -> Result<String, P
         .flat_map(flatten_word_like_ipa)
         .collect::<Vec<_>>();
     if chunks.is_empty() {
-        return Err(PhoneticError::Message(format!(
-            "no pronounceable words in `{source}`"
-        )));
+        return Err(PhoneticError::NoPronounceableWords {
+            input: source.to_owned(),
+        });
     }
     render_ipa_surface_chunks(&chunks, source)
 }
@@ -386,10 +415,9 @@ pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> 
             continue;
         }
         let Some((segment_id, segment_length)) = match_longest_segment(remaining) else {
-            return Err(PhoneticError::Message(format!(
-                "Unsupported IPA segment near `{}` for ALINE sound search.",
-                remaining.chars().take(12).collect::<String>()
-            )));
+            return Err(PhoneticError::UnsupportedSegment {
+                near: remaining.chars().take(12).collect::<String>(),
+            });
         };
         segments.push(segment_id);
         remaining = &remaining[segment_length..];
@@ -402,9 +430,7 @@ pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> 
         }
     }
     if segments.is_empty() {
-        Err(PhoneticError::Message(
-            "Sound search requires at least one IPA segment.".to_owned(),
-        ))
+        Err(PhoneticError::EmptyQuery)
     } else {
         Ok(make_token_sequence(segments))
     }
@@ -471,26 +497,18 @@ fn bracketed_ipa_query(raw_query: &str) -> Result<Option<String>, PhoneticError>
         (true, true) => {
             let inner = trimmed[1..trimmed.len() - 1].trim();
             if inner.is_empty() {
-                Err(PhoneticError::Message(
-                    "Bracketed IPA input must not be empty.".to_owned(),
-                ))
+                Err(PhoneticError::EmptyBracketedIpa)
             } else if inner.contains('[') || inner.contains(']') {
-                Err(PhoneticError::Message(
-                    "IPA input must use one pair of brackets around the whole query.".to_owned(),
-                ))
+                Err(PhoneticError::NestedBrackets)
             } else {
                 Ok(Some(inner.to_owned()))
             }
         }
-        (true, false) => Err(PhoneticError::Message(
-            "IPA input starts with `[` but does not end with `]`.".to_owned(),
-        )),
-        (false, true) => Err(PhoneticError::Message(
-            "IPA input ends with `]` but does not start with `[`.".to_owned(),
-        )),
-        (false, false) if trimmed.contains('[') || trimmed.contains(']') => Err(
-            PhoneticError::Message("Use `[ ... ]` around the whole IPA query.".to_owned()),
-        ),
+        (true, false) => Err(PhoneticError::MissingClosingBracket),
+        (false, true) => Err(PhoneticError::MissingOpeningBracket),
+        (false, false) if trimmed.contains('[') || trimmed.contains(']') => {
+            Err(PhoneticError::PartialBracketedQuery)
+        }
         (false, false) => Ok(None),
     }
 }
@@ -957,10 +975,11 @@ fn render_word_ipa(word: &Word, source: &str) -> Result<IpaRenderedWord, Phoneti
     let body = if word.kind() == WordKind::Cmevla {
         render_cmevla_ipa_body(&phonemes)
     } else {
-        render_syllabified_ipa_body(
-            &pronunciation_syllables(&phonemes)
-                .map_err(|error| PhoneticError::Message(error.to_string()))?,
-        )
+        render_syllabified_ipa_body(&pronunciation_syllables(&phonemes).map_err(|error| {
+            PhoneticError::Syllabification {
+                message: error.to_string(),
+            }
+        })?)
     };
     Ok(IpaRenderedWord {
         body,

@@ -3525,7 +3525,9 @@ fn render_gimfihi_candidate_row(candidate: &GimfihiCandidate) -> String {
 #[ensures(!ret.is_empty())]
 fn format_gimfihi_collision(collision: &GismuCollision) -> String {
     match collision.kind {
-        CollisionKind::Identical => format!("[= existing {}]", collision.existing_word_type),
+        CollisionKind::Identical => {
+            format!("[= existing {}]", collision.existing_word_type.as_str())
+        }
         CollisionKind::FinalVowel => format!("[~ {}: final vowel]", collision.existing_word),
         CollisionKind::SimilarConsonant => {
             format!("[~ {}: similar consonant]", collision.existing_word)

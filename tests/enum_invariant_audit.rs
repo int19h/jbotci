@@ -1052,8 +1052,44 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "IPA chunks borrow validated morphology words",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Message",
-        "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::EmptyBracketedIpa",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::EmptyQuery",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::MissingClosingBracket",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::MissingOpeningBracket",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Morphology",
+        "morphology error payload is already formatted by the source diagnostic type",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::NestedBrackets",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::NoPronounceableWords",
+        "phonetic error payload preserves the rejected user input for display",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::PartialBracketedQuery",
+        "phonetic error variant is a closed diagnostic selector with no payload invariants",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::Syllabification",
+        "syllabification error payload is already formatted by the source diagnostic type",
+    ),
+    (
+        "crates/jbotci-phonetic/src/lib.rs:PhoneticError::UnsupportedSegment",
+        "phonetic error payload preserves the unsupported IPA segment context for display",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",

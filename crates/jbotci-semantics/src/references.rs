@@ -340,7 +340,7 @@ pub struct SumtiPlaceAssignment {
     pub source: AssignmentSource,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub enum ReferenceKind {
@@ -362,7 +362,7 @@ pub enum ReferenceKind {
     Utterance,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub enum VagueReferenceKind {
@@ -387,14 +387,79 @@ pub enum ReferenceTarget {
     Vague(VagueReferenceKind),
 }
 
-#[invariant(!rule.is_empty())]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum ReferenceRule {
+    #[serde(rename = "di'e refers to the following utterance when one is present")]
+    DiheFollowingWhenPresent,
+    #[serde(rename = "di'e refers to the following utterance")]
+    DiheFollowing,
+    #[serde(rename = "prenex CEI assignment binds the following bridi")]
+    PrenexCeiAssignment,
+    #[serde(
+        rename = "letteral pro-sumti resolves to the latest sumti with the same initial string"
+    )]
+    LetteralProSumtiLatestInitial,
+    #[serde(rename = "GOI relative clause equates its sumti with the relative-clause head")]
+    GoiEquatesHead,
+    #[serde(rename = "GOI assigns the relative-clause head pro-sumti to its sumti")]
+    GoiAssignsHeadProSumti,
+    #[serde(rename = "GOI relative phrase marker relates x1 to the relative-clause head")]
+    GoiX1RelativeHead,
+    #[serde(rename = "GOI relative phrase marker relates x2 to the attached sumti")]
+    GoiX2AttachedSumti,
+    #[serde(rename = "CEI assigns a pro-bridi word to the enclosing bridi")]
+    CeiAssignsEnclosingBridi,
+    #[serde(rename = "wrapped ri exposes the complete sumti as a reference source")]
+    WrappedRiReferenceSource,
+    #[serde(rename = "wrapped ke'a exposes the complete sumti as a reference source")]
+    WrappedKehaReferenceSource,
+    #[serde(rename = "ri repeats the previous complete sumti")]
+    RiPreviousSumti,
+    #[serde(rename = "ce'u refers to the current abstraction")]
+    CehuCurrentAbstraction,
+    #[serde(rename = "ra is intentionally vague and is not resolved heuristically")]
+    RaVague,
+    #[serde(rename = "ru is intentionally vague and is not resolved heuristically")]
+    RuVague,
+    #[serde(rename = "ke'a refers to the current relative-clause head")]
+    KehaCurrentRelativeHead,
+    #[serde(
+        rename = "utterance pro-sumti resolves to a neighboring utterance when determined by form"
+    )]
+    NeighborUtteranceByForm,
+    #[serde(rename = "vo'a-series refers to a place of the current bridi")]
+    VohaCurrentBridiPlace,
+    #[serde(rename = "later da/de/di mentions refer to the active variable binding")]
+    DaActiveVariableBinding,
+    #[serde(rename = "KOhA resolves through an explicit GOI binding")]
+    KohaGoiBinding,
+    #[serde(rename = "go'i repeats the previous bridi")]
+    GohiPreviousBridi,
+    #[serde(rename = "go'e repeats the second-prior bridi")]
+    GoheSecondPriorBridi,
+    #[serde(rename = "this GOhA form is context-sensitive and is not resolved heuristically")]
+    GohaUnresolvedContextSensitive,
+    #[serde(rename = "nei refers to the current bridi")]
+    NeiCurrentBridi,
+    #[serde(rename = "no'a refers to an outer bridi")]
+    NohaOuterBridi,
+    #[serde(rename = "prenex binding resolves this pro-selbri word")]
+    PrenexBindingProSelbri,
+    #[serde(rename = "CEI binding resolves this pro-bridi word")]
+    CeiBindingProBridi,
+    #[serde(rename = "CEI binding resolves this broda-series bridi")]
+    CeiBindingBroda,
+}
+
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceEdge {
     pub id: ReferenceEdgeId,
     pub kind: ReferenceKind,
     pub source: RawSyntaxNodeId,
     pub target: ReferenceTarget,
-    pub rule: String,
+    pub rule: ReferenceRule,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -906,7 +971,7 @@ fn generated_fixture_reference_edge(
     edge: &ReferenceEdge,
 ) -> Option<FixtureReferenceEdge> {
     Some(FixtureReferenceEdge {
-        kind: edge.kind.clone(),
+        kind: edge.kind,
         source: fixture_span_key_for_generated_node(&analysis.syntax_index, edge.source)?,
         target: generated_fixture_reference_target(analysis, &edge.target)?,
     })
@@ -945,9 +1010,7 @@ fn generated_fixture_reference_target(
         ReferenceTarget::Unresolved(reason) => Some(FixtureReferenceTarget::Unresolved {
             reason: reason.clone(),
         }),
-        ReferenceTarget::Vague(kind) => Some(FixtureReferenceTarget::Vague {
-            vague_kind: kind.clone(),
-        }),
+        ReferenceTarget::Vague(kind) => Some(FixtureReferenceTarget::Vague { vague_kind: *kind }),
     }
 }
 
@@ -1020,7 +1083,7 @@ impl V0CompatibilityProjection {
                 Some(V0ReferenceEdge {
                     source,
                     target,
-                    kind: edge.kind.clone(),
+                    kind: edge.kind,
                 })
             })
             .collect();
@@ -4823,6 +4886,53 @@ struct NodeMention {
     position: usize,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum CeiLabel {
+    Broda,
+    Brode,
+    Brodi,
+    Brodo,
+    Brodu,
+    Buha,
+    Buhe,
+    Buhi,
+}
+
+impl CeiLabel {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_broda_word_like(word_like: &WordLike) -> Option<Self> {
+        let word = word_like.bare_word()?;
+        match word.canonical_phonemes().as_str() {
+            "broda" => Some(Self::Broda),
+            "brode" => Some(Self::Brode),
+            "brodi" => Some(Self::Brodi),
+            "brodo" => Some(Self::Brodo),
+            "brodu" => Some(Self::Brodu),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_buha_cmavo(cmavo: Cmavo) -> Option<Self> {
+        match cmavo {
+            Cmavo::Buha => Some(Self::Buha),
+            Cmavo::Buhe => Some(Self::Buhe),
+            Cmavo::Buhi => Some(Self::Buhi),
+            _ => None,
+        }
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CeiAssignmentSource {
+    label: CeiLabel,
+    node: RawSyntaxNodeId,
+}
+
 #[derive(Debug)]
 #[invariant(true)]
 struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
@@ -4832,7 +4942,7 @@ struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     koha_bindings: HashMap<Cmavo, SumtiNodeId>,
-    cei_bridi_bindings: HashMap<String, BridiNodeId>,
+    cei_bridi_bindings: HashMap<CeiLabel, BridiNodeId>,
     selbri_variable_bindings: HashMap<Cmavo, SelbriNodeId>,
     da_bindings: HashMap<Cmavo, SumtiNodeId>,
     sumti_mentions: Vec<SumtiMention>,
@@ -4914,7 +5024,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 ReferenceKind::Utterance,
                 source,
                 target_unresolved("di'e has no following utterance"),
-                "di'e refers to the following utterance when one is present",
+                ReferenceRule::DiheFollowingWhenPresent,
             );
         }
     }
@@ -5034,7 +5144,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 ReferenceKind::Utterance,
                 source,
                 target_resolved_node(statement_id.0),
-                "di'e refers to the following utterance",
+                ReferenceRule::DiheFollowing,
             );
         }
         let previous_utterance = self.current_utterance.replace(statement_id.0);
@@ -5774,13 +5884,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         terms: &'tree [generated::TermSyntax],
         bridi: BridiNodeId,
     ) {
-        for (label, source) in self.prenex_cei_assignment_sources(terms) {
-            self.cei_bridi_bindings.insert(label, bridi);
+        for source in self.prenex_cei_assignment_sources(terms) {
+            self.cei_bridi_bindings.insert(source.label, bridi);
             self.add_edge(
                 ReferenceKind::ProBridiAssignment,
-                source,
+                source.node,
                 target_resolved_node(bridi.0),
-                "prenex CEI assignment binds the following bridi",
+                ReferenceRule::PrenexCeiAssignment,
             );
         }
     }
@@ -5838,7 +5948,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn prenex_cei_assignment_sources(
         &self,
         terms: &'tree [generated::TermSyntax],
-    ) -> Vec<(String, RawSyntaxNodeId)> {
+    ) -> Vec<CeiAssignmentSource> {
         let mut sources = Vec::new();
         for term in terms {
             self.collect_prenex_cei_assignment_sources_in_term(term, &mut sources);
@@ -5851,7 +5961,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_term(
         &self,
         term: &'tree generated::TermSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match term {
             generated::TermSyntax::SimpleTerm(term) => {
@@ -5911,7 +6021,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_pehe_operand(
         &self,
         term: &'tree generated::PeheTermsetOperandSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match term {
             generated::PeheTermsetOperandSyntax::SimpleTerm(term) => {
@@ -5947,7 +6057,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_simple_term(
         &self,
         term: &'tree generated::SimpleTermSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match term {
             generated::SimpleTermSyntax::SumtiTerm(term) => {
@@ -6006,7 +6116,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_boxed_terms<'term, I, T>(
         &self,
         terms: I,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) where
         I: IntoIterator<Item = &'term T>,
         T: AsRef<generated::TermSyntax> + 'term,
@@ -6022,7 +6132,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_argument(
         &self,
         sumti: &'tree generated::SumtiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_sumti_grouped(&sumti.base_sumti, sources);
         if let Some(attachment) = &sumti.vuho_attachment {
@@ -6058,7 +6168,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_grouped(
         &self,
         sumti: &'tree generated::SumtiGroupedSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_sumti_afterthought(
             &sumti.leading_sumti,
@@ -6074,7 +6184,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_afterthought(
         &self,
         sumti: &'tree generated::SumtiAfterthoughtSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_sumti_bound(&sumti.leading_sumti, sources);
         for continuation in &sumti.continuations {
@@ -6087,7 +6197,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_bound(
         &self,
         sumti: &'tree generated::SumtiBoundSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
             &sumti.leading_sumti,
@@ -6106,7 +6216,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_forethought(
         &self,
         sumti: &'tree generated::SumtiForethoughtSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match sumti {
             generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
@@ -6136,7 +6246,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_simple_sumti(
         &self,
         sumti: &'tree generated::SimpleSumtiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_sumti_atom(&sumti.base_sumti, sources);
         if let Some(clauses) = &sumti.relative_clauses {
@@ -6149,7 +6259,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_atom(
         &self,
         sumti: &'tree generated::SumtiAtomSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match sumti {
             generated::SumtiAtomSyntax::SumtiBase(sumti) => {
@@ -6169,7 +6279,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_base(
         &self,
         sumti: &'tree generated::SumtiBaseSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match sumti {
             generated::SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
@@ -6230,7 +6340,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_description_tail(
         &self,
         tail: &'tree generated::DescriptionTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         if let Some(sumti) = &tail.leading_tail_elements.tail_sumti {
             self.collect_prenex_cei_assignment_sources_in_sumti_base(&sumti.0, sources);
@@ -6256,7 +6366,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_relative_clause_list(
         &self,
         clauses: &'tree generated::RelativeClauseListSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_relative_clause_atom(&clauses.first, sources);
         for tail in &clauses.additional {
@@ -6282,7 +6392,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_relative_clause_atom(
         &self,
         clause: &'tree generated::RelativeClauseAtomSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match clause {
             generated::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
@@ -6329,7 +6439,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_statement(
         &self,
         statement: &'tree generated::StatementSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match statement {
             generated::StatementSyntax::StatementBase(statement) => {
@@ -6377,7 +6487,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_statement_base(
         &self,
         statement: &'tree generated::StatementBaseSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match statement {
             generated::StatementBaseSyntax::BridiStatement(statement) => {
@@ -6429,7 +6539,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
         &self,
         statement: &'tree generated::StatementAfterIConnectiveSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match statement {
             generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
@@ -6475,7 +6585,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_text(
         &self,
         text: &'tree GeneratedTextSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match text {
             generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
@@ -6498,7 +6608,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_text_paragraphs(
         &self,
         paragraphs: &'tree generated::TextParagraphsSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match paragraphs {
             generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
@@ -6521,7 +6631,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
         &self,
         paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_paragraph(&paragraphs.first, sources);
         for paragraph in &paragraphs.additional_niho {
@@ -6534,7 +6644,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_paragraph(
         &self,
         paragraph: &'tree generated::ParagraphSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match paragraph {
             generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
@@ -6558,7 +6668,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_niho_paragraph(
         &self,
         paragraph: &'tree generated::NihoParagraphSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         if let Some(statements) = paragraph.statements.as_deref() {
             self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
@@ -6572,7 +6682,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
         &self,
         sequence: &'tree generated::ParagraphStatementSequenceSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_statement_or_fragment(
             &sequence.initial.0,
@@ -6592,7 +6702,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_statement_or_fragment(
         &self,
         statement: &'tree generated::StatementOrFragmentSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match statement {
             generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
@@ -6619,7 +6729,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_fragment(
         &self,
         fragment: &'tree generated::FragmentStatementSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match fragment {
             generated::FragmentStatementSyntax::TermsFragment(fragment) => {
@@ -6659,7 +6769,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_terms(
         &self,
         terms: &'tree [generated::TermSyntax],
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         for term in terms {
             self.collect_prenex_cei_assignment_sources_in_term(term, sources);
@@ -6671,7 +6781,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_zantufa_statement_terms_tail(
         &self,
         tail: &'tree generated::ZantufaStatementTermsTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match tail {
             generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
@@ -6690,7 +6800,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_relative_sumti(
         &self,
         sumti: &'tree generated::RelativeSumtiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match sumti {
             generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
@@ -6710,7 +6820,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_subbridi(
         &self,
         subbridi: &'tree generated::SubbridiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match subbridi {
             generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
@@ -6730,7 +6840,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_bridi(
         &self,
         bridi: &'tree generated::BridiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_bridi_tail(
             generated_bridi_tail(bridi),
@@ -6743,7 +6853,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_bridi_tail(
         &self,
         tail: &'tree generated::BridiTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match tail {
             generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
@@ -6770,7 +6880,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail(
         &self,
         tail: &'tree generated::AfterthoughtBridiTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(&tail.0.first, sources);
         for continuation in &tail.0.links {
@@ -6786,7 +6896,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail_without_tail_terms(
         &self,
         tail: &'tree generated::AfterthoughtBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
             &tail.0.first,
@@ -6805,7 +6915,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(
         &self,
         tail: &'tree generated::BoGroupedBridiTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_simple_bridi_tail(&tail.first, sources);
         if let Some(continuation) = tail.bo_continuation.as_deref() {
@@ -6821,7 +6931,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
         &self,
         tail: &'tree generated::BoGroupedBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_simple_bridi_tail_without_tail_terms(
             &tail.first,
@@ -6840,7 +6950,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_simple_bridi_tail(
         &self,
         tail: &'tree generated::SimpleBridiTailSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match tail {
             generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
@@ -6855,7 +6965,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_simple_bridi_tail_without_tail_terms(
         &self,
         tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match tail {
             generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
@@ -6870,7 +6980,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_relation(
         &self,
         selbri: &'tree generated::SelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match selbri {
             generated::SelbriSyntax::TaggedSelbri(selbri) => {
@@ -6890,7 +7000,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_untagged_relation(
         &self,
         selbri: &'tree generated::UntaggedSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match selbri {
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
@@ -6923,7 +7033,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_co_selbri(
         &self,
         selbri: &'tree generated::CoSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_connected_selbri(
             &selbri.leading_selbri,
@@ -6939,7 +7049,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_connected_selbri(
         &self,
         selbri: &'tree generated::ConnectedSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_selbri(&selbri.leading_selbri, sources);
         for continuation in &selbri.continuations {
@@ -6955,7 +7065,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_selbri(
         &self,
         selbri: &'tree generated::TanruSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_unit(&selbri.first_unit, sources);
         for unit in &selbri.additional_units {
@@ -6968,7 +7078,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_unit(
         &self,
         unit: &'tree generated::TanruUnitSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
             &unit.0.first,
@@ -6987,7 +7097,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
         &self,
         unit: &'tree generated::BoOrLinkedTanruUnitSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match unit {
             generated::BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
@@ -7002,7 +7112,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     if let Some(label) =
                         generated_relation_unit_assignment_label(&assignment.tanru_unit)
                     {
-                        sources.push((label, self.raw_for_node(assignment.tanru_unit.as_ref())));
+                        sources.push(CeiAssignmentSource {
+                            label,
+                            node: self.raw_for_node(assignment.tanru_unit.as_ref()),
+                        });
                     }
                 }
             }
@@ -7043,7 +7156,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_linked_tanru_unit(
         &self,
         unit: &'tree generated::LinkedTanruUnitSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom(&unit.base, sources);
         if let Some(linkargs) = &unit.linkargs {
@@ -7056,7 +7169,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom(
         &self,
         unit: &'tree generated::TanruUnitAtomSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base(&unit.base, sources);
     }
@@ -7066,7 +7179,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base(
         &self,
         unit: &'tree generated::TanruUnitAtomBaseSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match unit {
             generated::TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
@@ -7125,7 +7238,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_linked_tanru_unit_for_cei(
         &self,
         unit: &'tree generated::LinkedTanruUnitForCeiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_for_cei(&unit.base, sources);
         if let Some(linkargs) = &unit.linkargs {
@@ -7138,7 +7251,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_for_cei(
         &self,
         unit: &'tree generated::TanruUnitAtomForCeiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base_for_cei(
             &unit.base, sources,
@@ -7150,7 +7263,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base_for_cei(
         &self,
         unit: &'tree generated::TanruUnitAtomBaseForCeiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match unit {
             generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
@@ -7211,7 +7324,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_scalar_negated_tanru_inner_unit(
         &self,
         unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match unit {
             generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
@@ -7237,7 +7350,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
         &self,
         unit: &'tree generated::JaiInnerTanruUnitSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match unit {
             generated::JaiInnerTanruUnitSyntax::ConvertedJaiInnerTanruUnit(unit) => {
@@ -7282,7 +7395,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_connected_jai_inner_selbri(
         &self,
         selbri: &'tree generated::ConnectedJaiInnerSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_tanru_jai_inner_selbri(
             &selbri.leading_selbri,
@@ -7301,7 +7414,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_tanru_jai_inner_selbri(
         &self,
         selbri: &'tree generated::TanruJaiInnerSelbriSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
             &selbri.first_unit,
@@ -7317,7 +7430,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
         &self,
         sumti: &'tree generated::SumtiSelbriSumtiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         if let generated::SumtiSelbriSumtiSyntax::Sumti(sumti) = sumti {
             self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
@@ -7329,7 +7442,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_linkargs(
         &self,
         linkargs: &'tree generated::LinkargsSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         self.collect_prenex_cei_assignment_sources_in_linked_sumti(&linkargs.first_link, sources);
         for link in &linkargs.bei_links {
@@ -7342,7 +7455,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn collect_prenex_cei_assignment_sources_in_linked_sumti(
         &self,
         link: &'tree generated::LinkedSumtiSyntax,
-        sources: &mut Vec<(String, RawSyntaxNodeId)>,
+        sources: &mut Vec<CeiAssignmentSource>,
     ) {
         match link {
             generated::LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
@@ -8378,7 +8491,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                             ReferenceKind::Letter,
                             argument_id.0,
                             target_resolved_node(target.0),
-                            "letteral pro-sumti resolves to the latest sumti with the same initial string",
+                            ReferenceRule::LetteralProSumtiLatestInitial,
                         );
                         self.note_sumti_mention_with_availability(argument_id, target, false);
                     } else {
@@ -8705,7 +8818,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             ReferenceKind::SumtiAssociation,
             source,
             target_resolved_node(base_id.0),
-            "GOI relative clause equates its sumti with the relative-clause head",
+            ReferenceRule::GoiEquatesHead,
         );
         if let Some(cmavo) = generated_koha_assignable_cmavo_from_relative_sumti(&clause.sumti) {
             self.koha_bindings.insert(cmavo, base_id);
@@ -8715,7 +8828,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 ReferenceKind::SumtiAssociation,
                 base_id.0,
                 target_resolved_node(goi_argument_id.0),
-                "GOI assigns the relative-clause head pro-sumti to its sumti",
+                ReferenceRule::GoiAssignsHeadProSumti,
             );
         }
     }
@@ -8739,13 +8852,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             ReferenceKind::RelativePhraseHead,
             source,
             target_resolved_node(base_id.0),
-            "GOI relative phrase marker relates x1 to the relative-clause head",
+            ReferenceRule::GoiX1RelativeHead,
         );
         self.add_edge(
             ReferenceKind::RelativePhraseArgument,
             source,
             target_resolved_node(goi_argument_id.0),
-            "GOI relative phrase marker relates x2 to the attached sumti",
+            ReferenceRule::GoiX2AttachedSumti,
         );
     }
 
@@ -9177,7 +9290,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                             ReferenceKind::ProBridiAssignment,
                             self.raw_for_node(assignment.tanru_unit.as_ref()),
                             target_resolved_node(predicate_id.0),
-                            "CEI assigns a pro-bridi word to the enclosing bridi",
+                            ReferenceRule::CeiAssignsEnclosingBridi,
                         );
                     }
                 }
@@ -9229,7 +9342,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.0.value.cmavo());
             }
             generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(unit) => {
-                if let Some(label) = broda_label(unit.0.value.core_word()) {
+                if let Some(label) = CeiLabel::from_broda_word_like(unit.0.value.core_word()) {
                     self.resolve_broda_source(self.raw_for_node(unit), label);
                 }
             }
@@ -9298,7 +9411,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.0.value.cmavo());
             }
             generated::TanruUnitAtomBaseSyntax::WordTanruUnit(unit) => {
-                if let Some(label) = broda_label(unit.0.value.core_word()) {
+                if let Some(label) = CeiLabel::from_broda_word_like(unit.0.value.core_word()) {
                     self.resolve_broda_source(self.raw_for_node(unit), label);
                 }
             }
@@ -9412,7 +9525,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
             }
             generated::JaiInnerTanruUnitSyntax::WordTanruUnit(unit) => {
-                if let Some(label) = broda_label(unit.0.value.core_word()) {
+                if let Some(label) = CeiLabel::from_broda_word_like(unit.0.value.core_word()) {
                     self.resolve_broda_source(self.raw_for_node(unit), label);
                 }
             }
@@ -9594,7 +9707,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::Ri,
                         source.0,
                         target_resolved_node(target.0),
-                        "wrapped ri exposes the complete sumti as a reference source",
+                        ReferenceRule::WrappedRiReferenceSource,
                     );
                 }
             }
@@ -9608,7 +9721,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::Keha,
                         source.0,
                         target_resolved_node(target.0),
-                        "wrapped ke'a exposes the complete sumti as a reference source",
+                        ReferenceRule::WrappedKehaReferenceSource,
                     );
                 }
             }
@@ -9688,7 +9801,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Ri,
                     source.0,
                     target,
-                    "ri repeats the previous complete sumti",
+                    ReferenceRule::RiPreviousSumti,
                 );
                 target_argument
             }
@@ -9703,7 +9816,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Cehu,
                     source.0,
                     target,
-                    "ce'u refers to the current abstraction",
+                    ReferenceRule::CehuCurrentAbstraction,
                 );
                 None
             }
@@ -9712,7 +9825,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Ra,
                     source.0,
                     target_vague(VagueReferenceKind::DistantSumti),
-                    "ra is intentionally vague and is not resolved heuristically",
+                    ReferenceRule::RaVague,
                 );
                 None
             }
@@ -9721,7 +9834,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Ru,
                     source.0,
                     target_vague(VagueReferenceKind::DistantSumti),
-                    "ru is intentionally vague and is not resolved heuristically",
+                    ReferenceRule::RuVague,
                 );
                 None
             }
@@ -9736,7 +9849,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Keha,
                     source.0,
                     target,
-                    "ke'a refers to the current relative-clause head",
+                    ReferenceRule::KehaCurrentRelativeHead,
                 );
                 None
             }
@@ -9758,7 +9871,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::Utterance,
                     source.0,
                     target,
-                    "utterance pro-sumti resolves to a neighboring utterance when determined by form",
+                    ReferenceRule::NeighborUtteranceByForm,
                 );
                 None
             }
@@ -9780,7 +9893,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::VohaSeries,
                     source.0,
                     target,
-                    "vo'a-series refers to a place of the current bridi",
+                    ReferenceRule::VohaCurrentBridiPlace,
                 );
                 None
             }
@@ -9790,7 +9903,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::DaSeries,
                         source.0,
                         target_resolved_node(target.0),
-                        "later da/de/di mentions refer to the active variable binding",
+                        ReferenceRule::DaActiveVariableBinding,
                     );
                     Some(target)
                 } else {
@@ -9804,7 +9917,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::Koha,
                         source.0,
                         target_resolved_node(target.0),
-                        "KOhA resolves through an explicit GOI binding",
+                        ReferenceRule::KohaGoiBinding,
                     );
                     Some(target)
                 } else {
@@ -9830,7 +9943,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::GohaSeries,
                     source,
                     target,
-                    "go'i repeats the previous bridi",
+                    ReferenceRule::GohiPreviousBridi,
                 );
             }
             Cmavo::Gohe => {
@@ -9842,7 +9955,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::GohaSeries,
                     source,
                     target,
-                    "go'e repeats the second-prior bridi",
+                    ReferenceRule::GoheSecondPriorBridi,
                 );
             }
             Cmavo::Goha | Cmavo::Gohu | Cmavo::Goho => {
@@ -9850,7 +9963,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::GohaSeries,
                     source,
                     target_vague(VagueReferenceKind::Bridi),
-                    "this GOhA form is context-sensitive and is not resolved heuristically",
+                    ReferenceRule::GohaUnresolvedContextSensitive,
                 );
             }
             Cmavo::Nei => {
@@ -9864,7 +9977,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::GohaSeries,
                     source,
                     target,
-                    "nei refers to the current bridi",
+                    ReferenceRule::NeiCurrentBridi,
                 );
             }
             Cmavo::Noha => {
@@ -9882,7 +9995,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     ReferenceKind::GohaSeries,
                     source,
                     target,
-                    "no'a refers to an outer bridi",
+                    ReferenceRule::NohaOuterBridi,
                 );
             }
             Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi => {
@@ -9891,16 +10004,17 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         ReferenceKind::BrodaSeries,
                         source,
                         target_resolved_node(target.0),
-                        "prenex binding resolves this pro-selbri word",
+                        ReferenceRule::PrenexBindingProSelbri,
                     );
                 }
-                let label = cmavo.canonical_text().to_owned();
-                if let Some(target) = self.cei_bridi_bindings.get(&label).copied() {
+                if let Some(label) = CeiLabel::from_buha_cmavo(cmavo)
+                    && let Some(target) = self.cei_bridi_bindings.get(&label).copied()
+                {
                     self.add_edge(
                         ReferenceKind::BrodaSeries,
                         source,
                         target_resolved_node(target.0),
-                        "CEI binding resolves this pro-bridi word",
+                        ReferenceRule::CeiBindingProBridi,
                     );
                 }
             }
@@ -9908,27 +10022,27 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         }
     }
 
-    #[requires(!label.is_empty())]
+    #[requires(true)]
     #[ensures(true)]
-    fn resolve_broda_source(&mut self, source: RawSyntaxNodeId, label: String) {
+    fn resolve_broda_source(&mut self, source: RawSyntaxNodeId, label: CeiLabel) {
         if let Some(target) = self.cei_bridi_bindings.get(&label).copied() {
             self.add_edge(
                 ReferenceKind::BrodaSeries,
                 source,
                 target_resolved_node(target.0),
-                "CEI binding resolves this broda-series bridi",
+                ReferenceRule::CeiBindingBroda,
             );
         }
     }
 
-    #[requires(!rule.is_empty())]
+    #[requires(true)]
     #[ensures(true)]
     fn add_edge(
         &mut self,
         kind: ReferenceKind,
         source: RawSyntaxNodeId,
         target: ReferenceTarget,
-        rule: &str,
+        rule: ReferenceRule,
     ) {
         let id = ReferenceEdgeId(self.edges.len());
         if let ReferenceTarget::ResolvedNode(target_node) = target {
@@ -9938,13 +10052,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 .push(id);
         }
         self.edge_ids_by_source.entry(source).or_default().push(id);
-        self.edges.push(new!(ReferenceEdge {
-            id: id,
-            kind: kind,
-            source: source,
-            target: target,
-            rule: rule.to_owned(),
-        }));
+        self.edges.push(ReferenceEdge {
+            id,
+            kind,
+            source,
+            target,
+            rule,
+        });
     }
 
     #[requires(true)]
@@ -10842,16 +10956,13 @@ fn generated_scalar_negated_tanru_inner_unit_first_token(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|label| !label.is_empty()))]
+#[ensures(true)]
 fn generated_relation_unit_assignment_label(
     unit: &generated::LinkedTanruUnitForCeiSyntax,
-) -> Option<String> {
+) -> Option<CeiLabel> {
     generated_tanru_unit_atom_for_cei_first_token(&unit.base).and_then(|token| {
-        broda_label(token.core_word()).or_else(|| {
-            let cmavo = token.cmavo()?;
-            matches!(cmavo, Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi)
-                .then(|| cmavo.canonical_text().to_owned())
-        })
+        CeiLabel::from_broda_word_like(token.core_word())
+            .or_else(|| CeiLabel::from_buha_cmavo(token.cmavo()?))
     })
 }
 
@@ -10973,18 +11084,6 @@ fn voha_slot(cmavo: Cmavo) -> Option<PlaceSlot> {
         Cmavo::Vohu => PlaceSlot::numbered(5),
         _ => None,
     }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|label| !label.is_empty()))]
-fn broda_label(word_like: &WordLike) -> Option<String> {
-    let word = word_like.bare_word()?;
-    let text = word.canonical_phonemes();
-    matches!(
-        text.as_str(),
-        "broda" | "brode" | "brodi" | "brodo" | "brodu"
-    )
-    .then_some(text)
 }
 
 #[cfg(test)]
