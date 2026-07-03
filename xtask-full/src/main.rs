@@ -9,7 +9,8 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use bityzba::{contract_trait, ensures, invariant, requires};
+#[allow(unused_imports)]
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{CllExample, CllSite, embedded_cll_site};
@@ -11535,7 +11536,7 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
 mod tests {
     use super::*;
     use bityzba::requires;
-    use jbotci_cll::{CllExampleLine, CllMetadata, CllReference};
+    use jbotci_cll::{CllChapter, CllExampleLine, CllMetadata, CllReference, CllSection};
 
     #[test]
     #[requires(true)]
@@ -11709,7 +11710,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cll_fixture_metadata_values_include_all_lines_and_joined_candidate() {
-        let example = CllExample {
+        let example = new!(CllExample {
             reference: test_cll_reference(
                 "c6e2d5",
                 "2.5",
@@ -11727,17 +11728,17 @@ mod tests {
             gloss_en: Some("joined gloss".to_owned()),
             translation_en: Some("joined translation".to_owned()),
             lines: vec![
-                CllExampleLine {
+                new!(CllExampleLine {
                     kind: "natlang".to_owned(),
                     text: "First translation.".to_owned(),
-                },
-                CllExampleLine {
+                }),
+                new!(CllExampleLine {
                     kind: "natlang".to_owned(),
                     text: "Second translation.".to_owned(),
-                },
+                }),
             ],
             plain_text: String::new(),
-        };
+        });
 
         let values =
             cll_fixture_metadata_field_values(&example, CllFixtureMetadataField::TranslationEn);
@@ -11751,6 +11752,55 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn test_cll_site(examples: Vec<CllExample>) -> CllSite {
+        let mut chapters_by_number = BTreeMap::new();
+        let mut sections_by_id = BTreeMap::new();
+        let mut section_order = Vec::new();
+
+        for example in &examples {
+            let reference = &example.reference;
+            let chapter_id = format!("chapter-{}", reference.chapter);
+            chapters_by_number
+                .entry(reference.chapter)
+                .or_insert_with(|| (chapter_id.clone(), Vec::new()));
+
+            if !sections_by_id.contains_key(&reference.section_id) {
+                section_order.push(reference.section_id.clone());
+                sections_by_id.insert(
+                    reference.section_id.clone(),
+                    new!(CllSection {
+                        section_id: reference.section_id.clone(),
+                        chapter_id: chapter_id.clone(),
+                        chapter_number: reference.chapter,
+                        number: reference.section_number.clone(),
+                        title: format!("Section {}", reference.section_number),
+                        parent_section_id: None,
+                        child_section_ids: Vec::new(),
+                        blocks: Vec::new(),
+                        source_path: reference.source_path.clone(),
+                        plain_text: String::new(),
+                    }),
+                );
+                chapters_by_number
+                    .get_mut(&reference.chapter)
+                    .expect("chapter was inserted above")
+                    .1
+                    .push(reference.section_id.clone());
+            }
+        }
+
+        let chapters = chapters_by_number
+            .into_iter()
+            .map(|(chapter_number, (chapter_id, root_section_ids))| {
+                new!(CllChapter {
+                    chapter_id: chapter_id,
+                    chapter_number: chapter_number,
+                    chapter_title: format!("Chapter {chapter_number}"),
+                    root_section_ids: root_section_ids,
+                    prelude_blocks: Vec::new(),
+                })
+            })
+            .collect::<Vec<_>>();
+        let chapter_count = chapters.len();
         let examples_by_id = examples
             .into_iter()
             .map(|example| {
@@ -11764,21 +11814,21 @@ mod tests {
                 )
             })
             .collect();
-        CllSite {
-            metadata: CllMetadata {
+        new!(CllSite {
+            metadata: new!(CllMetadata {
                 title: "Test CLL".to_owned(),
-                chapter_count: 0,
-            },
-            chapters: Vec::new(),
-            sections_by_id: BTreeMap::new(),
-            section_order: Vec::new(),
+                chapter_count: chapter_count,
+            }),
+            chapters: chapters,
+            sections_by_id: sections_by_id,
+            section_order: section_order,
             section_ids_by_normalized_reference: BTreeMap::new(),
-            examples_by_id,
+            examples_by_id: examples_by_id,
             example_ids_by_normalized_reference: BTreeMap::new(),
             anchors_by_id: BTreeMap::new(),
             index_entries: Vec::new(),
             search_chunks: Vec::new(),
-        }
+        })
     }
 
     #[requires(!example_id.is_empty())]
@@ -11795,7 +11845,7 @@ mod tests {
         section_id: &str,
         source_path: &str,
     ) -> CllExample {
-        CllExample {
+        new!(CllExample {
             reference: test_cll_reference(
                 example_id,
                 example_number,
@@ -11814,7 +11864,7 @@ mod tests {
             translation_en: Some("Some cat is a dog.".to_owned()),
             lines: Vec::new(),
             plain_text: String::new(),
-        }
+        })
     }
 
     #[requires(!example_id.is_empty())]
@@ -11831,14 +11881,14 @@ mod tests {
         section_id: &str,
         source_path: &str,
     ) -> CllReference {
-        CllReference {
-            chapter,
+        new!(CllReference {
+            chapter: chapter,
             section_number: section_number.to_owned(),
             section_id: section_id.to_owned(),
             example_number: Some(example_number.to_owned()),
             example_id: Some(example_id.to_owned()),
             source_path: source_path.to_owned(),
-        }
+        })
     }
 
     #[requires(true)]
