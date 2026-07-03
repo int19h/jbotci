@@ -1,4 +1,5 @@
 import { createWorkerClient } from "./worker-client.js";
+import { validateModelCatalog } from "./model-catalog.js";
 
 const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
@@ -265,113 +266,6 @@ function requireCatalog() {
     throw new Error("embedding model catalog has not been configured");
   }
   return configuredCatalog;
-}
-
-function validateModelCatalog(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("embedding model catalog must be an object");
-  }
-  if (raw.schemaVersion !== 1) {
-    throw new Error(`unsupported embedding model catalog schema version: ${raw.schemaVersion}`);
-  }
-  const models = raw.models;
-  if (!models || typeof models !== "object" || Array.isArray(models)) {
-    throw new Error("embedding model catalog models must be an object");
-  }
-  const normalizedModels = {};
-  for (const [key, spec] of Object.entries(models)) {
-    normalizedModels[key] = validateModelSpec(key, spec);
-  }
-  for (const field of ["defaultMobileModelKey", "defaultDesktopModelKey", "wasmFallbackModelKey"]) {
-    if (typeof raw[field] !== "string" || !normalizedModels[raw[field]]) {
-      throw new Error(`embedding model catalog ${field} must name a configured model`);
-    }
-  }
-  const fallback = normalizedModels[raw.wasmFallbackModelKey];
-  if (!fallback.wasmRuntime?.onnxUrl) {
-    throw new Error("embedding model catalog wasmFallbackModelKey must provide a wasmRuntime.onnxUrl");
-  }
-  return {
-    schemaVersion: 1,
-    defaultMobileModelKey: raw.defaultMobileModelKey,
-    defaultDesktopModelKey: raw.defaultDesktopModelKey,
-    wasmFallbackModelKey: raw.wasmFallbackModelKey,
-    models: normalizedModels,
-  };
-}
-
-function validateModelSpec(key, spec) {
-  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
-    throw new Error(`embedding model ${key} must be an object`);
-  }
-  const modelKey = requiredString(spec, "modelKey", `embedding model ${key}`);
-  if (modelKey !== key) {
-    throw new Error(`embedding model ${key} modelKey mismatch: ${modelKey}`);
-  }
-  const customRuntime = requiredObject(spec, "customRuntime", `embedding model ${key}`);
-  const preferredRuntime = requiredObject(spec, "preferredRuntime", `embedding model ${key}`);
-  const normalized = {
-    modelKey,
-    label: requiredString(spec, "label", `embedding model ${key}`),
-    modelId: requiredString(spec, "modelId", `embedding model ${key}`),
-    customRuntime: {
-      runtime: requiredString(customRuntime, "runtime", `embedding model ${key} customRuntime`),
-      version: requiredString(customRuntime, "version", `embedding model ${key} customRuntime`),
-      artifactBaseUrl: requiredString(customRuntime, "artifactBaseUrl", `embedding model ${key} customRuntime`),
-      dtype: requiredString(customRuntime, "dtype", `embedding model ${key} customRuntime`),
-      device: requiredString(customRuntime, "device", `embedding model ${key} customRuntime`),
-    },
-    preferredRuntime: {
-      dtype: requiredString(preferredRuntime, "dtype", `embedding model ${key} preferredRuntime`),
-      device: requiredString(preferredRuntime, "device", `embedding model ${key} preferredRuntime`),
-    },
-    dimensions: requiredPositiveInteger(spec, "dimensions", `embedding model ${key}`),
-    maxSequenceLength: requiredPositiveInteger(spec, "maxSequenceLength", `embedding model ${key}`),
-    queryPrefix: requiredString(spec, "queryPrefix", `embedding model ${key}`),
-    remoteVectorPacks: spec.remoteVectorPacks === true,
-    browserLocalIndexing: spec.browserLocalIndexing !== false,
-    localVectorSpaceKey: requiredString(spec, "localVectorSpaceKey", `embedding model ${key}`),
-    vectorElementType: requiredString(spec, "vectorElementType", `embedding model ${key}`),
-    embedBatchSize: requiredPositiveInteger(spec, "embedBatchSize", `embedding model ${key}`),
-    modelSizeEstimates: requiredObject(spec, "modelSizeEstimates", `embedding model ${key}`),
-    minFreeBytesByDtype: requiredObject(spec, "minFreeBytesByDtype", `embedding model ${key}`),
-    outputPooling: requiredString(spec, "outputPooling", `embedding model ${key}`),
-  };
-  if (spec.wasmRuntime !== undefined && spec.wasmRuntime !== null) {
-    const wasmRuntime = requiredObject(spec, "wasmRuntime", `embedding model ${key}`);
-    normalized.wasmRuntime = {
-      runtime: requiredString(wasmRuntime, "runtime", `embedding model ${key} wasmRuntime`),
-      version: requiredString(wasmRuntime, "version", `embedding model ${key} wasmRuntime`),
-      onnxUrl: requiredString(wasmRuntime, "onnxUrl", `embedding model ${key} wasmRuntime`),
-      dtype: requiredString(wasmRuntime, "dtype", `embedding model ${key} wasmRuntime`),
-      device: requiredString(wasmRuntime, "device", `embedding model ${key} wasmRuntime`),
-    };
-  }
-  return normalized;
-}
-
-function requiredObject(value, field, label) {
-  const fieldValue = value?.[field];
-  if (!fieldValue || typeof fieldValue !== "object" || Array.isArray(fieldValue)) {
-    throw new Error(`${label}.${field} must be an object`);
-  }
-  return fieldValue;
-}
-
-function requiredString(value, field, label) {
-  const fieldValue = value?.[field];
-  if (typeof fieldValue !== "string" || fieldValue.trim().length === 0) {
-    throw new Error(`${label}.${field} must be a non-empty string`);
-  }
-  return fieldValue;
-}
-
-function requiredPositiveInteger(value, field, label) {
-  const fieldValue = value?.[field];
-  if (!Number.isInteger(fieldValue) || fieldValue <= 0) {
-    throw new Error(`${label}.${field} must be a positive integer`);
-  }
-  return fieldValue;
 }
 
 function errorMessage(error) {

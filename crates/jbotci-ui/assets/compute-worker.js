@@ -1,3 +1,5 @@
+import { waitForAppModuleReady } from "./app-module-ready.js";
+
 let computeHandle = null;
 let initModuleUrl = null;
 let initPromise = null;
@@ -20,13 +22,6 @@ function initCompute(mainModuleUrl) {
     computeHandle = appModule.jbotciComputeHandle;
   });
   return initPromise;
-}
-
-async function waitForAppModuleReady(appModule) {
-  if (typeof appModule.jbotciWorkerReady !== "function") {
-    throw new Error("Dioxus app module does not export jbotciWorkerReady");
-  }
-  await appModule.jbotciWorkerReady();
 }
 
 self.onmessage = async (event) => {

@@ -1,3 +1,6 @@
+import { waitForAppModuleReady } from "./app-module-ready.js";
+import { validateModelCatalog } from "./model-catalog.js";
+
 const MODEL_CACHE_NAME = "jbotci-f2llm-models-v1";
 const DEFAULT_ORT_MODULE_URL = new URL("./ort/ort.wasm.min.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_MJS_URL = new URL("./ort/ort-wasm-simd-threaded.mjs", import.meta.url).href;
@@ -164,7 +167,7 @@ function setDebugLogging(enabled) {
 }
 
 function setModelCatalog(catalog) {
-  const normalized = validateModelCatalog(catalog);
+  const normalized = validateModelCatalog(catalog, "embedding worker modelCatalog");
   if (modelCatalog !== null && JSON.stringify(modelCatalog) === JSON.stringify(normalized)) {
     return;
   }
@@ -185,110 +188,6 @@ function setModelCatalog(catalog) {
     modelKeys: Object.keys(modelCatalog.models),
     fallbackModelKey: modelCatalog.wasmFallbackModelKey,
   });
-}
-
-function validateModelCatalog(catalog) {
-  if (!catalog || typeof catalog !== "object" || Array.isArray(catalog)) {
-    throw new Error("embedding worker modelCatalog must be an object");
-  }
-  if (catalog.schemaVersion !== 1) {
-    throw new Error(`unsupported embedding worker modelCatalog schema version: ${catalog.schemaVersion}`);
-  }
-  if (!catalog.models || typeof catalog.models !== "object" || Array.isArray(catalog.models)) {
-    throw new Error("embedding worker modelCatalog.models must be an object");
-  }
-  const models = {};
-  for (const [key, spec] of Object.entries(catalog.models)) {
-    models[key] = validateModelSpec(key, spec);
-  }
-  for (const field of ["defaultDesktopModelKey", "defaultMobileModelKey", "wasmFallbackModelKey"]) {
-    if (typeof catalog[field] !== "string" || !models[catalog[field]]) {
-      throw new Error(`embedding worker modelCatalog.${field} must name a configured model`);
-    }
-  }
-  if (!models[catalog.wasmFallbackModelKey].wasmRuntime?.onnxUrl) {
-    throw new Error("embedding worker fallback model must provide wasmRuntime.onnxUrl");
-  }
-  return {
-    schemaVersion: 1,
-    defaultDesktopModelKey: catalog.defaultDesktopModelKey,
-    defaultMobileModelKey: catalog.defaultMobileModelKey,
-    wasmFallbackModelKey: catalog.wasmFallbackModelKey,
-    models,
-  };
-}
-
-function validateModelSpec(key, spec) {
-  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
-    throw new Error(`embedding worker model ${key} must be an object`);
-  }
-  const customRuntime = requiredObject(spec, "customRuntime", `embedding worker model ${key}`);
-  const preferredRuntime = requiredObject(spec, "preferredRuntime", `embedding worker model ${key}`);
-  const normalized = {
-    modelKey: requiredString(spec, "modelKey", `embedding worker model ${key}`),
-    label: requiredString(spec, "label", `embedding worker model ${key}`),
-    modelId: requiredString(spec, "modelId", `embedding worker model ${key}`),
-    customRuntime: {
-      runtime: requiredString(customRuntime, "runtime", `embedding worker model ${key} customRuntime`),
-      version: requiredString(customRuntime, "version", `embedding worker model ${key} customRuntime`),
-      artifactBaseUrl: requiredString(customRuntime, "artifactBaseUrl", `embedding worker model ${key} customRuntime`),
-      dtype: requiredString(customRuntime, "dtype", `embedding worker model ${key} customRuntime`),
-      device: requiredString(customRuntime, "device", `embedding worker model ${key} customRuntime`),
-    },
-    preferredRuntime: {
-      dtype: requiredString(preferredRuntime, "dtype", `embedding worker model ${key} preferredRuntime`),
-      device: requiredString(preferredRuntime, "device", `embedding worker model ${key} preferredRuntime`),
-    },
-    dimensions: requiredPositiveInteger(spec, "dimensions", `embedding worker model ${key}`),
-    maxSequenceLength: requiredPositiveInteger(spec, "maxSequenceLength", `embedding worker model ${key}`),
-    queryPrefix: requiredString(spec, "queryPrefix", `embedding worker model ${key}`),
-    remoteVectorPacks: spec.remoteVectorPacks === true,
-    browserLocalIndexing: spec.browserLocalIndexing !== false,
-    localVectorSpaceKey: requiredString(spec, "localVectorSpaceKey", `embedding worker model ${key}`),
-    vectorElementType: requiredString(spec, "vectorElementType", `embedding worker model ${key}`),
-    embedBatchSize: requiredPositiveInteger(spec, "embedBatchSize", `embedding worker model ${key}`),
-    modelSizeEstimates: requiredObject(spec, "modelSizeEstimates", `embedding worker model ${key}`),
-    minFreeBytesByDtype: requiredObject(spec, "minFreeBytesByDtype", `embedding worker model ${key}`),
-    outputPooling: requiredString(spec, "outputPooling", `embedding worker model ${key}`),
-  };
-  if (normalized.modelKey !== key) {
-    throw new Error(`embedding worker model ${key} modelKey mismatch: ${normalized.modelKey}`);
-  }
-  if (spec.wasmRuntime !== undefined && spec.wasmRuntime !== null) {
-    const wasmRuntime = requiredObject(spec, "wasmRuntime", `embedding worker model ${key}`);
-    normalized.wasmRuntime = {
-      runtime: requiredString(wasmRuntime, "runtime", `embedding worker model ${key} wasmRuntime`),
-      version: requiredString(wasmRuntime, "version", `embedding worker model ${key} wasmRuntime`),
-      onnxUrl: requiredString(wasmRuntime, "onnxUrl", `embedding worker model ${key} wasmRuntime`),
-      dtype: requiredString(wasmRuntime, "dtype", `embedding worker model ${key} wasmRuntime`),
-      device: requiredString(wasmRuntime, "device", `embedding worker model ${key} wasmRuntime`),
-    };
-  }
-  return normalized;
-}
-
-function requiredObject(value, field, label) {
-  const fieldValue = value?.[field];
-  if (!fieldValue || typeof fieldValue !== "object" || Array.isArray(fieldValue)) {
-    throw new Error(`${label}.${field} must be an object`);
-  }
-  return fieldValue;
-}
-
-function requiredString(value, field, label) {
-  const fieldValue = value?.[field];
-  if (typeof fieldValue !== "string" || fieldValue.trim().length === 0) {
-    throw new Error(`${label}.${field} must be a non-empty string`);
-  }
-  return fieldValue;
-}
-
-function requiredPositiveInteger(value, field, label) {
-  const fieldValue = value?.[field];
-  if (!Number.isInteger(fieldValue) || fieldValue <= 0) {
-    throw new Error(`${label}.${field} must be a positive integer`);
-  }
-  return fieldValue;
 }
 
 function setSelectedModel(modelKey) {
@@ -779,13 +678,6 @@ async function f2llmRuntimeModule() {
     });
   }
   return mainModulePromise;
-}
-
-async function waitForAppModuleReady(appModule) {
-  if (typeof appModule.jbotciWorkerReady !== "function") {
-    throw new Error("Dioxus app module does not export jbotciWorkerReady");
-  }
-  await appModule.jbotciWorkerReady();
 }
 
 async function ortModule() {
