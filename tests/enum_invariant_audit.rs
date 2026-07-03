@@ -1096,10 +1096,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
     ),
     (
-        "crates/jbotci-search/src/lib.rs:SearchError::DimensionMismatch",
-        "diagnostic enum records vector-search implementation errors",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",
         "compiled glob patterns carry their validation in GlobPattern",
     ),
@@ -1134,26 +1130,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
         "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Lujvo",
-        "CLI and search validation reject empty lujvo requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
-        "semantic query text is validated by CLI and embedded locally before vector search",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Rafsi",
-        "CLI and search validation reject empty rafsi requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
-        "sound query parsing validates request text before ALINE matching",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Valsi",
-        "CLI and search validation reject empty valsi requests before lookup execution",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Built",

@@ -1965,9 +1965,9 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     }
 
     let request = match normalized_state.mode {
-        VlackuWebMode::Word => VlackuRequest::Valsi(normalized_state.query.clone()),
-        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(normalized_state.query.clone()),
-        VlackuWebMode::Sound => VlackuRequest::Sound(normalized_state.query.clone()),
+        VlackuWebMode::Word => VlackuRequest::valsi(normalized_state.query.clone()),
+        VlackuWebMode::Rafsi => VlackuRequest::rafsi(normalized_state.query.clone()),
+        VlackuWebMode::Sound => VlackuRequest::sound(normalized_state.query.clone()),
         VlackuWebMode::Meaning => unreachable!("meaning mode returned above"),
     };
     let fetch_count = normalized_state
@@ -1977,13 +1977,11 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
         &[request],
-        &VlackuSearchOptions {
+        &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
             word_types: normalized_state.word_types.clone(),
-            min_votes: None,
-            min_similarity: None,
             decompose_lujvo: true,
-        },
+        }),
     );
     let has_more = output.cards.len() > normalized_state.count;
     let cards = output
@@ -2159,13 +2157,11 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         .saturating_add(1)
         .min(VLACKU_WEB_MAX_COUNT);
     let dictionary = jbotci_dictionary_data::english();
-    let options = VlackuSearchOptions {
+    let options = VlackuSearchOptions::default().with_data(data! {
         count: fetch_count,
         word_types: normalized_state.word_types.clone(),
-        min_votes: None,
-        min_similarity: None,
         decompose_lujvo: true,
-    };
+    });
     let filtered = hits
         .iter()
         .filter_map(|hit| {
@@ -3184,20 +3180,18 @@ fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
         return None;
     }
     let request = match state.mode {
-        VlackuWebMode::Word => VlackuRequest::Valsi(query.to_owned()),
-        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(query.to_owned()),
+        VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
+        VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
         VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
     };
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
         &[request],
-        &VlackuSearchOptions {
+        &VlackuSearchOptions::default().with_data(data! {
             count: 1,
             word_types: state.word_types.clone(),
-            min_votes: None,
-            min_similarity: None,
             decompose_lujvo: true,
-        },
+        }),
     );
     output
         .cards
@@ -4400,7 +4394,7 @@ pub fn dictionary_tooltip_for_word(base_path: &str, word: &str) -> Option<Dictio
 fn dictionary_tooltip_search_card_for_word(word: &str) -> Option<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[VlackuRequest::Valsi(word.to_owned())],
+        &[VlackuRequest::valsi(word.to_owned())],
         &tooltip_vlacku_options(),
     );
     output.cards.into_iter().next()
@@ -4418,7 +4412,7 @@ pub fn dictionary_tooltip_for_rafsi(base_path: &str, rafsi: &str) -> Option<Dict
 fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[VlackuRequest::Rafsi(rafsi.to_owned())],
+        &[VlackuRequest::rafsi(rafsi.to_owned())],
         &tooltip_vlacku_options(),
     );
     output.cards.into_iter().next()
@@ -4427,13 +4421,13 @@ fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
 #[requires(true)]
 #[ensures(ret.count == 1)]
 fn tooltip_vlacku_options() -> VlackuSearchOptions {
-    VlackuSearchOptions {
+    VlackuSearchOptions::default().with_data(data! {
         count: 1,
         word_types: Vec::new(),
         min_votes: None,
         min_similarity: None,
         decompose_lujvo: true,
-    }
+    })
 }
 
 #[requires(true)]
@@ -4474,11 +4468,12 @@ fn dictionary_annotations_for_elided_blocks(
 
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
-#[ensures(ret.range.byte_start == parsed_match.byte_start)]
+#[ensures(ret.range.byte_start == old(parsed_match.byte_start))]
 fn dictionary_annotation_from_match(
     parsed_match: ParsedWordDictionaryMatch,
     base_path: &str,
 ) -> GentufaBlockAnnotation<DictionaryTooltipCard> {
+    let parsed_match = parsed_match.into_data();
     let first_card = parsed_match
         .cards
         .into_iter()
@@ -4507,6 +4502,7 @@ fn dictionary_tooltip_card_from_search_card(
     base_path: &str,
     card: VlackuCard,
 ) -> DictionaryTooltipCard {
+    let card = card.into_data();
     let word_href = vlacku_web_url(
         base_path,
         &VlackuWebState {
@@ -4882,6 +4878,7 @@ fn web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
 ) -> VlackuWebCard {
+    let card = card.into_data();
     let author = card.author.map(web_author_from_search_author);
     let etymology = card
         .etymology

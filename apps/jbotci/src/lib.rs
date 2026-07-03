@@ -65,7 +65,7 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
-    VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
+    VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_entry_passes_vlacku_filters,
     dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
     run_vlacku_requests,
@@ -1700,24 +1700,28 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
             Arg::new("valsi")
                 .long("valsi")
                 .value_name("WORD")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("rafsi")
                 .long("rafsi")
                 .value_name("RAFSI")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("lujvo")
                 .long("lujvo")
                 .value_name("WORD")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("sound")
                 .long("sound")
                 .value_name("TEXT|[IPA]")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
@@ -1740,25 +1744,25 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
     collect_ordered_vlacku_requests(
         matches,
         "valsi",
-        VlackuRequest::Valsi,
+        VlackuRequest::valsi,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "rafsi",
-        VlackuRequest::Rafsi,
+        VlackuRequest::rafsi,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "lujvo",
-        VlackuRequest::Lujvo,
+        VlackuRequest::lujvo,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "sound",
-        VlackuRequest::Sound,
+        VlackuRequest::sound,
         &mut ordered_requests,
     );
     ordered_requests.sort_by_key(|(index, _)| *index);
@@ -2626,11 +2630,14 @@ fn run_tool_vlacku_inner(
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<ToolRenderedOutput> {
     let query = request.query;
+    if query.is_empty() {
+        bail!("vlacku query must not be empty");
+    }
     let (requests, query_text) = match request.mode {
-        ToolVlackuMode::Word => (vec![VlackuRequest::Valsi(query)], Vec::new()),
-        ToolVlackuMode::Rafsi => (vec![VlackuRequest::Rafsi(query)], Vec::new()),
-        ToolVlackuMode::Lujvo => (vec![VlackuRequest::Lujvo(query)], Vec::new()),
-        ToolVlackuMode::Sound => (vec![VlackuRequest::Sound(query)], Vec::new()),
+        ToolVlackuMode::Word => (vec![VlackuRequest::valsi(query)], Vec::new()),
+        ToolVlackuMode::Rafsi => (vec![VlackuRequest::rafsi(query)], Vec::new()),
+        ToolVlackuMode::Lujvo => (vec![VlackuRequest::lujvo(query)], Vec::new()),
+        ToolVlackuMode::Sound => (vec![VlackuRequest::sound(query)], Vec::new()),
         ToolVlackuMode::Meaning => (Vec::new(), vec![query]),
     };
     run_tool_command_with_context(
@@ -3605,7 +3612,7 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     let sound_count = input
         .requests
         .iter()
-        .filter(|request| matches!(request, VlackuRequest::Sound(_)))
+        .filter(|request| matches!(request.as_data(), data!(VlackuRequest::Sound(_))))
         .count();
     if sound_count > 1 {
         bail!("`--sound` may be specified only once");
@@ -3626,12 +3633,12 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
-    let (flag, value) = match request {
-        VlackuRequest::Valsi(value) => ("--valsi", value),
-        VlackuRequest::Rafsi(value) => ("--rafsi", value),
-        VlackuRequest::Lujvo(value) => ("--lujvo", value),
-        VlackuRequest::Sound(value) => ("--sound", value),
-        VlackuRequest::Meaning(value) => ("semantic query", value),
+    let (flag, value) = match request.as_data() {
+        data!(VlackuRequest::Valsi(value)) => ("--valsi", value),
+        data!(VlackuRequest::Rafsi(value)) => ("--rafsi", value),
+        data!(VlackuRequest::Lujvo(value)) => ("--lujvo", value),
+        data!(VlackuRequest::Sound(value)) => ("--sound", value),
+        data!(VlackuRequest::Meaning(value)) => ("semantic query", value),
     };
     if value.trim().is_empty() {
         bail!("{flag} requires a non-empty value");
@@ -3642,13 +3649,14 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
-    Ok(VlackuSearchOptions {
+    let word_types = parse_vlacku_word_types(&input.word_types)?;
+    Ok(new!(VlackuSearchOptions {
         count: input.count.unwrap_or(DEFAULT_VLACKU_RESULT_COUNT),
-        word_types: parse_vlacku_word_types(&input.word_types)?,
+        word_types,
         min_votes: input.min_votes,
         min_similarity: input.min_similarity,
         decompose_lujvo: input.decompose_lujvo,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -4716,6 +4724,7 @@ fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<(
     dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), words)
         .into_iter()
         .map(|parsed_match| {
+            let parsed_match = parsed_match.into_data();
             let first = parsed_match.cards.first();
             GentufaBlockAnnotation {
                 range: new!(WebSourceRange {
@@ -6278,7 +6287,7 @@ mod tests {
         };
         assert_eq!(
             primary_input.requests,
-            vec![VlackuRequest::Valsi("klama".to_owned())]
+            vec![VlackuRequest::valsi("klama".to_owned())]
         );
         assert_eq!(primary_input.sumti_places, CliSumtiPlaces::Index);
 
@@ -6291,7 +6300,7 @@ mod tests {
         };
         assert_eq!(
             alias_input.requests,
-            vec![VlackuRequest::Rafsi("kla".to_owned())]
+            vec![VlackuRequest::rafsi("kla".to_owned())]
         );
         assert_eq!(alias_input.sumti_places, CliSumtiPlaces::Raw);
     }
@@ -6417,10 +6426,10 @@ mod tests {
         assert_eq!(
             input.requests,
             vec![
-                VlackuRequest::Valsi("a".to_owned()),
-                VlackuRequest::Rafsi("bau".to_owned()),
-                VlackuRequest::Valsi("klama".to_owned()),
-                VlackuRequest::Lujvo("mivyselbai".to_owned()),
+                VlackuRequest::valsi("a".to_owned()),
+                VlackuRequest::rafsi("bau".to_owned()),
+                VlackuRequest::valsi("klama".to_owned()),
+                VlackuRequest::lujvo("mivyselbai".to_owned()),
             ]
         );
     }
@@ -9329,7 +9338,7 @@ mod tests {
     fn vlacku_colors_card_labels_dividers_and_rich_text() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9343,7 +9352,7 @@ mod tests {
                     notes: "unmatched $ remains plain".to_owned(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9378,7 +9387,7 @@ mod tests {
     fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9392,7 +9401,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9417,7 +9426,7 @@ mod tests {
     fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
         let output = render_vlacku_output_with_width(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "cmevla".to_owned(),
                     word_type: "lujvo".to_owned(),
                     selmaho: None,
@@ -9431,7 +9440,7 @@ mod tests {
                     notes: "In Lojban, such words are characterized by ending with a consonant.".to_owned(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9460,7 +9469,7 @@ mod tests {
     fn vlacku_official_author_renders_infinity() {
         let output = render_vlacku_output(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "birka".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9477,7 +9486,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9495,7 +9504,7 @@ mod tests {
     fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "fuhivla".to_owned(),
                     word_type: "fu'ivla".to_owned(),
                     selmaho: None,
@@ -9512,7 +9521,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },

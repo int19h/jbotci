@@ -820,32 +820,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tokenized IPA text is assembled from tokenizer output and consumed as an internal paired return value",
     ),
     (
-        "crates/jbotci-search/src/lib.rs:SearchHit",
-        "search score semantics are index-specific",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:GlobPattern",
         "glob patterns are constructed only by compile_glob_pattern after token validation",
     ),
     (
-        "crates/jbotci-search/src/vlacku.rs:ParsedWordDictionaryMatch",
-        "parsed-word dictionary matches are derived from morphology spans and rendered dictionary cards",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:ParsedWordLookupTarget",
-        "parsed-word lookup targets are transient values built from morphology spans before dictionary lookup",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCard",
-        "dictionary cards are transport values assembled from dictionary entries or validated word classification",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionPiece",
         "composition pieces are projected from validated morphology decomposition segments",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuSearchOptions",
-        "CLI validation constrains count and mode-specific similarity use before lookup execution",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuSearchOutput",

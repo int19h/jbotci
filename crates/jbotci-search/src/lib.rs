@@ -2,9 +2,10 @@
 
 pub mod vlacku;
 
-use bityzba::{contract_trait, invariant, requires};
+use std::fmt;
+
+use bityzba::{contract_trait, data, invariant, requires};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 #[invariant(!model.is_empty())]
 #[invariant(*dimensions == values.len())]
@@ -15,7 +16,7 @@ pub struct Embedding {
     pub values: Vec<f32>,
 }
 
-#[invariant(true)]
+#[invariant(score.is_finite())]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchHit<T> {
     pub item: T,
@@ -25,16 +26,29 @@ pub struct SearchHit<T> {
 #[contract_trait]
 pub trait VectorSearchIndex<T> {
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= limit) || ret.is_err())]
     fn search(&self, query: &Embedding, limit: usize) -> Result<Vec<SearchHit<T>>, SearchError>;
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::DimensionMismatch => true)]
+#[invariant(::DimensionMismatch { expected, actual } => expected != actual)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SearchError {
-    #[error("semantic search is not implemented yet")]
-    NotImplemented,
-    #[error("embedding dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
 }
+
+impl fmt::Display for SearchError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(SearchError::DimensionMismatch { expected, actual }) => {
+                write!(
+                    formatter,
+                    "embedding dimension mismatch: expected {expected}, got {actual}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for SearchError {}
