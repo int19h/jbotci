@@ -1,0 +1,57 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    # Only the repo owner's own comments/issues/reviews can spend Claude credits or
+    # Actions minutes here; anyone else mentioning a trigger phrase is ignored before
+    # a runner is even allocated. The action itself also requires collaborator write
+    # access as a second, independent check.
+    if: github.actor == github.repository_owner
+    name: Claude Code (${{ matrix.phrase }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - phrase: "@claude"
+            model_arg: ""
+          - phrase: "@claude-sonnet"
+            model_arg: "--model claude-sonnet-5"
+          - phrase: "@claude-opus"
+            model_arg: "--model claude-opus-4-8"
+          - phrase: "@claude-fable"
+            model_arg: "--model claude-fable-5"
+          - phrase: "@claude-haiku"
+            model_arg: "--model claude-haiku-4-5-20251001"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      actions: read # lets Claude read CI results when reviewing a PR
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: ${{ matrix.phrase }}
+          # contents: read above already blocks pushes; disallowing the edit tools too
+          # keeps this workflow strictly a reviewer/analyst, not an agentic coder.
+          claude_args: |
+            ${{ matrix.model_arg }}
+            --disallowedTools "Edit,Write,NotebookEdit"
