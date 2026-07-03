@@ -73,7 +73,7 @@ fn q4_value(row: u32, col: u32) -> f32 {
   return f32(i32(q) - i32(zero_point)) * scale;
 }
 
-@compute @workgroup_size(8, 8, 1)
+@compute @workgroup_size({{DEFAULT_WORKGROUP_WIDTH}}, {{DEFAULT_WORKGROUP_WIDTH}}, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let token_index = id.x;
   let dim = id.y;
@@ -97,7 +97,7 @@ struct Params {
 @group(0) @binding(2) var<storage, read_write> output: array<f32>;
 @group(0) @binding(3) var<uniform> params: Params;
 
-@compute @workgroup_size(8, 8, 1)
+@compute @workgroup_size({{DEFAULT_WORKGROUP_WIDTH}}, {{DEFAULT_WORKGROUP_WIDTH}}, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let row = id.x;
   let col = id.y;
@@ -152,7 +152,7 @@ fn weight_value(row: u32, col: u32) -> f32 {
   return (f32(i32(q)) - zero_points[quant_index]) * scales[quant_index];
 }
 
-@compute @workgroup_size(8, 8, 1)
+@compute @workgroup_size({{DEFAULT_WORKGROUP_WIDTH}}, {{DEFAULT_WORKGROUP_WIDTH}}, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let row = id.x;
   let out_col = id.y;
@@ -183,7 +183,7 @@ struct Params {
 @group(0) @binding(1) var<storage, read> local_positions: array<u32>;
 @group(0) @binding(2) var<uniform> params: Params;
 
-@compute @workgroup_size(8, 8, 1)
+@compute @workgroup_size({{DEFAULT_WORKGROUP_WIDTH}}, {{DEFAULT_WORKGROUP_WIDTH}}, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let token = id.x;
   let head = id.y;
@@ -204,7 +204,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 "#;
 
-const PACKED_ATTENTION_SHADER: &str = r#"
+const PACKED_ATTENTION_SCORES_SHADER: &str = r#"
 struct Params {
   seq: u32,
   q_heads: u32,
@@ -217,22 +217,53 @@ struct Params {
 };
 @group(0) @binding(0) var<storage, read> q: array<f32>;
 @group(0) @binding(1) var<storage, read> k: array<f32>;
-@group(0) @binding(2) var<storage, read> v: array<f32>;
-@group(0) @binding(3) var<storage, read> segment_starts: array<u32>;
-@group(0) @binding(4) var<storage, read_write> output: array<f32>;
-@group(0) @binding(5) var<uniform> params: Params;
+@group(0) @binding(2) var<storage, read> segment_starts: array<u32>;
+@group(0) @binding(3) var<storage, read_write> scores: array<f32>;
+@group(0) @binding(4) var<uniform> params: Params;
 
-fn score_for(query_token: u32, key_token: u32, q_head: u32, kv_head: u32) -> f32 {
-  var score = 0.0;
-  let q_base = (query_token * params.q_heads + q_head) * params.head_dim;
+@compute @workgroup_size({{ATTENTION_WORKGROUP_WIDTH}}, {{ATTENTION_WORKGROUP_WIDTH}}, {{ATTENTION_WORKGROUP_WIDTH}})
+fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+  let token = id.x;
+  let q_head = id.y;
+  let key_token = id.z;
+  if (token >= params.seq || q_head >= params.q_heads || key_token >= params.seq) {
+    return;
+  }
+  let segment_start = segment_starts[token];
+  if (key_token < segment_start || key_token > token) {
+    return;
+  }
+  let kv_group_size = params.q_heads / params.kv_heads;
+  let kv_head = q_head / kv_group_size;
+  let q_base = (token * params.q_heads + q_head) * params.head_dim;
   let k_base = (key_token * params.kv_heads + kv_head) * params.head_dim;
+  var score = 0.0;
   for (var dim = 0u; dim < params.head_dim; dim = dim + 1u) {
     score = score + q[q_base + dim] * k[k_base + dim];
   }
-  return score * params.scale;
+  let score_index = (token * params.q_heads + q_head) * params.seq + key_token;
+  scores[score_index] = score * params.scale;
 }
+"#;
 
-@compute @workgroup_size(4, 4, 4)
+const PACKED_ATTENTION_SHADER: &str = r#"
+struct Params {
+  seq: u32,
+  q_heads: u32,
+  kv_heads: u32,
+  head_dim: u32,
+  scale: f32,
+  _pad0: u32,
+  _pad1: u32,
+  _pad2: u32,
+};
+@group(0) @binding(0) var<storage, read> scores: array<f32>;
+@group(0) @binding(1) var<storage, read> v: array<f32>;
+@group(0) @binding(2) var<storage, read> segment_starts: array<u32>;
+@group(0) @binding(3) var<storage, read_write> output: array<f32>;
+@group(0) @binding(4) var<uniform> params: Params;
+
+@compute @workgroup_size({{ATTENTION_WORKGROUP_WIDTH}}, {{ATTENTION_WORKGROUP_WIDTH}}, {{ATTENTION_WORKGROUP_WIDTH}})
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let token = id.x;
   let q_head = id.y;
@@ -243,14 +274,15 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let kv_group_size = params.q_heads / params.kv_heads;
   let kv_head = q_head / kv_group_size;
   let segment_start = segment_starts[token];
+  let score_base = (token * params.q_heads + q_head) * params.seq;
   var max_score = -3.402823e38;
   for (var key_token = segment_start; key_token <= token; key_token = key_token + 1u) {
-    max_score = max(max_score, score_for(token, key_token, q_head, kv_head));
+    max_score = max(max_score, scores[score_base + key_token]);
   }
   var denominator = 0.0;
   var weighted = 0.0;
   for (var key_token = segment_start; key_token <= token; key_token = key_token + 1u) {
-    let probability_weight = exp(score_for(token, key_token, q_head, kv_head) - max_score);
+    let probability_weight = exp(scores[score_base + key_token] - max_score);
     denominator = denominator + probability_weight;
     let value_base = (key_token * params.kv_heads + kv_head) * params.head_dim;
     weighted = weighted + probability_weight * v[value_base + dim];
@@ -272,7 +304,7 @@ struct Params {
 @group(0) @binding(2) var<storage, read_write> output: array<f32>;
 @group(0) @binding(3) var<uniform> params: Params;
 
-@compute @workgroup_size(256, 1, 1)
+@compute @workgroup_size({{ELEMENTWISE_WORKGROUP_SIZE}}, 1, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let index = id.x;
   if (index >= params.len) {
@@ -294,7 +326,7 @@ struct Params {
 @group(0) @binding(2) var<storage, read_write> output: array<f32>;
 @group(0) @binding(3) var<uniform> params: Params;
 
-@compute @workgroup_size(256, 1, 1)
+@compute @workgroup_size({{ELEMENTWISE_WORKGROUP_SIZE}}, 1, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let index = id.x;
   if (index >= params.len) {
@@ -318,7 +350,7 @@ struct Params {
 @group(0) @binding(2) var<storage, read_write> scores: array<f32>;
 @group(0) @binding(3) var<uniform> params: Params;
 
-@compute @workgroup_size(64, 1, 1)
+@compute @workgroup_size({{VECTOR_WORKGROUP_SIZE}}, 1, 1)
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
   let row = id.x;
   if (row >= params.rows) {
@@ -576,7 +608,7 @@ struct RuntimeLoadOptions {
 
 impl RuntimeLoadOptions {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn from_js(value: &JsValue) -> Result<Self, JsValue> {
         let base_url = required_string(value, "baseUrl")?
             .trim_end_matches('/')
@@ -615,7 +647,7 @@ struct WebGpuRuntime {
 
 impl WebGpuRuntime {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn load(
         options: RuntimeLoadOptions,
         fetch_array_buffer: Function,
@@ -685,7 +717,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn load_tensors(
         &mut self,
         base_url: &str,
@@ -730,7 +762,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn load_tensor(
         &self,
         base_url: &str,
@@ -824,7 +856,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn load_chunked_buffer(
         &self,
         base_url: &str,
@@ -975,7 +1007,7 @@ impl WebGpuRuntime {
     #[requires(!token_ids.is_empty())]
     #[requires(token_ids.len() == local_positions.len())]
     #[requires(token_ids.len() == segment_starts.len())]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn run_packed_model(
         &mut self,
         token_ids: &[u32],
@@ -1068,7 +1100,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(sequence_length > 0)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn run_packed_layer(
         &mut self,
         layer: usize,
@@ -1099,6 +1131,11 @@ impl WebGpuRuntime {
         let q_norm = temp(self, "f2llm q norm", sequence_length * q_cols * 4);
         let k_norm = temp(self, "f2llm k norm", sequence_length * kv_cols * 4);
         let v = temp(self, "f2llm v", sequence_length * kv_cols * 4);
+        let attention_scores = temp(
+            self,
+            "f2llm attention scores",
+            sequence_length * model.num_attention_heads * sequence_length * 4,
+        );
         let attention = temp(self, "f2llm attention", sequence_length * q_cols * 4);
         let attention_projected = temp(self, "f2llm attention projected", hidden_bytes);
         let post_attention = temp(self, "f2llm post attention", hidden_bytes);
@@ -1196,6 +1233,7 @@ impl WebGpuRuntime {
             &k_norm,
             &v,
             segment_start_buffer,
+            &attention_scores,
             &attention,
             sequence_length,
         )?;
@@ -1296,9 +1334,6 @@ impl WebGpuRuntime {
             ));
         }
         let row_count = corpus.row_count;
-        if row_count == 0 {
-            return Err("F2LLM vector corpus must contain at least one row".to_owned());
-        }
         let vector_buffer = self.vector_buffer_for_corpus(corpus, read_binary).await?;
         let query_buffer = self.create_upload_buffer(
             "f2llm search query",
@@ -1354,7 +1389,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn vector_buffer_for_corpus(
         &mut self,
         corpus: &CorpusVectorSpec,
@@ -1412,7 +1447,7 @@ impl WebGpuRuntime {
     #[requires(!weight_name.is_empty())]
     #[requires(rows > 0)]
     #[requires(cols > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_named_rms_norm(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1431,7 +1466,7 @@ impl WebGpuRuntime {
     #[requires(rows > 0)]
     #[requires(in_cols > 0)]
     #[requires(out_cols > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_named_linear_q4(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1447,7 +1482,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(sequence_length > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_embedding(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1498,7 +1533,7 @@ impl WebGpuRuntime {
 
     #[requires(rows > 0)]
     #[requires(cols > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_rms_norm(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1538,7 +1573,7 @@ impl WebGpuRuntime {
     #[requires(rows > 0)]
     #[requires(in_cols > 0)]
     #[requires(out_cols > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_linear_q4(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1588,7 +1623,7 @@ impl WebGpuRuntime {
 
     #[requires(sequence_length > 0)]
     #[requires(head_dim > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_packed_rope(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1627,7 +1662,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(sequence_length > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_packed_attention(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1635,6 +1670,7 @@ impl WebGpuRuntime {
         k: &wgpu::Buffer,
         v: &wgpu::Buffer,
         segment_start_buffer: &wgpu::Buffer,
+        scores: &wgpu::Buffer,
         output: &wgpu::Buffer,
         sequence_length: usize,
     ) -> Result<(), String> {
@@ -1655,9 +1691,20 @@ impl WebGpuRuntime {
         let params = self.create_uniform_buffer("f2llm packed attention params", &params);
         self.encode_pipeline(
             encoder,
+            "packedAttentionScores",
+            PACKED_ATTENTION_SCORES_SHADER,
+            &[q, k, segment_start_buffer, scores, &params],
+            (
+                div_ceil(sequence_length as u32, ATTENTION_WORKGROUP_WIDTH),
+                div_ceil(q_heads as u32, ATTENTION_WORKGROUP_WIDTH),
+                div_ceil(sequence_length as u32, ATTENTION_WORKGROUP_WIDTH),
+            ),
+        )?;
+        self.encode_pipeline(
+            encoder,
             "packedAttention",
             PACKED_ATTENTION_SHADER,
-            &[q, k, v, segment_start_buffer, output, &params],
+            &[scores, v, segment_start_buffer, output, &params],
             (
                 div_ceil(sequence_length as u32, ATTENTION_WORKGROUP_WIDTH),
                 div_ceil(q_heads as u32, ATTENTION_WORKGROUP_WIDTH),
@@ -1667,7 +1714,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(len > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_add(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1688,7 +1735,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(len > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_silu_mul(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1709,7 +1756,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn precompile_pipelines(&mut self) -> Result<(), String> {
         for (name, shader) in webgpu_pipeline_sources() {
             let scopes = self.push_gpu_error_scopes();
@@ -1738,7 +1785,7 @@ impl WebGpuRuntime {
 
     #[requires(!name.is_empty())]
     #[requires(!shader.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn encode_pipeline(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -1777,7 +1824,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn submit_checked(
         &self,
         label: &str,
@@ -1786,7 +1833,6 @@ impl WebGpuRuntime {
         self.observed_gpu_failure()?;
         let scopes = self.push_gpu_error_scopes();
         self.queue.submit(command_buffers);
-        self.submitted_work_done().await?;
         self.check_gpu_error_scopes(label, scopes).await?;
         self.observed_gpu_failure()
     }
@@ -1802,7 +1848,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(!label.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     async fn check_gpu_error_scopes(
         &self,
         label: &str,
@@ -1826,7 +1872,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn observed_gpu_failure(&self) -> Result<(), String> {
         match self.gpu_failure.lock() {
             Ok(failure) => {
@@ -1972,20 +2018,8 @@ impl WebGpuRuntime {
         Ok(bytes)
     }
 
-    #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
-    async fn submitted_work_done(&self) -> Result<(), String> {
-        let (sender, receiver) = oneshot::channel();
-        self.queue.on_submitted_work_done(move || {
-            let _ = sender.send(());
-        });
-        receiver
-            .await
-            .map_err(|_| "F2LLM submitted-work callback was dropped".to_owned())
-    }
-
     #[requires(!name.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn q4_gather_tensor(&self, name: &str) -> Result<Q4Tensor, String> {
         match self.tensors.get(name) {
             Some(Tensor::Q4OnnxGather(tensor)) => Ok(tensor.clone()),
@@ -1994,7 +2028,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(!name.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn q4_matmul_tensor(&self, name: &str) -> Result<Q4Tensor, String> {
         match self.tensors.get(name) {
             Some(Tensor::Q4OnnxMatmul(tensor)) => Ok(tensor.clone()),
@@ -2003,7 +2037,7 @@ impl WebGpuRuntime {
     }
 
     #[requires(!name.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn f32_tensor(&self, name: &str) -> Result<F32Tensor, String> {
         match self.tensors.get(name) {
             Some(Tensor::F32(tensor)) => Ok(tensor.clone()),
@@ -2021,17 +2055,51 @@ enum UniformValue {
 }
 
 #[requires(true)]
-#[ensures(ret.len() == 8)]
-fn webgpu_pipeline_sources() -> [(&'static str, &'static str); 8] {
+#[ensures(!ret.contains("{{"))]
+fn shader_source_with_workgroups(source: &'static str) -> String {
     [
-        ("embeddingOnnxQ4", EMBEDDING_ONNX_Q4_SHADER),
-        ("rmsNorm", RMS_NORM_SHADER),
-        ("linearOnnxQ4", LINEAR_ONNX_Q4_SHADER),
-        ("packedRope", PACKED_ROPE_SHADER),
-        ("packedAttention", PACKED_ATTENTION_SHADER),
-        ("add", ADD_SHADER),
-        ("siluMul", SILU_MUL_SHADER),
-        ("vectorDotF16", VECTOR_DOT_F16_SHADER),
+        ("{{DEFAULT_WORKGROUP_WIDTH}}", DEFAULT_WORKGROUP_WIDTH),
+        ("{{ATTENTION_WORKGROUP_WIDTH}}", ATTENTION_WORKGROUP_WIDTH),
+        ("{{ELEMENTWISE_WORKGROUP_SIZE}}", ELEMENTWISE_WORKGROUP_SIZE),
+        ("{{VECTOR_WORKGROUP_SIZE}}", VECTOR_WORKGROUP_SIZE),
+    ]
+    .into_iter()
+    .fold(source.to_owned(), |shader, (placeholder, value)| {
+        shader.replace(placeholder, &value.to_string())
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 9)]
+fn webgpu_pipeline_sources() -> Vec<(&'static str, String)> {
+    vec![
+        (
+            "embeddingOnnxQ4",
+            shader_source_with_workgroups(EMBEDDING_ONNX_Q4_SHADER),
+        ),
+        ("rmsNorm", shader_source_with_workgroups(RMS_NORM_SHADER)),
+        (
+            "linearOnnxQ4",
+            shader_source_with_workgroups(LINEAR_ONNX_Q4_SHADER),
+        ),
+        (
+            "packedRope",
+            shader_source_with_workgroups(PACKED_ROPE_SHADER),
+        ),
+        (
+            "packedAttentionScores",
+            shader_source_with_workgroups(PACKED_ATTENTION_SCORES_SHADER),
+        ),
+        (
+            "packedAttention",
+            shader_source_with_workgroups(PACKED_ATTENTION_SHADER),
+        ),
+        ("add", shader_source_with_workgroups(ADD_SHADER)),
+        ("siluMul", shader_source_with_workgroups(SILU_MUL_SHADER)),
+        (
+            "vectorDotF16",
+            shader_source_with_workgroups(VECTOR_DOT_F16_SHADER),
+        ),
     ]
 }
 
@@ -2064,7 +2132,7 @@ fn note_gpu_failure(failure: &Arc<Mutex<Option<String>>>, message: String) {
 }
 
 #[requires(!manifest.model_key.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn validate_manifest(
     manifest: &ArtifactManifest,
     options: &RuntimeLoadOptions,
@@ -2159,7 +2227,7 @@ fn validate_manifest(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn validate_required_tensors(
     manifest: &ArtifactManifest,
     tensors: &HashMap<String, Tensor>,
@@ -2199,7 +2267,7 @@ fn validate_required_tensors(
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), String> {
     match spec.kind.as_str() {
         "q4_onnx_gather" | "q4_onnx_matmul" => {
@@ -2238,7 +2306,7 @@ fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), Strin
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
 #[requires(groups > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn validate_q4_tensor_chunks(
     name: &str,
     kind: &str,
@@ -2262,7 +2330,7 @@ fn validate_q4_tensor_chunks(
 }
 
 #[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Result<(), String> {
     let chunks = chunked
         .chunks
@@ -2336,7 +2404,7 @@ async fn fetch_tokenizer_bytes(
 
 #[requires(!url.is_empty())]
 #[requires(!label.is_empty())]
-#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+#[ensures(true)]
 async fn fetch_bytes(
     fetch_array_buffer: &Function,
     url: &str,
@@ -2357,7 +2425,7 @@ async fn fetch_bytes(
 }
 
 #[requires(!key.is_empty())]
-#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+#[ensures(true)]
 async fn read_binary_bytes(read_binary: &Function, key: &str) -> Result<Vec<u8>, String> {
     let value = read_binary
         .call1(&JsValue::NULL, &JsValue::from_str(key))
@@ -2370,7 +2438,7 @@ async fn read_binary_bytes(read_binary: &Function, key: &str) -> Result<Vec<u8>,
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn verify_sha256(bytes: &[u8], expected: &str, name: &str) -> Result<(), String> {
     validate_sha256_hex(expected, name)?;
     let mut hasher = Sha256::new();
@@ -2384,7 +2452,7 @@ fn verify_sha256(bytes: &[u8], expected: &str, name: &str) -> Result<(), String>
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn checked_rank2_shape(name: &str, shape: &[usize]) -> Result<[usize; 2], String> {
     if shape.len() != 2 || shape[0] == 0 || shape[1] == 0 {
         Err(format!("{name} must have rank 2 positive shape"))
@@ -2435,7 +2503,7 @@ fn mixed_uniform(values: &[UniformValue]) -> Vec<u8> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+#[ensures(true)]
 fn bytes_from_js(value: &JsValue) -> Result<Vec<u8>, JsValue> {
     if value.is_instance_of::<Uint8Array>() {
         return Ok(Uint8Array::new(value).to_vec());
@@ -2447,7 +2515,7 @@ fn bytes_from_js(value: &JsValue) -> Result<Vec<u8>, JsValue> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok() || ret.is_err())]
+#[ensures(true)]
 fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue> {
     let shards_value = Reflect::get(value, &JsValue::from_str("shards"))?;
     if !Array::is_array(&shards_value) {
@@ -2498,7 +2566,7 @@ fn required_string(value: &JsValue, key: &str) -> Result<String, JsValue> {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn optional_string(value: &JsValue, key: &str) -> Result<Option<String>, JsValue> {
     let field = Reflect::get(value, &JsValue::from_str(key))?;
     if field.is_undefined() || field.is_null() {
@@ -2518,7 +2586,7 @@ fn required_usize(value: &JsValue, key: &str) -> Result<usize, JsValue> {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn optional_usize(value: &JsValue, key: &str) -> Result<Option<usize>, JsValue> {
     let field = Reflect::get(value, &JsValue::from_str(key))?;
     if field.is_undefined() || field.is_null() {
@@ -2556,7 +2624,7 @@ fn corpus_vector_cache_key(corpus: &CorpusVectorSpec) -> String {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 async fn call_progress(
     progress: &Option<Function>,
     status: &str,

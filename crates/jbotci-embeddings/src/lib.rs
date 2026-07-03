@@ -889,7 +889,7 @@ pub fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), Embed
 }
 
 #[requires(!path.as_os_str().is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn write_json_file_atomically<T: Serialize>(path: &Path, value: &T) -> Result<(), EmbeddingError> {
     ensure_parent_dir(path)?;
     let file_name = path
@@ -1289,7 +1289,7 @@ fn native_partial_checkpoint_path(work_root: &Path) -> PathBuf {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn remove_dir_all_if_exists(path: &Path) -> Result<(), EmbeddingError> {
     if !path.exists() {
         return Ok(());
@@ -1492,7 +1492,7 @@ fn native_partial_shard_is_compatible(
 }
 
 #[requires(!checkpoint_path.as_os_str().is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn write_native_partial_checkpoint(
     checkpoint_path: &Path,
     checkpoint: &NativePartialBuildCheckpoint,
@@ -2646,7 +2646,7 @@ fn validate_native_corpus_manifest(
 }
 
 #[requires(!url.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn fetch_json_url<T: DeserializeOwned>(url: &str) -> Result<T, EmbeddingError> {
     let response = ureq::get(url)
         .call()

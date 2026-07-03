@@ -41,7 +41,7 @@ struct OwnedLlamaContext {
 
 impl OwnedLlamaContext {
     #[requires(path.is_file())]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn load(path: &Path, context_params: LlamaContextParams) -> Result<Self, EmbeddingError> {
         let backend = global_backend()?;
         let model = Box::new(
@@ -477,7 +477,7 @@ impl NativeEmbeddingSearchService {
 
     #[requires(!query.trim().is_empty())]
     #[requires(count > 0)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     pub fn semantic_cukta_output(
         &mut self,
         chunks: &[jbotci_cll::CllSearchChunk],

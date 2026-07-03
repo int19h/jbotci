@@ -117,7 +117,7 @@ impl QwenByteBpeTokenizer {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn bpe(&self, token: &str) -> Result<Vec<u32>, String> {
         if let Some(cached) = self.cache.borrow().get(token) {
             return Ok(cached.clone());
@@ -206,7 +206,7 @@ pub(crate) fn q4_padded_element_index(
 #[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
 #[requires(group_size > 0)]
 #[requires(groups > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub(crate) fn validate_q4_tensor_storage(
     name: &str,
     kind: &str,
@@ -249,7 +249,7 @@ pub(crate) fn validate_q4_tensor_storage(
 }
 
 #[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub(crate) fn validate_chunk_layout(
     label: &str,
     byte_length: usize,
@@ -293,7 +293,7 @@ pub(crate) fn validate_chunk_layout(
 }
 
 #[requires(!name.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String> {
     if value.len() != 64 || !value.chars().all(|character| character.is_ascii_hexdigit()) {
         Err(format!("{name} must be a 64-character SHA-256 hex digest"))
@@ -303,7 +303,7 @@ pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String>
 }
 
 #[requires(vocab_size > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result<(), String> {
     let Some((index, token_id)) = token_ids
         .iter()
@@ -318,7 +318,7 @@ pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result
 }
 
 #[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub(crate) fn validate_embedding_vector_before_normalize(
     vector: &[f32],
     label: &str,
