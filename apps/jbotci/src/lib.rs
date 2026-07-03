@@ -3542,11 +3542,11 @@ fn format_gimfihi_score(score: f64) -> String {
 #[requires(!candidate.word.is_empty())]
 #[ensures(true)]
 fn format_gimfihi_rafsi(candidate: &GimfihiCandidate) -> String {
-    if candidate.rafsi.is_empty() {
+    if candidate.rafsi().is_empty() {
         return String::new();
     }
     candidate
-        .rafsi
+        .rafsi()
         .iter()
         .map(|rafsi| {
             let status = match rafsi.availability {

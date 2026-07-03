@@ -378,7 +378,20 @@ struct ArtifactManifest {
     tensors: BTreeMap<String, TensorSpec>,
 }
 
-#[invariant(true)]
+#[invariant(*vocab_size > 0)]
+#[invariant(*hidden_size > 0)]
+#[invariant(*num_hidden_layers > 0)]
+#[invariant(*num_attention_heads > 0)]
+#[invariant(*num_key_value_heads > 0)]
+#[invariant(*head_dim > 0)]
+#[invariant(*intermediate_size > 0)]
+#[invariant(*num_attention_heads % *num_key_value_heads == 0)]
+#[invariant(num_attention_heads
+    .checked_mul(*head_dim)
+    .is_some_and(|expected| expected == *hidden_size))]
+#[invariant(*head_dim % 2 == 0)]
+#[invariant(rms_norm_eps.is_finite() && *rms_norm_eps > 0.0)]
+#[invariant(rope_theta.is_finite() && *rope_theta > 0.0)]
 #[derive(Debug, Clone, Deserialize)]
 struct ModelConfig {
     vocab_size: usize,
@@ -420,7 +433,9 @@ struct ChunkedSpec {
     chunks: Vec<ChunkSpec>,
 }
 
-#[invariant(true)]
+#[invariant(!url.is_empty())]
+#[invariant(*byte_length > 0)]
+#[invariant(sha256.len() == 64 && sha256.chars().all(|character| character.is_ascii_hexdigit()))]
 #[derive(Debug, Clone, Deserialize)]
 struct ChunkSpec {
     url: String,
@@ -479,7 +494,11 @@ struct CorpusShard {
     byte_len: usize,
 }
 
-#[invariant(true)]
+#[invariant(*row_count > 0)]
+#[invariant(*dimensions > 0)]
+#[invariant(element_type == "f16le")]
+#[invariant(!shards.is_empty())]
+#[invariant(shards.iter().all(|shard| !shard.key.is_empty() && shard.byte_len > 0))]
 #[derive(Debug)]
 struct CorpusVectorSpec {
     corpus_id: String,
@@ -2541,14 +2560,14 @@ fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue
             "elementType must be f16le, got {element_type}"
         )));
     }
-    Ok(CorpusVectorSpec {
+    Ok(new!(CorpusVectorSpec {
         corpus_id: optional_string(value, "corpusId")?.unwrap_or_default(),
         input_hash: optional_string(value, "inputHash")?.unwrap_or_default(),
-        row_count,
-        dimensions,
-        element_type,
-        shards,
-    })
+        row_count: row_count,
+        dimensions: dimensions,
+        element_type: element_type,
+        shards: shards,
+    }))
 }
 
 #[requires(true)]

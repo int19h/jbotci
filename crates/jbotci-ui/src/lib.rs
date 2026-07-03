@@ -435,16 +435,20 @@ struct HoveredReference {
     label: ReferenceLabel,
 }
 
+#[invariant(width.is_finite() && *width > 0.0)]
+#[invariant(height.is_finite() && *height > 0.0)]
+#[invariant(!paths.is_empty())]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 struct ArrowOverlay {
     width: f64,
     height: f64,
     paths: Vec<String>,
 }
 
+#[invariant(left.is_finite() && top.is_finite() && right.is_finite() && bottom.is_finite())]
+#[invariant(left <= right)]
+#[invariant(top <= bottom)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
 struct ReferenceRect {
     left: f64,
     top: f64,
@@ -452,8 +456,9 @@ struct ReferenceRect {
     bottom: f64,
 }
 
+#[invariant(width.is_finite() && *width >= 0.0)]
+#[invariant(height.is_finite() && *height >= 0.0)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
 struct ElementSize {
     width: f64,
     height: f64,
@@ -1530,7 +1535,7 @@ fn collect_gimfihi_page_find_entries(
         if let Some(collision) = &candidate.collision {
             push_page_find_entry(entries, collision.existing_word.clone());
         }
-        for rafsi in &candidate.rafsi {
+        for rafsi in candidate.rafsi() {
             push_page_find_entry(entries, rafsi.form.clone());
             for source in &rafsi.taken_by {
                 push_page_find_entry(entries, source.clone());
@@ -2188,8 +2193,11 @@ struct AsyncActivityTask {
     kind: AsyncTaskKind,
 }
 
+#[invariant(*next_task_id > 0)]
+#[invariant(active_tasks.iter().enumerate().all(|(index, task)| {
+    task.id > 0 && active_tasks.iter().skip(index + 1).all(|other| other.id != task.id)
+}))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct AsyncActivityState {
     next_task_id: AsyncTaskId,
     active_tasks: Vec<AsyncActivityTask>,
@@ -2200,10 +2208,10 @@ impl Default for AsyncActivityState {
     #[ensures(ret.next_task_id == 1)]
     #[ensures(ret.active_tasks.is_empty())]
     fn default() -> Self {
-        Self {
+        new!(AsyncActivityState {
             next_task_id: 1,
             active_tasks: Vec::new(),
-        }
+        })
     }
 }
 
@@ -2211,19 +2219,23 @@ impl AsyncActivityState {
     #[requires(self.next_task_id > 0)]
     #[ensures(ret > 0)]
     fn begin(&mut self, kind: AsyncTaskKind) -> AsyncTaskId {
-        let id = self.next_task_id;
-        self.next_task_id = self.next_task_id.saturating_add(1).max(1);
-        self.active_tasks.push(AsyncActivityTask { id, kind });
+        let mut data = self.clone().into_data();
+        let id = data.next_task_id;
+        data.next_task_id = data.next_task_id.saturating_add(1).max(1);
+        data.active_tasks.push(AsyncActivityTask { id, kind });
+        *self = Self::from_data(data);
         id
     }
 
     #[requires(task_id > 0)]
     #[ensures(true)]
     fn finish(&mut self, task_id: AsyncTaskId) -> bool {
-        let Some(index) = self.active_tasks.iter().position(|task| task.id == task_id) else {
+        let mut data = self.clone().into_data();
+        let Some(index) = data.active_tasks.iter().position(|task| task.id == task_id) else {
             return false;
         };
-        self.active_tasks.remove(index);
+        data.active_tasks.remove(index);
+        *self = Self::from_data(data);
         true
     }
 
@@ -10759,7 +10771,7 @@ fn GimfihiCandidateRow(
                 }
             }
             td {
-                { render_gimfihi_rafsis(&candidate.rafsi, &base_path, script, &page_find) }
+                { render_gimfihi_rafsis(candidate.rafsi(), &base_path, script, &page_find) }
             }
         }
     }
@@ -16988,19 +17000,21 @@ fn measure_reference_overlay(hovered: &HoveredReference) -> Option<ArrowOverlay>
     if paths.is_empty() {
         return None;
     }
-    Some(ArrowOverlay {
+    Some(new!(ArrowOverlay {
         width: window
             .inner_width()
             .ok()
             .and_then(|width| width.as_f64())
-            .unwrap_or(1.0),
+            .unwrap_or(1.0)
+            .max(1.0),
         height: window
             .inner_height()
             .ok()
             .and_then(|height| height.as_f64())
-            .unwrap_or(1.0),
+            .unwrap_or(1.0)
+            .max(1.0),
         paths,
-    })
+    }))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -17091,11 +17105,11 @@ fn reference_overlay_from_marker_metrics(
     if paths.is_empty() {
         None
     } else {
-        Some(ArrowOverlay {
+        Some(new!(ArrowOverlay {
             width: metrics.width.max(1.0),
             height: metrics.height.max(1.0),
-            paths,
-        })
+            paths: paths,
+        }))
     }
 }
 
@@ -17104,12 +17118,12 @@ fn reference_overlay_from_marker_metrics(
 #[ensures(true)]
 fn reference_rect_from_element(element: &web_sys::Element) -> ReferenceRect {
     let rect = element.get_bounding_client_rect();
-    ReferenceRect {
+    new!(ReferenceRect {
         left: rect.left(),
         top: rect.top(),
         right: rect.right(),
         bottom: rect.bottom(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -20175,16 +20189,16 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
         .unwrap_or(1.0);
     let viewport_top = dictionary_tooltip_visible_top(&document);
     let position = dictionary_tooltip_position(
-        ReferenceRect {
+        new!(ReferenceRect {
             left: host_rect.left(),
             top: host_rect.top(),
             right: host_rect.right(),
             bottom: host_rect.bottom(),
-        },
-        ElementSize {
+        }),
+        new!(ElementSize {
             width: tooltip_rect.width(),
             height: tooltip_rect.height(),
-        },
+        }),
         new!(TooltipViewport {
             top: viewport_top,
             width: viewport_width,
@@ -22616,7 +22630,7 @@ mod tests {
                 score: 0.0,
                 source_scores: Vec::new(),
                 collision: None,
-                rafsi: Vec::new(),
+                rafsi: None,
                 highlighted: false,
             }],
         };
@@ -22681,7 +22695,7 @@ mod tests {
                 score: 0.0,
                 source_scores: Vec::new(),
                 collision: None,
-                rafsi: Vec::new(),
+                rafsi: None,
                 highlighted: true,
             }],
         };
@@ -23275,11 +23289,11 @@ mod tests {
             role: ReferenceMarkerRole::Reference,
             label: ReferenceLabel::new("b", Some(1), None),
         };
-        let overlay = ArrowOverlay {
+        let overlay = new!(ArrowOverlay {
             width: 100.0,
             height: 80.0,
             paths: vec!["M 1.00 2.00 L 3.00 4.00".to_owned()],
-        };
+        });
         let state = ReferenceHoverState {
             hovered: Some(hovered.clone()),
             overlay: Some(overlay.clone()),
@@ -23299,11 +23313,11 @@ mod tests {
             None
         );
 
-        let measured_overlay = Some(ArrowOverlay {
+        let measured_overlay = Some(new!(ArrowOverlay {
             width: 120.0,
             height: 90.0,
             paths: vec!["M 5.00 6.00 L 7.00 8.00".to_owned()],
-        });
+        }));
         assert_eq!(
             reference_overlay_for_measurement_request(&state, &hovered, &measured_overlay, true),
             measured_overlay
@@ -23808,16 +23822,16 @@ mod tests {
     #[ensures(true)]
     fn dictionary_tooltip_position_keeps_normal_above_host_placement() {
         let position = dictionary_tooltip_position(
-            ReferenceRect {
+            new!(ReferenceRect {
                 left: 240.0,
                 top: 300.0,
                 right: 260.0,
                 bottom: 320.0,
-            },
-            ElementSize {
+            }),
+            new!(ElementSize {
                 width: 160.0,
                 height: 120.0,
-            },
+            }),
             new!(TooltipViewport {
                 top: 40.0,
                 width: 640.0,
@@ -23834,16 +23848,16 @@ mod tests {
     #[ensures(true)]
     fn dictionary_tooltip_position_clamps_oversized_stack_below_visible_top() {
         let position = dictionary_tooltip_position(
-            ReferenceRect {
+            new!(ReferenceRect {
                 left: 240.0,
                 top: 300.0,
                 right: 260.0,
                 bottom: 320.0,
-            },
-            ElementSize {
+            }),
+            new!(ElementSize {
                 width: 160.0,
                 height: 460.0,
-            },
+            }),
             new!(TooltipViewport {
                 top: 56.0,
                 width: 640.0,

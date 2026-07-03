@@ -216,14 +216,18 @@ pub fn decompose_lujvo_like<'a>(
     all_rafsi_segments_have_sources(&decomposition).then_some(decomposition)
 }
 
-#[invariant(true)]
+#[invariant(segments
+    .iter()
+    .filter(|segment| matches!(segment.segment, LujvoPart::Rafsi(_)))
+    .count()
+    >= 2)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LujvoDecomposition<'a> {
     pub segments: Vec<LujvoSegmentInfo<'a>>,
     pub source_words: Vec<&'a str>,
 }
 
-#[invariant(true)]
+#[invariant(!matches!(segment, LujvoPart::Hyphen(_)) || source.is_none())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LujvoSegmentInfo<'a> {
     pub segment: LujvoPart,
@@ -239,6 +243,7 @@ fn expand_input(dictionary: &Dictionary<'_>, input: &JvozbaInput) -> Vec<JvozbaI
         }
         JvozbaInput::Word(word_text) => match decompose_lujvo_like(dictionary, word_text) {
             Some(decomposition) => decomposition
+                .into_data()
                 .source_words
                 .into_iter()
                 .map(|source_word| JvozbaInput::Word(source_word.to_owned()))
@@ -614,10 +619,10 @@ fn decomposition_from_parts<'a>(
             })
             .collect::<Vec<_>>(),
     );
-    Some(LujvoDecomposition {
-        segments,
-        source_words,
-    })
+    Some(new!(LujvoDecomposition {
+        segments: segments,
+        source_words: source_words,
+    }))
 }
 
 #[requires(true)]
@@ -655,7 +660,10 @@ fn segment_with_source<'a>(
         LujvoPart::Rafsi(phonemes) => source_word_for_rafsi_segment(dictionary, phonemes),
         LujvoPart::Hyphen(_) => None,
     };
-    LujvoSegmentInfo { segment, source }
+    new!(LujvoSegmentInfo {
+        segment: segment,
+        source: source,
+    })
 }
 
 #[requires(true)]

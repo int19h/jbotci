@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use directories::ProjectDirs;
 use jbotci_cll::{
     CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaTargetFilter,
@@ -367,8 +367,12 @@ struct LoadedCorpusCacheKey {
     dimensions: usize,
 }
 
+#[invariant(items.len() == *row_count)]
+#[invariant(*dimensions > 0)]
+#[invariant(row_count
+    .checked_mul(*dimensions)
+    .is_some_and(|expected| values.len() == expected))]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 struct LoadedCorpus<T> {
     items: Vec<T>,
     values: Vec<f32>,
@@ -3043,12 +3047,12 @@ where
         });
     }
     let values = read_vector_shards(pack_dir, corpus, dimensions)?;
-    Ok(LoadedCorpus {
-        items,
-        values,
+    Ok(new!(LoadedCorpus {
+        items: items,
+        values: values,
         row_count: corpus.row_count,
-        dimensions,
-    })
+        dimensions: dimensions,
+    }))
 }
 
 #[requires(true)]

@@ -424,10 +424,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test fake backend is constrained by test construction and used only for fixture packs",
     ),
     (
-        "crates/jbotci-embeddings/src/lib.rs:LoadedCorpus",
-        "loaded corpus dimensions and vector lengths are validated by load_corpus before caching",
-    ),
-    (
         "crates/jbotci-embeddings/src/lib.rs:LoadedCorpusCacheKey",
         "loaded corpus cache keys are assembled from validated manifest and shard metadata before lookup",
     ),
@@ -588,10 +584,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "collision payloads are produced by dictionary-backed collision checks",
     ),
     (
-        "crates/jbotci-gimfihi/src/lib.rs:PresetEntry",
-        "gimfihi preset entries are fixed static tables constructed through PresetEntry::new",
-    ),
-    (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
     ),
@@ -602,14 +594,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:SourceScore",
         "source score rows are derived from resolved source words and CLL scoring",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:LujvoDecomposition",
-        "decompose_lujvo_like constructs this only after rafsi count and source resolution checks",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:LujvoSegmentInfo",
-        "segment source resolution is local to decompose_lujvo_like and hyphen segments intentionally have no source",
     ),
     (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
@@ -1232,20 +1216,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WebGPU artifact manifests are external DTOs validated while loading model artifacts",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkSpec",
-        "WebGPU chunk specs are external manifest DTOs validated while loading tensor chunks",
-    ),
-    (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkedSpec",
         "WebGPU chunked tensor specs are external manifest DTOs validated while loading chunks",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusShard",
         "corpus shards are external artifact DTOs validated while loading semantic search data",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusVectorSpec",
-        "corpus vector specs are external manifest DTOs validated while loading semantic search shards",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:F32Tensor",
@@ -1258,10 +1234,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:JbotciF2LlmWebGpuRuntime",
         "F2LLM WebGPU runtime facade wraps runtime state already validated during artifact loading",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ModelConfig",
-        "WebGPU model config is external manifest metadata validated during runtime construction",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:RuntimeLoadOptions",
@@ -1288,16 +1260,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WebGPU runtime state is assembled through the fallible runtime loader before use",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ArrowOverlay",
-        "arrow overlay geometry is measured from the browser DOM and rendered transiently",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:AsyncActivityGuard",
         "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncActivityState",
-        "activity state is mutated through begin and finish helpers that preserve task-token ownership",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:AsyncActivityTask",
@@ -1376,10 +1340,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dialect highlight tokens are transient lexer spans consumed only by the browser highlighter",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ElementSize",
-        "element sizes are direct layout measurements used transiently by render effects",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:EmbeddingModelOption",
         "embedding model options are fixed presentation rows projected from the embedding model catalog",
     ),
@@ -1454,10 +1414,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/lib.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:ReferenceRect",
-        "reference rectangles are direct browser DOM measurements used only during hover rendering",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:RouteLocationSyncAction",

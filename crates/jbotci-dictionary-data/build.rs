@@ -325,7 +325,7 @@ fn build_lujvo_index(dictionary: &Dictionary<'static>) -> Vec<GeneratedLujvoEntr
             if !entry.word_type.is_lujvo_like() {
                 return None;
             }
-            let decomposition = decompose_lujvo_like(dictionary, entry.word)?;
+            let decomposition = decompose_lujvo_like(dictionary, entry.word)?.into_data();
             Some(GeneratedLujvoEntry {
                 entry_index: EntryIndex(index),
                 segments: decomposition

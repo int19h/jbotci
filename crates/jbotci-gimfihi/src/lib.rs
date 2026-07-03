@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
@@ -30,86 +31,106 @@ const CONSONANTS: &[char] = &[
 ];
 const VOWELS: &[char] = &['a', 'e', 'i', 'o', 'u'];
 
-const PRESET_1985: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 360),
-    PresetEntry::new("hin", 160),
-    PresetEntry::new("eng", 210),
-    PresetEntry::new("spa", 110),
-    PresetEntry::new("rus", 90),
-    PresetEntry::new("ara", 70),
-];
-const PRESET_1987: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 360),
-    PresetEntry::new("hin", 156),
-    PresetEntry::new("eng", 208),
-    PresetEntry::new("spa", 116),
-    PresetEntry::new("rus", 87),
-    PresetEntry::new("ara", 73),
-];
-const PRESET_1994: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 348),
-    PresetEntry::new("hin", 194),
-    PresetEntry::new("eng", 163),
-    PresetEntry::new("spa", 123),
-    PresetEntry::new("rus", 88),
-    PresetEntry::new("ara", 84),
-];
-const PRESET_1995: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 347),
-    PresetEntry::new("hin", 196),
-    PresetEntry::new("eng", 160),
-    PresetEntry::new("spa", 123),
-    PresetEntry::new("rus", 89),
-    PresetEntry::new("ara", 85),
-];
-const PRESET_1999: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 334),
-    PresetEntry::new("hin", 195),
-    PresetEntry::new("eng", 187),
-    PresetEntry::new("spa", 116),
-    PresetEntry::new("rus", 81),
-    PresetEntry::new("ara", 88),
-];
-const PRESET_EVENLY: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 1),
-    PresetEntry::new("hin", 1),
-    PresetEntry::new("eng", 1),
-    PresetEntry::new("spa", 1),
-    PresetEntry::new("rus", 1),
-    PresetEntry::new("ara", 1),
-];
-const PRESET_ILMEN6: &[PresetEntry] = &[
-    PresetEntry::new("eng", 339),
-    PresetEntry::new("cmn", 255),
-    PresetEntry::new("hin", 136),
-    PresetEntry::new("spa", 126),
-    PresetEntry::new("ara", 74),
-    PresetEntry::new("fra", 70),
-];
-const PRESET_ILMEN8: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 271),
-    PresetEntry::new("eng", 170),
-    PresetEntry::new("spa", 130),
-    PresetEntry::new("hin", 125),
-    PresetEntry::new("ara", 104),
-    PresetEntry::new("ben", 76),
-    PresetEntry::new("rus", 64),
-    PresetEntry::new("por", 60),
-];
-const PRESET_ILMEN12: &[PresetEntry] = &[
-    PresetEntry::new("cmn", 238),
-    PresetEntry::new("eng", 160),
-    PresetEntry::new("spa", 113),
-    PresetEntry::new("hin", 108),
-    PresetEntry::new("ara", 90),
-    PresetEntry::new("ben", 66),
-    PresetEntry::new("rus", 55),
-    PresetEntry::new("por", 52),
-    PresetEntry::new("msa", 32),
-    PresetEntry::new("jpn", 30),
-    PresetEntry::new("deu", 29),
-    PresetEntry::new("fra", 26),
-];
+type PresetEntrySpec = (&'static str, u16);
+
+static PRESET_1985: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 360),
+        ("hin", 160),
+        ("eng", 210),
+        ("spa", 110),
+        ("rus", 90),
+        ("ara", 70),
+    ])
+});
+static PRESET_1987: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 360),
+        ("hin", 156),
+        ("eng", 208),
+        ("spa", 116),
+        ("rus", 87),
+        ("ara", 73),
+    ])
+});
+static PRESET_1994: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 348),
+        ("hin", 194),
+        ("eng", 163),
+        ("spa", 123),
+        ("rus", 88),
+        ("ara", 84),
+    ])
+});
+static PRESET_1995: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 347),
+        ("hin", 196),
+        ("eng", 160),
+        ("spa", 123),
+        ("rus", 89),
+        ("ara", 85),
+    ])
+});
+static PRESET_1999: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 334),
+        ("hin", 195),
+        ("eng", 187),
+        ("spa", 116),
+        ("rus", 81),
+        ("ara", 88),
+    ])
+});
+static PRESET_EVENLY: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 1),
+        ("hin", 1),
+        ("eng", 1),
+        ("spa", 1),
+        ("rus", 1),
+        ("ara", 1),
+    ])
+});
+static PRESET_ILMEN6: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("eng", 339),
+        ("cmn", 255),
+        ("hin", 136),
+        ("spa", 126),
+        ("ara", 74),
+        ("fra", 70),
+    ])
+});
+static PRESET_ILMEN8: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 271),
+        ("eng", 170),
+        ("spa", 130),
+        ("hin", 125),
+        ("ara", 104),
+        ("ben", 76),
+        ("rus", 64),
+        ("por", 60),
+    ])
+});
+static PRESET_ILMEN12: LazyLock<Box<[PresetEntry]>> = LazyLock::new(|| {
+    preset_entries(&[
+        ("cmn", 238),
+        ("eng", 160),
+        ("spa", 113),
+        ("hin", 108),
+        ("ara", 90),
+        ("ben", 66),
+        ("rus", 55),
+        ("por", 52),
+        ("msa", 32),
+        ("jpn", 30),
+        ("deu", 29),
+        ("fra", 26),
+    ])
+});
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -150,17 +171,17 @@ impl GimfihiPreset {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    pub const fn entries(self) -> &'static [PresetEntry] {
+    pub fn entries(self) -> &'static [PresetEntry] {
         match self {
-            Self::Data1985 => PRESET_1985,
-            Self::Data1987 => PRESET_1987,
-            Self::Data1994 => PRESET_1994,
-            Self::Data1995 => PRESET_1995,
-            Self::Data1999 => PRESET_1999,
-            Self::Evenly => PRESET_EVENLY,
-            Self::Ilmen6 => PRESET_ILMEN6,
-            Self::Ilmen8 => PRESET_ILMEN8,
-            Self::Ilmen12 => PRESET_ILMEN12,
+            Self::Data1985 => PRESET_1985.as_ref(),
+            Self::Data1987 => PRESET_1987.as_ref(),
+            Self::Data1994 => PRESET_1994.as_ref(),
+            Self::Data1995 => PRESET_1995.as_ref(),
+            Self::Data1999 => PRESET_1999.as_ref(),
+            Self::Evenly => PRESET_EVENLY.as_ref(),
+            Self::Ilmen6 => PRESET_ILMEN6.as_ref(),
+            Self::Ilmen8 => PRESET_ILMEN8.as_ref(),
+            Self::Ilmen12 => PRESET_ILMEN12.as_ref(),
         }
     }
 }
@@ -183,7 +204,8 @@ impl FromStr for GimfihiPreset {
     }
 }
 
-#[invariant(true)]
+#[invariant(!language.is_empty())]
+#[invariant(*weight >= GIMFIHI_MIN_WEIGHT && *weight <= GIMFIHI_MAX_WEIGHT)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PresetEntry {
     pub language: &'static str,
@@ -194,9 +216,22 @@ impl PresetEntry {
     #[requires(!language.is_empty())]
     #[requires(weight >= GIMFIHI_MIN_WEIGHT && weight <= GIMFIHI_MAX_WEIGHT)]
     #[ensures(true)]
-    pub const fn new(language: &'static str, weight: u16) -> Self {
-        Self { language, weight }
+    pub fn new(language: &'static str, weight: u16) -> Self {
+        new!(PresetEntry {
+            language: language,
+            weight: weight,
+        })
     }
+}
+
+#[requires(!entries.is_empty())]
+#[ensures(!ret.is_empty())]
+fn preset_entries(entries: &[PresetEntrySpec]) -> Box<[PresetEntry]> {
+    entries
+        .iter()
+        .map(|(language, weight)| PresetEntry::new(language, *weight))
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
 }
 
 #[invariant(true)]
@@ -429,8 +464,17 @@ pub struct GimfihiCandidate {
     pub score: f64,
     pub source_scores: Vec<SourceScore>,
     pub collision: Option<GismuCollision>,
-    pub rafsi: Vec<RafsiCandidate>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rafsi: Option<Vec<RafsiCandidate>>,
     pub highlighted: bool,
+}
+
+impl GimfihiCandidate {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn rafsi(&self) -> &[RafsiCandidate] {
+        self.rafsi.as_deref().unwrap_or(&[])
+    }
 }
 
 #[invariant(true)]
@@ -696,8 +740,8 @@ pub fn compose_gismu(
         candidate.highlighted = highlighted_word
             .as_ref()
             .is_some_and(|highlighted| highlighted == &candidate.word);
-        if candidate.rafsi.is_empty() {
-            candidate.rafsi = possible_short_rafsis(dictionary, &candidate.word);
+        if candidate.rafsi.is_none() {
+            candidate.rafsi = Some(possible_short_rafsis(dictionary, &candidate.word));
         }
     }
     Ok(GimfihiOutput {
@@ -1014,11 +1058,7 @@ fn score_candidate(
         .map(|source_score| source_score.weighted_score)
         .sum::<f64>();
     let collision = collision_index.find(&word);
-    let rafsi = if include_rafsi {
-        possible_short_rafsis(dictionary, &word)
-    } else {
-        Vec::new()
-    };
+    let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
     GimfihiCandidate {
         word,
         score,
@@ -1533,7 +1573,7 @@ fn candidate_passes_filters(candidate: &GimfihiCandidate, request: &GimfihiReque
     (request.show_collisions || candidate.collision.is_none())
         && (!request.require_free_short_rafsi
             || candidate
-                .rafsi
+                .rafsi()
                 .iter()
                 .any(|rafsi| rafsi.availability == RafsiAvailability::Free))
 }
