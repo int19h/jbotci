@@ -54,7 +54,7 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
-    VlackuRequest, VlackuSearchOptions, dictionary_entry_card,
+    VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
     dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
     grouped_word_type_filter_key, is_brivla_like, normalize_word_type_filter, run_vlacku_requests,
     vlacku_exact_query_is_pattern,
@@ -1979,7 +1979,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         &[request],
         &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
-            word_types: normalized_state.word_types.clone(),
+            word_types: vlacku_search_word_type_filters(&normalized_state.word_types),
             decompose_lujvo: true,
         }),
     );
@@ -2159,7 +2159,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
     let dictionary = jbotci_dictionary_data::english();
     let options = VlackuSearchOptions::default().with_data(data! {
         count: fetch_count,
-        word_types: normalized_state.word_types.clone(),
+        word_types: vlacku_search_word_type_filters(&normalized_state.word_types),
         decompose_lujvo: true,
     });
     let filtered = hits
@@ -3189,7 +3189,7 @@ fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
         &[request],
         &VlackuSearchOptions::default().with_data(data! {
             count: 1,
-            word_types: state.word_types.clone(),
+            word_types: vlacku_search_word_type_filters(&state.word_types),
             decompose_lujvo: true,
         }),
     );
@@ -4428,6 +4428,21 @@ fn tooltip_vlacku_options() -> VlackuSearchOptions {
         min_similarity: None,
         decompose_lujvo: true,
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_search_word_type_filters(values: &[String]) -> Vec<WordTypeFilter> {
+    let mut filters = Vec::new();
+    for value in values {
+        let Some(filter) = WordTypeFilter::parse(value) else {
+            continue;
+        };
+        if !filters.contains(&filter) {
+            filters.push(filter);
+        }
+    }
+    filters
 }
 
 #[requires(true)]

@@ -66,9 +66,9 @@ use jbotci_output::{
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
-    dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_entry_passes_vlacku_filters,
-    dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
-    run_vlacku_requests,
+    WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
+    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
+    normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
@@ -3661,7 +3661,7 @@ fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn parse_vlacku_word_types(raw_values: &[String]) -> Result<Vec<String>> {
+fn parse_vlacku_word_types(raw_values: &[String]) -> Result<Vec<WordTypeFilter>> {
     let mut values = Vec::new();
     for raw_value in raw_values {
         for piece in raw_value.split(',') {
@@ -3669,13 +3669,18 @@ fn parse_vlacku_word_types(raw_values: &[String]) -> Result<Vec<String>> {
             if normalized.is_empty() {
                 continue;
             }
-            if !is_valid_vlacku_word_type_filter(&normalized) {
+            let Some(filter) = parse_word_type_filter(&normalized) else {
+                bail!(
+                    "Unknown `--word-type` value: {normalized}. Use gismu, lujvo, cmavo, cmevla, fu'ivla, or brivla."
+                );
+            };
+            if !is_valid_vlacku_word_type_filter(filter) {
                 bail!(
                     "Unknown `--word-type` value: {normalized}. Use gismu, lujvo, cmavo, cmevla, fu'ivla, or brivla."
                 );
             }
-            if !values.contains(&normalized) {
-                values.push(normalized);
+            if !values.contains(&filter) {
+                values.push(filter);
             }
         }
     }
@@ -3687,10 +3692,15 @@ fn parse_vlacku_word_types(raw_values: &[String]) -> Result<Vec<String>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_valid_vlacku_word_type_filter(value: &str) -> bool {
+fn is_valid_vlacku_word_type_filter(value: WordTypeFilter) -> bool {
     matches!(
         value,
-        "gismu" | "lujvo" | "cmavo" | "cmevla" | "fu'ivla" | "brivla"
+        WordTypeFilter::Gismu
+            | WordTypeFilter::Lujvo
+            | WordTypeFilter::Cmavo
+            | WordTypeFilter::Cmevla
+            | WordTypeFilter::Fuivla
+            | WordTypeFilter::Brivla
     )
 }
 
