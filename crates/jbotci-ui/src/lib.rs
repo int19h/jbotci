@@ -6,8 +6,8 @@ use jbotci_cll::{
     cll_link_href, embedded_cll_site, wrap_ebnf_choice_lines,
 };
 use jbotci_diagnostics::{
-    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextRole,
-    DiagnosticTextSegment,
+    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote, DiagnosticTextLink,
+    DiagnosticTextRole, DiagnosticTextSegment, diagnostic_text_segments_text,
 };
 use jbotci_dialect::{
     CustomDialect, DialectSettings, add_dialect_formula_reference, builtin_dialect_names,
@@ -538,6 +538,7 @@ struct DiagnosticInputTooltip {
 struct DiagnosticTextRenderPart {
     role: DiagnosticTextRole,
     text: String,
+    link: Option<DiagnosticTextLink>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1793,8 +1794,8 @@ fn collect_diagnostic_card_page_find_entries(
             diagnostic_display_text_part_for_script(&segment, script),
         );
     }
-    for note in diagnostic_plain_notes_for_web(diagnostic) {
-        for segment in diagnostic_plain_text_render_parts(note) {
+    for note in diagnostic_plain_note_segments_for_web(diagnostic) {
+        for segment in note {
             push_page_find_entry(
                 entries,
                 diagnostic_display_text_part_for_script(&segment, script),
@@ -1802,13 +1803,11 @@ fn collect_diagnostic_card_page_find_entries(
         }
     }
     for note in diagnostic_styled_notes_for_web(diagnostic) {
-        for segment in &note.segments {
-            for part in diagnostic_text_segment_render_parts(segment) {
-                push_page_find_entry(
-                    entries,
-                    diagnostic_display_text_part_for_script(&part, script),
-                );
-            }
+        for part in diagnostic_text_segment_render_parts(&note.segments) {
+            push_page_find_entry(
+                entries,
+                diagnostic_display_text_part_for_script(&part, script),
+            );
         }
     }
 }
@@ -13951,7 +13950,7 @@ fn render_diagnostic_card(
     );
     let context_labels = diagnostic_context_labels(diagnostic);
     let styled_notes = diagnostic_styled_notes_for_web(diagnostic);
-    let plain_notes = diagnostic_plain_notes_for_web(diagnostic);
+    let plain_notes = diagnostic_plain_note_segments_for_web(diagnostic);
     let primary_detail_segments = diagnostic_primary_detail_parts(diagnostic);
     rsx! {
         article {
@@ -13983,7 +13982,7 @@ fn render_diagnostic_card(
                 div { class: "gentufa-diagnostic-notes",
                     for note in plain_notes.iter() {
                         div { class: "gentufa-diagnostic-note",
-                            for segment in diagnostic_plain_text_render_parts(note).iter() {
+                            for segment in note.iter() {
                                 { render_diagnostic_text_part(segment, pending_cukta_scroll, base_path, script, page_find) }
                             }
                         }
@@ -14025,7 +14024,7 @@ fn render_diagnostic_note_segment(
     script: GentufaScript,
     page_find: Option<&PageFindContext>,
 ) -> Element {
-    let parts = diagnostic_text_segment_render_parts(segment);
+    let parts = diagnostic_text_segment_render_parts(std::slice::from_ref(segment));
     rsx! {
         for part in parts.iter() {
             { render_diagnostic_text_part(part, pending_cukta_scroll, base_path, script, page_find) }
@@ -14173,23 +14172,17 @@ fn source_location_for_char_offset(source: &str, char_offset: usize) -> Diagnost
 
 #[requires(true)]
 #[ensures(true)]
-fn diagnostic_primary_detail(diagnostic: &Diagnostic) -> Option<&str> {
-    let label = diagnostic.primary_label();
-    (label.message != diagnostic.message).then_some(label.message.as_str())
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn diagnostic_primary_detail_parts(diagnostic: &Diagnostic) -> Vec<DiagnosticTextRenderPart> {
-    if let Some(detail) = diagnostic_primary_detail(diagnostic)
-        && detail.starts_with("expected:")
-    {
-        return diagnostic_plain_text_render_parts(detail);
+    let label = diagnostic.primary_label();
+    if label.message != diagnostic.message && label.message.starts_with("expected:") {
+        return diagnostic_text_segment_render_parts(&label.message_segments);
     }
     diagnostic_expected_detail_parts_from_detailed_note(diagnostic).unwrap_or_else(|| {
-        diagnostic_primary_detail(diagnostic)
-            .map(diagnostic_plain_text_render_parts)
-            .unwrap_or_default()
+        if label.message != diagnostic.message {
+            diagnostic_text_segment_render_parts(&label.message_segments)
+        } else {
+            Vec::new()
+        }
     })
 }
 
@@ -14212,8 +14205,8 @@ fn diagnostic_expected_detail_parts_from_detailed_note(
                 .starts_with("needs one of:")
     })?;
     let mut output = vec![
-        diagnostic_text_render_part(DiagnosticTextRole::Keyword, "expected".to_owned()),
-        diagnostic_text_render_part(DiagnosticTextRole::Plain, " ".to_owned()),
+        diagnostic_text_render_part(DiagnosticTextRole::Keyword, "expected".to_owned(), None),
+        diagnostic_text_render_part(DiagnosticTextRole::Plain, " ".to_owned(), None),
     ];
     let mut heading_seen = false;
     let mut skipping_heading_tail = false;
@@ -14222,7 +14215,7 @@ fn diagnostic_expected_detail_parts_from_detailed_note(
     let mut content_started = false;
 
     for segment in &note.segments {
-        for part in diagnostic_text_segment_render_parts(segment) {
+        for part in diagnostic_text_segment_render_parts(std::slice::from_ref(segment)) {
             let mut index = 0usize;
             if !heading_seen {
                 if part.role == DiagnosticTextRole::Keyword && part.text == "needs one of" {
@@ -14276,6 +14269,7 @@ fn diagnostic_expected_detail_parts_from_detailed_note(
                         output.push(diagnostic_text_render_part(
                             DiagnosticTextRole::Punctuation,
                             ", ".to_owned(),
+                            None,
                         ));
                         pending_separator = false;
                     }
@@ -14296,6 +14290,7 @@ fn diagnostic_expected_detail_parts_from_detailed_note(
                 output.push(diagnostic_text_render_part(
                     part.role,
                     part.text[start..index].to_owned(),
+                    part.link.clone(),
                 ));
                 content_started = true;
             }
@@ -14349,13 +14344,29 @@ fn diagnostic_context_descriptor(message: &str) -> Option<&str> {
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|note| !diagnostic_plain_note_is_hidden(note)))]
-fn diagnostic_plain_notes_for_web(diagnostic: &Diagnostic) -> Vec<&str> {
+#[ensures(true)]
+fn diagnostic_plain_note_segments_for_web(
+    diagnostic: &Diagnostic,
+) -> Vec<Vec<DiagnosticTextRenderPart>> {
     diagnostic
         .notes
         .iter()
-        .map(String::as_str)
-        .filter(|note| !note.is_empty() && !diagnostic_plain_note_is_hidden(note))
+        .enumerate()
+        .filter(|(_, note)| !note.is_empty() && !diagnostic_plain_note_is_hidden(note))
+        .map(|(index, note)| {
+            let segments = diagnostic
+                .note_segments
+                .get(index)
+                .filter(|segments| !segments.is_empty())
+                .cloned()
+                .unwrap_or_else(|| {
+                    vec![DiagnosticTextSegment::new(
+                        DiagnosticTextRole::Plain,
+                        note.clone(),
+                    )]
+                });
+            diagnostic_text_segment_render_parts(&segments)
+        })
         .collect()
 }
 
@@ -14388,15 +14399,6 @@ fn diagnostic_styled_note_is_hidden(note: &DiagnosticStyledNote) -> bool {
 #[ensures(true)]
 fn diagnostic_styled_note_text(note: &DiagnosticStyledNote) -> String {
     diagnostic_text_segments_text(&note.segments)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_text_segments_text(segments: &[DiagnosticTextSegment]) -> String {
-    segments.iter().fold(String::new(), |mut text, segment| {
-        text.push_str(&segment.text);
-        text
-    })
 }
 
 #[requires(true)]
@@ -14444,171 +14446,33 @@ fn diagnostic_text_role_class(role: DiagnosticTextRole) -> &'static str {
     }
 }
 
-#[requires(!segment.text.is_empty())]
+#[requires(segments.iter().all(|segment| !segment.text.is_empty()))]
 #[ensures(!ret.is_empty())]
 fn diagnostic_text_segment_render_parts(
-    segment: &DiagnosticTextSegment,
+    segments: &[DiagnosticTextSegment],
 ) -> Vec<DiagnosticTextRenderPart> {
-    if segment.role == DiagnosticTextRole::Plain {
-        diagnostic_plain_text_render_parts(&segment.text)
-    } else {
-        vec![diagnostic_text_render_part(
-            segment.role,
-            diagnostic_text_segment_display_text(segment),
-        )]
-    }
-}
-
-#[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn diagnostic_plain_text_render_parts(text: &str) -> Vec<DiagnosticTextRenderPart> {
-    let mut parts = Vec::new();
-    let mut index = 0usize;
-    while index < text.len() {
-        if let Some((mut matched, next_index)) = diagnostic_plain_prefix_parts(text, index) {
-            parts.append(&mut matched);
-            index = next_index;
-            continue;
-        }
-        let Some(character) = text[index..].chars().next() else {
-            break;
-        };
-        if diagnostic_identifier_char(character) {
-            let start = index;
-            index += character.len_utf8();
-            while index < text.len()
-                && text[index..]
-                    .chars()
-                    .next()
-                    .is_some_and(diagnostic_identifier_char)
-            {
-                let next = text[index..]
-                    .chars()
-                    .next()
-                    .expect("checked above that a character is present");
-                index += next.len_utf8();
-            }
-            let token = &text[start..index];
-            let role = diagnostic_identifier_role(token).unwrap_or(DiagnosticTextRole::Plain);
-            parts.push(diagnostic_text_render_part(
-                role,
-                diagnostic_display_text_for_role(role, token),
-            ));
-        } else {
-            parts.push(diagnostic_text_render_part(
-                if character.is_ascii_punctuation() {
-                    DiagnosticTextRole::Punctuation
-                } else {
-                    DiagnosticTextRole::Plain
-                },
-                character.to_string(),
-            ));
-            index += character.len_utf8();
-        }
-    }
-    merge_diagnostic_text_parts(parts)
-}
-
-#[requires(index < text.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, next)| *next > index && *next <= text.len()))]
-fn diagnostic_plain_prefix_parts(
-    text: &str,
-    index: usize,
-) -> Option<(Vec<DiagnosticTextRenderPart>, usize)> {
-    for (label, has_colon) in DIAGNOSTIC_KEYWORD_LABELS {
-        if let Some(next_index) = diagnostic_match_phrase(text, index, label) {
-            let mut parts = vec![diagnostic_text_render_part(
-                DiagnosticTextRole::Keyword,
-                (*label).to_owned(),
-            )];
-            if *has_colon && text[next_index..].starts_with(':') {
-                parts.push(diagnostic_text_render_part(
-                    DiagnosticTextRole::Punctuation,
-                    ":".to_owned(),
-                ));
-                return Some((parts, next_index + 1));
-            }
-            return Some((parts, next_index));
-        }
-    }
-    for (phrase, display, role) in DIAGNOSTIC_PHRASE_ROLES {
-        if let Some(next_index) = diagnostic_match_phrase(text, index, phrase) {
-            return Some((
-                vec![diagnostic_text_render_part(
-                    *role,
-                    diagnostic_display_text_for_role(*role, display),
-                )],
-                next_index,
-            ));
-        }
-    }
-    None
-}
-
-#[requires(!phrase.is_empty())]
-#[requires(index < text.len())]
-#[ensures(ret.is_none_or(|next| next > index && next <= text.len()))]
-fn diagnostic_match_phrase(text: &str, index: usize, phrase: &str) -> Option<usize> {
-    let after = index.checked_add(phrase.len())?;
-    if after > text.len() || !text[index..].starts_with(phrase) {
-        return None;
-    }
-    let before_ok = index == 0
-        || text[..index]
-            .chars()
-            .next_back()
-            .is_none_or(|character| !diagnostic_identifier_char(character));
-    let after_ok = after == text.len()
-        || text[after..]
-            .chars()
-            .next()
-            .is_none_or(|character| !diagnostic_identifier_char(character));
-    (before_ok && after_ok).then_some(after)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_identifier_char(character: char) -> bool {
-    character.is_ascii_alphanumeric() || matches!(character, '\'' | '-' | 'h')
-}
-
-#[requires(!token.is_empty())]
-#[ensures(true)]
-fn diagnostic_identifier_role(token: &str) -> Option<DiagnosticTextRole> {
-    if diagnostic_word_category_display(token).is_some() {
-        Some(DiagnosticTextRole::WordCategory)
-    } else if DIAGNOSTIC_SELMAHO_NAMES.contains(&token) {
-        Some(DiagnosticTextRole::Selmaho)
-    } else if DIAGNOSTIC_SPECIFIC_WORDS.contains(&token) {
-        Some(DiagnosticTextRole::SpecificWord)
-    } else if DIAGNOSTIC_KEYWORDS.contains(&token) {
-        Some(DiagnosticTextRole::Keyword)
-    } else {
-        None
-    }
-}
-
-#[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn diagnostic_display_text_for_role(role: DiagnosticTextRole, text: &str) -> String {
-    match role {
-        DiagnosticTextRole::WordCategory => diagnostic_word_category_display(text)
-            .unwrap_or(text)
-            .to_owned(),
-        _ => text.to_owned(),
-    }
-}
-
-#[requires(!segment.text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn diagnostic_text_segment_display_text(segment: &DiagnosticTextSegment) -> String {
-    diagnostic_display_text_for_role(segment.role, &segment.text)
+    merge_diagnostic_text_parts(
+        segments
+            .iter()
+            .map(|segment| {
+                diagnostic_text_render_part(
+                    segment.role,
+                    segment.text.clone(),
+                    segment.link.clone(),
+                )
+            })
+            .collect(),
+    )
 }
 
 #[requires(!text.is_empty())]
 #[ensures(!ret.text.is_empty())]
-fn diagnostic_text_render_part(role: DiagnosticTextRole, text: String) -> DiagnosticTextRenderPart {
-    new!(DiagnosticTextRenderPart { role, text })
+fn diagnostic_text_render_part(
+    role: DiagnosticTextRole,
+    text: String,
+    link: Option<DiagnosticTextLink>,
+) -> DiagnosticTextRenderPart {
+    new!(DiagnosticTextRenderPart { role, text, link })
 }
 
 #[requires(true)]
@@ -14620,7 +14484,7 @@ fn merge_diagnostic_text_parts(
     for part in parts {
         if let Some(previous) = merged.last()
             && previous.role == part.role
-            && diagnostic_text_part_href(previous, "") == diagnostic_text_part_href(&part, "")
+            && previous.link == part.link
         {
             let mut previous_data = merged
                 .pop()
@@ -14723,20 +14587,22 @@ fn render_diagnostic_text_link(
 #[requires(!part.text.is_empty())]
 #[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
 fn diagnostic_text_part_href(part: &DiagnosticTextRenderPart, base_path: &str) -> Option<String> {
-    match part.role {
-        DiagnosticTextRole::SpecificWord => {
-            Some(diagnostic_vlacku_href(base_path, part.text.as_str()))
-        }
-        DiagnosticTextRole::Selmaho => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-index",
-            Some(part.text.as_str()),
-        )),
-        DiagnosticTextRole::WordCategory => diagnostic_word_category_href(base_path, &part.text),
-        DiagnosticTextRole::Construct => diagnostic_construct_href(base_path, &part.text),
-        DiagnosticTextRole::Keyword
-        | DiagnosticTextRole::Punctuation
-        | DiagnosticTextRole::Plain => None,
+    part.link
+        .as_ref()
+        .map(|link| diagnostic_text_link_href(base_path, link))
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn diagnostic_text_link_href(base_path: &str, link: &DiagnosticTextLink) -> String {
+    if let Some(word) = link.vlacku_word() {
+        diagnostic_vlacku_href(base_path, word)
+    } else if let Some((section_id, anchor)) = link.cll_section() {
+        diagnostic_cukta_section_href(base_path, section_id, anchor)
+    } else if let Some(rule_name) = link.ebnf_rule() {
+        diagnostic_ebnf_rule_href(base_path, rule_name)
+    } else {
+        unreachable!("diagnostic text link variants are exhaustive")
     }
 }
 
@@ -14764,125 +14630,6 @@ fn diagnostic_cukta_section_href(
     href
 }
 
-#[requires(!text.is_empty())]
-#[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
-fn diagnostic_word_category_href(base_path: &str, text: &str) -> Option<String> {
-    match text {
-        "BRIVLA" => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-morphology-brivla",
-            None,
-        )),
-        "CMEVLA" => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-cmevla",
-            None,
-        )),
-        "LERFU" => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-lerfu-liste",
-            None,
-        )),
-        "SELBRI WORD" => Some(diagnostic_ebnf_rule_href(base_path, "selbri")),
-        "PRO-SUMTI" => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-anaphoric-cmavo-introduction",
-            None,
-        )),
-        "QUOTE" => Some(diagnostic_cukta_section_href(
-            base_path,
-            "section-quotation",
-            None,
-        )),
-        _ => None,
-    }
-}
-
-#[requires(!text.is_empty())]
-#[ensures(ret.as_ref().is_none_or(|href| !href.is_empty()))]
-fn diagnostic_construct_href(base_path: &str, text: &str) -> Option<String> {
-    let rule = match text {
-        "FIhO modal" => "tense-modal",
-        "NA KU term" => "term",
-        "VUhU operator" => "mex-operator",
-        "abstraction" => "tanru-unit",
-        "bridi" => "bridi-tail",
-        "bridi description" => "sumti-6",
-        "connected tag" => "tag",
-        "converted operator" => "mex-operator",
-        "converted sumti" => "sumti-6",
-        "converted tanru unit" => "tanru-unit-2",
-        "descriptor" => "sumti-6",
-        "description" => "sumti-tail",
-        "description tail" => "sumti-tail",
-        "forethought bridi connection" => "gek-sentence",
-        "forethought mex" => "mex",
-        "forethought selbri connection" => "selbri-6",
-        "forethought sumti connection" => "sumti-4",
-        "free modifier" => "free",
-        "fragment" => "fragment",
-        "grouped tanru" => "tanru-unit-2",
-        "lerfu string" => "lerfu-string",
-        "linked arguments" => "linkargs",
-        "mekso array" => "operand-3",
-        "mex" => "mex",
-        "modal conversion" => "tanru-unit-2",
-        "modal tag" => "simple-tense-modal",
-        "name" => "sumti-6",
-        "negated selbri" => "selbri-1",
-        "non-Lojban quote" => "sumti-6",
-        "number sumti" => "sumti-6",
-        "number" => "number",
-        "operand" => "operand",
-        "operand-to-operator" => "mex-operator",
-        "operator" => "operator",
-        "operator-to-selbri" => "tanru-unit-2",
-        "ordinal selbri" => "tanru-unit-2",
-        "parenthesized mex" => "mex",
-        "place tag" => "term",
-        "pro-sumti" => "sumti-6",
-        "quantifier" => "quantifier",
-        "qualified operand" => "operand-3",
-        "quote" => "sumti-6",
-        "relative clause" => "relative-clause",
-        "relative clauses" => "relative-clauses",
-        "reverse Polish mex" => "rp-expression",
-        "selbri operand" => "operand-3",
-        "selbri relative phrase" => "tanru-unit",
-        "selbri-to-operator" => "mex-operator",
-        "simple tense/modal" => "simple-tense-modal",
-        "space tense" => "space",
-        "subbridi" => "subsentence",
-        "sumti" => "sumti",
-        "sumti operand" => "operand-3",
-        "sumti-to-selbri" => "tanru-unit-2",
-        "tag" => "tag",
-        "tail terms" => "tail-terms",
-        "tanru" => "selbri",
-        "tanru unit" => "tanru-unit",
-        "term" => "term",
-        "termset" => "termset",
-        "terms" => "terms",
-        "selbri" => "selbri",
-        "statement" => "statement",
-        "text group" => "statement-3",
-        "text quote" => "sumti-6",
-        "time tense" => "time",
-        "word quote" => "sumti-6",
-        "word-sequence quote" => "sumti-6",
-        "metalinguistic comment"
-        | "parenthetical text"
-        | "reciprocal"
-        | "replacement phrase"
-        | "subscript"
-        | "utterance ordinal"
-        | "vocative phrase" => "free",
-        "text" | "parse_text" => "text",
-        _ => return None,
-    };
-    Some(diagnostic_ebnf_rule_href(base_path, rule))
-}
-
 #[requires(!rule_name.is_empty())]
 #[ensures(!ret.is_empty())]
 fn diagnostic_ebnf_rule_href(base_path: &str, rule_name: &str) -> String {
@@ -14892,304 +14639,6 @@ fn diagnostic_ebnf_rule_href(base_path: &str, rule_name: &str) -> String {
         Some(jbotci_cll::ebnf_rule_anchor_id(rule_name).as_str()),
     )
 }
-
-#[requires(!text.is_empty())]
-#[ensures(ret.is_none_or(|display| !display.is_empty()))]
-fn diagnostic_word_category_display(text: &str) -> Option<&'static str> {
-    match text {
-        "BRIVLA" => Some("BRIVLA"),
-        "CMEVLA" => Some("CMEVLA"),
-        "LERFU" => Some("LERFU"),
-        "SELBRI WORD" => Some("SELBRI WORD"),
-        "PRO-SUMTI" => Some("PRO-SUMTI"),
-        "REPLACEMENT WORD" => Some("REPLACEMENT WORD"),
-        "QUOTE" => Some("QUOTE"),
-        _ => None,
-    }
-}
-
-const DIAGNOSTIC_KEYWORD_LABELS: &[(&str, bool)] = &[
-    ("expected one of", true),
-    ("needs one of", true),
-    ("morphology detail", true),
-    ("reason", true),
-    ("expected", false),
-];
-
-const DIAGNOSTIC_PHRASE_ROLES: &[(&str, &str, DiagnosticTextRole)] = &[
-    (
-        "forethought bridi connection",
-        "forethought bridi connection",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "forethought selbri connection",
-        "forethought selbri connection",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "forethought sumti connection",
-        "forethought sumti connection",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "forethought mex",
-        "forethought mex",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "metalinguistic comment",
-        "metalinguistic comment",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "word-sequence quote",
-        "word-sequence quote",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "parenthetical text",
-        "parenthetical text",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "operand-to-operator",
-        "operand-to-operator",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "operator-to-selbri",
-        "operator-to-selbri",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "selbri-to-operator",
-        "selbri-to-operator",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "sumti-to-selbri",
-        "sumti-to-selbri",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "converted tanru unit",
-        "converted tanru unit",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "selbri relative phrase",
-        "selbri relative phrase",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "simple tense/modal",
-        "simple tense/modal",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "reverse Polish mex",
-        "reverse Polish mex",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "replacement phrase",
-        "replacement phrase",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "bridi description",
-        "bridi description",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "description tail",
-        "description tail",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "free modifier",
-        "free modifier",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "linked arguments",
-        "linked arguments",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "parenthesized mex",
-        "parenthesized mex",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "converted operator",
-        "converted operator",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "converted sumti",
-        "converted sumti",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "non-Lojban quote",
-        "non-Lojban quote",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "utterance ordinal",
-        "utterance ordinal",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "vocative phrase",
-        "vocative phrase",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "grouped tanru",
-        "grouped tanru",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "modal conversion",
-        "modal conversion",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "ordinal selbri",
-        "ordinal selbri",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "qualified operand",
-        "qualified operand",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "selbri operand",
-        "selbri operand",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "sumti operand",
-        "sumti operand",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "connected tag",
-        "connected tag",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "lerfu string",
-        "lerfu string",
-        DiagnosticTextRole::Construct,
-    ),
-    ("mekso array", "mekso array", DiagnosticTextRole::Construct),
-    ("modal tag", "modal tag", DiagnosticTextRole::Construct),
-    ("NA KU term", "NA KU term", DiagnosticTextRole::Construct),
-    (
-        "negated selbri",
-        "negated selbri",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "number sumti",
-        "number sumti",
-        DiagnosticTextRole::Construct,
-    ),
-    ("place tag", "place tag", DiagnosticTextRole::Construct),
-    ("space tense", "space tense", DiagnosticTextRole::Construct),
-    ("text group", "text group", DiagnosticTextRole::Construct),
-    ("text quote", "text quote", DiagnosticTextRole::Construct),
-    ("time tense", "time tense", DiagnosticTextRole::Construct),
-    (
-        "VUhU operator",
-        "VUhU operator",
-        DiagnosticTextRole::Construct,
-    ),
-    ("word quote", "word quote", DiagnosticTextRole::Construct),
-    ("FIhO modal", "FIhO modal", DiagnosticTextRole::Construct),
-    ("abstraction", "abstraction", DiagnosticTextRole::Construct),
-    ("descriptor", "descriptor", DiagnosticTextRole::Construct),
-    ("description", "description", DiagnosticTextRole::Construct),
-    ("fragment", "fragment", DiagnosticTextRole::Construct),
-    ("subbridi", "subbridi", DiagnosticTextRole::Construct),
-    ("prenex", "prenex", DiagnosticTextRole::Construct),
-    ("bridi", "bridi", DiagnosticTextRole::Construct),
-    ("mex", "mex", DiagnosticTextRole::Construct),
-    ("name", "name", DiagnosticTextRole::Construct),
-    ("number", "number", DiagnosticTextRole::Construct),
-    ("operand", "operand", DiagnosticTextRole::Construct),
-    ("operator", "operator", DiagnosticTextRole::Construct),
-    ("pro-sumti", "pro-sumti", DiagnosticTextRole::Construct),
-    ("quantifier", "quantifier", DiagnosticTextRole::Construct),
-    ("quote", "quote", DiagnosticTextRole::Construct),
-    (
-        "relative clauses",
-        "relative clauses",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "relative clause",
-        "relative clause",
-        DiagnosticTextRole::Construct,
-    ),
-    ("sumti", "sumti", DiagnosticTextRole::Construct),
-    ("selbri", "selbri", DiagnosticTextRole::Construct),
-    ("statement", "statement", DiagnosticTextRole::Construct),
-    (
-        "syntax construct",
-        "syntax construct",
-        DiagnosticTextRole::Construct,
-    ),
-    ("subscript", "subscript", DiagnosticTextRole::Construct),
-    ("tag", "tag", DiagnosticTextRole::Construct),
-    ("tail terms", "tail terms", DiagnosticTextRole::Construct),
-    ("tanru unit", "tanru unit", DiagnosticTextRole::Construct),
-    ("tanru", "tanru", DiagnosticTextRole::Construct),
-    ("termset", "termset", DiagnosticTextRole::Construct),
-    ("terms", "terms", DiagnosticTextRole::Construct),
-    ("term", "term", DiagnosticTextRole::Construct),
-    ("text", "text", DiagnosticTextRole::Construct),
-    (
-        "end of input",
-        "end of input",
-        DiagnosticTextRole::Construct,
-    ),
-    (
-        "SELBRI WORD",
-        "SELBRI WORD",
-        DiagnosticTextRole::WordCategory,
-    ),
-    (
-        "REPLACEMENT WORD",
-        "REPLACEMENT WORD",
-        DiagnosticTextRole::WordCategory,
-    ),
-];
-
-const DIAGNOSTIC_KEYWORDS: &[&str] = &["continues", "ends"];
-
-const DIAGNOSTIC_SPECIFIC_WORDS: &[&str] = &[
-    "doi", "fe'e", "fi'o", "fu'a", "jo'i", "ke", "ki", "le", "le'ai", "lo", "lo'ai", "ma'o",
-    "mo'e", "na'u", "ni'e", "pe'o", "sa'ai", "soi", "tei", "vei",
-];
-
-const DIAGNOSTIC_SELMAHO_NAMES: &[&str] = &[
-    "A", "BAI", "BE", "BEI", "BEhO", "BIhE", "BIhI", "BO", "BOI", "BRIVLA", "BU", "BY", "CAI",
-    "CAhA", "CEI", "CEhE", "CMEVLA", "CO", "COI", "CU", "CUhE", "DAhO", "DOI", "DOhU", "FA",
-    "FAhA", "FEhE", "FEhU", "FOI", "FUhA", "FUhE", "FUhO", "GA", "GAhO", "GEhU", "GI", "GIhA",
-    "GOI", "GOhA", "GUhA", "I", "JA", "JAI", "JOhI", "JOI", "KE", "KEI", "KEhE", "KI", "KOhA",
-    "KU", "KUhE", "KUhO", "LA", "LAU", "LAhE", "LE", "LEhU", "LI", "LIhU", "LOhO", "LOhU", "LU",
-    "LUhU", "MAI", "MAhO", "ME", "MEhU", "MOI", "MOhE", "MOhI", "NA", "NAI", "NAhE", "NAhU",
-    "NIhO", "NOI", "NU", "NUhA", "NUhI", "NUhU", "PA", "PEhE", "PEhO", "PU", "RAhO", "ROI", "SA",
-    "SE", "SEI", "SEhU", "SI", "SOI", "SU", "TAhE", "TEI", "TEhU", "TO", "TOI", "TUhE", "TUhU",
-    "UI", "VA", "VAU", "VEI", "VEhA", "VEhO", "VIhA", "VUhO", "VUhU", "XI", "Y", "ZA", "ZAhO",
-    "ZEI", "ZEhA", "ZI", "ZIhE", "ZO", "ZOhU", "ZOI",
-];
 
 #[requires(true)]
 #[ensures(true)]
@@ -23566,7 +23015,8 @@ mod tests {
         .with_styled_notes(vec![DiagnosticStyledNote::new(
             jbotci_diagnostics::DiagnosticNoteMode::Detailed,
             vec![
-                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "needs one of".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
                 DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
                 DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "selbri".to_owned()),
             ],
@@ -23624,7 +23074,8 @@ mod tests {
         .with_styled_notes(vec![DiagnosticStyledNote::new(
             jbotci_diagnostics::DiagnosticNoteMode::Detailed,
             vec![
-                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "needs one of".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
                 DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
                 DiagnosticTextSegment::new(
                     DiagnosticTextRole::Construct,
@@ -23664,7 +23115,8 @@ mod tests {
         .with_styled_notes(vec![DiagnosticStyledNote::new(
             jbotci_diagnostics::DiagnosticNoteMode::Detailed,
             vec![
-                DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "needs one of:\n".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "needs one of".to_owned()),
+                DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
                 DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, "- ".to_owned()),
                 DiagnosticTextSegment::new(
                     DiagnosticTextRole::Construct,
@@ -23718,9 +23170,10 @@ mod tests {
                 jbotci_diagnostics::DiagnosticNoteMode::Summary,
                 vec![
                     DiagnosticTextSegment::new(
-                        DiagnosticTextRole::Plain,
-                        "expected one of: ".to_owned(),
+                        DiagnosticTextRole::Keyword,
+                        "expected one of".to_owned(),
                     ),
+                    DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ": ".to_owned()),
                     DiagnosticTextSegment::new(DiagnosticTextRole::Selmaho, "SE".to_owned()),
                 ],
             ),
@@ -23728,18 +23181,20 @@ mod tests {
                 jbotci_diagnostics::DiagnosticNoteMode::Detailed,
                 vec![
                     DiagnosticTextSegment::new(
-                        DiagnosticTextRole::Plain,
-                        "needs one of:\n".to_owned(),
+                        DiagnosticTextRole::Keyword,
+                        "needs one of".to_owned(),
                     ),
+                    DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ":\n".to_owned()),
                     DiagnosticTextSegment::new(DiagnosticTextRole::Construct, "sumti".to_owned()),
                 ],
             ),
         ]);
 
-        let plain_notes = diagnostic_plain_notes_for_web(&diagnostic);
+        let plain_notes = diagnostic_plain_note_segments_for_web(&diagnostic);
         let styled_notes = diagnostic_styled_notes_for_web(&diagnostic);
 
-        assert_eq!(plain_notes, vec!["another note"]);
+        assert_eq!(plain_notes.len(), 1);
+        assert_eq!(diagnostic_text_parts_text(&plain_notes[0]), "another note");
         assert_eq!(styled_notes.len(), 1);
         assert_eq!(
             diagnostic_styled_note_text(styled_notes[0]),
@@ -23750,10 +23205,11 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn diagnostic_plain_text_segments_style_expectation_terms() {
-        let parts = diagnostic_plain_text_render_parts(
+    fn diagnostic_model_segments_style_expectation_terms() {
+        let segments = jbotci_diagnostics::diagnostic_text_segments(
             "expected forethought selbri connection, linked arguments, FIhO modal, VUhU operator, statement, SE, LERFU, fe'e",
         );
+        let parts = diagnostic_text_segment_render_parts(&segments);
 
         assert!(
             parts.iter().any(|part| {
@@ -23957,8 +23413,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn diagnostic_specific_words_render_with_selected_script() {
-        let word = diagnostic_text_render_part(DiagnosticTextRole::SpecificWord, "fe'e".to_owned());
-        let selmaho = diagnostic_text_render_part(DiagnosticTextRole::Selmaho, "FAhA".to_owned());
+        let word = diagnostic_test_part(DiagnosticTextRole::SpecificWord, "fe'e");
+        let selmaho = diagnostic_test_part(DiagnosticTextRole::Selmaho, "FAhA");
 
         let rendered_word = diagnostic_display_text_part_for_script(&word, GentufaScript::Cyrillic);
 
@@ -24006,26 +23462,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn diagnostic_token_links_follow_cukta_and_vlacku_conventions() {
-        let word = new!(DiagnosticTextRenderPart {
-            role: DiagnosticTextRole::SpecificWord,
-            text: "fe'e".to_owned(),
-        });
-        let selmaho = new!(DiagnosticTextRenderPart {
-            role: DiagnosticTextRole::Selmaho,
-            text: "BAI".to_owned(),
-        });
-        let category = new!(DiagnosticTextRenderPart {
-            role: DiagnosticTextRole::WordCategory,
-            text: "BRIVLA".to_owned(),
-        });
-        let construct = new!(DiagnosticTextRenderPart {
-            role: DiagnosticTextRole::Construct,
-            text: "sumti".to_owned(),
-        });
-        let statement = new!(DiagnosticTextRenderPart {
-            role: DiagnosticTextRole::Construct,
-            text: "statement".to_owned(),
-        });
+        let word = diagnostic_test_part(DiagnosticTextRole::SpecificWord, "fe'e");
+        let selmaho = diagnostic_test_part(DiagnosticTextRole::Selmaho, "BAI");
+        let category = diagnostic_test_part(DiagnosticTextRole::WordCategory, "BRIVLA");
+        let construct = diagnostic_test_part(DiagnosticTextRole::Construct, "sumti");
+        let statement = diagnostic_test_part(DiagnosticTextRole::Construct, "statement");
 
         assert_eq!(
             diagnostic_text_part_href(&word, "/jbotci").as_deref(),
@@ -24067,10 +23508,7 @@ mod tests {
             ("FIhO modal", "tense-modal"),
             ("VUhU operator", "mex-operator"),
         ] {
-            let part = new!(DiagnosticTextRenderPart {
-                role: DiagnosticTextRole::Construct,
-                text: construct.to_owned(),
-            });
+            let part = diagnostic_test_part(DiagnosticTextRole::Construct, construct);
             let expected_href = diagnostic_ebnf_rule_href("/jbotci", rule);
 
             assert_eq!(
@@ -25412,6 +24850,15 @@ mod tests {
             Vec::new(),
             None,
         )
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.role == role)]
+    fn diagnostic_test_part(role: DiagnosticTextRole, text: &str) -> DiagnosticTextRenderPart {
+        diagnostic_text_segment_render_parts(&[DiagnosticTextSegment::new(role, text.to_owned())])
+            .into_iter()
+            .next()
+            .expect("single diagnostic segment renders to a part")
     }
 
     #[requires(true)]

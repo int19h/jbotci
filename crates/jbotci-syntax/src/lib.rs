@@ -1146,7 +1146,10 @@ fn syntax_summary_segments_from_expectations(
         }
     }
     sort_syntax_tokens(&mut tokens);
-    let mut segments = vec![plain_segment("expected one of: ")];
+    let mut segments = vec![
+        keyword_segment("expected one of"),
+        punctuation_segment(": "),
+    ];
     push_token_list(&mut segments, &tokens);
     segments
 }
@@ -1154,7 +1157,10 @@ fn syntax_summary_segments_from_expectations(
 #[requires(!expected.is_empty())]
 #[ensures(!ret.is_empty())]
 fn syntax_summary_segments_from_strings(expected: &[String]) -> Vec<DiagnosticTextSegment> {
-    let mut segments = vec![plain_segment("expected one of: ")];
+    let mut segments = vec![
+        keyword_segment("expected one of"),
+        punctuation_segment(": "),
+    ];
     for (index, item) in expected.iter().enumerate() {
         if index > 0 {
             push_prose_list_separator_segment(&mut segments, index, expected.len());
@@ -1167,7 +1173,7 @@ fn syntax_summary_segments_from_strings(expected: &[String]) -> Vec<DiagnosticTe
 #[requires(!expectations.is_empty())]
 #[ensures(!ret.is_empty())]
 fn syntax_detailed_segments(expectations: &[SyntaxExpectation]) -> Vec<DiagnosticTextSegment> {
-    let mut segments = vec![plain_segment("needs one of:")];
+    let mut segments = vec![keyword_segment("needs one of"), punctuation_segment(":")];
     let deduped = merge_expectations_by_reason(expectations);
     for expectation in &deduped {
         segments.push(plain_segment("\n"));

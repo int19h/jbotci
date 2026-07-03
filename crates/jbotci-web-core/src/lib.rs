@@ -14,7 +14,10 @@ use jbotci_cll::{
     cll_search_chunk_href, cll_section_chapter_title, cukta_search, embedded_cll_site,
     format_section_display_title, truncate_preview,
 };
-use jbotci_diagnostics::{Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity};
+use jbotci_diagnostics::{
+    Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
+    diagnostic_text_segments_text,
+};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
@@ -3004,15 +3007,6 @@ fn diagnostic_styled_note_is_hidden(note: &jbotci_diagnostics::DiagnosticStyledN
         && diagnostic_text_segments_text(&note.segments)
             .trim_start()
             .starts_with("expected one of:")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn diagnostic_text_segments_text(segments: &[jbotci_diagnostics::DiagnosticTextSegment]) -> String {
-    segments.iter().fold(String::new(), |mut text, segment| {
-        text.push_str(&segment.text);
-        text
-    })
 }
 
 #[requires(true)]
