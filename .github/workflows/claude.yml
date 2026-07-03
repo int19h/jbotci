@@ -38,6 +38,7 @@ jobs:
       pull-requests: write
       issues: write
       actions: read # lets Claude read CI results when reviewing a PR
+      id-token: write # exchanged for the claude[bot] App token; not used for pushes
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
