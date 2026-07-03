@@ -52,6 +52,7 @@ use xtask_common::fixtures::{
 use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
 };
+use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
@@ -1461,7 +1462,7 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
-    remove_obsolete_web_public_dir(public_dir, Path::new(".jbotci-asset-sync"))?;
+    remove_obsolete_web_public_dir(public_dir, Path::new(WEB_ASSET_SYNC_TEMP_DIR_NAME))?;
     remove_web_asset_sync_temp_dir(Path::new(WEB_ASSET_SYNC_TEMP_DIR));
     remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("manifest.webmanifest"))?;
@@ -1718,17 +1719,7 @@ fn web_asset_sync_temp_dir(target: &Path) -> PathBuf {
     target
         .parent()
         .unwrap_or_else(|| Path::new("."))
-        .join(".jbotci-asset-sync")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn remove_web_asset_sync_temp_dir(temp_dir: &Path) {
-    match fs::remove_dir_all(temp_dir) {
-        Ok(()) => {}
-        Err(error) if error.kind() == ErrorKind::NotFound => {}
-        Err(_) => {}
-    }
+        .join(WEB_ASSET_SYNC_TEMP_DIR_NAME)
 }
 
 #[requires(!description.is_empty())]
@@ -1753,7 +1744,7 @@ fn remove_obsolete_flat_web_asset_files(
     for entry in entries {
         let entry = entry
             .with_context(|| format!("reading {description} under `{}`", target_dir.display()))?;
-        if entry.file_name() == ".jbotci-asset-sync" {
+        if entry.file_name() == WEB_ASSET_SYNC_TEMP_DIR_NAME {
             match fs::remove_dir_all(entry.path()) {
                 Ok(()) => {}
                 Err(error) if error.kind() == ErrorKind::NotFound => {}
@@ -10427,7 +10418,7 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..BracketRenderOptions::default()
         },
     ) {
-        Ok(actual) if brackets_expectation_matches(fixture, &expectation.text, &actual) => {
+        Ok(actual) if expectation.text == actual => {
             run_gentufa_brackets_round_trip(fixture, &options, &syntax_options, &parsed, &actual)
         }
         Ok(actual) => FacetResult::failed(format!(
@@ -11129,16 +11120,6 @@ fn truncate_for_mismatch(text: &str) -> String {
 }
 
 const DEBUG_MISMATCH_LIMIT: usize = 512;
-
-#[requires(true)]
-#[ensures(true)]
-fn brackets_expectation_matches(fixture: &LoadedTestCase, expected: &str, actual: &str) -> bool {
-    let _ = fixture;
-    if expected == actual {
-        return true;
-    }
-    false
-}
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[ensures(ret.is_valid())]
@@ -12598,7 +12579,7 @@ brackets = "not a real key"
         fs::write(target.join("current.txt"), "old").unwrap();
         fs::write(target.join("obsolete.txt"), "obsolete").unwrap();
         fs::create_dir(target.join("nested")).unwrap();
-        fs::create_dir(target.join(".jbotci-asset-sync")).unwrap();
+        fs::create_dir(target.join(WEB_ASSET_SYNC_TEMP_DIR_NAME)).unwrap();
 
         copy_flat_web_asset_dir(&source, &target, "test asset").unwrap();
 
@@ -12607,7 +12588,7 @@ brackets = "not a real key"
             "current"
         );
         assert!(!target.join("obsolete.txt").exists());
-        assert!(!target.join(".jbotci-asset-sync").exists());
+        assert!(!target.join(WEB_ASSET_SYNC_TEMP_DIR_NAME).exists());
         assert!(target.join("nested").is_dir());
         fs::remove_dir_all(root).unwrap();
     }

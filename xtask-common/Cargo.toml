@@ -10,26 +10,44 @@ repository.workspace = true
 publish = false
 
 [features]
+default = []
 expensive_contracts = []
+fixtures = [
+    "dep:jbotci-dialect",
+    "dep:jbotci-diagnostics",
+    "dep:jbotci-jvozba",
+    "dep:jbotci-morphology",
+    "dep:jbotci-orthography",
+    "dep:jbotci-output",
+    "dep:jbotci-source",
+    "dep:jbotci-syntax",
+    "dep:rayon",
+    "dep:serde",
+    "dep:serde_stacker",
+    "dep:thiserror",
+    "dep:toml",
+    "dep:toml_edit",
+    "dep:walkdir",
+]
 
 [dependencies]
 bityzba.workspace = true
-jbotci-dialect.workspace = true
-jbotci-diagnostics.workspace = true
-jbotci-jvozba.workspace = true
-jbotci-morphology.workspace = true
-jbotci-orthography.workspace = true
-jbotci-output.workspace = true
-jbotci-source.workspace = true
-jbotci-syntax.workspace = true
-rayon.workspace = true
-serde.workspace = true
+jbotci-dialect = { workspace = true, optional = true }
+jbotci-diagnostics = { workspace = true, optional = true }
+jbotci-jvozba = { workspace = true, optional = true }
+jbotci-morphology = { workspace = true, optional = true }
+jbotci-orthography = { workspace = true, optional = true }
+jbotci-output = { workspace = true, optional = true }
+jbotci-source = { workspace = true, optional = true }
+jbotci-syntax = { workspace = true, optional = true }
+rayon = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 serde_json.workspace = true
-serde_stacker.workspace = true
-thiserror.workspace = true
-toml.workspace = true
-toml_edit.workspace = true
-walkdir.workspace = true
+serde_stacker = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+toml_edit = { workspace = true, optional = true }
+walkdir = { workspace = true, optional = true }
 
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
