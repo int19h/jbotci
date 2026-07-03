@@ -524,6 +524,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native embedding search service owns validated manifest and backend state from setup",
     ),
     (
+        "crates/jbotci-embeddings/src/native.rs:OwnedLlamaContext",
+        "owned llama context validity is enforced by its private constructor, drop order, and unsafe lifetime safety contract",
+    ),
+    (
         "crates/jbotci-embeddings/src/native.rs:NativeLlamaEmbeddingBackend",
         "native backend fields are produced by llama.cpp model/context initialization",
     ),
@@ -1428,10 +1432,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WebGPU model config is external manifest metadata validated during runtime construction",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:Q4Tensor",
-        "Q4 tensor buffers are built only after tensor manifest and byte-size validation",
-    ),
-    (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:RuntimeLoadOptions",
         "WebGPU runtime load options are caller-selected controls checked by runtime loading code",
     ),
@@ -1446,6 +1446,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:VectorBuffer",
         "WebGPU vector buffers are constructed by runtime buffer allocation helpers",
+    ),
+    (
+        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:GpuErrorScopes",
+        "WebGPU error-scope guards are opaque RAII tokens with validity enforced by wgpu",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:WebGpuRuntime",

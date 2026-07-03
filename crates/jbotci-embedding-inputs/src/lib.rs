@@ -1,13 +1,14 @@
 //! Canonical text inputs for embedding-based jbotci search.
 
+use std::fmt;
+
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use jbotci_cll::{CllSearchChunk, CllSearchChunkKind, cll_search_all_chunks};
 use jbotci_dictionary::{Dictionary, DictionaryEntry};
 use jbotci_search::vlacku::{grouped_word_type_filter_key, normalize_word_type_filter};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use thiserror::Error;
 
 pub const DEFAULT_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 pub const DEFAULT_MODEL_REVISION: &str = "e76f54804b54782f5bed93c09f63201e38a1a99b";
@@ -45,15 +46,41 @@ pub struct EmbeddingInputDocument {
     pub kind: Option<String>,
 }
 
-#[derive(Debug, Error)]
-#[invariant(::Cll(_) => true)]
-#[invariant(::Json(_) => true)]
-pub enum EmbeddingInputError {
-    #[error("failed to load embedded CLL for embedding inputs: {0}")]
-    Cll(#[from] jbotci_cll::CllError),
-    #[error("failed to serialize embedding input corpus JSON: {0}")]
-    Json(#[from] serde_json::Error),
+#[invariant(!message.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddingInputError {
+    message: String,
 }
+
+impl From<jbotci_cll::CllError> for EmbeddingInputError {
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn from(error: jbotci_cll::CllError) -> Self {
+        new!(EmbeddingInputError {
+            message: format!("failed to load embedded CLL for embedding inputs: {error}"),
+        })
+    }
+}
+
+impl From<serde_json::Error> for EmbeddingInputError {
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn from(error: serde_json::Error) -> Self {
+        new!(EmbeddingInputError {
+            message: format!("failed to serialize embedding input corpus JSON: {error}"),
+        })
+    }
+}
+
+impl fmt::Display for EmbeddingInputError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for EmbeddingInputError {}
 
 #[requires(true)]
 #[ensures(ret.starts_with(RETRIEVAL_QUERY_PREFIX))]

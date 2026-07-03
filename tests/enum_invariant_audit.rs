@@ -1800,14 +1800,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word type section is a closed grouping selector derived from dictionary metadata",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Export",
-        "compute error variant carries renderer diagnostic text",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:WebComputeError::Json",
-        "compute error variant carries serde's formatted diagnostic text",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:WebComputeRequest::CuktaPage",
         "compute request is a serde protocol DTO and delegates payload validity to typed fields plus the runner",
     ),
