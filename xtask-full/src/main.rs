@@ -43,6 +43,15 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
+use xtask_common::fixtures::{
+    self, ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
+    LoadedTestCase, MuplisForm, Provenance, RunSummary, fixture_matches_selector, fixture_paths,
+    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
+    write_fixture_file,
+};
+use xtask_common::service_worker::{
+    RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
+};
 
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
@@ -56,6 +65,7 @@ const F2LLM_MODEL_ARTIFACT_ROOT_DIR: &str = ".jbotci-build/f2llm-webgpu-models";
 const F2LLM_ONNX_FALLBACK_R2_PREFIX: &str = "models/f2llm-v2-80m-onnx-q4/v1";
 const F2LLM_EMBEDDINGS_R2_PREFIX: &str = "embeddings/web/v1";
 const F2LLM_REMOTE_CATALOG_URL: &str = "https://assets.jbotci.app/embeddings/web/v1/catalog.json";
+const F2LLM_ARTIFACT_ROOT_ENV: &str = "JBOTCI_F2LLM_ARTIFACT_ROOT";
 const GGUF_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-gguf-embeddings";
 const GGUF_INDEX_STAGE_DIR: &str = ".jbotci-build/native-gguf-index";
 const GGUF_EMBEDDINGS_R2_PREFIX: &str = "embeddings/gguf/v1";
@@ -87,14 +97,14 @@ const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
 const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
 const F2LLM_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-1024";
 const F2LLM_80M_MODEL_ID: &str = "codefuse-ai/F2LLM-v2-80M";
-const F2LLM_80M_Q4_ONNX: &str = "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-80m-q4-hqq32-transformersjs/onnx/model_q4.onnx";
+const F2LLM_80M_Q4_ONNX_RELATIVE: &str = "f2llm-v2-80m-q4-hqq32-transformersjs/onnx/model_q4.onnx";
 const F2LLM_80M_DIMENSIONS: usize = 320;
 const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
     F2LlmAssetSpec {
         id: "80m",
         model_key: F2LLM_80M_MODEL_KEY,
         model_id: F2LLM_80M_MODEL_ID,
-        q4_onnx: F2LLM_80M_Q4_ONNX,
+        q4_onnx_relative: F2LLM_80M_Q4_ONNX_RELATIVE,
         dimensions: F2LLM_80M_DIMENSIONS,
         webgpu_artifact_dir_name: "f2llm-v2-80m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-80m-webgpu/v1",
@@ -104,7 +114,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "160m",
         model_key: F2LLM_160M_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-160M",
-        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        q4_onnx_relative: "f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 640,
         webgpu_artifact_dir_name: "f2llm-v2-160m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-160m-webgpu/v1",
@@ -114,7 +124,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "330m",
         model_key: F2LLM_330M_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-330M",
-        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        q4_onnx_relative: "f2llm-v2-330m-q4-896-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 896,
         webgpu_artifact_dir_name: "f2llm-v2-330m-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-330m-webgpu/v1",
@@ -124,7 +134,7 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
         id: "0.6b",
         model_key: F2LLM_0_6B_MODEL_KEY,
         model_id: "codefuse-ai/F2LLM-v2-0.6B",
-        q4_onnx: "/home/int19h.linux/git/jbotci-f2llm-quant/artifacts/f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
+        q4_onnx_relative: "f2llm-v2-0_6b-q4-1024-q4-hqq32-transformersjs/onnx/model_q4.onnx",
         dimensions: 1024,
         webgpu_artifact_dir_name: "f2llm-v2-0.6b-webgpu",
         webgpu_r2_prefix: "models/f2llm-v2-0.6b-webgpu/v1",
@@ -133,23 +143,13 @@ const F2LLM_MODEL_SPECS: &[F2LlmAssetSpec] = &[
 ];
 static WEB_ASSET_COPY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[path = "../../tests/support/fixtures/mod.rs"]
-mod fixtures;
-
-use fixtures::{
-    ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
-    LoadedTestCase, MuplisForm, Provenance, RunSummary, fixture_matches_selector, fixture_paths,
-    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
-    write_fixture_file,
-};
-
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
 struct F2LlmAssetSpec {
     id: &'static str,
     model_key: &'static str,
     model_id: &'static str,
-    q4_onnx: &'static str,
+    q4_onnx_relative: &'static str,
     dimensions: usize,
     webgpu_artifact_dir_name: &'static str,
     webgpu_r2_prefix: &'static str,
@@ -167,7 +167,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 #[invariant(true)]
-#[invariant(::Fmt => true)]
 #[invariant(::FixtureCheck => true)]
 #[invariant(::FixtureImport(..) => true)]
 #[invariant(::FixtureList(..) => true)]
@@ -192,13 +191,6 @@ struct Cli {
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
 enum Command {
-    Check,
-    Test,
-    Clippy,
-    Fmt {
-        #[arg(long)]
-        check: bool,
-    },
     FixtureCheck {
         #[arg(default_value = "tests/fixtures")]
         path: PathBuf,
@@ -264,6 +256,8 @@ struct FixtureRunArgs {
     ids: Vec<String>,
     #[arg(long = "path-prefix")]
     path_prefixes: Vec<String>,
+    #[arg(long = "path")]
+    paths: Vec<String>,
     #[arg(long = "cll-chapter")]
     cll_chapter: Option<u16>,
     #[arg(long = "cll-section")]
@@ -293,6 +287,8 @@ struct SyntaxParserBenchmarkArgs {
     profile: Option<String>,
     #[arg(long = "path-prefix")]
     path_prefixes: Vec<String>,
+    #[arg(long = "path")]
+    paths: Vec<String>,
     #[arg(long = "id")]
     ids: Vec<String>,
     #[arg(long = "input-file")]
@@ -327,6 +323,8 @@ struct CllFixtureMetadataAuditArgs {
     ids: Vec<String>,
     #[arg(long = "path-prefix")]
     path_prefixes: Vec<String>,
+    #[arg(long = "path")]
+    paths: Vec<String>,
     #[arg(long = "cll-chapter")]
     cll_chapter: Option<u16>,
     #[arg(long = "cll-section")]
@@ -344,6 +342,8 @@ struct FixtureRewriteArgs {
     roots: Vec<PathBuf>,
     #[arg(long)]
     migrate_morphology_diagnostics: bool,
+    #[arg(long)]
+    rederive_morphology_status: bool,
     #[arg(long)]
     add_semantics_refs: bool,
     #[arg(long, hide = true)]
@@ -452,8 +452,10 @@ struct BuildWebEmbeddingsArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct BuildF2LlmWebgpuModelArgs {
-    #[arg(long, default_value = F2LLM_80M_Q4_ONNX)]
-    q4_onnx: PathBuf,
+    #[arg(long)]
+    q4_onnx: Option<PathBuf>,
+    #[arg(long)]
+    f2llm_artifact_root: Option<PathBuf>,
     #[arg(long, default_value = F2LLM_80M_MODEL_KEY)]
     model_key: String,
     #[arg(long, default_value = F2LLM_80M_MODEL_ID)]
@@ -476,8 +478,10 @@ struct BuildF2LlmWebgpuModelArgs {
 #[derive(Debug, Args)]
 #[invariant(true)]
 struct BuildF2LlmWebgpuVectorsArgs {
-    #[arg(long, default_value = F2LLM_80M_Q4_ONNX)]
-    q4_onnx: PathBuf,
+    #[arg(long)]
+    q4_onnx: Option<PathBuf>,
+    #[arg(long)]
+    f2llm_artifact_root: Option<PathBuf>,
     #[arg(long, default_value = F2LLM_80M_MODEL_KEY)]
     model_key: String,
     #[arg(long, default_value = F2LLM_80M_MODEL_ID)]
@@ -564,6 +568,8 @@ struct PublishF2LlmWebgpuR2Args {
     corpus: Option<PathBuf>,
     #[arg(long)]
     tokenizer_dir: Option<PathBuf>,
+    #[arg(long)]
+    f2llm_artifact_root: Option<PathBuf>,
     #[arg(long, default_value_t = 8)]
     batch_size: usize,
     #[arg(long, default_value = "python3")]
@@ -1011,40 +1017,6 @@ struct WikiHttpResponse {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Check => cargo(&[
-            "check",
-            "--workspace",
-            "--all-targets",
-            "-j",
-            DEFAULT_TEST_JOBS_TEXT,
-        ]),
-        Command::Test => cargo(&[
-            "test",
-            "--workspace",
-            "--all-targets",
-            "-j",
-            DEFAULT_TEST_JOBS_TEXT,
-            "--",
-            "--test-threads",
-            DEFAULT_TEST_JOBS_TEXT,
-        ]),
-        Command::Clippy => cargo(&[
-            "clippy",
-            "--workspace",
-            "--all-targets",
-            "-j",
-            DEFAULT_TEST_JOBS_TEXT,
-            "--",
-            "-D",
-            "warnings",
-        ]),
-        Command::Fmt { check } => {
-            if check {
-                cargo(&["fmt", "--all", "--", "--check"])
-            } else {
-                cargo(&["fmt", "--all"])
-            }
-        }
         Command::FixtureCheck { path } => {
             let summary = validate_fixture_tree(&path)
                 .with_context(|| format!("checking fixtures under `{}`", path.display()))?;
@@ -1123,7 +1095,11 @@ fn build_web_embeddings(args: BuildWebEmbeddingsArgs) -> Result<()> {
 #[requires(args.shard_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
-    let q4_onnx = absolute_path(&args.q4_onnx)?;
+    let q4_onnx = resolve_f2llm_q4_onnx(
+        args.q4_onnx.as_deref(),
+        args.f2llm_artifact_root.as_deref(),
+        &args.model_key,
+    )?;
     if !q4_onnx.is_file() {
         bail!("F2LLM q4 ONNX model `{}` does not exist", q4_onnx.display());
     }
@@ -1163,7 +1139,11 @@ fn build_f2llm_webgpu_model(args: BuildF2LlmWebgpuModelArgs) -> Result<()> {
 #[requires(args.batch_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn build_f2llm_webgpu_vectors(args: BuildF2LlmWebgpuVectorsArgs) -> Result<()> {
-    let q4_onnx = absolute_path(&args.q4_onnx)?;
+    let q4_onnx = resolve_f2llm_q4_onnx(
+        args.q4_onnx.as_deref(),
+        args.f2llm_artifact_root.as_deref(),
+        &args.model_key,
+    )?;
     let out_dir = absolute_path(&args.out_dir)?;
     let corpus = ensure_web_embedding_corpus(args.corpus.as_deref())?;
     run_f2llm_vector_builder(
@@ -1208,15 +1188,17 @@ fn publish_f2llm_webgpu_r2(args: PublishF2LlmWebgpuR2Args) -> Result<()> {
             &vector_out_dir,
             &corpus,
             args.tokenizer_dir.as_deref(),
+            args.f2llm_artifact_root.as_deref(),
             args.batch_size,
         )?;
-        build_f2llm_onnx_fallback_asset(&model_out_root)?;
+        build_f2llm_onnx_fallback_asset(&model_out_root, args.f2llm_artifact_root.as_deref())?;
     } else {
         validate_all_f2llm_vector_packs(
             &args.python,
             &vector_out_dir,
             &corpus,
             args.tokenizer_dir.as_deref(),
+            args.f2llm_artifact_root.as_deref(),
         )?;
     }
 
@@ -1479,6 +1461,8 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
+    remove_obsolete_web_public_dir(public_dir, Path::new(".jbotci-asset-sync"))?;
+    remove_web_asset_sync_temp_dir(Path::new(WEB_ASSET_SYNC_TEMP_DIR));
     remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("manifest.webmanifest"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("assets/manifest.webmanifest"))
@@ -1622,7 +1606,7 @@ fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &st
             temp_path.display()
         )
     })?;
-    match fs::rename(&temp_path, target) {
+    let result = match fs::rename(&temp_path, target) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             fs::remove_file(target).with_context(|| {
@@ -1649,7 +1633,11 @@ fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &st
                 )
             })
         }
+    };
+    if result.is_ok() {
+        remove_web_asset_sync_temp_dir(&temp_dir);
     }
+    result
 }
 
 #[requires(!contents.is_empty())]
@@ -1686,7 +1674,7 @@ fn write_web_asset_text_atomically(target: &Path, contents: &str, description: &
             temp_path.display()
         )
     })?;
-    match fs::rename(&temp_path, target) {
+    let result = match fs::rename(&temp_path, target) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             fs::remove_file(target).with_context(|| {
@@ -1713,7 +1701,11 @@ fn write_web_asset_text_atomically(target: &Path, contents: &str, description: &
                 )
             })
         }
+    };
+    if result.is_ok() {
+        remove_web_asset_sync_temp_dir(&temp_dir);
     }
+    result
 }
 
 #[requires(true)]
@@ -1727,6 +1719,16 @@ fn web_asset_sync_temp_dir(target: &Path) -> PathBuf {
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .join(".jbotci-asset-sync")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn remove_web_asset_sync_temp_dir(temp_dir: &Path) {
+    match fs::remove_dir_all(temp_dir) {
+        Ok(()) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(_) => {}
+    }
 }
 
 #[requires(!description.is_empty())]
@@ -1751,6 +1753,21 @@ fn remove_obsolete_flat_web_asset_files(
     for entry in entries {
         let entry = entry
             .with_context(|| format!("reading {description} under `{}`", target_dir.display()))?;
+        if entry.file_name() == ".jbotci-asset-sync" {
+            match fs::remove_dir_all(entry.path()) {
+                Ok(()) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "removing temporary {description} directory `{}`",
+                            entry.path().display()
+                        )
+                    });
+                }
+            }
+            continue;
+        }
         if source_file_names.contains(&entry.file_name()) {
             continue;
         }
@@ -2108,169 +2125,6 @@ fn release_service_worker_cache_version(public_dir: &Path, paths: &[String]) -> 
     Ok(hash[..16].to_owned())
 }
 
-#[requires(!cache_version.is_empty())]
-#[requires(precache_paths.iter().all(|path| !path.is_empty() && !path.starts_with('/')))]
-#[ensures(ret.as_ref().is_ok_and(|script| script.contains(cache_version)) || ret.is_err())]
-fn render_release_service_worker(cache_version: &str, precache_paths: &[String]) -> Result<String> {
-    let cache_version_json = serde_json::to_string(cache_version)?;
-    let precache_paths_json = serde_json::to_string(precache_paths)?;
-    Ok(RELEASE_SERVICE_WORKER_TEMPLATE
-        .replace("__CACHE_VERSION_JSON__", &cache_version_json)
-        .replace("__PRECACHE_PATHS_JSON__", &precache_paths_json))
-}
-
-const RELEASE_SERVICE_WORKER_TEMPLATE: &str = r#"const CACHE_VERSION = __CACHE_VERSION_JSON__;
-const STATIC_CACHE_NAME = `jbotci-static-${CACHE_VERSION}`;
-const RUNTIME_CACHE_NAME = `jbotci-runtime-${CACHE_VERSION}`;
-const CURRENT_CACHE_NAMES = new Set([STATIC_CACHE_NAME, RUNTIME_CACHE_NAME]);
-const PRECACHE_PATHS = __PRECACHE_PATHS_JSON__;
-
-const SCOPE_URL = new URL(self.registration.scope);
-if (!SCOPE_URL.pathname.endsWith("/")) {
-  SCOPE_URL.pathname = `${SCOPE_URL.pathname}/`;
-}
-const APP_SHELL_URL = new URL("index.html", SCOPE_URL).href;
-const PRECACHE_URLS = new Set(
-  PRECACHE_PATHS.map((path) => new URL(path, SCOPE_URL).href),
-);
-
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(STATIC_CACHE_NAME);
-    await cache.addAll(
-      PRECACHE_PATHS.map((path) => new Request(new URL(path, SCOPE_URL), {
-        cache: "default",
-      })),
-    );
-    await self.skipWaiting();
-  })());
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map((name) => {
-      if (name.startsWith("jbotci-") && !CURRENT_CACHE_NAMES.has(name)) {
-        return caches.delete(name);
-      }
-      return Promise.resolve(false);
-    }));
-    await self.clients.claim();
-  })());
-});
-
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-  if (request.method !== "GET") {
-    return;
-  }
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-
-  const relativePath = relativeScopedPath(url);
-  if (relativePath === null) {
-    return;
-  }
-
-  if (isApiRequest(relativePath)) {
-    event.respondWith(networkOnlyJson(request));
-    return;
-  }
-
-  if (isEmbeddingAssetRequest(relativePath)) {
-    return;
-  }
-
-  if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL));
-    return;
-  }
-
-  if (PRECACHE_URLS.has(url.href)) {
-    event.respondWith(networkFirst(request, STATIC_CACHE_NAME, null));
-    return;
-  }
-
-  if (isStaticOrCoreRequest(relativePath)) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, null));
-  }
-});
-
-function relativeScopedPath(url) {
-  if (!url.pathname.startsWith(SCOPE_URL.pathname)) {
-    return null;
-  }
-  return url.pathname.slice(SCOPE_URL.pathname.length);
-}
-
-function isApiRequest(relativePath) {
-  return relativePath === "api" || relativePath.startsWith("api/");
-}
-
-function isEmbeddingAssetRequest(relativePath) {
-  return relativePath.startsWith("assets/embeddings/");
-}
-
-function isStaticOrCoreRequest(relativePath) {
-  return relativePath === ""
-    || relativePath === "index.html"
-    || relativePath === "manifest.webmanifest"
-    || relativePath === "service-worker.js"
-    || relativePath.startsWith("assets/");
-}
-
-async function networkFirst(request, cacheName, fallbackUrl) {
-  const cache = await caches.open(cacheName);
-  try {
-    const response = await fetch(request);
-    if (response.ok && response.type !== "opaque") {
-      await cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) {
-      return cached;
-    }
-    if (fallbackUrl !== null) {
-      const fallback = await caches.match(fallbackUrl);
-      if (fallback) {
-        return fallback;
-      }
-    }
-    return offlineTextResponse();
-  }
-}
-
-async function networkOnlyJson(request) {
-  try {
-    return await fetch(request);
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: "offline",
-      message: "jbotci is offline and this API request is not cached.",
-    }), {
-      status: 503,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    });
-  }
-}
-
-function offlineTextResponse() {
-  return new Response("jbotci is offline and this resource is not cached.", {
-    status: 503,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-    },
-  });
-}
-"#;
-
 #[requires(web_dist.is_dir())]
 #[requires(corpus.is_file())]
 #[requires(!dtypes.is_empty())]
@@ -2306,6 +2160,7 @@ fn build_web_embedding_assets_to(
         Path::new(F2LLM_MODEL_ARTIFACT_ROOT_DIR),
         output,
         corpus,
+        None,
         None,
         8,
     )
@@ -2343,6 +2198,51 @@ fn f2llm_onnx_fallback_out_dir(root: &Path) -> PathBuf {
     root.join("f2llm-v2-80m-onnx-q4").join("v1")
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn resolve_f2llm_artifact_root(root: Option<&Path>) -> Result<PathBuf> {
+    match root {
+        Some(path) => absolute_path(path),
+        None => {
+            let value = std::env::var_os(F2LLM_ARTIFACT_ROOT_ENV).with_context(|| {
+                format!(
+                    "F2LLM artifact root is required; pass `--f2llm-artifact-root` or set `{F2LLM_ARTIFACT_ROOT_ENV}`"
+                )
+            })?;
+            absolute_path(Path::new(&value))
+        }
+    }
+}
+
+#[requires(!spec.q4_onnx_relative.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn resolve_f2llm_spec_q4_onnx(
+    spec: &F2LlmAssetSpec,
+    artifact_root: Option<&Path>,
+) -> Result<PathBuf> {
+    let root = resolve_f2llm_artifact_root(artifact_root)?;
+    Ok(root.join(spec.q4_onnx_relative))
+}
+
+#[requires(!model_key.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn resolve_f2llm_q4_onnx(
+    q4_onnx: Option<&Path>,
+    artifact_root: Option<&Path>,
+    model_key: &str,
+) -> Result<PathBuf> {
+    if let Some(q4_onnx) = q4_onnx {
+        return absolute_path(q4_onnx);
+    }
+    let spec = F2LLM_MODEL_SPECS
+        .iter()
+        .find(|spec| spec.model_key == model_key)
+        .with_context(|| {
+            format!("no built-in F2LLM artifact path for model key `{model_key}`; pass `--q4-onnx`")
+        })?;
+    resolve_f2llm_spec_q4_onnx(spec, artifact_root)
+}
+
 #[requires(!python.trim().is_empty())]
 #[requires(batch_size > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -2352,6 +2252,7 @@ fn build_all_f2llm_webgpu_assets(
     vector_out_dir: &Path,
     corpus: &Path,
     tokenizer_dir: Option<&Path>,
+    artifact_root: Option<&Path>,
     batch_size: usize,
 ) -> Result<()> {
     let vector_parts_root = vector_out_dir.with_file_name(format!(
@@ -2366,9 +2267,10 @@ fn build_all_f2llm_webgpu_assets(
         .with_context(|| format!("creating `{}`", vector_parts_root.display()))?;
     let mut part_dirs = Vec::new();
     for spec in F2LLM_MODEL_SPECS {
-        let q4_onnx = absolute_path(Path::new(spec.q4_onnx))?;
+        let q4_onnx = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
         build_f2llm_webgpu_model(BuildF2LlmWebgpuModelArgs {
-            q4_onnx: q4_onnx.clone(),
+            q4_onnx: Some(q4_onnx.clone()),
+            f2llm_artifact_root: None,
             model_key: spec.model_key.to_owned(),
             model_id: spec.model_id.to_owned(),
             model_root: None,
@@ -2413,9 +2315,10 @@ fn validate_all_f2llm_vector_packs(
     vector_out_dir: &Path,
     corpus: &Path,
     tokenizer_dir: Option<&Path>,
+    artifact_root: Option<&Path>,
 ) -> Result<()> {
     for spec in F2LLM_MODEL_SPECS {
-        let q4_onnx = absolute_path(Path::new(spec.q4_onnx))?;
+        let q4_onnx = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
         run_f2llm_vector_validator(
             python,
             &q4_onnx,
@@ -2540,12 +2443,12 @@ fn promote_directory(stage: &Path, output: &Path) -> Result<()> {
 
 #[requires(root.components().next().is_some())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn build_f2llm_onnx_fallback_asset(root: &Path) -> Result<()> {
+fn build_f2llm_onnx_fallback_asset(root: &Path, artifact_root: Option<&Path>) -> Result<()> {
     let spec = F2LLM_MODEL_SPECS
         .iter()
         .find(|spec| spec.include_wasm_runtime)
         .context("F2LLM model table must contain a WASM fallback model")?;
-    let source = absolute_path(Path::new(spec.q4_onnx))?;
+    let source = resolve_f2llm_spec_q4_onnx(spec, artifact_root)?;
     let output = f2llm_onnx_fallback_out_dir(root);
     let stage = output.with_file_name("v1.staging");
     fs::remove_dir_all(&stage).ok();
@@ -5722,7 +5625,7 @@ fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
     let mut summary = CllFixtureMetadataAuditSummary::default();
 
     for path in paths {
-        if !path_matches_prefix_selector(&args.root, &path, &selector) {
+        if !path_matches_selector(&args.root, &path, &selector) {
             continue;
         }
         let fixture = load_fixture_path(&path)
@@ -5757,29 +5660,33 @@ fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
 }
 
 #[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureSelector::is_valid))]
+#[ensures(true)]
 fn merged_cll_fixture_metadata_audit_selector(
     args: &CllFixtureMetadataAuditArgs,
 ) -> Result<FixtureSelector> {
-    let mut profile = match &args.profile {
+    let profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)
             .with_context(|| format!("loading fixture profile `{name}`"))?,
         None => FixtureProfile::default(),
     };
-    merge_cll_fixture_metadata_audit_selector(&mut profile.selector, args);
-    Ok(profile.selector)
+    Ok(merge_cll_fixture_metadata_audit_selector(
+        profile.selector.clone(),
+        args,
+    ))
 }
 
-#[requires(selector.is_valid())]
-#[ensures(selector.is_valid())]
+#[requires(true)]
+#[ensures(true)]
 fn merge_cll_fixture_metadata_audit_selector(
-    selector: &mut FixtureSelector,
+    selector: FixtureSelector,
     args: &CllFixtureMetadataAuditArgs,
-) {
+) -> FixtureSelector {
+    let mut selector = selector.into_data();
     selector.provenance.extend(args.provenance.clone());
     selector.tags.extend(args.tags.clone());
     selector.ids.extend(args.ids.clone());
     selector.path_prefixes.extend(args.path_prefixes.clone());
+    selector.paths.extend(args.paths.clone());
     if args.cll_chapter.is_some() || args.cll_section.is_some() || args.cll_example.is_some() {
         let mut cll = selector.cll.take().unwrap_or_default();
         if let Some(chapter) = args.cll_chapter {
@@ -5797,6 +5704,7 @@ fn merge_cll_fixture_metadata_audit_selector(
         }
         selector.cll = Some(cll);
     }
+    FixtureSelector::from_data(selector)
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -6881,6 +6789,7 @@ fn fixture_rewrite(args: FixtureRewriteArgs) -> Result<()> {
 fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.syntax_failure_diagnostics_only
         && (args.migrate_morphology_diagnostics
+            || args.rederive_morphology_status
             || args.add_semantics_refs
             || args.syntax_only
             || args.gentufa_output_only
@@ -6892,6 +6801,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     }
     if args.syntax_only
         && (args.migrate_morphology_diagnostics
+            || args.rederive_morphology_status
             || args.add_semantics_refs
             || args.gentufa_output_only
             || args.only_semantics_refs)
@@ -6900,26 +6810,35 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     }
     if args.gentufa_output_only
         && (args.migrate_morphology_diagnostics
+            || args.rederive_morphology_status
             || args.add_semantics_refs
             || args.only_semantics_refs)
     {
         bail!("`--gentufa-output-only` cannot be combined with other fixture rewrite modes");
+    }
+    if args.rederive_morphology_status
+        && (args.migrate_morphology_diagnostics
+            || args.add_semantics_refs
+            || args.only_semantics_refs)
+    {
+        bail!("`--rederive-morphology-status` cannot be combined with other fixture rewrite modes");
+    }
+    if args.rederive_morphology_status && !args.chunk_worker {
+        ensure_clean_git_tree_for_fixture_rederive()?;
     }
     if args.chunk_worker {
         let summary = fixture_rewrite_paths(
             args.paths,
             false,
             args.migrate_morphology_diagnostics,
+            args.rederive_morphology_status,
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
             args.gentufa_output_only,
             args.only_semantics_refs,
         )?;
-        println!(
-            "fixtures={}, rewritten={}",
-            summary.processed, summary.rewritten
-        );
+        print_fixture_rewrite_summary(&summary);
         return Ok(());
     }
     if !args.paths.is_empty() {
@@ -6927,6 +6846,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.paths,
             true,
             args.migrate_morphology_diagnostics,
+            args.rederive_morphology_status,
             args.add_semantics_refs,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
@@ -6939,6 +6859,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     fixture_rewrite_subprocess_chunks(
         args.roots,
         args.migrate_morphology_diagnostics,
+        args.rederive_morphology_status,
         args.add_semantics_refs,
         args.syntax_failure_diagnostics_only,
         args.syntax_only,
@@ -6949,9 +6870,34 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
 
 #[requires(true)]
 #[ensures(true)]
+fn ensure_clean_git_tree_for_fixture_rederive() -> Result<()> {
+    let output = ProcessCommand::new("git")
+        .arg("status")
+        .arg("--porcelain")
+        .output()
+        .context("checking git worktree status before rederiving morphology status")?;
+    if !output.status.success() {
+        bail!(
+            "could not check git worktree status before rederiving morphology status: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let status = String::from_utf8_lossy(&output.stdout);
+    if !status.trim().is_empty() {
+        bail!(
+            "`fixture-rewrite --rederive-morphology-status` requires a clean git tree; dirty entries:\n{}",
+            status.trim_end()
+        );
+    }
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn fixture_rewrite_subprocess_chunks(
     roots: Vec<PathBuf>,
     migrate_morphology_diagnostics: bool,
+    rederive_morphology_status: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
@@ -6973,6 +6919,7 @@ fn fixture_rewrite_subprocess_chunks(
             &exe,
             chunk,
             migrate_morphology_diagnostics,
+            rederive_morphology_status,
             add_semantics_refs,
             syntax_failure_diagnostics_only,
             syntax_only,
@@ -6983,8 +6930,6 @@ fn fixture_rewrite_subprocess_chunks(
             eprint!("{}", String::from_utf8_lossy(&output.stderr));
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let chunk_summary = parse_fixture_rewrite_summary(&stdout)?;
-        summary.merge(chunk_summary);
         if !output.status.success() {
             bail!(
                 "fixture-rewrite worker failed with status {}; stdout: {}",
@@ -6992,6 +6937,8 @@ fn fixture_rewrite_subprocess_chunks(
                 stdout.trim()
             );
         }
+        let chunk_summary = parse_fixture_rewrite_summary(&stdout)?;
+        summary.merge(chunk_summary);
         if total > 0 && should_report_fixture_rewrite_progress(summary.processed, total) {
             eprintln!(
                 "fixture-rewrite: {}/{} processed, {} changed",
@@ -7009,6 +6956,7 @@ fn fixture_rewrite_chunk_output(
     exe: &Path,
     chunk: &[PathBuf],
     migrate_morphology_diagnostics: bool,
+    rederive_morphology_status: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
@@ -7019,6 +6967,9 @@ fn fixture_rewrite_chunk_output(
     command.arg("fixture-rewrite").arg("--chunk-worker");
     if migrate_morphology_diagnostics {
         command.arg("--migrate-morphology-diagnostics");
+    }
+    if rederive_morphology_status {
+        command.arg("--rederive-morphology-status");
     }
     if add_semantics_refs {
         command.arg("--add-semantics-refs");
@@ -7047,23 +6998,18 @@ fn parse_fixture_rewrite_summary(stdout: &str) -> Result<RewriteSummary> {
     let line = stdout
         .lines()
         .rev()
-        .find(|line| line.starts_with("fixtures="))
+        .find(|line| line.trim_start().starts_with('{'))
         .ok_or_else(|| anyhow::anyhow!("fixture-rewrite worker did not print a summary"))?;
-    let mut summary = RewriteSummary::default();
-    for part in line.split(", ") {
-        let Some((key, value)) = part.split_once('=') else {
-            continue;
-        };
-        let value = value
-            .parse::<usize>()
-            .with_context(|| format!("parsing fixture-rewrite summary value `{value}`"))?;
-        match key {
-            "fixtures" => summary.processed = value,
-            "rewritten" => summary.rewritten = value,
-            _ => {}
-        }
+    let summary: FixtureRewriteSummaryLine =
+        serde_json::from_str(line).context("parsing fixture-rewrite worker JSON summary")?;
+    if summary.fixtures < summary.rewritten {
+        bail!(
+            "fixture-rewrite worker JSON summary has rewritten={} greater than fixtures={}",
+            summary.rewritten,
+            summary.fixtures
+        );
     }
-    Ok(summary)
+    Ok(summary.into_summary())
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -7082,12 +7028,51 @@ impl RewriteSummary {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FixtureRewriteSummaryLine {
+    fixtures: usize,
+    rewritten: usize,
+}
+
+impl FixtureRewriteSummaryLine {
+    #[requires(summary.processed >= summary.rewritten)]
+    #[ensures(ret.fixtures == summary.processed)]
+    fn from_summary(summary: &RewriteSummary) -> Self {
+        Self {
+            fixtures: summary.processed,
+            rewritten: summary.rewritten,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.processed == self.fixtures)]
+    fn into_summary(self) -> RewriteSummary {
+        RewriteSummary {
+            processed: self.fixtures,
+            rewritten: self.rewritten,
+        }
+    }
+}
+
+#[requires(summary.processed >= summary.rewritten)]
+#[ensures(true)]
+fn print_fixture_rewrite_summary(summary: &RewriteSummary) {
+    let line = FixtureRewriteSummaryLine::from_summary(summary);
+    println!(
+        "{}",
+        serde_json::to_string(&line).expect("serializing fixture-rewrite summary cannot fail")
+    );
+}
+
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.processed >= summary.rewritten))]
 fn fixture_rewrite_paths(
     paths: Vec<PathBuf>,
     report_progress: bool,
     migrate_morphology_diagnostics: bool,
+    rederive_morphology_status: bool,
     add_semantics_refs: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
@@ -7141,6 +7126,13 @@ fn fixture_rewrite_paths(
                     path.display()
                 )
             })?;
+        } else if rederive_morphology_status {
+            rederive_morphology_status_expectation(&mut fixture, &path).with_context(|| {
+                format!(
+                    "rederiving morphology status in fixture `{}`",
+                    path.display()
+                )
+            })?;
         } else {
             refresh_fixture_expectations(&mut fixture, add_semantics_refs, only_semantics_refs)
                 .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
@@ -7180,45 +7172,7 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
         .syntax
         .as_ref()
         .is_some_and(expectation_has_legacy_morphology_placeholder);
-    let migrate_success_morphology_now_failure = fixture
-        .test_case
-        .expectations
-        .morphology
-        .as_ref()
-        .is_some_and(|morphology| morphology.status == ExpectationStatus::Success);
-    let refresh_morphology_failure_diagnostics = fixture
-        .test_case
-        .expectations
-        .morphology
-        .as_ref()
-        .is_some_and(|morphology| {
-            morphology.status == ExpectationStatus::Failure
-                && diagnostics_are_morphology(&morphology.diagnostics)
-        });
-    let migrate_syntax_parse_blocked_by_morphology = fixture
-        .test_case
-        .expectations
-        .syntax
-        .as_ref()
-        .is_some_and(|syntax| {
-            syntax.status == ExpectationStatus::Failure
-                && syntax_has_single_parse_diagnostic(&syntax.diagnostics)
-        });
-    let refresh_syntax_blocking_morphology_diagnostics = fixture
-        .test_case
-        .expectations
-        .syntax
-        .as_ref()
-        .is_some_and(|syntax| {
-            syntax.status == ExpectationStatus::Failure
-                && diagnostics_are_morphology(&syntax.diagnostics)
-        });
-    let should_migrate = migrate_morphology
-        || migrate_syntax
-        || migrate_success_morphology_now_failure
-        || refresh_morphology_failure_diagnostics
-        || migrate_syntax_parse_blocked_by_morphology
-        || refresh_syntax_blocking_morphology_diagnostics;
+    let should_migrate = migrate_morphology || migrate_syntax;
     if !should_migrate {
         return Ok(());
     }
@@ -7248,10 +7202,7 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
                 &fixture.test_case.lojban,
                 std::slice::from_ref(&diagnostic),
             ));
-            if migrate_morphology
-                || migrate_success_morphology_now_failure
-                || refresh_morphology_failure_diagnostics
-            {
+            if migrate_morphology {
                 fixture
                     .test_case
                     .expectations
@@ -7269,10 +7220,7 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
                 morphology.diagnostics = diagnostics.clone();
                 clear_vlasei_output(&mut fixture.test_case.expectations);
             }
-            if migrate_syntax
-                || migrate_syntax_parse_blocked_by_morphology
-                || refresh_syntax_blocking_morphology_diagnostics
-            {
+            if migrate_syntax {
                 fixture
                     .test_case
                     .expectations
@@ -7291,20 +7239,14 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
             }
         }
         Ok(words) => {
-            if migrate_morphology
-                || migrate_success_morphology_now_failure
-                || refresh_morphology_failure_diagnostics
-            {
+            if migrate_morphology {
                 refresh_morphology_success_expectations(
                     fixture,
                     &words,
                     &morphology_warning_diagnostics,
                 )?;
             }
-            if migrate_syntax
-                || migrate_syntax_parse_blocked_by_morphology
-                || refresh_syntax_blocking_morphology_diagnostics
-            {
+            if migrate_syntax {
                 refresh_syntax_after_morphology_success(
                     fixture,
                     &words,
@@ -7315,6 +7257,85 @@ fn migrate_legacy_morphology_diagnostics(fixture: &mut LoadedTestCase) -> Result
         }
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn rederive_morphology_status_expectation(fixture: &mut LoadedTestCase, path: &Path) -> Result<()> {
+    let Some(old_status) = fixture
+        .test_case
+        .expectations
+        .morphology
+        .as_ref()
+        .map(|morphology| morphology.status)
+    else {
+        return Ok(());
+    };
+
+    let dialect = fixture.test_case.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+    let attempt = attempt.into_data();
+    let morphology_warning_diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+
+    let new_status = match attempt.result {
+        Ok(words) => {
+            refresh_morphology_success_expectations(
+                fixture,
+                &words,
+                &morphology_warning_diagnostics,
+            )?;
+            ExpectationStatus::Success
+        }
+        Err(error) => {
+            let diagnostic = error.to_diagnostic(
+                Some(SourceId("<fixture>".to_owned())),
+                &fixture.test_case.lojban,
+            );
+            let mut diagnostics = morphology_warning_diagnostics;
+            diagnostics.extend(diagnostic_expectation_items(
+                &fixture.test_case.lojban,
+                std::slice::from_ref(&diagnostic),
+            ));
+            let morphology = fixture
+                .test_case
+                .expectations
+                .morphology
+                .as_mut()
+                .expect("morphology expectation was checked");
+            morphology.status = ExpectationStatus::Failure;
+            morphology.raw = None;
+            morphology.diagnostics = diagnostics;
+            clear_vlasei_output(&mut fixture.test_case.expectations);
+            ExpectationStatus::Failure
+        }
+    };
+    eprintln!(
+        "morphology-status\t{}\t{}\t{} -> {}",
+        path.display(),
+        fixture.test_case.id,
+        expectation_status_name(old_status),
+        expectation_status_name(new_status)
+    );
+    Ok(())
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn expectation_status_name(status: ExpectationStatus) -> &'static str {
+    match status {
+        ExpectationStatus::Success => "success",
+        ExpectationStatus::Failure => "failure",
+        ExpectationStatus::Pending => "pending",
+        ExpectationStatus::NotApplicable => "not-applicable",
+    }
 }
 
 #[requires(true)]
@@ -7401,26 +7422,6 @@ fn refresh_syntax_after_morphology_success(
         }
     }
     Ok(())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn syntax_has_single_parse_diagnostic(diagnostics: &[fixtures::DiagnosticExpectation]) -> bool {
-    matches!(
-        diagnostics,
-        [diagnostic]
-            if diagnostic.severity == DiagnosticSeverity::Error
-                && diagnostic.code == "syntax.parse"
-    )
-}
-
-#[requires(true)]
-#[ensures(ret -> !diagnostics.is_empty())]
-fn diagnostics_are_morphology(diagnostics: &[fixtures::DiagnosticExpectation]) -> bool {
-    !diagnostics.is_empty()
-        && diagnostics
-            .iter()
-            .all(|diagnostic| diagnostic.code.starts_with("morphology."))
 }
 
 #[requires(true)]
@@ -7685,17 +7686,6 @@ impl GentufaOutputSectionReplacements {
     fn has_any(&self) -> bool {
         self.brackets.is_some() || self.tree.is_some() || self.json.is_some()
     }
-
-    #[requires(true)]
-    #[ensures(ret.is_none() || matches!(key, "brackets" | "tree" | "json"))]
-    fn value_for_key(&self, key: &str) -> Option<&str> {
-        match key {
-            "brackets" => self.brackets.as_deref(),
-            "tree" => self.tree.as_deref(),
-            "json" => self.json.as_deref(),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -7711,14 +7701,6 @@ impl GentufaOutputReplacements {
     fn has_any(&self) -> bool {
         self.normal.has_any() || self.show_elided.has_any()
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-enum GentufaOutputSection {
-    Normal,
-    ShowElided,
-    Other,
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -7887,85 +7869,117 @@ fn replace_gentufa_output_sections(
     contents: &str,
     replacements: &GentufaOutputReplacements,
 ) -> Result<String> {
-    let mut output = String::with_capacity(contents.len());
-    let mut section = GentufaOutputSection::Other;
-    let mut skipping_multiline_value: Option<&'static str> = None;
+    let mut document = parse_fixture_toml_document(contents)?;
     let mut replaced_any = false;
-    for line in contents.lines() {
-        if let Some(delimiter) = skipping_multiline_value {
-            if line.contains(delimiter) {
-                skipping_multiline_value = None;
-            }
-            continue;
-        }
-        if let Some(next_section) = parse_gentufa_output_section_header(line) {
-            section = next_section;
-        }
-        let replacement = parse_expectation_key(line).and_then(|key| match section {
-            GentufaOutputSection::Normal => replacements.normal.value_for_key(key),
-            GentufaOutputSection::ShowElided => replacements.show_elided.value_for_key(key),
-            GentufaOutputSection::Other => None,
-        });
-        if let Some(value) = replacement {
-            if let Some(delimiter) = multiline_value_delimiter(line) {
-                skipping_multiline_value = Some(delimiter);
-            }
-            output.push_str(parse_expectation_key(line).expect("replacement has a key"));
-            output.push_str(" = ");
-            output.push_str(value);
-            output.push('\n');
-            replaced_any = true;
-        } else {
-            output.push_str(line);
-            output.push('\n');
-        }
-    }
-    if let Some(delimiter) = skipping_multiline_value {
-        bail!("unterminated multiline fixture value starting with `{delimiter}`");
-    }
+    replaced_any |= replace_gentufa_output_section(
+        &mut document,
+        &["expectations", "output", "gentufa"],
+        &replacements.normal,
+    )?;
+    replaced_any |= replace_gentufa_output_section(
+        &mut document,
+        &["expectations", "output", "gentufa", "show-elided"],
+        &replacements.show_elided,
+    )?;
     if !replaced_any && replacements.has_any() {
         bail!("fixture has gentufa output expectations but no replaceable gentufa fields");
     }
-    Ok(output)
+    Ok(document.to_string())
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn parse_gentufa_output_section_header(line: &str) -> Option<GentufaOutputSection> {
-    match line.trim() {
-        "[expectations.output.gentufa]" => Some(GentufaOutputSection::Normal),
-        "[expectations.output.gentufa.show-elided]" => Some(GentufaOutputSection::ShowElided),
-        header if header.starts_with('[') && header.ends_with(']') => {
-            Some(GentufaOutputSection::Other)
-        }
-        _ => None,
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn replace_gentufa_output_section(
+    document: &mut toml_edit::DocumentMut,
+    table_path: &[&str],
+    replacements: &GentufaOutputSectionReplacements,
+) -> Result<bool> {
+    let mut replaced_any = false;
+    if let Some(value) = &replacements.brackets {
+        replace_existing_toml_key(document, table_path, "brackets", value)?;
+        replaced_any = true;
     }
+    if let Some(value) = &replacements.tree {
+        replace_existing_toml_key(document, table_path, "tree", value)?;
+        replaced_any = true;
+    }
+    if let Some(value) = &replacements.json {
+        replace_existing_toml_key(document, table_path, "json", value)?;
+        replaced_any = true;
+    }
+    Ok(replaced_any)
+}
+
+#[requires(!key.is_empty())]
+#[requires(!value.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn replace_existing_toml_key(
+    document: &mut toml_edit::DocumentMut,
+    table_path: &[&str],
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    let replacement = toml_assignment_item(key, value)?;
+    let table = toml_table_mut_at_path(document, table_path)?;
+    if !table.contains_key(key) {
+        bail!(
+            "fixture TOML table {} has no `{key}` key",
+            toml_table_path_label(table_path)
+        );
+    }
+    table.insert(key, replacement);
+    Ok(())
+}
+
+#[requires(!key.is_empty())]
+#[requires(!value.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn toml_assignment_item(key: &str, value: &str) -> Result<toml_edit::Item> {
+    let document = format!("{key} = {value}\n")
+        .parse::<toml_edit::DocumentMut>()
+        .with_context(|| format!("parsing replacement TOML value for `{key}`"))?;
+    document
+        .as_table()
+        .get(key)
+        .cloned()
+        .with_context(|| format!("replacement TOML value for `{key}` did not parse as an item"))
 }
 
 #[requires(true)]
-#[ensures(ret.is_none_or(|key| matches!(key, "brackets" | "tree" | "json")))]
-fn parse_expectation_key(line: &str) -> Option<&'static str> {
-    let trimmed = line.trim_start();
-    ["brackets", "tree", "json"].into_iter().find(|key| {
-        trimmed
-            .strip_prefix(*key)
-            .is_some_and(|suffix| suffix.trim_start().starts_with('='))
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn parse_fixture_toml_document(contents: &str) -> Result<toml_edit::DocumentMut> {
+    contents
+        .parse::<toml_edit::DocumentMut>()
+        .context("parsing fixture TOML for structural rewrite")
+}
+
+#[requires(!table_path.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn toml_table_mut_at_path<'a>(
+    document: &'a mut toml_edit::DocumentMut,
+    table_path: &[&str],
+) -> Result<&'a mut toml_edit::Table> {
+    let mut current = document.as_item_mut();
+    for segment in table_path {
+        current = current.get_mut(*segment).with_context(|| {
+            format!(
+                "fixture TOML has no {} table",
+                toml_table_path_label(table_path)
+            )
+        })?;
+    }
+    current.as_table_mut().with_context(|| {
+        format!(
+            "fixture TOML {} is not a table",
+            toml_table_path_label(table_path)
+        )
     })
 }
 
-#[requires(true)]
-#[ensures(ret.is_none_or(|delimiter| matches!(delimiter, "\"\"\"" | "'''")))]
-fn multiline_value_delimiter(line: &str) -> Option<&'static str> {
-    let (_, value) = line.split_once('=')?;
-    let value = value.trim_start();
-    for delimiter in ["\"\"\"", "'''"] {
-        if let Some(rest) = value.strip_prefix(delimiter)
-            && !rest.contains(delimiter)
-        {
-            return Some(delimiter);
-        }
-    }
-    None
+#[requires(!table_path.is_empty())]
+#[ensures(!ret.is_empty())]
+fn toml_table_path_label(table_path: &[&str]) -> String {
+    format!("[{}]", table_path.join("."))
 }
 
 #[requires(true)]
@@ -7992,8 +8006,7 @@ fn refresh_syntax_failure_diagnostics_text(
     let diagnostics = current_syntax_failure_diagnostics(fixture)?;
     let diagnostics_value = format_fixture_toml_value(&diagnostics)
         .context("formatting syntax diagnostics TOML value")?;
-    let replacement = format!("diagnostics = {diagnostics_value}");
-    let updated = replace_syntax_diagnostics_line(contents, &replacement)?;
+    let updated = replace_syntax_diagnostics_value(contents, &diagnostics_value)?;
     Ok((updated != contents).then_some(updated))
 }
 
@@ -8056,45 +8069,17 @@ fn current_syntax_failure_diagnostics(
     Ok(diagnostics)
 }
 
-#[requires(!diagnostics_line.is_empty())]
+#[requires(!diagnostics_value.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn replace_syntax_diagnostics_line(contents: &str, diagnostics_line: &str) -> Result<String> {
-    let mut output = String::with_capacity(contents.len().max(diagnostics_line.len()));
-    let mut in_syntax_section = false;
-    let mut saw_syntax_section = false;
-    let mut replaced = false;
-    for line in contents.split_inclusive('\n') {
-        let line_without_newline = line.strip_suffix('\n').unwrap_or(line);
-        let line_without_ending = line_without_newline
-            .strip_suffix('\r')
-            .unwrap_or(line_without_newline);
-        let trimmed = line_without_ending.trim();
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            in_syntax_section = trimmed == "[expectations.syntax]";
-            saw_syntax_section |= in_syntax_section;
-        }
-        if in_syntax_section && trimmed.starts_with("diagnostics") {
-            let line_ending = if line.ends_with("\r\n") {
-                "\r\n"
-            } else if line.ends_with('\n') {
-                "\n"
-            } else {
-                ""
-            };
-            output.push_str(diagnostics_line);
-            output.push_str(line_ending);
-            replaced = true;
-        } else {
-            output.push_str(line);
-        }
-    }
-    if !saw_syntax_section {
-        bail!("fixture has no [expectations.syntax] section");
-    }
-    if !replaced {
-        bail!("fixture syntax expectation has no diagnostics line");
-    }
-    Ok(output)
+fn replace_syntax_diagnostics_value(contents: &str, diagnostics_value: &str) -> Result<String> {
+    let mut document = parse_fixture_toml_document(contents)?;
+    replace_existing_toml_key(
+        &mut document,
+        &["expectations", "syntax"],
+        "diagnostics",
+        diagnostics_value,
+    )?;
+    Ok(document.to_string())
 }
 
 #[requires(true)]
@@ -8589,7 +8574,7 @@ fn fixture_test(args: FixtureRunArgs) -> Result<()> {
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
     let jobs = args.jobs.unwrap_or_else(default_fixture_jobs);
-    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+    paths.retain(|path| path_matches_selector(&args.root, path, &profile.selector));
     warn_if_large_debug_fixture_test(&args, &profile, paths.len());
     if !args.chunk_worker && should_spawn_fixture_test_chunks(&profile) {
         return fixture_test_subprocess_chunks(&args, &profile, &paths, jobs);
@@ -8719,7 +8704,7 @@ fn syntax_parser_benchmark_path_chunks(
     let profile = syntax_parser_benchmark_profile(args)?;
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
-    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+    paths.retain(|path| path_matches_selector(&args.root, path, &profile.selector));
     let selected = paths
         .into_iter()
         .map(|path| {
@@ -8743,8 +8728,14 @@ fn syntax_parser_benchmark_path_chunks(
 fn syntax_parser_benchmark_input_file_chunks(
     args: &SyntaxParserBenchmarkArgs,
 ) -> Result<Vec<Vec<PathBuf>>> {
-    if args.profile.is_some() || !args.path_prefixes.is_empty() || !args.ids.is_empty() {
-        bail!("--input-file cannot be combined with --profile, --path-prefix, or --id selectors");
+    if args.profile.is_some()
+        || !args.path_prefixes.is_empty()
+        || !args.paths.is_empty()
+        || !args.ids.is_empty()
+    {
+        bail!(
+            "--input-file cannot be combined with --profile, --path-prefix, --path, or --id selectors"
+        );
     }
     for input_file in &args.input_files {
         if !input_file.is_file() {
@@ -8773,7 +8764,7 @@ fn syntax_parser_benchmark_worker(args: SyntaxParserBenchmarkArgs) -> Result<()>
     let profile = syntax_parser_benchmark_profile(&args)?;
     let mut paths = fixture_paths(&args.root)
         .with_context(|| format!("listing fixtures under `{}`", args.root.display()))?;
-    paths.retain(|path| path_matches_prefix_selector(&args.root, path, &profile.selector));
+    paths.retain(|path| path_matches_selector(&args.root, path, &profile.selector));
 
     let resource_start = sample_benchmark_resource_usage();
     let started_at = Instant::now();
@@ -8957,6 +8948,7 @@ fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<F
         tags: Vec::new(),
         ids: args.ids.clone(),
         path_prefixes: args.path_prefixes.clone(),
+        paths: args.paths.clone(),
         cll_chapter: None,
         cll_section: None,
         cll_example: None,
@@ -8976,7 +8968,7 @@ fn syntax_parser_benchmark_fixture_worker_output(
     exe: &Path,
     args: &SyntaxParserBenchmarkArgs,
     parser: SyntaxParserBenchmarkParser,
-    chunk_path_prefixes: &[String],
+    chunk_paths: &[String],
 ) -> Result<std::process::Output> {
     let mut command = ProcessCommand::new(exe);
     command
@@ -8994,8 +8986,8 @@ fn syntax_parser_benchmark_fixture_worker_output(
     for id in &args.ids {
         command.arg("--id").arg(id);
     }
-    for path_prefix in chunk_path_prefixes {
-        command.arg("--path-prefix").arg(path_prefix);
+    for path in chunk_paths {
+        command.arg("--path").arg(path);
     }
     command
         .stdout(Stdio::piped())
@@ -9154,6 +9146,9 @@ fn print_syntax_parser_benchmark_report(
     );
     if !args.path_prefixes.is_empty() {
         println!("  path-prefixes: {}", args.path_prefixes.join(", "));
+    }
+    if !args.paths.is_empty() {
+        println!("  paths: {}", args.paths.join(", "));
     }
     if !args.ids.is_empty() {
         println!("  ids: {}", args.ids.join(", "));
@@ -9481,7 +9476,7 @@ fn duration_from_nanos_saturating(nanos: u128) -> Duration {
     Duration::from_nanos(u64::try_from(nanos).unwrap_or(u64::MAX))
 }
 
-#[requires(profile.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn warn_if_large_debug_fixture_test(
     args: &FixtureRunArgs,
@@ -9502,18 +9497,14 @@ fn warn_if_large_debug_fixture_test(
 #[requires(true)]
 #[ensures(true)]
 fn print_fixture_test_summary(summary: &RunSummary) {
+    let line = FixtureTestSummaryLine::from_summary(summary);
     println!(
-        "fixtures={}, facets={}, passed={}, xfailed={}, failed={}, skipped={}",
-        summary.selected_fixtures,
-        summary.selected_facets,
-        summary.passed,
-        summary.xfailed,
-        summary.failed,
-        summary.skipped
+        "{}",
+        serde_json::to_string(&line).expect("serializing fixture-test summary cannot fail")
     );
 }
 
-#[requires(profile.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn should_spawn_fixture_test_chunks(profile: &FixtureProfile) -> bool {
     profile.facets.iter().any(|facet| {
@@ -9528,7 +9519,7 @@ fn should_spawn_fixture_test_chunks(profile: &FixtureProfile) -> bool {
     })
 }
 
-#[requires(profile.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn fixture_test_subprocess_chunks(
     args: &FixtureRunArgs,
@@ -9539,7 +9530,7 @@ fn fixture_test_subprocess_chunks(
     let exe = std::env::current_exe().context("resolving xtask executable")?;
     let selected_paths = paths
         .iter()
-        .filter(|path| path_matches_prefix_selector(&args.root, path, &profile.selector))
+        .filter(|path| path_matches_selector(&args.root, path, &profile.selector))
         .collect::<Vec<_>>();
     let mut summary = RunSummary::default();
     let mut remaining_failure_samples = args.failure_samples;
@@ -9568,7 +9559,7 @@ fn fixture_test_subprocess_chunks(
     Ok(())
 }
 
-#[requires(profile.is_valid())]
+#[requires(true)]
 #[requires(jobs > 0)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|output| !output.stdout.is_empty() || !output.status.success()))]
 fn fixture_test_chunk_output(
@@ -9600,7 +9591,7 @@ fn fixture_test_chunk_output(
         let path = *path;
         let relative = path.strip_prefix(&args.root).unwrap_or(path);
         command
-            .arg("--path-prefix")
+            .arg("--path")
             .arg(relative.to_string_lossy().to_string());
     }
     let stdout_path = std::env::temp_dir().join(format!(
@@ -9653,7 +9644,7 @@ fn fixture_test_chunk_output(
     })
 }
 
-#[requires(selector.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn append_selector_args(command: &mut ProcessCommand, selector: &FixtureSelector) {
     for value in &selector.provenance {
@@ -9664,6 +9655,12 @@ fn append_selector_args(command: &mut ProcessCommand, selector: &FixtureSelector
     }
     for value in &selector.ids {
         command.arg("--id").arg(value);
+    }
+    for value in &selector.paths {
+        command.arg("--path").arg(value);
+    }
+    for value in &selector.path_prefixes {
+        command.arg("--path-prefix").arg(value);
     }
     if let Some(cll) = &selector.cll {
         if let Some(chapter) = cll.chapter {
@@ -9697,27 +9694,51 @@ fn parse_fixture_test_summary(stdout: &str) -> Result<RunSummary> {
     let line = stdout
         .lines()
         .rev()
-        .find(|line| line.starts_with("fixtures="))
+        .find(|line| line.trim_start().starts_with('{'))
         .ok_or_else(|| anyhow::anyhow!("fixture-test worker did not print a summary"))?;
-    let mut summary = RunSummary::default();
-    for part in line.split(", ") {
-        let Some((key, value)) = part.split_once('=') else {
-            continue;
-        };
-        let value = value
-            .parse::<usize>()
-            .with_context(|| format!("parsing fixture-test summary value `{value}`"))?;
-        match key {
-            "fixtures" => summary.selected_fixtures = value,
-            "facets" => summary.selected_facets = value,
-            "passed" => summary.passed = value,
-            "xfailed" => summary.xfailed = value,
-            "failed" => summary.failed = value,
-            "skipped" => summary.skipped = value,
-            _ => {}
+    let summary: FixtureTestSummaryLine =
+        serde_json::from_str(line).context("parsing fixture-test worker JSON summary")?;
+    Ok(summary.into_summary())
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FixtureTestSummaryLine {
+    fixtures: usize,
+    facets: usize,
+    passed: usize,
+    xfailed: usize,
+    failed: usize,
+    skipped: usize,
+}
+
+impl FixtureTestSummaryLine {
+    #[requires(true)]
+    #[ensures(ret.fixtures == summary.selected_fixtures)]
+    fn from_summary(summary: &RunSummary) -> Self {
+        Self {
+            fixtures: summary.selected_fixtures,
+            facets: summary.selected_facets,
+            passed: summary.passed,
+            xfailed: summary.xfailed,
+            failed: summary.failed,
+            skipped: summary.skipped,
         }
     }
-    Ok(summary)
+
+    #[requires(true)]
+    #[ensures(ret.selected_fixtures == self.fixtures)]
+    fn into_summary(self) -> RunSummary {
+        RunSummary {
+            selected_fixtures: self.fixtures,
+            selected_facets: self.facets,
+            passed: self.passed,
+            failed: self.failed,
+            skipped: self.skipped,
+            xfailed: self.xfailed,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -9942,7 +9963,7 @@ fn percentile(sorted: &[usize], percentile: usize) -> usize {
     sorted[index]
 }
 
-#[requires(profile.is_valid())]
+#[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|summary| summary.total_results() == summary.selected_fixtures * profile.facets.len()))]
 fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     root: &Path,
@@ -9955,7 +9976,7 @@ fn run_fixture_test_jobs<B: FixtureBackend + Sync>(
     paths
         .par_iter()
         .map(|path| {
-            if !path_matches_prefix_selector(root, path, &profile.selector) {
+            if !path_matches_selector(root, path, &profile.selector) {
                 return Ok(RunSummary::default());
             }
             let fixture = load_fixture_path(path)?;
@@ -9994,18 +10015,17 @@ fn should_print_fixture_failure(failure_samples: Option<usize>, sample_index: us
     failure_samples.is_none_or(|limit| sample_index < limit)
 }
 
-#[requires(selector.is_valid())]
+#[requires(true)]
 #[ensures(true)]
-fn path_matches_prefix_selector(root: &Path, path: &Path, selector: &FixtureSelector) -> bool {
-    if selector.path_prefixes.is_empty() {
-        return true;
-    }
+fn path_matches_selector(root: &Path, path: &Path, selector: &FixtureSelector) -> bool {
     let relative = path.strip_prefix(root).unwrap_or(path);
     let relative_text = relative.to_string_lossy();
-    selector
-        .path_prefixes
-        .iter()
-        .any(|prefix| relative_text.starts_with(prefix))
+    (selector.path_prefixes.is_empty()
+        || selector
+            .path_prefixes
+            .iter()
+            .any(|prefix| relative_text.starts_with(prefix)))
+        && (selector.paths.is_empty() || selector.paths.iter().any(|path| path == &relative_text))
 }
 
 #[requires(true)]
@@ -10035,30 +10055,32 @@ const FIXTURE_REWRITE_SUBPROCESS_CHUNK_SIZE: usize = 64;
 const SYNTAX_PARSER_BENCHMARK_CHUNK_SIZE: usize = 256;
 const DEBUG_LARGE_FIXTURE_TEST_WARNING_THRESHOLD: usize = 100;
 const DEFAULT_TEST_JOBS: usize = 16;
-const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 
 #[requires(true)]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[ensures(true)]
 fn merged_profile(args: &FixtureRunArgs) -> Result<FixtureProfile> {
-    let mut profile = match &args.profile {
+    let profile = match &args.profile {
         Some(name) => load_profile(&args.root, name)
             .with_context(|| format!("loading fixture profile `{name}`"))?,
         None => FixtureProfile::default(),
     };
-    merge_cli_selector(&mut profile.selector, args);
+    let mut profile = profile.into_data();
+    profile.selector = merge_cli_selector(profile.selector, args);
     if !args.facets.is_empty() {
         profile.facets = args.facets.clone();
     }
-    Ok(profile)
+    Ok(FixtureProfile::from_data(profile))
 }
 
-#[requires(selector.is_valid())]
-#[ensures(selector.is_valid())]
-fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
+#[requires(true)]
+#[ensures(true)]
+fn merge_cli_selector(selector: FixtureSelector, args: &FixtureRunArgs) -> FixtureSelector {
+    let mut selector = selector.into_data();
     selector.provenance.extend(args.provenance.clone());
     selector.tags.extend(args.tags.clone());
     selector.ids.extend(args.ids.clone());
     selector.path_prefixes.extend(args.path_prefixes.clone());
+    selector.paths.extend(args.paths.clone());
     if args.cll_chapter.is_some() || args.cll_section.is_some() || args.cll_example.is_some() {
         let mut cll = selector.cll.take().unwrap_or_default();
         if let Some(chapter) = args.cll_chapter {
@@ -10090,6 +10112,7 @@ fn merge_cli_selector(selector: &mut FixtureSelector, args: &FixtureRunArgs) {
         }
         selector.muplis = Some(muplis);
     }
+    FixtureSelector::from_data(selector)
 }
 
 #[requires(true)]
@@ -10125,16 +10148,6 @@ fn run_v0_exporter(v0_root: &Path, output: &Path) -> Result<()> {
         .status()
         .with_context(|| format!("failed to run v0 exporter in `{}`", v0_root.display()))?;
     check_status(status, "cabal run exe:v1-fixture-export")
-}
-
-#[requires(!args.is_empty(), "cargo subcommand arguments must not be empty")]
-#[ensures(true)]
-fn cargo(args: &[&str]) -> Result<()> {
-    let status = ProcessCommand::new("cargo")
-        .args(args)
-        .status()
-        .with_context(|| format!("failed to run `cargo {}`", args.join(" ")))?;
-    check_status(status, &format!("cargo {}", args.join(" ")))
 }
 
 #[requires(!command.is_empty(), "checked command name must not be empty")]
@@ -10458,31 +10471,32 @@ fn run_gentufa_brackets_round_trip(
             ));
         }
     };
-    if generated_syntax_tree_eq_ignoring_spans(expected, &actual) {
-        FacetResult::passed()
-    } else {
-        FacetResult::failed(format!(
+    match generated_syntax_tree_eq_ignoring_spans(expected, &actual) {
+        Ok(true) => FacetResult::passed(),
+        Ok(false) => FacetResult::failed(format!(
             "gentufa brackets round-trip syntax tree mismatch for {}",
             fixture.test_case.id
-        ))
+        )),
+        Err(error) => FacetResult::failed(format!(
+            "gentufa brackets round-trip syntax tree serialization error for {}: {error}",
+            fixture.test_case.id
+        )),
     }
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn generated_syntax_tree_eq_ignoring_spans(
     left: &jbotci_syntax::generated_model::TextSyntax,
     right: &jbotci_syntax::generated_model::TextSyntax,
-) -> bool {
-    let Ok(mut left) = serde_json::to_value(left) else {
-        return false;
-    };
-    let Ok(mut right) = serde_json::to_value(right) else {
-        return false;
-    };
+) -> Result<bool> {
+    let mut left =
+        serde_json::to_value(left).context("serializing expected generated syntax tree")?;
+    let mut right =
+        serde_json::to_value(right).context("serializing actual generated syntax tree")?;
     remove_generated_syntax_source_spans(&mut left);
     remove_generated_syntax_source_spans(&mut right);
-    left == right
+    Ok(left == right)
 }
 
 #[requires(true)]
@@ -11119,48 +11133,11 @@ const DEBUG_MISMATCH_LIMIT: usize = 512;
 #[requires(true)]
 #[ensures(true)]
 fn brackets_expectation_matches(fixture: &LoadedTestCase, expected: &str, actual: &str) -> bool {
+    let _ = fixture;
     if expected == actual {
         return true;
     }
-    if !fixture_is_cll(fixture) {
-        return false;
-    }
-    normalize_cll_brackets(expected) == normalize_cll_brackets(actual)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn fixture_is_cll(fixture: &LoadedTestCase) -> bool {
-    fixture
-        .test_case
-        .provenance
-        .iter()
-        .any(|provenance| matches!(provenance, Provenance::Cll { .. }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_cll_brackets(text: &str) -> String {
-    text.chars()
-        .filter_map(normalize_cll_bracket_char)
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_cll_bracket_char(ch: char) -> Option<char> {
-    match ch {
-        '.' | '-' | '\u{0306}' => None,
-        'á' | 'à' | 'Á' | 'À' => Some('a'),
-        'é' | 'è' | 'É' | 'È' => Some('e'),
-        'í' | 'ì' | 'Í' | 'Ì' => Some('i'),
-        'ó' | 'ò' | 'Ó' | 'Ò' => Some('o'),
-        'ú' | 'ù' | 'Ú' | 'Ù' => Some('u'),
-        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => Some('y'),
-        'ĭ' | 'Ĭ' => Some('i'),
-        'ŭ' | 'Ŭ' => Some('u'),
-        other => Some(other),
-    }
+    false
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -11579,14 +11556,6 @@ mod tests {
     use super::*;
     use bityzba::requires;
     use jbotci_cll::{CllExampleLine, CllMetadata, CllReference};
-
-    #[test]
-    #[should_panic(expected = "cargo subcommand arguments must not be empty")]
-    #[requires(true)]
-    #[ensures(true)]
-    fn empty_cargo_command_contract_is_reported() {
-        let _ = cargo(&[]);
-    }
 
     #[test]
     #[requires(true)]
@@ -12490,6 +12459,128 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn f2llm_q4_onnx_resolves_relative_to_artifact_root() {
+        let root = absolute_path(Path::new(".jbotci-build/test-f2llm-artifacts")).unwrap();
+
+        let resolved = resolve_f2llm_spec_q4_onnx(&F2LLM_MODEL_SPECS[1], Some(&root)).unwrap();
+
+        assert_eq!(
+            resolved,
+            root.join("f2llm-v2-160m-q4-640-q4-hqq32-transformersjs/onnx/model_q4.onnx")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn f2llm_q4_onnx_override_does_not_require_known_model_key() {
+        let override_path = absolute_path(Path::new(".jbotci-build/custom/model_q4.onnx")).unwrap();
+
+        let resolved = resolve_f2llm_q4_onnx(Some(&override_path), None, "custom-model").unwrap();
+
+        assert_eq!(resolved, override_path);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fixture_test_summary_json_rejects_unknown_fields() {
+        let summary = parse_fixture_test_summary(
+            r#"{"fixtures":2,"facets":1,"passed":1,"xfailed":0,"failed":1,"skipped":0}"#,
+        )
+        .unwrap();
+
+        assert_eq!(summary.selected_fixtures, 2);
+        assert!(
+            parse_fixture_test_summary(
+                r#"{"fixtures":2,"facets":1,"passed":1,"xfailed":0,"failed":1,"skipped":0,"typo":9}"#
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fixture_rewrite_summary_json_rejects_unknown_fields() {
+        let summary = parse_fixture_rewrite_summary(r#"{"fixtures":3,"rewritten":2}"#).unwrap();
+
+        assert_eq!(summary.processed, 3);
+        assert_eq!(summary.rewritten, 2);
+        assert!(parse_fixture_rewrite_summary(r#"{"fixtures":3,"rewritten":2,"typo":1}"#).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_diagnostics_rewrite_preserves_multiline_raw_text() {
+        let source = r#"
+id = "adhoc.syntax"
+lojban = "coi"
+
+[expectations.syntax]
+status = "failure"
+raw = '''
+diagnostics = "not a real key"
+'''
+diagnostics = []
+"#;
+
+        let updated = replace_syntax_diagnostics_value(
+            source,
+            r#"[{ severity = "error", code = "syntax.parse" }]"#,
+        )
+        .unwrap();
+        let value: toml::Value = updated.parse().unwrap();
+
+        assert_eq!(
+            value["expectations"]["syntax"]["raw"].as_str(),
+            Some("\ndiagnostics = \"not a real key\"\n")
+        );
+        assert_eq!(
+            value["expectations"]["syntax"]["diagnostics"][0]["code"].as_str(),
+            Some("syntax.parse")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_output_rewrite_preserves_multiline_sibling_text() {
+        let source = r#"
+id = "adhoc.gentufa"
+lojban = "coi"
+
+[expectations.output.gentufa]
+brackets = "old"
+tree = '''
+brackets = "not a real key"
+'''
+"#;
+        let replacements = GentufaOutputReplacements {
+            normal: GentufaOutputSectionReplacements {
+                brackets: Some(format_fixture_text_expectation_value("new".to_owned()).unwrap()),
+                ..GentufaOutputSectionReplacements::default()
+            },
+            ..GentufaOutputReplacements::default()
+        };
+
+        let updated = replace_gentufa_output_sections(source, &replacements).unwrap();
+        let value: toml::Value = updated.parse().unwrap();
+
+        assert_eq!(
+            value["expectations"]["output"]["gentufa"]["brackets"].as_str(),
+            Some("new")
+        );
+        assert_eq!(
+            value["expectations"]["output"]["gentufa"]["tree"].as_str(),
+            Some("\nbrackets = \"not a real key\"\n")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn flat_web_asset_copy_prunes_obsolete_files_without_replacing_target_directory() {
         let root = std::env::temp_dir().join(format!(
             "jbotci-xtask-flat-assets-{}-{}",
@@ -12507,6 +12598,7 @@ mod tests {
         fs::write(target.join("current.txt"), "old").unwrap();
         fs::write(target.join("obsolete.txt"), "obsolete").unwrap();
         fs::create_dir(target.join("nested")).unwrap();
+        fs::create_dir(target.join(".jbotci-asset-sync")).unwrap();
 
         copy_flat_web_asset_dir(&source, &target, "test asset").unwrap();
 
@@ -12515,6 +12607,7 @@ mod tests {
             "current"
         );
         assert!(!target.join("obsolete.txt").exists());
+        assert!(!target.join(".jbotci-asset-sync").exists());
         assert!(target.join("nested").is_dir());
         fs::remove_dir_all(root).unwrap();
     }

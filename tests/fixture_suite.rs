@@ -9,9 +9,9 @@ use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_source::SourceId;
 use support::fixtures::{
     BracketExpectations, CllSelector, CommandOutputExpectation, DiagnosticExpectation,
-    ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureExport,
-    FixtureSelector, GentufaOutputExpectation, JvozbaExpectation, JvozbaFixtureInput,
-    JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
+    ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureError,
+    FixtureExport, FixtureSelector, GentufaOutputExpectation, JvozbaExpectation,
+    JvozbaFixtureInput, JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
     OutputExpectations, Provenance, ReferenceExpectation, ScriptBracketExpectations,
     SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation, TestCase, TextExpectation,
@@ -111,25 +111,91 @@ fn profile_filters_cll_chapter_and_muplis_form() {
         },
     );
     let fixtures = vec![cll, muplis];
-    let cll_selector = FixtureSelector {
-        cll: Some(CllSelector {
-            chapter: Some(18),
-            example_id: Some("c18e3d1".into()),
-            ..CllSelector::default()
-        }),
-        ..FixtureSelector::default()
-    };
+    let mut cll_selector_data = FixtureSelector::default().into_data();
+    cll_selector_data.cll = Some(CllSelector {
+        chapter: Some(18),
+        example_id: Some("c18e3d1".into()),
+        ..CllSelector::default()
+    });
+    let cll_selector = FixtureSelector::from_data(cll_selector_data);
     assert_eq!(filter_fixtures(root, &fixtures, &cll_selector).len(), 1);
 
-    let muplis_selector = FixtureSelector {
-        muplis: Some(support::fixtures::MuplisSelector {
-            collection_id: Some("18".into()),
-            form: Some(MuplisForm::Front),
-            ..support::fixtures::MuplisSelector::default()
-        }),
-        ..FixtureSelector::default()
-    };
+    let mut muplis_selector_data = FixtureSelector::default().into_data();
+    muplis_selector_data.muplis = Some(support::fixtures::MuplisSelector {
+        collection_id: Some("18".into()),
+        form: Some(MuplisForm::Front),
+        ..support::fixtures::MuplisSelector::default()
+    });
+    let muplis_selector = FixtureSelector::from_data(muplis_selector_data);
     assert_eq!(filter_fixtures(root, &fixtures, &muplis_selector).len(), 1);
+
+    let mut exact_selector_data = FixtureSelector::default().into_data();
+    exact_selector_data
+        .paths
+        .push("muplis/collection-18/1-front.toml".to_owned());
+    let exact_selector = FixtureSelector::from_data(exact_selector_data);
+    let exact_matches = filter_fixtures(root, &fixtures, &exact_selector);
+    assert_eq!(exact_matches.len(), 1);
+    assert_eq!(exact_matches[0].test_case.id, "muplis.18.1.front");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fixture_loader_ignores_legacy_markers_inside_strings() {
+    let temp_root = temp_root("jbotci-fixture-legacy-string-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        r#"
+id = "adhoc.legacy-string"
+lojban = "coi"
+translation-en = "This prose mentions constructor = and kind = \"node\"."
+
+[[provenance]]
+kind = "adhoc"
+
+[expectations]
+"#,
+    )
+    .expect("write fixture");
+
+    let loaded = load_fixture_file(&fixture_path).expect("fixture should load");
+
+    assert_eq!(loaded.id, "adhoc.legacy-string");
+    fs::remove_dir_all(temp_root).unwrap();
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fixture_loader_rejects_structural_legacy_expectation_keys() {
+    let temp_root = temp_root("jbotci-fixture-legacy-key-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        r#"
+id = "adhoc.legacy-key"
+lojban = "coi"
+
+[[provenance]]
+kind = "adhoc"
+
+[expectations.syntax.parse-tree]
+kind = "node"
+"#,
+    )
+    .expect("write fixture");
+
+    let error = load_fixture_file(&fixture_path).expect_err("legacy fixture should fail");
+
+    assert!(matches!(
+        error,
+        FixtureError::LegacyExpectationFormat { .. }
+    ));
+    fs::remove_dir_all(temp_root).unwrap();
 }
 
 #[test]
