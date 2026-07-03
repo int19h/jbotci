@@ -2905,6 +2905,7 @@ impl fmt::Display for Cmavo {
     }
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Selmaho {
     A,
@@ -3006,6 +3007,11 @@ pub enum Selmaho {
 }
 
 impl Selmaho {
+    /// Load-bearing primary-selma'o precedence.
+    ///
+    /// `Cmavo::primary_selmaho` returns the first entry here that contains the
+    /// cmavo. Keep this table complete and reorder it only as an intentional
+    /// precedence change for multi-selma'o cmavo.
     pub const ALL: &'static [Self] = &[
         Self::A,
         Self::Bahe,

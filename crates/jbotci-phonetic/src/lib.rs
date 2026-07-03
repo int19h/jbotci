@@ -246,6 +246,13 @@ static IPA_SEGMENT_FEATURES: LazyLock<Vec<AlineFeatures>> = LazyLock::new(|| {
         .collect()
 });
 
+static IPA_SEGMENT_NORMALIZED_SYMBOLS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    IPA_SEGMENT_SYMBOLS
+        .iter()
+        .map(|symbol| normalize_ipa_query(symbol))
+        .collect()
+});
+
 static ALINE_PAIR_FEATURE_DIFFERENCES: LazyLock<Vec<f64>> = LazyLock::new(|| {
     let segment_count = IPA_SEGMENT_SYMBOLS.len();
     let mut differences = Vec::with_capacity(segment_count * segment_count);
@@ -345,16 +352,14 @@ pub fn tokenize_ipa_text(text: &str) -> Result<IpaTokenSequence, PhoneticError> 
             remaining = &remaining[first.len_utf8()..];
             continue;
         }
-        let Some(segment_id) = match_longest_segment(remaining) else {
+        let Some((segment_id, segment_length)) = match_longest_segment(remaining) else {
             return Err(PhoneticError::Message(format!(
                 "Unsupported IPA segment near `{}` for ALINE sound search.",
                 remaining.chars().take(12).collect::<String>()
             )));
         };
-        let segment_text = ipa_segment_symbol(segment_id)
-            .expect("IPA tokenizer only produces segment ids from the segment table");
         segments.push(segment_id);
-        remaining = &remaining[segment_text.len()..];
+        remaining = &remaining[segment_length..];
         while let Some(modifier) = remaining.chars().next() {
             if is_ipa_ignored_modifier(modifier) {
                 remaining = &remaining[modifier.len_utf8()..];
@@ -493,15 +498,19 @@ fn is_ipa_ignored_modifier(value: char) -> bool {
 }
 
 #[requires(!remaining.is_empty())]
-#[ensures(ret.is_some_and(is_valid_ipa_segment_id) || ret.is_none())]
-fn match_longest_segment(remaining: &str) -> Option<IpaSegmentId> {
-    IPA_SEGMENT_SYMBOLS
+#[ensures(ret.as_ref().is_some_and(|(id, length)| is_valid_ipa_segment_id(*id) && *length > 0) || ret.is_none())]
+fn match_longest_segment(remaining: &str) -> Option<(IpaSegmentId, usize)> {
+    IPA_SEGMENT_NORMALIZED_SYMBOLS
         .iter()
         .enumerate()
-        .filter(|(_, symbol)| remaining.starts_with(**symbol))
+        .filter(|(_, symbol)| remaining.starts_with(symbol.as_str()))
         .max_by(|(_, left), (_, right)| left.len().cmp(&right.len()).then_with(|| right.cmp(left)))
         .and_then(|(index, _)| u16::try_from(index).ok())
-        .map(IpaSegmentId)
+        .map(|index| {
+            let id = IpaSegmentId(index);
+            let normalized_symbol = &IPA_SEGMENT_NORMALIZED_SYMBOLS[id.0 as usize];
+            (id, normalized_symbol.len())
+        })
 }
 
 #[requires(!segments.is_empty())]
@@ -1183,6 +1192,20 @@ mod tests {
             1.0
         );
         assert_eq!(aline_phonetic_similarity(tied.view(), untied.view()), 1.0);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nfd_unstable_ipa_segments_match_their_table_entries() {
+        for symbol in ["ç", "ä", "äː"] {
+            let sequence = tokenize_ipa_text(symbol).expect("IPA segment tokenizes");
+            let [segment] = sequence.segments() else {
+                panic!("{symbol} should tokenize as exactly one IPA segment");
+            };
+
+            assert_eq!(ipa_segment_symbol(*segment), Some(symbol));
+        }
     }
 
     #[test]

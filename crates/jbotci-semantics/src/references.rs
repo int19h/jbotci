@@ -7096,10 +7096,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_) => {
+                // A bare pro-bridi here is a reference, not a nested CEI
+                // assignment source; the reference visitor resolves it.
+            }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
@@ -7179,10 +7182,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_) => {
+                // A bare pro-bridi here is a reference, not a nested CEI
+                // assignment source; the reference visitor resolves it.
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
@@ -7212,7 +7218,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     &unit.base, sources,
                 );
             }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => {}
+            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => {
+                // Scalar negation can wrap a pro-bridi reference, but not a CEI
+                // assignment source; the reference visitor resolves it.
+            }
         }
     }
 
@@ -7248,12 +7257,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_) => {
+                // JAI can wrap a pro-bridi reference, but not a CEI assignment
+                // source; the reference visitor resolves it.
+            }
             generated::JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::OrdinalTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::WordTanruUnit(_) => {}
         }
     }
@@ -8494,6 +8506,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         }
 
         self.quote_depth = 1;
+        // CLL 7.4 defines the di'u-series as discourse-relative, and Example
+        // 7.16 uses outer di'e to refer to a following quotation. Quoted text
+        // therefore gets its own utterance history while outer pending di'e
+        // references remain outside the quote context.
         std::mem::swap(&mut self.sumti_mentions, &mut self.quote_sumti_mentions);
         std::mem::swap(
             &mut self.letter_sumti_mentions,

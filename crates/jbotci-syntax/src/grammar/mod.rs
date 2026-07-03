@@ -2280,6 +2280,19 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn indefinite_sumti_explicit_ku_precedes_relative_clause() {
+        let valid = segment_words_with_modifiers("mi viska ci gerku ku poi barda")
+            .expect("valid morphology");
+        assert!(parse_syntax_tree(&valid, &ParseOptions::default()).is_ok());
+
+        let invalid = segment_words_with_modifiers("mi viska ci gerku poi barda ku")
+            .expect("valid morphology");
+        assert!(parse_syntax_tree(&invalid, &ParseOptions::default()).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn voi_relative_bridi_is_syntax_restrictive() {
         let raw = parse_tree_debug("le gerku voi blabi cu klama", &ParseOptions::default());
         assert!(raw.contains("RestrictiveBridiRelativeClause"));

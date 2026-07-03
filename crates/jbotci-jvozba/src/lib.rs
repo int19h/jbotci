@@ -747,6 +747,8 @@ fn raw_segments_match_bonded_parts(parts: &[RawLujvoSegment], bonded: &[String])
         }
         return false;
     }
+    // Preserve the historical cmevla fallback boundary: require visible lujvo
+    // structure so coincidentally rafsi-shaped names do not get rafsi cards.
     part_index == parts.len()
         && (has_explicit_hyphen || used_cmevla_r_omission || has_noninitial_r_rafsi)
 }
@@ -825,7 +827,6 @@ fn sloppy_decompose_from(
         Some("CVCCV" | "CCVCV")
     ) {
         acc.push(RawLujvoSegment::Rafsi(remaining.to_owned()));
-        acc.reverse();
         return Some(acc);
     }
 
@@ -1179,6 +1180,17 @@ mod tests {
         assert_eq!(sources[1], Some("rokci"));
         assert_eq!(decomposition.source_words.len(), 2);
         assert_eq!(decomposition.source_words[1], "rokci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sloppy_decompose_keeps_terminal_long_rafsi_in_source_order() {
+        let parts = sloppy_decompose_from(vec![RawLujvoSegment::Rafsi("jet".to_owned())], "barda")
+            .expect("terminal long rafsi decomposition");
+        let surfaces = parts.iter().map(raw_lujvo_segment_text).collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["jet", "barda"]);
     }
 
     #[requires(true)]
