@@ -817,7 +817,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Selmaho",
-        "selmaho strings come from the static morphology table",
+        "selmaho erasure tags carry validated Selmaho values",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::ExperimentalQuoteSelmaho",
+        "experimental quote erasure tags are private static category names",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/tokens.rs:ExperimentalCmavoContext::Label",
+        "experimental cmavo context labels are private static grammar category names",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/tokens.rs:ExperimentalCmavoContext::Selmaho",
+        "experimental cmavo context carries validated Selmaho values",
     ),
     (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",

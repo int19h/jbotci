@@ -685,6 +685,21 @@ fn exact_brivla_source_word<'a>(dictionary: &Dictionary<'a>, surface: &str) -> O
 #[ensures(true)]
 fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
     let parts = sloppy_decompose(normalized)?;
+    if !sloppy_parts_match_cmevla_bonding(&parts) {
+        return None;
+    }
+    parts
+        .into_iter()
+        .map(|part| match part {
+            RawLujvoSegment::Rafsi(text) => Some(LujvoPart::rafsi(phonemes(text)?)),
+            RawLujvoSegment::Hyphen(text) => Some(LujvoPart::hyphen(phonemes(text)?)),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn sloppy_parts_match_cmevla_bonding(parts: &[RawLujvoSegment]) -> bool {
     let rafsi_parts = parts
         .iter()
         .filter_map(|part| match part {
@@ -692,19 +707,57 @@ fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
             RawLujvoSegment::Hyphen(_) => None,
         })
         .collect::<Vec<_>>();
-    let bonded = bond_rafsis(&rafsi_parts)?;
-    if bonded.concat() == normalized {
-        Some(
-            parts
-                .into_iter()
-                .filter_map(|part| match part {
-                    RawLujvoSegment::Rafsi(text) => Some(LujvoPart::rafsi(phonemes(text)?)),
-                    RawLujvoSegment::Hyphen(text) => Some(LujvoPart::hyphen(phonemes(text)?)),
-                })
-                .collect(),
-        )
-    } else {
-        None
+    let Some(bonded) = bond_rafsis(&rafsi_parts) else {
+        return false;
+    };
+    raw_segments_match_bonded_parts(parts, &bonded)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn raw_segments_match_bonded_parts(parts: &[RawLujvoSegment], bonded: &[String]) -> bool {
+    let mut part_index = 0;
+    let mut used_cmevla_r_omission = false;
+    let has_explicit_hyphen = parts
+        .iter()
+        .any(|part| matches!(part, RawLujvoSegment::Hyphen(_)));
+    let has_noninitial_r_rafsi = parts
+        .iter()
+        .filter_map(|part| match part {
+            RawLujvoSegment::Rafsi(text) => Some(text),
+            RawLujvoSegment::Hyphen(_) => None,
+        })
+        .skip(1)
+        .any(|text| text.starts_with('r'));
+    for bonded_part in bonded {
+        if parts
+            .get(part_index)
+            .is_some_and(|part| raw_lujvo_segment_text(part) == bonded_part)
+        {
+            part_index += 1;
+            continue;
+        }
+        if is_bonding_hyphen(bonded_part)
+            && parts
+                .get(part_index)
+                .is_some_and(|part| raw_lujvo_segment_text(part).starts_with('r'))
+        {
+            used_cmevla_r_omission = true;
+            continue;
+        }
+        return false;
+    }
+    // Preserve the historical cmevla fallback boundary: require visible lujvo
+    // structure so coincidentally rafsi-shaped names do not get rafsi cards.
+    part_index == parts.len()
+        && (has_explicit_hyphen || used_cmevla_r_omission || has_noninitial_r_rafsi)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn raw_lujvo_segment_text(part: &RawLujvoSegment) -> &str {
+    match part {
+        RawLujvoSegment::Rafsi(text) | RawLujvoSegment::Hyphen(text) => text,
     }
 }
 
@@ -736,7 +789,6 @@ fn sloppy_decompose_from(
     remaining: &str,
 ) -> Option<Vec<RawLujvoSegment>> {
     if remaining.is_empty() {
-        acc.reverse();
         return Some(acc);
     }
 
@@ -775,7 +827,6 @@ fn sloppy_decompose_from(
         Some("CVCCV" | "CCVCV")
     ) {
         acc.push(RawLujvoSegment::Rafsi(remaining.to_owned()));
-        acc.reverse();
         return Some(acc);
     }
 
@@ -809,7 +860,16 @@ fn should_drop_hyphen(acc: &[RawLujvoSegment], remaining: &str) -> bool {
     previous_is_rafsi(acc)
         && (remaining.starts_with('y')
             || remaining.starts_with("nr")
-            || (remaining.starts_with('r') && has_head_syllable(remaining, "C")))
+            || starts_with_r_hyphen(remaining))
+}
+
+#[requires(true)]
+#[ensures(ret -> remaining.starts_with('r'))]
+fn starts_with_r_hyphen(remaining: &str) -> bool {
+    let Some((_, after_r)) = split_char_at(remaining, 1) else {
+        return false;
+    };
+    remaining.starts_with('r') && has_head_syllable(after_r, "C")
 }
 
 #[requires(true)]
@@ -1095,6 +1155,42 @@ mod tests {
         assert_eq!(surfaces, ["ci'á", "r", "taĭ"]);
         assert_eq!(sources, [Some("ciska"), None, Some("tarmi")]);
         assert_eq!(decomposition.source_words, ["ciska", "tarmi"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decomposes_lujvo_with_r_initial_rafsi_without_r_hyphen() {
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "jetrok")
+            .expect("r-initial rafsi decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["jet", "rok"]);
+        assert_eq!(sources.len(), 2);
+        assert!(sources[0].is_some());
+        assert_eq!(sources[1], Some("rokci"));
+        assert_eq!(decomposition.source_words.len(), 2);
+        assert_eq!(decomposition.source_words[1], "rokci");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sloppy_decompose_keeps_terminal_long_rafsi_in_source_order() {
+        let parts = sloppy_decompose_from(vec![RawLujvoSegment::Rafsi("jet".to_owned())], "barda")
+            .expect("terminal long rafsi decomposition");
+        let surfaces = parts.iter().map(raw_lujvo_segment_text).collect::<Vec<_>>();
+
+        assert_eq!(surfaces, ["jet", "barda"]);
     }
 
     #[requires(true)]

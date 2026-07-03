@@ -430,14 +430,14 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
     pub fn fixture_projection_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(&self.fixture_projection())
     }
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0))]
+#[ensures(ret.as_ref().is_ok_and(|analysis| analysis.syntax_index.node_count() > 0) || ret.is_err())]
 pub fn analyze_generated_references<'tree>(
     syntax: &'tree GeneratedTextSyntax,
 ) -> Result<GeneratedReferenceAnalysis<'tree>, ReferenceAnalysisError> {
@@ -1075,15 +1075,28 @@ fn span_key_for_generated_node(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| key.length > 0))]
+fn fixture_span_key_from_syntax_span(key: &SyntaxSpanKey) -> Option<FixtureSpanKey> {
+    let length = key.byte_end.checked_sub(key.byte_start)?;
+    if length == 0 {
+        // Fixture projections are keyed by visible byte ranges; zero-width
+        // generated nodes cannot be represented there, so their containing
+        // projection record is omitted instead of inventing a synthetic range.
+        return None;
+    }
+    Some(FixtureSpanKey {
+        offset: key.byte_start,
+        length,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| key.length > 0))]
 fn fixture_span_key_for_generated_node(
     index: &GeneratedSyntaxIndex<'_>,
     node: RawSyntaxNodeId,
 ) -> Option<FixtureSpanKey> {
     let key = span_key_for_generated_node(index, node)?;
-    Some(FixtureSpanKey {
-        offset: key.byte_start,
-        length: key.byte_end.saturating_sub(key.byte_start),
-    })
+    fixture_span_key_from_syntax_span(&key)
 }
 
 impl DiscourseReferences {
@@ -2212,22 +2225,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         unit: &'tree generated::TanruUnitAtomSyntax,
     ) -> SelbriPlaceFrameId {
         let inner = self.analyze_tanru_unit_atom_base(&unit.base);
-        let converted = unit
-            .conversions
-            .last()
-            .and_then(generated_se_conversion_place)
-            .and_then(NonZeroU8::new);
-        if let Some(converted_place) = converted {
-            self.add_frame(
-                self.raw_for_node(unit),
-                PlaceFrameKind::Converted,
-                None,
-                Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                propagation_conversion(inner, converted_place),
-            )
-        } else {
-            inner
-        }
+        self.add_conversion_frames_for_tanru_unit_atom(inner, unit, &unit.conversions)
     }
 
     #[requires(true)]
@@ -2237,22 +2235,34 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         unit: &'tree generated::TanruUnitAtomForCeiSyntax,
     ) -> SelbriPlaceFrameId {
         let inner = self.analyze_tanru_unit_atom_base_for_cei(&unit.base);
-        let converted = unit
-            .conversions
-            .last()
-            .and_then(generated_se_conversion_place)
-            .and_then(NonZeroU8::new);
-        if let Some(converted_place) = converted {
-            self.add_frame(
-                self.raw_for_node(unit),
-                PlaceFrameKind::Converted,
-                None,
-                Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                propagation_conversion(inner, converted_place),
-            )
-        } else {
-            inner
-        }
+        self.add_conversion_frames_for_tanru_unit_atom(inner, unit, &unit.conversions)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn add_conversion_frames_for_tanru_unit_atom<N, F>(
+        &mut self,
+        inner: SelbriPlaceFrameId,
+        unit: &'tree N,
+        conversions: &[WithFreeModifiers<Token, F>],
+    ) -> SelbriPlaceFrameId
+    where
+        N: GeneratedSyntaxTreeNode,
+    {
+        conversions
+            .iter()
+            .rev()
+            .filter_map(generated_se_conversion_place)
+            .filter_map(NonZeroU8::new)
+            .fold(inner, |inner, converted_place| {
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::Converted,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_conversion(inner, converted_place),
+                )
+            })
     }
 
     #[requires(true)]
@@ -4552,7 +4562,7 @@ struct GeneratedIndexedSyntaxNode<'tree> {
 
 impl<'tree> GeneratedSyntaxIndex<'tree> {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|index| !index.nodes.is_empty()) || ret.is_err())]
     pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
         let mut builder = GeneratedSyntaxIndexBuilder::new();
         root.visit_in_order(&mut builder);
@@ -4824,6 +4834,9 @@ struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     quote_sumti_mentions: Vec<SumtiMention>,
     quote_letter_sumti_mentions: HashMap<String, Vec<SumtiMention>>,
     quote_predicate_mentions: Vec<NodeMention>,
+    quote_utterance_history: Vec<RawSyntaxNodeId>,
+    quote_current_utterance: Option<RawSyntaxNodeId>,
+    quote_pending_next_utterance_sources: Vec<RawSyntaxNodeId>,
     quote_depth: usize,
     last_bridi: Option<BridiNodeId>,
     current_bridi: Option<BridiNodeId>,
@@ -4857,6 +4870,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             quote_sumti_mentions: Vec::new(),
             quote_letter_sumti_mentions: HashMap::new(),
             quote_predicate_mentions: Vec::new(),
+            quote_utterance_history: Vec::new(),
+            quote_current_utterance: None,
+            quote_pending_next_utterance_sources: Vec::new(),
             quote_depth: 0,
             last_bridi: None,
             current_bridi: None,
@@ -4874,6 +4890,18 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn finish(mut self) -> DiscourseReferences {
+        self.flush_unresolved_pending_next_utterance_sources();
+        DiscourseReferences {
+            edges: self.edges,
+            edge_ids_by_source: self.edge_ids_by_source,
+            edge_ids_by_target_node: self.edge_ids_by_target_node,
+            koha_bindings: self.koha_bindings,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.pending_next_utterance_sources.is_empty())]
+    fn flush_unresolved_pending_next_utterance_sources(&mut self) {
         for source in std::mem::take(&mut self.pending_next_utterance_sources) {
             self.add_edge(
                 ReferenceKind::Utterance,
@@ -4881,12 +4909,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 target_unresolved("di'e has no following utterance"),
                 "di'e refers to the following utterance when one is present",
             );
-        }
-        DiscourseReferences {
-            edges: self.edges,
-            edge_ids_by_source: self.edge_ids_by_source,
-            edge_ids_by_target_node: self.edge_ids_by_target_node,
-            koha_bindings: self.koha_bindings,
         }
     }
 
@@ -7068,18 +7090,26 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
+                self.collect_prenex_cei_assignment_sources_in_connected_selbri(
+                    &unit.selbri,
+                    sources,
+                );
+            }
+            generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_) => {
+                // A bare pro-bridi here is a reference, not a nested CEI
+                // assignment source; the reference visitor resolves it.
+            }
             generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(_) => {}
+            | generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(_) => {}
         }
     }
 
@@ -7146,18 +7176,26 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
+                self.collect_prenex_cei_assignment_sources_in_connected_selbri(
+                    &unit.selbri,
+                    sources,
+                );
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_) => {
+                // A bare pro-bridi here is a reference, not a nested CEI
+                // assignment source; the reference visitor resolves it.
+            }
             generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(_) => {}
+            | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_) => {}
         }
     }
 
@@ -7180,7 +7218,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     &unit.base, sources,
                 );
             }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => {}
+            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => {
+                // Scalar negation can wrap a pro-bridi reference, but not a CEI
+                // assignment source; the reference visitor resolves it.
+            }
         }
     }
 
@@ -7216,12 +7257,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     sources,
                 );
             }
+            generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_) => {
+                // JAI can wrap a pro-bridi reference, but not a CEI assignment
+                // source; the reference visitor resolves it.
+            }
             generated::JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::OrdinalTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_)
             | generated::JaiInnerTanruUnitSyntax::WordTanruUnit(_) => {}
         }
     }
@@ -8462,6 +8506,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         }
 
         self.quote_depth = 1;
+        // CLL 7.4 defines the di'u-series as discourse-relative, and Example
+        // 7.16 uses outer di'e to refer to a following quotation. Quoted text
+        // therefore gets its own utterance history while outer pending di'e
+        // references remain outside the quote context.
         std::mem::swap(&mut self.sumti_mentions, &mut self.quote_sumti_mentions);
         std::mem::swap(
             &mut self.letter_sumti_mentions,
@@ -8471,13 +8519,38 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             &mut self.predicate_mentions,
             &mut self.quote_predicate_mentions,
         );
+        std::mem::swap(
+            &mut self.utterance_history,
+            &mut self.quote_utterance_history,
+        );
+        std::mem::swap(
+            &mut self.current_utterance,
+            &mut self.quote_current_utterance,
+        );
+        std::mem::swap(
+            &mut self.pending_next_utterance_sources,
+            &mut self.quote_pending_next_utterance_sources,
+        );
         let outer_predicate_stack = std::mem::take(&mut self.predicate_stack);
         let outer_discourse_predicate_stack = std::mem::take(&mut self.discourse_predicate_stack);
         let outer_current_bridi = self.current_bridi.take();
         self.visit_text(text);
+        self.flush_unresolved_pending_next_utterance_sources();
         self.current_bridi = outer_current_bridi;
         self.discourse_predicate_stack = outer_discourse_predicate_stack;
         self.predicate_stack = outer_predicate_stack;
+        std::mem::swap(
+            &mut self.pending_next_utterance_sources,
+            &mut self.quote_pending_next_utterance_sources,
+        );
+        std::mem::swap(
+            &mut self.current_utterance,
+            &mut self.quote_current_utterance,
+        );
+        std::mem::swap(
+            &mut self.utterance_history,
+            &mut self.quote_utterance_history,
+        );
         std::mem::swap(
             &mut self.predicate_mentions,
             &mut self.quote_predicate_mentions,
@@ -10600,10 +10673,19 @@ fn generated_koha_assignable_cmavo_from_relative_sumti(
 #[requires(true)]
 #[ensures(true)]
 fn generated_argument_koha_cmavo_from_index(
-    _index: &GeneratedSyntaxIndex<'_>,
-    _sumti: SumtiNodeId,
+    index: &GeneratedSyntaxIndex<'_>,
+    sumti: SumtiNodeId,
 ) -> Option<Cmavo> {
-    None
+    let (cmavo, _subscript) = match index.node(sumti.0)? {
+        GeneratedSyntaxNodeRef::SumtiSyntax(sumti) => {
+            generated_argument_koha_cmavo_with_subscript(sumti)
+        }
+        GeneratedSyntaxNodeRef::SimpleSumtiSyntax(sumti) => {
+            generated_simple_sumti_koha_cmavo_with_subscript(sumti)
+        }
+        _ => None,
+    }?;
+    is_assignable_koha(cmavo).then_some(cmavo)
 }
 
 #[requires(true)]
@@ -10931,6 +11013,61 @@ mod tests {
         FixtureSpanKey { offset, length }
     }
 
+    #[requires(!needle.is_empty())]
+    #[ensures(ret.length == needle.len())]
+    fn nth_span_key(input: &str, needle: &str, occurrence: usize) -> FixtureSpanKey {
+        let offset = input
+            .match_indices(needle)
+            .nth(occurrence)
+            .map(|(offset, _)| offset)
+            .expect("test input contains requested occurrence");
+        span_key(offset, needle.len())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_resolved_node(target: &FixtureReferenceTarget, expected: FixtureSpanKey) {
+        assert!(
+            matches!(target, FixtureReferenceTarget::ResolvedNode { node } if *node == expected),
+            "expected resolved target {expected:?}, got {target:?}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_unresolved(target: &FixtureReferenceTarget) {
+        assert!(
+            matches!(target, FixtureReferenceTarget::Unresolved { .. }),
+            "expected unresolved target, got {target:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn fixture_span_key_from_syntax_span_rejects_zero_width_spans() {
+        let zero_width = SyntaxSpanKey {
+            source_id: None,
+            byte_start: 4,
+            byte_end: 4,
+            char_start: 4,
+            char_end: 4,
+        };
+        let normal = SyntaxSpanKey {
+            source_id: None,
+            byte_start: 4,
+            byte_end: 9,
+            char_start: 4,
+            char_end: 9,
+        };
+
+        assert_eq!(fixture_span_key_from_syntax_span(&zero_width), None);
+        assert_eq!(
+            fixture_span_key_from_syntax_span(&normal),
+            Some(span_key(4, 5))
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -11001,6 +11138,128 @@ mod tests {
                 &da_edges[0].target,
                 FixtureReferenceTarget::ResolvedNode { node } if *node == span_key(4, 2)
             ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_se_conversion_chains_compose_all_conversions() {
+        run_reference_test(|| {
+            let input = "mi se te klama do";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let klama = nth_span_key(input, "klama", 0);
+            let mi = nth_span_key(input, "mi", 0);
+            let do_sumti = nth_span_key(input, "do", 0);
+
+            assert!(projection.assignments.iter().any(|assignment| {
+                assignment.frame_node == klama
+                    && assignment.sumti == mi
+                    && matches!(assignment.slot, FixturePlaceSlot::Numbered { place: 2 })
+            }));
+            assert!(projection.assignments.iter().any(|assignment| {
+                assignment.frame_node == klama
+                    && assignment.sumti == do_sumti
+                    && matches!(assignment.slot, FixturePlaceSlot::Numbered { place: 3 })
+            }));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_goi_can_assign_relative_clause_head_koha() {
+        run_reference_test(|| {
+            let input = "ko'a goi le broda cu klama .i ko'a cadzu";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let later_koha = nth_span_key(input, "ko'a", 1);
+            let description = nth_span_key(input, "le broda", 0);
+            let koha_edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::Koha && edge.source == later_koha)
+                .expect("later ko'a resolves through GOI assignment");
+
+            assert_resolved_node(&koha_edge.target, description);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_cei_inside_grouped_tanru_unit_is_collected() {
+        run_reference_test(|| {
+            let input = "mi ke klama cei broda ke'e .i mi broda";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let later_broda = nth_span_key(input, "broda", 1);
+            let broda_edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::BrodaSeries && edge.source == later_broda)
+                .expect("later broda resolves through grouped CEI assignment");
+
+            assert!(
+                matches!(
+                    broda_edge.target,
+                    FixtureReferenceTarget::ResolvedNode { .. }
+                ),
+                "later broda should resolve through grouped CEI assignment"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_quote_history_does_not_leak_to_outer_dihu() {
+        run_reference_test(|| {
+            let input = "mi klama .i mi cusku lu do cadzu li'u .i di'u jitfa";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let dihu = nth_span_key(input, "di'u", 0);
+            let quote_statement = nth_span_key(input, "do cadzu", 0);
+            let edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::Utterance && edge.source == dihu)
+                .expect("outer di'u has an utterance edge");
+
+            assert!(
+                !matches!(&edge.target, FixtureReferenceTarget::ResolvedNode { node } if *node == quote_statement),
+                "outer di'u must not resolve to the quoted statement"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_quote_pending_dihe_does_not_resolve_to_outer_following_statement() {
+        run_reference_test(|| {
+            let input = "mi cusku lu di'e jitfa li'u .i do cadzu";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let dihe = nth_span_key(input, "di'e", 0);
+            let edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::Utterance && edge.source == dihe)
+                .expect("quoted di'e has an utterance edge");
+
+            assert_unresolved(&edge.target);
         });
     }
 

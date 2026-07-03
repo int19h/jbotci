@@ -37,10 +37,11 @@ pub(super) fn cmavo<'tokens>(cmavo: Cmavo) -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         selmaho.name(),
         selmaho.name(),
         vec![new!(SyntaxExpectedToken::Selmaho(selmaho))],
+        ExperimentalCmavoContext::Selmaho(selmaho),
         move |word, state| parser_word_is_selmaho(state, word, selmaho),
     )
 }
@@ -97,12 +98,13 @@ pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         "KOhA sumti",
         "KOhA sumti",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::ProSumti,
         ))],
+        ExperimentalCmavoContext::Selmaho(Selmaho::Koha),
         |word, state| parser_word_is_selmaho(state, word, Selmaho::Koha),
     )
 }
@@ -170,12 +172,13 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         "lerfu",
         "LERFU",
         vec![new!(SyntaxExpectedToken::WordCategory(
             SyntaxWordCategory::LetterWord,
         ))],
+        ExperimentalCmavoContext::Selmaho(Selmaho::By),
         |word, _state| is_letter_word(word),
     )
 }
@@ -187,6 +190,25 @@ pub(super) fn token_matching<'tokens>(
     label: &'static str,
     debug_label: &'static str,
     expected: Vec<SyntaxExpectedToken>,
+    bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
+) -> BoxedParser<'tokens, Token> {
+    token_matching_with_experimental_context(
+        label,
+        debug_label,
+        expected,
+        ExperimentalCmavoContext::Label(label),
+        bridi,
+    )
+}
+
+#[requires(!label.is_empty())]
+#[requires(!debug_label.is_empty())]
+#[ensures(true)]
+pub(super) fn token_matching_with_experimental_context<'tokens>(
+    label: &'static str,
+    debug_label: &'static str,
+    expected: Vec<SyntaxExpectedToken>,
+    experimental_context: ExperimentalCmavoContext,
     bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
     assert!(
@@ -205,7 +227,7 @@ pub(super) fn token_matching<'tokens>(
             {
                 let span = word.core_word().byte_range().unwrap_or(0..0);
                 let state: &mut ParserState = input.state();
-                warn_experimental_cmavo(state, label, &word);
+                warn_experimental_cmavo(state, experimental_context, &word);
                 state.trace_event(
                     TraceLevel::Primitives,
                     TraceEventKind::TerminalSuccess,
@@ -261,6 +283,15 @@ pub(super) fn token_matching<'tokens>(
     .boxed()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Label(_) => true)]
+#[invariant(::Selmaho(_) => true)]
+pub(super) enum ExperimentalCmavoContext {
+    Label(&'static str),
+    Selmaho(Selmaho),
+}
+
 #[requires(!expected.is_empty())]
 #[ensures(!ret.is_empty())]
 fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
@@ -274,54 +305,84 @@ fn expected_token_detail(expected: &[SyntaxExpectedToken]) -> String {
     )
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn warn_experimental_cmavo(state: &mut ParserState, label: &str, word: &Token) {
+fn warn_experimental_cmavo(
+    state: &mut ParserState,
+    context: ExperimentalCmavoContext,
+    word: &Token,
+) {
     if let Some(cmavo) = parser_word_cmavo(state, word)
-        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+        && let Some(construct) = experimental_construct_for_cmavo(context, cmavo)
     {
         state.warn(construct, word);
     }
     warn_experimental_indicators(state, word);
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn experimental_construct_for_cmavo(label: &str, cmavo: Cmavo) -> Option<ExperimentalConstruct> {
-    match (label, cmavo) {
-        ("COI", Cmavo::Ahoi | Cmavo::Ohai) => {
+fn experimental_construct_for_cmavo(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> Option<ExperimentalConstruct> {
+    match (context, cmavo) {
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Coi), Cmavo::Ahoi | Cmavo::Ohai) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryCoiVocative)
         }
-        ("DOI", Cmavo::Dahoi) => Some(ExperimentalConstruct::ExperimentalDictionaryDoiVocative),
-        ("FAhA", Cmavo::Xeihe) => Some(ExperimentalConstruct::ExperimentalDictionaryFahaTag),
-        ("PA", Cmavo::Suhai | Cmavo::Xehe) => {
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Doi), Cmavo::Dahoi) => {
+            Some(ExperimentalConstruct::ExperimentalDictionaryDoiVocative)
+        }
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Faha), Cmavo::Xeihe) => {
+            Some(ExperimentalConstruct::ExperimentalDictionaryFahaTag)
+        }
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Pa), Cmavo::Suhai | Cmavo::Xehe) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryPaNumber)
         }
-        ("UI" | "UI3a", Cmavo::Lihoi) => {
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Ui | Selmaho::Ui3a), Cmavo::Lihoi) => {
             Some(ExperimentalConstruct::ExperimentalDictionaryUiIndicator)
         }
-        ("NOIhA", Cmavo::Noihoha) => Some(ExperimentalConstruct::ExperimentalZantufaCmavo),
-        ("NOIhA", _) => Some(ExperimentalConstruct::ExperimentalNoihaAdverbial),
-        ("SOI", _) => Some(ExperimentalConstruct::ExperimentalSoiAdverbial),
-        ("LOhOI", _) => Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription),
-        ("cmavo", Cmavo::Fihoi) => Some(ExperimentalConstruct::ExperimentalFihoiAdverbial),
-        ("cmavo", Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Noiha), Cmavo::Noihoha) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
+        }
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Noiha), _) => {
+            Some(ExperimentalConstruct::ExperimentalNoihaAdverbial)
+        }
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Soi), _) => {
+            Some(ExperimentalConstruct::ExperimentalSoiAdverbial)
+        }
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi), _) => {
+            Some(ExperimentalConstruct::ExperimentalLohOiBridiDescription)
+        }
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Fihoi) => {
+            Some(ExperimentalConstruct::ExperimentalFihoiAdverbial)
+        }
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
             Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
         }
-        ("cmavo", Cmavo::Nohoi) => {
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Nohoi) => {
             Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause)
         }
-        ("cmavo", Cmavo::Bohei | Cmavo::Gohoi | Cmavo::Tahai | Cmavo::Zehoi) => {
-            Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit)
+        (
+            ExperimentalCmavoContext::Label("cmavo"),
+            Cmavo::Bohei | Cmavo::Gohoi | Cmavo::Tahai | Cmavo::Zehoi,
+        ) => Some(ExperimentalConstruct::ExperimentalGohoiSelbriUnit),
+        (ExperimentalCmavoContext::Selmaho(Selmaho::Lihau | Selmaho::Luhei), _) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit)
         }
-        ("LIhAU" | "LUhEI", _) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
-        ("cmavo", Cmavo::Luhei) => Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit),
-        ("cmavo", Cmavo::Muhoi) => Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit),
-        ("cmavo", Cmavo::Xohi) => Some(ExperimentalConstruct::ExperimentalXohiTagSelbri),
-        _ if is_general_experimental_cmavo_for_context(label, cmavo) => {
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Luhei) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaLuheiSelbriUnit)
+        }
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Muhoi) => {
+            Some(ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit)
+        }
+        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Xohi) => {
+            Some(ExperimentalConstruct::ExperimentalXohiTagSelbri)
+        }
+        _ if is_general_experimental_cmavo_for_context(context, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalCmavo)
         }
-        _ if is_zantufa_experimental_cmavo_for_context(label, cmavo) => {
+        _ if is_zantufa_experimental_cmavo_for_context(context, cmavo) => {
             Some(ExperimentalConstruct::ExperimentalZantufaCmavo)
         }
         _ => None,
@@ -353,32 +414,35 @@ fn warn_experimental_indicators_inner(
 
     warn_experimental_indicators_inner(state, base, context);
 
-    if let Some(label) = indicator_cmavo_context(indicator)
+    if let Some(cmavo_context) = indicator_cmavo_context(indicator)
         && let Some(cmavo) = indicator.cmavo()
-        && let Some(construct) = experimental_construct_for_cmavo(label, cmavo)
+        && let Some(construct) = experimental_construct_for_cmavo(cmavo_context, cmavo)
     {
         state.warn_word(construct, context, indicator);
     }
 
     if let Some(nai) = nai
-        && let Some(construct) = experimental_construct_for_cmavo("NAI", Cmavo::Nai)
+        && let Some(construct) = experimental_construct_for_cmavo(
+            ExperimentalCmavoContext::Selmaho(Selmaho::Nai),
+            Cmavo::Nai,
+        )
     {
         state.warn_word(construct, context, nai);
     }
 }
 
 #[requires(true)]
-#[ensures(ret.is_none_or(|label| !label.is_empty()))]
-fn indicator_cmavo_context(indicator: &Word) -> Option<&'static str> {
+#[ensures(true)]
+fn indicator_cmavo_context(indicator: &Word) -> Option<ExperimentalCmavoContext> {
     let cmavo = indicator.cmavo()?;
     if cmavo.is_selmaho(Selmaho::Noi) {
-        Some("NOI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Noi))
     } else if cmavo.is_selmaho(Selmaho::Ui) {
-        Some("UI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Ui))
     } else if cmavo.is_selmaho(Selmaho::Cai) {
-        Some("CAI")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Cai))
     } else if cmavo == Cmavo::Y {
-        Some("Y")
+        Some(ExperimentalCmavoContext::Selmaho(Selmaho::Y))
     } else {
         None
     }
@@ -408,11 +472,14 @@ fn parser_word_is_selmaho(state: &mut ParserState, word: &Token, selmaho: Selmah
     parser_word_cmavo(state, word).is_some_and(|cmavo| selmaho.contains(cmavo))
 }
 
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
-    match label {
-        "BAI" => matches!(
+fn is_general_experimental_cmavo_for_context(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> bool {
+    match context {
+        ExperimentalCmavoContext::Selmaho(Selmaho::Bai) => matches!(
             cmavo,
             Cmavo::Behei
                 | Cmavo::Dehiha
@@ -424,21 +491,21 @@ fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Kihoi
                 | Cmavo::Kohau
         ),
-        "BY" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::By) => matches!(
             cmavo,
             Cmavo::Ahy | Cmavo::Ehy | Cmavo::Ihy | Cmavo::Iy | Cmavo::Ohy | Cmavo::Uhy | Cmavo::Uy
         ),
-        "CAhA" => matches!(cmavo, Cmavo::Bihai),
-        "COI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Caha) => matches!(cmavo, Cmavo::Bihai),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Coi) => matches!(
             cmavo,
             Cmavo::Cohoi | Cmavo::Dihai | Cmavo::Kihai | Cmavo::Sahei
         ),
-        "KOhA" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Koha) => matches!(
             cmavo,
             Cmavo::Mihai | Cmavo::Nauho | Cmavo::Nauhu | Cmavo::Xai | Cmavo::Zuhai
         ),
-        "LAhE" => matches!(cmavo, Cmavo::Zohei),
-        "LE" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(cmavo, Cmavo::Zohei),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Le) => matches!(
             cmavo,
             Cmavo::Leihe
                 | Cmavo::Leihi
@@ -447,18 +514,24 @@ fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Mohoi
                 | Cmavo::Moihoi
         ),
-        "ME" => matches!(cmavo, Cmavo::Mehau),
-        "MOI" => matches!(cmavo, Cmavo::Ceiha),
-        "NAI" => matches!(cmavo, Cmavo::Jahai),
-        "NAhE" => matches!(cmavo, Cmavo::Nahei),
-        "NU" => matches!(cmavo, Cmavo::Kaihu | Cmavo::Poihi | Cmavo::Xehei),
-        "PA" => matches!(cmavo, Cmavo::Rohoi | Cmavo::Suhoi | Cmavo::Xohe),
-        "ROI" => matches!(cmavo, Cmavo::Muhei | Cmavo::Vahei),
-        "SE" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Me) => matches!(cmavo, Cmavo::Mehau),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Moi) => matches!(cmavo, Cmavo::Ceiha),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nai) => matches!(cmavo, Cmavo::Jahai),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nahe) => matches!(cmavo, Cmavo::Nahei),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nu) => {
+            matches!(cmavo, Cmavo::Kaihu | Cmavo::Poihi | Cmavo::Xehei)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Pa) => {
+            matches!(cmavo, Cmavo::Rohoi | Cmavo::Suhoi | Cmavo::Xohe)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Roi) => {
+            matches!(cmavo, Cmavo::Muhei | Cmavo::Vahei)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Se) => matches!(
             cmavo,
             Cmavo::Suhei | Cmavo::Tohai | Cmavo::Vohai | Cmavo::Xohai
         ),
-        "UI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Ui) => matches!(
             cmavo,
             Cmavo::Aihi
                 | Cmavo::Ehei
@@ -470,9 +543,9 @@ fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Uehi
                 | Cmavo::Xoho
         ),
-        "VUhU" => matches!(cmavo, Cmavo::Joihi),
-        "XI" => matches!(cmavo, Cmavo::Tehai),
-        "ZAhO" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Vuhu) => matches!(cmavo, Cmavo::Joihi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Xi) => matches!(cmavo, Cmavo::Tehai),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zaho) => matches!(
             cmavo,
             Cmavo::Cohaha
                 | Cmavo::Cohauha
@@ -481,16 +554,19 @@ fn is_general_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Xaho
                 | Cmavo::Xohu
         ),
-        "ZO" => matches!(cmavo, Cmavo::Mahoi),
-        "ZOhU" => matches!(cmavo, Cmavo::Cehai),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zo) => matches!(cmavo, Cmavo::Mahoi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zohu) => matches!(cmavo, Cmavo::Cehai),
         _ => false,
     }
 }
-#[requires(!label.is_empty())]
+#[requires(true)]
 #[ensures(true)]
-fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool {
-    match label {
-        "BAI" => matches!(
+fn is_zantufa_experimental_cmavo_for_context(
+    context: ExperimentalCmavoContext,
+    cmavo: Cmavo,
+) -> bool {
+    match context {
+        ExperimentalCmavoContext::Selmaho(Selmaho::Bai) => matches!(
             cmavo,
             Cmavo::Baihau
                 | Cmavo::Behau
@@ -563,7 +639,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Zauhu
                 | Cmavo::Zuhai
         ),
-        "BY" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::By) => matches!(
             cmavo,
             Cmavo::A
                 | Cmavo::Cauhe
@@ -603,7 +679,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::O
                 | Cmavo::U
         ),
-        "COI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Coi) => matches!(
             cmavo,
             Cmavo::Feihe
                 | Cmavo::Gauhi
@@ -614,14 +690,24 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Rehei
                 | Cmavo::Xuhei
         ),
-        "CUhE" => matches!(cmavo, Cmavo::Bahau | Cmavo::Puhau),
-        "DAhO" => matches!(cmavo, Cmavo::Daiho | Cmavo::Dohai),
-        "DOI" => matches!(cmavo, Cmavo::Dahei),
-        "FAhA" => matches!(cmavo, Cmavo::Duhoi | Cmavo::Zuhau),
-        "GOI" => matches!(cmavo, Cmavo::Voihe),
-        "GOhA" => matches!(cmavo, Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Xehu),
-        "JAI" => matches!(cmavo, Cmavo::Jahei | Cmavo::Johai),
-        "JOI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Cuhe) => {
+            matches!(cmavo, Cmavo::Bahau | Cmavo::Puhau)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Daho) => {
+            matches!(cmavo, Cmavo::Daiho | Cmavo::Dohai)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Doi) => matches!(cmavo, Cmavo::Dahei),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Faha) => {
+            matches!(cmavo, Cmavo::Duhoi | Cmavo::Zuhau)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Goi) => matches!(cmavo, Cmavo::Voihe),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Goha) => {
+            matches!(cmavo, Cmavo::Ceihi | Cmavo::Gaiho | Cmavo::Xehu)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Jai) => {
+            matches!(cmavo, Cmavo::Jahei | Cmavo::Johai)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Joi) => matches!(
             cmavo,
             Cmavo::Jauhu
                 | Cmavo::Jehau
@@ -632,7 +718,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Johuhu
                 | Cmavo::Joihe
         ),
-        "KOhA" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Koha) => matches!(
             cmavo,
             Cmavo::Dahei
                 | Cmavo::Deiha
@@ -664,7 +750,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Tuhau
                 | Cmavo::Zohei
         ),
-        "LAhE" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lahe) => matches!(
             cmavo,
             Cmavo::Loihe
                 | Cmavo::Loihi
@@ -675,26 +761,32 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Tehoi
                 | Cmavo::Voihe
         ),
-        "LE" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Le) => matches!(
             cmavo,
             Cmavo::Lahei | Cmavo::Lehei | Cmavo::Lohei | Cmavo::Mehei | Cmavo::Rihoi | Cmavo::Zohau
         ),
-        "LI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Li) => matches!(
             cmavo,
             Cmavo::Bohai | Cmavo::Lihai | Cmavo::Lihei | Cmavo::Maiho
         ),
-        "LOhOI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lohoi) => matches!(
             cmavo,
             Cmavo::Lohoi | Cmavo::Mauha | Cmavo::Xauha | Cmavo::Xuhu
         ),
-        "LU" => matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai),
-        "ME" => matches!(cmavo, Cmavo::Xohi),
-        "MOI" => matches!(cmavo, Cmavo::Moiho),
-        "MOhE" => matches!(cmavo, Cmavo::Boihau),
-        "NAhE" => matches!(cmavo, Cmavo::Dehai | Cmavo::Nohei),
-        "NOI" => matches!(cmavo, Cmavo::Nohoi | Cmavo::Pohoi | Cmavo::Voihi),
-        "NOIhA" => matches!(cmavo, Cmavo::Noihoha),
-        "NU" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Lu) => {
+            matches!(cmavo, Cmavo::Lahau | Cmavo::Tuhai)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Me) => matches!(cmavo, Cmavo::Xohi),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Moi) => matches!(cmavo, Cmavo::Moiho),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Mohe) => matches!(cmavo, Cmavo::Boihau),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nahe) => {
+            matches!(cmavo, Cmavo::Dehai | Cmavo::Nohei)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Noi) => {
+            matches!(cmavo, Cmavo::Nohoi | Cmavo::Pohoi | Cmavo::Voihi)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Noiha) => matches!(cmavo, Cmavo::Noihoha),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Nu) => matches!(
             cmavo,
             Cmavo::Jahoi
                 | Cmavo::Kahai
@@ -704,7 +796,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Suhai
                 | Cmavo::Zahai
         ),
-        "PA" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Pa) => matches!(
             cmavo,
             Cmavo::Duhei
                 | Cmavo::Faihu
@@ -719,16 +811,24 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Xoihi
                 | Cmavo::Zahai
         ),
-        "ROI" => matches!(cmavo, Cmavo::Bahoi | Cmavo::Dehei | Cmavo::Xuhau),
-        "SE" => matches!(cmavo, Cmavo::Dehai | Cmavo::Nahoi),
-        "SEI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Roi) => {
+            matches!(cmavo, Cmavo::Bahoi | Cmavo::Dehei | Cmavo::Xuhau)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Se) => {
+            matches!(cmavo, Cmavo::Dehai | Cmavo::Nahoi)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Sei) => matches!(
             cmavo,
             Cmavo::Saihe | Cmavo::Seihe | Cmavo::Soihe | Cmavo::Suhoi
         ),
-        "SEhU" => matches!(cmavo, Cmavo::Xehau),
-        "TO" => matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi),
-        "TOI" => matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho),
-        "UI" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Sehu) => matches!(cmavo, Cmavo::Xehau),
+        ExperimentalCmavoContext::Selmaho(Selmaho::To) => {
+            matches!(cmavo, Cmavo::Mauhe | Cmavo::Noihi)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Toi) => {
+            matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Ui) => matches!(
             cmavo,
             Cmavo::Ahai
                 | Cmavo::Auhau
@@ -788,7 +888,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Zahoha
                 | Cmavo::Zohoi
         ),
-        "UI3a" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Ui3a) => matches!(
             cmavo,
             Cmavo::Ahai
                 | Cmavo::Auhau
@@ -848,7 +948,7 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Zahoha
                 | Cmavo::Zohoi
         ),
-        "VUhU" => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Vuhu) => matches!(
             cmavo,
             Cmavo::Dehoha
                 | Cmavo::Fehaha
@@ -859,9 +959,13 @@ fn is_zantufa_experimental_cmavo_for_context(label: &str, cmavo: Cmavo) -> bool 
                 | Cmavo::Pihai
                 | Cmavo::Sahiha
         ),
-        "XI" => matches!(cmavo, Cmavo::Fauhe | Cmavo::Xihe | Cmavo::Xihi),
-        "Y" => matches!(cmavo, Cmavo::Ieho),
-        "ZOhU" => matches!(cmavo, Cmavo::Gehai | Cmavo::Kehau),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Xi) => {
+            matches!(cmavo, Cmavo::Fauhe | Cmavo::Xihe | Cmavo::Xihi)
+        }
+        ExperimentalCmavoContext::Selmaho(Selmaho::Y) => matches!(cmavo, Cmavo::Ieho),
+        ExperimentalCmavoContext::Selmaho(Selmaho::Zohu) => {
+            matches!(cmavo, Cmavo::Gehai | Cmavo::Kehau)
+        }
         _ => false,
     }
 }

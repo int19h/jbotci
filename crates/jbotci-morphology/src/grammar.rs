@@ -953,11 +953,7 @@ impl<'a> Segmenter<'a> {
             let replacement = match self.next_sa_base_segment() {
                 Ok(replacement) => replacement,
                 Err(error @ MorphologyError::UnterminatedZoiQuote { .. }) => return Err(error),
-                Err(_) => {
-                    acc.clear();
-                    self.index = self.chars.len();
-                    return Ok(());
-                }
+                Err(error) => return Err(error),
             };
             if replacement.len() != 1 {
                 for word in replacement {
@@ -1096,7 +1092,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(end, _, start)| *end <= *start)))]
     fn find_zoi_close(
         &mut self,
         opening_delimiter: &Word,
@@ -1189,8 +1185,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[ensures(ret.as_ref().is_err() || self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(ret.is_err() || self.index <= self.chars.len())]
     fn skip_magic_noise(&mut self, keep_y_before_bu: bool) -> Result<bool, MorphologyError> {
         loop {
             let before = self.index;
@@ -1592,7 +1588,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|span| span.byte_start <= span.byte_end && span.char_start <= span.char_end))]
     fn source_span(&self, start: usize, end: usize) -> Result<SourceSpan, MorphologyError> {
         SourceSpan::new(
             self.source_id.clone(),
@@ -1605,7 +1601,7 @@ impl<'a> Segmenter<'a> {
     }
 
     #[requires(start <= end && end <= self.chars.len())]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|verbatim| verbatim.span.char_start == start && verbatim.span.char_end == end))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|verbatim| verbatim.span.char_start == start && verbatim.span.char_end == end))]
     fn verbatim(&self, start: usize, end: usize) -> Result<Verbatim, MorphologyError> {
         Ok(Verbatim::new(
             self.source_span(start, end)?,
@@ -1867,8 +1863,10 @@ struct StreamingWordCandidate {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Selmaho(_) => true)]
-enum SAMatchTag<'a> {
-    Selmaho(&'a str),
+#[invariant(::ExperimentalQuoteSelmaho(_) => true)]
+enum SAMatchTag {
+    Selmaho(Selmaho),
+    ExperimentalQuoteSelmaho(&'static str),
     Brivla,
     Cmevla,
 }
@@ -1989,37 +1987,37 @@ fn su_boundary_index(acc: &[WordLike]) -> usize {
 
 #[requires(true)]
 #[ensures(true)]
-fn sa_match_tag<'a>(options: &MorphologyOptions, word: &'a WordLike) -> Option<SAMatchTag<'a>> {
+fn sa_match_tag(options: &MorphologyOptions, word: &WordLike) -> Option<SAMatchTag> {
     match word.as_data() {
         data!(WordLike::PlainWord(word)) => match word.kind() {
-            WordKind::Cmavo => word.selmaho().map(SAMatchTag::Selmaho),
+            WordKind::Cmavo => word.selmaho_kind().map(SAMatchTag::Selmaho),
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => Some(SAMatchTag::Brivla),
             WordKind::Cmevla if options.cmevla_as_relation_words => Some(SAMatchTag::Brivla),
             WordKind::Cmevla => Some(SAMatchTag::Cmevla),
         },
-        data!(WordLike::QuotedWord { .. }) => Some(SAMatchTag::Selmaho("ZO")),
+        data!(WordLike::QuotedWord { .. }) => Some(SAMatchTag::Selmaho(Selmaho::Zo)),
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => {
-            zoi.selmaho().map(SAMatchTag::Selmaho)
+            zoi.selmaho_kind().map(SAMatchTag::Selmaho)
         }
-        data!(WordLike::QuotedWords { .. }) => Some(SAMatchTag::Selmaho("LOhU")),
+        data!(WordLike::QuotedWords { .. }) => Some(SAMatchTag::Selmaho(Selmaho::Lohu)),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => {
             single_word_quote_marker_sa_tag(marker)
         }
-        data!(WordLike::LerfuWord { .. }) => Some(SAMatchTag::Selmaho("BY")),
+        data!(WordLike::LerfuWord { .. }) => Some(SAMatchTag::Selmaho(Selmaho::By)),
         data!(WordLike::ZeiCompound { .. }) => Some(SAMatchTag::Brivla),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag<'static>> {
+fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag> {
     match marker.cmavo()? {
-        Cmavo::Zohoi => Some(SAMatchTag::Selmaho("ZOhOI")),
-        Cmavo::Lahoi => Some(SAMatchTag::Selmaho("LAhOI")),
-        Cmavo::Rahoi => Some(SAMatchTag::Selmaho("RAhOI")),
-        Cmavo::Mehoi => Some(SAMatchTag::Selmaho("MEhOI")),
+        Cmavo::Zohoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("ZOhOI")),
+        Cmavo::Lahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("LAhOI")),
+        Cmavo::Rahoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("RAhOI")),
+        Cmavo::Mehoi => Some(SAMatchTag::ExperimentalQuoteSelmaho("MEhOI")),
         Cmavo::Gohoi | Cmavo::Zehoi | Cmavo::Tahai | Cmavo::Bohei => {
-            Some(SAMatchTag::Selmaho("GOhOI"))
+            Some(SAMatchTag::ExperimentalQuoteSelmaho("GOhOI"))
         }
         _ => None,
     }
@@ -2030,7 +2028,7 @@ fn single_word_quote_marker_sa_tag(marker: &Word) -> Option<SAMatchTag<'static>>
 fn find_nth_matching_word_index(
     options: &MorphologyOptions,
     count: usize,
-    target: SAMatchTag<'_>,
+    target: SAMatchTag,
     acc: &[WordLike],
 ) -> Option<usize> {
     let mut remaining = count;
@@ -3406,6 +3404,23 @@ mod tests {
             });
             assert_eq!(invalid_error_detail(&error), Some(&expected), "{source}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sa_propagates_non_zoi_replacement_errors() {
+        let error =
+            segment_words_with_modifiers("mi sa biryrka", &MorphologyOptions::default(), None)
+                .expect_err("invalid SA replacement should surface its own morphology error");
+
+        assert_invalid_error(
+            &error,
+            MorphologyErrorKind::InvalidLujvo,
+            6,
+            13,
+            Some(MorphologyContextKind::Lujvo),
+        );
     }
 
     #[test]

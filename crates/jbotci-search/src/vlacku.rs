@@ -16,6 +16,7 @@ use regex::Regex;
 
 pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
+pub const INVALID_LOJBAN_WORD_MESSAGE_PREFIX: &str = "Invalid Lojban word: ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -568,7 +569,9 @@ fn cards_for_valsi(
         return cards_for_valsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     if !entries.is_empty() {
@@ -619,7 +622,9 @@ fn cards_for_rafsi(
         return cards_for_rafsi_pattern(dictionary, query.trim(), options);
     }
 
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let cards = filter_and_limit(
         dictionary
@@ -649,7 +654,9 @@ fn cards_for_lujvo(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    let query = normalize_exact_lojban_query(query);
+    let Some(query) = normalize_exact_lojban_query(query) else {
+        return invalid_lojban_word_output(query);
+    };
     let query = query.as_str();
     let normalized = normalize_lookup_query(query);
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
@@ -660,7 +667,7 @@ fn cards_for_lujvo(
         let cards = match classify_exact_word(query, &normalized) {
             Some(classification) => vec![unknown_card(classification, decomposition.as_ref())],
             None => {
-                return invalid_output(format!("Invalid Lojban word: {query}"));
+                return invalid_lojban_word_output(query);
             }
         };
         runtime_decomposition = decomposition;
@@ -866,9 +873,16 @@ fn found_or_missing(cards: Vec<VlackuCard>) -> VlackuSearchOutput {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty() || query.trim().is_empty())]
-fn normalize_exact_lojban_query(query: &str) -> String {
-    normalize_lookup_query(&normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()))
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || query.trim().is_empty()))]
+fn normalize_exact_lojban_query(query: &str) -> Option<String> {
+    let normalized = normalize_lookup_query(
+        &normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned()),
+    );
+    if normalized.is_empty() && !query.trim().is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
 }
 
 #[requires(true)]
@@ -879,6 +893,12 @@ fn invalid_output(message: String) -> VlackuSearchOutput {
         outcome: VlackuOutcome::Invalid,
         diagnostics: vec![message],
     }
+}
+
+#[requires(true)]
+#[ensures(ret.outcome == VlackuOutcome::Invalid)]
+fn invalid_lojban_word_output(query: &str) -> VlackuSearchOutput {
+    invalid_output(format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}{query}"))
 }
 
 #[requires(true)]
@@ -907,7 +927,7 @@ fn missing_exact_output(
                 diagnostics: Vec::new(),
             }
         }
-        None => invalid_output(format!("Invalid Lojban word: {query}")),
+        None => invalid_lojban_word_output(query),
     }
 }
 
@@ -1500,7 +1520,7 @@ impl GlobPattern {
     #[requires(true)]
     #[ensures(true)]
     fn matches(&self, target: &str) -> bool {
-        glob_matches_from(&self.tokens, 0, &target.chars().collect::<Vec<_>>(), 0)
+        glob_matches(&self.tokens, &target.chars().collect::<Vec<_>>())
     }
 }
 
@@ -1572,10 +1592,18 @@ fn compile_glob_pattern(pattern: &str) -> Result<GlobPattern, String> {
             '$' => tokens.push(GlobToken::Consonant),
             '@' => tokens.push(GlobToken::Vowel),
             '?' => tokens.push(GlobToken::AnyOne),
-            '*' => tokens.push(GlobToken::AnyMany),
+            '*' => {
+                if tokens.last() != Some(&GlobToken::AnyMany) {
+                    tokens.push(GlobToken::AnyMany);
+                }
+            }
             value => {
                 if let Some(normalized) = normalize_glob_literal(value) {
                     tokens.push(GlobToken::Literal(normalized));
+                } else {
+                    return Err(format!(
+                        "Invalid glob pattern `{pattern}`: unsupported character `{value}`."
+                    ));
                 }
             }
         }
@@ -1636,27 +1664,31 @@ fn entry_has_matching_rafsi_pattern(entry: &DictionaryEntry<'_>, pattern: &Exact
             })
 }
 
-#[requires(token_index <= tokens.len())]
-#[requires(target_index <= target.len())]
+#[requires(true)]
 #[ensures(true)]
-fn glob_matches_from(
-    tokens: &[GlobToken],
-    token_index: usize,
-    target: &[char],
-    target_index: usize,
-) -> bool {
-    if token_index == tokens.len() {
-        return target_index == target.len();
-    }
-    match tokens[token_index] {
-        GlobToken::AnyMany => (target_index..=target.len())
-            .any(|next_index| glob_matches_from(tokens, token_index + 1, target, next_index)),
-        token => {
-            target_index < target.len()
-                && glob_token_matches(token, target[target_index])
-                && glob_matches_from(tokens, token_index + 1, target, target_index + 1)
+fn glob_matches(tokens: &[GlobToken], target: &[char]) -> bool {
+    let mut previous = vec![false; target.len() + 1];
+    previous[0] = true;
+
+    for token in tokens {
+        let mut current = vec![false; target.len() + 1];
+        match token {
+            GlobToken::AnyMany => {
+                current[0] = previous[0];
+                for target_index in 1..=target.len() {
+                    current[target_index] = previous[target_index] || current[target_index - 1];
+                }
+            }
+            token => {
+                for target_index in 1..=target.len() {
+                    current[target_index] = previous[target_index - 1]
+                        && glob_token_matches(*token, target[target_index - 1]);
+                }
+            }
         }
+        previous = current;
     }
+    previous[target.len()]
 }
 
 #[requires(true)]
@@ -1880,6 +1912,42 @@ mod tests {
             },
         );
         assert!(broad.cards.iter().any(|card| card.word == "klama"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_glob_collapses_repeated_stars_and_matches_with_dp() {
+        let repeated_stars = "*".repeat(512);
+        let pattern =
+            compile_glob_pattern(&format!("{repeated_stars}x")).expect("valid glob pattern");
+
+        assert_eq!(
+            pattern.tokens,
+            vec![GlobToken::AnyMany, GlobToken::Literal('x')]
+        );
+        assert!(pattern.matches(&format!("{}x", "a".repeat(512))));
+        assert!(!pattern.matches(&"a".repeat(512)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn exact_valsi_glob_reports_invalid_characters() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::Valsi("kl!m*".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::Invalid);
+        assert!(result.cards.is_empty());
+        assert!(
+            result
+                .diagnostics
+                .first()
+                .is_some_and(|message| message.contains("Invalid glob pattern"))
+        );
     }
 
     #[test]
@@ -2167,6 +2235,31 @@ mod tests {
                 .first()
                 .is_some_and(|message| message.contains("Invalid regex pattern"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn punctuation_only_exact_queries_are_invalid() {
+        for request in [
+            VlackuRequest::Valsi("!!!".to_owned()),
+            VlackuRequest::Rafsi("!!!".to_owned()),
+            VlackuRequest::Lujvo("!!!".to_owned()),
+        ] {
+            let result = run_vlacku_requests(
+                jbotci_dictionary_data::english(),
+                &[request],
+                &VlackuSearchOptions::default(),
+            );
+
+            assert_eq!(result.outcome, VlackuOutcome::Invalid);
+            assert!(result.cards.is_empty(), "{:?}", result.cards);
+            let expected = format!("{INVALID_LOJBAN_WORD_MESSAGE_PREFIX}!!!");
+            assert_eq!(
+                result.diagnostics.first().map(String::as_str),
+                Some(expected.as_str())
+            );
+        }
     }
 
     #[test]

@@ -310,7 +310,7 @@ pub struct SemanticGraph {
 
 impl SemanticGraph {
     #[requires(objects.contains_key(&root))]
-    #[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
     pub fn new(
         root: SemanticObjectId,
         objects: BTreeMap<SemanticObjectId, SemanticObject>,
@@ -347,7 +347,7 @@ impl SemanticGraph {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
     pub fn to_json_string(&self, indent: usize) -> Result<String, serde_json::Error> {
         if indent == 0 {
             serde_json::to_string(self)

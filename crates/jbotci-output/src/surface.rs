@@ -68,7 +68,7 @@ pub fn phoneme_render_options_for_script(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty() || text.is_empty()) || ret.as_ref().err().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty() || text.is_empty()) || ret.is_err())]
 pub fn render_lojban_text_for_script(
     text: &str,
     script: LojbanScript,
@@ -78,7 +78,7 @@ pub fn render_lojban_text_for_script(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty() || text.is_empty()) || ret.as_ref().err().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty() || text.is_empty()) || ret.is_err())]
 pub fn render_lojban_text_for_script_with_options(
     text: &str,
     script: LojbanScript,

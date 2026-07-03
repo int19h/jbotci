@@ -7,19 +7,9 @@ corpus = "camxes"
 entry-id = "15911"
 
 [expectations.morphology]
-status = "success"
-raw = "[]"
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.vowel-hiatus", byte-span = [6, 8], source-text = "ea", message = "vowels in hiatus are not allowed" }]
 
 [expectations.syntax]
 status = "failure"
-raw = "RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: None })"
-xfail = { source = "camxes-corpus", reason = "v0 syntax status differs from camxes corpus expectation", accepted-status = "success" }
-
-[expectations.output.vlasei]
-brackets = ""
-tree = "[]"
-json = "[]"
-
-[expectations.output.gentufa]
-tree = "Text {}"
-json = '{"RegularText":{}}'
+diagnostics = [{ severity = "error", code = "morphology.vowel-hiatus", byte-span = [6, 8], source-text = "ea", message = "vowels in hiatus are not allowed" }]

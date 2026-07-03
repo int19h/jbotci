@@ -7,7 +7,9 @@ use std::collections::HashMap;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
-use jbotci_morphology::{PhonemeRenderOptions, Word, WordKind, WordLike, WordLikeData};
+use jbotci_morphology::{
+    Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+};
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
     render_loose_latin_text_for_script,
@@ -20,12 +22,12 @@ use jbotci_output::{
 };
 use jbotci_semantics::references::{GeneratedSyntaxIndex, RawSyntaxNodeId};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::WithIndicators;
 use jbotci_syntax::generated_model::{
     self, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
 use jbotci_syntax::tree::Token;
+use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field_ref};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 
@@ -441,6 +443,7 @@ struct GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
     stack: Vec<GeneratedBlockFrame>,
     root: Option<BlockTreeNode>,
     next_id: usize,
+    last_token_end_range: Option<WebSourceRange>,
 }
 
 impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
@@ -462,6 +465,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             next_id: syntax_index
                 .map(GeneratedSyntaxIndex::node_count)
                 .unwrap_or(0),
+            last_token_end_range: None,
         }
     }
 
@@ -576,6 +580,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         let Some(range) = range_from_spans(span_refs.iter().copied()) else {
             return;
         };
+        self.last_token_end_range = span_refs.iter().copied().last().map(end_range_from_span);
         let source_spans = span_refs.into_iter().cloned().collect::<Vec<_>>();
         let id = self.allocate_id();
         self.push_leaf_part(
@@ -595,6 +600,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
     fn push_word(&mut self, word: &Word) {
         let span = word.span().clone();
         let range = range_from_span(&span);
+        self.last_token_end_range = Some(end_range_from_span(&span));
         let id = self.allocate_id();
         self.push_leaf_part(
             BlockLeafPart {
@@ -605,6 +611,31 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
                 display_text: render_word(word, self.options),
             },
             vec![span],
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_elided_terminator(&mut self, field: jbotci_tree::FieldRef) {
+        if !self.options.show_elided {
+            return;
+        }
+        let Some(cmavo) = elidable_terminator_for_absent_field_ref(field) else {
+            return;
+        };
+        let Some(range) = self.last_token_end_range else {
+            return;
+        };
+        let id = self.allocate_id();
+        self.push_leaf_part(
+            BlockLeafPart {
+                id,
+                range,
+                is_elided: true,
+                raw_text: String::new(),
+                display_text: render_elided_cmavo(cmavo, self.options),
+            },
+            vec![source_span_from_range(range)],
         );
     }
 }
@@ -706,6 +737,12 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
         match atom {
             GeneratedSyntaxAtomRef::Token(token) => self.push_token(token),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, field: jbotci_tree::FieldRef) {
+        self.push_elided_terminator(field);
     }
 }
 
@@ -824,6 +861,19 @@ fn source_span_from_range(range: WebSourceRange) -> SourceSpan {
         range.char_end,
     )
     .expect("block ranges are ordered")
+}
+
+#[requires(span.byte_start <= span.byte_end)]
+#[requires(span.char_start <= span.char_end)]
+#[ensures(ret.byte_start == ret.byte_end)]
+#[ensures(ret.byte_start == span.byte_end)]
+fn end_range_from_span(span: &SourceSpan) -> WebSourceRange {
+    WebSourceRange {
+        byte_start: span.byte_end,
+        byte_end: span.byte_end,
+        char_start: span.char_end,
+        char_end: span.char_end,
+    }
 }
 
 #[requires(true)]
@@ -1635,9 +1685,11 @@ fn weighted_circular_mean_hue(values: &[(f64, usize)]) -> Option<f64> {
         x += radians.cos() * weight;
         y += radians.sin() * weight;
     }
-    let mut degrees = y.atan2(x).to_degrees();
-    if degrees < 0.0 {
-        degrees += 360.0;
+    let mut degrees = y.atan2(x).to_degrees().rem_euclid(360.0);
+    // Floating-point remainder can round a tiny negative angle to the upper
+    // boundary; hues are represented as the half-open range [0, 360).
+    if degrees >= 360.0 {
+        degrees = 0.0;
     }
     Some(degrees)
 }
@@ -1810,7 +1862,7 @@ fn token_kind_for_text(text: &str) -> Option<String> {
 }
 
 #[requires(true)]
-#[ensures(!ret.ends_with("Syntax"))]
+#[ensures((constructor.ends_with("Syntax") && ret.len() + "Syntax".len() == constructor.len()) || (!constructor.ends_with("Syntax") && ret == constructor))]
 pub fn syntax_constructor_name(constructor: &str) -> &str {
     constructor.strip_suffix("Syntax").unwrap_or(constructor)
 }
@@ -1821,7 +1873,10 @@ fn syntax_constructor_display_label<'a>(constructor: &'a str) -> &'a str {
     generated_model::GENERATED_MODEL_CONSTRUCTOR_LABELS
         .iter()
         .find_map(|(candidate, label)| (*candidate == constructor).then_some(*label))
-        .unwrap_or_else(|| syntax_constructor_name(constructor))
+        .unwrap_or_else(|| {
+            let label = syntax_constructor_name(constructor);
+            if label.is_empty() { "unknown" } else { label }
+        })
 }
 
 #[requires(true)]
@@ -1901,6 +1956,18 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
 fn render_word(word: &Word, options: &GentufaBlockOptions) -> String {
     let latin = visible_latin_word_surface(word, options.phonemes);
     render_latin_word_surface_for_script(options.script, word.kind(), &latin)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
+    let phonemes = Phonemes::from_canonical(cmavo.canonical_text().to_owned())
+        .expect("cmavo canonical text is valid phoneme text");
+    render_latin_word_surface_for_script(
+        options.script,
+        WordKind::Cmavo,
+        &phonemes.render(options.phonemes),
+    )
 }
 
 #[requires(true)]
@@ -2067,6 +2134,25 @@ mod tests {
             ])),
             "𝗆𝗅𝖾𝖼𝖺 𝖻𝖾𝗋𝗏𝗂"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn weighted_circular_mean_hue_stays_in_half_open_range() {
+        let hue = weighted_circular_mean_hue(&[(360.0, 1)]).expect("hue");
+
+        assert!((0.0..360.0).contains(&hue), "{hue}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_constructor_labels_degrade_to_non_empty_text() {
+        assert_eq!(syntax_constructor_name("FooSyntaxSyntax"), "FooSyntax");
+        assert_eq!(syntax_constructor_name("Syntax"), "");
+        assert_eq!(syntax_constructor_display_label("Syntax"), "unknown");
+        assert_eq!(syntax_constructor_display_label(""), "unknown");
     }
 
     #[test]

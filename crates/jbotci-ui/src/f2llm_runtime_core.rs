@@ -95,7 +95,7 @@ impl QwenByteBpeTokenizer {
     }
 
     #[requires(true)]
-    #[ensures(!ret.as_ref().is_ok_and(|ids| ids.is_empty()))]
+    #[ensures(ret.as_ref().is_ok_and(|ids| !ids.is_empty()) || ret.is_err())]
     pub fn encode_untruncated(&self, text: &str) -> Result<Vec<u32>, String> {
         let normalized = String::from(text).nfc().collect::<String>();
         let mut ids = Vec::new();

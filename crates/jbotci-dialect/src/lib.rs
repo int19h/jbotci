@@ -1159,8 +1159,8 @@ fn parse_dialect_definition_with_reference_resolver(
     Ok(definition_from_entries(entries))
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(entries, rest)| !entries.is_empty() || rest.is_empty()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(entries, rest)| !entries.is_empty() || rest.is_empty()))]
 fn parse_dialect_token_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -1178,8 +1178,8 @@ fn parse_dialect_token_entries<'a>(
     }
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() <= tokens.len()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() <= tokens.len()))]
 fn parse_entries<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     mut acc: Vec<DialectDefinitionEntry>,
@@ -1198,8 +1198,8 @@ fn parse_entries<'a>(
     }
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() < tokens.len()))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(_, rest)| rest.len() < tokens.len()))]
 fn parse_entry<'a>(
     reference_resolver: &dyn Fn(&str) -> Result<DialectDefinition, DialectError>,
     tokens: &'a [DialectToken],
@@ -1304,8 +1304,8 @@ fn parse_entry<'a>(
     }
 }
 
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|value| value.is_none_or(|(_, feature)| DialectFeature::all().contains(&feature))))]
 #[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.is_none_or(|(_, feature)| DialectFeature::all().contains(&feature))))]
 fn parse_feature_toggle_atom(
     atom_text: &str,
 ) -> Result<Option<(DialectFeatureToggle, DialectFeature)>, DialectError> {
@@ -1323,7 +1323,7 @@ fn parse_feature_toggle_atom(
 }
 
 #[requires(!raw_feature.is_empty(), "feature toggles must name a feature")]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|feature| DialectFeature::all().contains(feature)))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|feature| DialectFeature::all().contains(feature)))]
 fn parse_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectError> {
     let requested_name = strip_diacritics(raw_feature).to_ascii_uppercase();
     DialectFeature::all()
@@ -1508,12 +1508,17 @@ fn is_expansion_operator(op: &str) -> bool {
 }
 
 #[requires(!raw_word.is_empty(), "dialect words must not be empty")]
-#[ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|word| is_normalized_cmavo(word)))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|word| is_normalized_cmavo(word)))]
 fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
-    let normalized: String = raw_word
-        .chars()
-        .filter_map(normalize_dialect_char)
-        .collect();
+    let mut normalized = String::new();
+    for value in raw_word.chars() {
+        let Some(normalized_char) = normalize_dialect_char(value) else {
+            return Err(DialectError::new(format!(
+                "Dialect token contains unsupported character `{value}`: {raw_word}"
+            )));
+        };
+        normalized.push(normalized_char);
+    }
     parse_cmavo_form(&normalized).ok_or_else(|| {
         DialectError::new(format!(
             "Dialect token is not exactly one morphologically valid cmavo word: {raw_word}"
@@ -1967,6 +1972,17 @@ mod tests {
                 }),
             ]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_unmappable_dialect_word_characters() {
+        let error = parse_dialect_definition("((c%3e <-> ce))")
+            .expect_err("unsupported characters must not be dropped");
+
+        assert!(error.message().contains("unsupported character"), "{error}");
+        assert!(error.message().contains("c%3e"), "{error}");
     }
 
     #[test]

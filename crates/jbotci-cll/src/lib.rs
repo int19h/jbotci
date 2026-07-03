@@ -22,7 +22,13 @@ const PARAGRAPH_SEARCH_MIN_CHARS: usize = 200;
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
 static EMBEDDED_SITE: OnceLock<Result<CllSite, CllError>> = OnceLock::new();
+static CLL_IMPORT_METADATA: OnceLock<Result<CllImportMetadata, String>> = OnceLock::new();
 static CHRESTOMATHY_METADATA: OnceLock<Result<CllChrestomathyMetadata, String>> = OnceLock::new();
+
+const CLL_IMPORT_METADATA_TOML: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../vendor/cll-import-metadata.toml"
+));
 
 const CHRESTOMATHY_METADATA_TOML: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -187,6 +193,16 @@ struct CllChrestomathyMetadata {
     section: Vec<CllChrestomathySectionMetadata>,
 }
 
+#[invariant(!chrestomathy_chapter_id.is_empty())]
+#[invariant(!ebnf_section_id.is_empty())]
+#[invariant(!ebnf_symbols.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+struct CllImportMetadata {
+    chrestomathy_chapter_id: String,
+    ebnf_section_id: String,
+    ebnf_symbols: BTreeMap<String, String>,
+}
+
 #[invariant(!id.is_empty())]
 #[invariant(header_groups.iter().all(|group| !group.is_empty() && group.iter().all(|row| *row > 0)))]
 #[invariant(body_groups.iter().all(|group| !group.is_empty() && group.iter().all(|row| *row > 0)))]
@@ -271,7 +287,7 @@ pub enum CllEbnfToken {
 #[invariant(true)]
 #[invariant(::Paragraph { .. } => true)]
 #[invariant(::List { .. } => true)]
-#[invariant(::Example(_) => true)]
+#[invariant(::Example { .. } => true)]
 #[invariant(::Table { .. } => true)]
 #[invariant(::SimpleListTable { .. } => true)]
 #[invariant(::VariableList { .. } => true)]
@@ -301,7 +317,9 @@ pub enum CllBlock {
         ordered: bool,
         items: Vec<Vec<CllBlock>>,
     },
-    Example(CllExample),
+    Example {
+        example_id: String,
+    },
     Table {
         id: Option<String>,
         caption: Option<Vec<CllInline>>,
@@ -640,7 +658,7 @@ struct BlockParseState {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()) || ret.is_err())]
 pub fn embedded_cll_site() -> Result<&'static CllSite, CllError> {
     EMBEDDED_SITE
         .get_or_init(load_embedded_cll_site)
@@ -649,7 +667,7 @@ pub fn embedded_cll_site() -> Result<&'static CllSite, CllError> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|site| !site.chapters.is_empty()) || ret.is_err())]
 pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     let mut chapters = Vec::new();
     let mut sections_by_id = BTreeMap::new();
@@ -658,16 +676,14 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     let mut anchors_by_id = BTreeMap::new();
     let mut pending_index_entries = Vec::new();
 
-    for (chapter_index, (source_path, compressed)) in EMBEDDED_CLL_CHAPTERS.iter().enumerate() {
+    for (source_path, chapter_number, compressed) in EMBEDDED_CLL_CHAPTERS {
         let xml = decode_chapter_xml(compressed)?;
         let xml = sanitize_xml_entities(&xml);
         let document = Document::parse(&xml)
             .map_err(|error| CllError::Parse(format!("{source_path}: {error}")))?;
         let root = document.root_element();
-        let chapter_number =
-            u16::try_from(chapter_index + 1).map_err(|error| CllError::Parse(error.to_string()))?;
         let (chapter, sections, examples, anchors, index_entries) =
-            parse_chapter(root, chapter_number, source_path)?;
+            parse_chapter(root, *chapter_number, source_path)?;
         for section in sections {
             section_order.push(section.section_id.clone());
             sections_by_id.insert(section.section_id.clone(), section);
@@ -705,7 +721,7 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
     let mut decoder = BzDecoder::new(compressed);
     let mut bytes = Vec::new();
@@ -718,6 +734,9 @@ fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
 #[requires(true)]
 #[ensures(true)]
 fn sanitize_xml_entities(xml: &str) -> String {
+    // These named XML entities appear in the vendored CLL sources but are not
+    // predefined XML entities, and roxmltree deliberately does not load an
+    // external DTD to resolve them for us.
     xml.replace("&ndash;", "\u{2013}")
         .replace("&hellip;", "\u{2026}")
         .replace("&InvisibleTimes;", "\u{2062}")
@@ -726,7 +745,7 @@ fn sanitize_xml_entities(xml: &str) -> String {
 #[requires(root.is_element())]
 #[requires(chapter_number > 0)]
 #[requires(!source_path.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.chapter_number == chapter_number))]
+#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.chapter_number == chapter_number) || ret.is_err())]
 fn parse_chapter(
     root: Node<'_, '_>,
     chapter_number: u16,
@@ -826,7 +845,7 @@ fn chapter_xref_label(chapter_number: u16) -> String {
 #[requires(section_node.is_element())]
 #[requires(chapter_number > 0)]
 #[requires(section_index > 0)]
-#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.chapter_number == chapter_number))]
+#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.chapter_number == chapter_number) || ret.is_err())]
 fn parse_section(
     section_node: Node<'_, '_>,
     chapter_id: &str,
@@ -900,7 +919,6 @@ fn parse_section(
         &mut examples,
         &mut anchors,
     );
-    let plain_text = normalized_plain_text(&blocks_plain_text(&blocks));
     anchors.push((
         section_id.clone(),
         CllAnchor {
@@ -920,7 +938,7 @@ fn parse_section(
             child_section_ids: Vec::new(),
             blocks,
             source_path: source_path.to_owned(),
-            plain_text,
+            plain_text: String::new(),
         },
         examples,
         anchors,
@@ -1075,6 +1093,9 @@ fn parse_block(
             .into_iter()
             .collect();
     }
+    if is_admonition_element(node) {
+        return parse_admonition_blocks(node, context, parse_state, examples, anchors);
+    }
     if node.has_tag_name("definition") || node.has_tag_name("grammar-template") {
         let body = parse_inlines(node);
         return (!body.is_empty())
@@ -1141,13 +1162,15 @@ fn parse_paragraph_blocks(
 ) -> Vec<CllBlock> {
     let mut blocks = Vec::new();
     let mut inline_nodes = Vec::new();
+    let mut paragraph_anchor_id = paragraph_anchor_id_for(anchor_mode, context, node);
+    let paragraph_role = attr_string(node, "role");
     for child in node.children() {
         if child.is_element() && is_block_element(child) {
             flush_inline_nodes_as_paragraph(
                 &mut blocks,
                 &mut inline_nodes,
-                paragraph_anchor_id_for(anchor_mode, context, node),
-                attr_string(node, "role"),
+                paragraph_anchor_id.take(),
+                paragraph_role.clone(),
             );
             blocks.extend(parse_block(
                 child,
@@ -1168,9 +1191,41 @@ fn parse_paragraph_blocks(
     flush_inline_nodes_as_paragraph(
         &mut blocks,
         &mut inline_nodes,
-        paragraph_anchor_id_for(anchor_mode, context, node),
-        attr_string(node, "role"),
+        paragraph_anchor_id.take(),
+        paragraph_role,
     );
+    blocks
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn parse_admonition_blocks(
+    node: Node<'_, '_>,
+    context: &SectionParseContext,
+    parse_state: &mut BlockParseState,
+    examples: &mut Vec<CllExample>,
+    anchors: &mut Vec<(String, CllAnchor)>,
+) -> Vec<CllBlock> {
+    let mut blocks = parse_blocks_from_nodes(
+        &node.children().collect::<Vec<_>>(),
+        context,
+        AnchorMode::Nested,
+        parse_state,
+        examples,
+        anchors,
+    );
+    if blocks.is_empty() {
+        let inlines = trim_inline_runs(parse_inlines(node));
+        let text = normalized_plain_text(&inline_plain_text(&inlines));
+        if !text.is_empty() {
+            blocks.push(CllBlock::Paragraph {
+                anchor_id: xml_id(node),
+                role: Some(node.tag_name().name().to_owned()),
+                inlines,
+                text,
+            });
+        }
+    }
     blocks
 }
 
@@ -1393,8 +1448,10 @@ fn parse_example_block(
             },
         ));
     }
-    examples.push(example.clone());
-    Some(CllBlock::Example(example))
+    examples.push(example);
+    Some(CllBlock::Example {
+        example_id: anchor_id,
+    })
 }
 
 #[requires(node.is_element())]
@@ -1570,7 +1627,7 @@ fn chrestomathy_parse_info(
     cell_index: usize,
     cell: Node<'_, '_>,
 ) -> CllChrestomathyParseInfo {
-    if context.chapter_id != "volume-chrestomathy"
+    if context.chapter_id != cll_import_metadata().chrestomathy_chapter_id
         || cell_index != 0
         || !(cell.has_tag_name("td") || cell.has_tag_name("th"))
     {
@@ -1610,6 +1667,18 @@ fn chrestomathy_parse_info(
             row_index: row_position,
         })),
     })
+}
+
+#[requires(true)]
+#[ensures(!ret.chrestomathy_chapter_id.is_empty())]
+fn cll_import_metadata() -> &'static CllImportMetadata {
+    CLL_IMPORT_METADATA
+        .get_or_init(|| {
+            toml::from_str::<CllImportMetadata>(CLL_IMPORT_METADATA_TOML)
+                .map_err(|error| error.to_string())
+        })
+        .as_ref()
+        .expect("vendor/cll-import-metadata.toml must be valid")
 }
 
 #[requires(true)]
@@ -1785,7 +1854,7 @@ fn parse_variable_list_block(
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    if context.section_id == "section-EBNF" {
+    if context.section_id == cll_import_metadata().ebnf_section_id {
         return parse_ebnf_block(node, context);
     }
     let entries = node
@@ -2397,6 +2466,15 @@ fn is_block_element(node: Node<'_, '_>) -> bool {
             | "lojbanization"
             | "lujvo-making"
             | "grammar-template"
+    )
+}
+
+#[requires(node.is_element())]
+#[ensures(true)]
+fn is_admonition_element(node: Node<'_, '_>) -> bool {
+    matches!(
+        node.tag_name().name(),
+        "note" | "tip" | "warning" | "important" | "caution"
     )
 }
 
@@ -3126,18 +3204,16 @@ fn classify_ebnf_identifier(body: &str, defined_rules: &BTreeSet<String>) -> Cll
 #[requires(true)]
 #[ensures(true)]
 fn ebnf_symbol_href(symbol: &str) -> Option<String> {
-    match symbol {
-        "BRIVLA" => Some(section_href("section-morphology-brivla")),
-        "CMEVLA" => Some(section_href("section-cmevla")),
-        "any-word" | "anything" => Some(section_href("section-more-quotations")),
-        "null" => Some(section_href("section-erasure")),
-        _ if symbol
-            .chars()
-            .any(|character| character.is_ascii_uppercase()) =>
-        {
-            Some(format!("{}#{symbol}", section_href("section-index")))
-        }
-        _ => None,
+    if let Some(section_id) = cll_import_metadata().ebnf_symbols.get(symbol) {
+        return Some(section_href(section_id));
+    }
+    if symbol
+        .chars()
+        .any(|character| character.is_ascii_uppercase())
+    {
+        Some(format!("{}#{symbol}", section_href("section-index")))
+    } else {
+        None
     }
 }
 
@@ -3371,9 +3447,31 @@ fn resolve_site_links(site: &mut CllSite) {
     for chapter in &mut site.chapters {
         resolve_block_links(&mut chapter.prelude_blocks, &resolutions);
     }
+    for example in site.examples_by_id.values_mut() {
+        resolve_block_links(&mut example.blocks, &resolutions);
+    }
+    let example_plain_texts = site
+        .examples_by_id
+        .iter()
+        .map(|(id, example)| (id.clone(), example_plain_text(example)))
+        .collect::<BTreeMap<_, _>>();
+    for (id, plain_text) in example_plain_texts {
+        if let Some(example) = site.examples_by_id.get_mut(&id) {
+            example.plain_text = plain_text;
+        }
+    }
     for section in site.sections_by_id.values_mut() {
         resolve_block_links(&mut section.blocks, &resolutions);
-        section.plain_text = normalized_plain_text(&blocks_plain_text(&section.blocks));
+    }
+    let section_plain_texts = site
+        .sections_by_id
+        .iter()
+        .map(|(id, section)| (id.clone(), blocks_plain_text(site, &section.blocks)))
+        .collect::<BTreeMap<_, _>>();
+    for (id, plain_text) in section_plain_texts {
+        if let Some(section) = site.sections_by_id.get_mut(&id) {
+            section.plain_text = normalized_plain_text(&plain_text);
+        }
     }
 }
 
@@ -3487,7 +3585,7 @@ fn resolve_block_links(blocks: &mut [CllBlock], resolutions: &BTreeMap<String, L
                     .collect();
             }
             CllBlock::Rule { body, .. } => resolve_block_links(body, resolutions),
-            CllBlock::Example(example) => resolve_block_links(&mut example.blocks, resolutions),
+            CllBlock::Example { .. } => {}
             CllBlock::Media { title, .. } => {
                 if let Some(title) = title {
                     resolve_inline_links(title, resolutions);
@@ -3688,10 +3786,10 @@ fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
                     section_title: section.title.clone(),
                     label: section_label.clone(),
                     text: section_text.clone(),
-                    tagged_words: blocks_tagged_words(&section.blocks),
+                    tagged_words: blocks_tagged_words(site, &section.blocks),
                 });
             }
-            collect_block_search_chunks(section, &section.blocks, &mut chunks);
+            collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
         }
     }
     chunks
@@ -3700,6 +3798,7 @@ fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
 #[requires(true)]
 #[ensures(true)]
 fn collect_block_search_chunks(
+    site: &CllSite,
     section: &CllSection,
     blocks: &[CllBlock],
     chunks: &mut Vec<CllSearchChunk>,
@@ -3727,24 +3826,26 @@ fn collect_block_search_chunks(
                     });
                 }
             }
-            CllBlock::Example(example) => {
-                if !example.plain_text.trim().is_empty() {
-                    chunks.push(CllSearchChunk {
-                        kind: CllSearchChunkKind::Example,
-                        section_id: section.section_id.clone(),
-                        anchor_id: example.anchor_id.clone(),
-                        section_number: section.number.clone(),
-                        section_title: section.title.clone(),
-                        label: example.label.clone(),
-                        text: example.plain_text.clone(),
-                        tagged_words: example_tagged_words(example),
-                    });
+            CllBlock::Example { example_id } => {
+                if let Some(example) = cll_lookup_example(site, example_id) {
+                    if !example.plain_text.trim().is_empty() {
+                        chunks.push(CllSearchChunk {
+                            kind: CllSearchChunkKind::Example,
+                            section_id: section.section_id.clone(),
+                            anchor_id: example.anchor_id.clone(),
+                            section_number: section.number.clone(),
+                            section_title: section.title.clone(),
+                            label: example.label.clone(),
+                            text: example.plain_text.clone(),
+                            tagged_words: example_tagged_words(example),
+                        });
+                    }
+                    collect_block_search_chunks(site, section, &example.blocks, chunks);
                 }
-                collect_block_search_chunks(section, &example.blocks, chunks);
             }
             CllBlock::List { items, .. } => {
                 for item in items {
-                    collect_block_search_chunks(section, item, chunks);
+                    collect_block_search_chunks(site, section, item, chunks);
                 }
             }
             CllBlock::Table {
@@ -3754,18 +3855,18 @@ fn collect_block_search_chunks(
             } => {
                 for row in header_rows.iter().chain(body_rows.iter()) {
                     for cell in row {
-                        collect_block_search_chunks(section, &cell.blocks, chunks);
+                        collect_block_search_chunks(site, section, &cell.blocks, chunks);
                     }
                 }
             }
             CllBlock::VariableList { entries, .. } => {
                 for entry in entries {
-                    collect_block_search_chunks(section, &entry.blocks, chunks);
+                    collect_block_search_chunks(site, section, &entry.blocks, chunks);
                 }
             }
-            CllBlock::Rule { body, .. } => collect_block_search_chunks(section, body, chunks),
+            CllBlock::Rule { body, .. } => collect_block_search_chunks(site, section, body, chunks),
             CllBlock::BlockQuote { blocks, .. } => {
-                collect_block_search_chunks(section, blocks, chunks)
+                collect_block_search_chunks(site, section, blocks, chunks)
             }
             CllBlock::SimpleListTable { .. }
             | CllBlock::Media { .. }
@@ -3803,13 +3904,13 @@ pub fn cll_lookup_section<'a>(site: &'a CllSite, section_id: &str) -> Option<&'a
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|href| href.starts_with("../gentufa?text=")))]
-pub fn chrestomathy_section_parse_href(section: &CllSection) -> Option<String> {
-    if section.chapter_id != "volume-chrestomathy"
+pub fn chrestomathy_section_parse_href(site: &CllSite, section: &CllSection) -> Option<String> {
+    if section.chapter_id != cll_import_metadata().chrestomathy_chapter_id
         || chrestomathy_section_metadata(&section.section_id).is_none()
     {
         return None;
     }
-    let text = chrestomathy_section_group_texts(section)
+    let text = chrestomathy_section_group_texts(site, section)
         .into_iter()
         .map(|group| group.into_data().text)
         .collect::<Vec<_>>()
@@ -3819,15 +3920,18 @@ pub fn chrestomathy_section_parse_href(section: &CllSection) -> Option<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn chrestomathy_section_group_texts(section: &CllSection) -> Vec<CllChrestomathyGroupText> {
+fn chrestomathy_section_group_texts(
+    site: &CllSite,
+    section: &CllSection,
+) -> Vec<CllChrestomathyGroupText> {
     let mut groups = Vec::new();
-    if section.chapter_id != "volume-chrestomathy"
+    if section.chapter_id != cll_import_metadata().chrestomathy_chapter_id
         || chrestomathy_section_metadata(&section.section_id).is_none()
     {
         return groups;
     }
     for block in &section.blocks {
-        chrestomathy_block_group_texts(&section.section_id, block, &mut groups);
+        chrestomathy_block_group_texts(site, &section.section_id, block, &mut groups);
     }
     groups
 }
@@ -3835,6 +3939,7 @@ fn chrestomathy_section_group_texts(section: &CllSection) -> Vec<CllChrestomathy
 #[requires(!section_id.is_empty())]
 #[ensures(true)]
 fn chrestomathy_block_group_texts(
+    site: &CllSite,
     section_id: &str,
     block: &CllBlock,
     groups: &mut Vec<CllChrestomathyGroupText>,
@@ -3846,34 +3951,43 @@ fn chrestomathy_block_group_texts(
             ..
         } => {
             chrestomathy_table_group_texts(
+                site,
                 section_id,
                 CllTableRowArea::Header,
                 header_rows,
                 groups,
             );
-            chrestomathy_table_group_texts(section_id, CllTableRowArea::Body, body_rows, groups);
+            chrestomathy_table_group_texts(
+                site,
+                section_id,
+                CllTableRowArea::Body,
+                body_rows,
+                groups,
+            );
         }
         CllBlock::List { items, .. } => {
             for item in items {
                 for child in item {
-                    chrestomathy_block_group_texts(section_id, child, groups);
+                    chrestomathy_block_group_texts(site, section_id, child, groups);
                 }
             }
         }
-        CllBlock::Example(example) => {
-            for child in &example.blocks {
-                chrestomathy_block_group_texts(section_id, child, groups);
+        CllBlock::Example { example_id } => {
+            if let Some(example) = cll_lookup_example(site, example_id) {
+                for child in &example.blocks {
+                    chrestomathy_block_group_texts(site, section_id, child, groups);
+                }
             }
         }
         CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
             for child in blocks {
-                chrestomathy_block_group_texts(section_id, child, groups);
+                chrestomathy_block_group_texts(site, section_id, child, groups);
             }
         }
         CllBlock::VariableList { entries, .. } => {
             for entry in entries {
                 for child in &entry.blocks {
-                    chrestomathy_block_group_texts(section_id, child, groups);
+                    chrestomathy_block_group_texts(site, section_id, child, groups);
                 }
             }
         }
@@ -3884,6 +3998,7 @@ fn chrestomathy_block_group_texts(
 #[requires(!section_id.is_empty())]
 #[ensures(true)]
 fn chrestomathy_table_group_texts(
+    site: &CllSite,
     section_id: &str,
     area: CllTableRowArea,
     rows: &[Vec<CllTableCell>],
@@ -3898,7 +4013,7 @@ fn chrestomathy_table_group_texts(
             let Some(row) = row_index.checked_sub(1).and_then(|index| rows.get(index)) else {
                 continue;
             };
-            if let Some(text) = chrestomathy_table_source_cell_text(row) {
+            if let Some(text) = chrestomathy_table_source_cell_text(site, row) {
                 lines.push(text);
             }
         }
@@ -3916,9 +4031,9 @@ fn chrestomathy_table_group_texts(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.trim().is_empty()))]
-fn chrestomathy_table_source_cell_text(row: &[CllTableCell]) -> Option<String> {
+fn chrestomathy_table_source_cell_text(site: &CllSite, row: &[CllTableCell]) -> Option<String> {
     row.first()
-        .map(|cell| normalized_plain_text(&blocks_plain_text(&cell.blocks)))
+        .map(|cell| normalized_plain_text(&blocks_plain_text(site, &cell.blocks)))
         .filter(|text| !text.trim().is_empty())
 }
 
@@ -4232,7 +4347,7 @@ pub fn render_section(site: &CllSite, section: &CllSection, format: CllRenderFor
             );
             output.push_str(&escape_html(&format_section_display_title(section)));
             output.push_str("</h1>");
-            if let Some(parse_href) = chrestomathy_section_parse_href(section) {
+            if let Some(parse_href) = chrestomathy_section_parse_href(site, section) {
                 output.push_str(
                     "<a class=\"cll-parse-example cll-parse-section spa-cll-link spa-cll-link-parse\" href=\"",
                 );
@@ -4248,7 +4363,7 @@ pub fn render_section(site: &CllSite, section: &CllSection, format: CllRenderFor
         }
         CllRenderFormat::Markdown | CllRenderFormat::Raw => {
             let mut output = format!("# {}\n\n", format_section_display_title(section));
-            if let Some(parse_href) = chrestomathy_section_parse_href(section) {
+            if let Some(parse_href) = chrestomathy_section_parse_href(site, section) {
                 output.push_str(&format!("[Parse]({parse_href})\n\n"));
             }
             for block in &section.blocks {
@@ -4425,24 +4540,26 @@ pub fn collect_tagged_words(text: &str) -> BTreeSet<String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn blocks_tagged_words(blocks: &[CllBlock]) -> BTreeSet<String> {
+fn blocks_tagged_words(site: &CllSite, blocks: &[CllBlock]) -> BTreeSet<String> {
     let mut words = BTreeSet::new();
     for block in blocks {
-        words.extend(block_tagged_words(block));
+        words.extend(block_tagged_words(site, block));
     }
     words
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
+fn block_tagged_words(site: &CllSite, block: &CllBlock) -> BTreeSet<String> {
     match block {
         CllBlock::Paragraph { inlines, .. } => inlines_tagged_words(inlines),
         CllBlock::List { items, .. } => items
             .iter()
-            .flat_map(|item| blocks_tagged_words(item))
+            .flat_map(|item| blocks_tagged_words(site, item))
             .collect(),
-        CllBlock::Example(example) => example_tagged_words(example),
+        CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
+            .map(example_tagged_words)
+            .unwrap_or_default(),
         CllBlock::Table {
             header_rows,
             body_rows,
@@ -4452,27 +4569,92 @@ fn block_tagged_words(block: &CllBlock) -> BTreeSet<String> {
             .chain(body_rows.iter())
             .flat_map(|row| {
                 row.iter()
-                    .flat_map(|cell| blocks_tagged_words(&cell.blocks))
+                    .flat_map(|cell| blocks_tagged_words(site, &cell.blocks))
             })
             .collect(),
         CllBlock::VariableList { entries, .. } => entries
             .iter()
-            .flat_map(|entry| blocks_tagged_words(&entry.blocks))
+            .flat_map(|entry| {
+                let mut words = inlines_tagged_words(&entry.term);
+                words.extend(blocks_tagged_words(site, &entry.blocks));
+                words
+            })
             .collect(),
-        CllBlock::Rule { body, .. } => blocks_tagged_words(body),
-        CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(blocks),
+        CllBlock::Rule { body, .. } => blocks_tagged_words(site, body),
+        CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(site, blocks),
         CllBlock::Heading { inlines, .. } => inlines_tagged_words(inlines),
-        CllBlock::SimpleListTable { .. }
-        | CllBlock::Media { .. }
-        | CllBlock::Code { .. }
-        | CllBlock::Definition { .. }
-        | CllBlock::InterlinearGloss { .. }
-        | CllBlock::CmavoList { .. }
-        | CllBlock::Lojbanization { .. }
-        | CllBlock::LujvoMaking { .. }
-        | CllBlock::GrammarTemplate { .. }
-        | CllBlock::Ebnf { .. }
-        | CllBlock::DisplayMath { .. } => BTreeSet::new(),
+        CllBlock::SimpleListTable { rows, .. } => rows
+            .iter()
+            .flat_map(|row| {
+                row.iter()
+                    .flatten()
+                    .flat_map(|cell| inlines_tagged_words(cell))
+            })
+            .collect(),
+        CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
+            inlines_tagged_words(body)
+        }
+        CllBlock::InterlinearGloss {
+            rows,
+            natlang,
+            comments,
+            ..
+        } => {
+            let mut words = BTreeSet::new();
+            for row in rows {
+                for cell in &row.cells {
+                    words.extend(inlines_tagged_words(cell));
+                }
+            }
+            for line in natlang.iter().chain(comments.iter()) {
+                words.extend(inlines_tagged_words(line));
+            }
+            words
+        }
+        CllBlock::CmavoList {
+            titles,
+            headers,
+            rows,
+            ..
+        } => {
+            let mut words = BTreeSet::new();
+            for inline_set in titles.iter().chain(headers.iter()) {
+                words.extend(inlines_tagged_words(inline_set));
+            }
+            for row in rows {
+                for cell in row {
+                    words.extend(inlines_tagged_words(cell));
+                }
+            }
+            words
+        }
+        CllBlock::Lojbanization { lines, .. } => {
+            let mut words = BTreeSet::new();
+            for line in lines {
+                words.extend(inlines_tagged_words(&line.body));
+                if let Some(comment) = &line.comment {
+                    words.extend(inlines_tagged_words(comment));
+                }
+            }
+            words
+        }
+        CllBlock::LujvoMaking { parts, .. } => parts
+            .iter()
+            .flat_map(|part| inlines_tagged_words(&part.body))
+            .collect(),
+        CllBlock::Ebnf { entries, .. } => entries
+            .iter()
+            .flat_map(|entry| {
+                let mut words = collect_tagged_words(&entry.rule_name);
+                for token in &entry.rhs {
+                    words.extend(collect_tagged_words(&ebnf_token_plain_text(token)));
+                }
+                words
+            })
+            .collect(),
+        CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::DisplayMath { .. } => {
+            BTreeSet::new()
+        }
     }
 }
 
@@ -4518,6 +4700,23 @@ fn example_tagged_words(example: &CllExample) -> BTreeSet<String> {
         .filter(|line| line.kind == "jbo" || line.kind == "jbophrase")
         .flat_map(|line| collect_tagged_words(&line.text))
         .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn example_plain_text(example: &CllExample) -> String {
+    if example.lines.is_empty() {
+        normalized_plain_text(&example.plain_text)
+    } else {
+        normalized_plain_text(
+            &example
+                .lines
+                .iter()
+                .map(|line| line.text.as_str())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
 }
 
 #[requires(true)]
@@ -4577,8 +4776,10 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
             }
             output.push('\n');
         }
-        CllBlock::Example(example) => {
-            output.push_str(&render_example(site, example, CllRenderFormat::Markdown))
+        CllBlock::Example { example_id } => {
+            if let Some(example) = cll_lookup_example(site, example_id) {
+                output.push_str(&render_example(site, example, CllRenderFormat::Markdown));
+            }
         }
         CllBlock::Table {
             caption,
@@ -4725,7 +4926,9 @@ fn render_block_html(site: &CllSite, block: &CllBlock) -> String {
             output.push_str(&format!("</{tag}>"));
             output
         }
-        CllBlock::Example(example) => render_example(site, example, CllRenderFormat::Html),
+        CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
+            .map(|example| render_example(site, example, CllRenderFormat::Html))
+            .unwrap_or_default(),
         CllBlock::Table {
             id,
             caption,
@@ -5072,8 +5275,11 @@ fn render_table_markdown(
         .chain(body_rows.iter())
         .collect::<Vec<_>>();
     render_markdown_table_rows(
-        rows.iter()
-            .map(|row| row.iter().map(table_cell_markdown_text).collect::<Vec<_>>()),
+        rows.iter().map(|row| {
+            row.iter()
+                .map(|cell| table_cell_markdown_text(site, cell))
+                .collect::<Vec<_>>()
+        }),
         output,
     );
 }
@@ -5142,8 +5348,8 @@ fn markdown_table_cell_text(text: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn table_cell_markdown_text(cell: &CllTableCell) -> String {
-    let mut text = markdown_table_cell_text(&blocks_plain_text(&cell.blocks));
+fn table_cell_markdown_text(site: &CllSite, cell: &CllTableCell) -> String {
+    let mut text = markdown_table_cell_text(&blocks_plain_text(site, &cell.blocks));
     if let Some(parse_href) = &cell.parse_href {
         if !text.is_empty() {
             text.push(' ');
@@ -6048,7 +6254,7 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn blocks_plain_text(blocks: &[CllBlock]) -> String {
+fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
     let mut output = String::new();
     for block in blocks {
         match block {
@@ -6061,13 +6267,15 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
             }
             CllBlock::List { items, .. } => {
                 for item in items {
-                    output.push_str(&blocks_plain_text(item));
+                    output.push_str(&blocks_plain_text(site, item));
                     output.push('\n');
                 }
             }
-            CllBlock::Example(example) => {
-                output.push_str(&example.plain_text);
-                output.push('\n');
+            CllBlock::Example { example_id } => {
+                if let Some(example) = cll_lookup_example(site, example_id) {
+                    output.push_str(&example.plain_text);
+                    output.push('\n');
+                }
             }
             CllBlock::Table {
                 caption,
@@ -6081,7 +6289,7 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
                 }
                 for row in header_rows.iter().chain(body_rows.iter()) {
                     for cell in row {
-                        output.push_str(&blocks_plain_text(&cell.blocks));
+                        output.push_str(&blocks_plain_text(site, &cell.blocks));
                         output.push('\n');
                     }
                 }
@@ -6098,7 +6306,7 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
                 for entry in entries {
                     output.push_str(&inline_plain_text(&entry.term));
                     output.push('\n');
-                    output.push_str(&blocks_plain_text(&entry.blocks));
+                    output.push_str(&blocks_plain_text(site, &entry.blocks));
                     output.push('\n');
                 }
             }
@@ -6109,10 +6317,10 @@ fn blocks_plain_text(blocks: &[CllBlock]) -> String {
             CllBlock::Rule { term, body, .. } => {
                 output.push_str(term);
                 output.push('\n');
-                output.push_str(&blocks_plain_text(body));
+                output.push_str(&blocks_plain_text(site, body));
             }
             CllBlock::BlockQuote { blocks, .. } => {
-                output.push_str(&blocks_plain_text(blocks));
+                output.push_str(&blocks_plain_text(site, blocks));
                 output.push('\n');
             }
             CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
@@ -6220,7 +6428,7 @@ fn escape_html(input: &str) -> String {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{ensures, new, requires};
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_options};
 
@@ -6270,6 +6478,137 @@ mod tests {
         assert_eq!(
             cll_link_href(site, CllLinkKind::Section, "chapter-grammars"),
             "section/section-EBNF#chapter-grammars"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn section_example_blocks_render_from_canonical_examples() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let (block, example_id) = site
+            .section_order
+            .iter()
+            .filter_map(|section_id| cll_lookup_section(site, section_id))
+            .find_map(|section| first_example_block(&section.blocks))
+            .expect("embedded CLL should contain examples");
+        let example = cll_lookup_example(site, example_id).expect("example id should resolve");
+        let mut block_markdown = String::new();
+        render_block_markdown(site, block, &mut block_markdown, 0);
+
+        assert_eq!(
+            block_markdown,
+            render_example(site, example, CllRenderFormat::Markdown)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn specialized_blocks_contribute_tagged_words() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let coi = vec![CllInline::Link {
+            target: "coi".to_owned(),
+            inlines: vec![CllInline::Text("coi".to_owned())],
+            kind: CllLinkKind::Dictionary,
+        }];
+        let cmavo_list = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: Vec::new(),
+            rows: vec![vec![coi.clone()]],
+        };
+        let interlinear = CllBlock::InterlinearGloss {
+            id: None,
+            aligned: false,
+            itemized: false,
+            parse_href: None,
+            rows: vec![new!(CllInterlinearRow {
+                kind: "jbo".to_owned(),
+                cells: vec![coi],
+            })],
+            natlang: Vec::new(),
+            comments: Vec::new(),
+        };
+        let mut words = block_tagged_words(site, &cmavo_list);
+        words.extend(block_tagged_words(site, &interlinear));
+
+        assert!(words.contains("coi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn split_paragraph_keeps_anchor_on_one_segment_only() {
+        let document = Document::parse(
+            r#"<para id="split-para">before <example id="ex"><para>coi</para></example> after</para>"#,
+        )
+        .expect("test XML should parse");
+        let context = test_section_context();
+        let mut parse_state = BlockParseState {
+            chapter_example_counter: 0,
+        };
+        let mut examples = Vec::new();
+        let mut anchors = Vec::new();
+        let blocks = parse_paragraph_blocks(
+            document.root_element(),
+            &context,
+            AnchorMode::TopLevel,
+            &mut parse_state,
+            &mut examples,
+            &mut anchors,
+        );
+
+        assert_eq!(
+            count_paragraph_anchor(&blocks, "split-para"),
+            1,
+            "{blocks:#?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn admonitions_preserve_inline_links() {
+        let document = Document::parse(
+            r#"<note id="note"><para>See <xref linkend="section-erasure" /></para></note>"#,
+        )
+        .expect("test XML should parse");
+        let context = test_section_context();
+        let mut parse_state = BlockParseState {
+            chapter_example_counter: 0,
+        };
+        let mut examples = Vec::new();
+        let mut anchors = Vec::new();
+        let blocks = parse_block(
+            document.root_element(),
+            &context,
+            AnchorMode::TopLevel,
+            &mut parse_state,
+            &mut examples,
+            &mut anchors,
+        );
+
+        assert!(blocks.iter().any(block_contains_section_erasure_link));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn import_metadata_drives_special_cll_ids() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let metadata = cll_import_metadata();
+        let chrestomathy = site
+            .chapters
+            .iter()
+            .find(|chapter| chapter.chapter_id == metadata.chrestomathy_chapter_id)
+            .expect("metadata chrestomathy chapter should exist");
+
+        assert_eq!(chrestomathy.chapter_number, 22);
+        assert!(cll_lookup_section(site, &metadata.ebnf_section_id).is_some());
+        assert_eq!(
+            ebnf_symbol_href("BRIVLA").as_deref(),
+            Some("section/section-morphology-brivla")
         );
     }
 
@@ -6427,7 +6766,7 @@ mod tests {
     fn standalone_interlinear_glosses_have_parse_links() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-index").expect("section should exist");
-        let parse_hrefs = collect_interlinear_parse_hrefs(&section.blocks);
+        let parse_hrefs = collect_interlinear_parse_hrefs(site, &section.blocks);
 
         assert!(!parse_hrefs.is_empty());
         assert!(
@@ -6533,7 +6872,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-north-wind").expect("section should exist");
         assert!(!section.plain_text.contains(".alf."));
-        assert!(!blocks_plain_text(&section.blocks).contains(".alf."));
+        assert!(!blocks_plain_text(site, &section.blocks).contains(".alf."));
         assert!(!render_section(site, section, CllRenderFormat::Html).contains(".alf."));
         assert!(!render_section(site, section, CllRenderFormat::Markdown).contains(".alf."));
         assert!(
@@ -6550,7 +6889,7 @@ mod tests {
     fn chrestomathy_table_source_cells_have_baseline_parse_links() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "section-north-wind").expect("section should exist");
-        let parse_hrefs = collect_table_parse_hrefs(&section.blocks);
+        let parse_hrefs = collect_table_parse_hrefs(site, &section.blocks);
         assert!(!parse_hrefs.is_empty());
         assert!(
             parse_hrefs
@@ -6570,8 +6909,13 @@ mod tests {
             assert_chrestomathy_area_metadata_is_disjoint(metadata, CllTableRowArea::Header);
             assert_chrestomathy_area_metadata_is_disjoint(metadata, CllTableRowArea::Body);
             let (header_rows, body_rows) = first_table_rows(section);
-            assert_chrestomathy_rows_are_covered(metadata, CllTableRowArea::Header, header_rows);
-            assert_chrestomathy_rows_are_covered(metadata, CllTableRowArea::Body, body_rows);
+            assert_chrestomathy_rows_are_covered(
+                site,
+                metadata,
+                CllTableRowArea::Header,
+                header_rows,
+            );
+            assert_chrestomathy_rows_are_covered(site, metadata, CllTableRowArea::Body, body_rows);
         }
     }
 
@@ -6584,11 +6928,11 @@ mod tests {
         for metadata in &chrestomathy_metadata().section {
             let section =
                 cll_lookup_section(site, &metadata.id).expect("metadata section should exist");
-            for group in chrestomathy_section_group_texts(section) {
+            for group in chrestomathy_section_group_texts(site, section) {
                 let data!(CllChrestomathyGroupText { group_id, text, .. }) = group.into_data();
                 assert_parseable_chrestomathy_text(&group_id, &text);
             }
-            let section_text = chrestomathy_section_group_texts(section)
+            let section_text = chrestomathy_section_group_texts(site, section)
                 .into_iter()
                 .map(|group| group.into_data().text)
                 .collect::<Vec<_>>()
@@ -6669,6 +7013,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn assert_chrestomathy_rows_are_covered(
+        site: &CllSite,
         metadata: &CllChrestomathySectionMetadata,
         area: CllTableRowArea,
         rows: &[Vec<CllTableCell>],
@@ -6689,7 +7034,7 @@ mod tests {
             .collect::<BTreeSet<_>>();
         for (index, row) in rows.iter().enumerate() {
             let row_index = index + 1;
-            let Some(text) = chrestomathy_table_source_cell_text(row) else {
+            let Some(text) = chrestomathy_table_source_cell_text(site, row) else {
                 continue;
             };
             assert!(
@@ -6780,8 +7125,141 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(!ret.section_id.is_empty())]
+    fn test_section_context() -> SectionParseContext {
+        SectionParseContext {
+            chapter_id: "chapter-test".to_owned(),
+            chapter_number: 1,
+            section_id: "section-test".to_owned(),
+            section_number: "1.1".to_owned(),
+            section_title: "Test".to_owned(),
+            source_path: "test.xml".to_owned(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|(_, id)| !id.is_empty()))]
+    fn first_example_block(blocks: &[CllBlock]) -> Option<(&CllBlock, &str)> {
+        for block in blocks {
+            match block {
+                CllBlock::Example { example_id } => return Some((block, example_id)),
+                CllBlock::List { items, .. } => {
+                    for item in items {
+                        if let Some(found) = first_example_block(item) {
+                            return Some(found);
+                        }
+                    }
+                }
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => {
+                    for cell in header_rows.iter().chain(body_rows.iter()).flatten() {
+                        if let Some(found) = first_example_block(&cell.blocks) {
+                            return Some(found);
+                        }
+                    }
+                }
+                CllBlock::VariableList { entries, .. } => {
+                    for entry in entries {
+                        if let Some(found) = first_example_block(&entry.blocks) {
+                            return Some(found);
+                        }
+                    }
+                }
+                CllBlock::Rule { body, .. } | CllBlock::BlockQuote { blocks: body, .. } => {
+                    if let Some(found) = first_example_block(body) {
+                        return Some(found);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    #[requires(!anchor_id.is_empty())]
     #[ensures(true)]
-    fn collect_table_parse_hrefs(blocks: &[CllBlock]) -> Vec<String> {
+    fn count_paragraph_anchor(blocks: &[CllBlock], anchor_id: &str) -> usize {
+        blocks
+            .iter()
+            .map(|block| match block {
+                CllBlock::Paragraph {
+                    anchor_id: Some(id),
+                    ..
+                } if id == anchor_id => 1,
+                CllBlock::List { items, .. } => items
+                    .iter()
+                    .map(|item| count_paragraph_anchor(item, anchor_id))
+                    .sum(),
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                } => header_rows
+                    .iter()
+                    .chain(body_rows.iter())
+                    .flatten()
+                    .map(|cell| count_paragraph_anchor(&cell.blocks, anchor_id))
+                    .sum(),
+                CllBlock::VariableList { entries, .. } => entries
+                    .iter()
+                    .map(|entry| count_paragraph_anchor(&entry.blocks, anchor_id))
+                    .sum(),
+                CllBlock::Rule { body, .. } | CllBlock::BlockQuote { blocks: body, .. } => {
+                    count_paragraph_anchor(body, anchor_id)
+                }
+                _ => 0,
+            })
+            .sum()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn block_contains_section_erasure_link(block: &CllBlock) -> bool {
+        match block {
+            CllBlock::Paragraph { inlines, .. } => inlines_contain_section_erasure_link(inlines),
+            CllBlock::List { items, .. } => items
+                .iter()
+                .any(|item| item.iter().any(block_contains_section_erasure_link)),
+            CllBlock::Table {
+                header_rows,
+                body_rows,
+                ..
+            } => header_rows.iter().chain(body_rows.iter()).any(|row| {
+                row.iter()
+                    .any(|cell| cell.blocks.iter().any(block_contains_section_erasure_link))
+            }),
+            CllBlock::VariableList { entries, .. } => entries
+                .iter()
+                .any(|entry| entry.blocks.iter().any(block_contains_section_erasure_link)),
+            CllBlock::Rule { body, .. } | CllBlock::BlockQuote { blocks: body, .. } => {
+                body.iter().any(block_contains_section_erasure_link)
+            }
+            _ => false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn inlines_contain_section_erasure_link(inlines: &[CllInline]) -> bool {
+        inlines.iter().any(|inline| match inline {
+            CllInline::Link { target, .. } => target == "section-erasure",
+            CllInline::Emphasis { inlines, .. }
+            | CllInline::Quote { inlines, .. }
+            | CllInline::LanguageSpan { inlines, .. }
+            | CllInline::CiteTitle { inlines }
+            | CllInline::Subscript { inlines }
+            | CllInline::Superscript { inlines }
+            | CllInline::Elidable { inlines, .. } => inlines_contain_section_erasure_link(inlines),
+            _ => false,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn collect_table_parse_hrefs(site: &CllSite, blocks: &[CllBlock]) -> Vec<String> {
         let mut hrefs = Vec::new();
         for block in blocks {
             match block {
@@ -6795,24 +7273,26 @@ mod tests {
                             if let Some(parse_href) = &cell.parse_href {
                                 hrefs.push(parse_href.clone());
                             }
-                            hrefs.extend(collect_table_parse_hrefs(&cell.blocks));
+                            hrefs.extend(collect_table_parse_hrefs(site, &cell.blocks));
                         }
                     }
                 }
                 CllBlock::List { items, .. } => {
                     for item in items {
-                        hrefs.extend(collect_table_parse_hrefs(item));
+                        hrefs.extend(collect_table_parse_hrefs(site, item));
                     }
                 }
-                CllBlock::Example(example) => {
-                    hrefs.extend(collect_table_parse_hrefs(&example.blocks));
+                CllBlock::Example { example_id } => {
+                    if let Some(example) = cll_lookup_example(site, example_id) {
+                        hrefs.extend(collect_table_parse_hrefs(site, &example.blocks));
+                    }
                 }
                 CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
-                    hrefs.extend(collect_table_parse_hrefs(blocks));
+                    hrefs.extend(collect_table_parse_hrefs(site, blocks));
                 }
                 CllBlock::VariableList { entries, .. } => {
                     for entry in entries {
-                        hrefs.extend(collect_table_parse_hrefs(&entry.blocks));
+                        hrefs.extend(collect_table_parse_hrefs(site, &entry.blocks));
                     }
                 }
                 _ => {}
@@ -6823,7 +7303,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn collect_interlinear_parse_hrefs(blocks: &[CllBlock]) -> Vec<String> {
+    fn collect_interlinear_parse_hrefs(site: &CllSite, blocks: &[CllBlock]) -> Vec<String> {
         let mut hrefs = Vec::new();
         for block in blocks {
             match block {
@@ -6834,14 +7314,16 @@ mod tests {
                 }
                 CllBlock::List { items, .. } => {
                     for item in items {
-                        hrefs.extend(collect_interlinear_parse_hrefs(item));
+                        hrefs.extend(collect_interlinear_parse_hrefs(site, item));
                     }
                 }
-                CllBlock::Example(example) => {
-                    hrefs.extend(collect_interlinear_parse_hrefs(&example.blocks));
+                CllBlock::Example { example_id } => {
+                    if let Some(example) = cll_lookup_example(site, example_id) {
+                        hrefs.extend(collect_interlinear_parse_hrefs(site, &example.blocks));
+                    }
                 }
                 CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
-                    hrefs.extend(collect_interlinear_parse_hrefs(blocks));
+                    hrefs.extend(collect_interlinear_parse_hrefs(site, blocks));
                 }
                 CllBlock::Table {
                     header_rows,
@@ -6850,13 +7332,13 @@ mod tests {
                 } => {
                     for row in header_rows.iter().chain(body_rows.iter()) {
                         for cell in row {
-                            hrefs.extend(collect_interlinear_parse_hrefs(&cell.blocks));
+                            hrefs.extend(collect_interlinear_parse_hrefs(site, &cell.blocks));
                         }
                     }
                 }
                 CllBlock::VariableList { entries, .. } => {
                     for entry in entries {
-                        hrefs.extend(collect_interlinear_parse_hrefs(&entry.blocks));
+                        hrefs.extend(collect_interlinear_parse_hrefs(site, &entry.blocks));
                     }
                 }
                 _ => {}

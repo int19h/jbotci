@@ -9,8 +9,9 @@ use jbotci_morphology::{Cmavo, Selmaho};
 use super::{
     BoxedParser, ParseExtra, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
     tokens::{
-        cmevla_word, is_brivla_relation_word, is_cmevla_word, is_koha_argument, is_letter_word,
-        is_relation_word, token_matching,
+        ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
+        is_koha_argument, is_letter_word, is_relation_word, token_matching,
+        token_matching_with_experimental_context,
     },
 };
 use crate::{
@@ -957,12 +958,23 @@ where
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn word_category<'tokens>(category: SyntaxWordCategory) -> BoxedParser<'tokens, Token> {
-    token_matching(
+    token_matching_with_experimental_context(
         category.display_name(),
         category.display_name(),
         vec![new!(SyntaxExpectedToken::WordCategory(category))],
+        word_category_experimental_context(category),
         move |token, _state| token_matches_word_category(token, category),
     )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_category_experimental_context(category: SyntaxWordCategory) -> ExperimentalCmavoContext {
+    match category {
+        SyntaxWordCategory::ProSumti => ExperimentalCmavoContext::Selmaho(Selmaho::Koha),
+        SyntaxWordCategory::LetterWord => ExperimentalCmavoContext::Selmaho(Selmaho::By),
+        _ => ExperimentalCmavoContext::Label(category.display_name()),
+    }
 }
 
 #[requires(true)]

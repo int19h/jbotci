@@ -4,7 +4,7 @@ use serde::Serialize;
 use super::{BracketExpectations, CommandOutputExpectation, Expectations, Provenance, TestCase};
 
 #[requires(test_case.is_valid_fixture_metadata())]
-#[bityzba::ensures(ret.as_ref().is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
+#[bityzba::ensures(ret.is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub(super) fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Error> {
     let mut output = String::new();
     push_field(&mut output, "id", &test_case.id)?;

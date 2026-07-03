@@ -2886,6 +2886,15 @@ impl Cmavo {
     pub fn is_selmaho(self, selmaho: Selmaho) -> bool {
         selmaho.contains(self)
     }
+
+    #[requires(true)]
+    #[bityzba::ensures(ret.is_none_or(|selmaho| selmaho.contains(self)))]
+    pub fn primary_selmaho(self) -> Option<Selmaho> {
+        Selmaho::ALL
+            .iter()
+            .copied()
+            .find(|selmaho| selmaho.contains(self))
+    }
 }
 
 impl fmt::Display for Cmavo {
@@ -2896,6 +2905,7 @@ impl fmt::Display for Cmavo {
     }
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Selmaho {
     A,
@@ -2997,6 +3007,110 @@ pub enum Selmaho {
 }
 
 impl Selmaho {
+    /// Load-bearing primary-selma'o precedence.
+    ///
+    /// `Cmavo::primary_selmaho` returns the first entry here that contains the
+    /// cmavo. Keep this table complete and reorder it only as an intentional
+    /// precedence change for multi-selma'o cmavo.
+    pub const ALL: &'static [Self] = &[
+        Self::A,
+        Self::Bahe,
+        Self::Bai,
+        Self::Be,
+        Self::Beho,
+        Self::Bei,
+        Self::Bihi,
+        Self::Bu,
+        Self::By,
+        Self::Caha,
+        Self::Cai,
+        Self::Cehe,
+        Self::Co,
+        Self::Coi,
+        Self::Cu,
+        Self::Cuhe,
+        Self::Daho,
+        Self::Doi,
+        Self::Fa,
+        Self::Faha,
+        Self::Faho,
+        Self::Fuha,
+        Self::Ga,
+        Self::Gaho,
+        Self::Gi,
+        Self::Giha,
+        Self::Gihi,
+        Self::Goha,
+        Self::Goi,
+        Self::Guha,
+        Self::I,
+        Self::Ja,
+        Self::Jai,
+        Self::Jehi,
+        Self::Johi,
+        Self::Joi,
+        Self::Koha,
+        Self::Ku,
+        Self::La,
+        Self::Lahe,
+        Self::Lau,
+        Self::Le,
+        Self::Lehu,
+        Self::Li,
+        Self::Lihau,
+        Self::Lihu,
+        Self::Loho,
+        Self::Lohoi,
+        Self::Lohu,
+        Self::Lu,
+        Self::Luhei,
+        Self::Mai,
+        Self::Me,
+        Self::Mohe,
+        Self::Mohi,
+        Self::Moi,
+        Self::Na,
+        Self::Nahe,
+        Self::Nai,
+        Self::Niho,
+        Self::Noi,
+        Self::Noiha,
+        Self::Nu,
+        Self::Pa,
+        Self::Pehe,
+        Self::Pu,
+        Self::Roi,
+        Self::Sa,
+        Self::Se,
+        Self::Sehu,
+        Self::Sei,
+        Self::Si,
+        Self::Soi,
+        Self::Su,
+        Self::Tahe,
+        Self::To,
+        Self::Toi,
+        Self::Tuhe,
+        Self::Ui,
+        Self::Ui3a,
+        Self::Va,
+        Self::Vau,
+        Self::Veha,
+        Self::Veho,
+        Self::Vei,
+        Self::Viha,
+        Self::Vuhu,
+        Self::Xi,
+        Self::Y,
+        Self::Zaho,
+        Self::Zeha,
+        Self::Zei,
+        Self::Zi,
+        Self::Zo,
+        Self::Zohu,
+        Self::Zoi,
+    ];
+
     #[requires(true)]
     #[bityzba::ensures(!ret.is_empty())]
     pub const fn name(self) -> &'static str {
