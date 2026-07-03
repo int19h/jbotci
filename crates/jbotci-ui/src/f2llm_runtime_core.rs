@@ -58,6 +58,9 @@ impl QwenByteBpeTokenizer {
                 artifact.schema_version
             ));
         }
+        if artifact.special_tokens.eos_id == 0 {
+            return Err("F2LLM tokenizer eos_id must be positive".to_owned());
+        }
         let mut merge_ranks = HashMap::with_capacity(artifact.merges.len());
         for (rank, merge) in artifact.merges.into_iter().enumerate() {
             if let Some((left, right)) = merge_pair(merge) {
@@ -79,19 +82,6 @@ impl QwenByteBpeTokenizer {
     #[ensures(ret == self.eos_id)]
     pub fn eos_id(&self) -> u32 {
         self.eos_id
-    }
-
-    #[requires(max_length > 0)]
-    #[ensures(ret.as_ref().is_ok_and(|ids| ids.len() <= max_length) || ret.is_err())]
-    pub fn encode_truncated(&self, text: &str, max_length: usize) -> Result<Vec<u32>, String> {
-        let mut ids = self.encode_untruncated(text)?;
-        if ids.len() > max_length {
-            ids.truncate(max_length);
-            if let Some(last) = ids.last_mut() {
-                *last = self.eos_id;
-            }
-        }
-        Ok(ids)
     }
 
     #[requires(true)]
@@ -181,6 +171,174 @@ impl QwenByteBpeTokenizer {
             .borrow_mut()
             .insert(token.to_owned(), ids.clone());
         Ok(ids)
+    }
+}
+
+#[requires(groups > 0)]
+#[requires(group_size > 0)]
+#[ensures(ret == groups * group_size)]
+pub(crate) fn q4_padded_row_stride(groups: usize, group_size: usize) -> usize {
+    groups * group_size
+}
+
+#[requires(rows > 0)]
+#[requires(groups > 0)]
+#[requires(group_size > 0)]
+#[ensures(ret > 0)]
+pub(crate) fn q4_packed_byte_len(rows: usize, groups: usize, group_size: usize) -> usize {
+    (rows * q4_padded_row_stride(groups, group_size)).div_ceil(2)
+}
+
+#[requires(col < groups * group_size)]
+#[requires(groups > 0)]
+#[requires(group_size > 0)]
+#[ensures(ret >= row * groups * group_size)]
+pub(crate) fn q4_padded_element_index(
+    row: usize,
+    col: usize,
+    groups: usize,
+    group_size: usize,
+) -> usize {
+    row * q4_padded_row_stride(groups, group_size) + col
+}
+
+#[requires(!name.is_empty())]
+#[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
+#[requires(group_size > 0)]
+#[requires(groups > 0)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn validate_q4_tensor_storage(
+    name: &str,
+    kind: &str,
+    shape: [usize; 2],
+    group_size: usize,
+    groups: usize,
+    qweight_byte_length: usize,
+    scales_byte_length: usize,
+    zero_points_byte_length: usize,
+) -> Result<(), String> {
+    let expected_groups = shape[1].div_ceil(group_size);
+    if groups != expected_groups {
+        return Err(format!(
+            "{name} groups mismatch: expected {expected_groups}, got {groups}"
+        ));
+    }
+    let expected_qweight = q4_packed_byte_len(shape[0], groups, group_size);
+    if qweight_byte_length != expected_qweight {
+        return Err(format!(
+            "{name} qweight byte length mismatch: expected {expected_qweight}, got {qweight_byte_length}"
+        ));
+    }
+    let expected_quant_params = shape[0] * groups * 4;
+    if scales_byte_length != expected_quant_params {
+        return Err(format!(
+            "{name} scales byte length mismatch: expected {expected_quant_params}, got {scales_byte_length}"
+        ));
+    }
+    let expected_zero_points = if kind == "q4_onnx_gather" {
+        (shape[0] * groups).div_ceil(2)
+    } else {
+        expected_quant_params
+    };
+    if zero_points_byte_length != expected_zero_points {
+        return Err(format!(
+            "{name} zero_points byte length mismatch: expected {expected_zero_points}, got {zero_points_byte_length}"
+        ));
+    }
+    Ok(())
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn validate_chunk_layout(
+    label: &str,
+    byte_length: usize,
+    chunks: &[(&str, usize, usize, &str)],
+) -> Result<(), String> {
+    if byte_length == 0 {
+        return Err(format!("{label} byte_length must be positive"));
+    }
+    if chunks.is_empty() {
+        return Err(format!("{label} must contain at least one chunk"));
+    }
+    let mut covered = 0usize;
+    for (url, byte_offset, chunk_byte_length, sha256) in chunks {
+        if url.trim().is_empty() {
+            return Err(format!("{label} contains a chunk with an empty URL"));
+        }
+        if *chunk_byte_length == 0 {
+            return Err(format!("{label} chunk {url} byte_length must be positive"));
+        }
+        if *byte_offset % 4 != 0 {
+            return Err(format!(
+                "{label} chunk {url} byte_offset must be 4-byte aligned"
+            ));
+        }
+        if *byte_offset != covered {
+            return Err(format!(
+                "{label} chunk {url} starts at {byte_offset}, expected {covered}"
+            ));
+        }
+        validate_sha256_hex(sha256, &format!("{label} chunk {url}"))?;
+        covered = covered
+            .checked_add(*chunk_byte_length)
+            .ok_or_else(|| format!("{label} chunk byte lengths overflow usize"))?;
+    }
+    if covered != byte_length {
+        return Err(format!(
+            "{label} chunks cover {covered} bytes, expected {byte_length}"
+        ));
+    }
+    Ok(())
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn validate_sha256_hex(value: &str, name: &str) -> Result<(), String> {
+    if value.len() != 64 || !value.chars().all(|character| character.is_ascii_hexdigit()) {
+        Err(format!("{name} must be a 64-character SHA-256 hex digest"))
+    } else {
+        Ok(())
+    }
+}
+
+#[requires(vocab_size > 0)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn validate_token_ids(token_ids: &[u32], vocab_size: usize) -> Result<(), String> {
+    let Some((index, token_id)) = token_ids
+        .iter()
+        .enumerate()
+        .find(|(_, token_id)| **token_id as usize >= vocab_size)
+    else {
+        return Ok(());
+    };
+    Err(format!(
+        "F2LLM tokenizer emitted token id {token_id} at offset {index}, outside vocab size {vocab_size}"
+    ))
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(crate) fn validate_embedding_vector_before_normalize(
+    vector: &[f32],
+    label: &str,
+) -> Result<(), String> {
+    if vector.is_empty() {
+        return Err(format!("{label} vector must not be empty"));
+    }
+    let mut any_non_zero = false;
+    for (index, value) in vector.iter().enumerate() {
+        if !value.is_finite() {
+            return Err(format!(
+                "{label} vector contains a non-finite value at dimension {index}"
+            ));
+        }
+        any_non_zero |= *value != 0.0;
+    }
+    if any_non_zero {
+        Ok(())
+    } else {
+        Err(format!("{label} vector is all zeros"))
     }
 }
 
@@ -360,24 +518,21 @@ mod tests {
     #[ensures(true)]
     fn tokenizer_matches_byte_bpe_goldens() {
         let tokenizer = tiny_tokenizer();
+        assert_eq!(tokenizer.encode_untruncated("hello").unwrap(), vec![8, 999]);
         assert_eq!(
-            tokenizer.encode_truncated("hello", 8).unwrap(),
-            vec![8, 999]
-        );
-        assert_eq!(
-            tokenizer.encode_truncated("hello world", 8).unwrap(),
+            tokenizer.encode_untruncated("hello world").unwrap(),
             vec![8, 9, 16, 999]
         );
         assert_eq!(
-            tokenizer.encode_truncated("\u{00e9}", 8).unwrap(),
+            tokenizer.encode_untruncated("\u{00e9}").unwrap(),
             vec![19, 999]
         );
         assert_eq!(
-            tokenizer.encode_truncated("hello world!", 3).unwrap(),
-            vec![8, 9, 999]
+            tokenizer.encode_untruncated("hello world!").unwrap(),
+            vec![8, 9, 16, 20, 999]
         );
         assert_eq!(
-            tokenizer.encode_truncated("hello\n", 8).unwrap(),
+            tokenizer.encode_untruncated("hello\n").unwrap(),
             vec![8, 22, 999]
         );
     }
@@ -389,6 +544,105 @@ mod tests {
         let tokenizer = tiny_tokenizer();
         let windows = tokenizer.token_windows("hello world!", 3).unwrap();
         assert_eq!(windows, vec![vec![8, 9, 16], vec![20, 999]]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn q4_padded_index_math_preserves_row_stride_for_non_divisible_shapes() {
+        let rows: usize = 2;
+        let in_cols: usize = 33;
+        let group_size: usize = 32;
+        let groups = in_cols.div_ceil(group_size);
+        assert_eq!(q4_padded_row_stride(groups, group_size), 64);
+        assert_eq!(q4_packed_byte_len(rows, groups, group_size), 64);
+        assert_eq!(q4_padded_element_index(0, 32, groups, group_size), 32);
+        assert_eq!(q4_padded_element_index(1, 0, groups, group_size), 64);
+        assert_ne!(
+            q4_padded_element_index(1, 0, groups, group_size),
+            rows.saturating_sub(1) * in_cols
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn q4_storage_validation_uses_padded_rows_for_non_divisible_shapes() {
+        assert!(
+            validate_q4_tensor_storage(
+                "test.weight",
+                "q4_onnx_matmul",
+                [2, 33],
+                32,
+                2,
+                64,
+                16,
+                16,
+            )
+            .is_ok()
+        );
+
+        let error = validate_q4_tensor_storage(
+            "test.weight",
+            "q4_onnx_matmul",
+            [2, 33],
+            32,
+            2,
+            (2usize * 33).div_ceil(2),
+            16,
+            16,
+        )
+        .unwrap_err();
+        assert!(error.contains("expected 64"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn q4_storage_validation_rejects_group_mismatch() {
+        let error =
+            validate_q4_tensor_storage("test.weight", "q4_onnx_matmul", [2, 33], 32, 1, 64, 16, 16)
+                .unwrap_err();
+        assert!(error.contains("groups mismatch"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chunk_layout_validation_rejects_misaligned_offsets_and_bad_sha() {
+        let good_sha = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let misaligned = [
+            ("first.bin", 0usize, 4usize, good_sha),
+            ("second.bin", 6usize, 4usize, good_sha),
+        ];
+        let error = validate_chunk_layout("vectors", 8, &misaligned).unwrap_err();
+        assert!(error.contains("4-byte aligned"));
+
+        let bad_sha = [("bad.bin", 0usize, 4usize, "not-a-sha")];
+        let error = validate_chunk_layout("vectors", 4, &bad_sha).unwrap_err();
+        assert!(error.contains("SHA-256"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn token_ids_are_checked_against_vocab_bounds() {
+        assert!(validate_token_ids(&[0, 1, 2], 3).is_ok());
+        let error = validate_token_ids(&[0, 3], 3).unwrap_err();
+        assert!(error.contains("outside vocab size 3"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedding_vectors_must_be_finite_and_non_zero() {
+        assert!(validate_embedding_vector_before_normalize(&[0.0, 1.0], "test").is_ok());
+        let zero_error =
+            validate_embedding_vector_before_normalize(&[0.0, -0.0], "test").unwrap_err();
+        assert!(zero_error.contains("all zeros"));
+        let nan_error =
+            validate_embedding_vector_before_normalize(&[1.0, f32::NAN], "test").unwrap_err();
+        assert!(nan_error.contains("non-finite"));
     }
 
     #[requires(true)]

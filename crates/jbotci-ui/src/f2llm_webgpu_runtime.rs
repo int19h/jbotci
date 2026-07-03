@@ -1,7 +1,8 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::sync::{Arc, Mutex};
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use futures_channel::oneshot;
 use js_sys::{Array, Float32Array, Function, Object, Promise, Reflect, Uint8Array, Uint32Array};
 use serde::Deserialize;
@@ -12,12 +13,17 @@ use wasm_bindgen_futures::JsFuture;
 
 use crate::f2llm_runtime_core::{
     DEFAULT_MAX_SEQUENCE_LENGTH, QwenByteBpeTokenizer, TokenWindow, mean_pool_normalized,
-    normalize_in_place, pack_token_windows,
+    normalize_in_place, pack_token_windows, q4_padded_row_stride, validate_chunk_layout,
+    validate_embedding_vector_before_normalize, validate_q4_tensor_storage, validate_sha256_hex,
+    validate_token_ids,
 };
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
 const DEFAULT_WORKGROUP_WIDTH: u32 = 8;
+const ATTENTION_WORKGROUP_WIDTH: u32 = 4;
+const ELEMENTWISE_WORKGROUP_SIZE: u32 = 256;
 const VECTOR_WORKGROUP_SIZE: u32 = 64;
+const GPU_VECTOR_BUFFER_CACHE_LIMIT: usize = 2;
 
 const EMBEDDING_ONNX_Q4_SHADER: &str = r#"
 struct Params {
@@ -25,6 +31,10 @@ struct Params {
   hidden: u32,
   groups: u32,
   group_size: u32,
+  row_stride: u32,
+  _pad0: u32,
+  _pad1: u32,
+  _pad2: u32,
 };
 @group(0) @binding(0) var<storage, read> tokens: array<u32>;
 @group(0) @binding(1) var<storage, read> qbytes: array<u32>;
@@ -57,7 +67,7 @@ fn zero_point_nibble(element: u32) -> u32 {
 
 fn q4_value(row: u32, col: u32) -> f32 {
   let group = col / params.group_size;
-  let q = q4_nibble(row * params.hidden + col);
+  let q = q4_nibble(row * params.row_stride + col);
   let zero_point = zero_point_nibble(row * params.groups + group);
   let scale = scales[row * params.groups + group];
   return f32(i32(q) - i32(zero_point)) * scale;
@@ -112,7 +122,7 @@ struct Params {
   out_cols: u32,
   group_size: u32,
   groups: u32,
-  _pad0: u32,
+  row_stride: u32,
   _pad1: u32,
   _pad2: u32,
 };
@@ -135,7 +145,7 @@ fn q4_nibble(element: u32) -> u32 {
 }
 
 fn weight_value(row: u32, col: u32) -> f32 {
-  let element = row * params.in_cols + col;
+  let element = row * params.row_stride + col;
   let group = col / params.group_size;
   let quant_index = row * params.groups + group;
   let q = q4_nibble(element);
@@ -397,7 +407,9 @@ enum Tensor {
     F32(F32Tensor),
 }
 
-#[invariant(true)]
+#[invariant(shape[0] > 0 && shape[1] > 0)]
+#[invariant(*group_size > 0)]
+#[invariant(*groups == shape[1].div_ceil(*group_size))]
 #[derive(Debug, Clone)]
 struct Q4Tensor {
     shape: [usize; 2],
@@ -419,6 +431,13 @@ struct F32Tensor {
 #[derive(Debug, Clone)]
 struct VectorBuffer {
     buffer: wgpu::Buffer,
+}
+
+#[invariant(true)]
+struct GpuErrorScopes {
+    validation: wgpu::ErrorScopeGuard,
+    out_of_memory: wgpu::ErrorScopeGuard,
+    internal: wgpu::ErrorScopeGuard,
 }
 
 #[invariant(true)]
@@ -488,7 +507,13 @@ impl JbotciF2LlmWebGpuRuntime {
     pub async fn embed_texts(&mut self, texts: Array) -> Result<Array, JsValue> {
         let mut rust_texts = Vec::with_capacity(texts.length() as usize);
         for index in 0..texts.length() {
-            rust_texts.push(texts.get(index).as_string().unwrap_or_default());
+            let text = texts.get(index);
+            let Some(text) = text.as_string() else {
+                return Err(JsValue::from_str(&format!(
+                    "embedding text row {index} must be a string"
+                )));
+            };
+            rust_texts.push(text);
         }
         let vectors = self
             .inner
@@ -553,10 +578,14 @@ impl RuntimeLoadOptions {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     fn from_js(value: &JsValue) -> Result<Self, JsValue> {
+        let base_url = required_string(value, "baseUrl")?
+            .trim_end_matches('/')
+            .to_owned();
+        if base_url.is_empty() {
+            return Err(JsValue::from_str("baseUrl must not be empty"));
+        }
         Ok(Self {
-            base_url: required_string(value, "baseUrl")?
-                .trim_end_matches('/')
-                .to_owned(),
+            base_url,
             expected_model_key: required_string(value, "expectedModelKey")?,
             expected_runtime: required_string(value, "expectedRuntime")?,
             expected_version: required_string(value, "expectedVersion")?,
@@ -572,18 +601,20 @@ impl RuntimeLoadOptions {
 struct WebGpuRuntime {
     device: wgpu::Device,
     queue: wgpu::Queue,
+    gpu_failure: Arc<Mutex<Option<String>>>,
     manifest: ArtifactManifest,
     tokenizer: QwenByteBpeTokenizer,
     tensors: HashMap<String, Tensor>,
     pipelines: HashMap<&'static str, wgpu::ComputePipeline>,
     transient_buffers: Vec<wgpu::Buffer>,
     vector_buffers: HashMap<String, VectorBuffer>,
+    vector_buffer_order: VecDeque<String>,
     max_sequence_length: usize,
     dimensions: usize,
 }
 
 impl WebGpuRuntime {
-    #[requires(!options.base_url.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     async fn load(
         options: RuntimeLoadOptions,
@@ -617,6 +648,8 @@ impl WebGpuRuntime {
             })
             .await
             .map_err(|error| format!("failed to request WebGPU device: {error}"))?;
+        let gpu_failure = Arc::new(Mutex::new(None));
+        install_gpu_failure_handlers(&device, Arc::clone(&gpu_failure));
 
         let tokenizer_bytes =
             fetch_tokenizer_bytes(&fetch_array_buffer, &options.base_url, &manifest.tokenizer)
@@ -628,7 +661,8 @@ impl WebGpuRuntime {
         let mut runtime = Self {
             device,
             queue,
-            max_sequence_length: options.max_sequence_length.max(
+            gpu_failure,
+            max_sequence_length: options.max_sequence_length.min(
                 manifest
                     .max_sequence_length
                     .unwrap_or(DEFAULT_MAX_SEQUENCE_LENGTH),
@@ -640,7 +674,9 @@ impl WebGpuRuntime {
             pipelines: HashMap::new(),
             transient_buffers: Vec::new(),
             vector_buffers: HashMap::new(),
+            vector_buffer_order: VecDeque::new(),
         };
+        runtime.precompile_pipelines().await?;
         runtime
             .load_tensors(&options.base_url, &fetch_array_buffer, &progress)
             .await?;
@@ -648,7 +684,7 @@ impl WebGpuRuntime {
         Ok(runtime)
     }
 
-    #[requires(!base_url.is_empty())]
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     async fn load_tensors(
         &mut self,
@@ -660,7 +696,7 @@ impl WebGpuRuntime {
             .manifest
             .tensors
             .iter()
-            .map(|(name, spec)| (name.clone(), spec.clone_for_load()))
+            .map(|(name, spec)| (name.clone(), spec.clone()))
             .collect::<Vec<_>>();
         let total_bytes = entries
             .iter()
@@ -693,8 +729,7 @@ impl WebGpuRuntime {
         Ok(())
     }
 
-    #[requires(!base_url.is_empty())]
-    #[requires(!name.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     async fn load_tensor(
         &self,
@@ -717,6 +752,23 @@ impl WebGpuRuntime {
                     .zero_points
                     .as_ref()
                     .ok_or_else(|| format!("{name} is missing zero_points"))?;
+                let shape = checked_rank2_shape(name, &spec.shape)?;
+                let group_size = spec
+                    .group_size
+                    .ok_or_else(|| format!("{name} is missing group_size"))?;
+                let groups = spec
+                    .groups
+                    .ok_or_else(|| format!("{name} is missing groups"))?;
+                validate_q4_tensor_chunks(
+                    name,
+                    &spec.kind,
+                    shape,
+                    group_size,
+                    groups,
+                    qweight,
+                    scales,
+                    zero_points,
+                )?;
                 let q_buffer = self
                     .load_chunked_buffer(
                         base_url,
@@ -741,19 +793,14 @@ impl WebGpuRuntime {
                         zero_points,
                     )
                     .await?;
-                let shape = checked_rank2_shape(name, &spec.shape)?;
-                let tensor = Q4Tensor {
-                    shape,
-                    group_size: spec
-                        .group_size
-                        .ok_or_else(|| format!("{name} is missing group_size"))?,
-                    groups: spec
-                        .groups
-                        .ok_or_else(|| format!("{name} is missing groups"))?,
-                    q_buffer,
-                    scale_buffer,
-                    zero_point_buffer,
-                };
+                let tensor = new!(Q4Tensor {
+                    shape: shape,
+                    group_size: group_size,
+                    groups: groups,
+                    q_buffer: q_buffer,
+                    scale_buffer: scale_buffer,
+                    zero_point_buffer: zero_point_buffer,
+                });
                 if spec.kind == "q4_onnx_gather" {
                     Ok(Tensor::Q4OnnxGather(tensor))
                 } else {
@@ -776,9 +823,7 @@ impl WebGpuRuntime {
         }
     }
 
-    #[requires(!base_url.is_empty())]
-    #[requires(!label.is_empty())]
-    #[requires(chunked.byte_length > 0)]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     async fn load_chunked_buffer(
         &self,
@@ -787,6 +832,13 @@ impl WebGpuRuntime {
         label: &str,
         chunked: &ChunkedSpec,
     ) -> Result<wgpu::Buffer, String> {
+        if base_url.is_empty() {
+            return Err(format!("{label} cannot be loaded from an empty base URL"));
+        }
+        if label.is_empty() {
+            return Err("F2LLM chunked buffer label must be non-empty".to_owned());
+        }
+        validate_chunked_spec(label, chunked)?;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
             size: align_to(chunked.byte_length as u64, 4),
@@ -804,6 +856,12 @@ impl WebGpuRuntime {
                     bytes.len()
                 ));
             }
+            if chunk.byte_offset + chunk.byte_length > chunked.byte_length {
+                return Err(format!(
+                    "{label} chunk {} exceeds declared buffer byte length",
+                    chunk.url
+                ));
+            }
             verify_sha256(
                 &bytes,
                 &chunk.sha256,
@@ -812,7 +870,7 @@ impl WebGpuRuntime {
             self.queue
                 .write_buffer(&buffer, chunk.byte_offset as u64, &bytes);
         }
-        self.queue.submit([]);
+        self.submit_checked(label, Vec::new()).await?;
         Ok(buffer)
     }
 
@@ -894,6 +952,7 @@ impl WebGpuRuntime {
             }
             last_token_offsets.push(offset - 1);
         }
+        validate_token_ids(&token_ids, self.manifest.model.vocab_size)?;
         let hidden = self
             .run_packed_model(&token_ids, &local_positions, &segment_starts)
             .await?;
@@ -906,6 +965,7 @@ impl WebGpuRuntime {
             let start = token_offset * self.manifest.model.hidden_size;
             let end = start + self.manifest.model.hidden_size;
             let mut vector = hidden_values[start..end].to_vec();
+            validate_embedding_vector_before_normalize(&vector, "F2LLM hidden output")?;
             normalize_in_place(&mut vector);
             rows.push(vector);
         }
@@ -958,8 +1018,8 @@ impl WebGpuRuntime {
                 &hidden,
                 sequence_length,
             )?;
-            self.queue.submit([encoder.finish()]);
-            self.submitted_work_done().await?;
+            self.submit_checked("f2llm packed embedding", vec![encoder.finish()])
+                .await?;
             self.destroy_transient_buffers();
         }
         for layer in 0..self.manifest.model.num_hidden_layers {
@@ -996,8 +1056,8 @@ impl WebGpuRuntime {
                 hidden_size,
                 self.manifest.model.rms_norm_eps,
             )?;
-            self.queue.submit([encoder.finish()]);
-            self.submitted_work_done().await?;
+            self.submit_checked("f2llm packed final norm", vec![encoder.finish()])
+                .await?;
             self.destroy_transient_buffers();
             hidden.destroy();
         }
@@ -1205,8 +1265,8 @@ impl WebGpuRuntime {
             &next_hidden,
             sequence_length * model.hidden_size,
         )?;
-        self.queue.submit([encoder.finish()]);
-        self.submitted_work_done().await?;
+        self.submit_checked("f2llm packed layer", vec![encoder.finish()])
+            .await?;
         self.destroy_transient_buffers();
         for buffer in temp_buffers {
             buffer.destroy();
@@ -1214,8 +1274,7 @@ impl WebGpuRuntime {
         Ok(next_hidden)
     }
 
-    #[requires(query.len() == corpus.dimensions)]
-    #[requires(corpus.element_type == "f16le")]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|scores| scores.len() == corpus.row_count) || ret.is_err())]
     async fn score_f16_vectors(
         &mut self,
@@ -1223,9 +1282,22 @@ impl WebGpuRuntime {
         query: &[f32],
         read_binary: &Function,
     ) -> Result<Vec<f32>, String> {
+        if query.len() != corpus.dimensions {
+            return Err(format!(
+                "query vector dimension mismatch: expected {}, got {}",
+                corpus.dimensions,
+                query.len()
+            ));
+        }
+        if corpus.element_type != "f16le" {
+            return Err(format!(
+                "F2LLM vector corpus elementType must be f16le, got {}",
+                corpus.element_type
+            ));
+        }
         let row_count = corpus.row_count;
         if row_count == 0 {
-            return Ok(Vec::new());
+            return Err("F2LLM vector corpus must contain at least one row".to_owned());
         }
         let vector_buffer = self.vector_buffer_for_corpus(corpus, read_binary).await?;
         let query_buffer = self.create_upload_buffer(
@@ -1268,7 +1340,8 @@ impl WebGpuRuntime {
             (div_ceil(row_count as u32, VECTOR_WORKGROUP_SIZE), 1, 1),
         )?;
         encoder.copy_buffer_to_buffer(&scores_buffer, 0, &read_buffer, 0, (row_count * 4) as u64);
-        self.queue.submit([encoder.finish()]);
+        self.submit_checked("f2llm search", vec![encoder.finish()])
+            .await?;
         let bytes = self.map_read_buffer(&read_buffer, row_count * 4).await?;
         query_buffer.destroy();
         scores_buffer.destroy();
@@ -1280,13 +1353,19 @@ impl WebGpuRuntime {
             .collect())
     }
 
-    #[requires(corpus.element_type == "f16le")]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok() || ret.is_err())]
     async fn vector_buffer_for_corpus(
         &mut self,
         corpus: &CorpusVectorSpec,
         read_binary: &Function,
     ) -> Result<VectorBuffer, String> {
+        if corpus.element_type != "f16le" {
+            return Err(format!(
+                "F2LLM vector corpus elementType must be f16le, got {}",
+                corpus.element_type
+            ));
+        }
         let cache_key = corpus_vector_cache_key(corpus);
         if !self.vector_buffers.contains_key(&cache_key) {
             let total_bytes = corpus
@@ -1320,9 +1399,9 @@ impl WebGpuRuntime {
                 self.queue.write_buffer(&buffer, offset as u64, &bytes);
                 offset += bytes.len();
             }
-            self.queue.submit([]);
-            self.vector_buffers
-                .insert(cache_key.clone(), VectorBuffer { buffer });
+            self.submit_checked("f2llm vector upload", Vec::new())
+                .await?;
+            self.insert_vector_buffer(cache_key.clone(), VectorBuffer { buffer });
         }
         self.vector_buffers
             .get(&cache_key)
@@ -1388,6 +1467,10 @@ impl WebGpuRuntime {
             self.manifest.model.hidden_size as u32,
             weight.groups as u32,
             weight.group_size as u32,
+            q4_padded_row_stride(weight.groups, weight.group_size) as u32,
+            0,
+            0,
+            0,
         ]);
         let params = self.create_uniform_buffer("f2llm embedding params", &params);
         self.encode_pipeline(
@@ -1478,7 +1561,7 @@ impl WebGpuRuntime {
             out_cols as u32,
             weight.group_size as u32,
             weight.groups as u32,
-            0,
+            q4_padded_row_stride(weight.groups, weight.group_size) as u32,
             0,
             0,
         ]);
@@ -1576,9 +1659,9 @@ impl WebGpuRuntime {
             PACKED_ATTENTION_SHADER,
             &[q, k, v, segment_start_buffer, output, &params],
             (
-                div_ceil(sequence_length as u32, 4),
-                div_ceil(q_heads as u32, 4),
-                div_ceil(head_dim as u32, 4),
+                div_ceil(sequence_length as u32, ATTENTION_WORKGROUP_WIDTH),
+                div_ceil(q_heads as u32, ATTENTION_WORKGROUP_WIDTH),
+                div_ceil(head_dim as u32, ATTENTION_WORKGROUP_WIDTH),
             ),
         )
     }
@@ -1600,7 +1683,7 @@ impl WebGpuRuntime {
             "add",
             ADD_SHADER,
             &[left, right, output, &params],
-            (div_ceil(len as u32, 256), 1, 1),
+            (div_ceil(len as u32, ELEMENTWISE_WORKGROUP_SIZE), 1, 1),
         )
     }
 
@@ -1621,22 +1704,15 @@ impl WebGpuRuntime {
             "siluMul",
             SILU_MUL_SHADER,
             &[gate, up, output, &params],
-            (div_ceil(len as u32, 256), 1, 1),
+            (div_ceil(len as u32, ELEMENTWISE_WORKGROUP_SIZE), 1, 1),
         )
     }
 
-    #[requires(!name.is_empty())]
-    #[requires(!shader.is_empty())]
+    #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
-    fn encode_pipeline(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        name: &'static str,
-        shader: &'static str,
-        buffers: &[&wgpu::Buffer],
-        workgroups: (u32, u32, u32),
-    ) -> Result<(), String> {
-        if !self.pipelines.contains_key(name) {
+    async fn precompile_pipelines(&mut self) -> Result<(), String> {
+        for (name, shader) in webgpu_pipeline_sources() {
+            let scopes = self.push_gpu_error_scopes();
             let module = self
                 .device
                 .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -1653,12 +1729,30 @@ impl WebGpuRuntime {
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     cache: None,
                 });
+            self.check_gpu_error_scopes(&format!("compile pipeline {name}"), scopes)
+                .await?;
             self.pipelines.insert(name, pipeline);
         }
+        Ok(())
+    }
+
+    #[requires(!name.is_empty())]
+    #[requires(!shader.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn encode_pipeline(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        name: &'static str,
+        shader: &'static str,
+        buffers: &[&wgpu::Buffer],
+        workgroups: (u32, u32, u32),
+    ) -> Result<(), String> {
+        let _ = shader;
+        self.observed_gpu_failure()?;
         let pipeline = self
             .pipelines
             .get(name)
-            .ok_or_else(|| format!("missing F2LLM pipeline {name}"))?;
+            .ok_or_else(|| format!("F2LLM pipeline {name} was not precompiled"))?;
         let entries = buffers
             .iter()
             .enumerate()
@@ -1680,6 +1774,86 @@ impl WebGpuRuntime {
         pass.set_bind_group(0, &bind_group, &[]);
         pass.dispatch_workgroups(workgroups.0, workgroups.1, workgroups.2);
         Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    async fn submit_checked(
+        &self,
+        label: &str,
+        command_buffers: Vec<wgpu::CommandBuffer>,
+    ) -> Result<(), String> {
+        self.observed_gpu_failure()?;
+        let scopes = self.push_gpu_error_scopes();
+        self.queue.submit(command_buffers);
+        self.submitted_work_done().await?;
+        self.check_gpu_error_scopes(label, scopes).await?;
+        self.observed_gpu_failure()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn push_gpu_error_scopes(&self) -> GpuErrorScopes {
+        GpuErrorScopes {
+            validation: self.device.push_error_scope(wgpu::ErrorFilter::Validation),
+            out_of_memory: self.device.push_error_scope(wgpu::ErrorFilter::OutOfMemory),
+            internal: self.device.push_error_scope(wgpu::ErrorFilter::Internal),
+        }
+    }
+
+    #[requires(!label.is_empty())]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    async fn check_gpu_error_scopes(
+        &self,
+        label: &str,
+        scopes: GpuErrorScopes,
+    ) -> Result<(), String> {
+        let internal = scopes.internal.pop().await;
+        let out_of_memory = scopes.out_of_memory.pop().await;
+        let validation = scopes.validation.pop().await;
+        for (kind, error) in [
+            ("internal", internal),
+            ("out-of-memory", out_of_memory),
+            ("validation", validation),
+        ] {
+            if let Some(error) = error {
+                let message = format!("F2LLM WebGPU {label} failed with {kind} error: {error}");
+                note_gpu_failure(&self.gpu_failure, message.clone());
+                return Err(message);
+            }
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn observed_gpu_failure(&self) -> Result<(), String> {
+        match self.gpu_failure.lock() {
+            Ok(failure) => {
+                if let Some(message) = failure.as_ref() {
+                    Err(message.clone())
+                } else {
+                    Ok(())
+                }
+            }
+            Err(_) => Err("F2LLM WebGPU failure state lock is poisoned".to_owned()),
+        }
+    }
+
+    #[requires(!cache_key.is_empty())]
+    #[ensures(self.vector_buffers.len() <= GPU_VECTOR_BUFFER_CACHE_LIMIT)]
+    fn insert_vector_buffer(&mut self, cache_key: String, vector_buffer: VectorBuffer) {
+        self.vector_buffer_order.retain(|key| key != &cache_key);
+        while self.vector_buffer_order.len() >= GPU_VECTOR_BUFFER_CACHE_LIMIT {
+            let Some(old_key) = self.vector_buffer_order.pop_front() else {
+                break;
+            };
+            if let Some(old_buffer) = self.vector_buffers.remove(&old_key) {
+                old_buffer.buffer.destroy();
+            }
+        }
+        self.vector_buffer_order.push_back(cache_key.clone());
+        self.vector_buffers.insert(cache_key, vector_buffer);
     }
 
     #[requires(byte_length > 0)]
@@ -1765,7 +1939,8 @@ impl WebGpuRuntime {
             0,
             byte_length as u64,
         );
-        self.queue.submit([encoder.finish()]);
+        self.submit_checked("f2llm readback copy", vec![encoder.finish()])
+            .await?;
         let bytes = self.map_read_buffer(&read_buffer, byte_length).await?;
         read_buffer.destroy();
         Ok(bytes
@@ -1781,6 +1956,7 @@ impl WebGpuRuntime {
         buffer: &wgpu::Buffer,
         byte_length: usize,
     ) -> Result<Vec<u8>, String> {
+        self.observed_gpu_failure()?;
         let slice = buffer.slice(0..align_to(byte_length as u64, 4));
         let (sender, receiver) = oneshot::channel();
         slice.map_async(wgpu::MapMode::Read, move |result| {
@@ -1836,20 +2012,55 @@ impl WebGpuRuntime {
     }
 }
 
-impl TensorSpec {
-    #[requires(true)]
-    #[ensures(true)]
-    fn clone_for_load(&self) -> Self {
-        self.clone()
-    }
-}
-
 #[invariant(::U32(_) => true)]
 #[invariant(::F32(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum UniformValue {
     U32(u32),
     F32(f32),
+}
+
+#[requires(true)]
+#[ensures(ret.len() == 8)]
+fn webgpu_pipeline_sources() -> [(&'static str, &'static str); 8] {
+    [
+        ("embeddingOnnxQ4", EMBEDDING_ONNX_Q4_SHADER),
+        ("rmsNorm", RMS_NORM_SHADER),
+        ("linearOnnxQ4", LINEAR_ONNX_Q4_SHADER),
+        ("packedRope", PACKED_ROPE_SHADER),
+        ("packedAttention", PACKED_ATTENTION_SHADER),
+        ("add", ADD_SHADER),
+        ("siluMul", SILU_MUL_SHADER),
+        ("vectorDotF16", VECTOR_DOT_F16_SHADER),
+    ]
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn install_gpu_failure_handlers(device: &wgpu::Device, failure: Arc<Mutex<Option<String>>>) {
+    let uncaptured_failure = Arc::clone(&failure);
+    device.on_uncaptured_error(Arc::new(move |error| {
+        note_gpu_failure(
+            &uncaptured_failure,
+            format!("F2LLM WebGPU uncaptured error: {error}"),
+        );
+    }));
+    device.set_device_lost_callback(move |reason, message| {
+        note_gpu_failure(
+            &failure,
+            format!("F2LLM WebGPU device was lost ({reason:?}): {message}"),
+        );
+    });
+}
+
+#[requires(!message.is_empty())]
+#[ensures(true)]
+fn note_gpu_failure(failure: &Arc<Mutex<Option<String>>>, message: String) {
+    if let Ok(mut stored) = failure.lock()
+        && stored.is_none()
+    {
+        *stored = Some(message);
+    }
 }
 
 #[requires(!manifest.model_key.is_empty())]
@@ -1907,6 +2118,43 @@ fn validate_manifest(
             options.dimensions, manifest.model.hidden_size
         ));
     }
+    if manifest.model.num_attention_heads % manifest.model.num_key_value_heads != 0 {
+        return Err(format!(
+            "F2LLM WebGPU attention heads must be divisible by key/value heads: {} % {} != 0",
+            manifest.model.num_attention_heads, manifest.model.num_key_value_heads
+        ));
+    }
+    if manifest.model.hidden_size != manifest.model.num_attention_heads * manifest.model.head_dim {
+        return Err(format!(
+            "F2LLM WebGPU hidden size must equal attention heads * head dimension: {} != {} * {}",
+            manifest.model.hidden_size, manifest.model.num_attention_heads, manifest.model.head_dim
+        ));
+    }
+    if manifest.model.head_dim % 2 != 0 {
+        return Err(format!(
+            "F2LLM WebGPU head_dim must be even for RoPE, got {}",
+            manifest.model.head_dim
+        ));
+    }
+    if !manifest.model.rms_norm_eps.is_finite() || manifest.model.rms_norm_eps <= 0.0 {
+        return Err("F2LLM WebGPU rms_norm_eps must be positive and finite".to_owned());
+    }
+    if !manifest.model.rope_theta.is_finite() || manifest.model.rope_theta <= 0.0 {
+        return Err("F2LLM WebGPU rope_theta must be positive and finite".to_owned());
+    }
+    validate_sha256_hex(
+        &manifest.tokenizer.canonical_json_sha256,
+        "F2LLM tokenizer canonical JSON SHA-256",
+    )?;
+    if manifest.tokenizer.byte_length == 0 {
+        return Err("F2LLM tokenizer byte length must be positive".to_owned());
+    }
+    if manifest.tokenizer.url.trim().is_empty() {
+        return Err("F2LLM tokenizer URL must be non-empty".to_owned());
+    }
+    for (name, spec) in &manifest.tensors {
+        validate_tensor_spec_shape(name, spec)?;
+    }
     Ok(())
 }
 
@@ -1950,6 +2198,87 @@ fn validate_required_tensors(
     }
 }
 
+#[requires(!name.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), String> {
+    match spec.kind.as_str() {
+        "q4_onnx_gather" | "q4_onnx_matmul" => {
+            let shape = checked_rank2_shape(name, &spec.shape)?;
+            let group_size = spec
+                .group_size
+                .ok_or_else(|| format!("{name} is missing group_size"))?;
+            let groups = spec
+                .groups
+                .ok_or_else(|| format!("{name} is missing groups"))?;
+            if group_size == 0 {
+                return Err(format!("{name} group_size must be positive"));
+            }
+            let expected_groups = shape[1].div_ceil(group_size);
+            if groups != expected_groups {
+                return Err(format!(
+                    "{name} groups mismatch: expected {expected_groups}, got {groups}"
+                ));
+            }
+            Ok(())
+        }
+        "f32" => {
+            if spec.shape.is_empty() || spec.shape.contains(&0) {
+                Err(format!(
+                    "{name} f32 tensor shape must be non-empty and positive"
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        other => Err(format!("unsupported F2LLM tensor kind for {name}: {other}")),
+    }
+}
+
+#[requires(!name.is_empty())]
+#[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
+#[requires(group_size > 0)]
+#[requires(groups > 0)]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_q4_tensor_chunks(
+    name: &str,
+    kind: &str,
+    shape: [usize; 2],
+    group_size: usize,
+    groups: usize,
+    qweight: &ChunkedSpec,
+    scales: &ChunkedSpec,
+    zero_points: &ChunkedSpec,
+) -> Result<(), String> {
+    validate_q4_tensor_storage(
+        name,
+        kind,
+        shape,
+        group_size,
+        groups,
+        qweight.byte_length,
+        scales.byte_length,
+        zero_points.byte_length,
+    )
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Result<(), String> {
+    let chunks = chunked
+        .chunks
+        .iter()
+        .map(|chunk| {
+            (
+                chunk.url.as_str(),
+                chunk.byte_offset,
+                chunk.byte_length,
+                chunk.sha256.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    validate_chunk_layout(label, chunked.byte_length, &chunks)
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn tensor_byte_length(spec: &TensorSpec) -> usize {
@@ -1972,14 +2301,22 @@ fn tensor_byte_length(spec: &TensorSpec) -> usize {
     }
 }
 
-#[requires(!base_url.is_empty())]
-#[requires(!tokenizer.url.is_empty())]
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|bytes| bytes.len() == tokenizer.byte_length) || ret.is_err())]
 async fn fetch_tokenizer_bytes(
     fetch_array_buffer: &Function,
     base_url: &str,
     tokenizer: &TokenizerSpec,
 ) -> Result<Vec<u8>, String> {
+    if base_url.is_empty() {
+        return Err("F2LLM tokenizer cannot be loaded from an empty base URL".to_owned());
+    }
+    if tokenizer.url.trim().is_empty() {
+        return Err("F2LLM tokenizer URL must be non-empty".to_owned());
+    }
+    if tokenizer.byte_length == 0 {
+        return Err("F2LLM tokenizer byte length must be positive".to_owned());
+    }
     let url = format!("{base_url}/{}", tokenizer.url);
     let bytes = fetch_bytes(fetch_array_buffer, &url, "F2LLM tokenizer").await?;
     if bytes.len() != tokenizer.byte_length {
@@ -2033,9 +2370,9 @@ async fn read_binary_bytes(read_binary: &Function, key: &str) -> Result<Vec<u8>,
 }
 
 #[requires(!name.is_empty())]
-#[requires(expected.len() == 64)]
 #[ensures(ret.is_ok() || ret.is_err())]
 fn verify_sha256(bytes: &[u8], expected: &str, name: &str) -> Result<(), String> {
+    validate_sha256_hex(expected, name)?;
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     let actual = format!("{:x}", hasher.finalize());
@@ -2113,7 +2450,13 @@ fn bytes_from_js(value: &JsValue) -> Result<Vec<u8>, JsValue> {
 #[ensures(ret.as_ref().is_ok() || ret.is_err())]
 fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue> {
     let shards_value = Reflect::get(value, &JsValue::from_str("shards"))?;
+    if !Array::is_array(&shards_value) {
+        return Err(JsValue::from_str("shards must be an array"));
+    }
     let shards_array = Array::from(&shards_value);
+    if shards_array.length() == 0 {
+        return Err(JsValue::from_str("shards must contain at least one shard"));
+    }
     let mut shards = Vec::with_capacity(shards_array.length() as usize);
     for index in 0..shards_array.length() {
         let shard = shards_array.get(index);
@@ -2122,12 +2465,20 @@ fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue
             byte_len: required_usize(&shard, "byteLen")?,
         });
     }
+    let row_count = required_usize(value, "rowCount")?;
+    let dimensions = required_usize(value, "dimensions")?;
+    let element_type = required_string(value, "elementType")?;
+    if element_type != "f16le" {
+        return Err(JsValue::from_str(&format!(
+            "elementType must be f16le, got {element_type}"
+        )));
+    }
     Ok(CorpusVectorSpec {
         corpus_id: optional_string(value, "corpusId")?.unwrap_or_default(),
         input_hash: optional_string(value, "inputHash")?.unwrap_or_default(),
-        row_count: required_usize(value, "rowCount")?,
-        dimensions: required_usize(value, "dimensions")?,
-        element_type: optional_string(value, "elementType")?.unwrap_or_else(|| "f32le".to_owned()),
+        row_count,
+        dimensions,
+        element_type,
         shards,
     })
 }
@@ -2135,7 +2486,15 @@ fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty()) || ret.is_err())]
 fn required_string(value: &JsValue, key: &str) -> Result<String, JsValue> {
-    optional_string(value, key)?.ok_or_else(|| JsValue::from_str(&format!("{key} is required")))
+    let value = optional_string(value, key)?
+        .ok_or_else(|| JsValue::from_str(&format!("{key} is required")))?;
+    if value.is_empty() {
+        Err(JsValue::from_str(&format!(
+            "{key} must be a non-empty string"
+        )))
+    } else {
+        Ok(value)
+    }
 }
 
 #[requires(true)]
