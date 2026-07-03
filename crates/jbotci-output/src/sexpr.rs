@@ -1,4 +1,4 @@
-use bityzba::{invariant, requires};
+use bityzba::{invariant, new, requires};
 
 use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
 
@@ -254,12 +254,17 @@ fn source_fragment_is_empty(fragment: &BracketSourceFragment) -> bool {
 #[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end))]
 fn union_child_ranges(children: &[SExpr]) -> Option<BracketSourceRange> {
     let mut ranges = children.iter().filter_map(expr_range);
-    let mut range = ranges.next()?;
+    let range = ranges.next()?;
+    let mut byte_start = range.byte_start;
+    let mut byte_end = range.byte_end;
     for child_range in ranges {
-        range.byte_start = range.byte_start.min(child_range.byte_start);
-        range.byte_end = range.byte_end.max(child_range.byte_end);
+        byte_start = byte_start.min(child_range.byte_start);
+        byte_end = byte_end.max(child_range.byte_end);
     }
-    Some(range)
+    Some(new!(BracketSourceRange {
+        byte_start,
+        byte_end,
+    }))
 }
 
 #[requires(true)]

@@ -1,6 +1,6 @@
-use bityzba::data;
 #[allow(unused_imports)]
 use bityzba::ensures;
+use bityzba::{data, new};
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
 use jbotci_orthography::{
@@ -332,20 +332,20 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
 fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
     sexpr::leaf_with_range(
         verbatim.text.trim().to_owned(),
-        Some(BracketSourceRange {
+        Some(new!(BracketSourceRange {
             byte_start: verbatim.span.byte_start,
             byte_end: verbatim.span.byte_end,
-        }),
+        })),
     )
 }
 
 #[requires(word.span().byte_start <= word.span().byte_end)]
 #[ensures(ret.byte_start == word.span().byte_start)]
 fn word_bracket_source_range(word: &Word) -> BracketSourceRange {
-    BracketSourceRange {
+    new!(BracketSourceRange {
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
-    }
+    })
 }
 
 #[requires(true)]
@@ -377,10 +377,10 @@ fn expr_end_range(expr: &sexpr::SExpr) -> Option<BracketSourceRange> {
     let range = match expr {
         sexpr::SExpr::Leaf { range, .. } | sexpr::SExpr::Node { range, .. } => *range,
     }?;
-    Some(BracketSourceRange {
+    Some(new!(BracketSourceRange {
         byte_start: range.byte_end,
         byte_end: range.byte_end,
-    })
+    }))
 }
 
 #[requires(true)]

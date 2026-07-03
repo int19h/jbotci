@@ -4,14 +4,14 @@ use jbotci_diagnostics::{
 };
 use owo_colors::OwoColorize;
 
+#[invariant(*terminal_width > 0, "trace render width must be positive")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 pub struct TraceRenderOptions {
     pub color: bool,
     pub terminal_width: usize,
 }
 
-#[requires(options.terminal_width > 0)]
+#[requires(true)]
 #[ensures(ret.is_empty() || ret.ends_with('\n'))]
 pub fn render_trace_report(report: &TraceReport, options: TraceRenderOptions) -> String {
     let mut output = String::new();

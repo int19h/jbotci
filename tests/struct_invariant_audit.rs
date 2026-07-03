@@ -716,10 +716,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
     ),
     (
-        "crates/jbotci-output/src/diagnostics.rs:DiagnosticRenderOptions",
-        "diagnostic rendering options are independent caller-selected controls",
-    ),
-    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -736,10 +732,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
-        "crates/jbotci-output/src/lib.rs:BracketSourceRange",
-        "bracket source ranges mirror parser byte spans supplied by renderer construction paths",
-    ),
-    (
         "crates/jbotci-output/src/lib.rs:JsonRenderOptions",
         "JSON indentation accepts any width chosen by callers",
     ),
@@ -752,16 +744,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
-        "crates/jbotci-output/src/qr_code.rs:QrBlock",
-        "QR block geometry is produced by the QR renderer and covered by placement tests",
-    ),
-    (
         "crates/jbotci-output/src/qr_code.rs:QrBuild",
         "QR build state is internal renderer assembly data validated by encoded-output tests",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrCode",
-        "QR code data is constructed by the QR encoder before renderer placement",
     ),
     (
         "crates/jbotci-output/src/qr_code.rs:QrCoord",
@@ -770,10 +754,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/qr_code.rs:QrLogoLayer",
         "QR logo layers are derived renderer masks covered by logo placement tests",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrLogoPlacement",
-        "QR logo placement is selected by renderer search and validated by placement tests",
     ),
     (
         "crates/jbotci-output/src/references.rs:GeneratedSyntaxWordCollector",
@@ -798,10 +778,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/references.rs:TreeWordLabel",
         "word labels are copied from already rendered tree word values",
-    ),
-    (
-        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
-        "trace renderer options are caller-selected presentation controls",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",

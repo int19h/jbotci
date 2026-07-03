@@ -5250,12 +5250,12 @@ fn render_source_diagnostics(
         source_label,
         source,
         diagnostics,
-        DiagnosticRenderOptions {
+        new!(DiagnosticRenderOptions {
             color: color_enabled,
             detail: diagnostic_detail,
             glyphs,
             terminal_width: diagnostic_terminal_width,
-        },
+        }),
     )
     .map_err(|error| anyhow!(error))
 }
@@ -5503,10 +5503,10 @@ fn render_cli_trace(
     report.map_or_else(String::new, |report| {
         render_trace_report(
             report,
-            TraceRenderOptions {
+            new!(TraceRenderOptions {
                 color: color_enabled,
                 terminal_width,
-            },
+            }),
         )
     })
 }
