@@ -2,23 +2,6 @@ let computeHandle = null;
 let initModuleUrl = null;
 let initPromise = null;
 
-const INIT_TIMEOUT_MS = 30000;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForMainWasm(appModule) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < INIT_TIMEOUT_MS) {
-    if (appModule.__wasm !== undefined || globalThis.__dx_mainWasm !== undefined) {
-      return;
-    }
-    await sleep(10);
-  }
-  throw new Error("Dioxus app wasm initialization did not complete in the compute worker");
-}
-
 function initCompute(mainModuleUrl) {
   if (typeof mainModuleUrl !== "string" || mainModuleUrl.length === 0) {
     throw new Error("compute worker did not receive the app module URL");
@@ -33,10 +16,17 @@ function initCompute(mainModuleUrl) {
     if (typeof appModule.jbotciComputeHandle !== "function") {
       throw new Error("Dioxus app module does not export jbotciComputeHandle");
     }
-    await waitForMainWasm(appModule);
+    await waitForAppModuleReady(appModule);
     computeHandle = appModule.jbotciComputeHandle;
   });
   return initPromise;
+}
+
+async function waitForAppModuleReady(appModule) {
+  if (typeof appModule.jbotciWorkerReady !== "function") {
+    throw new Error("Dioxus app module does not export jbotciWorkerReady");
+  }
+  await appModule.jbotciWorkerReady();
 }
 
 self.onmessage = async (event) => {
