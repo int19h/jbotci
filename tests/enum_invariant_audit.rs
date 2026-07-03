@@ -1892,99 +1892,99 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "route variant delegates URL state constraints to VlackuWebState and canonical route builders",
     ),
     (
-        "tests/support/fixtures/mod.rs:BracketExpectations::Legacy",
+        "xtask-common/src/fixtures/mod.rs:BracketExpectations::Legacy",
         "fixture bracket expectation wrapper delegates text validity to TextExpectation and restricts script selection through accessors",
     ),
     (
-        "tests/support/fixtures/mod.rs:BracketExpectations::Scripts",
+        "xtask-common/src/fixtures/mod.rs:BracketExpectations::Scripts",
         "fixture bracket expectation wrapper delegates per-script optionality to ScriptBracketExpectations",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::DuplicateId",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::DuplicateId",
         "fixture error wrapper carries duplicate-id diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::EncodeToml",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::EncodeToml",
         "fixture error wrapper carries TOML encoder diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::InvalidDialect",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidDialect",
         "fixture error wrapper carries dialect diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::InvalidXfail",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidXfail",
         "fixture error wrapper carries xfail diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::LegacyExpectationFormat",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::LegacyExpectationFormat",
         "fixture error wrapper carries legacy-format diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::ParseJson",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::ParseJson",
         "fixture error wrapper carries JSON parser diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::ParseToml",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::ParseToml",
         "fixture error wrapper carries TOML parser diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::Read",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::Read",
         "fixture error wrapper carries filesystem diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::UnknownFacet",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::UnknownFacet",
         "fixture error wrapper carries facet-name diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::Walk",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::Walk",
         "fixture error wrapper carries directory traversal diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:FixtureError::Write",
+        "xtask-common/src/fixtures/mod.rs:FixtureError::Write",
         "fixture error wrapper carries filesystem diagnostics",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::FixedRafsi",
+        "xtask-common/src/fixtures/mod.rs:JvozbaFixtureInput::FixedRafsi",
         "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureInput::Word",
+        "xtask-common/src/fixtures/mod.rs:JvozbaFixtureInput::Word",
         "fixture jvozba input preserves fixture text so failure cases can exercise downstream validation",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Cmevla",
+        "xtask-common/src/fixtures/mod.rs:JvozbaFixtureMode::Cmevla",
         "fixture jvozba mode is a closed serialization selector",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaFixtureMode::Lujvo",
+        "xtask-common/src/fixtures/mod.rs:JvozbaFixtureMode::Lujvo",
         "fixture jvozba mode is a closed serialization selector",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Hyphen",
+        "xtask-common/src/fixtures/mod.rs:JvozbaSegmentKindExpectation::Hyphen",
         "fixture jvozba segment kind is a closed expected-output selector",
     ),
     (
-        "tests/support/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
+        "xtask-common/src/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
         "fixture jvozba segment kind is a closed expected-output selector",
     ),
     (
-        "tests/support/fixtures/mod.rs:Provenance::Adhoc",
+        "xtask-common/src/fixtures/mod.rs:Provenance::Adhoc",
         "ad hoc provenance intentionally permits absent description",
     ),
     (
-        "tests/support/fixtures/mod.rs:Provenance::Cll",
+        "xtask-common/src/fixtures/mod.rs:Provenance::Cll",
         "fixture tree validation checks provenance completeness at import time",
     ),
     (
-        "tests/support/fixtures/mod.rs:Provenance::Corpus",
+        "xtask-common/src/fixtures/mod.rs:Provenance::Corpus",
         "fixture tree validation checks provenance completeness at import time",
     ),
     (
-        "tests/support/fixtures/mod.rs:Provenance::Muplis",
+        "xtask-common/src/fixtures/mod.rs:Provenance::Muplis",
         "fixture tree validation checks provenance completeness at import time",
     ),
     (
-        "tests/support/fixtures/mod.rs:Provenance::Other",
+        "xtask-common/src/fixtures/mod.rs:Provenance::Other",
         "fixture tree validation checks custom provenance names at import time",
     ),
     (
@@ -2069,7 +2069,7 @@ fn allowed_placeholder_keys() -> BTreeSet<String> {
 fn enum_placeholder_invariants() -> BTreeSet<String> {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut placeholders = BTreeSet::new();
-    for root in ["crates", "apps", "tests", "xtask"] {
+    for root in ["crates", "apps", "tests", "xtask", "xtask-common"] {
         let source_root = workspace.join(root);
         if source_root.exists() {
             collect_enum_placeholder_invariants(workspace, &source_root, &mut placeholders);

@@ -13,124 +13,111 @@ use jbotci_syntax::{
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assigns_simple_sentence_tokens_once_in_order() {
-    run_on_normal_stack(|| assert_source_assignment("mi cu klama la zdani"));
+    assert_source_assignment("mi cu klama la zdani");
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_single_word_quote_text() {
-    run_on_normal_stack(|| assert_source_assignment("zo .ai"));
+    assert_source_assignment("zo .ai");
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_zoi_raw_quoted_text() {
-    run_on_normal_stack(|| assert_source_assignment("zoi gy Steve gy"));
+    assert_source_assignment("zoi gy Steve gy");
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_non_ascii_spans() {
-    run_on_normal_stack(|| assert_source_assignment("zoi gy café gy"));
+    assert_source_assignment("zoi gy café gy");
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_includes_muhoi_raw_quoted_text_once() {
-    run_on_normal_stack(|| {
-        let dialect =
-            parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
+    let dialect = parse_dialect_definition("(+ZANTUFA-QUOTES)").expect("valid dialect definition");
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
 
-        assert_source_assignment_with_options("mi cu mu'oi gy foo gy", &options);
-    });
+    assert_source_assignment_with_options("mi cu mu'oi gy foo gy", &options);
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_zantufa_jai_tag_term() {
-    run_on_normal_stack(|| {
-        let dialect =
-            parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
+    let dialect = parse_dialect_definition("(+ZANTUFA-TAGS)").expect("valid dialect definition");
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
 
-        assert_source_assignment_with_options("jai pu mi cu klama", &options);
-    });
+    assert_source_assignment_with_options("jai pu mi cu klama", &options);
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_zantufa_poiha_brigahi() {
-    run_on_normal_stack(|| {
-        let dialect =
-            parse_dialect_definition("(+ZANTUFA-ADVERBIALS)").expect("valid dialect definition");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
+    let dialect =
+        parse_dialect_definition("(+ZANTUFA-ADVERBIALS)").expect("valid dialect definition");
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
 
-        assert_source_assignment_with_options("noi'a klama ku mi cu broda", &options);
-    });
+    assert_source_assignment_with_options("noi'a klama ku mi cu broda", &options);
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_v0_experimental_linkargs() {
-    run_on_normal_stack(|| {
-        for source in [
-            "lo be mi broda cu melbi",
-            "lo be broda cu melbi",
-            "lo broda be cu melbi",
-            "lo broda be mi bei cu melbi",
-            "lo broda be bei mi cu melbi",
-        ] {
-            assert_source_assignment(source);
-        }
-    });
+    for source in [
+        "lo be mi broda cu melbi",
+        "lo be broda cu melbi",
+        "lo broda be cu melbi",
+        "lo broda be mi bei cu melbi",
+        "lo broda be bei mi cu melbi",
+    ] {
+        assert_source_assignment(source);
+    }
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn syntax_assignment_handles_v0_zantufa_output_order_cases() {
-    run_on_normal_stack(|| {
-        let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect definition");
-        let options = ParseOptions::default().with_dialect_definition(&dialect);
+    let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect definition");
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
 
-        for source in [
-            "mi klama noi'a broda ku",
-            "mi mu'oi gy Alice gy",
-            "mi lu'ei do klama li'au",
-        ] {
-            assert_source_assignment_with_options(source, &options);
-        }
-    });
+    for source in [
+        "mi klama noi'a broda ku",
+        "mi mu'oi gy Alice gy",
+        "mi lu'ei do klama li'au",
+    ] {
+        assert_source_assignment_with_options(source, &options);
+    }
 }
 
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn generated_syntax_assignment_handles_folded_source_islands() {
-    run_on_normal_stack(|| {
-        for source in [
-            "li re gu'e su'i gi pi'i re du li vo",
-            "to .ui ba'e cai toi",
-            "li fu'a reboi ci pi'i voboi mu pi'i su'i du li rexa",
-            "mi ba'e ba'e klama",
-        ] {
-            assert_generated_model_source_assignment(source);
-        }
-    });
+    for source in [
+        "li re gu'e su'i gi pi'i re du li vo",
+        "to .ui ba'e cai toi",
+        "li fu'a reboi ci pi'i voboi mu pi'i su'i du li rexa",
+        "mi ba'e ba'e klama",
+    ] {
+        assert_generated_model_source_assignment(source);
+    }
 }
 
+#[test]
 #[requires(true)]
 #[ensures(true)]
-fn run_on_normal_stack(test: impl FnOnce()) {
-    test();
+fn range_order_check_rejects_inverted_final_range() {
+    assert!(!ranges_are_strictly_ordered(&[(0, 1), (3, 2)]));
 }
 
 #[requires(!source.is_empty())]
@@ -219,7 +206,6 @@ fn span_range(span: &SourceSpan) -> (usize, usize) {
 #[requires(true)]
 #[ensures(true)]
 fn ranges_are_strictly_ordered(ranges: &[(usize, usize)]) -> bool {
-    ranges
-        .windows(2)
-        .all(|pair| pair[0].0 <= pair[0].1 && pair[0].1 <= pair[1].0)
+    ranges.iter().all(|(start, end)| start <= end)
+        && ranges.windows(2).all(|pair| pair[0].1 <= pair[1].0)
 }

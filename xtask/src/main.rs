@@ -8,9 +8,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
 use bityzba::*;
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind as ClapErrorKind};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
+use xtask_common::service_worker::{
+    RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
+};
+use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
 const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
@@ -248,32 +252,50 @@ impl DesktopBundleTarget {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn main() -> Result<()> {
     let args = std::env::args_os().collect::<Vec<_>>();
-    if should_run_light_command(&args) {
-        run_light_command(args)
+    if let Some(cli) = parse_light_cli(&args) {
+        run_light_command(cli)
     } else {
         delegate_to_xtask_full(&args)
     }
 }
 
 #[requires(!args.is_empty())]
-#[ensures(true)]
-fn should_run_light_command(args: &[OsString]) -> bool {
-    match first_subcommand(args) {
-        Some(
-            "check"
-            | "test"
-            | "clippy"
-            | "fmt"
-            | "desktop-build"
-            | "desktop-serve"
-            | "desktop-bundle-macos"
-            | "desktop-bundle-linux"
-            | "desktop-bundle-windows"
-            | "render-docker-build"
-            | "render-docker-run",
-        ) => true,
-        Some("dist-server") => dist_server_args_request_light_path(args),
-        _ => false,
+#[ensures(ret.as_ref().is_none_or(|cli| cli.should_run_light()))]
+fn parse_light_cli(args: &[OsString]) -> Option<Cli> {
+    first_subcommand(args)?;
+    match Cli::try_parse_from(args) {
+        Ok(cli) if cli.should_run_light() => Some(cli),
+        Ok(_) => None,
+        Err(error)
+            if matches!(
+                error.kind(),
+                ClapErrorKind::DisplayHelp | ClapErrorKind::DisplayVersion
+            ) =>
+        {
+            error.exit();
+        }
+        Err(_) => None,
+    }
+}
+
+impl Cli {
+    #[requires(true)]
+    #[ensures(true)]
+    fn should_run_light(&self) -> bool {
+        match &self.command {
+            Command::DistServer(args) => args.requests_light_path(),
+            Command::Check
+            | Command::Test
+            | Command::Clippy
+            | Command::Fmt { .. }
+            | Command::DesktopBuild
+            | Command::DesktopServe
+            | Command::DesktopBundleMacos
+            | Command::DesktopBundleLinux
+            | Command::DesktopBundleWindows
+            | Command::RenderDockerBuild(_)
+            | Command::RenderDockerRun(_) => true,
+        }
     }
 }
 
@@ -288,24 +310,17 @@ fn first_subcommand(args: &[OsString]) -> Option<&str> {
     }
 }
 
-#[requires(!args.is_empty())]
-#[ensures(true)]
-fn dist_server_args_request_light_path(args: &[OsString]) -> bool {
-    let has_skip_embeddings = args
-        .iter()
-        .skip(2)
-        .any(|arg| arg == OsStr::new("--skip-web-embeddings"));
-    let has_skip_bundle = args
-        .iter()
-        .skip(2)
-        .any(|arg| arg == OsStr::new("--skip-web-bundle"));
-    has_skip_embeddings && !has_skip_bundle
+impl DistServerArgs {
+    #[requires(true)]
+    #[ensures(ret == (self.skip_web_embeddings && !self.skip_web_bundle))]
+    fn requests_light_path(&self) -> bool {
+        self.skip_web_embeddings && !self.skip_web_bundle
+    }
 }
 
-#[requires(!args.is_empty())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_light_command(args: Vec<OsString>) -> Result<()> {
-    let cli = Cli::parse_from(args);
+fn run_light_command(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Check => cargo(&[
             "check",
@@ -788,6 +803,8 @@ fn dioxus_web_public_input_dir() -> PathBuf {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn remove_obsolete_web_public_assets(public_dir: &Path) -> Result<()> {
+    remove_obsolete_web_public_dir(public_dir, Path::new(WEB_ASSET_SYNC_TEMP_DIR_NAME))?;
+    remove_web_asset_sync_temp_dir(Path::new(WEB_ASSET_SYNC_TEMP_DIR));
     remove_obsolete_web_public_dir(public_dir, Path::new("assets/generated"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("manifest.webmanifest"))?;
     remove_obsolete_web_public_file(public_dir, Path::new("assets/manifest.webmanifest"))
@@ -931,7 +948,7 @@ fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &st
             temp_path.display()
         )
     })?;
-    match fs::rename(&temp_path, target) {
+    let result = match fs::rename(&temp_path, target) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             fs::remove_file(target).with_context(|| {
@@ -958,7 +975,11 @@ fn copy_web_asset_file_atomically(source: &Path, target: &Path, description: &st
                 )
             })
         }
+    };
+    if result.is_ok() {
+        remove_web_asset_sync_temp_dir(&temp_dir);
     }
+    result
 }
 
 #[requires(!contents.is_empty())]
@@ -995,7 +1016,7 @@ fn write_web_asset_text_atomically(target: &Path, contents: &str, description: &
             temp_path.display()
         )
     })?;
-    match fs::rename(&temp_path, target) {
+    let result = match fs::rename(&temp_path, target) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::AlreadyExists => {
             fs::remove_file(target).with_context(|| {
@@ -1022,7 +1043,11 @@ fn write_web_asset_text_atomically(target: &Path, contents: &str, description: &
                 )
             })
         }
+    };
+    if result.is_ok() {
+        remove_web_asset_sync_temp_dir(&temp_dir);
     }
+    result
 }
 
 #[requires(true)]
@@ -1035,7 +1060,7 @@ fn web_asset_sync_temp_dir(target: &Path) -> PathBuf {
     target
         .parent()
         .unwrap_or_else(|| Path::new("."))
-        .join(".jbotci-asset-sync")
+        .join(WEB_ASSET_SYNC_TEMP_DIR_NAME)
 }
 
 #[requires(!description.is_empty())]
@@ -1060,6 +1085,21 @@ fn remove_obsolete_flat_web_asset_files(
     for entry in entries {
         let entry = entry
             .with_context(|| format!("reading {description} under `{}`", target_dir.display()))?;
+        if entry.file_name() == WEB_ASSET_SYNC_TEMP_DIR_NAME {
+            match fs::remove_dir_all(entry.path()) {
+                Ok(()) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "removing temporary {description} directory `{}`",
+                            entry.path().display()
+                        )
+                    });
+                }
+            }
+            continue;
+        }
         if source_file_names.contains(&entry.file_name()) {
             continue;
         }
@@ -1369,17 +1409,6 @@ fn release_service_worker_cache_version(public_dir: &Path, paths: &[String]) -> 
     Ok(hash[..16].to_owned())
 }
 
-#[requires(!cache_version.is_empty())]
-#[requires(precache_paths.iter().all(|path| !path.is_empty() && !path.starts_with('/')))]
-#[ensures(ret.as_ref().is_ok_and(|script| script.contains(cache_version)) || ret.is_err())]
-fn render_release_service_worker(cache_version: &str, precache_paths: &[String]) -> Result<String> {
-    let cache_version_json = serde_json::to_string(cache_version)?;
-    let precache_paths_json = serde_json::to_string(precache_paths)?;
-    Ok(RELEASE_SERVICE_WORKER_TEMPLATE
-        .replace("__CACHE_VERSION_JSON__", &cache_version_json)
-        .replace("__PRECACHE_PATHS_JSON__", &precache_paths_json))
-}
-
 #[requires(true)]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
 fn absolute_path(path: &Path) -> Result<PathBuf> {
@@ -1549,155 +1578,3 @@ mod tests {
         assert!(DIOXUS_CONFIG.contains("template = \"bundle/windows/jbotci.wxs.hbs\""));
     }
 }
-
-const RELEASE_SERVICE_WORKER_TEMPLATE: &str = r#"const CACHE_VERSION = __CACHE_VERSION_JSON__;
-const STATIC_CACHE_NAME = `jbotci-static-${CACHE_VERSION}`;
-const RUNTIME_CACHE_NAME = `jbotci-runtime-${CACHE_VERSION}`;
-const CURRENT_CACHE_NAMES = new Set([STATIC_CACHE_NAME, RUNTIME_CACHE_NAME]);
-const PRECACHE_PATHS = __PRECACHE_PATHS_JSON__;
-
-const SCOPE_URL = new URL(self.registration.scope);
-if (!SCOPE_URL.pathname.endsWith("/")) {
-  SCOPE_URL.pathname = `${SCOPE_URL.pathname}/`;
-}
-const APP_SHELL_URL = new URL("index.html", SCOPE_URL).href;
-const PRECACHE_URLS = new Set(
-  PRECACHE_PATHS.map((path) => new URL(path, SCOPE_URL).href),
-);
-
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(STATIC_CACHE_NAME);
-    await cache.addAll(
-      PRECACHE_PATHS.map((path) => new Request(new URL(path, SCOPE_URL), {
-        cache: "default",
-      })),
-    );
-    await self.skipWaiting();
-  })());
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map((name) => {
-      if (name.startsWith("jbotci-") && !CURRENT_CACHE_NAMES.has(name)) {
-        return caches.delete(name);
-      }
-      return Promise.resolve(false);
-    }));
-    await self.clients.claim();
-  })());
-});
-
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-  if (request.method !== "GET") {
-    return;
-  }
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-
-  const relativePath = relativeScopedPath(url);
-  if (relativePath === null) {
-    return;
-  }
-
-  if (isApiRequest(relativePath)) {
-    event.respondWith(networkOnlyJson(request));
-    return;
-  }
-
-  if (isEmbeddingAssetRequest(relativePath)) {
-    return;
-  }
-
-  if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL));
-    return;
-  }
-
-  if (PRECACHE_URLS.has(url.href)) {
-    event.respondWith(networkFirst(request, STATIC_CACHE_NAME, null));
-    return;
-  }
-
-  if (isStaticOrCoreRequest(relativePath)) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE_NAME, null));
-  }
-});
-
-function relativeScopedPath(url) {
-  if (!url.pathname.startsWith(SCOPE_URL.pathname)) {
-    return null;
-  }
-  return url.pathname.slice(SCOPE_URL.pathname.length);
-}
-
-function isApiRequest(relativePath) {
-  return relativePath === "api" || relativePath.startsWith("api/");
-}
-
-function isEmbeddingAssetRequest(relativePath) {
-  return relativePath.startsWith("assets/embeddings/");
-}
-
-function isStaticOrCoreRequest(relativePath) {
-  return relativePath === ""
-    || relativePath === "index.html"
-    || relativePath === "manifest.webmanifest"
-    || relativePath === "service-worker.js"
-    || relativePath.startsWith("assets/");
-}
-
-async function networkFirst(request, cacheName, fallbackUrl) {
-  const cache = await caches.open(cacheName);
-  try {
-    const response = await fetch(request);
-    if (response.ok && response.type !== "opaque") {
-      await cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await caches.match(request);
-    if (cached) {
-      return cached;
-    }
-    if (fallbackUrl !== null) {
-      const fallback = await caches.match(fallbackUrl);
-      if (fallback) {
-        return fallback;
-      }
-    }
-    return offlineTextResponse();
-  }
-}
-
-async function networkOnlyJson(request) {
-  try {
-    return await fetch(request);
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: "offline",
-      message: "jbotci is offline and this API request is not cached.",
-    }), {
-      status: 503,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    });
-  }
-}
-
-function offlineTextResponse() {
-  return new Response("jbotci is offline and this resource is not cached.", {
-    status: 503,
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-    },
-  });
-}
-"#;

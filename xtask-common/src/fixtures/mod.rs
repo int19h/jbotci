@@ -874,9 +874,13 @@ impl std::str::FromStr for Facet {
     }
 }
 
+#[invariant(selector.provenance.iter().all(|value| !value.is_empty()))]
+#[invariant(selector.tags.iter().all(|value| !value.is_empty()))]
+#[invariant(selector.ids.iter().all(|value| !value.is_empty()))]
+#[invariant(selector.path_prefixes.iter().all(|value| !value.is_empty()))]
+#[invariant(selector.paths.iter().all(|value| !value.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[invariant(true)]
 pub struct FixtureProfile {
     #[serde(default)]
     pub facets: Vec<Facet>,
@@ -884,17 +888,13 @@ pub struct FixtureProfile {
     pub selector: FixtureSelector,
 }
 
-impl FixtureProfile {
-    #[ensures(ret -> self.selector.is_valid())]
-    #[requires(true)]
-    pub fn is_valid(&self) -> bool {
-        self.selector.is_valid()
-    }
-}
-
+#[invariant(provenance.iter().all(|value| !value.is_empty()))]
+#[invariant(tags.iter().all(|value| !value.is_empty()))]
+#[invariant(ids.iter().all(|value| !value.is_empty()))]
+#[invariant(path_prefixes.iter().all(|value| !value.is_empty()))]
+#[invariant(paths.iter().all(|value| !value.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[invariant(true)]
 pub struct FixtureSelector {
     #[serde(default)]
     pub provenance: Vec<String>,
@@ -905,23 +905,11 @@ pub struct FixtureSelector {
     #[serde(default, rename = "path-prefixes")]
     pub path_prefixes: Vec<String>,
     #[serde(default)]
+    pub paths: Vec<String>,
+    #[serde(default)]
     pub cll: Option<CllSelector>,
     #[serde(default)]
     pub muplis: Option<MuplisSelector>,
-}
-
-impl FixtureSelector {
-    #[ensures(ret -> self.provenance.iter().all(|value| !value.is_empty()))]
-    #[ensures(ret -> self.tags.iter().all(|value| !value.is_empty()))]
-    #[ensures(ret -> self.ids.iter().all(|value| !value.is_empty()))]
-    #[ensures(ret -> self.path_prefixes.iter().all(|value| !value.is_empty()))]
-    #[requires(true)]
-    pub fn is_valid(&self) -> bool {
-        self.provenance.iter().all(|value| !value.is_empty())
-            && self.tags.iter().all(|value| !value.is_empty())
-            && self.ids.iter().all(|value| !value.is_empty())
-            && self.path_prefixes.iter().all(|value| !value.is_empty())
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -1053,38 +1041,80 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureErro
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn reject_legacy_expectation_format(path: &Path, text: &str) -> Result<(), FixtureError> {
-    let legacy_patterns = [
-        "[expectations.syntax.parse-tree]",
-        "parse-tree",
-        "BaseWord =",
-        "StandaloneIndicator =",
-        "NotEof =",
-        "LojbanText =",
-        "constructor =",
-        "words = [",
-        "kind = \"node\"",
-        "kind = \"base-word\"",
-        "kind = \"standalone-indicator\"",
-        "kind = \"emphasized\"",
-        "kind = \"with-indicator\"",
-        "kind = \"not-eof\"",
-        "kind = \"bare\"",
-        "kind = \"zo-quote\"",
-        "kind = \"zoi-quote\"",
-        "kind = \"lohu-quote\"",
-        "kind = \"single-word-quote\"",
-        "kind = \"letter\"",
-        "kind = \"zei-lujvo\"",
-    ];
-    for pattern in legacy_patterns {
-        if text.contains(pattern) {
-            return Err(FixtureError::LegacyExpectationFormat {
-                path: path.to_path_buf(),
-                message: format!("found `{pattern}`"),
-            });
-        }
+    let Ok(value) = toml::from_str::<toml::Value>(text) else {
+        return Ok(());
+    };
+    if let Some(message) = legacy_expectation_marker(&value) {
+        return Err(FixtureError::LegacyExpectationFormat {
+            path: path.to_path_buf(),
+            message,
+        });
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_expectation_marker(value: &toml::Value) -> Option<String> {
+    legacy_expectation_marker_in_value(value)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn legacy_expectation_marker_in_value(value: &toml::Value) -> Option<String> {
+    let toml::Value::Table(table) = value else {
+        if let toml::Value::Array(items) = value {
+            for item in items {
+                if let Some(message) = legacy_expectation_marker_in_value(item) {
+                    return Some(message);
+                }
+            }
+        }
+        return None;
+    };
+
+    for (key, item) in table {
+        if key == "parse-tree" {
+            return Some("found legacy `parse-tree` key".to_owned());
+        }
+        if matches!(
+            key.as_str(),
+            "BaseWord" | "StandaloneIndicator" | "NotEof" | "LojbanText" | "constructor" | "words"
+        ) {
+            return Some(format!("found legacy `{key}` key"));
+        }
+        if key == "kind" && item.as_str().is_some_and(is_legacy_expectation_kind_value) {
+            return Some(format!(
+                "found legacy `kind = \"{}\"` value",
+                item.as_str().unwrap_or_default()
+            ));
+        }
+        if let Some(message) = legacy_expectation_marker_in_value(item) {
+            return Some(message);
+        }
+    }
+    None
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_legacy_expectation_kind_value(value: &str) -> bool {
+    matches!(
+        value,
+        "node"
+            | "base-word"
+            | "standalone-indicator"
+            | "emphasized"
+            | "with-indicator"
+            | "not-eof"
+            | "bare"
+            | "zo-quote"
+            | "zoi-quote"
+            | "lohu-quote"
+            | "single-word-quote"
+            | "letter"
+            | "zei-lujvo"
+    )
 }
 
 #[requires(test_case.is_valid_fixture_metadata())]
@@ -1236,7 +1266,7 @@ pub fn load_profiles(
 }
 
 #[requires(!name.is_empty(), "fixture profile names must not be empty")]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(FixtureProfile::is_valid))]
+#[ensures(true)]
 pub fn load_profile(
     fixtures_root: impl AsRef<Path>,
     name: &str,
@@ -1249,7 +1279,7 @@ pub fn load_profile(
     toml::from_str(&text).map_err(|source| FixtureError::ParseToml { path, source })
 }
 
-#[requires(selector.is_valid())]
+#[requires(true)]
 #[expensive_ensures(ret.iter().all(|fixture| fixture.test_case.is_valid_fixture_metadata()))]
 pub fn filter_fixtures<'a>(
     root: &Path,
@@ -1262,7 +1292,7 @@ pub fn filter_fixtures<'a>(
         .collect()
 }
 
-#[requires(selector.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 pub fn fixture_matches_selector(
     root: &Path,
@@ -1397,6 +1427,13 @@ fn matches_selector(root: &Path, fixture: &LoadedTestCase, selector: &FixtureSel
             .iter()
             .any(|prefix| relative_text.starts_with(prefix))
         {
+            return false;
+        }
+    }
+    if !selector.paths.is_empty() {
+        let relative = fixture.path.strip_prefix(root).unwrap_or(&fixture.path);
+        let relative_text = relative.to_string_lossy();
+        if !selector.paths.iter().any(|path| path == &relative_text) {
             return false;
         }
     }
