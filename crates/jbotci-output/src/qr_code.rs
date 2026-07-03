@@ -5,7 +5,9 @@ use std::fmt::Write;
 
 #[allow(unused_imports)]
 use bityzba::ensures;
-use bityzba::{invariant, requires};
+#[allow(unused_imports)]
+use bityzba::expensive_invariant;
+use bityzba::{invariant, new, requires};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[invariant(true)]
@@ -14,8 +16,14 @@ pub struct QrCoord {
     pub y: i32,
 }
 
+#[invariant(*version >= 1 && *version <= 40, "QR version must be in the standard range")]
+#[invariant(*size == *version * 4 + 17, "QR size must match the version")]
+#[invariant(*mask >= 0 && *mask <= 7, "QR mask must be one of the eight standard masks")]
+#[expensive_invariant(
+    dark_modules.iter().all(|coord| coord.x >= 0 && coord.y >= 0 && coord.x < *size && coord.y < *size),
+    "QR dark modules must be inside the matrix"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub struct QrCode {
     pub version: i32,
     pub size: i32,
@@ -30,8 +38,17 @@ struct QrBuild {
     function_modules: BTreeSet<QrCoord>,
 }
 
+#[invariant(!data_codewords.is_empty(), "QR data blocks must contain data")]
+#[invariant(!error_codewords.is_empty(), "QR data blocks must contain ECC")]
+#[expensive_invariant(
+    data_codewords.iter().all(|codeword| (0..=255).contains(codeword)),
+    "QR data codewords must be bytes"
+)]
+#[expensive_invariant(
+    error_codewords.iter().all(|codeword| (0..=255).contains(codeword)),
+    "QR error-correction codewords must be bytes"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct QrBlock {
     data_codewords: Vec<i32>,
     error_codewords: Vec<i32>,
@@ -47,8 +64,13 @@ pub struct QrLogoLayer {
     pub scale: f64,
 }
 
+#[invariant(*left >= 0, "QR logo placement left edge must be inside the matrix")]
+#[invariant(*top >= 0, "QR logo placement top edge must be inside the matrix")]
+#[invariant(
+    *side >= QR_LOGO_MINIMUM_SIDE,
+    "QR logo placement side length must satisfy the minimum logo size"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 pub struct QrLogoPlacement {
     pub left: i32,
     pub top: i32,
@@ -138,12 +160,12 @@ pub fn encode_qr_alphanumeric_h(source_text: &str) -> Result<QrCode, String> {
                 });
             let with_format = draw_format_bits(version, mask_value, dark_with_data);
             let with_version = draw_version_bits(version, with_format);
-            QrCode {
+            new!(QrCode {
                 version,
                 size: qr_size(version),
                 mask: mask_value,
                 dark_modules: with_version,
-            }
+            })
         })
         .collect::<Vec<_>>();
     Ok(minimum_by_penalty(&candidates))
@@ -155,7 +177,7 @@ pub fn qr_code_svg_for_text(source_text: &str) -> Result<String, String> {
     encode_qr_alphanumeric_h(source_text).map(|qr_code| qr_code_svg(&qr_code))
 }
 
-#[requires(qr_code.size > 0)]
+#[requires(true)]
 #[ensures(ret.contains("<svg"))]
 pub fn qr_code_svg(qr_code: &QrCode) -> String {
     let quiet_zone = 4;
@@ -200,7 +222,7 @@ fn render_logo_svg(qr_code: &QrCode) -> String {
         .unwrap_or_default()
 }
 
-#[requires(placement.side > 0)]
+#[requires(true)]
 #[ensures(ret.contains("<rect"))]
 fn render_logo_placement_svg(placement: QrLogoPlacement) -> String {
     let quiet_zone = 4.0;
@@ -232,7 +254,7 @@ fn render_logo_placement_svg(placement: QrLogoPlacement) -> String {
     svg
 }
 
-#[requires(placement.side > 0)]
+#[requires(true)]
 #[ensures(ret.contains("<path"))]
 fn logo_path_layer(placement: QrLogoPlacement, layer: QrLogoLayer) -> String {
     let quiet_zone = 4.0;
@@ -252,13 +274,13 @@ fn logo_path_layer(placement: QrLogoPlacement, layer: QrLogoLayer) -> String {
     )
 }
 
-#[requires(qr_code.version >= 1 && qr_code.version <= 40)]
+#[requires(true)]
 #[ensures(ret.is_none_or(|placement| placement.side >= QR_LOGO_MINIMUM_SIDE))]
 pub fn qr_logo_placement(qr_code: &QrCode) -> Option<QrLogoPlacement> {
     qr_logo_placement_for_version(qr_code.version)
 }
 
-#[requires(placement.side > 0)]
+#[requires(true)]
 #[ensures(ret > 0.0)]
 fn qr_logo_content_scale(placement: QrLogoPlacement) -> f64 {
     (f64::from(placement.side) - QR_LOGO_INSET * 2.0) / QR_LOGO_BASE_CONTENT_SIZE
@@ -296,17 +318,17 @@ fn logo_placement_is_safe(version: i32, placement: QrLogoPlacement) -> bool {
         && placement_fits_error_correction_budget(version, placement)
 }
 
-#[requires(size_value > 0 && side > 0)]
+#[requires(size_value > 0 && side >= QR_LOGO_MINIMUM_SIDE && side <= size_value)]
 #[ensures(ret.side == side)]
 fn centered_placement(size_value: i32, side: i32) -> QrLogoPlacement {
-    QrLogoPlacement {
+    new!(QrLogoPlacement {
         left: (size_value - side) / 2,
         top: (size_value - side) / 2,
         side,
-    }
+    })
 }
 
-#[requires(size_value > 0 && side > 0)]
+#[requires(size_value > 0 && side >= QR_LOGO_MINIMUM_SIDE && side <= size_value)]
 #[ensures(ret.iter().all(|placement| placement.side == side))]
 fn top_slot_placements(size_value: i32, side: i32) -> Vec<QrLogoPlacement> {
     let left = (size_value - side) / 2;
@@ -317,11 +339,11 @@ fn top_slot_placements(size_value: i32, side: i32) -> Vec<QrLogoPlacement> {
     }
     (QR_LOGO_FUNCTION_CLEARANCE..=max_top)
         .rev()
-        .map(|top| QrLogoPlacement { left, top, side })
+        .map(|top| new!(QrLogoPlacement { left, top, side }))
         .collect()
 }
 
-#[requires(size_value > 0 && placement.side > 0)]
+#[requires(size_value > 0)]
 #[ensures(true)]
 fn placement_fits_with_clearance(size_value: i32, placement: QrLogoPlacement) -> bool {
     placement.left >= QR_LOGO_FUNCTION_CLEARANCE
@@ -330,7 +352,7 @@ fn placement_fits_with_clearance(size_value: i32, placement: QrLogoPlacement) ->
         && placement.top + placement.side + QR_LOGO_FUNCTION_CLEARANCE <= size_value
 }
 
-#[requires(version >= 1 && version <= 40 && placement.side > 0)]
+#[requires(version >= 1 && version <= 40)]
 #[ensures(true)]
 fn placement_has_function_clearance(version: i32, placement: QrLogoPlacement) -> bool {
     let build = draw_function_patterns(version, empty_build());
@@ -341,7 +363,7 @@ fn placement_has_function_clearance(version: i32, placement: QrLogoPlacement) ->
     })
 }
 
-#[requires(version >= 1 && version <= 40 && placement.side > 0)]
+#[requires(version >= 1 && version <= 40)]
 #[ensures(true)]
 fn placement_fits_error_correction_budget(version: i32, placement: QrLogoPlacement) -> bool {
     let correction_budget = ecc_codewords_per_block(version) / 2 - QR_LOGO_ERROR_CORRECTION_MARGIN;
@@ -352,7 +374,7 @@ fn placement_fits_error_correction_budget(version: i32, placement: QrLogoPlaceme
         <= correction_budget
 }
 
-#[requires(version >= 1 && version <= 40 && placement.side > 0)]
+#[requires(version >= 1 && version <= 40)]
 #[ensures(ret.iter().all(|count| *count >= 0))]
 fn damaged_codewords_per_block(version: i32, placement: QrLogoPlacement) -> Vec<i32> {
     let build = draw_function_patterns(version, empty_build());
@@ -382,7 +404,7 @@ fn damaged_codewords_per_block(version: i32, placement: QrLogoPlacement) -> Vec<
         .collect()
 }
 
-#[requires(placement.side > 0)]
+#[requires(true)]
 #[ensures(true)]
 fn coord_inside_placement(placement: QrLogoPlacement, coord: QrCoord) -> bool {
     coord.x >= placement.left
@@ -588,10 +610,10 @@ fn add_error_correction_and_interleave(version: i32, codewords: &[i32]) -> Vec<i
             .to_vec();
         offset += data_length;
         let error_codewords = reed_solomon_remainder(&divisor, &block_data);
-        blocks.push(QrBlock {
+        blocks.push(new!(QrBlock {
             data_codewords: block_data,
             error_codewords,
-        });
+        }));
     }
     let max_data_length = blocks
         .iter()
@@ -1244,11 +1266,11 @@ mod tests {
         assert_eq!(qr.size, 29);
         assert_eq!(
             qr_logo_placement(&qr),
-            Some(QrLogoPlacement {
+            Some(new!(QrLogoPlacement {
                 left: 10,
                 top: 10,
                 side: 9
-            })
+            }))
         );
         let svg = qr_code_svg(&qr);
         assert!(svg.contains("viewBox=\"0 0 37 37\""));
@@ -1268,11 +1290,11 @@ mod tests {
         assert_eq!(qr.version, 8);
         assert_eq!(
             qr_logo_placement(&qr),
-            Some(QrLogoPlacement {
+            Some(new!(QrLogoPlacement {
                 left: 19,
                 top: 10,
                 side: 11
-            })
+            }))
         );
     }
 

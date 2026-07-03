@@ -4,7 +4,7 @@ use annotate_snippets::{
     Annotation, AnnotationKind, Group, Level, Renderer, Snippet, renderer::DecorStyle,
 };
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{ensures, invariant, new, requires};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticDetailMode, DiagnosticLabel, DiagnosticSeverity, DiagnosticStyledNote,
     DiagnosticTextRole, DiagnosticTextSegment,
@@ -16,8 +16,8 @@ use crate::{GlyphStyle, OutputError};
 
 pub const DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH: usize = 80;
 
+#[invariant(*terminal_width > 0, "diagnostic render width must be positive")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
 pub struct DiagnosticRenderOptions {
     pub color: bool,
     pub detail: DiagnosticDetailMode,
@@ -31,17 +31,16 @@ impl Default for DiagnosticRenderOptions {
     #[ensures(ret.glyphs == GlyphStyle::default())]
     #[ensures(ret.terminal_width == DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH)]
     fn default() -> Self {
-        Self {
+        new!(DiagnosticRenderOptions {
             color: false,
             detail: DiagnosticDetailMode::Summary,
             glyphs: GlyphStyle::default(),
             terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-        }
+        })
     }
 }
 
 #[requires(!source_label.is_empty())]
-#[requires(options.terminal_width > 0)]
 #[ensures(diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(String::is_empty)))]
 #[ensures(!diagnostics.is_empty() -> (!ret.is_err() && ret.as_ref().is_ok_and(|text| !text.is_empty())))]
 pub fn render_diagnostics(
@@ -65,7 +64,6 @@ pub fn render_diagnostics(
 }
 
 #[requires(!source_label.is_empty())]
-#[requires(options.terminal_width > 0)]
 #[ensures(true)]
 fn diagnostic_group<'diagnostic>(
     source_label: &'diagnostic str,
@@ -100,7 +98,7 @@ fn diagnostic_group<'diagnostic>(
     group
 }
 
-#[requires(options.terminal_width > 0)]
+#[requires(true)]
 #[ensures(true)]
 fn diagnostic_renderer(options: DiagnosticRenderOptions) -> Renderer {
     let renderer = if options.color {
@@ -146,7 +144,6 @@ fn severity_level(severity: DiagnosticSeverity) -> Level<'static> {
 }
 
 #[requires(!note.segments.is_empty())]
-#[requires(options.terminal_width > 0)]
 #[ensures(!ret.is_empty())]
 fn render_styled_note(note: &DiagnosticStyledNote, options: DiagnosticRenderOptions) -> String {
     let wrap_width = diagnostic_note_wrap_width(options.terminal_width);
@@ -437,12 +434,12 @@ mod tests {
             "<input>",
             source,
             &[warning_diagnostic(source)],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("render diagnostic");
 
@@ -464,12 +461,12 @@ mod tests {
             "<input>",
             source,
             &[warning_diagnostic(source)],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("render diagnostic");
 
@@ -485,12 +482,12 @@ mod tests {
             "<input>",
             source,
             &[warning_diagnostic(source)],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::Ascii,
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("render ASCII diagnostic");
 
@@ -508,12 +505,12 @@ mod tests {
             "<input>",
             "coi",
             &[],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("render diagnostics");
 
@@ -549,12 +546,12 @@ mod tests {
             "<input>",
             source,
             std::slice::from_ref(&diagnostic),
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("summary diagnostic");
         assert!(summary.contains("expected one of: {lo}"));
@@ -564,12 +561,12 @@ mod tests {
             "<input>",
             source,
             &[diagnostic],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Detailed,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("detailed diagnostic");
         assert!(detailed.contains("needs one of:"));
@@ -594,12 +591,12 @@ mod tests {
             "<input>",
             source,
             &[diagnostic],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: true,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("color diagnostic");
         assert!(rendered.contains("\x1b["));
@@ -677,12 +674,12 @@ mod tests {
             "<input>",
             source,
             &[diagnostic],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: 44,
-            },
+            }),
         )
         .expect("render long source diagnostic");
 
@@ -713,12 +710,12 @@ mod tests {
         );
         let rendered = render_styled_note(
             &note,
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: 36,
-            },
+            }),
         );
 
         assert!(rendered.contains('\n'));
@@ -753,12 +750,12 @@ mod tests {
         );
         let rendered = render_styled_note(
             &note,
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Detailed,
                 glyphs: GlyphStyle::default(),
                 terminal_width: 38,
-            },
+            }),
         );
 
         assert!(rendered.contains("\n  "));
@@ -793,12 +790,12 @@ mod tests {
             "<input>",
             source,
             &[diagnostic],
-            DiagnosticRenderOptions {
+            new!(DiagnosticRenderOptions {
                 color: false,
                 detail: DiagnosticDetailMode::Summary,
                 glyphs: GlyphStyle::default(),
                 terminal_width: DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-            },
+            }),
         )
         .expect("render non-ASCII diagnostic");
 

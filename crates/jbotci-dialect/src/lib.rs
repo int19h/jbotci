@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -23,8 +23,8 @@ impl DialectError {
         Self { message }
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     pub fn message(&self) -> &str {
         &self.message
     }
@@ -67,8 +67,8 @@ impl DialectFeature {
         ]
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Cbm => "cbm",
@@ -86,8 +86,8 @@ impl DialectFeature {
         }
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     fn atom_name(self) -> String {
         self.name().to_ascii_uppercase()
     }
@@ -101,7 +101,6 @@ impl fmt::Display for DialectFeature {
     }
 }
 
-#[invariant(true)]
 #[invariant(::Swap => is_normalized_cmavo(left) && is_normalized_cmavo(right))]
 #[invariant(::Expansion => is_normalized_cmavo(source) && !replacement.is_empty() && replacement.iter().all(|word| is_normalized_cmavo(word)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,32 +116,10 @@ pub enum CmavoDialectEntry {
     },
 }
 
-impl CmavoDialectEntry {
-    #[requires(true)]
-    #[ensures(ret -> match self.as_data() {
-        data!(CmavoDialectEntry::Swap { left, right }) => is_normalized_cmavo(left) && is_normalized_cmavo(right),
-        data!(CmavoDialectEntry::Expansion { source, replacement }) => is_normalized_cmavo(source)
-            && !replacement.is_empty()
-            && replacement.iter().all(|word| is_normalized_cmavo(word)),
-    })]
-    pub fn is_valid(&self) -> bool {
-        match self.as_data() {
-            data!(CmavoDialectEntry::Swap { left, right }) => {
-                is_normalized_cmavo(left) && is_normalized_cmavo(right)
-            }
-            data!(CmavoDialectEntry::Expansion {
-                source,
-                replacement,
-            }) => {
-                is_normalized_cmavo(source)
-                    && !replacement.is_empty()
-                    && replacement.iter().all(|word| is_normalized_cmavo(word))
-            }
-        }
-    }
-}
-
-#[invariant(self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
+#[invariant(
+    true,
+    "cmavo dialect entry validity is guaranteed by CmavoDialectEntry"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DialectDefinition {
@@ -151,14 +128,14 @@ pub struct DialectDefinition {
 }
 
 impl DialectDefinition {
-    #[ensures(ret.is_baseline())]
     #[requires(true)]
+    #[ensures(ret.is_baseline())]
     pub fn baseline() -> Self {
         Self::default()
     }
 
-    #[ensures(ret == self.cmavo_entries.is_empty() && self.features.is_empty())]
     #[requires(true)]
+    #[ensures(ret == self.cmavo_entries.is_empty() && self.features.is_empty())]
     pub fn is_baseline(&self) -> bool {
         self.cmavo_entries.is_empty() && self.features.is_empty()
     }
@@ -252,8 +229,8 @@ pub fn builtin_dialects() -> Vec<BuiltinDialect> {
         .collect()
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 pub fn builtin_dialect_names() -> Vec<&'static str> {
     builtin_dialect_sources()
         .into_iter()
@@ -409,10 +386,10 @@ pub fn dialect_definition_to_text(definition: &DialectDefinition) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub fn cmavo_dialect_entries_to_definition(entries: &[CmavoDialectEntry]) -> String {
-    let definition = new!(DialectDefinition {
+    let definition = DialectDefinition {
         cmavo_entries: entries.to_vec(),
         features: BTreeSet::new(),
-    });
+    };
     dialect_definition_to_text(&definition)
 }
 
@@ -728,7 +705,7 @@ fn render_compact_cmavo_entries(
     Ok(rendered)
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.message().is_empty()))]
 fn render_compact_cmavo_entry(entry: &CmavoDialectEntry) -> Result<String, DialectError> {
     match entry.as_data() {
@@ -740,22 +717,15 @@ fn render_compact_cmavo_entry(entry: &CmavoDialectEntry) -> Result<String, Diale
         data!(CmavoDialectEntry::Expansion {
             source,
             replacement,
-        }) => {
-            if replacement.is_empty() {
-                return Err(DialectError::new(
-                    "Expansion entries require at least one replacement word.".to_owned(),
-                ));
-            }
-            Ok(format!(
-                "{}*{}",
-                cmavo_to_compact(source)?,
-                replacement
-                    .iter()
-                    .map(|word| cmavo_to_compact(word))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join("+")
-            ))
-        }
+        }) => Ok(format!(
+            "{}*{}",
+            cmavo_to_compact(source)?,
+            replacement
+                .iter()
+                .map(|word| cmavo_to_compact(word))
+                .collect::<Result<Vec<_>, _>>()?
+                .join("+")
+        )),
     }
 }
 
@@ -891,7 +861,7 @@ fn common_swap_for_code(raw_code: char) -> Result<JohauShorthandSwap, DialectErr
         })
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn common_swap_code(entry: &CmavoDialectEntry) -> Option<char> {
     match entry.as_data() {
@@ -1056,20 +1026,20 @@ fn parse_compact_dialect_feature(raw_feature: &str) -> Result<DialectFeature, Di
 #[requires(true)]
 #[ensures(true)]
 fn canonical_dialect_definition(definition: &DialectDefinition) -> DialectDefinition {
-    new!(DialectDefinition {
+    DialectDefinition {
         cmavo_entries: canonical_cmavo_dialect_entries(&definition.cmavo_entries),
         features: definition.features.clone(),
-    })
+    }
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(CmavoDialectEntry::is_valid))]
+#[ensures(ret.len() == entries.len())]
 fn canonical_cmavo_dialect_entries(entries: &[CmavoDialectEntry]) -> Vec<CmavoDialectEntry> {
     entries.iter().map(canonical_cmavo_dialect_entry).collect()
 }
 
-#[requires(entry.is_valid())]
-#[ensures(ret.is_valid())]
+#[requires(true)]
+#[ensures(true)]
 fn canonical_cmavo_dialect_entry(entry: &CmavoDialectEntry) -> CmavoDialectEntry {
     match entry.as_data() {
         data!(CmavoDialectEntry::Swap { left, right }) => {
@@ -1333,8 +1303,8 @@ fn parse_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectErr
         .ok_or_else(|| DialectError::new(format!("Unknown dialect feature: {requested_name}")))
 }
 
-#[ensures(ret.1.len() <= tokens.len())]
 #[requires(true)]
+#[ensures(ret.1.len() <= tokens.len())]
 fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]) {
     let mut words = Vec::new();
     let mut index = 0;
@@ -1346,7 +1316,7 @@ fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
+#[ensures(ret.len() == definition.features.len() + definition.cmavo_entries.len())]
 fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefinitionEntry> {
     definition
         .features
@@ -1381,10 +1351,10 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
             }
         }
     }
-    new!(DialectDefinition {
+    DialectDefinition {
         cmavo_entries: cmavo_entries,
         features: features,
-    })
+    }
 }
 
 #[requires(true)]
@@ -1422,8 +1392,8 @@ fn lookup_builtin_dialect_reference_in_stack(
     })
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
@@ -1446,14 +1416,14 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     ]
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 fn builtin_dialect_source_map() -> BTreeMap<&'static str, &'static str> {
     builtin_dialect_sources().into_iter().collect()
 }
 
-#[ensures(!ret.is_empty() || source.trim().is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || source.trim().is_empty())]
 fn tokenize(source: &str) -> Vec<DialectToken> {
     let chars: Vec<char> = source.chars().collect();
     let mut tokens = Vec::new();
@@ -1526,8 +1496,8 @@ fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
     })
 }
 
-#[ensures(ret -> !word.is_empty())]
 #[requires(true)]
+#[ensures(ret -> !word.is_empty())]
 fn is_normalized_cmavo(word: &str) -> bool {
     parse_cmavo_form(word).as_deref() == Some(word)
 }
@@ -1593,8 +1563,8 @@ fn parse_cmavo_form(text: &str) -> Option<String> {
     parse_cmavo_form_main(&chars)
 }
 
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if starts_with_cluster(chars, 0) {
         return None;
@@ -1901,8 +1871,8 @@ fn base_semivowel(value: char) -> Option<char> {
 }
 
 impl DialectToken {
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     fn text(&self) -> String {
         match self {
             Self::OpenParen => "(".to_owned(),
@@ -1915,7 +1885,7 @@ impl DialectToken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bityzba::{contract_trait, ensures, invariant, requires};
+    use bityzba::{contract_trait, invariant, requires};
 
     #[test]
     #[requires(true)]
@@ -2204,8 +2174,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait precondition requires positive input")]
-    #[ensures(true)]
     #[requires(true)]
+    #[ensures(true)]
     fn trait_contract_precondition_is_reported_on_concrete_call() {
         let mapper = BadMapper;
         let _ = mapper.map_positive(0);
@@ -2213,8 +2183,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait postcondition requires positive output")]
-    #[ensures(true)]
     #[requires(true)]
+    #[ensures(true)]
     fn trait_contract_postcondition_is_reported_on_dyn_call() {
         let mapper: &dyn PositiveMapper = &BadMapper;
         let _ = mapper.map_positive(1);

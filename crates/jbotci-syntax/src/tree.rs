@@ -85,11 +85,22 @@ impl<T: Serialize, F: Serialize> Serialize for WithFreeModifiers<T, F> {
     }
 }
 
-#[invariant(true)]
 #[invariant(::Plain(_) => true)]
-#[invariant(::Emphasized => true)]
-#[invariant(::WithIndicator => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[invariant(::Emphasized { bahe, extra_bahe, .. } =>
+    is_bahe_modifier_word(bahe)
+        && extra_bahe.iter().all(is_bahe_modifier_word))]
+#[invariant(::WithIndicator {
+    indicator_bahe,
+    indicator,
+    nai_bahe,
+    nai,
+    ..
+} =>
+    indicator_bahe.iter().all(is_bahe_modifier_word)
+        && crate::is_indicator_word(indicator)
+        && nai_bahe.iter().all(is_bahe_modifier_word)
+        && nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WithIndicators<T> {
     Plain(T),
     Emphasized {
@@ -110,28 +121,28 @@ impl<T> WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     pub fn bare(word_like: T) -> Self {
-        WithIndicators::Plain(word_like)
+        new!(WithIndicators::Plain(word_like))
     }
 
-    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
+    #[requires(is_bahe_modifier_word(&bahe))]
     #[ensures(true)]
     pub fn emphasized(bahe: Word, word_like: T) -> Self {
-        WithIndicators::Emphasized {
+        new!(WithIndicators::Emphasized {
             bahe,
             extra_bahe: Vec::new(),
             word_like,
-        }
+        })
     }
 
-    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
-    #[requires(extra_bahe.iter().all(|bahe| bahe.is_selmaho(Selmaho::Bahe)))]
+    #[requires(is_bahe_modifier_word(&bahe))]
+    #[requires(extra_bahe.iter().all(is_bahe_modifier_word))]
     #[ensures(true)]
     pub fn emphasized_with_extra_bahe(bahe: Word, extra_bahe: Vec<Word>, word_like: T) -> Self {
-        WithIndicators::Emphasized {
+        new!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        }
+        })
     }
 
     #[requires(crate::is_indicator_word(&indicator))]
@@ -141,9 +152,9 @@ impl<T> WithIndicators<T> {
         Self::with_indicator_with_modifiers(base, Vec::new(), indicator, Vec::new(), nai)
     }
 
-    #[requires(indicator_bahe.iter().all(|bahe| bahe.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
+    #[requires(indicator_bahe.iter().all(is_bahe_modifier_word))]
     #[requires(crate::is_indicator_word(&indicator))]
-    #[requires(nai_bahe.iter().all(|bahe| bahe.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
+    #[requires(nai_bahe.iter().all(is_bahe_modifier_word))]
     #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
     #[ensures(true)]
     pub fn with_indicator_with_modifiers(
@@ -153,47 +164,89 @@ impl<T> WithIndicators<T> {
         nai_bahe: Vec<Word>,
         nai: Option<Word>,
     ) -> Self {
-        WithIndicators::WithIndicator {
+        new!(WithIndicators::WithIndicator {
             base: Arc::new(base),
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        }
+        })
     }
 }
 
-impl<T: Clone> WithIndicators<T> {
-    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
+impl<T: fmt::Debug> fmt::Debug for WithIndicators<T> {
+    #[requires(true)]
     #[ensures(true)]
-    pub fn with_prepended_bahe(&self, bahe: Word) -> Self {
-        match self {
-            WithIndicators::Plain(word_like) => Self::emphasized(bahe, word_like.clone()),
-            WithIndicators::Emphasized {
-                bahe: first_bahe,
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_data() {
+            data!(WithIndicators::Plain(word_like)) => {
+                formatter.debug_tuple("Plain").field(word_like).finish()
+            }
+            data!(WithIndicators::Emphasized {
+                bahe,
                 extra_bahe,
                 word_like,
-            } => {
-                let mut new_extra = Vec::with_capacity(extra_bahe.len() + 1);
-                new_extra.push(first_bahe.clone());
-                new_extra.extend(extra_bahe.iter().cloned());
-                Self::emphasized_with_extra_bahe(bahe, new_extra, word_like.clone())
-            }
-            WithIndicators::WithIndicator {
+            }) => formatter
+                .debug_struct("Emphasized")
+                .field("bahe", bahe)
+                .field("extra_bahe", extra_bahe)
+                .field("word_like", word_like)
+                .finish(),
+            data!(WithIndicators::WithIndicator {
                 base,
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            } => WithIndicators::WithIndicator {
+            }) => formatter
+                .debug_struct("WithIndicator")
+                .field("base", base)
+                .field("indicator_bahe", indicator_bahe)
+                .field("indicator", indicator)
+                .field("nai_bahe", nai_bahe)
+                .field("nai", nai)
+                .finish(),
+        }
+    }
+}
+
+impl<T: Clone> WithIndicators<T> {
+    #[requires(is_bahe_modifier_word(&bahe))]
+    #[ensures(true)]
+    pub fn with_prepended_bahe(&self, bahe: Word) -> Self {
+        match self.as_data() {
+            data!(WithIndicators::Plain(word_like)) => Self::emphasized(bahe, word_like.clone()),
+            data!(WithIndicators::Emphasized {
+                bahe: first_bahe,
+                extra_bahe,
+                word_like,
+            }) => {
+                let mut new_extra = Vec::with_capacity(extra_bahe.len() + 1);
+                new_extra.push(first_bahe.clone());
+                new_extra.extend(extra_bahe.iter().cloned());
+                Self::emphasized_with_extra_bahe(bahe, new_extra, word_like.clone())
+            }
+            data!(WithIndicators::WithIndicator {
+                base,
+                indicator_bahe,
+                indicator,
+                nai_bahe,
+                nai,
+            }) => new!(WithIndicators::WithIndicator {
                 base: Arc::new(base.with_prepended_bahe(bahe)),
                 indicator_bahe: indicator_bahe.clone(),
                 indicator: indicator.clone(),
                 nai_bahe: nai_bahe.clone(),
                 nai: nai.clone(),
-            },
+            }),
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret == word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe]))]
+fn is_bahe_modifier_word(word: &Word) -> bool {
+    word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])
 }
 
 #[invariant(self.core_word().byte_range().is_some(), "syntax tokens must cover source bytes")]
@@ -214,13 +267,13 @@ impl Token {
         Self::from_indicators(WithIndicators::bare(word_like))
     }
 
-    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
+    #[requires(is_bahe_modifier_word(&bahe))]
     #[ensures(true)]
     pub fn emphasized(bahe: Word, word_like: WordLike) -> Self {
         Self::from_indicators(WithIndicators::emphasized(bahe, word_like))
     }
 
-    #[requires(bahe.is_selmaho(Selmaho::Bahe))]
+    #[requires(is_bahe_modifier_word(&bahe))]
     #[ensures(true)]
     pub fn with_prepended_bahe(&self, bahe: Word) -> Self {
         Self::from_indicators(self.as_indicators().with_prepended_bahe(bahe))
@@ -233,9 +286,9 @@ impl Token {
         Self::with_indicator_with_modifiers(base, Vec::new(), indicator, Vec::new(), nai)
     }
 
-    #[requires(indicator_bahe.iter().all(|bahe| bahe.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
+    #[requires(indicator_bahe.iter().all(is_bahe_modifier_word))]
     #[requires(crate::is_indicator_word(&indicator))]
-    #[requires(nai_bahe.iter().all(|bahe| bahe.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
+    #[requires(nai_bahe.iter().all(is_bahe_modifier_word))]
     #[requires(nai.as_ref().is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
     #[ensures(true)]
     pub fn with_indicator_with_modifiers(
@@ -245,13 +298,14 @@ impl Token {
         nai_bahe: Vec<Word>,
         nai: Option<Word>,
     ) -> Self {
-        new!(Token(Arc::new(WithIndicators::WithIndicator {
+        let indicators = new!(WithIndicators::WithIndicator {
             base: Arc::clone(base.as_data()),
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        })))
+        });
+        new!(Token(Arc::new(indicators)))
     }
 
     #[requires(true)]
@@ -356,11 +410,10 @@ impl WithIndicators<WordLike> {
     #[requires(true)]
     #[ensures(true)]
     pub fn core_word(&self) -> &WordLike {
-        match self {
-            WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-                word_like
-            }
-            WithIndicators::WithIndicator { base, .. } => base.core_word(),
+        match self.as_data() {
+            data!(WithIndicators::Plain(word_like))
+            | data!(WithIndicators::Emphasized { word_like, .. }) => word_like,
+            data!(WithIndicators::WithIndicator { base, .. }) => base.core_word(),
         }
     }
 
@@ -418,26 +471,26 @@ impl WithIndicators<WordLike> {
     #[requires(true)]
     #[ensures(true)]
     pub fn source_spans_into<'a>(&'a self, out: &mut Vec<&'a jbotci_source::SourceSpan>) {
-        match self {
-            WithIndicators::Plain(word_like) => word_like.source_spans_into(out),
-            WithIndicators::Emphasized {
+        match self.as_data() {
+            data!(WithIndicators::Plain(word_like)) => word_like.source_spans_into(out),
+            data!(WithIndicators::Emphasized {
                 bahe,
                 extra_bahe,
                 word_like,
-            } => {
+            }) => {
                 out.push(bahe.span());
                 for bahe in extra_bahe {
                     out.push(bahe.span());
                 }
                 word_like.source_spans_into(out);
             }
-            WithIndicators::WithIndicator {
+            data!(WithIndicators::WithIndicator {
                 base,
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            } => {
+            }) => {
                 base.source_spans_into(out);
                 for bahe in indicator_bahe {
                     out.push(bahe.span());
@@ -508,26 +561,26 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WithIndicators::Plain(word_like) => write!(f, "{word_like}"),
-            WithIndicators::Emphasized {
+        match self.as_data() {
+            data!(WithIndicators::Plain(word_like)) => write!(f, "{word_like}"),
+            data!(WithIndicators::Emphasized {
                 bahe,
                 extra_bahe,
                 word_like,
-            } => {
+            }) => {
                 write!(f, "{bahe}")?;
                 for bahe in extra_bahe {
                     write!(f, "-{bahe}")?;
                 }
                 write!(f, "-{word_like}")
             }
-            WithIndicators::WithIndicator {
+            data!(WithIndicators::WithIndicator {
                 base,
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            } => {
+            }) => {
                 write!(f, "{base}")?;
                 for bahe in indicator_bahe {
                     write!(f, "-{bahe}")?;

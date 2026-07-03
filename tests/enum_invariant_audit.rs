@@ -844,46 +844,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic enum records rejected quote input",
     ),
     (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Cmevla",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-morphology/src/lujvo.rs:LujvoBuildMode::Lujvo",
-        "composition mode is a closed selector enum kept direct for low-level hot-path matching",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::ExperimentalCgv",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:FuhivlaHeadPolicy::Standard",
-        "private fu'ivla head policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Emit",
-        "private normalization event payload is constrained by normalized_emit requires and normalize_char_event ensures",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::EmitText",
-        "private normalization event payload comes from the static zbalermorna normalization table",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::Ignore",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPrevious",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:NormalizedCharEvent::StressPreviousVowel",
-        "private normalization event is a unit signal with no payload to constrain",
-    ),
-    (
-        "crates/jbotci-morphology/src/segment.rs:SyllablePolicy::Brivla",
-        "private syllable policy selector is a unit variant whose validity is exhausted by the closed enum",
-    ),
-    (
         "crates/jbotci-morphology/src/tree.rs:LujvoPart::Hyphen",
         "Phonemes owns canonical non-empty phoneme validity",
     ),
@@ -1096,10 +1056,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries renderer or tokenizer diagnostics without additional semantic state",
     ),
     (
-        "crates/jbotci-search/src/lib.rs:SearchError::DimensionMismatch",
-        "diagnostic enum records vector-search implementation errors",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:ExactPattern::Glob",
         "compiled glob patterns carry their validation in GlobPattern",
     ),
@@ -1134,26 +1090,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionKind::Rafsi",
         "composition kind is a closed display tag; surface/source fields carry data validity",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Lujvo",
-        "CLI and search validation reject empty lujvo requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Meaning",
-        "semantic query text is validated by CLI and embedded locally before vector search",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Rafsi",
-        "CLI and search validation reject empty rafsi requests before lookup execution",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Sound",
-        "sound query parsing validates request text before ALINE matching",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuRequest::Valsi",
-        "CLI and search validation reject empty valsi requests before lookup execution",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Built",
@@ -1532,16 +1468,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic enum records parser error location and message",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Emphasized",
-        "constructor contracts enforce BAhE while generic payload owns word validity",
-    ),
-    (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
-        "generic wrapper delegates word validity to the payload type",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::WithIndicator",
-        "constructor contracts enforce UI/CAI/Y and NAI marker shape",
+        "plain indicator wrapper carries only the generic payload; payload invariants are owned by its type",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:Recovered::Error",

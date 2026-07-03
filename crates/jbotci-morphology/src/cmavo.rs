@@ -1,6 +1,7 @@
 use std::fmt;
 
-use bityzba::requires;
+#[allow(unused_imports)]
+use bityzba::{ensures, requires};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Cmavo {
@@ -961,7 +962,7 @@ pub enum Cmavo {
 
 impl Cmavo {
     #[requires(true)]
-    #[bityzba::ensures(ret.is_some() -> !text.is_empty())]
+    #[ensures(ret.is_some() -> !text.is_empty())]
     pub fn from_text(text: &str) -> Option<Self> {
         Some(match crate::canonicalize_text(text).as_str() {
             "0" => Self::Digit0,
@@ -1922,7 +1923,7 @@ impl Cmavo {
     }
 
     #[requires(true)]
-    #[bityzba::ensures(!ret.is_empty())]
+    #[ensures(!ret.is_empty())]
     pub const fn canonical_text(self) -> &'static str {
         match self {
             Self::A => "a",
@@ -2882,13 +2883,13 @@ impl Cmavo {
     }
 
     #[requires(true)]
-    #[bityzba::ensures(true)]
+    #[ensures(true)]
     pub fn is_selmaho(self, selmaho: Selmaho) -> bool {
         selmaho.contains(self)
     }
 
     #[requires(true)]
-    #[bityzba::ensures(ret.is_none_or(|selmaho| selmaho.contains(self)))]
+    #[ensures(ret.is_none_or(|selmaho| selmaho.contains(self)))]
     pub fn primary_selmaho(self) -> Option<Selmaho> {
         Selmaho::ALL
             .iter()
@@ -2899,7 +2900,7 @@ impl Cmavo {
 
 impl fmt::Display for Cmavo {
     #[requires(true)]
-    #[bityzba::ensures(true)]
+    #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.canonical_text())
     }
@@ -3112,7 +3113,7 @@ impl Selmaho {
     ];
 
     #[requires(true)]
-    #[bityzba::ensures(!ret.is_empty())]
+    #[ensures(!ret.is_empty())]
     pub const fn name(self) -> &'static str {
         match self {
             Self::A => "A",
@@ -3215,7 +3216,7 @@ impl Selmaho {
     }
 
     #[requires(!name.is_empty())]
-    #[bityzba::ensures(ret.is_none() || ret.unwrap().name() == name)]
+    #[ensures(ret.is_none() || ret.unwrap().name() == name)]
     pub fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "A" => Self::A,
@@ -3319,7 +3320,7 @@ impl Selmaho {
     }
 
     #[requires(true)]
-    #[bityzba::ensures(true)]
+    #[ensures(true)]
     pub const fn contains(self, cmavo: Cmavo) -> bool {
         match self {
             Self::A => matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::Ji | Cmavo::O | Cmavo::U),
@@ -4344,7 +4345,7 @@ impl Selmaho {
 
 impl fmt::Display for Selmaho {
     #[requires(true)]
-    #[bityzba::ensures(true)]
+    #[ensures(true)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
     }

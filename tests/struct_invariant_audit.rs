@@ -8,20 +8,12 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
-        "apps/jbotci-server/src/lib.rs:AppState",
-        "server state is assembled by ServerConfig and contains shared immutable assets",
-    ),
-    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
         "embedding worker jobs pair a typed request with the response channel for that request",
     ),
     (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
         "health payload is a fixed transport shape",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:ServerConfig",
-        "server config is normalized by ServerConfig::from_cli",
     ),
     (
         "apps/jbotci-server/src/lib.rs:ToolServices",
@@ -192,48 +184,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllAnchor",
-        "CLL anchor records are constructed from parsed DocBook ids and grouped in site indexes",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllChapter",
-        "CLL chapter records are constructed by the embedded DocBook loader from ordered chapter files",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllExample",
-        "CLL examples are assembled by parse_example_block from section context and interlinear lines",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllExampleLine",
-        "CLL example lines preserve upstream DocBook line kind and normalized text",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllIndexEntry",
-        "CLL index entries are grouped from parsed indexterm nodes with duplicate section ids removed",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllMetadata",
-        "CLL metadata is fixed by the embedded loader for the bundled CLL corpus",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllReference",
-        "CLL references are created from parsed section/example context in the embedded loader",
-    ),
-    (
         "crates/jbotci-cll/src/lib.rs:CllSearchChunk",
         "CLL search chunks are generated from parsed sections and tagged-word extraction",
     ),
     (
         "crates/jbotci-cll/src/lib.rs:CllSearchMatch",
         "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSection",
-        "CLL sections are constructed from DocBook section nodes with computed numbering and text",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSite",
-        "CLL site is assembled once by load_embedded_cll_site and owns all derived indexes",
     ),
     (
         "crates/jbotci-cll/src/lib.rs:CuktaSearchOutput",
@@ -274,6 +230,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dialect/src/lib.rs:CustomDialect",
         "custom dialect definitions are parsed and normalized through dialect resolution helpers",
+    ),
+    (
+        "crates/jbotci-dialect/src/lib.rs:DialectDefinition",
+        "cmavo entry validity is enforced by CmavoDialectEntry and feature validity by the closed DialectFeature enum",
     ),
     (
         "crates/jbotci-dialect/src/lib.rs:DialectError",
@@ -464,10 +424,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test fake backend is constrained by test construction and used only for fixture packs",
     ),
     (
-        "crates/jbotci-embeddings/src/lib.rs:LoadedCorpus",
-        "loaded corpus dimensions and vector lengths are validated by load_corpus before caching",
-    ),
-    (
         "crates/jbotci-embeddings/src/lib.rs:LoadedCorpusCacheKey",
         "loaded corpus cache keys are assembled from validated manifest and shard metadata before lookup",
     ),
@@ -532,16 +488,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native backend fields are produced by llama.cpp model/context initialization",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:BlockLeafPart",
-        "block leaf parts are transient layout slices derived from validated parser spans",
-    ),
-    (
         "crates/jbotci-gentufa/src/lib.rs:BlockTemp",
         "temporary block color state is consumed inside the layout builder before transport output",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:BlockTreeNode",
-        "block tree nodes are transient layout state derived from syntax index metadata",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
@@ -560,24 +508,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:GentufaBlock",
-        "gentufa block rows are renderer transport data built from parser spans",
-    ),
-    (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockAnnotation",
         "block annotations are projected from dictionary search results before layout decoration",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockOptions",
         "block options are independent presentation controls with typed phoneme rendering options",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:GentufaBlocksLayout",
-        "block layout is a renderer projection with ordering covered by web-core tests",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceLabel",
-        "gentufa reference labels are generated from the shared CLI reference display model",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:ReferenceMarker",
@@ -588,10 +524,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "transform metadata is a display annotation for deterministic orthography conversion",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:WebSourceRange",
-        "source ranges mirror parser span metadata and may be absent at API boundaries",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:EmbeddedGentufaFonts",
         "embedded font provider is a zero-sized access point for compile-time font bytes",
     ),
@@ -600,16 +532,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "font byte slices are supplied by embedded native assets or validated browser fetches",
     ),
     (
-        "crates/jbotci-gentufa/src/render.rs:GentufaPngOptions",
-        "PNG options are normalized by callers and scale is guarded by render preconditions",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:GentufaSvgOptions",
         "SVG options are independent presentation controls with a caller-provided title",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:PositionedBlocks",
-        "positioned block metrics are produced by the renderer layout pass before use",
     ),
     (
         "crates/jbotci-gentufa/src/render.rs:ReferenceStackBottoms",
@@ -660,10 +584,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "collision payloads are produced by dictionary-backed collision checks",
     ),
     (
-        "crates/jbotci-gimfihi/src/lib.rs:PresetEntry",
-        "gimfihi preset entries are fixed static tables constructed through PresetEntry::new",
-    ),
-    (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
     ),
@@ -676,14 +596,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "source score rows are derived from resolved source words and CLL scoring",
     ),
     (
-        "crates/jbotci-jvozba/src/lib.rs:LujvoDecomposition",
-        "decompose_lujvo_like constructs this only after rafsi count and source resolution checks",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:LujvoSegmentInfo",
-        "segment source resolution is local to decompose_lujvo_like and hyphen segments intentionally have no source",
-    ),
-    (
         "crates/jbotci-morphology/src/grammar.rs:Segmenter",
         "segmenter is mutable parser state whose invariants are algorithm-local",
     ),
@@ -694,6 +606,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
         "render options are independent booleans with no cross-field invariant",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyOptions",
+        "cmavo dialect entry validity is enforced by CmavoDialectEntry and other fields are independent parser options",
     ),
     (
         "crates/jbotci-morphology/src/segment.rs:LujvoParseFailure",
@@ -724,10 +640,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
     ),
     (
-        "crates/jbotci-output/src/diagnostics.rs:DiagnosticRenderOptions",
-        "diagnostic rendering options are independent caller-selected controls",
-    ),
-    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -744,10 +656,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
-        "crates/jbotci-output/src/lib.rs:BracketSourceRange",
-        "bracket source ranges mirror parser byte spans supplied by renderer construction paths",
-    ),
-    (
         "crates/jbotci-output/src/lib.rs:JsonRenderOptions",
         "JSON indentation accepts any width chosen by callers",
     ),
@@ -760,16 +668,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
-        "crates/jbotci-output/src/qr_code.rs:QrBlock",
-        "QR block geometry is produced by the QR renderer and covered by placement tests",
-    ),
-    (
         "crates/jbotci-output/src/qr_code.rs:QrBuild",
         "QR build state is internal renderer assembly data validated by encoded-output tests",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrCode",
-        "QR code data is constructed by the QR encoder before renderer placement",
     ),
     (
         "crates/jbotci-output/src/qr_code.rs:QrCoord",
@@ -778,10 +678,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/qr_code.rs:QrLogoLayer",
         "QR logo layers are derived renderer masks covered by logo placement tests",
-    ),
-    (
-        "crates/jbotci-output/src/qr_code.rs:QrLogoPlacement",
-        "QR logo placement is selected by renderer search and validated by placement tests",
     ),
     (
         "crates/jbotci-output/src/references.rs:GeneratedSyntaxWordCollector",
@@ -806,10 +702,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/references.rs:TreeWordLabel",
         "word labels are copied from already rendered tree word values",
-    ),
-    (
-        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
-        "trace renderer options are caller-selected presentation controls",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
@@ -868,48 +760,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "IPA word rendering metadata is produced by render_word_ipa and consumed immediately for boundary merging",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:IpaSegmentId",
-        "segment ids are static table ordinals emitted by tokenizer and generated dictionary code then validated by consumers",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequence",
-        "owned token sequences are constructed by tokenizer helpers that reject empty segment lists",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequenceView",
-        "borrowed token sequences must remain static-literal friendly and are validated by the dictionary sound index checker",
-    ),
-    (
         "crates/jbotci-phonetic/src/lib.rs:IpaTokenizedText",
         "tokenized IPA text is assembled from tokenizer output and consumed as an internal paired return value",
-    ),
-    (
-        "crates/jbotci-search/src/lib.rs:SearchHit",
-        "search score semantics are index-specific",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:GlobPattern",
         "glob patterns are constructed only by compile_glob_pattern after token validation",
     ),
     (
-        "crates/jbotci-search/src/vlacku.rs:ParsedWordDictionaryMatch",
-        "parsed-word dictionary matches are derived from morphology spans and rendered dictionary cards",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:ParsedWordLookupTarget",
-        "parsed-word lookup targets are transient values built from morphology spans before dictionary lookup",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuCard",
-        "dictionary cards are transport values assembled from dictionary entries or validated word classification",
-    ),
-    (
         "crates/jbotci-search/src/vlacku.rs:VlackuCompositionPiece",
         "composition pieces are projected from validated morphology decomposition segments",
-    ),
-    (
-        "crates/jbotci-search/src/vlacku.rs:VlackuSearchOptions",
-        "CLI validation constrains count and mode-specific similarity use before lookup execution",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:VlackuSearchOutput",
@@ -1024,16 +884,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "actuality is a single closed enum field",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:Connector",
-        "connector DTOs are reserved semantic output fields not externally constructed yet",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:DeicticGround",
         "deictic ground is assembled by the utterance constructor from fixed special referents",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:Descriptor",
-        "descriptor DTOs are assembled by typed referent builder helpers before graph validation",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:IntervalEndpointInclusion",
@@ -1048,10 +900,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "question slots are produced only when builder-created parameters appear in the body formula",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:Quotation",
-        "quotation DTOs are reserved semantic output fields not externally constructed yet",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:RelationExpansion",
         "relation expansion DTOs are reserved metadata fields not externally constructed yet",
     ),
@@ -1060,16 +908,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic diagnostics are produced by constructors with nonempty messages",
     ),
     (
-        "crates/jbotci-semantics/src/model.rs:SemanticGraph",
-        "semantic graph validity is enforced by SemanticGraph::new with ID-type and dangling-reference checks",
-    ),
-    (
         "crates/jbotci-semantics/src/model.rs:SemanticObject",
         "semantic objects are assembled through typed constructors and sealed by SemanticGraph::new",
-    ),
-    (
-        "crates/jbotci-semantics/src/model.rs:SemanticObjectId",
-        "semantic object IDs have private fields and are constructed through typed ID constructors",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:SemanticSource",
@@ -1180,10 +1020,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw syntax node ids are opaque SyntaxIndex keys whose bounds are checked by node lookup",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
-        "reference edge source and target validity is checked by DiscourseReferences and SyntaxIndex lookup",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
         "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
     ),
@@ -1194,10 +1030,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:SelbriNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrame",
-        "place frame referential validity is checked through PlaceAnalysis and SyntaxIndex lookup APIs",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:SelbriPlaceFrameId",
@@ -1216,20 +1048,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignment",
-        "assignment referential validity is cross-checked through PlaceAnalysis frame and argument indexes",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:SumtiPlaceAssignmentId",
         "assignment ids are opaque PlaceAnalysis keys whose bounds are checked by assignment lookup",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SyntaxNodeMetadata",
-        "syntax node metadata is derived from generated traversal order and morphology leaf spans",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:SyntaxSpanKey",
-        "span keys are compatibility/debug projections derived from SourceSpan metadata",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:TanruUnitNodeId",
@@ -1289,15 +1109,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
-        "parser state is mutable chumsky inspector state",
+        "mutable parser inspector state uses impl invariants for parser-location and memo-key relationships",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccess",
-        "syntax memo entries are written only after successful parser advancement and replayed by memoized_rule",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
@@ -1400,20 +1216,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WebGPU artifact manifests are external DTOs validated while loading model artifacts",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkSpec",
-        "WebGPU chunk specs are external manifest DTOs validated while loading tensor chunks",
-    ),
-    (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkedSpec",
         "WebGPU chunked tensor specs are external manifest DTOs validated while loading chunks",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusShard",
         "corpus shards are external artifact DTOs validated while loading semantic search data",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusVectorSpec",
-        "corpus vector specs are external manifest DTOs validated while loading semantic search shards",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:F32Tensor",
@@ -1426,10 +1234,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:JbotciF2LlmWebGpuRuntime",
         "F2LLM WebGPU runtime facade wraps runtime state already validated during artifact loading",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ModelConfig",
-        "WebGPU model config is external manifest metadata validated during runtime construction",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:RuntimeLoadOptions",
@@ -1456,16 +1260,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "WebGPU runtime state is assembled through the fallible runtime loader before use",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ArrowOverlay",
-        "arrow overlay geometry is measured from the browser DOM and rendered transiently",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:AsyncActivityGuard",
         "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncActivityState",
-        "activity state is mutated through begin and finish helpers that preserve task-token ownership",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:AsyncActivityTask",
@@ -1544,10 +1340,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dialect highlight tokens are transient lexer spans consumed only by the browser highlighter",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ElementSize",
-        "element sizes are direct layout measurements used transiently by render effects",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:EmbeddingModelOption",
         "embedding model options are fixed presentation rows projected from the embedding model catalog",
     ),
@@ -1622,10 +1414,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/lib.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:ReferenceRect",
-        "reference rectangles are direct browser DOM measurements used only during hover rendering",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:RouteLocationSyncAction",

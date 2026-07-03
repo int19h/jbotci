@@ -89,6 +89,14 @@ enum BorrowedChoice<'a, T> {
     Named { items: &'a [T] },
 }
 
+#[invariant(!label.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DefaultedGeneric<T = (), U = ()> {
+    label: String,
+    first: T,
+    second: U,
+}
+
 impl CustomSpan {
     fn new(start: usize, end: usize) -> Result<Self, &'static str> {
         if start > end {
@@ -372,4 +380,15 @@ fn borrowed_generic_type_invariant_errors_are_not_generic() {
     assert!(try_new!(BorrowedChoice::<usize>::Empty).is_ok());
     assert!(try_new!(BorrowedChoice::Named { items: &values }).is_ok());
     assert!(try_new!(BorrowedChoice::Named { items: empty }).is_err());
+}
+
+#[test]
+fn defaulted_generic_struct_builds_with_typestate_builder() {
+    let value = new!(DefaultedGeneric {
+        label: String::from("cmavo"),
+        first: (),
+        second: (),
+    });
+
+    assert_eq!(value.label, "cmavo");
 }

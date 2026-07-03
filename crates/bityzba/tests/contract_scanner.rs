@@ -66,3 +66,21 @@ fn missing_contracts_report_separate_diagnostics() {
         "only use `#[invariant(true)]` when the field types already express the invariant"
     ));
 }
+
+#[test]
+fn misordered_contracts_report_order_diagnostics() {
+    let error = ContractScanner::new(fixture("misordered"))
+        .scan()
+        .expect_err("misordered fixture should fail scanner");
+    let output = error.to_string();
+
+    assert!(output.contains(
+        "bityzba contract attribute `requires` appears after `ensures` on function `parse_term`"
+    ));
+    assert!(output.contains(
+        "bityzba contract attribute `requires` appears after `invariant` on enum `MisorderedEnum`"
+    ));
+    assert!(output.contains(
+        "order bityzba contract attributes as `requires`, then `ensures`, then `invariant`"
+    ));
+}

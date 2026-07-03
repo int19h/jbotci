@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU8;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{Cmavo, Word, WordLike, WordLikeData};
 use jbotci_source::{SourceId, SourceSpan};
 use jbotci_syntax::generated_model::{
@@ -73,8 +73,10 @@ pub struct MeksoNodeId(pub RawSyntaxNodeId);
 #[invariant(true)]
 pub struct MeksoOperatorNodeId(pub RawSyntaxNodeId);
 
+#[invariant(leaf_start <= leaf_end)]
+#[invariant(source_spans.windows(2).all(|pair| pair[0].byte_start <= pair[1].byte_start
+    && pair[0].char_start <= pair[1].char_start))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct SyntaxNodeMetadata {
     pub id: RawSyntaxNodeId,
     pub parent: Option<RawSyntaxNodeId>,
@@ -283,8 +285,8 @@ pub enum PlaceFramePropagation {
     },
 }
 
+#[invariant(selbri.is_none() || tanru_unit.is_none())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct SelbriPlaceFrame {
     pub id: SelbriPlaceFrameId,
     pub node: RawSyntaxNodeId,
@@ -327,8 +329,8 @@ fn propagated_assignment_source(source: AssignmentSource) -> AssignmentSource {
     }
 }
 
+#[invariant(term.is_some() || matches!(source, AssignmentSource::LinkedSumti | AssignmentSource::Propagated))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct SumtiPlaceAssignment {
     pub id: SumtiPlaceAssignmentId,
     pub frame: SelbriPlaceFrameId,
@@ -385,8 +387,8 @@ pub enum ReferenceTarget {
     Vague(VagueReferenceKind),
 }
 
+#[invariant(!rule.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct ReferenceEdge {
     pub id: ReferenceEdgeId,
     pub kind: ReferenceKind,
@@ -574,8 +576,9 @@ pub struct DiscourseReferences {
     koha_bindings: HashMap<Cmavo, SumtiNodeId>,
 }
 
+#[invariant(byte_start <= byte_end)]
+#[invariant(char_start <= char_end)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[invariant(true)]
 pub struct SyntaxSpanKey {
     pub source_id: Option<SourceId>,
     pub byte_start: usize,
@@ -1064,13 +1067,13 @@ fn span_key_for_generated_node(
     let metadata = index.metadata(node)?;
     let first = metadata.source_spans.first()?;
     let last = metadata.source_spans.last()?;
-    Some(SyntaxSpanKey {
+    Some(new!(SyntaxSpanKey {
         source_id: first.source_id.clone(),
         byte_start: first.byte_start,
         byte_end: last.byte_end,
         char_start: first.char_start,
         char_end: last.char_end,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -4029,14 +4032,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         propagation: PlaceFramePropagation,
     ) -> SelbriPlaceFrameId {
         let id = SelbriPlaceFrameId(self.frames.len());
-        self.frames.push(SelbriPlaceFrame {
-            id,
-            node,
-            kind,
-            selbri,
-            tanru_unit,
-            propagation,
-        });
+        self.frames.push(new!(SelbriPlaceFrame {
+            id: id,
+            node: node,
+            kind: kind,
+            selbri: selbri,
+            tanru_unit: tanru_unit,
+            propagation: propagation,
+        }));
         self.frame_ids_by_node.entry(node).or_default().push(id);
         id
     }
@@ -4083,14 +4086,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         if blocks_cursor {
             self.cursor_blocking_assignments.insert(id);
         }
-        self.assignments.push(SumtiPlaceAssignment {
-            id,
-            frame,
-            slot,
-            sumti,
-            term,
-            source,
-        });
+        self.assignments.push(new!(SumtiPlaceAssignment {
+            id: id,
+            frame: frame,
+            slot: slot,
+            sumti: sumti,
+            term: term,
+            source: source,
+        }));
         self.assignment_ids_by_sumti
             .entry(sumti)
             .or_default()
@@ -4127,7 +4130,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         let Some(frame_data) = self.frames.get(frame.0).cloned() else {
             return;
         };
-        match frame_data.propagation {
+        match frame_data.into_data().propagation {
             PlaceFramePropagation::None => {}
             PlaceFramePropagation::Forward { inner } => self.add_assignment_recursive(
                 inner,
@@ -4683,13 +4686,13 @@ fn span_key_for_generated_tree_node<N: GeneratedSyntaxTreeNode>(node: &N) -> Opt
     node.visit_in_order(&mut collector);
     let first = collector.source_spans.first()?;
     let last = collector.source_spans.last()?;
-    Some(SyntaxSpanKey {
+    Some(new!(SyntaxSpanKey {
         source_id: first.source_id.clone(),
         byte_start: first.byte_start,
         byte_end: last.byte_end,
         char_start: first.char_start,
         char_end: last.char_end,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -4697,13 +4700,13 @@ fn span_key_for_generated_tree_node<N: GeneratedSyntaxTreeNode>(node: &N) -> Opt
 fn metadata_span_key(metadata: &SyntaxNodeMetadata) -> Option<SyntaxSpanKey> {
     let first = metadata.source_spans.first()?;
     let last = metadata.source_spans.last()?;
-    Some(SyntaxSpanKey {
+    Some(new!(SyntaxSpanKey {
         source_id: first.source_id.clone(),
         byte_start: first.byte_start,
         byte_end: last.byte_end,
         char_start: first.char_start,
         char_end: last.char_end,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -4745,7 +4748,9 @@ impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
     fn record_source_span(&mut self, span: &SourceSpan) {
         for id in &self.stack {
             if let Some(node) = self.nodes.get_mut(id.0) {
-                node.metadata.source_spans.push(span.clone());
+                let mut metadata = node.metadata.clone().into_data();
+                metadata.source_spans.push(span.clone());
+                node.metadata = SyntaxNodeMetadata::from_data(metadata);
             }
         }
         self.leaf_index += 1;
@@ -4761,15 +4766,15 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
     fn enter_node(&mut self, node: Self::Node) {
         let id = RawSyntaxNodeId(self.nodes.len());
         let parent = self.stack.last().copied();
-        let metadata = SyntaxNodeMetadata {
-            id,
-            parent,
+        let metadata = new!(SyntaxNodeMetadata {
+            id: id,
+            parent: parent,
             preorder: id.0,
             depth: self.stack.len(),
             leaf_start: self.leaf_index,
             leaf_end: self.leaf_index,
             source_spans: Vec::new(),
-        };
+        });
         self.nodes
             .push(GeneratedIndexedSyntaxNode { node, metadata });
         self.by_ref.insert(node, id);
@@ -4783,7 +4788,9 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
             return;
         };
         debug_assert_eq!(self.nodes[id.0].node, node);
-        self.nodes[id.0].metadata.leaf_end = self.leaf_index;
+        self.nodes[id.0].metadata = self.nodes[id.0].metadata.clone().with_data(data! {
+            leaf_end: self.leaf_index,
+        });
     }
 
     #[requires(true)]
@@ -9931,13 +9938,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 .push(id);
         }
         self.edge_ids_by_source.entry(source).or_default().push(id);
-        self.edges.push(ReferenceEdge {
-            id,
-            kind,
-            source,
-            target,
+        self.edges.push(new!(ReferenceEdge {
+            id: id,
+            kind: kind,
+            source: source,
+            target: target,
             rule: rule.to_owned(),
-        });
+        }));
     }
 
     #[requires(true)]
@@ -11046,20 +11053,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn fixture_span_key_from_syntax_span_rejects_zero_width_spans() {
-        let zero_width = SyntaxSpanKey {
+        let zero_width = new!(SyntaxSpanKey {
             source_id: None,
             byte_start: 4,
             byte_end: 4,
             char_start: 4,
             char_end: 4,
-        };
-        let normal = SyntaxSpanKey {
+        });
+        let normal = new!(SyntaxSpanKey {
             source_id: None,
             byte_start: 4,
             byte_end: 9,
             char_start: 4,
             char_end: 9,
-        };
+        });
 
         assert_eq!(fixture_span_key_from_syntax_span(&zero_width), None);
         assert_eq!(

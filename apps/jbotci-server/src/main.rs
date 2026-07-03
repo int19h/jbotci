@@ -192,7 +192,7 @@ fn option_suffix<'a>(text: &'a str, prefix: &str) -> Result<&'a str> {
 }
 
 #[requires(!value.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn parse_use_precomputed(value: &str) -> Result<UsePrecomputed> {
     match value {
         "auto" => Ok(UsePrecomputed::Auto),

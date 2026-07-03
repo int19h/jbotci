@@ -1047,6 +1047,17 @@ fn generic_arguments(generics: &Generics) -> Vec<TokenStream> {
 
 fn generics_with_state_params(generics: &Generics, state_idents: &[Ident]) -> Generics {
     let mut generics = generics.clone();
+    for param in &mut generics.params {
+        match param {
+            GenericParam::Type(param) => {
+                param.default = None;
+            }
+            GenericParam::Const(param) => {
+                param.default = None;
+            }
+            GenericParam::Lifetime(_) => {}
+        }
+    }
     for state_ident in state_idents {
         generics.params.push(syn::parse_quote!(#state_ident));
     }

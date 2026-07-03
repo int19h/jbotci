@@ -3,7 +3,9 @@
 use std::cmp::Ordering;
 use std::sync::LazyLock;
 
-use bityzba::{data, invariant, requires};
+#[allow(unused_imports)]
+use bityzba::expensive_invariant;
+use bityzba::{data, invariant, new, requires};
 use jbotci_morphology::{
     Phonemes, Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
     segment_words_with_modifiers,
@@ -19,32 +21,70 @@ pub enum PhoneticError {
     Message(String),
 }
 
+#[invariant((self.as_data().0 as usize) < IPA_SEGMENT_SYMBOLS.len())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[invariant(true)]
 pub struct IpaSegmentId(u16);
 
 impl IpaSegmentId {
     #[requires(true)]
     #[ensures(true)]
     pub const fn from_static_index(index: u16) -> Self {
-        Self(index)
+        assert!(
+            (index as usize) < IPA_SEGMENT_SYMBOLS.len(),
+            "static IPA segment id must index IPA_SEGMENT_SYMBOLS"
+        );
+        Self(data!(IpaSegmentId(index)))
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub const fn get(self) -> u16 {
-        self.0
+    #[ensures((ret as usize) < IPA_SEGMENT_SYMBOLS.len())]
+    pub fn get(self) -> u16 {
+        self.as_data().0
     }
 }
 
+#[invariant(!segments.is_empty())]
+#[invariant(self_similarity.is_finite())]
+#[invariant(*self_similarity > 0.0)]
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[invariant(true)]
 pub struct IpaTokenSequenceView<'a> {
     pub segments: &'a [IpaSegmentId],
     pub self_similarity: f64,
 }
 
 impl<'a> IpaTokenSequenceView<'a> {
+    #[requires(!segments.is_empty())]
+    #[requires(self_similarity.is_finite())]
+    #[requires(self_similarity > 0.0)]
+    #[ensures(ret.segment_count() == segments.len())]
+    pub fn new(segments: &'a [IpaSegmentId], self_similarity: f64) -> Self {
+        new!(IpaTokenSequenceView {
+            segments,
+            self_similarity,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn from_static_parts(segments: &'a [IpaSegmentId], self_similarity: f64) -> Self {
+        assert!(
+            !segments.is_empty(),
+            "static IPA token sequence must contain at least one segment"
+        );
+        assert!(
+            self_similarity.is_finite(),
+            "static IPA token sequence self-similarity must be finite"
+        );
+        assert!(
+            self_similarity > 0.0,
+            "static IPA token sequence self-similarity must be positive"
+        );
+        Self(data!(IpaTokenSequenceView {
+            segments,
+            self_similarity,
+        }))
+    }
+
     #[requires(true)]
     #[ensures(ret == self.segments.len())]
     pub fn segment_count(self) -> usize {
@@ -52,8 +92,11 @@ impl<'a> IpaTokenSequenceView<'a> {
     }
 }
 
+#[invariant(!segments.is_empty())]
+#[invariant(self_similarity.is_finite())]
+#[invariant(*self_similarity > 0.0)]
+#[expensive_invariant(*self_similarity == aline_raw_similarity(segments, segments))]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct IpaTokenSequence {
     segments: Vec<IpaSegmentId>,
     self_similarity: f64,
@@ -81,10 +124,7 @@ impl IpaTokenSequence {
     #[requires(true)]
     #[ensures(ret.segment_count() == self.segment_count())]
     pub fn view(&self) -> IpaTokenSequenceView<'_> {
-        IpaTokenSequenceView {
-            segments: &self.segments,
-            self_similarity: self.self_similarity,
-        }
+        IpaTokenSequenceView::new(&self.segments, self.self_similarity)
     }
 }
 
@@ -281,14 +321,7 @@ static ALINE_VOWEL_PENALTIES: LazyLock<Vec<f64>> = LazyLock::new(|| {
 #[ensures(ret.as_ref().is_ok_and(|sequence| sequence.segment_count() > 0) || ret.is_err())]
 pub fn sound_query_to_token_sequence(raw_query: &str) -> Result<IpaTokenSequence, PhoneticError> {
     let ipa = sound_query_to_ipa(raw_query)?;
-    let tokenized = tokenize_ipa_text(&ipa)?;
-    if tokenized.segment_count() == 0 {
-        Err(PhoneticError::Message(
-            "Sound search requires at least one IPA segment.".to_owned(),
-        ))
-    } else {
-        Ok(tokenized)
-    }
+    tokenize_ipa_text(&ipa)
 }
 
 #[requires(true)]
@@ -406,17 +439,10 @@ pub fn aline_phonetic_similarity_with_scratch(
     target: IpaTokenSequenceView<'_>,
     scratch: &mut AlineSimilarityScratch,
 ) -> f64 {
-    if source.segments.is_empty() || target.segments.is_empty() {
-        return 0.0;
-    }
     let raw_similarity =
         aline_raw_similarity_with_scratch(source.segments, target.segments, scratch);
     let normalizer = source.self_similarity + target.self_similarity;
-    if normalizer <= 0.0 {
-        0.0
-    } else {
-        (2.0 * raw_similarity / normalizer).clamp(0.0, 1.0)
-    }
+    (2.0 * raw_similarity / normalizer).clamp(0.0, 1.0)
 }
 
 #[requires(true)]
@@ -430,15 +456,9 @@ pub fn compare_similarity_then_index(left: (usize, f64), right: (usize, f64)) ->
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub fn is_valid_ipa_segment_id(id: IpaSegmentId) -> bool {
-    (id.0 as usize) < IPA_SEGMENT_SYMBOLS.len()
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_some_and(|symbol| !symbol.is_empty()) || ret.is_none())]
+#[ensures(ret.is_some_and(|symbol| !symbol.is_empty()))]
 pub fn ipa_segment_symbol(id: IpaSegmentId) -> Option<&'static str> {
-    IPA_SEGMENT_SYMBOLS.get(id.0 as usize).copied()
+    Some(IPA_SEGMENT_SYMBOLS[id.get() as usize])
 }
 
 #[requires(true)]
@@ -498,7 +518,7 @@ fn is_ipa_ignored_modifier(value: char) -> bool {
 }
 
 #[requires(!remaining.is_empty())]
-#[ensures(ret.as_ref().is_some_and(|(id, length)| is_valid_ipa_segment_id(*id) && *length > 0) || ret.is_none())]
+#[ensures(ret.as_ref().is_some_and(|(_id, length)| *length > 0) || ret.is_none())]
 fn match_longest_segment(remaining: &str) -> Option<(IpaSegmentId, usize)> {
     IPA_SEGMENT_NORMALIZED_SYMBOLS
         .iter()
@@ -507,8 +527,8 @@ fn match_longest_segment(remaining: &str) -> Option<(IpaSegmentId, usize)> {
         .max_by(|(_, left), (_, right)| left.len().cmp(&right.len()).then_with(|| right.cmp(left)))
         .and_then(|(index, _)| u16::try_from(index).ok())
         .map(|index| {
-            let id = IpaSegmentId(index);
-            let normalized_symbol = &IPA_SEGMENT_NORMALIZED_SYMBOLS[id.0 as usize];
+            let id = new!(IpaSegmentId(index));
+            let normalized_symbol = &IPA_SEGMENT_NORMALIZED_SYMBOLS[id.get() as usize];
             (id, normalized_symbol.len())
         })
 }
@@ -517,10 +537,10 @@ fn match_longest_segment(remaining: &str) -> Option<(IpaSegmentId, usize)> {
 #[ensures(ret.segment_count() > 0)]
 fn make_token_sequence(segments: Vec<IpaSegmentId>) -> IpaTokenSequence {
     let self_similarity = aline_raw_similarity(&segments, &segments);
-    IpaTokenSequence {
+    new!(IpaTokenSequence {
         segments,
         self_similarity,
-    }
+    })
 }
 
 #[requires(!source.is_empty())]
@@ -617,10 +637,10 @@ fn expansion_score(
 #[ensures(true)]
 fn feature_difference(left: IpaSegmentId, right: IpaSegmentId) -> f64 {
     let segment_count = IPA_SEGMENT_SYMBOLS.len();
-    let index = (left.0 as usize) * segment_count + (right.0 as usize);
-    *ALINE_PAIR_FEATURE_DIFFERENCES
-        .get(index)
-        .expect("IPA segment ids used by ALINE must come from the tokenizer")
+    let index = (left.get() as usize) * segment_count + (right.get() as usize);
+    // The ALINE tables are built from IPA_SEGMENT_SYMBOLS, and IpaSegmentId
+    // guarantees every id indexes that same symbol table.
+    ALINE_PAIR_FEATURE_DIFFERENCES[index]
 }
 
 #[requires(true)]
@@ -689,17 +709,13 @@ fn feature_salience(feature: AlineFeature) -> f64 {
 #[requires(true)]
 #[ensures(true)]
 fn vowel_penalty(segment: IpaSegmentId) -> f64 {
-    *ALINE_VOWEL_PENALTIES
-        .get(segment.0 as usize)
-        .expect("IPA segment ids used by ALINE must come from the tokenizer")
+    ALINE_VOWEL_PENALTIES[segment.get() as usize]
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn segment_features(segment: IpaSegmentId) -> AlineFeatures {
-    *IPA_SEGMENT_FEATURES
-        .get(segment.0 as usize)
-        .expect("IPA segment ids used by ALINE must come from the tokenizer")
+    IPA_SEGMENT_FEATURES[segment.get() as usize]
 }
 
 #[requires(!symbol.is_empty())]

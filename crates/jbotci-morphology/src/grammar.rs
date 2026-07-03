@@ -1,4 +1,4 @@
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
@@ -98,9 +98,9 @@ struct Segmenter<'a> {
 }
 
 impl<'a> Segmenter<'a> {
+    #[requires(true)]
     #[ensures(ret.index == 0)]
     #[ensures(ret.chars.len() == input.chars().count())]
-    #[requires(true)]
     fn new(input: &'a str, options: &'a MorphologyOptions, source_id: Option<SourceId>) -> Self {
         Self {
             input,
@@ -1167,8 +1167,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[ensures(self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(self.index <= self.chars.len())]
     fn skip_y_words(&mut self) {
         loop {
             self.skip_separators();
@@ -1220,8 +1220,8 @@ impl<'a> Segmenter<'a> {
         }
     }
 
-    #[ensures(self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(self.index <= self.chars.len())]
     fn skip_separators(&mut self) {
         while self.index < self.chars.len() && self.is_magic_noise_at(self.index) {
             self.index += 1;
@@ -1568,8 +1568,8 @@ impl<'a> Segmenter<'a> {
             })
     }
 
-    #[ensures(self.index <= self.chars.len())]
     #[requires(true)]
+    #[ensures(self.index <= self.chars.len())]
     fn consume_zoi_open_separators(&mut self) -> bool {
         let start = self.index;
         if self.peek_char().is_some_and(|value| value == '.') {

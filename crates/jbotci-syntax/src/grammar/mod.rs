@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -24,8 +24,8 @@ use jbotci_tree::TreeVisitor;
 
 use crate::{
     ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
-    SyntaxError, SyntaxWarning, Token, WithIndicators, syntax_construct_is_descendant_of,
-    syntax_immediate_child_under,
+    SyntaxError, SyntaxWarning, Token, WithIndicators, WithIndicatorsData,
+    syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 mod generated;
@@ -106,9 +106,10 @@ impl fmt::Debug for SyntaxMemoValue {
     }
 }
 
+#[invariant(start_location <= end_location, "memo success must not rewind input")]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 pub(super) struct SyntaxMemoSuccess {
+    start_location: usize,
     end_location: usize,
     value: SyntaxMemoValue,
     warnings: Vec<SyntaxWarning>,
@@ -131,9 +132,36 @@ pub(super) struct ParserState<'tokens> {
     _tokens: PhantomData<&'tokens ()>,
 }
 
+#[invariant(
+    self.syntax_location_byte_offsets.is_empty()
+        || self.syntax_location_byte_offsets.len() == self.anchor_byte_starts.len() + 1,
+    "syntax location offsets include one EOF offset after token anchors"
+)]
+#[expensive_invariant(
+    self.syntax_memo.iter().all(|((rule_name, start_location), success)| {
+        !rule_name.is_empty()
+            && *start_location == success.start_location
+            && success.start_location <= success.end_location
+            && (self.syntax_location_byte_offsets.is_empty()
+                || success.end_location < self.syntax_location_byte_offsets.len())
+    }),
+    "syntax memo successes must be keyed by their start and stay within parser locations"
+)]
+#[expensive_invariant(
+    self.syntax_failure_memo
+        .keys()
+        .chain(self.syntax_memo_in_progress.iter())
+        .all(|(rule_name, start_location)| {
+            !rule_name.is_empty()
+                && (self.syntax_location_byte_offsets.is_empty()
+                    || *start_location < self.syntax_location_byte_offsets.len())
+        }),
+    "syntax memo failure and in-progress keys must name a rule and parser location"
+)]
 impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
     pub(super) fn new(words: &[Token], options: &ParseOptions) -> Self {
         Self {
             anchor_byte_starts: words.iter().map(word_anchor_byte_start).collect(),
@@ -202,6 +230,8 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[requires(end_location >= start_location)]
+    #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
+    #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
     #[ensures(true)]
     pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
         &mut self,
@@ -211,18 +241,20 @@ impl<'tokens> ParserState<'tokens> {
         value: O,
         warnings: Vec<SyntaxWarning>,
     ) {
-        let success = SyntaxMemoSuccess {
+        let success = new!(SyntaxMemoSuccess {
+            start_location,
             end_location,
             value: SyntaxMemoValue {
                 value: Arc::new(value),
             },
             warnings,
-        };
-        self.active_syntax_memo_mut()
+        });
+        self.syntax_memo
             .insert((rule_name, start_location), success);
     }
 
     #[requires(!rule_name.is_empty())]
+    #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(true)]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
@@ -230,11 +262,12 @@ impl<'tokens> ParserState<'tokens> {
         start_location: usize,
         error: SyntaxParseError<'tokens>,
     ) {
-        self.active_syntax_failure_memo_mut()
+        self.syntax_failure_memo
             .insert((rule_name, start_location), error);
     }
 
     #[requires(!rule_name.is_empty())]
+    #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(ret -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
     pub(super) fn enter_syntax_memo_rule(
         &mut self,
@@ -260,24 +293,10 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn active_syntax_memo_mut(&mut self) -> &mut HashMap<(&'static str, usize), SyntaxMemoSuccess> {
-        &mut self.syntax_memo
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn active_syntax_failure_memo(
         &self,
     ) -> &HashMap<(&'static str, usize), SyntaxParseError<'tokens>> {
         &self.syntax_failure_memo
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn active_syntax_failure_memo_mut(
-        &mut self,
-    ) -> &mut HashMap<(&'static str, usize), SyntaxParseError<'tokens>> {
-        &mut self.syntax_failure_memo
     }
 
     #[requires(true)]
@@ -986,22 +1005,24 @@ fn modifier_word(word: &Token) -> Option<Word> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|(bahe, _)| bahe.iter().all(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe]))))]
 fn modifier_word_with_bahe(word: &Token) -> Option<(Vec<Word>, Word)> {
-    match word.as_indicators() {
-        WithIndicators::Plain(word_like) => word_like
+    match word.as_indicators().as_data() {
+        data!(WithIndicators::Plain(word_like)) => word_like
             .bare_word()
             .cloned()
             .map(|word| (Vec::new(), word)),
-        WithIndicators::Emphasized {
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => word_like.bare_word().cloned().map(|word| {
+        }) => word_like.bare_word().cloned().map(|word| {
             let mut bahes = Vec::with_capacity(extra_bahe.len() + 1);
             bahes.push(bahe.clone());
             bahes.extend(extra_bahe.iter().cloned());
             (bahes, word)
         }),
-        WithIndicators::WithIndicator { .. } => modifier_word(word).map(|word| (Vec::new(), word)),
+        data!(WithIndicators::WithIndicator { .. }) => {
+            modifier_word(word).map(|word| (Vec::new(), word))
+        }
     }
 }
 

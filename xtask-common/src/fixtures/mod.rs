@@ -7,7 +7,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use bityzba::{ensures, invariant, requires};
+use bityzba::{invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_orthography::LojbanScript;
@@ -74,8 +74,8 @@ impl TestCase {
         }
     }
 
-    #[ensures(ret.iter().all(|facet| self.expectation_status(*facet).is_some()))]
     #[requires(true)]
+    #[ensures(ret.iter().all(|facet| self.expectation_status(*facet).is_some()))]
     pub fn available_facets(&self) -> BTreeSet<Facet> {
         let mut facets = BTreeSet::new();
         if self.expectations.morphology.is_some() {
@@ -190,8 +190,8 @@ impl TestCase {
         facets
     }
 
-    #[ensures(ret.is_ok() || self.expectations.syntax.as_ref().and_then(|syntax| syntax.xfail.as_ref()).is_some())]
     #[requires(true)]
+    #[ensures(ret.is_ok() || self.expectations.syntax.as_ref().and_then(|syntax| syntax.xfail.as_ref()).is_some())]
     pub fn validate_xfail_metadata(&self) -> Result<(), FixtureError> {
         let Some(syntax) = &self.expectations.syntax else {
             return Ok(());

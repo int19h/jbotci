@@ -1,7 +1,7 @@
 mod benchmark;
 
 use benchmark::BenchmarkMeasurement;
-use bityzba::{invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use std::fs;
 use std::io::{IsTerminal, Read, Write};
 use std::num::NonZeroUsize;
@@ -65,7 +65,7 @@ use jbotci_output::{
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
-    VlackuOutcome, VlackuRequest, VlackuSearchOptions, VlackuSearchOutput,
+    VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     dictionary_cards_for_word_likes, dictionary_entry_card, dictionary_entry_passes_vlacku_filters,
     dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
     run_vlacku_requests,
@@ -1700,24 +1700,28 @@ fn augment_vlacku_args(command: ClapCommand) -> ClapCommand {
             Arg::new("valsi")
                 .long("valsi")
                 .value_name("WORD")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("rafsi")
                 .long("rafsi")
                 .value_name("RAFSI")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("lujvo")
                 .long("lujvo")
                 .value_name("WORD")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
             Arg::new("sound")
                 .long("sound")
                 .value_name("TEXT|[IPA]")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .action(ArgAction::Append),
         )
         .arg(
@@ -1740,25 +1744,25 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
     collect_ordered_vlacku_requests(
         matches,
         "valsi",
-        VlackuRequest::Valsi,
+        VlackuRequest::valsi,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "rafsi",
-        VlackuRequest::Rafsi,
+        VlackuRequest::rafsi,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "lujvo",
-        VlackuRequest::Lujvo,
+        VlackuRequest::lujvo,
         &mut ordered_requests,
     );
     collect_ordered_vlacku_requests(
         matches,
         "sound",
-        VlackuRequest::Sound,
+        VlackuRequest::sound,
         &mut ordered_requests,
     );
     ordered_requests.sort_by_key(|(index, _)| *index);
@@ -2626,11 +2630,14 @@ fn run_tool_vlacku_inner(
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<ToolRenderedOutput> {
     let query = request.query;
+    if query.is_empty() {
+        bail!("vlacku query must not be empty");
+    }
     let (requests, query_text) = match request.mode {
-        ToolVlackuMode::Word => (vec![VlackuRequest::Valsi(query)], Vec::new()),
-        ToolVlackuMode::Rafsi => (vec![VlackuRequest::Rafsi(query)], Vec::new()),
-        ToolVlackuMode::Lujvo => (vec![VlackuRequest::Lujvo(query)], Vec::new()),
-        ToolVlackuMode::Sound => (vec![VlackuRequest::Sound(query)], Vec::new()),
+        ToolVlackuMode::Word => (vec![VlackuRequest::valsi(query)], Vec::new()),
+        ToolVlackuMode::Rafsi => (vec![VlackuRequest::rafsi(query)], Vec::new()),
+        ToolVlackuMode::Lujvo => (vec![VlackuRequest::lujvo(query)], Vec::new()),
+        ToolVlackuMode::Sound => (vec![VlackuRequest::sound(query)], Vec::new()),
         ToolVlackuMode::Meaning => (Vec::new(), vec![query]),
     };
     run_tool_command_with_context(
@@ -3535,11 +3542,11 @@ fn format_gimfihi_score(score: f64) -> String {
 #[requires(!candidate.word.is_empty())]
 #[ensures(true)]
 fn format_gimfihi_rafsi(candidate: &GimfihiCandidate) -> String {
-    if candidate.rafsi.is_empty() {
+    if candidate.rafsi().is_empty() {
         return String::new();
     }
     candidate
-        .rafsi
+        .rafsi()
         .iter()
         .map(|rafsi| {
             let status = match rafsi.availability {
@@ -3605,7 +3612,7 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     let sound_count = input
         .requests
         .iter()
-        .filter(|request| matches!(request, VlackuRequest::Sound(_)))
+        .filter(|request| matches!(request.as_data(), data!(VlackuRequest::Sound(_))))
         .count();
     if sound_count > 1 {
         bail!("`--sound` may be specified only once");
@@ -3626,12 +3633,12 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
-    let (flag, value) = match request {
-        VlackuRequest::Valsi(value) => ("--valsi", value),
-        VlackuRequest::Rafsi(value) => ("--rafsi", value),
-        VlackuRequest::Lujvo(value) => ("--lujvo", value),
-        VlackuRequest::Sound(value) => ("--sound", value),
-        VlackuRequest::Meaning(value) => ("semantic query", value),
+    let (flag, value) = match request.as_data() {
+        data!(VlackuRequest::Valsi(value)) => ("--valsi", value),
+        data!(VlackuRequest::Rafsi(value)) => ("--rafsi", value),
+        data!(VlackuRequest::Lujvo(value)) => ("--lujvo", value),
+        data!(VlackuRequest::Sound(value)) => ("--sound", value),
+        data!(VlackuRequest::Meaning(value)) => ("semantic query", value),
     };
     if value.trim().is_empty() {
         bail!("{flag} requires a non-empty value");
@@ -3642,13 +3649,14 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
-    Ok(VlackuSearchOptions {
+    let word_types = parse_vlacku_word_types(&input.word_types)?;
+    Ok(new!(VlackuSearchOptions {
         count: input.count.unwrap_or(DEFAULT_VLACKU_RESULT_COUNT),
-        word_types: parse_vlacku_word_types(&input.word_types)?,
+        word_types,
         min_votes: input.min_votes,
         min_similarity: input.min_similarity,
         decompose_lujvo: input.decompose_lujvo,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -4704,10 +4712,7 @@ fn render_gentufa_generated_blocks_output(
         }
         GentufaImageOutputType::Png => Ok(render_gentufa_blocks_png(
             &layout,
-            &GentufaPngOptions {
-                svg: svg_options,
-                ..GentufaPngOptions::default()
-            },
+            &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
             fonts,
         )?),
     }
@@ -4719,14 +4724,15 @@ fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<(
     dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), words)
         .into_iter()
         .map(|parsed_match| {
+            let parsed_match = parsed_match.into_data();
             let first = parsed_match.cards.first();
             GentufaBlockAnnotation {
-                range: WebSourceRange {
+                range: new!(WebSourceRange {
                     byte_start: parsed_match.byte_start,
                     byte_end: parsed_match.byte_end,
                     char_start: parsed_match.char_start,
                     char_end: parsed_match.char_end,
-                },
+                }),
                 text: Some(parsed_match.lookup_text),
                 glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
                 definition: first
@@ -4982,13 +4988,12 @@ fn render_vlatai_classification_text_with_prefix(
     phoneme_options: PhonemeRenderOptions,
     prefix: &str,
 ) {
-    match classification.kind {
+    match classification.kind() {
         ValsiClassificationKind::PlainWord => {
             render_plain_word_classification_text(
                 out,
                 classification
-                    .word
-                    .as_ref()
+                    .word()
                     .expect("plain-word classification carries word"),
                 phoneme_options,
                 prefix,
@@ -4998,16 +5003,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: quoted-word\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quoted word marker"),
+                classification.marker().expect("quoted word marker"),
                 phoneme_options,
                 "marker ",
             );
             render_plain_word_classification_text(
                 out,
-                classification
-                    .quoted_word
-                    .as_ref()
-                    .expect("quoted word payload"),
+                classification.quoted_word().expect("quoted word payload"),
                 phoneme_options,
                 "quoted ",
             );
@@ -5016,13 +5018,12 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: delimited-non-lojban-quote\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quote marker"),
+                classification.marker().expect("quote marker"),
                 phoneme_options,
                 "marker ",
             );
             let delimiter = classification
-                .delimiter
-                .as_ref()
+                .delimiter()
                 .expect("delimited quote carries delimiter");
             out.push_str(&format!("{prefix}delimiter: {delimiter}\n"));
         }
@@ -5030,13 +5031,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: quoted-words\n"));
             render_plain_word_classification_text(
                 out,
-                classification.marker.as_ref().expect("quoted words marker"),
+                classification.marker().expect("quoted words marker"),
                 phoneme_options,
                 "marker ",
             );
             out.push_str(&format!(
                 "{prefix}quoted word count: {}\n",
-                classification.quoted_words.len()
+                classification.quoted_words().len()
             ));
         }
         ValsiClassificationKind::DelimitedWordQuote => {
@@ -5044,8 +5045,7 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!(
                 "{prefix}marker: {}\n",
                 classification
-                    .marker_text
-                    .as_ref()
+                    .marker_text()
                     .expect("delimited word quote marker")
             ));
         }
@@ -5053,13 +5053,13 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: lerfu-word\n"));
             render_vlatai_classification_text_with_prefix(
                 out,
-                classification.base.as_ref().expect("lerfu base"),
+                classification.base().expect("lerfu base"),
                 phoneme_options,
                 "base ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.suffix.as_ref().expect("lerfu suffix"),
+                classification.suffix().expect("lerfu suffix"),
                 phoneme_options,
                 "suffix ",
             );
@@ -5068,19 +5068,19 @@ fn render_vlatai_classification_text_with_prefix(
             out.push_str(&format!("{prefix}category: zei-compound\n"));
             render_vlatai_classification_text_with_prefix(
                 out,
-                classification.left.as_ref().expect("zei left"),
+                classification.left().expect("zei left"),
                 phoneme_options,
                 "left ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.link.as_ref().expect("zei link"),
+                classification.link().expect("zei link"),
                 phoneme_options,
                 "link ",
             );
             render_plain_word_classification_text(
                 out,
-                classification.right.as_ref().expect("zei right"),
+                classification.right().expect("zei right"),
                 phoneme_options,
                 "right ",
             );
@@ -5198,11 +5198,10 @@ fn vlatai_classification_json(
     classification: &ValsiClassification,
     phoneme_options: PhonemeRenderOptions,
 ) -> serde_json::Value {
-    match classification.kind {
+    match classification.kind() {
         ValsiClassificationKind::PlainWord => plain_word_classification_json(
             classification
-                .word
-                .as_ref()
+                .word()
                 .expect("plain-word classification carries word"),
             phoneme_options,
         ),
@@ -5250,12 +5249,12 @@ fn render_source_diagnostics(
         source_label,
         source,
         diagnostics,
-        DiagnosticRenderOptions {
+        new!(DiagnosticRenderOptions {
             color: color_enabled,
             detail: diagnostic_detail,
             glyphs,
             terminal_width: diagnostic_terminal_width,
-        },
+        }),
     )
     .map_err(|error| anyhow!(error))
 }
@@ -5503,10 +5502,10 @@ fn render_cli_trace(
     report.map_or_else(String::new, |report| {
         render_trace_report(
             report,
-            TraceRenderOptions {
+            new!(TraceRenderOptions {
                 color: color_enabled,
                 terminal_width,
-            },
+            }),
         )
     })
 }
@@ -6281,7 +6280,7 @@ mod tests {
         };
         assert_eq!(
             primary_input.requests,
-            vec![VlackuRequest::Valsi("klama".to_owned())]
+            vec![VlackuRequest::valsi("klama".to_owned())]
         );
         assert_eq!(primary_input.sumti_places, CliSumtiPlaces::Index);
 
@@ -6294,7 +6293,7 @@ mod tests {
         };
         assert_eq!(
             alias_input.requests,
-            vec![VlackuRequest::Rafsi("kla".to_owned())]
+            vec![VlackuRequest::rafsi("kla".to_owned())]
         );
         assert_eq!(alias_input.sumti_places, CliSumtiPlaces::Raw);
     }
@@ -6420,10 +6419,10 @@ mod tests {
         assert_eq!(
             input.requests,
             vec![
-                VlackuRequest::Valsi("a".to_owned()),
-                VlackuRequest::Rafsi("bau".to_owned()),
-                VlackuRequest::Valsi("klama".to_owned()),
-                VlackuRequest::Lujvo("mivyselbai".to_owned()),
+                VlackuRequest::valsi("a".to_owned()),
+                VlackuRequest::rafsi("bau".to_owned()),
+                VlackuRequest::valsi("klama".to_owned()),
+                VlackuRequest::lujvo("mivyselbai".to_owned()),
             ]
         );
     }
@@ -9332,7 +9331,7 @@ mod tests {
     fn vlacku_colors_card_labels_dividers_and_rich_text() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9346,7 +9345,7 @@ mod tests {
                     notes: "unmatched $ remains plain".to_owned(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9381,7 +9380,7 @@ mod tests {
     fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "klama".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9395,7 +9394,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9420,7 +9419,7 @@ mod tests {
     fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
         let output = render_vlacku_output_with_width(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "cmevla".to_owned(),
                     word_type: "lujvo".to_owned(),
                     selmaho: None,
@@ -9434,7 +9433,7 @@ mod tests {
                     notes: "In Lojban, such words are characterized by ending with a consonant.".to_owned(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9463,7 +9462,7 @@ mod tests {
     fn vlacku_official_author_renders_infinity() {
         let output = render_vlacku_output(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "birka".to_owned(),
                     word_type: "gismu".to_owned(),
                     selmaho: None,
@@ -9480,7 +9479,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },
@@ -9498,7 +9497,7 @@ mod tests {
     fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
         let output = render_vlacku_output_with_options(
             &VlackuSearchOutput {
-                cards: vec![VlackuCard {
+                cards: vec![new!(VlackuCard {
                     word: "fuhivla".to_owned(),
                     word_type: "fu'ivla".to_owned(),
                     selmaho: None,
@@ -9515,7 +9514,7 @@ mod tests {
                     notes: String::new(),
                     etymology: None,
                     decomposition: Vec::new(),
-                }],
+                })],
                 outcome: VlackuOutcome::Found,
                 diagnostics: Vec::new(),
             },

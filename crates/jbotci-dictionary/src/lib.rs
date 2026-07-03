@@ -6,7 +6,7 @@ pub mod import;
 use std::collections::BTreeMap;
 
 use bityzba::{expensive_invariant, invariant, requires};
-use jbotci_phonetic::{IpaTokenSequenceView, is_valid_ipa_segment_id};
+use jbotci_phonetic::IpaTokenSequenceView;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -793,17 +793,6 @@ fn validate_sound_index(
             return Err(DictionaryValidationError::InvalidSoundIndexEntry {
                 index,
                 reason: "token sequence self-similarity is not positive and finite",
-            });
-        }
-        if sound_entry
-            .token_sequence
-            .segments
-            .iter()
-            .any(|segment| !is_valid_ipa_segment_id(*segment))
-        {
-            return Err(DictionaryValidationError::InvalidSoundIndexEntry {
-                index,
-                reason: "token sequence contains an invalid segment id",
             });
         }
         previous_index = Some(sound_entry.entry_index.0);

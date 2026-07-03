@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{ExperimentalConstruct, Token, WithIndicators};
+use crate::{ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData};
 use bityzba::{data, invariant, new, requires};
 use chumsky::error::RichReason;
 use chumsky::input::MapExtra;
@@ -185,6 +185,7 @@ pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
 
 #[requires(!label.is_empty())]
 #[requires(!debug_label.is_empty())]
+#[requires(!expected.is_empty())]
 #[ensures(true)]
 pub(super) fn token_matching<'tokens>(
     label: &'static str,
@@ -203,6 +204,7 @@ pub(super) fn token_matching<'tokens>(
 
 #[requires(!label.is_empty())]
 #[requires(!debug_label.is_empty())]
+#[requires(!expected.is_empty())]
 #[ensures(true)]
 pub(super) fn token_matching_with_experimental_context<'tokens>(
     label: &'static str,
@@ -211,10 +213,6 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
     experimental_context: ExperimentalCmavoContext,
     bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
-    assert!(
-        !expected.is_empty(),
-        "token parsers must declare expected tokens"
-    );
     custom::<_, ParserInput<'tokens>, Token, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -402,12 +400,12 @@ fn warn_experimental_indicators_inner(
     word: &WithIndicators<WordLike>,
     context: &Token,
 ) {
-    let WithIndicators::WithIndicator {
+    let data!(WithIndicators::WithIndicator {
         base,
         indicator,
         nai,
         ..
-    } = word
+    }) = word.as_data()
     else {
         return;
     };
@@ -985,7 +983,7 @@ pub(crate) fn is_relation_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
-    if let WithIndicators::WithIndicator { base, .. } = word {
+    if let data!(WithIndicators::WithIndicator { base, .. }) = word.as_data() {
         return is_relation_indicators(base);
     }
 
@@ -993,8 +991,9 @@ fn is_relation_indicators(word: &WithIndicators<WordLike>) -> bool {
         return true;
     }
 
-    match word {
-        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like))
+        | data!(WithIndicators::Emphasized { word_like, .. }) => {
             word_like_is_relation_word(word_like)
         }
         _ => false,
@@ -1031,11 +1030,12 @@ pub(crate) fn is_cmevla_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_cmevla_indicators(word: &WithIndicators<WordLike>) -> bool {
-    match word {
-        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like))
+        | data!(WithIndicators::Emphasized { word_like, .. }) => {
             word_like_kind(word_like).is_some_and(|kind| kind == WordKind::Cmevla)
         }
-        WithIndicators::WithIndicator { base, .. } => is_cmevla_indicators(base),
+        data!(WithIndicators::WithIndicator { base, .. }) => is_cmevla_indicators(base),
     }
 }
 
@@ -1048,23 +1048,22 @@ pub(crate) fn is_letter_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_letter_indicators(word: &WithIndicators<WordLike>) -> bool {
-    match word {
-        WithIndicators::Plain(word_like) | WithIndicators::Emphasized { word_like, .. } => {
-            match word_like.as_data() {
-                data!(WordLike::LerfuWord { .. }) => true,
-                data!(WordLike::PlainWord(word)) => {
-                    word.kind() == WordKind::Cmavo
-                        && word.cmavo().is_some_and(|cmavo| {
-                            (!matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U)
-                                && cmavo.is_selmaho(Selmaho::By))
-                                || cmavo == Cmavo::Sehe
-                                || cmavo == Cmavo::Y
-                        })
-                }
-                _ => false,
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like))
+        | data!(WithIndicators::Emphasized { word_like, .. }) => match word_like.as_data() {
+            data!(WordLike::LerfuWord { .. }) => true,
+            data!(WordLike::PlainWord(word)) => {
+                word.kind() == WordKind::Cmavo
+                    && word.cmavo().is_some_and(|cmavo| {
+                        (!matches!(cmavo, Cmavo::A | Cmavo::E | Cmavo::I | Cmavo::O | Cmavo::U)
+                            && cmavo.is_selmaho(Selmaho::By))
+                            || cmavo == Cmavo::Sehe
+                            || cmavo == Cmavo::Y
+                    })
             }
-        }
-        WithIndicators::WithIndicator { base, .. } => is_letter_indicators(base),
+            _ => false,
+        },
+        data!(WithIndicators::WithIndicator { base, .. }) => is_letter_indicators(base),
     }
 }
 
@@ -1080,7 +1079,7 @@ pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn bare_word_kind_and_phonemes(word: &Token) -> Option<(WordKind, String)> {
-    let WithIndicators::Plain(word_like) = word.as_indicators() else {
+    let data!(WithIndicators::Plain(word_like)) = word.as_indicators().as_data() else {
         return None;
     };
     let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
@@ -1129,13 +1128,13 @@ pub(super) fn word_byte_range(word: &Token) -> Option<Range<usize>> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|range| range.start <= range.end))]
 fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<usize>> {
-    match word {
-        WithIndicators::Plain(word_like) => word_like_byte_range(word_like),
-        WithIndicators::Emphasized {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => word_like_byte_range(word_like),
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => word_like_byte_range(word_like).map(|range| {
+        }) => word_like_byte_range(word_like).map(|range| {
             let start = extra_bahe
                 .iter()
                 .fold(bahe.span().byte_start, |start, bahe| {
@@ -1146,13 +1145,13 @@ fn word_indicators_byte_range(word: &WithIndicators<WordLike>) -> Option<Range<u
             });
             start.min(range.start)..end.max(range.end)
         }),
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => word_indicators_byte_range(base).map(|range| {
+        }) => word_indicators_byte_range(base).map(|range| {
             let indicator_start = indicator_bahe
                 .iter()
                 .fold(indicator.span().byte_start, |start, bahe| {

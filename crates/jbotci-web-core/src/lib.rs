@@ -652,7 +652,7 @@ fn rafsi_breakdown_for_block(block: &GentufaBlock) -> Vec<String> {
 }
 
 #[requires(true)]
-#[ensures(ret.max_col == layout.max_col)]
+#[ensures(ret.max_col == old(layout.max_col))]
 fn attach_generated_reference_tooltips_to_blocks_layout(
     layout: BareGentufaBlocksLayout,
     analysis: &GeneratedReferenceAnalysis<'_>,
@@ -661,7 +661,8 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
     base_path: &str,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
-    GentufaBlocksLayout {
+    let layout = layout.into_data();
+    new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
@@ -678,7 +679,7 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
             .collect(),
         max_col: layout.max_col,
         max_row: layout.max_row,
-    }
+    })
 }
 
 #[requires(true)]
@@ -691,69 +692,47 @@ fn attach_generated_reference_tooltips_to_block(
     base_path: &str,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlock {
-    let jbotci_gentufa::GentufaBlock {
-        block_id,
-        node_ids,
-        label,
-        is_leaf,
-        is_elided,
-        token_kind,
-        ref_markers,
-        span,
-        node_types,
-        ancestors,
-        col,
-        col_span,
-        row,
-        row_span,
-        color,
-        parent_color,
-        raw_text,
-        display_text,
-        transform,
-        glosses,
-        definition,
-        computed_gloss,
-        tooltip,
-    } = block;
+    let block = block.into_data();
     let dictionary_annotation = annotation_for_range_and_text(
         dictionary_annotations,
-        span,
-        is_elided.then_some(display_text.as_str()),
+        block.span,
+        block.is_elided.then_some(block.display_text.as_str()),
     );
-    GentufaBlock {
-        block_id,
-        node_ids,
-        label,
-        is_leaf,
-        is_elided,
-        token_kind,
+    new!(GentufaBlock {
+        block_id: block.block_id,
+        node_ids: block.node_ids,
+        label: block.label,
+        is_leaf: block.is_leaf,
+        is_elided: block.is_elided,
+        token_kind: block.token_kind,
         ref_markers: attach_generated_reference_tooltips_to_markers(
-            ref_markers,
+            block.ref_markers,
             analysis,
             source,
             options,
             base_path,
         ),
-        span,
-        node_types,
-        ancestors,
-        col,
-        col_span,
-        row,
-        row_span,
-        color,
-        parent_color,
-        raw_text,
-        display_text,
-        transform,
-        glosses: merge_block_glosses(glosses, dictionary_annotation),
-        definition: definition
+        span: block.span,
+        node_types: block.node_types,
+        ancestors: block.ancestors,
+        col: block.col,
+        col_span: block.col_span,
+        row: block.row,
+        row_span: block.row_span,
+        color: block.color,
+        parent_color: block.parent_color,
+        raw_text: block.raw_text,
+        display_text: block.display_text,
+        transform: block.transform,
+        glosses: merge_block_glosses(block.glosses, dictionary_annotation),
+        definition: block
+            .definition
             .or_else(|| dictionary_annotation.and_then(|annotation| annotation.definition.clone())),
-        computed_gloss,
-        tooltip: tooltip
+        computed_gloss: block.computed_gloss,
+        tooltip: block
+            .tooltip
             .or_else(|| dictionary_annotation.and_then(|annotation| annotation.tooltip.clone())),
-    }
+    })
 }
 
 #[requires(true)]
@@ -1986,9 +1965,9 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     }
 
     let request = match normalized_state.mode {
-        VlackuWebMode::Word => VlackuRequest::Valsi(normalized_state.query.clone()),
-        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(normalized_state.query.clone()),
-        VlackuWebMode::Sound => VlackuRequest::Sound(normalized_state.query.clone()),
+        VlackuWebMode::Word => VlackuRequest::valsi(normalized_state.query.clone()),
+        VlackuWebMode::Rafsi => VlackuRequest::rafsi(normalized_state.query.clone()),
+        VlackuWebMode::Sound => VlackuRequest::sound(normalized_state.query.clone()),
         VlackuWebMode::Meaning => unreachable!("meaning mode returned above"),
     };
     let fetch_count = normalized_state
@@ -1998,13 +1977,11 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
         &[request],
-        &VlackuSearchOptions {
+        &VlackuSearchOptions::default().with_data(data! {
             count: fetch_count,
             word_types: normalized_state.word_types.clone(),
-            min_votes: None,
-            min_similarity: None,
             decompose_lujvo: true,
-        },
+        }),
     );
     let has_more = output.cards.len() > normalized_state.count;
     let cards = output
@@ -2180,13 +2157,11 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         .saturating_add(1)
         .min(VLACKU_WEB_MAX_COUNT);
     let dictionary = jbotci_dictionary_data::english();
-    let options = VlackuSearchOptions {
+    let options = VlackuSearchOptions::default().with_data(data! {
         count: fetch_count,
         word_types: normalized_state.word_types.clone(),
-        min_votes: None,
-        min_similarity: None,
         decompose_lujvo: true,
-    };
+    });
     let filtered = hits
         .iter()
         .filter_map(|hit| {
@@ -2671,10 +2646,8 @@ pub fn render_gentufa_blocks_web_export(
         GentufaExportFormat::Png => {
             let bytes = jbotci_gentufa::render_gentufa_blocks_png(
                 layout,
-                &jbotci_gentufa::GentufaPngOptions {
-                    svg: gentufa_svg_export_options(show_glosses, script),
-                    ..jbotci_gentufa::GentufaPngOptions::default()
-                },
+                &jbotci_gentufa::GentufaPngOptions::default()
+                    .with_data(data! { svg: gentufa_svg_export_options(show_glosses, script) }),
                 jbotci_gentufa::EmbeddedGentufaFonts::get(),
             )
             .map_err(|error| WebComputeError::export(error))?;
@@ -3207,20 +3180,18 @@ fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
         return None;
     }
     let request = match state.mode {
-        VlackuWebMode::Word => VlackuRequest::Valsi(query.to_owned()),
-        VlackuWebMode::Rafsi => VlackuRequest::Rafsi(query.to_owned()),
+        VlackuWebMode::Word => VlackuRequest::valsi(query.to_owned()),
+        VlackuWebMode::Rafsi => VlackuRequest::rafsi(query.to_owned()),
         VlackuWebMode::Meaning | VlackuWebMode::Sound => return None,
     };
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
         &[request],
-        &VlackuSearchOptions {
+        &VlackuSearchOptions::default().with_data(data! {
             count: 1,
             word_types: state.word_types.clone(),
-            min_votes: None,
-            min_similarity: None,
             decompose_lujvo: true,
-        },
+        }),
     );
     output
         .cards
@@ -4423,7 +4394,7 @@ pub fn dictionary_tooltip_for_word(base_path: &str, word: &str) -> Option<Dictio
 fn dictionary_tooltip_search_card_for_word(word: &str) -> Option<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[VlackuRequest::Valsi(word.to_owned())],
+        &[VlackuRequest::valsi(word.to_owned())],
         &tooltip_vlacku_options(),
     );
     output.cards.into_iter().next()
@@ -4441,7 +4412,7 @@ pub fn dictionary_tooltip_for_rafsi(base_path: &str, rafsi: &str) -> Option<Dict
 fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
     let output = run_vlacku_requests(
         jbotci_dictionary_data::english(),
-        &[VlackuRequest::Rafsi(rafsi.to_owned())],
+        &[VlackuRequest::rafsi(rafsi.to_owned())],
         &tooltip_vlacku_options(),
     );
     output.cards.into_iter().next()
@@ -4450,13 +4421,13 @@ fn dictionary_tooltip_search_card_for_rafsi(rafsi: &str) -> Option<VlackuCard> {
 #[requires(true)]
 #[ensures(ret.count == 1)]
 fn tooltip_vlacku_options() -> VlackuSearchOptions {
-    VlackuSearchOptions {
+    VlackuSearchOptions::default().with_data(data! {
         count: 1,
         word_types: Vec::new(),
         min_votes: None,
         min_similarity: None,
         decompose_lujvo: true,
-    }
+    })
 }
 
 #[requires(true)]
@@ -4497,23 +4468,24 @@ fn dictionary_annotations_for_elided_blocks(
 
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
-#[ensures(ret.range.byte_start == parsed_match.byte_start)]
+#[ensures(ret.range.byte_start == old(parsed_match.byte_start))]
 fn dictionary_annotation_from_match(
     parsed_match: ParsedWordDictionaryMatch,
     base_path: &str,
 ) -> GentufaBlockAnnotation<DictionaryTooltipCard> {
+    let parsed_match = parsed_match.into_data();
     let first_card = parsed_match
         .cards
         .into_iter()
         .next()
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card));
     GentufaBlockAnnotation {
-        range: WebSourceRange {
+        range: new!(WebSourceRange {
             byte_start: parsed_match.byte_start,
             byte_end: parsed_match.byte_end,
             char_start: parsed_match.char_start,
             char_end: parsed_match.char_end,
-        },
+        }),
         text: Some(parsed_match.lookup_text),
         glosses: first_card
             .as_ref()
@@ -4530,6 +4502,7 @@ fn dictionary_tooltip_card_from_search_card(
     base_path: &str,
     card: VlackuCard,
 ) -> DictionaryTooltipCard {
+    let card = card.into_data();
     let word_href = vlacku_web_url(
         base_path,
         &VlackuWebState {
@@ -4803,11 +4776,13 @@ fn decorated_bracket_fragment(
 #[requires(true)]
 #[ensures(true)]
 fn bracket_source_range_to_web(range: Option<BracketSourceRange>) -> Option<WebSourceRange> {
-    range.map(|range| WebSourceRange {
-        byte_start: range.byte_start,
-        byte_end: range.byte_end,
-        char_start: 0,
-        char_end: 0,
+    range.map(|range| {
+        new!(WebSourceRange {
+            byte_start: range.byte_start,
+            byte_end: range.byte_end,
+            char_start: 0,
+            char_end: 0,
+        })
     })
 }
 
@@ -4903,6 +4878,7 @@ fn web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
 ) -> VlackuWebCard {
+    let card = card.into_data();
     let author = card.author.map(web_author_from_search_author);
     let etymology = card
         .etymology

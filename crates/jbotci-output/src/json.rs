@@ -1,10 +1,10 @@
 //! Compact JSON DOM builders over generated tree traversal.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use jbotci_morphology::{PhonemeRenderOptions, TreeNode as MorphologyTreeNode, Word, WordLike};
 use jbotci_source::SourceSpan;
-use jbotci_syntax::WithIndicators;
+use jbotci_syntax::{WithIndicators, WithIndicatorsData};
 use jbotci_tree::{FieldRef, TreeVisitor};
 use serde_json::{Map, Value};
 
@@ -356,15 +356,15 @@ fn constructor_value(constructor: &str, payload: Value) -> Value {
 #[requires(true)]
 #[ensures(true)]
 fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRenderOptions) -> Value {
-    match word {
-        WithIndicators::Plain(word_like) => {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => {
             constructor_value("Plain", morphology_word_like_value(word_like, phonemes))
         }
-        WithIndicators::Emphasized {
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => {
+        }) => {
             let mut payload = Map::new();
             payload.insert("bahe".to_owned(), morphology_word_value(bahe, phonemes));
             if !extra_bahe.is_empty() {
@@ -384,13 +384,13 @@ fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRende
             );
             constructor_value("Emphasized", Value::Object(payload))
         }
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             let mut payload = Map::new();
             payload.insert("base".to_owned(), with_indicators_value(base, phonemes));
             if !indicator_bahe.is_empty() {

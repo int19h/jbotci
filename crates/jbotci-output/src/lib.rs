@@ -41,9 +41,9 @@ pub use trace::{TraceRenderOptions, render_trace_report};
 pub use tree::pretty_generated_model_tree_with_reference_display;
 pub use tree::{GeneratedReferenceDisplay, generated_reference_display};
 
+#[invariant(byte_start <= byte_end, "bracket source byte range must be ordered")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-#[invariant(true)]
 pub struct BracketSourceRange {
     pub byte_start: usize,
     pub byte_end: usize,

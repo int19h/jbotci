@@ -1,6 +1,6 @@
 use std::{cell::Cell, ops::Range};
 
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use vec1::Vec1;
 
 use crate::{
@@ -218,40 +218,42 @@ fn normalize_source_chars_with_mode(
             continue;
         }
         match normalize_char_event(value, options) {
-            Some(NormalizedCharEvent::Emit {
-                value: normalized_value,
-                implicit_apostrophe_vowel,
-            }) => {
-                push_normalized_value(
-                    &mut normalized,
-                    &mut previous_implicit_apostrophe_vowel,
-                    source_index,
-                    source_index + 1,
-                    value,
-                    normalized_value,
+            Some(event) => match event.as_data() {
+                data!(NormalizedCharEvent::Emit {
+                    value: normalized_value,
                     implicit_apostrophe_vowel,
-                );
-            }
-            Some(NormalizedCharEvent::EmitText { text }) => {
-                push_normalized_text(
-                    &mut normalized,
-                    &mut previous_implicit_apostrophe_vowel,
-                    source_index,
-                    source_index + 1,
-                    value,
-                    text,
-                    false,
-                );
-            }
-            Some(NormalizedCharEvent::StressPrevious) => {
-                stress_last_normalized_char(&mut normalized);
-            }
-            Some(NormalizedCharEvent::StressPreviousVowel) => {
-                stress_last_normalized_vowel_char(&mut normalized);
-            }
-            Some(NormalizedCharEvent::Ignore) => {
-                previous_implicit_apostrophe_vowel = false;
-            }
+                }) => {
+                    push_normalized_value(
+                        &mut normalized,
+                        &mut previous_implicit_apostrophe_vowel,
+                        source_index,
+                        source_index + 1,
+                        value,
+                        *normalized_value,
+                        *implicit_apostrophe_vowel,
+                    );
+                }
+                data!(NormalizedCharEvent::EmitText { text }) => {
+                    push_normalized_text(
+                        &mut normalized,
+                        &mut previous_implicit_apostrophe_vowel,
+                        source_index,
+                        source_index + 1,
+                        value,
+                        text,
+                        false,
+                    );
+                }
+                data!(NormalizedCharEvent::StressPrevious) => {
+                    stress_last_normalized_char(&mut normalized);
+                }
+                data!(NormalizedCharEvent::StressPreviousVowel) => {
+                    stress_last_normalized_vowel_char(&mut normalized);
+                }
+                data!(NormalizedCharEvent::Ignore) => {
+                    previous_implicit_apostrophe_vowel = false;
+                }
+            },
             None => {
                 if checked {
                     return Err(NormalizationError {
@@ -431,8 +433,8 @@ fn source_range_from_normalized_range(
     (start < end).then(|| SourceRange::new(start, end))
 }
 
-#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 pub(crate) fn classify_word_with_options(
     normalized_word: &str,
     options: &MorphologyOptions,
@@ -480,8 +482,8 @@ pub(crate) fn classify_word_with_options(
     None
 }
 
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let chars: Vec<char> = normalized_word.chars().collect();
     let mut out = String::new();
@@ -502,8 +504,8 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     out
 }
 
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     mark_predictable_stress(
         &canonicalize_word_phonemes(normalized_word)
@@ -513,8 +515,8 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     )
 }
 
-#[ensures(!ret.is_empty() || phonemes.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || phonemes.is_empty())]
 fn mark_predictable_stress(phonemes: &str) -> String {
     if has_explicit_stress(phonemes) {
         return phonemes.to_owned();
@@ -1309,12 +1311,9 @@ fn forbidden_consonant_triple_chars(first: char, second: char, third: char) -> b
     )
 }
 
+#[invariant(::Emit { value, .. } => is_valid_normalized_char(*value))]
+#[invariant(::EmitText { text } => !text.is_empty() && text.chars().all(is_valid_normalized_char))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(::Emit { .. } => true)]
-#[invariant(::EmitText { .. } => true)]
-#[invariant(::StressPrevious => true)]
-#[invariant(::StressPreviousVowel => true)]
-#[invariant(::Ignore => true)]
 enum NormalizedCharEvent {
     Emit {
         value: char,
@@ -1332,13 +1331,13 @@ enum NormalizedCharEvent {
 #[ensures(true)]
 fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<NormalizedCharEvent> {
     if is_combining_stress_mark(value) {
-        return Some(NormalizedCharEvent::StressPrevious);
+        return Some(new!(NormalizedCharEvent::StressPrevious));
     }
     if options.accept_zbalermorna && is_zbalermorna_stress_mark(value) {
-        return Some(NormalizedCharEvent::StressPreviousVowel);
+        return Some(new!(NormalizedCharEvent::StressPreviousVowel));
     }
     if options.accept_zbalermorna && is_zbalermorna_ignored_mark(value) {
-        return Some(NormalizedCharEvent::Ignore);
+        return Some(new!(NormalizedCharEvent::Ignore));
     }
     if options.accept_latin && is_latin_apostrophe(value) {
         return Some(normalized_emit('\'', false));
@@ -1363,18 +1362,18 @@ fn normalize_char_event(value: char, options: &MorphologyOptions) -> Option<Norm
     if options.accept_zbalermorna
         && let Some(normalized) = normalize_zbalermorna_text(value)
     {
-        return Some(NormalizedCharEvent::EmitText { text: normalized });
+        return Some(new!(NormalizedCharEvent::EmitText { text: normalized }));
     }
     None
 }
 
 #[requires(is_valid_normalized_char(value))]
-#[ensures(matches!(ret, NormalizedCharEvent::Emit { value: emitted, implicit_apostrophe_vowel } if emitted == value && implicit_apostrophe_vowel == insert_implicit_apostrophe))]
+#[ensures(matches!(ret.as_data(), data!(NormalizedCharEvent::Emit { value: emitted, implicit_apostrophe_vowel }) if *emitted == value && *implicit_apostrophe_vowel == insert_implicit_apostrophe))]
 fn normalized_emit(value: char, insert_implicit_apostrophe: bool) -> NormalizedCharEvent {
-    NormalizedCharEvent::Emit {
+    new!(NormalizedCharEvent::Emit {
         value,
         implicit_apostrophe_vowel: insert_implicit_apostrophe,
-    }
+    })
 }
 
 #[requires(true)]
@@ -1738,8 +1737,8 @@ pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
     starts_with_cvcy_lujvo_chars(&chars, 0)
 }
 
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
@@ -4338,8 +4337,6 @@ fn parse_fuhivla_shape_with_head_policy_with_cache(
         })
 }
 
-#[invariant(::Standard => true)]
-#[invariant(::ExperimentalCgv => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FuhivlaHeadPolicy {
     Standard,
@@ -4451,7 +4448,6 @@ fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(::Brivla => true)]
 enum SyllablePolicy {
     Brivla,
 }

@@ -1,6 +1,6 @@
-use bityzba::data;
 #[allow(unused_imports)]
 use bityzba::ensures;
+use bityzba::{data, new};
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
 use jbotci_orthography::{
@@ -10,7 +10,9 @@ use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
-use jbotci_syntax::{Token, WithIndicators, elidable_terminator_for_absent_field_ref};
+use jbotci_syntax::{
+    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
+};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{
@@ -224,25 +226,25 @@ fn with_indicators_brackets(
     word: &WithIndicators<WordLike>,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
-    match word {
-        WithIndicators::Plain(word_like) => word_like_brackets(word_like, source),
-        WithIndicators::Emphasized {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => word_like_brackets(word_like, source),
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => {
+        }) => {
             let mut children = vec![word_leaf(bahe, source)];
             children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
             children.push(word_like_brackets(word_like, source));
             sexpr::node(children)
         }
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             let mut children = vec![with_indicators_brackets(base, source)];
             children.extend(indicator_bahe.iter().map(|bahe| word_leaf(bahe, source)));
             children.push(word_leaf(indicator, source));
@@ -332,20 +334,20 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
 fn quoted_text_leaf(verbatim: &jbotci_morphology::Verbatim) -> sexpr::SExpr {
     sexpr::leaf_with_range(
         verbatim.text.trim().to_owned(),
-        Some(BracketSourceRange {
+        Some(new!(BracketSourceRange {
             byte_start: verbatim.span.byte_start,
             byte_end: verbatim.span.byte_end,
-        }),
+        })),
     )
 }
 
 #[requires(word.span().byte_start <= word.span().byte_end)]
 #[ensures(ret.byte_start == word.span().byte_start)]
 fn word_bracket_source_range(word: &Word) -> BracketSourceRange {
-    BracketSourceRange {
+    new!(BracketSourceRange {
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
-    }
+    })
 }
 
 #[requires(true)]
@@ -377,10 +379,10 @@ fn expr_end_range(expr: &sexpr::SExpr) -> Option<BracketSourceRange> {
     let range = match expr {
         sexpr::SExpr::Leaf { range, .. } | sexpr::SExpr::Node { range, .. } => *range,
     }?;
-    Some(BracketSourceRange {
+    Some(new!(BracketSourceRange {
         byte_start: range.byte_end,
         byte_end: range.byte_end,
-    })
+    }))
 }
 
 #[requires(true)]

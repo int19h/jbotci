@@ -83,7 +83,12 @@ pub enum LensiskuImportError {
 
 /// Parse a Lensisku JSON dictionary snapshot.
 #[requires(true)]
-#[expensive_ensures(ret.as_ref().is_ok_and(|dictionary| dictionary.entries.iter().all(|entry| entry.selmaho.as_ref().is_none_or(|text| !text.trim().is_empty()))) || ret.is_err())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|dictionary| {
+    dictionary.entries.iter().all(|entry| {
+        entry.selmaho.as_ref().is_none_or(|text| !text.trim().is_empty())
+            && entry.rafsi.iter().all(|rafsi| !rafsi.is_empty())
+    })
+}) || ret.is_err())]
 pub fn parse_lensisku_json(input: &str) -> Result<ImportedDictionary, LensiskuImportError> {
     let entries = serde_json::from_str::<Vec<ImportedDictionaryEntry>>(input)?;
     Ok(ImportedDictionary { entries })
@@ -119,7 +124,7 @@ where
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_ok_and(|values| values.iter().all(|value| !value.is_empty())) || ret.is_err())]
 fn deserialize_rafsi_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
@@ -138,7 +143,7 @@ where
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.iter().all(|value| !value.is_empty()))]
 fn split_rafsi_text(value: &str) -> Vec<String> {
     value.split_whitespace().map(str::to_owned).collect()
 }
@@ -234,6 +239,26 @@ mod tests {
                 "definition_id": 1,
                 "score": 1.0,
                 "rafsi": "ban     bau",
+                "user": {"username": "test"}
+            }
+        ]"#;
+
+        let dictionary = parse_lensisku_json(json).expect("valid rafsi field");
+        assert_eq!(dictionary.entries[0].rafsi, vec!["ban", "bau"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_rafsi_list_without_empty_segments() {
+        let json = r#"[
+            {
+                "word": "banli",
+                "word_type": "gismu",
+                "definition": "great",
+                "definition_id": 1,
+                "score": 1.0,
+                "rafsi": ["ban     bau", "", "   "],
                 "user": {"username": "test"}
             }
         ]"#;

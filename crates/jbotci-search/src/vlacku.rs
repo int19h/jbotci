@@ -18,13 +18,12 @@ pub const DEFAULT_VLACKU_RESULT_COUNT: usize = 20;
 pub const OFFICIAL_AUTHOR_USERNAME: &str = "officialdata";
 pub const INVALID_LOJBAN_WORD_MESSAGE_PREFIX: &str = "Invalid Lojban word: ";
 
+#[invariant(::Valsi(query) => !query.is_empty())]
+#[invariant(::Rafsi(query) => !query.is_empty())]
+#[invariant(::Lujvo(query) => !query.is_empty())]
+#[invariant(::Sound(query) => !query.is_empty())]
+#[invariant(::Meaning(query) => !query.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::Valsi(_) => true)]
-#[invariant(::Rafsi(_) => true)]
-#[invariant(::Lujvo(_) => true)]
-#[invariant(::Sound(_) => true)]
-#[invariant(::Meaning(_) => true)]
 pub enum VlackuRequest {
     Valsi(String),
     Rafsi(String),
@@ -33,8 +32,41 @@ pub enum VlackuRequest {
     Meaning(String),
 }
 
+impl VlackuRequest {
+    #[requires(!query.is_empty())]
+    #[ensures(true)]
+    pub fn valsi(query: String) -> Self {
+        new!(VlackuRequest::Valsi(query))
+    }
+
+    #[requires(!query.is_empty())]
+    #[ensures(true)]
+    pub fn rafsi(query: String) -> Self {
+        new!(VlackuRequest::Rafsi(query))
+    }
+
+    #[requires(!query.is_empty())]
+    #[ensures(true)]
+    pub fn lujvo(query: String) -> Self {
+        new!(VlackuRequest::Lujvo(query))
+    }
+
+    #[requires(!query.is_empty())]
+    #[ensures(true)]
+    pub fn sound(query: String) -> Self {
+        new!(VlackuRequest::Sound(query))
+    }
+
+    #[requires(!query.is_empty())]
+    #[ensures(true)]
+    pub fn meaning(query: String) -> Self {
+        new!(VlackuRequest::Meaning(query))
+    }
+}
+
+#[invariant(*count > 0)]
+#[invariant(min_similarity.as_ref().is_none_or(|value| value.is_finite()))]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct VlackuSearchOptions {
     pub count: usize,
     pub word_types: Vec<String>,
@@ -47,13 +79,13 @@ impl Default for VlackuSearchOptions {
     #[requires(true)]
     #[ensures(ret.count == DEFAULT_VLACKU_RESULT_COUNT)]
     fn default() -> Self {
-        Self {
+        new!(VlackuSearchOptions {
             count: DEFAULT_VLACKU_RESULT_COUNT,
             word_types: Vec::new(),
             min_votes: None,
             min_similarity: None,
             decompose_lujvo: false,
-        }
+        })
     }
 }
 
@@ -73,8 +105,8 @@ pub struct VlackuSearchOutput {
     pub diagnostics: Vec<String>,
 }
 
+#[invariant(!word.is_empty())]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct VlackuCard {
     pub word: String,
     pub word_type: String,
@@ -107,8 +139,10 @@ pub struct VlackuCompositionPiece {
     pub source: Option<String>,
 }
 
+#[invariant(!lookup_text.is_empty())]
+#[invariant(byte_start <= byte_end)]
+#[invariant(char_start <= char_end)]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct ParsedWordDictionaryMatch {
     pub lookup_text: String,
     pub byte_start: usize,
@@ -118,8 +152,10 @@ pub struct ParsedWordDictionaryMatch {
     pub cards: Vec<VlackuCard>,
 }
 
+#[invariant(!lookup_text.is_empty())]
+#[invariant(byte_start <= byte_end)]
+#[invariant(char_start <= char_end)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 struct ParsedWordLookupTarget {
     lookup_text: String,
     is_lujvo: bool,
@@ -179,7 +215,7 @@ pub fn dictionary_cards_for_word_likes(
 ) -> Vec<VlackuCard> {
     let mut cards = Vec::new();
     for parsed_match in dictionary_matches_for_word_likes(dictionary, words) {
-        extend_unique_cards(&mut cards, parsed_match.cards);
+        extend_unique_cards(&mut cards, parsed_match.into_data().cards);
     }
     cards
 }
@@ -197,14 +233,15 @@ pub fn dictionary_matches_for_word_likes(
             if cards.is_empty() {
                 continue;
             }
-            matches.push(ParsedWordDictionaryMatch {
+            let target = target.into_data();
+            matches.push(new!(ParsedWordDictionaryMatch {
                 lookup_text: target.lookup_text,
                 byte_start: target.byte_start,
                 byte_end: target.byte_end,
                 char_start: target.char_start,
                 char_end: target.char_end,
                 cards,
-            });
+            }));
         }
     }
     matches
@@ -372,12 +409,12 @@ fn run_single_request(
     request: &VlackuRequest,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    match request {
-        VlackuRequest::Valsi(query) => cards_for_valsi(dictionary, query, options),
-        VlackuRequest::Rafsi(query) => cards_for_rafsi(dictionary, query, options),
-        VlackuRequest::Lujvo(query) => cards_for_lujvo(dictionary, query, options),
-        VlackuRequest::Sound(query) => cards_for_sound(dictionary, query, options),
-        VlackuRequest::Meaning(_) => {
+    match request.as_data() {
+        data!(VlackuRequest::Valsi(query)) => cards_for_valsi(dictionary, query, options),
+        data!(VlackuRequest::Rafsi(query)) => cards_for_rafsi(dictionary, query, options),
+        data!(VlackuRequest::Lujvo(query)) => cards_for_lujvo(dictionary, query, options),
+        data!(VlackuRequest::Sound(query)) => cards_for_sound(dictionary, query, options),
+        data!(VlackuRequest::Meaning(_)) => {
             invalid_output("Semantic vlacku search requires an embedding backend.".to_owned())
         }
     }
@@ -407,13 +444,13 @@ fn dictionary_cards_for_lookup_target(
 #[requires(true)]
 #[ensures(ret.count == usize::MAX)]
 fn parsed_word_vlacku_options() -> VlackuSearchOptions {
-    VlackuSearchOptions {
+    new!(VlackuSearchOptions {
         count: usize::MAX,
         word_types: Vec::new(),
         min_votes: None,
         min_similarity: None,
         decompose_lujvo: false,
-    }
+    })
 }
 
 #[requires(true)]
@@ -480,14 +517,14 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
 #[requires(true)]
 #[ensures(true)]
 fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
-    targets.push(ParsedWordLookupTarget {
+    targets.push(new!(ParsedWordLookupTarget {
         lookup_text: word_lookup_text(word),
         is_lujvo: word.kind() == WordKind::Lujvo,
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
         char_start: word.span().char_start,
         char_end: word.span().char_end,
-    });
+    }));
 }
 
 #[requires(true)]
@@ -506,14 +543,14 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
         char_start = char_start.min(span.char_start);
         char_end = char_end.max(span.char_end);
     }
-    Some(ParsedWordLookupTarget {
+    Some(new!(ParsedWordLookupTarget {
         lookup_text,
         is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })),
         byte_start,
         byte_end,
         char_start,
         char_end,
-    })
+    }))
 }
 
 #[requires(true)]
@@ -799,10 +836,6 @@ fn cards_for_sound(
     query: &str,
     options: &VlackuSearchOptions,
 ) -> VlackuSearchOutput {
-    if options.count == 0 {
-        return found_or_missing(Vec::new());
-    }
-
     let query_sound = match sound_query_to_token_sequence(query) {
         Ok(sequence) => sequence,
         Err(error) => return invalid_output(error.to_string()),
@@ -1268,7 +1301,7 @@ fn word_kind_type_key(kind: WordKind) -> &'static str {
 }
 
 #[requires(true)]
-#[ensures(!ret.word.is_empty())]
+#[ensures(true)]
 pub fn dictionary_entry_card(
     dictionary: &Dictionary<'_>,
     entry: &DictionaryEntry<'_>,
@@ -1296,13 +1329,13 @@ fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
 }
 
 #[requires(true)]
-#[ensures(!ret.word.is_empty())]
+#[ensures(true)]
 fn entry_card_with_decomposition(
     entry: &DictionaryEntry<'_>,
     similarity: Option<f32>,
     decomposition: Option<&LujvoDecomposition<'_>>,
 ) -> VlackuCard {
-    VlackuCard {
+    new!(VlackuCard {
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
@@ -1328,17 +1361,17 @@ fn entry_card_with_decomposition(
         decomposition: decomposition
             .map(composition_from_decomposition)
             .unwrap_or_default(),
-    }
+    })
 }
 
 #[requires(true)]
-#[ensures(!ret.word.is_empty())]
+#[ensures(true)]
 fn entry_card_with_dictionary_decomposition(
     entry: &DictionaryEntry<'_>,
     similarity: Option<f32>,
     decomposition: Option<&DictionaryLujvoEntry<'_>>,
 ) -> VlackuCard {
-    VlackuCard {
+    new!(VlackuCard {
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
@@ -1364,16 +1397,16 @@ fn entry_card_with_dictionary_decomposition(
         decomposition: decomposition
             .map(composition_from_dictionary_decomposition)
             .unwrap_or_default(),
-    }
+    })
 }
 
 #[requires(true)]
-#[ensures(!ret.word.is_empty())]
+#[ensures(true)]
 fn unknown_card(
     classification: WordClassification,
     decomposition: Option<&LujvoDecomposition<'_>>,
 ) -> VlackuCard {
-    VlackuCard {
+    new!(VlackuCard {
         word: classification.word,
         word_type: classification.word_type,
         selmaho: classification.selmaho,
@@ -1389,7 +1422,7 @@ fn unknown_card(
         decomposition: decomposition
             .map(composition_from_decomposition)
             .unwrap_or_default(),
-    }
+    })
 }
 
 #[requires(true)]
@@ -1872,7 +1905,7 @@ mod tests {
         for query in ["шой", "\u{ed86}\u{eda8}"] {
             let result = run_vlacku_requests(
                 jbotci_dictionary_data::english(),
-                &[VlackuRequest::Valsi(query.to_owned())],
+                &[VlackuRequest::valsi(query.to_owned())],
                 &VlackuSearchOptions::default(),
             );
 
@@ -1892,7 +1925,7 @@ mod tests {
     fn exact_valsi_glob_matches_words() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("klam@".to_owned())],
+            &[VlackuRequest::valsi("klam@".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -1905,11 +1938,8 @@ mod tests {
 
         let broad = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("$$@$@".to_owned())],
-            &VlackuSearchOptions {
-                count: usize::MAX,
-                ..VlackuSearchOptions::default()
-            },
+            &[VlackuRequest::valsi("$$@$@".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! { count: usize::MAX }),
         );
         assert!(broad.cards.iter().any(|card| card.word == "klama"));
     }
@@ -1936,7 +1966,7 @@ mod tests {
     fn exact_valsi_glob_reports_invalid_characters() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("kl!m*".to_owned())],
+            &[VlackuRequest::valsi("kl!m*".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -1964,10 +1994,7 @@ mod tests {
                 .iter()
                 .inspect(|_| visited += 1)
                 .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
-            &VlackuSearchOptions {
-                count: 1,
-                ..VlackuSearchOptions::default()
-            },
+            &VlackuSearchOptions::default().with_data(data! { count: 1 }),
         );
 
         assert_eq!(cards.len(), 1);
@@ -1980,12 +2007,11 @@ mod tests {
     fn exact_pattern_filters_entries_before_building_cards() {
         let dictionary = jbotci_dictionary_data::english();
         let compiled = compile_exact_pattern("*").expect("match-all glob compiles");
-        let options = VlackuSearchOptions {
+        let options = VlackuSearchOptions::default().with_data(data! {
             count: 2,
             word_types: vec!["cmavo".to_owned()],
             decompose_lujvo: true,
-            ..VlackuSearchOptions::default()
-        };
+        });
         let mut visited = 0;
         let mut built = 0;
 
@@ -2016,13 +2042,12 @@ mod tests {
     fn exact_pattern_decompose_lujvo_skips_non_lujvo_cards() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/.{10,}/".to_owned())],
-            &VlackuSearchOptions {
+            &[VlackuRequest::valsi("/.{10,}/".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
                 count: 40,
                 word_types: vec!["cmavo".to_owned()],
                 decompose_lujvo: true,
-                ..VlackuSearchOptions::default()
-            },
+            }),
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -2048,22 +2073,18 @@ mod tests {
         let card = dictionary_entry_card(dictionary, entry, Some(0.42), false);
 
         for options in [
-            VlackuSearchOptions {
+            VlackuSearchOptions::default().with_data(data! {
                 word_types: vec!["brivla".to_owned()],
-                ..VlackuSearchOptions::default()
-            },
-            VlackuSearchOptions {
+            }),
+            VlackuSearchOptions::default().with_data(data! {
                 word_types: vec!["cmavo".to_owned()],
-                ..VlackuSearchOptions::default()
-            },
-            VlackuSearchOptions {
+            }),
+            VlackuSearchOptions::default().with_data(data! {
                 min_votes: Some(1),
-                ..VlackuSearchOptions::default()
-            },
-            VlackuSearchOptions {
+            }),
+            VlackuSearchOptions::default().with_data(data! {
                 min_similarity: Some(50.0),
-                ..VlackuSearchOptions::default()
-            },
+            }),
         ] {
             assert_eq!(
                 dictionary_entry_passes_vlacku_filters(entry, &options, Some(0.42), true),
@@ -2078,11 +2099,8 @@ mod tests {
     fn sound_search_uses_precomputed_dictionary_index() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Sound("klama".to_owned())],
-            &VlackuSearchOptions {
-                count: 1,
-                ..VlackuSearchOptions::default()
-            },
+            &[VlackuRequest::sound("klama".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! { count: 1 }),
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -2121,7 +2139,7 @@ mod tests {
     fn exact_rafsi_glob_matches_listed_and_universal_rafsi() {
         let listed = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Rafsi("kl@".to_owned())],
+            &[VlackuRequest::rafsi("kl@".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -2131,7 +2149,7 @@ mod tests {
 
         let universal = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Rafsi("klam@".to_owned())],
+            &[VlackuRequest::rafsi("klam@".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -2152,7 +2170,7 @@ mod tests {
         // (anchors honored, case-insensitive by default).
         let exact = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/^KLAMA$/".to_owned())],
+            &[VlackuRequest::valsi("/^KLAMA$/".to_owned())],
             &VlackuSearchOptions::default(),
         );
         assert!(exact.diagnostics.is_empty(), "{:?}", exact.diagnostics);
@@ -2166,7 +2184,7 @@ mod tests {
         // (e.g. "klama"), which the old full-match behavior would have rejected.
         let substring = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/lam/".to_owned())],
+            &[VlackuRequest::valsi("/lam/".to_owned())],
             &VlackuSearchOptions::default(),
         );
         assert!(
@@ -2188,7 +2206,7 @@ mod tests {
         // words that START with "kla".
         let prefix = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/^kla/".to_owned())],
+            &[VlackuRequest::valsi("/^kla/".to_owned())],
             &VlackuSearchOptions::default(),
         );
         assert_eq!(prefix.outcome, VlackuOutcome::Found);
@@ -2208,7 +2226,7 @@ mod tests {
     fn exact_valsi_regex_allows_user_to_disable_case_insensitive_mode() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/(?-i)KLAMA/".to_owned())],
+            &[VlackuRequest::valsi("/(?-i)KLAMA/".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -2223,7 +2241,7 @@ mod tests {
     fn exact_valsi_regex_reports_invalid_patterns() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("/[/".to_owned())],
+            &[VlackuRequest::valsi("/[/".to_owned())],
             &VlackuSearchOptions::default(),
         );
 
@@ -2242,9 +2260,9 @@ mod tests {
     #[ensures(true)]
     fn punctuation_only_exact_queries_are_invalid() {
         for request in [
-            VlackuRequest::Valsi("!!!".to_owned()),
-            VlackuRequest::Rafsi("!!!".to_owned()),
-            VlackuRequest::Lujvo("!!!".to_owned()),
+            VlackuRequest::valsi("!!!".to_owned()),
+            VlackuRequest::rafsi("!!!".to_owned()),
+            VlackuRequest::lujvo("!!!".to_owned()),
         ] {
             let result = run_vlacku_requests(
                 jbotci_dictionary_data::english(),
@@ -2284,11 +2302,10 @@ mod tests {
     fn exact_lujvo_search_includes_dictionary_backed_fuhivla_component_card() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("jenjigu'ydi'e".to_owned())],
-            &VlackuSearchOptions {
+            &[VlackuRequest::valsi("jenjigu'ydi'e".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
                 decompose_lujvo: true,
-                ..VlackuSearchOptions::default()
-            },
+            }),
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -2310,11 +2327,10 @@ mod tests {
     fn exact_lujvo_search_uses_dictionary_backed_r_hyphen_decomposition() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("ci'artai".to_owned())],
-            &VlackuSearchOptions {
+            &[VlackuRequest::valsi("ci'artai".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
                 decompose_lujvo: true,
-                ..VlackuSearchOptions::default()
-            },
+            }),
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -2346,11 +2362,10 @@ mod tests {
     fn exact_garden_path_fuhivla_search_does_not_add_lujvo_source_cards() {
         let result = run_vlacku_requests(
             jbotci_dictionary_data::english(),
-            &[VlackuRequest::Valsi("pudlu'avalsi'ipo'ato".to_owned())],
-            &VlackuSearchOptions {
+            &[VlackuRequest::valsi("pudlu'avalsi'ipo'ato".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
                 decompose_lujvo: true,
-                ..VlackuSearchOptions::default()
-            },
+            }),
         );
 
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);

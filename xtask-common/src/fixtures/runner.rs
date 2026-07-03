@@ -1,4 +1,4 @@
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, invariant, requires};
 use rayon::prelude::*;
 
 use super::{Facet, LoadedTestCase};
@@ -18,8 +18,8 @@ pub struct FacetResult {
 }
 
 impl FacetResult {
-    #[ensures(ret.is_valid())]
     #[requires(true)]
+    #[ensures(ret.is_valid())]
     pub fn passed() -> Self {
         Self {
             status: FacetStatus::Passed,
@@ -27,8 +27,8 @@ impl FacetResult {
         }
     }
 
-    #[ensures(ret.is_valid())]
     #[requires(true)]
+    #[ensures(ret.is_valid())]
     pub fn failed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Failed,
@@ -36,8 +36,8 @@ impl FacetResult {
         }
     }
 
-    #[ensures(ret.is_valid())]
     #[requires(true)]
+    #[ensures(ret.is_valid())]
     pub fn skipped(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Skipped,
@@ -45,8 +45,8 @@ impl FacetResult {
         }
     }
 
-    #[ensures(ret.is_valid())]
     #[requires(true)]
+    #[ensures(ret.is_valid())]
     pub fn xfailed(message: impl Into<String>) -> Self {
         Self {
             status: FacetStatus::Xfailed,
@@ -54,9 +54,9 @@ impl FacetResult {
         }
     }
 
+    #[requires(true)]
     #[ensures(ret -> (self.status == FacetStatus::Passed) == self.message.is_none())]
     #[ensures(ret -> self.message.as_ref().is_none_or(|message| !message.is_empty()))]
-    #[requires(true)]
     pub fn is_valid(&self) -> bool {
         match self.status {
             FacetStatus::Passed => self.message.is_none(),
@@ -88,8 +88,8 @@ pub struct RunSummary {
 }
 
 impl RunSummary {
-    #[ensures(ret == self.passed + self.failed + self.skipped + self.xfailed)]
     #[requires(true)]
+    #[ensures(ret == self.passed + self.failed + self.skipped + self.xfailed)]
     pub fn total_results(&self) -> usize {
         self.passed + self.failed + self.skipped + self.xfailed
     }
@@ -116,10 +116,10 @@ impl RunSummary {
     }
 }
 
+#[requires(true)]
 #[ensures(ret.selected_fixtures == fixtures.len())]
 #[ensures(ret.selected_facets == facets.len())]
 #[ensures(ret.total_results() == fixtures.len() * facets.len())]
-#[requires(true)]
 pub fn run_fixture_facets<B: FixtureBackend>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
@@ -138,10 +138,10 @@ pub fn run_fixture_facets<B: FixtureBackend>(
     summary
 }
 
+#[requires(true)]
 #[ensures(ret.selected_fixtures == fixtures.len())]
 #[ensures(ret.selected_facets == facets.len())]
 #[ensures(ret.total_results() == fixtures.len() * facets.len())]
-#[requires(true)]
 pub fn run_fixture_facets_parallel<B: FixtureBackend + Sync>(
     backend: &B,
     fixtures: &[&LoadedTestCase],
