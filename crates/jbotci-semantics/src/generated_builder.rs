@@ -92,15 +92,15 @@ use crate::model::{
     FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
     IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, MixedRadixComponent,
     ModalArgument, ModalNegation, ModalNegationKind, NonlogicalConnection, ParameterRole,
-    PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
-    RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph,
-    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
-    SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
-    TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
-    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
+    PlaceIndex, PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
+    Quotation, RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection,
+    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause,
+    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
+    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
+    SequenceRelation, SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind,
+    Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
     displayed_content_target_kind_is_allowed, source_from_spans,
 };
 
@@ -326,11 +326,11 @@ struct GeneratedAssignedProBridiBinding {
 }
 
 #[invariant(!relation.is_empty())]
-#[invariant(arguments.keys().all(|place| place.starts_with('x')))]
+#[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[derive(Debug, Clone)]
 struct GeneratedProBridiFrame {
     relation: String,
-    arguments: BTreeMap<String, ArgumentValue>,
+    arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     place_count: Option<usize>,
     event_tense: Option<TenseModalSyntax>,
     quote_depth: usize,
@@ -2832,7 +2832,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         relation: String,
         source: Option<crate::model::SemanticSource>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         diagnostics: Vec<crate::model::SemanticDiagnostic>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
@@ -3274,7 +3274,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let predication = self.next_predication_id();
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(target, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(target, None));
         self.insert(
             predication,
             SemanticObject::predication(
@@ -6613,12 +6613,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         for place in 1..=place_limit.max(highest_argument).max(1) {
             let key = argument_key(place);
             if !arguments.contains_key(&key) {
@@ -6850,12 +6845,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_questions = self.build_generated_place_question_bindings(
             &place_question_assignments,
             &arguments,
@@ -7339,12 +7329,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         for place in 1..=place_limit.max(highest_argument) {
             let key = argument_key(place);
             if !arguments.contains_key(&key) {
@@ -7610,12 +7595,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let modal_arguments = self
             .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
@@ -7816,12 +7796,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for (visible_place, argument) in visible_arguments {
             arguments.insert(argument_key(visible_place), argument);
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_questions = self.build_generated_place_question_bindings(
             &place_question_assignments,
             &arguments,
@@ -8445,12 +8420,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let mut place_question_assignments = preassigned_place_questions.to_vec();
         place_question_assignments.extend(assignments.place_questions.clone());
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
             Some(place_count) => place_count,
@@ -8600,12 +8570,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let mut diagnostics = Vec::new();
         let place_limit = match place_count {
             Some(place_count) => place_count,
@@ -9997,8 +9962,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let highest_argument = explicit_arguments
             .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
+            .map(|place| place.get())
             .max()
             .unwrap_or(0);
         let place_questions = self.build_generated_place_question_bindings(
@@ -10613,12 +10577,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let modal_arguments = self
             .build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
                 eventuality,
@@ -13429,12 +13388,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         if place_count.is_none() && !relation_has_open_place_structure(&relation) {
             diagnostics.push(diagnostic(
                 "relation place structure is unavailable; only places required by explicit assignments are represented",
@@ -13939,12 +13893,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let mut modal_arguments = self
             .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
                 eventuality,
@@ -14199,7 +14148,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         };
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), argument);
+        arguments.insert(argument_key(1), argument);
         for place in 2..=place_limit {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
@@ -14259,7 +14208,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             None => self.build_generated_predication_eventuality(predication_source.clone())?,
         };
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), argument);
+        arguments.insert(argument_key(1), argument);
         for place in 2..=place_limit {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
@@ -15053,8 +15002,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         base: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(base, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(variable, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(base, None));
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -16218,12 +16167,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -16255,7 +16199,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             );
         }
         let x1_argument = visible_x1_argument
-            .or_else(|| arguments.get("x1").cloned())
+            .or_else(|| arguments.get(&argument_key(1)).cloned())
             .ok_or_else(|| unsupported("tanru without visible x1"))?;
         let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
             atom.base.as_ref(),
@@ -16492,14 +16436,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         self.apply_generated_tagged_term_event_modifiers(eventuality, &assignments.modal_terms)?;
         let source_operand = self.build_sumti_selbri_source_operand(&sumti_selbri.sumti)?;
-        if !arguments.contains_key("x1") {
+        if !arguments.contains_key(&argument_key(1)) {
             let referent = self.build_elided_referent("zo'e".to_owned())?;
             arguments.insert(
-                "x1".to_owned(),
+                argument_key(1),
                 ArgumentValue::elided(referent, "zo'e".to_owned(), None),
             );
         }
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(source_operand, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(source_operand, None));
         let predication = self.next_predication_id();
         let mut predication_object = SemanticObject::predication(
             "referentOf".to_owned(),
@@ -16538,8 +16482,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let source_operand = self.build_sumti_selbri_source_operand(&sumti_selbri.sumti)?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), argument);
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(source_operand, None));
+        arguments.insert(argument_key(1), argument);
+        arguments.insert(argument_key(2), ArgumentValue::filled(source_operand, None));
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -17932,12 +17876,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -18047,12 +17986,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -18256,12 +18190,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -18381,12 +18310,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -18486,12 +18410,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 )));
             }
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -18523,12 +18442,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     unit,
                     &arguments
                         .iter()
-                        .filter_map(|(place, argument)| {
-                            place
-                                .strip_prefix('x')
-                                .and_then(|place| place.parse::<usize>().ok())
-                                .map(|place| (place, argument.clone()))
-                        })
+                        .filter_map(|(place, argument)| Some((place.get(), argument.clone())))
                         .collect(),
                     eventuality_id,
                 )?,
@@ -18805,7 +18719,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_tagged_or_elided_sumti_argument_with_predication_arguments(
         &mut self,
         sumti: &TaggedOrElidedSumtiSyntax,
-        arguments: Option<&BTreeMap<String, ArgumentValue>>,
+        arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<ArgumentValue, SemanticsError> {
         match sumti {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
@@ -18866,7 +18780,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         };
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(parameter, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(parameter, None));
         let eventuality = eventuality.resolve(self, source.clone())?;
         for place in 2..=place_limit {
             let elided = self.build_elided_referent("zo'e".to_owned())?;
@@ -18916,7 +18830,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.relation_question_parameters.push(parameter);
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(x1, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(x1, None));
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -18966,13 +18880,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 arguments.insert(place.clone(), argument.clone());
             }
         }
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(x1, None));
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        arguments.insert(argument_key(1), ArgumentValue::filled(x1, None));
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = target.place_count.unwrap_or(highest_argument.max(1));
         for place in 1..=place_limit.max(highest_argument) {
             let key = argument_key(place);
@@ -19092,8 +19001,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), x1_argument);
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(modifier, None));
+        arguments.insert(argument_key(1), x1_argument);
+        arguments.insert(argument_key(2), ArgumentValue::filled(modifier, None));
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -20059,7 +19968,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
         &mut self,
         term: &TaggedSumtiTermSyntax,
-        arguments: Option<&BTreeMap<String, ArgumentValue>>,
+        arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<Option<ModalArgument>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
         if generated_tense_modal_has_event_modifier(tense_modal) {
@@ -20136,7 +20045,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
-    #[requires(arguments.keys().all(|place| crate::model::is_numbered_argument_place(place)))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[requires(!construct.is_empty())]
     #[ensures(true)]
     fn generated_modal_argument_with_tense_modal_modifiers<N: TreeNode>(
@@ -20144,7 +20053,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         tense_modal: &N,
         relation: String,
         introduced_by: String,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         negation: Option<ModalNegation>,
         scalar_negation: Option<ScalarNegation>,
         construct: &str,
@@ -20202,9 +20111,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         argument: ArgumentValue,
         visible_x1_place: usize,
         place_count: Option<usize>,
-    ) -> Result<BTreeMap<String, ArgumentValue>, SemanticsError> {
+    ) -> Result<BTreeMap<PlaceIndex, ArgumentValue>, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        arguments.insert(format!("x{visible_x1_place}"), argument);
+        arguments.insert(argument_key(visible_x1_place), argument);
         let highest_place = place_count
             .unwrap_or(visible_x1_place)
             .max(visible_x1_place);
@@ -20694,7 +20603,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         eventuality: SemanticObjectId,
         modal_terms: &[TaggedSumtiTermSyntax],
-        arguments: Option<&BTreeMap<String, ArgumentValue>>,
+        arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
@@ -20862,12 +20771,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for (visible_place, argument) in assignments.visible_arguments {
             arguments.insert(argument_key(visible_place), argument);
         }
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = target.place_count.unwrap_or(highest_argument.max(1));
         let place_questions = self.build_generated_place_question_bindings(
             &place_question_assignments,
@@ -21034,12 +20938,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| place.starts_with('x'))) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| place.get() > 0)) || ret.is_err())]
     fn generated_pro_bridi_replayed_arguments(
         &mut self,
         frame: &GeneratedProBridiFrame,
         excluded_source: Option<&SourceByteSpan>,
-    ) -> Result<BTreeMap<String, ArgumentValue>, SemanticsError> {
+    ) -> Result<BTreeMap<PlaceIndex, ArgumentValue>, SemanticsError> {
         if self.current_quote_depth == 0 {
             return Ok(frame.arguments.clone());
         }
@@ -22169,8 +22073,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(x1, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(x2, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(x1, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(x2, None));
         let eventuality = self.build_generated_predication_eventuality(source.clone())?;
         let predication = self.next_predication_id();
         self.insert(
@@ -22961,9 +22865,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             let mut arguments = modal_argument.arguments.clone();
             for (place_key, argument) in &mut arguments {
                 replace_generated_argument_value_object(argument, replacements);
+                let place = argument_place_index(place_key);
                 if let Some(eventuality) = source_eventuality
                     && argument.value == Some(eventuality)
-                    && let Some(place) = argument_place_index(place_key)
                     && let Some(elision) =
                         self.generated_host_event_modal_elision(eventuality, modal_argument, place)
                 {
@@ -23390,8 +23294,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let associated_argument =
             self.build_argument_for_generated_relative_sumti(&clause.sumti)?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
-        arguments.insert("x2".to_owned(), associated_argument);
+        arguments.insert(argument_key(1), ArgumentValue::filled(head, None));
+        arguments.insert(argument_key(2), associated_argument);
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -23635,8 +23539,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let mode = predication_mode_for_relative_clause_kind(kind);
         let associated_argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
         let mut arguments = BTreeMap::new();
-        arguments.insert(format!("x{head_place}"), ArgumentValue::filled(head, None));
-        arguments.insert(format!("x{visible_place}"), associated_argument);
+        arguments.insert(argument_key(head_place), ArgumentValue::filled(head, None));
+        arguments.insert(argument_key(visible_place), associated_argument);
         let mut diagnostics = Vec::new();
         match relation_place_count(self.dictionary, &relation) {
             Some(place_count) => {
@@ -23799,11 +23703,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .build_generated_property_abstraction_for_selbri_with_source(selbri, source.clone())?;
         let mut arguments = BTreeMap::new();
         arguments.insert(
-            "x1".to_owned(),
+            argument_key(1),
             ArgumentValue::filled(self.current_speaker(), None),
         );
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(head, None));
-        arguments.insert("x3".to_owned(), ArgumentValue::filled(property, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(head, None));
+        arguments.insert(argument_key(3), ArgumentValue::filled(property, None));
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -24030,14 +23934,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 "semantic builder could not find abstraction predication {predication}"
             ))
         })?;
-        let mut selected_place: Option<(usize, usize, String)> = None;
+        let mut selected_place: Option<(usize, usize, PlaceIndex)> = None;
         for (place, argument) in &object.arguments {
             if argument.kind != ArgumentValueKind::Elided {
                 continue;
             }
-            let Some(index) = argument_place_index(place) else {
-                continue;
-            };
+            let index = argument_place_index(place);
             let visible_rank = preferred_selbri
                 .map(|selbri| generated_raw_place_visible_rank_for_selbri(selbri, index))
                 .transpose()?
@@ -24048,7 +23950,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     (visible_rank, index) < (*best_visible, *best_index)
                 })
             {
-                selected_place = Some((visible_rank, index, place.clone()));
+                selected_place = Some((visible_rank, index, *place));
             }
         }
         let Some((_visible_rank, _index, place)) = selected_place else {
@@ -24083,11 +23985,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .arguments
             .iter()
             .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
-            .filter_map(|(place, _argument)| {
-                argument_place_index(place).map(|index| (index, place))
-            })
+            .map(|(place, _argument)| (argument_place_index(place), place))
             .min_by_key(|(index, _place)| *index)
-            .map(|(_index, place)| place.clone())
+            .map(|(_index, place)| *place)
         else {
             return Ok(());
         };
@@ -24115,11 +24015,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .arguments
             .iter()
             .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
-            .filter_map(|(place, _argument)| {
-                argument_place_index(place).map(|index| (index, place))
-            })
+            .map(|(place, _argument)| (argument_place_index(place), place))
             .min_by_key(|(index, _place)| *index)
-            .map(|(_index, place)| place.clone())
+            .map(|(_index, place)| *place)
         else {
             return Ok(false);
         };
@@ -25792,7 +25690,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Ok(body);
         }
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(variable, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(variable, None));
         self.build_structural_formula_from_arguments(
             "sumtiOperand",
             arguments,
@@ -26986,12 +26884,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(parameter)
     }
 
-    #[requires(arguments.keys().all(|place| argument_place_index(place).is_some()))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(ret.as_ref().is_ok_and(|bindings| bindings.iter().all(|question| !question.candidate_places.is_empty())) || ret.is_err())]
     fn build_generated_place_question_bindings(
         &mut self,
         place_questions: &[GeneratedPlaceQuestionAssignment],
-        arguments: &BTreeMap<String, ArgumentValue>,
+        arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
         place_count: Option<usize>,
         highest_assigned_place: usize,
     ) -> Result<Vec<PlaceQuestionBinding>, SemanticsError> {
@@ -27000,7 +26898,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let occupied = arguments
             .keys()
-            .filter_map(|place| argument_place_index(place))
+            .map(|place| argument_place_index(place))
             .collect::<HashSet<_>>();
         let candidate_limit = place_count.unwrap_or_else(|| highest_assigned_place.max(1));
         let candidate_places = (1..=candidate_limit)
@@ -27563,8 +27461,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let member =
             self.build_generated_aggregate_member_referent(description_node, tail, spec)?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(id, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(member, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(id, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(member, None));
         let body = self.build_structural_formula_from_arguments(
             spec.relation,
             arguments,
@@ -27720,8 +27618,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 associated_argument.with_relative_clauses(operand_relative_clauses);
         }
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(head, None));
-        arguments.insert("x2".to_owned(), associated_argument);
+        arguments.insert(argument_key(1), ArgumentValue::filled(head, None));
+        arguments.insert(argument_key(2), associated_argument);
         let predication = self.next_predication_id();
         self.insert(
             predication,
@@ -27901,8 +27799,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )?;
         let kind = abstraction_kind_for_nu(abstraction);
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(output, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(output, None));
         let predication = self.next_predication_id();
         self.insert_generated_abstraction_link_extra_argument(kind, &mut arguments)?;
         self.insert(
@@ -27928,19 +27826,19 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(formula)
     }
 
-    #[requires(arguments.contains_key("x1"))]
-    #[requires(arguments.contains_key("x2"))]
+    #[requires(arguments.contains_key(&argument_key(1)))]
+    #[requires(arguments.contains_key(&argument_key(2)))]
     #[ensures(true)]
     fn insert_generated_abstraction_link_extra_argument(
         &mut self,
         kind: AbstractionKind,
-        arguments: &mut BTreeMap<String, ArgumentValue>,
+        arguments: &mut BTreeMap<PlaceIndex, ArgumentValue>,
     ) -> Result<(), SemanticsError> {
         let Some(_surface_place) = abstraction_extra_surface_place(kind) else {
             return Ok(());
         };
         arguments.insert(
-            "x3".to_owned(),
+            argument_key(3),
             self.build_elided_argument_with_sort("zo'e".to_owned(), SemanticSort::Entity)?,
         );
         Ok(())
@@ -28063,8 +27961,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             self.source_for_node(abstraction.abstraction, "abstraction"),
         )?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(output, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(output, None));
         self.build_structural_formula_from_arguments_with_formula_source(
             abstraction.link_relation,
             arguments,
@@ -28085,15 +27983,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let property = self.build_description_property_abstraction_for_selbri(selbri)?;
         let mut arguments = BTreeMap::new();
         arguments.insert(
-            "x1".to_owned(),
+            argument_key(1),
             ArgumentValue::filled(self.current_speaker(), None),
         );
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(referent, None));
         arguments.insert(
-            "x3".to_owned(),
+            argument_key(3),
             ArgumentValue::filled(self.current_audience(), None),
         );
-        arguments.insert("x4".to_owned(), ArgumentValue::filled(property, None));
+        arguments.insert(argument_key(4), ArgumentValue::filled(property, None));
         self.build_structural_formula_from_arguments(
             "skicu",
             arguments,
@@ -28112,10 +28010,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let sign = self.build_generated_selbri_name_sign(selbri)?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(sign, None));
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(sign, None));
+        arguments.insert(argument_key(2), ArgumentValue::filled(referent, None));
         arguments.insert(
-            "x3".to_owned(),
+            argument_key(3),
             ArgumentValue::filled(self.current_speaker(), None),
         );
         self.build_structural_formula_from_arguments(
@@ -28321,7 +28219,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let relation = semantic_relation_label(relation_label_from_selbri(selbri)?);
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(referent, None));
         let place_count = relation_place_count(self.dictionary, &relation).unwrap_or(1);
         for place in 2..=place_count {
             let elided = self.build_elided_referent("zo'e".to_owned())?;
@@ -28400,12 +28298,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let jai_modal_argument =
             self.build_generated_jai_modal_argument_for_referent(jai_unit, referent)?;
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_limit = match place_count {
             Some(place_count) => place_count,
             None => {
@@ -28497,7 +28390,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let relation = semantic_relation_label(relation_label_from_co_selbri(co_selbri)?);
         let place_count = relation_place_count(self.dictionary, &relation).unwrap_or(1);
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), ArgumentValue::filled(referent, None));
+        arguments.insert(argument_key(1), ArgumentValue::filled(referent, None));
         for place in 2..=place_count {
             let key = argument_key(place);
             let referent = self.build_elided_referent("zo'e".to_owned())?;
@@ -28823,12 +28716,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(!relation.is_empty())]
-    #[requires(arguments.keys().all(|place| place.starts_with('x')))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_structural_formula_from_arguments(
         &mut self,
         relation: &str,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -28842,22 +28735,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(!relation.is_empty())]
-    #[requires(arguments.keys().all(|place| place.starts_with('x')))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     fn build_structural_formula_from_arguments_with_formula_source(
         &mut self,
         relation: &str,
-        mut arguments: BTreeMap<String, ArgumentValue>,
+        mut arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let highest_argument = arguments
-            .keys()
-            .filter_map(|place| place.strip_prefix('x'))
-            .filter_map(|place| place.parse::<usize>().ok())
-            .max()
-            .unwrap_or(0);
+        let highest_argument = arguments.keys().map(|place| place.get()).max().unwrap_or(0);
         let place_count =
             relation_place_count(self.dictionary, relation).unwrap_or(highest_argument);
         for place in 1..=place_count.max(highest_argument) {
@@ -28909,8 +28797,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             self.source_for_node(abstraction, "abstraction"),
         )?;
         let mut arguments = BTreeMap::new();
-        arguments.insert("x1".to_owned(), x1);
-        arguments.insert("x2".to_owned(), ArgumentValue::filled(output, None));
+        arguments.insert(argument_key(1), x1);
+        arguments.insert(argument_key(2), ArgumentValue::filled(output, None));
         self.build_structural_formula_from_arguments(
             abstraction_link_relation(kind),
             arguments,
@@ -31577,7 +31465,7 @@ fn generated_tanru_unit_has_scalar_negated_base(unit: &TanruUnitSyntax) -> bool 
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|negation| negation.argument_scope.iter().all(|place| crate::model::is_numbered_argument_place(place))) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|negation| negation.argument_scope.iter().all(|place| place.get() > 0)) || ret.is_err())]
 fn scalar_negation_for_generated_scalar_tanru_unit_atom(
     atom: &TanruUnitAtomSyntax,
     unit: &ScalarNegatedTanruUnitSyntax,
@@ -38724,12 +38612,10 @@ fn modal_relative_phrase_head_place(relation: &str, visible_place: usize) -> Opt
     }
 }
 
-#[requires(true)]
-#[ensures(ret.is_none_or(|place| place > 0))]
-fn argument_place_index(place: &str) -> Option<usize> {
-    place
-        .strip_prefix('x')
-        .and_then(|suffix| suffix.parse::<usize>().ok())
+#[requires(place.get() > 0)]
+#[ensures(ret > 0)]
+fn argument_place_index(place: &PlaceIndex) -> usize {
+    place.get()
 }
 
 #[requires(true)]
@@ -43741,7 +43627,7 @@ fn scalar_scale_definition_for_modal_argument(
     if modal_argument.introduced_by != "ci'u" {
         return None;
     }
-    let value = modal_argument.arguments.get("x1")?.value?;
+    let value = modal_argument.arguments.get(&argument_key(1))?.value?;
     Some(GeneratedScalarScaleDefinition::from_data(data!(
         GeneratedScalarScaleDefinition {
             value,
@@ -43940,9 +43826,9 @@ fn semantic_relation_label(relation: String) -> String {
 }
 
 #[requires(place > 0)]
-#[ensures(!ret.is_empty())]
-fn argument_key(place: usize) -> String {
-    format!("x{place}")
+#[ensures(ret.get() == place)]
+fn argument_key(place: usize) -> PlaceIndex {
+    PlaceIndex::new(place)
 }
 
 #[requires(true)]

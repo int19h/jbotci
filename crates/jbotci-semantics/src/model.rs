@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::num::NonZeroUsize;
+use std::str::FromStr;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -10,6 +12,72 @@ use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 
 pub const SEMANTIC_JSON_VERSION: &str = "lojban-semantics-json-1";
+
+/// One-based numbered argument place such as `x1`.
+///
+/// `Ord` follows the numeric index, not the serialized label text. This
+/// deliberately replaces the old string-key lexicographic JSON map order, so
+/// maps containing `x2` and `x10` serialize in numeric place order.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PlaceIndex(NonZeroUsize);
+
+impl PlaceIndex {
+    #[requires(index > 0)]
+    #[ensures(ret.get() == index)]
+    pub fn new(index: usize) -> Self {
+        Self(NonZeroUsize::new(index).expect("place indices are one-based"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn get(self) -> usize {
+        self.0.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|place| place.get() > 0))]
+    pub fn from_numbered_label(place: &str) -> Option<Self> {
+        let digits = place.strip_prefix('x')?;
+        if digits.is_empty() || digits.starts_with('0') {
+            return None;
+        }
+        digits
+            .parse::<usize>()
+            .ok()
+            .and_then(NonZeroUsize::new)
+            .map(Self)
+    }
+}
+
+impl fmt::Display for PlaceIndex {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "x{}", self.get())
+    }
+}
+
+impl FromStr for PlaceIndex {
+    type Err = ();
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|place| place.get() > 0) || ret.is_err())]
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_numbered_label(value).ok_or(())
+    }
+}
+
+impl Serialize for PlaceIndex {
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
 
 #[invariant(*index > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -535,7 +603,7 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tanru_link: Option<TanruLink>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub arguments: BTreeMap<String, ArgumentValue>,
+    pub arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub place_questions: Vec<PlaceQuestionBinding>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -921,7 +989,7 @@ impl SemanticObject {
     pub fn predication(
         relation: String,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
@@ -943,7 +1011,7 @@ impl SemanticObject {
     pub fn tanru_link_predication(
         relation: String,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         tanru_link: TanruLink,
         mode: PredicationMode,
         source: Option<SemanticSource>,
@@ -960,7 +1028,7 @@ impl SemanticObject {
     pub fn relation_parameter_predication(
         relation_parameter: SemanticObjectId,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
@@ -2806,14 +2874,14 @@ pub enum RelativeClauseKind {
 
 #[invariant(parameter.object_kind() == SemanticObjectKind::Parameter)]
 #[invariant(!candidate_places.is_empty(), "place questions must enumerate candidate places")]
-#[invariant(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+#[invariant(candidate_places.iter().all(|place| place.get() > 0))]
 #[invariant(candidate_places.iter().enumerate().all(|(index, place)| !candidate_places[..index].contains(place)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaceQuestionBinding {
     pub parameter: SemanticObjectId,
     pub argument: ArgumentValue,
-    pub candidate_places: Vec<String>,
+    pub candidate_places: Vec<PlaceIndex>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -2821,12 +2889,12 @@ pub struct PlaceQuestionBinding {
 impl PlaceQuestionBinding {
     #[requires(parameter.object_kind() == SemanticObjectKind::Parameter)]
     #[requires(!candidate_places.is_empty())]
-    #[requires(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+    #[requires(candidate_places.iter().all(|place| place.get() > 0))]
     #[ensures(ret.parameter == parameter)]
     pub fn new(
         parameter: SemanticObjectId,
         argument: ArgumentValue,
-        candidate_places: Vec<String>,
+        candidate_places: Vec<PlaceIndex>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(PlaceQuestionBinding {
@@ -2878,7 +2946,7 @@ pub enum ModalNegationKind {
 #[invariant(relation.is_some() != body.is_some(), "modal argument must use either relation arguments or a body formula")]
 #[invariant(body.is_some() || !arguments.is_empty(), "modal relation must have at least one explicit place")]
 #[invariant(body.is_none() || arguments.is_empty(), "modal body arguments are represented inside the body formula")]
-#[invariant(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+#[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[invariant(component.is_none_or(|component| argument_object_kind_can_fill(component.object_kind())))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2887,7 +2955,7 @@ pub struct ModalArgument {
     pub relation: Option<String>,
     pub introduced_by: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub arguments: BTreeMap<String, ArgumentValue>,
+    pub arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2906,12 +2974,12 @@ impl ModalArgument {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
-    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(true)]
     pub fn new(
         relation: String,
         introduced_by: String,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::new_with_polarity(relation, introduced_by, arguments, None, None, source)
@@ -2920,12 +2988,12 @@ impl ModalArgument {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
-    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(true)]
     pub fn new_with_polarity(
         relation: String,
         introduced_by: String,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         negation: Option<ModalNegation>,
         scalar_negation: Option<ScalarNegation>,
         source: Option<SemanticSource>,
@@ -3098,7 +3166,7 @@ pub enum PredicationMode {
 
 #[invariant(!introduced_by.is_empty(), "scalar negation source marker must be named")]
 #[invariant(scale.is_none_or(|scale| scale.object_kind() == SemanticObjectKind::Referent), "scalar negation scale must be a referent")]
-#[invariant(argument_scope.iter().all(|place| is_numbered_argument_place(place)), "scalar negation argument scope must use numbered argument places")]
+#[invariant(argument_scope.iter().all(|place| place.get() > 0), "scalar negation argument scope must use numbered argument places")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScalarNegation {
@@ -3107,7 +3175,7 @@ pub struct ScalarNegation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scale: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub argument_scope: Vec<String>,
+    pub argument_scope: Vec<PlaceIndex>,
 }
 
 impl ScalarNegation {
@@ -3128,9 +3196,9 @@ impl ScalarNegation {
         self.with_data(data! { scale: Some(scale) })
     }
 
-    #[requires(argument_scope.iter().all(|place| is_numbered_argument_place(place)))]
+    #[requires(argument_scope.iter().all(|place| place.get() > 0))]
     #[ensures(ret.argument_scope == argument_scope)]
-    pub fn with_argument_scope(self, argument_scope: Vec<String>) -> Self {
+    pub fn with_argument_scope(self, argument_scope: Vec<PlaceIndex>) -> Self {
         self.with_data(data! { argument_scope: argument_scope.clone() })
     }
 
@@ -4097,7 +4165,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                 && question
                     .candidate_places
                     .iter()
-                    .all(|place| is_numbered_argument_place(place))
+                    .all(|place| place.get() > 0)
         })
         && question_focus_matches_role(object.focus)
         && question_focus_matches_role(object.presupposed_answer)
@@ -4533,8 +4601,7 @@ pub fn semantic_object_arguments_are_valid(
     objects.values().all(|object| {
         let modal_arguments_valid = object.modal_arguments.iter().all(|argument| {
             argument.arguments.iter().all(|(place, value)| {
-                is_numbered_argument_place(place)
-                    && argument_value_references_allowed_objects(value, objects)
+                place.get() > 0 && argument_value_references_allowed_objects(value, objects)
             })
         });
         if object.object_kind() != SemanticObjectKind::Predication {
@@ -4543,8 +4610,7 @@ pub fn semantic_object_arguments_are_valid(
         let has_relation = object.relation.is_some() ^ object.relation_parameter.is_some();
         has_relation
             && object.arguments.iter().all(|(place, value)| {
-                is_numbered_argument_place(place)
-                    && argument_value_references_allowed_objects(value, objects)
+                place.get() > 0 && argument_value_references_allowed_objects(value, objects)
             })
             && object.place_questions.iter().all(|question| {
                 objects
@@ -4554,7 +4620,7 @@ pub fn semantic_object_arguments_are_valid(
                     && question
                         .candidate_places
                         .iter()
-                        .all(|place| is_numbered_argument_place(place))
+                        .all(|place| place.get() > 0)
             })
             && modal_arguments_valid
             && object.reciprocity.iter().all(|exchange| {
@@ -4592,12 +4658,7 @@ fn argument_value_references_allowed_objects(
 #[requires(true)]
 #[ensures(true)]
 pub fn is_numbered_argument_place(place: &str) -> bool {
-    let Some(digits) = place.strip_prefix('x') else {
-        return false;
-    };
-    !digits.is_empty()
-        && !digits.starts_with('0')
-        && digits.bytes().all(|byte| byte.is_ascii_digit())
+    PlaceIndex::from_numbered_label(place).is_some()
 }
 
 #[requires(true)]
@@ -4776,44 +4837,46 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn semantic_graph_rejects_malformed_argument_places() {
-        let root = SemanticObjectId::formula(1);
-        let predication = SemanticObjectId::predication(2);
-        let referent = SemanticObjectId::referent(3);
+    fn place_index_rejects_malformed_argument_places() {
+        assert!(PlaceIndex::from_numbered_label("01").is_none());
+        assert!(PlaceIndex::from_numbered_label("x0").is_none());
+        assert!(PlaceIndex::from_numbered_label("x01").is_none());
+        assert_eq!(
+            serde_json::to_string(&PlaceIndex::new(10)).expect("place index serializes"),
+            "\"x10\""
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn place_index_serializes_argument_maps_in_numeric_order() {
         let mut arguments = BTreeMap::new();
-        arguments.insert("01".to_owned(), ArgumentValue::filled(referent, None));
-
-        let mut objects = BTreeMap::new();
-        objects.insert(
-            root,
-            SemanticObject::atom_formula(predication, None, Vec::new()),
+        arguments.insert(
+            PlaceIndex::new(10),
+            ArgumentValue::filled(SemanticObjectId::referent(10), None),
         );
-        objects.insert(
-            predication,
-            SemanticObject::predication(
-                "klama".to_owned(),
-                None,
-                arguments,
-                PredicationMode::Asserted,
-                None,
-                Vec::new(),
-            ),
-        );
-        objects.insert(
-            referent,
-            SemanticObject::referent(
-                ReferentCategory::Constant,
-                SemanticSort::Entity,
-                None,
-                None,
-                None,
-                None,
-                Vec::new(),
-            ),
+        arguments.insert(
+            PlaceIndex::new(2),
+            ArgumentValue::filled(SemanticObjectId::referent(2), None),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("malformed argument place");
-        assert!(error.to_string().contains("valid numbered places"));
+        let predication = SemanticObject::predication(
+            "broda".to_owned(),
+            None,
+            arguments,
+            PredicationMode::Restrictive,
+            None,
+            Vec::new(),
+        );
+        let json = serde_json::to_string(&predication).expect("predication serializes");
+
+        let x2_position = json.find(r#""x2""#).expect("x2 key is serialized");
+        let x10_position = json.find(r#""x10""#).expect("x10 key is serialized");
+        assert!(
+            x2_position < x10_position,
+            "argument map must serialize in numeric place order: {json}"
+        );
     }
 
     #[test]

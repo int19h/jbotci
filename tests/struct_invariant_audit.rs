@@ -896,6 +896,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "relation place descriptions are reserved metadata DTOs not externally constructed yet",
     ),
     (
+        "crates/jbotci-semantics/src/model.rs:PlaceIndex",
+        "NonZeroUsize owns the one-based place-index invariant and constructors enforce xN boundaries",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:QuestionSlot",
         "question slots are produced only when builder-created parameters appear in the body formula",
     ),
