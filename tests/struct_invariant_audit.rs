@@ -8,20 +8,12 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
-        "apps/jbotci-server/src/lib.rs:AppState",
-        "server state is assembled by ServerConfig and contains shared immutable assets",
-    ),
-    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
         "embedding worker jobs pair a typed request with the response channel for that request",
     ),
     (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
         "health payload is a fixed transport shape",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:ServerConfig",
-        "server config is normalized by ServerConfig::from_cli",
     ),
     (
         "apps/jbotci-server/src/lib.rs:ToolServices",

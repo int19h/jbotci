@@ -37,16 +37,45 @@ use jbotci_web_core::{
 };
 use serde::Serialize;
 
+#[invariant(base_path.starts_with('/'), "server base path must be absolute")]
+#[invariant(
+    base_path.as_str() == "/" || !base_path.ends_with('/'),
+    "server base path must not have a trailing slash except at root"
+)]
+#[invariant(
+    base_path.trim() == base_path.as_str(),
+    "server base path must not have surrounding whitespace"
+)]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 pub struct ServerConfig {
     pub address: SocketAddr,
     pub base_path: String,
     pub public_dir: PathBuf,
 }
 
+impl ServerConfig {
+    #[requires(true)]
+    #[ensures(ret.base_path.starts_with('/'))]
+    #[ensures(ret.base_path.as_str() == "/" || !ret.base_path.ends_with('/'))]
+    pub fn new(address: SocketAddr, base_path: &str, public_dir: PathBuf) -> Self {
+        new!(ServerConfig {
+            address: address,
+            base_path: normalize_base_path(base_path),
+            public_dir: public_dir,
+        })
+    }
+}
+
+#[invariant(base_path.starts_with('/'), "server state base path must be absolute")]
+#[invariant(
+    base_path.as_str() == "/" || !base_path.ends_with('/'),
+    "server state base path must not have a trailing slash except at root"
+)]
+#[invariant(
+    base_path.trim() == base_path.as_str(),
+    "server state base path must not have surrounding whitespace"
+)]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 pub(crate) struct AppState {
     base_path: String,
     public_dir: PathBuf,
@@ -54,6 +83,17 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
+    #[requires(true)]
+    #[ensures(ret.base_path.starts_with('/'))]
+    fn new(config: ServerConfig) -> Self {
+        let config = config.into_data();
+        new!(AppState {
+            base_path: config.base_path,
+            public_dir: config.public_dir,
+            tool_services: ToolServices::new(),
+        })
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn tool_services(&self) -> ToolServices {
@@ -304,19 +344,18 @@ pub const SERVER_DEFAULT_EMBEDDING_MODEL_KEY: &str = "f2llm-v2-80m-q4-k-m-320";
 #[ensures(ret.base_path.starts_with('/'))]
 pub fn config_from_env() -> ServerConfig {
     let address = dioxus::cli_config::fullstack_address_or_localhost();
-    let base_path = normalize_base_path(dioxus::cli_config::base_path().as_deref().unwrap_or("/"));
     let public_dir = public_dir_from_env_or_exe(
         std::env::var_os(DIOXUS_PUBLIC_PATH_ENV).map(PathBuf::from),
         std::env::current_exe().ok().as_deref(),
     );
-    ServerConfig {
+    ServerConfig::new(
         address,
-        base_path,
+        dioxus::cli_config::base_path().as_deref().unwrap_or("/"),
         public_dir,
-    }
+    )
 }
 
-#[requires(config.base_path.starts_with('/'))]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub async fn run_server(config: ServerConfig) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(config.address)
@@ -364,14 +403,10 @@ async fn shutdown_signal() {
     }
 }
 
-#[requires(config.base_path.starts_with('/'))]
+#[requires(true)]
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
-    let state = Arc::new(AppState {
-        base_path: normalize_base_path(&config.base_path),
-        public_dir: config.public_dir,
-        tool_services: ToolServices::new(),
-    });
+    let state = Arc::new(AppState::new(config));
     let use_dioxus_static_assets = dioxus_public_dir()
         .as_ref()
         .is_some_and(|public_dir| public_dir.is_dir() && public_dir == &state.public_dir);
@@ -955,11 +990,11 @@ mod tests {
     #[requires(base_path.starts_with('/'))]
     #[ensures(ret.base_path.starts_with('/'))]
     fn test_config_with_base_path(base_path: &str, public_dir: PathBuf) -> ServerConfig {
-        ServerConfig {
-            address: "127.0.0.1:0".parse().expect("valid test address"),
-            base_path: base_path.to_owned(),
+        ServerConfig::new(
+            "127.0.0.1:0".parse().expect("valid test address"),
+            base_path,
             public_dir,
-        }
+        )
     }
 
     #[requires(true)]
