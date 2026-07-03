@@ -42,7 +42,6 @@ mod tests {
     use jbotci_dictionary::{
         DictionaryLujvoEntry, DictionaryLujvoSegmentKind, DictionarySoundEntry, RafsiSource,
     };
-    use jbotci_phonetic::is_valid_ipa_segment_id;
 
     use super::*;
 
@@ -99,13 +98,6 @@ mod tests {
             assert!(!sound_entry.token_sequence.segments.is_empty());
             assert!(sound_entry.token_sequence.self_similarity.is_finite());
             assert!(sound_entry.token_sequence.self_similarity > 0.0);
-            assert!(
-                sound_entry
-                    .token_sequence
-                    .segments
-                    .iter()
-                    .all(|segment| is_valid_ipa_segment_id(*segment))
-            );
             previous_index = Some(sound_entry.entry_index.get());
         }
     }

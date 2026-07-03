@@ -804,18 +804,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "IPA word rendering metadata is produced by render_word_ipa and consumed immediately for boundary merging",
     ),
     (
-        "crates/jbotci-phonetic/src/lib.rs:IpaSegmentId",
-        "segment ids are static table ordinals emitted by tokenizer and generated dictionary code then validated by consumers",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequence",
-        "owned token sequences are constructed by tokenizer helpers that reject empty segment lists",
-    ),
-    (
-        "crates/jbotci-phonetic/src/lib.rs:IpaTokenSequenceView",
-        "borrowed token sequences must remain static-literal friendly and are validated by the dictionary sound index checker",
-    ),
-    (
         "crates/jbotci-phonetic/src/lib.rs:IpaTokenizedText",
         "tokenized IPA text is assembled from tokenizer output and consumed as an internal paired return value",
     ),

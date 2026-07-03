@@ -305,10 +305,10 @@ fn leak_sound_index(entries: &[GeneratedSoundEntry]) -> &'static [DictionarySoun
         .map(|entry| DictionarySoundEntry {
             entry_index: entry.entry_index,
             ipa: leak_str(&entry.ipa),
-            token_sequence: IpaTokenSequenceView {
-                segments: entry.segments.clone().leak(),
-                self_similarity: entry.self_similarity,
-            },
+            token_sequence: IpaTokenSequenceView::new(
+                entry.segments.clone().leak(),
+                entry.self_similarity,
+            ),
         })
         .collect::<Vec<_>>()
         .leak()
@@ -644,10 +644,10 @@ fn render_sound_index_entry(entry: &GeneratedSoundEntry) -> TokenStream {
         jbotci_dictionary::DictionarySoundEntry {
             entry_index: #entry_index,
             ipa: #ipa,
-            token_sequence: jbotci_phonetic::IpaTokenSequenceView {
-                segments: &[#(#segments,)*],
-                self_similarity: #self_similarity,
-            },
+            token_sequence: jbotci_phonetic::IpaTokenSequenceView::from_static_parts(
+                &[#(#segments,)*],
+                #self_similarity,
+            ),
         }
     }
 }
