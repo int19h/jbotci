@@ -17,6 +17,8 @@ use jbotci_dialect::{
     parse_dialect_selection_formula, remove_dialect_formula_reference,
     replace_dialect_formula_reference,
 };
+#[cfg(test)]
+use jbotci_gentufa::ReferenceMarkerKind;
 use jbotci_output::{
     GlideMark, PhonemeRenderOptions, StressMark,
     qr_code::{encode_qr_alphanumeric_h, qr_code_svg},
@@ -15938,6 +15940,10 @@ fn render_block(
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
     let export_controls =
         is_export_anchor.then(|| (export_layout.clone(), export_show_glosses, export_script));
+    let token_kind = block
+        .token_kind
+        .map(|kind| kind.to_string())
+        .unwrap_or_default();
     rsx! {
         div {
             key: "{block.block_id}",
@@ -15949,7 +15955,7 @@ fn render_block(
             "data-col": "{block.col}",
             "data-colspan": "{block.col_span}",
             "data-color": "{block.color}",
-            "data-token-kind": "{block.token_kind.clone().unwrap_or_default()}",
+            "data-token-kind": "{token_kind}",
             "data-raw-text": "{block.raw_text}",
             "data-label": "{block.label}",
             "data-node-type": "{block.node_types.join(\" \")}",
@@ -16153,7 +16159,7 @@ fn reference_marker_view_model(
     new!(ReferenceMarkerViewModel {
         class: reference_marker_class(marker, hover_state),
         role_attr: reference_role_attr(marker.role),
-        kind: marker.kind.clone(),
+        kind: marker.kind.as_str().to_owned(),
         base_key: marker.label.base_key(),
         full_key: marker.label.full_key(),
         has_tooltip: marker.tooltip.is_some(),
@@ -22953,7 +22959,7 @@ mod tests {
     fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         let edge_marker = ReferenceMarker {
             role: ReferenceMarkerRole::Reference,
-            kind: "edge-only-kind".to_owned(),
+            kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new("edgeonly", None, None),
             source: None,
             tooltip: None,
@@ -25364,7 +25370,7 @@ mod tests {
     fn test_reference_marker(role: ReferenceMarkerRole, index: usize) -> ReferenceMarker {
         ReferenceMarker {
             role,
-            kind: "test".to_owned(),
+            kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new("b", Some(index + 1), None),
             source: None,
             tooltip: None,

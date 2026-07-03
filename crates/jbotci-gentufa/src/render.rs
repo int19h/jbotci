@@ -3,15 +3,17 @@ use std::collections::HashMap;
 use base64::Engine;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+#[cfg(test)]
+use jbotci_morphology::WordKind;
 use thiserror::Error;
 use xmlwriter::{Indent, Options as XmlOptions, XmlWriter};
 
-#[cfg(test)]
-use crate::ReferenceSlotLabel;
 use crate::{
     GentufaBlock, GentufaBlocksLayout, GentufaScript, ReferenceLabel, ReferenceMarker,
     ReferenceMarkerRole, math_alphanumeric_stem, reference_slot_display_text,
 };
+#[cfg(test)]
+use crate::{ReferenceMarkerKind, ReferenceSlotLabel};
 
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const OUTER_PADDING: f32 = 12.0;
@@ -1419,7 +1421,7 @@ mod tests {
         let block = test_gentufa_block(0, 1, 0).with_data(data! {
             ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "sumti".to_owned(),
+            kind: ReferenceMarkerKind::Sumti,
             label: ReferenceLabel::new(
                 "b",
                 Some(2),
@@ -1464,7 +1466,7 @@ mod tests {
         let block = test_gentufa_block(0, 1, 0).with_data(data! {
             ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "sumti".to_owned(),
+            kind: ReferenceMarkerKind::Sumti,
             label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
             source: None,
             tooltip: None,
@@ -1533,7 +1535,7 @@ mod tests {
         let block = test_gentufa_block(0, 1, 0).with_data(data! {
             ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "test".to_owned(),
+            kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new(
                 "b",
                 Some(1),
@@ -1661,7 +1663,7 @@ mod tests {
                 label: "mi".to_owned(),
                 is_leaf: true,
                 is_elided: false,
-                token_kind: Some("word".to_owned()),
+                token_kind: Some(WordKind::Cmavo),
                 ref_markers: Vec::new(),
                 span: None,
                 node_types: Vec::new(),
@@ -1719,7 +1721,7 @@ mod tests {
             label: "ny".to_owned(),
             is_leaf: true,
             is_elided: false,
-            token_kind: Some("cmavo".to_owned()),
+            token_kind: Some(WordKind::Cmavo),
             ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
             span: None,
             node_types: Vec::new(),
@@ -1781,7 +1783,7 @@ mod tests {
     fn test_reference_marker(index: usize) -> ReferenceMarker {
         ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
-            kind: "test".to_owned(),
+            kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new("b", Some(index + 1), None),
             source: None,
             tooltip: None,
