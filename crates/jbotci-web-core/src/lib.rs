@@ -652,7 +652,7 @@ fn rafsi_breakdown_for_block(block: &GentufaBlock) -> Vec<String> {
 }
 
 #[requires(true)]
-#[ensures(ret.max_col == layout.max_col)]
+#[ensures(ret.max_col == old(layout.max_col))]
 fn attach_generated_reference_tooltips_to_blocks_layout(
     layout: BareGentufaBlocksLayout,
     analysis: &GeneratedReferenceAnalysis<'_>,
@@ -661,7 +661,8 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
     base_path: &str,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
-    GentufaBlocksLayout {
+    let layout = layout.into_data();
+    new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
@@ -678,7 +679,7 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
             .collect(),
         max_col: layout.max_col,
         max_row: layout.max_row,
-    }
+    })
 }
 
 #[requires(true)]
@@ -691,69 +692,47 @@ fn attach_generated_reference_tooltips_to_block(
     base_path: &str,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlock {
-    let jbotci_gentufa::GentufaBlock {
-        block_id,
-        node_ids,
-        label,
-        is_leaf,
-        is_elided,
-        token_kind,
-        ref_markers,
-        span,
-        node_types,
-        ancestors,
-        col,
-        col_span,
-        row,
-        row_span,
-        color,
-        parent_color,
-        raw_text,
-        display_text,
-        transform,
-        glosses,
-        definition,
-        computed_gloss,
-        tooltip,
-    } = block;
+    let block = block.into_data();
     let dictionary_annotation = annotation_for_range_and_text(
         dictionary_annotations,
-        span,
-        is_elided.then_some(display_text.as_str()),
+        block.span,
+        block.is_elided.then_some(block.display_text.as_str()),
     );
-    GentufaBlock {
-        block_id,
-        node_ids,
-        label,
-        is_leaf,
-        is_elided,
-        token_kind,
+    new!(GentufaBlock {
+        block_id: block.block_id,
+        node_ids: block.node_ids,
+        label: block.label,
+        is_leaf: block.is_leaf,
+        is_elided: block.is_elided,
+        token_kind: block.token_kind,
         ref_markers: attach_generated_reference_tooltips_to_markers(
-            ref_markers,
+            block.ref_markers,
             analysis,
             source,
             options,
             base_path,
         ),
-        span,
-        node_types,
-        ancestors,
-        col,
-        col_span,
-        row,
-        row_span,
-        color,
-        parent_color,
-        raw_text,
-        display_text,
-        transform,
-        glosses: merge_block_glosses(glosses, dictionary_annotation),
-        definition: definition
+        span: block.span,
+        node_types: block.node_types,
+        ancestors: block.ancestors,
+        col: block.col,
+        col_span: block.col_span,
+        row: block.row,
+        row_span: block.row_span,
+        color: block.color,
+        parent_color: block.parent_color,
+        raw_text: block.raw_text,
+        display_text: block.display_text,
+        transform: block.transform,
+        glosses: merge_block_glosses(block.glosses, dictionary_annotation),
+        definition: block
+            .definition
             .or_else(|| dictionary_annotation.and_then(|annotation| annotation.definition.clone())),
-        computed_gloss,
-        tooltip: tooltip
+        computed_gloss: block.computed_gloss,
+        tooltip: block
+            .tooltip
             .or_else(|| dictionary_annotation.and_then(|annotation| annotation.tooltip.clone())),
-    }
+    })
 }
 
 #[requires(true)]
@@ -2671,10 +2650,8 @@ pub fn render_gentufa_blocks_web_export(
         GentufaExportFormat::Png => {
             let bytes = jbotci_gentufa::render_gentufa_blocks_png(
                 layout,
-                &jbotci_gentufa::GentufaPngOptions {
-                    svg: gentufa_svg_export_options(show_glosses, script),
-                    ..jbotci_gentufa::GentufaPngOptions::default()
-                },
+                &jbotci_gentufa::GentufaPngOptions::default()
+                    .with_data(data! { svg: gentufa_svg_export_options(show_glosses, script) }),
                 jbotci_gentufa::EmbeddedGentufaFonts::get(),
             )
             .map_err(|error| WebComputeError::export(error))?;
@@ -4508,12 +4485,12 @@ fn dictionary_annotation_from_match(
         .next()
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card));
     GentufaBlockAnnotation {
-        range: WebSourceRange {
+        range: new!(WebSourceRange {
             byte_start: parsed_match.byte_start,
             byte_end: parsed_match.byte_end,
             char_start: parsed_match.char_start,
             char_end: parsed_match.char_end,
-        },
+        }),
         text: Some(parsed_match.lookup_text),
         glosses: first_card
             .as_ref()
@@ -4803,11 +4780,13 @@ fn decorated_bracket_fragment(
 #[requires(true)]
 #[ensures(true)]
 fn bracket_source_range_to_web(range: Option<BracketSourceRange>) -> Option<WebSourceRange> {
-    range.map(|range| WebSourceRange {
-        byte_start: range.byte_start,
-        byte_end: range.byte_end,
-        char_start: 0,
-        char_end: 0,
+    range.map(|range| {
+        new!(WebSourceRange {
+            byte_start: range.byte_start,
+            byte_end: range.byte_end,
+            char_start: 0,
+            char_end: 0,
+        })
     })
 }
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::Engine;
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use thiserror::Error;
 use xmlwriter::{Indent, Options as XmlOptions, XmlWriter};
 
@@ -110,8 +110,8 @@ impl Default for GentufaSvgOptions {
     }
 }
 
+#[invariant(scale.is_finite() && *scale > 0.0, "PNG scale must be finite and positive")]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 pub struct GentufaPngOptions {
     pub svg: GentufaSvgOptions,
     pub scale: f32,
@@ -121,10 +121,10 @@ impl Default for GentufaPngOptions {
     #[requires(true)]
     #[ensures(ret.scale == DEFAULT_GENTUFA_PNG_SCALE)]
     fn default() -> Self {
-        Self {
+        new!(GentufaPngOptions {
             svg: GentufaSvgOptions::default(),
             scale: DEFAULT_GENTUFA_PNG_SCALE,
-        }
+        })
     }
 }
 
@@ -141,7 +141,7 @@ pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
     Ok(document.to_xml())
 }
 
-#[requires(options.scale.is_finite() && options.scale > 0.0)]
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|png| png.starts_with(b"\x89PNG\r\n\x1a\n")) || ret.is_err())]
 pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
     layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
@@ -326,8 +326,23 @@ fn measure_text_with_usvg(
     })
 }
 
+#[invariant(!column_widths.is_empty(), "positioned layouts must have at least one column")]
+#[invariant(!row_heights.is_empty(), "positioned layouts must have at least one row")]
+#[invariant(width.is_finite() && *width > 0.0, "positioned width must be finite and positive")]
+#[invariant(height.is_finite() && *height > 0.0, "positioned height must be finite and positive")]
+#[invariant(
+    gloss_row_height.as_ref().is_none_or(|height| height.is_finite() && *height >= 0.0),
+    "gloss row height must be finite and non-negative when present"
+)]
+#[expensive_invariant(
+    column_widths.iter().all(|width| width.is_finite() && *width > 0.0),
+    "column widths must be finite and positive"
+)]
+#[expensive_invariant(
+    row_heights.iter().all(|height| height.is_finite() && *height > 0.0),
+    "row heights must be finite and positive"
+)]
 #[derive(Debug, Clone, PartialEq)]
-#[invariant(true)]
 struct PositionedBlocks {
     column_widths: Vec<f32>,
     row_heights: Vec<f32>,
@@ -370,13 +385,13 @@ impl PositionedBlocks {
             + gloss_row_height.unwrap_or(0.0)
             + BLOCK_GAP
                 * (row_count + usize::from(gloss_row_height.is_some())).saturating_sub(1) as f32;
-        Ok(Self {
+        Ok(new!(PositionedBlocks {
             column_widths,
             row_heights,
             gloss_row_height,
             width,
             height,
-        })
+        }))
     }
 
     #[requires(col < self.column_widths.len())]
@@ -1401,8 +1416,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn svg_reference_labels_use_font_cascade_and_styled_slot_text() {
-        let mut block = test_gentufa_block(0, 1, 0);
-        block.ref_markers.push(ReferenceMarker {
+        let block = test_gentufa_block(0, 1, 0).with_data(data! {
+            ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: "sumti".to_owned(),
             label: ReferenceLabel::new(
@@ -1415,12 +1430,13 @@ mod tests {
             ),
             source: None,
             tooltip: None,
+            }],
         });
-        let layout = GentufaBlocksLayout {
+        let layout = new!(GentufaBlocksLayout {
             blocks: vec![block],
             max_col: 1,
             max_row: 1,
-        };
+        });
 
         let svg = render_gentufa_blocks_svg(
             &layout,
@@ -1445,19 +1461,20 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn svg_reference_labels_style_numbered_slot_text_only() {
-        let mut block = test_gentufa_block(0, 1, 0);
-        block.ref_markers.push(ReferenceMarker {
+        let block = test_gentufa_block(0, 1, 0).with_data(data! {
+            ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: "sumti".to_owned(),
             label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
             source: None,
             tooltip: None,
+            }],
         });
-        let layout = GentufaBlocksLayout {
+        let layout = new!(GentufaBlocksLayout {
             blocks: vec![block],
             max_col: 1,
             max_row: 1,
-        };
+        });
 
         let svg = render_gentufa_blocks_svg(
             &layout,
@@ -1513,8 +1530,8 @@ mod tests {
         let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let column_widths = vec![MIN_COLUMN_WIDTH];
-        let mut block = test_gentufa_block(0, 1, 0);
-        block.ref_markers.push(ReferenceMarker {
+        let block = test_gentufa_block(0, 1, 0).with_data(data! {
+            ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: "test".to_owned(),
             label: ReferenceLabel::new(
@@ -1527,6 +1544,7 @@ mod tests {
             ),
             source: None,
             tooltip: None,
+            }],
         });
         let blocks = vec![block];
 
@@ -1636,8 +1654,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn png_render_has_magic_header() {
-        let layout: GentufaBlocksLayout<(), ()> = GentufaBlocksLayout {
-            blocks: vec![GentufaBlock {
+        let layout: GentufaBlocksLayout<(), ()> = new!(GentufaBlocksLayout {
+            blocks: vec![new!(GentufaBlock {
                 block_id: "n1".to_owned(),
                 node_ids: vec![1],
                 label: "mi".to_owned(),
@@ -1661,10 +1679,10 @@ mod tests {
                 definition: None,
                 computed_gloss: None,
                 tooltip: None::<()>,
-            }],
+            })],
             max_col: 1,
             max_row: 1,
-        };
+        });
         let fonts = EmbeddedGentufaFonts::get();
         let svg =
             render_gentufa_blocks_svg(&layout, &GentufaSvgOptions::default(), fonts).expect("svg");
@@ -1695,7 +1713,7 @@ mod tests {
     #[requires(row_span > 0)]
     #[ensures(ret.row == row)]
     fn test_gentufa_block(row: usize, row_span: usize, incoming_count: usize) -> GentufaBlock<()> {
-        GentufaBlock {
+        new!(GentufaBlock {
             block_id: format!("test-{row}"),
             node_ids: Vec::new(),
             label: "ny".to_owned(),
@@ -1719,7 +1737,7 @@ mod tests {
             definition: None,
             computed_gloss: None,
             tooltip: None,
-        }
+        })
     }
 
     #[requires(row_span > 0)]
@@ -1731,7 +1749,7 @@ mod tests {
         col_span: usize,
         incoming_count: usize,
     ) -> GentufaBlock<()> {
-        GentufaBlock {
+        new!(GentufaBlock {
             block_id: format!("wide-{row}"),
             node_ids: Vec::new(),
             label: "Cei".to_owned(),
@@ -1755,7 +1773,7 @@ mod tests {
             definition: None,
             computed_gloss: None,
             tooltip: None,
-        }
+        })
     }
 
     #[requires(true)]

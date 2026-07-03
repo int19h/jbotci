@@ -524,16 +524,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native backend fields are produced by llama.cpp model/context initialization",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:BlockLeafPart",
-        "block leaf parts are transient layout slices derived from validated parser spans",
-    ),
-    (
         "crates/jbotci-gentufa/src/lib.rs:BlockTemp",
         "temporary block color state is consumed inside the layout builder before transport output",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:BlockTreeNode",
-        "block tree nodes are transient layout state derived from syntax index metadata",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
@@ -552,24 +544,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:GentufaBlock",
-        "gentufa block rows are renderer transport data built from parser spans",
-    ),
-    (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockAnnotation",
         "block annotations are projected from dictionary search results before layout decoration",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockOptions",
         "block options are independent presentation controls with typed phoneme rendering options",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:GentufaBlocksLayout",
-        "block layout is a renderer projection with ordering covered by web-core tests",
-    ),
-    (
-        "crates/jbotci-gentufa/src/lib.rs:ReferenceLabel",
-        "gentufa reference labels are generated from the shared CLI reference display model",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:ReferenceMarker",
@@ -580,10 +560,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "transform metadata is a display annotation for deterministic orthography conversion",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:WebSourceRange",
-        "source ranges mirror parser span metadata and may be absent at API boundaries",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:EmbeddedGentufaFonts",
         "embedded font provider is a zero-sized access point for compile-time font bytes",
     ),
@@ -592,16 +568,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "font byte slices are supplied by embedded native assets or validated browser fetches",
     ),
     (
-        "crates/jbotci-gentufa/src/render.rs:GentufaPngOptions",
-        "PNG options are normalized by callers and scale is guarded by render preconditions",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:GentufaSvgOptions",
         "SVG options are independent presentation controls with a caller-provided title",
-    ),
-    (
-        "crates/jbotci-gentufa/src/render.rs:PositionedBlocks",
-        "positioned block metrics are produced by the renderer layout pass before use",
     ),
     (
         "crates/jbotci-gentufa/src/render.rs:ReferenceStackBottoms",

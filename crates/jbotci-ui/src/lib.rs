@@ -22947,8 +22947,8 @@ mod tests {
                 text: "bracket visible".to_owned(),
                 elided: false,
             }],
-            blocks_layout: GentufaBlocksLayout {
-                blocks: vec![GentufaBlock {
+            blocks_layout: new!(GentufaBlocksLayout {
+                blocks: vec![new!(GentufaBlock {
                     block_id: "block-1".to_owned(),
                     node_ids: vec![1],
                     label: "block label".to_owned(),
@@ -22972,10 +22972,10 @@ mod tests {
                     definition: None,
                     computed_gloss: None,
                     tooltip: None,
-                }],
+                })],
                 max_col: 1,
                 max_row: 1,
-            },
+            }),
             tree_rows: vec![GentufaTreeRow {
                 node_id: 1,
                 parent_id: None,
@@ -25309,7 +25309,7 @@ mod tests {
         row_span: usize,
         marker_roles: &[ReferenceMarkerRole],
     ) -> GentufaBlock {
-        GentufaBlock {
+        new!(GentufaBlock {
             block_id: format!("test-{row}"),
             node_ids: Vec::new(),
             label: "test".to_owned(),
@@ -25337,7 +25337,7 @@ mod tests {
             definition: None,
             computed_gloss: None,
             tooltip: None,
-        }
+        })
     }
 
     #[requires(true)]

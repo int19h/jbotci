@@ -1,7 +1,7 @@
 mod benchmark;
 
 use benchmark::BenchmarkMeasurement;
-use bityzba::{invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use std::fs;
 use std::io::{IsTerminal, Read, Write};
 use std::num::NonZeroUsize;
@@ -4704,10 +4704,7 @@ fn render_gentufa_generated_blocks_output(
         }
         GentufaImageOutputType::Png => Ok(render_gentufa_blocks_png(
             &layout,
-            &GentufaPngOptions {
-                svg: svg_options,
-                ..GentufaPngOptions::default()
-            },
+            &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
             fonts,
         )?),
     }
@@ -4721,12 +4718,12 @@ fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<(
         .map(|parsed_match| {
             let first = parsed_match.cards.first();
             GentufaBlockAnnotation {
-                range: WebSourceRange {
+                range: new!(WebSourceRange {
                     byte_start: parsed_match.byte_start,
                     byte_end: parsed_match.byte_end,
                     char_start: parsed_match.char_start,
                     char_end: parsed_match.char_end,
-                },
+                }),
                 text: Some(parsed_match.lookup_text),
                 glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
                 definition: first
