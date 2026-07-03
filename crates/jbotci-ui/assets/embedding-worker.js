@@ -1,137 +1,16 @@
-const F2LLM_80M_MODEL_KEY = "f2llm-v2-80m-q4-320";
-const F2LLM_160M_MODEL_KEY = "f2llm-v2-160m-q4-640";
-const F2LLM_330M_MODEL_KEY = "f2llm-v2-330m-q4-896";
-const F2LLM_0_6B_MODEL_KEY = "f2llm-v2-0.6b-q4-1024";
-const MI_B = 1024 * 1024;
-const F2LLM_WEBGPU_RUNTIME = "jbotci-webgpu-f2llm";
-const F2LLM_WEBGPU_RUNTIME_VERSION = "0.2.0";
-const F2LLM_WASM_RUNTIME = "jbotci-onnxruntime-web-f2llm";
-const F2LLM_WASM_RUNTIME_VERSION = "0.2.0";
-const F2LLM_QUERY_PREFIX = "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
-const F2LLM_POOLING = "mean_normalized_windows";
-const F2LLM_MAX_WINDOW_TOKENS = 512;
-const F2LLM_VECTOR_SPACE_KEY = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
-const F2LLM_LOCAL_EMBED_BATCH_SIZE = 64;
+import { waitForAppModuleReady } from "./app-module-ready.js";
+import { validateModelCatalog } from "./model-catalog.js";
+
 const MODEL_CACHE_NAME = "jbotci-f2llm-models-v1";
 const DEFAULT_ORT_MODULE_URL = new URL("./ort/ort.wasm.min.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_MJS_URL = new URL("./ort/ort-wasm-simd-threaded.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_URL = new URL("./ort/ort-wasm-simd-threaded.wasm", import.meta.url).href;
-const INIT_TIMEOUT_MS = 30000;
 let mainModuleUrl = null;
 let mainModulePromise = null;
 let ortModuleUrl = DEFAULT_ORT_MODULE_URL;
 let ortWasmMjsUrl = DEFAULT_ORT_WASM_MJS_URL;
 let ortWasmUrl = DEFAULT_ORT_WASM_URL;
 let ortModulePromise = null;
-const MODEL_SPECS = {
-  [F2LLM_80M_MODEL_KEY]: {
-    modelKey: F2LLM_80M_MODEL_KEY,
-    label: "F2LLM v2 80M",
-    modelId: "codefuse-ai/F2LLM-v2-80M",
-    customRuntime: {
-      runtime: F2LLM_WEBGPU_RUNTIME,
-      version: F2LLM_WEBGPU_RUNTIME_VERSION,
-      artifactBaseUrl: "https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1",
-      dtype: "q4",
-      device: "webgpu",
-    },
-    wasmRuntime: {
-      runtime: F2LLM_WASM_RUNTIME,
-      version: F2LLM_WASM_RUNTIME_VERSION,
-      onnxUrl: "https://assets.jbotci.app/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx",
-      dtype: "q4",
-      device: "wasm",
-    },
-    preferredRuntime: { dtype: "q4", device: "webgpu" },
-    dimensions: 320,
-    maxSequenceLength: 512,
-    queryPrefix: F2LLM_QUERY_PREFIX,
-    remoteVectorPacks: true,
-    browserLocalIndexing: true,
-    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
-    vectorElementType: "f16le",
-    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
-    modelSizeEstimates: {
-      q4: 68 * MI_B,
-    },
-    minFreeBytesByDtype: {
-      q4: 180 * MI_B,
-    },
-    outputPooling: F2LLM_POOLING,
-  },
-  [F2LLM_160M_MODEL_KEY]: {
-    modelKey: F2LLM_160M_MODEL_KEY,
-    label: "F2LLM v2 160M",
-    modelId: "codefuse-ai/F2LLM-v2-160M",
-    customRuntime: {
-      runtime: F2LLM_WEBGPU_RUNTIME,
-      version: F2LLM_WEBGPU_RUNTIME_VERSION,
-      artifactBaseUrl: "https://assets.jbotci.app/models/f2llm-v2-160m-webgpu/v1",
-      dtype: "q4",
-      device: "webgpu",
-    },
-    preferredRuntime: { dtype: "q4", device: "webgpu" },
-    dimensions: 640,
-    maxSequenceLength: 512,
-    queryPrefix: F2LLM_QUERY_PREFIX,
-    remoteVectorPacks: true,
-    browserLocalIndexing: true,
-    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
-    vectorElementType: "f16le",
-    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
-    modelSizeEstimates: { q4: 110 * MI_B },
-    minFreeBytesByDtype: { q4: 260 * MI_B },
-    outputPooling: F2LLM_POOLING,
-  },
-  [F2LLM_330M_MODEL_KEY]: {
-    modelKey: F2LLM_330M_MODEL_KEY,
-    label: "F2LLM v2 330M",
-    modelId: "codefuse-ai/F2LLM-v2-330M",
-    customRuntime: {
-      runtime: F2LLM_WEBGPU_RUNTIME,
-      version: F2LLM_WEBGPU_RUNTIME_VERSION,
-      artifactBaseUrl: "https://assets.jbotci.app/models/f2llm-v2-330m-webgpu/v1",
-      dtype: "q4",
-      device: "webgpu",
-    },
-    preferredRuntime: { dtype: "q4", device: "webgpu" },
-    dimensions: 896,
-    maxSequenceLength: 512,
-    queryPrefix: F2LLM_QUERY_PREFIX,
-    remoteVectorPacks: true,
-    browserLocalIndexing: true,
-    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
-    vectorElementType: "f16le",
-    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
-    modelSizeEstimates: { q4: 231 * MI_B },
-    minFreeBytesByDtype: { q4: 420 * MI_B },
-    outputPooling: F2LLM_POOLING,
-  },
-  [F2LLM_0_6B_MODEL_KEY]: {
-    modelKey: F2LLM_0_6B_MODEL_KEY,
-    label: "F2LLM v2 0.6B",
-    modelId: "codefuse-ai/F2LLM-v2-0.6B",
-    customRuntime: {
-      runtime: F2LLM_WEBGPU_RUNTIME,
-      version: F2LLM_WEBGPU_RUNTIME_VERSION,
-      artifactBaseUrl: "https://assets.jbotci.app/models/f2llm-v2-0.6b-webgpu/v1",
-      dtype: "q4",
-      device: "webgpu",
-    },
-    preferredRuntime: { dtype: "q4", device: "webgpu" },
-    dimensions: 1024,
-    maxSequenceLength: 512,
-    queryPrefix: F2LLM_QUERY_PREFIX,
-    remoteVectorPacks: true,
-    browserLocalIndexing: true,
-    localVectorSpaceKey: F2LLM_VECTOR_SPACE_KEY,
-    vectorElementType: "f16le",
-    embedBatchSize: F2LLM_LOCAL_EMBED_BATCH_SIZE,
-    modelSizeEstimates: { q4: 416 * MI_B },
-    minFreeBytesByDtype: { q4: 700 * MI_B },
-    outputPooling: F2LLM_POOLING,
-  },
-};
 const DB_NAME = "jbotci-embeddings-v1";
 const META_STORE = "meta";
 const BLOB_STORE = "blobs";
@@ -146,17 +25,22 @@ const ACTIVE_SETUP_STATUSES = new Set([
   "loading-model",
 ]);
 
-let selectedModelKey = F2LLM_330M_MODEL_KEY;
-let activeModelKey = F2LLM_330M_MODEL_KEY;
+let modelCatalog = null;
+let selectedModelKey = null;
+let activeModelKey = null;
 let activeRuntimeMode = "webgpu";
 let lastWebGpuAvailable = null;
 let modelLoadPromise = null;
 let modelRuntime = null;
 let dbPromise = null;
 let setupInProgress = false;
+let debugLoggingEnabled = false;
 const vectorCache = new Map();
 
 function logInfo(message, detail = null) {
+  if (!debugLoggingEnabled) {
+    return;
+  }
   if (detail === null) {
     console.info(`${LOG_PREFIX} ${message}`);
   } else {
@@ -236,24 +120,74 @@ self.onmessage = async (event) => {
 };
 
 function configureWorkerContext(payload, fallbackMainModuleUrl = null) {
+  setDebugLogging(payload?.debug === true);
+  setModelCatalog(payload?.modelCatalog);
   setMainModuleUrl(payload?.mainModuleUrl || fallbackMainModuleUrl);
   setOrtAssets(payload?.ortModuleUrl, payload?.ortWasmMjsUrl, payload?.ortWasmUrl);
   setSelectedModel(payload?.modelKey);
 }
 
 function activeModelSpec() {
-  return MODEL_SPECS[activeModelKey];
+  const key = activeModelKey || selectedModelKey || defaultModelKey();
+  return modelSpecForKey(key);
 }
 
 function modelSpecForKey(modelKey) {
   const key = typeof modelKey === "string" && modelKey.trim().length > 0
     ? modelKey.trim()
-    : F2LLM_330M_MODEL_KEY;
-  const spec = MODEL_SPECS[key];
+    : defaultModelKey();
+  const spec = requireModelCatalog().models[key];
   if (!spec) {
     throw new Error(`unsupported browser embedding model key: ${key}`);
   }
   return spec;
+}
+
+function defaultModelKey() {
+  return requireModelCatalog().defaultDesktopModelKey;
+}
+
+function fallbackModelSpec() {
+  return modelSpecForKey(requireModelCatalog().wasmFallbackModelKey);
+}
+
+function activeOutputPooling() {
+  return activeModelSpec().outputPooling;
+}
+
+function requireModelCatalog() {
+  if (modelCatalog === null) {
+    throw new Error("embedding worker did not receive a model catalog");
+  }
+  return modelCatalog;
+}
+
+function setDebugLogging(enabled) {
+  debugLoggingEnabled = enabled === true;
+}
+
+function setModelCatalog(catalog) {
+  const normalized = validateModelCatalog(catalog, "embedding worker modelCatalog");
+  if (modelCatalog !== null && JSON.stringify(modelCatalog) === JSON.stringify(normalized)) {
+    return;
+  }
+  if (setupInProgress) {
+    throw new Error("cannot change browser embedding model catalog while setup is active");
+  }
+  modelCatalog = normalized;
+  if (selectedModelKey !== null && !modelCatalog.models[selectedModelKey]) {
+    selectedModelKey = null;
+  }
+  if (activeModelKey !== null && !modelCatalog.models[activeModelKey]) {
+    activeModelKey = null;
+  }
+  modelLoadPromise = null;
+  modelRuntime = null;
+  vectorCache.clear();
+  logInfo("configured embedding model catalog", {
+    modelKeys: Object.keys(modelCatalog.models),
+    fallbackModelKey: modelCatalog.wasmFallbackModelKey,
+  });
 }
 
 function setSelectedModel(modelKey) {
@@ -276,7 +210,7 @@ async function resolveActiveModel(forceWasm = false) {
   const selected = modelSpecForKey(selectedModelKey);
   const webGpuAvailable = !forceWasm && await hasUsableWebGpu();
   lastWebGpuAvailable = webGpuAvailable;
-  const effective = webGpuAvailable ? selected : MODEL_SPECS[F2LLM_80M_MODEL_KEY];
+  const effective = webGpuAvailable ? selected : fallbackModelSpec();
   const runtimeMode = webGpuAvailable ? "webgpu" : "wasm";
   if (effective.modelKey === activeModelKey && runtimeMode === activeRuntimeMode) {
     return effective;
@@ -315,21 +249,6 @@ function setMainModuleUrl(moduleUrl) {
   modelRuntime = null;
   vectorCache.clear();
   logInfo("configured embedding app module", { mainModuleUrl });
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForMainWasm(appModule) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < INIT_TIMEOUT_MS) {
-    if (appModule.__wasm !== undefined || globalThis.__dx_mainWasm !== undefined) {
-      return;
-    }
-    await sleep(10);
-  }
-  throw new Error("Dioxus app wasm initialization did not complete in the embedding worker");
 }
 
 function setOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl) {
@@ -487,7 +406,7 @@ async function status(setupActive = false) {
     modelKey: spec.modelKey,
     modelLabel: spec.label,
     selectedModelKey,
-    selectedModelLabel: MODEL_SPECS[selectedModelKey]?.label || null,
+    selectedModelLabel: selectedModelKey ? modelSpecForKey(selectedModelKey).label : null,
     effectiveModelKey: spec.modelKey,
     effectiveRuntimeMode: activeRuntimeMode,
     webGpuAvailable: lastWebGpuAvailable,
@@ -754,7 +673,7 @@ async function f2llmRuntimeModule() {
       if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
         throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
       }
-      await waitForMainWasm(appModule);
+      await waitForAppModuleReady(appModule);
       return appModule;
     });
   }
@@ -1110,7 +1029,7 @@ async function buildLocalPack(corpus) {
     inputHash: corpus.inputHash,
     inputFormatVersion: corpus.inputFormatVersion,
     vectorSpaceKey,
-    pooling: F2LLM_POOLING,
+    pooling: spec.outputPooling,
     maxWindowTokens: spec.maxSequenceLength,
     runtime,
     compatibleQueryRuntimes: [runtime],
@@ -1348,7 +1267,7 @@ function partialLocalBuildCompatible(build, context) {
     && build.inputHash === context.inputHash
     && build.inputFormatVersion === context.inputFormatVersion
     && build.vectorSpaceKey === context.vectorSpaceKey
-    && build.pooling === F2LLM_POOLING
+    && build.pooling === activeOutputPooling()
     && build.maxWindowTokens === activeModelSpec().maxSequenceLength
     && packCompatibleWithRuntime(build, context.runtime);
 }
@@ -1425,7 +1344,7 @@ async function putLocalBuildCheckpoint(context, corpus) {
     inputHash: context.inputHash,
     inputFormatVersion: context.inputFormatVersion,
     vectorSpaceKey: context.vectorSpaceKey,
-    pooling: F2LLM_POOLING,
+    pooling: activeOutputPooling(),
     maxWindowTokens: activeModelSpec().maxSequenceLength,
     runtime: context.runtime,
     compatibleQueryRuntimes: [context.runtime],
@@ -1688,7 +1607,7 @@ function manifestCompatibilityIssue(manifest, corpus, runtime) {
     ["element_type", manifest.element_type, expectedElementType],
     ["normalized", manifest.normalized, true],
     ["distance", manifest.distance, "dot"],
-    ["pooling", manifest.pooling, F2LLM_POOLING],
+    ["pooling", manifest.pooling, spec.outputPooling],
     ["max_window_tokens", manifest.max_window_tokens, spec.maxSequenceLength],
   ]) {
     if (actual !== expected) {
@@ -1771,47 +1690,35 @@ function summarizeCompatibilityValue(value) {
 }
 
 function runtimeMatches(candidate, runtime) {
-  if (runtime?.runtime === F2LLM_WEBGPU_RUNTIME) {
-    return candidate?.runtime === F2LLM_WEBGPU_RUNTIME
-      && candidate?.dtype === runtime.dtype
-      && (!candidate.device || candidate.device === runtime.device)
-      && (!candidate.version || candidate.version === runtime.version)
-      && candidate?.pooling === F2LLM_POOLING
-      && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
-  }
-  if (runtime?.runtime === F2LLM_WASM_RUNTIME) {
-    return candidate?.runtime === F2LLM_WASM_RUNTIME
-      && candidate?.dtype === runtime.dtype
-      && (!candidate.device || candidate.device === runtime.device)
-      && (!candidate.version || candidate.version === runtime.version)
-      && candidate?.pooling === F2LLM_POOLING
-      && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
-  }
-  return false;
+  return typeof candidate?.runtime === "string"
+    && candidate.runtime === runtime?.runtime
+    && candidate?.dtype === runtime?.dtype
+    && (!candidate.device || candidate.device === runtime?.device)
+    && (!candidate.version || candidate.version === runtime?.version)
+    && candidate?.pooling === activeOutputPooling()
+    && candidate?.max_window_tokens === activeModelSpec().maxSequenceLength;
 }
 
 function f2llmRuntimeDescriptor(runtime) {
-  if (runtime?.runtime === F2LLM_WEBGPU_RUNTIME) {
+  const runtimeSpec = runtimeSpecForRuntime(runtime);
+  if (runtimeSpec) {
     return {
       runtime: runtime.runtime,
-      version: runtime.version || F2LLM_WEBGPU_RUNTIME_VERSION,
+      version: runtime.version || runtimeSpec.version,
       dtype: runtime.dtype,
       device: runtime.device,
-      pooling: F2LLM_POOLING,
-      max_window_tokens: activeModelSpec().maxSequenceLength,
-    };
-  }
-  if (runtime?.runtime === F2LLM_WASM_RUNTIME) {
-    return {
-      runtime: runtime.runtime,
-      version: runtime.version || F2LLM_WASM_RUNTIME_VERSION,
-      dtype: runtime.dtype,
-      device: runtime.device,
-      pooling: F2LLM_POOLING,
+      pooling: activeOutputPooling(),
       max_window_tokens: activeModelSpec().maxSequenceLength,
     };
   }
   throw new Error(`unsupported F2LLM runtime: ${runtime?.runtime || "missing"}`);
+}
+
+function runtimeSpecForRuntime(runtime) {
+  const spec = activeModelSpec();
+  return [spec.customRuntime, spec.wasmRuntime].find((candidate) =>
+    candidate?.runtime === runtime?.runtime
+  ) || null;
 }
 
 function queryRuntimeFromModelRuntime(runtime) {
@@ -1826,7 +1733,7 @@ function activeQueryRuntime() {
 }
 
 function isCustomWebGpuRuntime(runtime) {
-  return runtime?.runtime === F2LLM_WEBGPU_RUNTIME && runtime?.device === "webgpu";
+  return runtime?.runtime === activeModelSpec().customRuntime.runtime && runtime?.device === "webgpu";
 }
 
 function activeModelPack(pack) {
@@ -1868,7 +1775,7 @@ function cachedPackMatchesCorpus(pack, corpus, runtime, vectorSpaceKey) {
     && pack.inputHash === corpus.inputHash
     && pack.inputFormatVersion === corpus.inputFormatVersion
     && pack.vectorSpaceKey === vectorSpaceKey
-    && pack.pooling === F2LLM_POOLING
+    && pack.pooling === activeOutputPooling()
     && pack.maxWindowTokens === activeModelSpec().maxSequenceLength
     && packCompatibleWithRuntime(pack, runtime);
 }
@@ -2536,7 +2443,7 @@ async function getModelMeta(kind, modelKey = activeModelSpec().modelKey) {
   if (scoped !== null) {
     return scoped;
   }
-  if (modelKey !== F2LLM_80M_MODEL_KEY) {
+  if (modelKey !== requireModelCatalog().wasmFallbackModelKey) {
     return null;
   }
   const legacy = await getMeta(kind);

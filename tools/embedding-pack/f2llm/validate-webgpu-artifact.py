@@ -46,23 +46,24 @@ class ArtifactModel:
         rows, cols = map(int, spec["shape"])
         group_size = int(spec["group_size"])
         groups = int(spec["groups"])
-        q = unpack_u4(self.read_chunked(spec["qweight"]), rows * cols).reshape(rows, groups, group_size)
+        row_stride = groups * group_size
+        q = unpack_u4(self.read_chunked(spec["qweight"]), rows * row_stride).reshape(rows, groups, group_size)
         scales = np.frombuffer(self.read_chunked(spec["scales"]), dtype="<f4").reshape(rows, groups)
         zero_points = unpack_u4(self.read_chunked(spec["zero_points"]), rows * groups).reshape(rows, groups)
         values = (q.astype(np.float32) - zero_points.astype(np.float32)[:, :, None]) * scales[:, :, None]
-        return torch.from_numpy(values.reshape(rows, cols).copy())
+        return torch.from_numpy(values.reshape(rows, row_stride)[:, :cols].copy())
 
     def dequantize_onnx_matmul(self, spec: dict[str, object]) -> torch.Tensor:
         rows, cols = map(int, spec["shape"])
         group_size = int(spec["group_size"])
         groups = int(spec["groups"])
-        q = unpack_u4(self.read_chunked(spec["qweight"]), rows * groups * group_size)
-        q = q.reshape(rows, groups, group_size)[:, :, :group_size]
+        row_stride = groups * group_size
+        q = unpack_u4(self.read_chunked(spec["qweight"]), rows * row_stride)
         values = q.reshape(rows, groups, group_size).astype(np.float32)
         scales = np.frombuffer(self.read_chunked(spec["scales"]), dtype="<f4").reshape(rows, groups)
         zero_points = np.frombuffer(self.read_chunked(spec["zero_points"]), dtype="<f4").reshape(rows, groups)
         dequantized = (values - zero_points[:, :, None]) * scales[:, :, None]
-        return torch.from_numpy(dequantized.reshape(rows, groups * group_size)[:, :cols].copy())
+        return torch.from_numpy(dequantized.reshape(rows, row_stride)[:, :cols].copy())
 
     def embed_tokens(self, token_ids: list[int]) -> torch.Tensor:
         return self.tensors["model.embed_tokens.weight"][torch.tensor(token_ids, dtype=torch.long)]

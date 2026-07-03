@@ -22,7 +22,7 @@ pub use jbotci_embedding_inputs::{
     DEFAULT_MODEL_REVISION, RETRIEVAL_DOCUMENT_PREFIX, RETRIEVAL_QUERY_PREFIX, VLACKU_CORPUS_ID,
     build_retrieval_document_input, build_retrieval_query_input, cll_embedding_input,
     cll_fingerprint, dictionary_embedding_input, dictionary_embedding_kind, dictionary_fingerprint,
-    sha256_hex_bytes,
+    lowercase_hex, sha256_hex_bytes,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -471,7 +471,7 @@ impl SetupIndexSource {
 #[invariant(true)]
 pub struct SetupReport {
     pub index_root: PathBuf,
-    pub model_path: PathBuf,
+    pub model_path: Option<PathBuf>,
     pub pack_id: String,
     pub dictionary_rows: usize,
     pub cll_rows: usize,
@@ -746,17 +746,7 @@ fn sha256_hex_file_with_progress(
             ));
         }
     }
-    Ok(hex_digest(hasher.finalize()))
-}
-
-#[requires(true)]
-#[ensures(ret.len() == 64)]
-fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
-    bytes
-        .as_ref()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    Ok(lowercase_hex(hasher.finalize()))
 }
 
 #[requires(true)]
@@ -899,7 +889,7 @@ pub fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), Embed
 }
 
 #[requires(!path.as_os_str().is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn write_json_file_atomically<T: Serialize>(path: &Path, value: &T) -> Result<(), EmbeddingError> {
     ensure_parent_dir(path)?;
     let file_name = path
@@ -1211,7 +1201,8 @@ fn ensure_parent_dir(path: &Path) -> Result<(), EmbeddingError> {
 
 #[requires(!source.as_os_str().is_empty())]
 #[requires(!destination.as_os_str().is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[requires(source != destination)]
+#[ensures(ret.is_err() || (destination.exists() && !source.exists()))]
 fn rename_replacing(source: &Path, destination: &Path) -> Result<(), EmbeddingError> {
     match fs::rename(source, destination) {
         Ok(()) => Ok(()),
@@ -1298,7 +1289,7 @@ fn native_partial_checkpoint_path(work_root: &Path) -> PathBuf {
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn remove_dir_all_if_exists(path: &Path) -> Result<(), EmbeddingError> {
     if !path.exists() {
         return Ok(());
@@ -1501,7 +1492,7 @@ fn native_partial_shard_is_compatible(
 }
 
 #[requires(!checkpoint_path.as_os_str().is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn write_native_partial_checkpoint(
     checkpoint_path: &Path,
     checkpoint: &NativePartialBuildCheckpoint,
@@ -1777,14 +1768,7 @@ pub fn download_model_file_with_progress(
         context: format!("failed to flush `{}`", partial_path.display()),
         source,
     })?;
-    fs::rename(&partial_path, path).map_err(|source| EmbeddingError::Io {
-        context: format!(
-            "failed to move `{}` to `{}`",
-            partial_path.display(),
-            path.display()
-        ),
-        source,
-    })?;
+    rename_replacing(&partial_path, path)?;
     Ok(())
 }
 
@@ -1860,7 +1844,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
         ));
         return Ok(SetupReport {
             index_root: index_root.to_owned(),
-            model_path: PathBuf::new(),
+            model_path: None,
             pack_id,
             dictionary_rows,
             cll_rows,
@@ -1981,7 +1965,7 @@ pub fn build_embedding_pack_with_progress<B: EmbeddingBackend>(
     ));
     Ok(SetupReport {
         index_root: index_root.to_owned(),
-        model_path: PathBuf::new(),
+        model_path: None,
         pack_id,
         dictionary_rows,
         cll_rows,
@@ -2295,7 +2279,7 @@ pub fn reuse_existing_embedding_pack_with_progress(
     ));
     Ok(Some(SetupReport {
         index_root: index_root.to_owned(),
-        model_path: PathBuf::new(),
+        model_path: None,
         pack_id,
         dictionary_rows: dictionary.entries().len(),
         cll_rows: cll_chunks.len(),
@@ -2422,7 +2406,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
     ));
     Ok(SetupReport {
         index_root: index_root.to_owned(),
-        model_path: PathBuf::new(),
+        model_path: None,
         pack_id: manifest.pack_id,
         dictionary_rows: dictionary.entries().len(),
         cll_rows: cll_chunks.len(),
@@ -2662,7 +2646,7 @@ fn validate_native_corpus_manifest(
 }
 
 #[requires(!url.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn fetch_json_url<T: DeserializeOwned>(url: &str) -> Result<T, EmbeddingError> {
     let response = ureq::get(url)
         .call()
@@ -3027,7 +3011,7 @@ fn vector_shard_manifest_fingerprint(shards: &[VectorShardManifest]) -> String {
         hasher.update(shard.sha256.as_bytes());
         hasher.update([0]);
     }
-    hex_digest(hasher.finalize())
+    lowercase_hex(hasher.finalize())
 }
 
 #[requires(true)]
@@ -3322,6 +3306,40 @@ mod tests {
             dimensions: 4,
             ..EmbeddingModelSpec::default_f2llm()
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn setup_report_model_path_can_be_absent_without_sentinel() {
+        let report = SetupReport {
+            index_root: PathBuf::from("/tmp/jbotci-index"),
+            model_path: None,
+            pack_id: "test-pack".to_owned(),
+            dictionary_rows: 1,
+            cll_rows: 1,
+            index_source: SetupIndexSource::Reused,
+        };
+        assert!(report.model_path.is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rename_replacing_overwrites_existing_destination() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source.bin");
+        let destination = dir.path().join("destination.bin");
+        std::fs::write(&source, b"new").expect("write source");
+        std::fs::write(&destination, b"old").expect("write destination");
+
+        rename_replacing(&source, &destination).expect("replace destination");
+
+        assert_eq!(
+            std::fs::read(&destination).expect("read destination"),
+            b"new"
+        );
+        assert!(!source.exists());
     }
 
     #[requires(true)]

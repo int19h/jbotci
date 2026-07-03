@@ -87,6 +87,11 @@ mod f2llm_webgpu_runtime;
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
 const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
+// Worker-only ES modules imported from worker scripts; keep explicit asset pins for Dioxus.
+#[allow(dead_code)]
+const APP_MODULE_READY_JS: Asset = asset!("/assets/app-module-ready.js");
+#[allow(dead_code)]
+const MODEL_CATALOG_JS: Asset = asset!("/assets/model-catalog.js");
 // The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
 #[allow(dead_code)]
 const ORT_WASM_MIN_MJS: Asset = asset!("/assets/ort/ort.wasm.min.mjs");
@@ -203,12 +208,20 @@ const F2LLM_NATIVE_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-k-m-896";
 #[cfg(not(target_arch = "wasm32"))]
 const F2LLM_NATIVE_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-k-m-1024";
 const F2LLM_80M_MODEL_KEY: &str = "f2llm-v2-80m-q4-320";
-#[cfg(target_arch = "wasm32")]
 const F2LLM_160M_MODEL_KEY: &str = "f2llm-v2-160m-q4-640";
-#[cfg(target_arch = "wasm32")]
 const F2LLM_330M_MODEL_KEY: &str = "f2llm-v2-330m-q4-896";
-#[cfg(target_arch = "wasm32")]
 const F2LLM_0_6B_MODEL_KEY: &str = "f2llm-v2-0.6b-q4-1024";
+const F2LLM_WEBGPU_RUNTIME: &str = "jbotci-webgpu-f2llm";
+const F2LLM_WEBGPU_RUNTIME_VERSION: &str = "0.2.0";
+const F2LLM_WASM_RUNTIME: &str = "jbotci-onnxruntime-web-f2llm";
+const F2LLM_WASM_RUNTIME_VERSION: &str = "0.2.0";
+const F2LLM_BROWSER_QUERY_PREFIX: &str =
+    "Instruct: Given a question, retrieve passages that can help answer the question.\nQuery: ";
+const F2LLM_BROWSER_POOLING: &str = "mean_normalized_windows";
+const F2LLM_BROWSER_VECTOR_SPACE_KEY: &str = "jbotci-browser-f2llm-q4-f16-windowed-512-v1";
+const F2LLM_BROWSER_MAX_SEQUENCE_LENGTH: usize = 512;
+const F2LLM_BROWSER_LOCAL_EMBED_BATCH_SIZE: usize = 64;
+const MI_B: usize = 1024 * 1024;
 #[cfg(target_arch = "wasm32")]
 const WEB_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
     EmbeddingModelOption {
@@ -247,6 +260,114 @@ const NATIVE_EMBEDDING_MODEL_OPTIONS: &[EmbeddingModelOption] = &[
         label: "F2LLM v2 0.6B",
     },
 ];
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn browser_embedding_model_catalog_json() -> String {
+    serde_json::to_string(&serde_json::json!({
+        "schemaVersion": 1,
+        "defaultMobileModelKey": F2LLM_80M_MODEL_KEY,
+        "defaultDesktopModelKey": F2LLM_330M_MODEL_KEY,
+        "wasmFallbackModelKey": F2LLM_80M_MODEL_KEY,
+        "models": {
+            F2LLM_80M_MODEL_KEY: browser_embedding_model_spec_json(
+                F2LLM_80M_MODEL_KEY,
+                "F2LLM v2 80M",
+                "codefuse-ai/F2LLM-v2-80M",
+                "https://assets.jbotci.app/models/f2llm-v2-80m-webgpu/v1",
+                Some("https://assets.jbotci.app/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx"),
+                320usize,
+                68usize * MI_B,
+                180usize * MI_B,
+            ),
+            F2LLM_160M_MODEL_KEY: browser_embedding_model_spec_json(
+                F2LLM_160M_MODEL_KEY,
+                "F2LLM v2 160M",
+                "codefuse-ai/F2LLM-v2-160M",
+                "https://assets.jbotci.app/models/f2llm-v2-160m-webgpu/v1",
+                None,
+                640usize,
+                110usize * MI_B,
+                260usize * MI_B,
+            ),
+            F2LLM_330M_MODEL_KEY: browser_embedding_model_spec_json(
+                F2LLM_330M_MODEL_KEY,
+                "F2LLM v2 330M",
+                "codefuse-ai/F2LLM-v2-330M",
+                "https://assets.jbotci.app/models/f2llm-v2-330m-webgpu/v1",
+                None,
+                896usize,
+                231usize * MI_B,
+                420usize * MI_B,
+            ),
+            F2LLM_0_6B_MODEL_KEY: browser_embedding_model_spec_json(
+                F2LLM_0_6B_MODEL_KEY,
+                "F2LLM v2 0.6B",
+                "codefuse-ai/F2LLM-v2-0.6B",
+                "https://assets.jbotci.app/models/f2llm-v2-0.6b-webgpu/v1",
+                None,
+                1024usize,
+                416usize * MI_B,
+                700usize * MI_B,
+            ),
+        },
+    }))
+    .expect("browser embedding model catalog is JSON-serializable")
+}
+
+#[requires(!model_key.is_empty())]
+#[requires(!label.is_empty())]
+#[requires(!model_id.is_empty())]
+#[requires(!webgpu_artifact_base_url.is_empty())]
+#[requires(dimensions > 0)]
+#[requires(q4_model_bytes > 0)]
+#[requires(q4_min_free_bytes > 0)]
+#[ensures(ret.is_object())]
+fn browser_embedding_model_spec_json(
+    model_key: &str,
+    label: &str,
+    model_id: &str,
+    webgpu_artifact_base_url: &str,
+    wasm_onnx_url: Option<&str>,
+    dimensions: usize,
+    q4_model_bytes: usize,
+    q4_min_free_bytes: usize,
+) -> serde_json::Value {
+    let mut value = serde_json::json!({
+        "modelKey": model_key,
+        "label": label,
+        "modelId": model_id,
+        "customRuntime": {
+            "runtime": F2LLM_WEBGPU_RUNTIME,
+            "version": F2LLM_WEBGPU_RUNTIME_VERSION,
+            "artifactBaseUrl": webgpu_artifact_base_url,
+            "dtype": "q4",
+            "device": "webgpu",
+        },
+        "preferredRuntime": { "dtype": "q4", "device": "webgpu" },
+        "dimensions": dimensions,
+        "maxSequenceLength": F2LLM_BROWSER_MAX_SEQUENCE_LENGTH,
+        "queryPrefix": F2LLM_BROWSER_QUERY_PREFIX,
+        "remoteVectorPacks": true,
+        "browserLocalIndexing": true,
+        "localVectorSpaceKey": F2LLM_BROWSER_VECTOR_SPACE_KEY,
+        "vectorElementType": "f16le",
+        "embedBatchSize": F2LLM_BROWSER_LOCAL_EMBED_BATCH_SIZE,
+        "modelSizeEstimates": { "q4": q4_model_bytes },
+        "minFreeBytesByDtype": { "q4": q4_min_free_bytes },
+        "outputPooling": F2LLM_BROWSER_POOLING,
+    });
+    if let Some(wasm_onnx_url) = wasm_onnx_url {
+        value["wasmRuntime"] = serde_json::json!({
+            "runtime": F2LLM_WASM_RUNTIME,
+            "version": F2LLM_WASM_RUNTIME_VERSION,
+            "onnxUrl": wasm_onnx_url,
+            "dtype": "q4",
+            "device": "wasm",
+        });
+    }
+    value
+}
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
@@ -2996,6 +3117,7 @@ fn AppShell() -> Element {
             &format!("{ORT_WASM_SIMD_THREADED_WASM}"),
         );
         configure_embedding_remote_base_url(web_embeddings_base_url());
+        configure_embedding_model_catalog();
         configure_embedding_model_key(&embedding_settings.read().selected_model_key);
         configure_compute_worker_url(&format!("{COMPUTE_WORKER_JS}"));
     });
@@ -5569,6 +5691,9 @@ extern "C" {
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureRemoteBase)]
     fn js_embedding_configure_remote_base(remote_base_url: &str);
 
+    #[wasm_bindgen(js_name = jbotciEmbeddingConfigureCatalog)]
+    fn js_embedding_configure_catalog(catalog_json: &str);
+
     #[wasm_bindgen(js_name = jbotciEmbeddingConfigureModel)]
     fn js_embedding_configure_model(model_key: &str);
 
@@ -5623,6 +5748,14 @@ extern "C" {
 #[ensures(true)]
 pub fn jbotci_compute_handle(request_json: &str) -> Result<String, JsValue> {
     web_compute_handle(request_json).map_err(|error| JsValue::from_str(&error))
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(js_name = jbotciWorkerReady)]
+#[requires(true)]
+#[ensures(true)]
+pub fn jbotci_worker_ready() -> js_sys::Promise {
+    js_sys::Promise::resolve(&JsValue::UNDEFINED)
 }
 
 #[requires(!request_json.is_empty())]
@@ -5685,6 +5818,18 @@ fn configure_embedding_remote_base_url(remote_base_url: &str) {
 fn configure_embedding_remote_base_url(remote_base_url: &str) {
     let _ = remote_base_url;
 }
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+fn configure_embedding_model_catalog() {
+    js_embedding_configure_catalog(&browser_embedding_model_catalog_json());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn configure_embedding_model_catalog() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(is_supported_embedding_model_key(model_key))]
@@ -23045,6 +23190,31 @@ mod tests {
                 F2LLM_NATIVE_330M_MODEL_KEY,
                 F2LLM_NATIVE_0_6B_MODEL_KEY,
             ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn browser_embedding_catalog_serializes_runtime_specs() {
+        let catalog: serde_json::Value =
+            serde_json::from_str(&browser_embedding_model_catalog_json()).unwrap();
+        assert_eq!(catalog["defaultMobileModelKey"], F2LLM_80M_MODEL_KEY);
+        assert_eq!(catalog["defaultDesktopModelKey"], F2LLM_330M_MODEL_KEY);
+        assert_eq!(catalog["wasmFallbackModelKey"], F2LLM_80M_MODEL_KEY);
+        let models = catalog["models"].as_object().unwrap();
+        assert_eq!(models.len(), 4);
+        let default_model = &models[F2LLM_330M_MODEL_KEY];
+        assert_eq!(
+            default_model["customRuntime"]["artifactBaseUrl"],
+            "https://assets.jbotci.app/models/f2llm-v2-330m-webgpu/v1"
+        );
+        assert_eq!(default_model["dimensions"], 896);
+        assert!(default_model["wasmRuntime"].is_null());
+        let fallback_model = &models[F2LLM_80M_MODEL_KEY];
+        assert_eq!(
+            fallback_model["wasmRuntime"]["onnxUrl"],
+            "https://assets.jbotci.app/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx"
         );
     }
 

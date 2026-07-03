@@ -1,6 +1,7 @@
 //! Shared web/API view models and gentufa parser facade.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
@@ -1079,18 +1080,18 @@ pub const CUKTA_WEB_MAX_COUNT: usize = MAX_CUKTA_RESULT_COUNT;
 pub const WEB_EMBEDDING_MODEL_KEY: &str = jbotci_embedding_inputs::DEFAULT_MODEL_KEY;
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn embedding_worker_corpus_json() -> String {
-    embedding_input_corpus_json()
+#[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
+pub fn embedding_worker_corpus_json() -> Result<String, WebComputeError> {
+    embedding_input_corpus_json().map_err(|error| WebComputeError::embedding(error))
 }
 
 #[requires(!request_json.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|json| !json.is_empty()) || ret.is_err())]
 pub fn run_web_compute_request_json(request_json: &str) -> Result<String, WebComputeError> {
     let request = serde_json::from_str::<WebComputeRequest>(request_json)
-        .map_err(|error| WebComputeError::Json(error.to_string()))?;
+        .map_err(|error| WebComputeError::json(error))?;
     let response = run_web_compute_request(request)?;
-    serde_json::to_string(&response).map_err(|error| WebComputeError::Json(error.to_string()))
+    serde_json::to_string(&response).map_err(|error| WebComputeError::json(error))
 }
 
 #[requires(true)]
@@ -1149,7 +1150,7 @@ pub fn run_web_compute_request(
             Ok(WebComputeResponse::GimfihiPage { result, meta })
         }
         WebComputeRequest::EmbeddingCorpusJson => Ok(WebComputeResponse::EmbeddingCorpusJson {
-            json: embedding_worker_corpus_json(),
+            json: embedding_worker_corpus_json()?,
         }),
         WebComputeRequest::GentufaBlocksSvg {
             layout,
@@ -1162,8 +1163,8 @@ pub fn run_web_compute_request(
                 script,
                 GentufaExportFormat::Svg,
             )?;
-            let svg = String::from_utf8(export.bytes)
-                .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            let svg =
+                String::from_utf8(export.bytes).map_err(|error| WebComputeError::export(error))?;
             Ok(WebComputeResponse::GentufaBlocksSvg { svg })
         }
         WebComputeRequest::GentufaBlocksPng {
@@ -1691,16 +1692,47 @@ pub enum WebComputeResponse {
     },
 }
 
-#[derive(Debug, Error, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::Json(_) => true)]
-#[invariant(::Export(_) => true)]
-pub enum WebComputeError {
-    #[error("web compute JSON error: {0}")]
-    Json(String),
-    #[error("gentufa export failed: {0}")]
-    Export(String),
+#[invariant(!message.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WebComputeError {
+    message: String,
 }
+
+impl WebComputeError {
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn json(error: impl fmt::Display) -> Self {
+        Self::from_message(format!("web compute JSON error: {error}"))
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn export(error: impl fmt::Display) -> Self {
+        Self::from_message(format!("gentufa export failed: {error}"))
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn embedding(error: impl fmt::Display) -> Self {
+        Self::from_message(format!("embedding input export failed: {error}"))
+    }
+
+    #[requires(!message.is_empty())]
+    #[ensures(!ret.message.is_empty())]
+    fn from_message(message: String) -> Self {
+        new!(WebComputeError { message })
+    }
+}
+
+impl fmt::Display for WebComputeError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for WebComputeError {}
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2627,7 +2659,7 @@ pub fn render_gentufa_blocks_web_export(
                 &gentufa_svg_export_options(show_glosses, script),
                 jbotci_gentufa::EmbeddedGentufaFonts::get(),
             )
-            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            .map_err(|error| WebComputeError::export(error))?;
             let dimensions = svg_dimensions(&svg);
             Ok(GentufaWebExport {
                 content_type: gentufa_export_content_type(format).to_owned(),
@@ -2645,7 +2677,7 @@ pub fn render_gentufa_blocks_web_export(
                 },
                 jbotci_gentufa::EmbeddedGentufaFonts::get(),
             )
-            .map_err(|error| WebComputeError::Export(error.to_string()))?;
+            .map_err(|error| WebComputeError::export(error))?;
             let dimensions = png_dimensions(&bytes);
             Ok(GentufaWebExport {
                 content_type: gentufa_export_content_type(format).to_owned(),
@@ -2666,7 +2698,7 @@ pub fn render_gentufa_state_web_export(
 ) -> Result<GentufaWebExport, WebComputeError> {
     let state = normalize_gentufa_state(state);
     if state.text.is_empty() {
-        return Err(WebComputeError::Export(
+        return Err(WebComputeError::export(
             "gentufa export requires input text".to_owned(),
         ));
     }
@@ -2690,10 +2722,10 @@ pub fn render_gentufa_state_web_export(
             script,
             format,
         ),
-        GentufaWebResult::Blank => Err(WebComputeError::Export(
+        GentufaWebResult::Blank => Err(WebComputeError::export(
             "gentufa export requires input text".to_owned(),
         )),
-        GentufaWebResult::Error(error) => Err(WebComputeError::Export(
+        GentufaWebResult::Error(error) => Err(WebComputeError::export(
             gentufa_error_metadata_description(&error, &state.text),
         )),
     }
@@ -8498,7 +8530,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn embedding_worker_corpus_json_uses_browser_worker_schema() {
-        let json = embedding_worker_corpus_json();
+        let json = embedding_worker_corpus_json().expect("embedding worker corpus JSON");
         let value = serde_json::from_str::<serde_json::Value>(&json)
             .expect("embedding worker corpus should be valid JSON");
 

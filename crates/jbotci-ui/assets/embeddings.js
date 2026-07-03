@@ -1,20 +1,16 @@
 import { createWorkerClient } from "./worker-client.js";
+import { validateModelCatalog } from "./model-catalog.js";
 
 const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
 const LOG_PREFIX = "[jbotci embeddings]";
-const F2LLM_80M_MODEL_KEY = "f2llm-v2-80m-q4-320";
-const F2LLM_330M_MODEL_KEY = "f2llm-v2-330m-q4-896";
-const SUPPORTED_MODEL_KEYS = new Set([
-  F2LLM_80M_MODEL_KEY,
-  "f2llm-v2-160m-q4-640",
-  F2LLM_330M_MODEL_KEY,
-  "f2llm-v2-0.6b-q4-1024",
-]);
+const DEBUG_STORAGE_KEY = "jbotci.embedding.debug";
 
 const CHANNEL_STATUS = "embedding-status";
 const CHANNEL_SETUP = "embedding-setup";
 const CHANNEL_REMOVE = "embedding-remove";
 
+let configuredCatalog = null;
+let configuredCatalogKey = null;
 let configuredOrtModuleUrl = null;
 let configuredOrtWasmMjsUrl = null;
 let configuredOrtWasmUrl = null;
@@ -22,10 +18,33 @@ let configuredRemoteBaseUrl = DEFAULT_REMOTE_BASE_URL;
 let configuredModelKey = null;
 
 function logInfo(message, detail = null) {
+  if (!debugLoggingEnabled()) {
+    return;
+  }
   if (detail === null) {
     console.info(`${LOG_PREFIX} ${message}`);
   } else {
     console.info(`${LOG_PREFIX} ${message}`, detail);
+  }
+}
+
+function debugLoggingEnabled() {
+  if (globalThis.JBOTCI_EMBEDDING_DEBUG === true) {
+    return true;
+  }
+  try {
+    if (globalThis.localStorage?.getItem(DEBUG_STORAGE_KEY) === "1") {
+      return true;
+    }
+  } catch (_) {
+    // Ignore storage failures; this only controls optional diagnostics.
+  }
+  try {
+    return new URL(globalThis.location?.href || "http://localhost/")
+      .searchParams
+      .get("jbotci-embedding-debug") === "1";
+  } catch (_) {
+    return false;
   }
 }
 
@@ -34,7 +53,8 @@ function activeModelKey() {
 }
 
 function defaultModelKey() {
-  return isMobileDevice() ? F2LLM_80M_MODEL_KEY : F2LLM_330M_MODEL_KEY;
+  const catalog = requireCatalog();
+  return isMobileDevice() ? catalog.defaultMobileModelKey : catalog.defaultDesktopModelKey;
 }
 
 function isMobileDevice() {
@@ -47,12 +67,16 @@ function isMobileDevice() {
 }
 
 function workerConfig() {
+  const catalog = requireCatalog();
   return {
     modelKey: activeModelKey(),
+    modelCatalog: catalog,
+    catalogKey: configuredCatalogKey,
     remoteBaseUrl: configuredRemoteBaseUrl,
     ortModuleUrl: configuredOrtModuleUrl?.href || null,
     ortWasmMjsUrl: configuredOrtWasmMjsUrl?.href || null,
     ortWasmUrl: configuredOrtWasmUrl?.href || null,
+    debug: debugLoggingEnabled(),
     minIdleWorkers: 0,
     maxIdleWorkers: 1,
   };
@@ -65,6 +89,7 @@ const client = createWorkerClient({
   maxIdleWorkers: 1,
   workerConfig,
   contextKey: (config) => [
+    config.catalogKey,
     config.modelKey,
     config.ortModuleUrl,
     config.ortWasmMjsUrl,
@@ -75,11 +100,13 @@ const client = createWorkerClient({
     kind: "warm",
     mainModuleUrl: context.mainModuleUrl,
     payload: {
+      modelCatalog: context.config.modelCatalog,
       modelKey: context.config.modelKey,
       remoteBaseUrl: context.config.remoteBaseUrl,
       ortModuleUrl: context.config.ortModuleUrl,
       ortWasmMjsUrl: context.config.ortWasmMjsUrl,
       ortWasmUrl: context.config.ortWasmUrl,
+      debug: context.config.debug,
     },
   }),
   requestMessage: ({ id, payload, workerEntry }) => ({
@@ -87,11 +114,13 @@ const client = createWorkerClient({
     type: payload.type,
     payload: {
       ...payload.payload,
+      modelCatalog: workerEntry.config.modelCatalog,
       modelKey: workerEntry.config.modelKey,
       mainModuleUrl: workerEntry.mainModuleUrl,
       ortModuleUrl: workerEntry.config.ortModuleUrl,
       ortWasmMjsUrl: workerEntry.config.ortWasmMjsUrl,
       ortWasmUrl: workerEntry.config.ortWasmUrl,
+      debug: workerEntry.config.debug,
     },
   }),
 });
@@ -145,12 +174,40 @@ export function jbotciEmbeddingConfigureRemoteBase(remoteBaseUrl) {
   logInfo("configured remote base URL", { remoteBaseUrl: configuredRemoteBaseUrl });
 }
 
+export function jbotciEmbeddingConfigureCatalog(catalogJson) {
+  if (typeof catalogJson !== "string" || catalogJson.trim().length === 0) {
+    throw new Error("embedding model catalog JSON is empty");
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(catalogJson);
+  } catch (error) {
+    throw new Error(`invalid embedding model catalog JSON: ${errorMessage(error)}`);
+  }
+  const catalog = validateModelCatalog(parsed);
+  const catalogKey = JSON.stringify(catalog);
+  if (catalogKey === configuredCatalogKey) {
+    return;
+  }
+  configuredCatalog = catalog;
+  configuredCatalogKey = catalogKey;
+  if (configuredModelKey !== null && !catalog.models[configuredModelKey]) {
+    configuredModelKey = null;
+  }
+  client.terminateAllWorkers("embedding model catalog changed");
+  logInfo("configured model catalog", {
+    modelKeys: Object.keys(catalog.models),
+    defaultMobileModelKey: catalog.defaultMobileModelKey,
+    defaultDesktopModelKey: catalog.defaultDesktopModelKey,
+  });
+}
+
 export function jbotciEmbeddingConfigureModel(modelKey) {
   if (typeof modelKey !== "string" || modelKey.trim().length === 0) {
     throw new Error("embedding model key is empty");
   }
   const nextModelKey = modelKey.trim();
-  if (!SUPPORTED_MODEL_KEYS.has(nextModelKey)) {
+  if (!requireCatalog().models[nextModelKey]) {
     throw new Error(`unsupported embedding model key: ${nextModelKey}`);
   }
   if (configuredModelKey === nextModelKey) {
@@ -202,4 +259,15 @@ export function jbotciEmbeddingRemove() {
 
 export function jbotciEmbeddingSearch(channel, corpusId, query, limit, kindFiltersJson = "[]") {
   return request(channel, "search", { corpusId, query, limit, kindFiltersJson });
+}
+
+function requireCatalog() {
+  if (configuredCatalog === null) {
+    throw new Error("embedding model catalog has not been configured");
+  }
+  return configuredCatalog;
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
