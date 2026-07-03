@@ -10,7 +10,9 @@ use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
-use jbotci_syntax::{Token, WithIndicators, elidable_terminator_for_absent_field_ref};
+use jbotci_syntax::{
+    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
+};
 use jbotci_tree::{FieldRef, TreeVisitor};
 
 use crate::{
@@ -224,25 +226,25 @@ fn with_indicators_brackets(
     word: &WithIndicators<WordLike>,
     source: &BracketContext<'_>,
 ) -> sexpr::SExpr {
-    match word {
-        WithIndicators::Plain(word_like) => word_like_brackets(word_like, source),
-        WithIndicators::Emphasized {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => word_like_brackets(word_like, source),
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => {
+        }) => {
             let mut children = vec![word_leaf(bahe, source)];
             children.extend(extra_bahe.iter().map(|bahe| word_leaf(bahe, source)));
             children.push(word_like_brackets(word_like, source));
             sexpr::node(children)
         }
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             let mut children = vec![with_indicators_brackets(base, source)];
             children.extend(indicator_bahe.iter().map(|bahe| word_leaf(bahe, source)));
             children.push(word_leaf(indicator, source));

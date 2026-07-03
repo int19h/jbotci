@@ -2,7 +2,7 @@
 
 pub mod tree;
 pub use tree::{
-    Token, WithIndicators, elidable_terminator_for_absent_field,
+    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field,
     elidable_terminator_for_absent_field_ref,
 };
 

@@ -77,7 +77,7 @@ use jbotci_syntax::generated_model::{
     ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
     ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
 };
-use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators};
+use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
 
 use crate::builder::{
@@ -41532,15 +41532,15 @@ fn indicator_parts_for_with_indicators(
     indicators: &WithIndicators<WordLike>,
     out: &mut Vec<IndicatorPart>,
 ) {
-    match indicators {
-        WithIndicators::Plain(_) | WithIndicators::Emphasized { .. } => {}
-        WithIndicators::WithIndicator {
+    match indicators.as_data() {
+        data!(WithIndicators::Plain(_)) | data!(WithIndicators::Emphasized { .. }) => {}
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             indicator_parts_for_with_indicators(base, out);
             let Some(cmavo) = indicator.cmavo() else {
                 return;
@@ -41558,7 +41558,7 @@ fn indicator_parts_for_with_indicators(
     }
 }
 
-#[requires(bahe.iter().all(|word| word.is_selmaho(Selmaho::Bahe)))]
+#[requires(bahe.iter().all(|word| word.is_one_of_cmavo(&[Cmavo::Bahe, Cmavo::Zahe])))]
 #[ensures(true)]
 fn token_with_bahe_prefix(bahe: &[Word], word: &Word) -> Token {
     if let Some((first_bahe, extra_bahe)) = bahe.split_first() {
@@ -42004,11 +42004,13 @@ fn token_has_indicator_cmavo(token: &Token, cmavo: Cmavo) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn indicators_have_indicator_cmavo(indicators: &WithIndicators<WordLike>, cmavo: Cmavo) -> bool {
-    match indicators {
-        WithIndicators::Plain(_) | WithIndicators::Emphasized { .. } => false,
-        WithIndicators::WithIndicator {
-            base, indicator, ..
-        } => indicator.cmavo() == Some(cmavo) || indicators_have_indicator_cmavo(base, cmavo),
+    match indicators.as_data() {
+        data!(WithIndicators::Plain(_)) | data!(WithIndicators::Emphasized { .. }) => false,
+        data!(WithIndicators::WithIndicator {
+            base,
+            indicator,
+            ..
+        }) => indicator.cmavo() == Some(cmavo) || indicators_have_indicator_cmavo(base, cmavo),
     }
 }
 

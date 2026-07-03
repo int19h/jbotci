@@ -1508,16 +1508,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "diagnostic enum records parser error location and message",
     ),
     (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::Emphasized",
-        "constructor contracts enforce BAhE while generic payload owns word validity",
-    ),
-    (
         "crates/jbotci-syntax/src/tree.rs:WithIndicators::Plain",
-        "generic wrapper delegates word validity to the payload type",
-    ),
-    (
-        "crates/jbotci-syntax/src/tree.rs:WithIndicators::WithIndicator",
-        "constructor contracts enforce UI/CAI/Y and NAI marker shape",
+        "plain indicator wrapper carries only the generic payload; payload invariants are owned by its type",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:Recovered::Error",

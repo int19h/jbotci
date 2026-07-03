@@ -1,7 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, data, ensures, invariant, requires};
 use jbotci_morphology::{
     Cmavo, Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike,
 };
@@ -16,7 +16,8 @@ use jbotci_syntax::generated_model::{
     TreeNode as GeneratedSyntaxAstTreeNode,
 };
 use jbotci_syntax::{
-    Token, WithIndicators, elidable_terminator_for_absent_field_ref, tree::WithFreeModifiers,
+    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
+    tree::WithFreeModifiers,
 };
 use jbotci_tree::{FieldRef, TreeVisitor};
 
@@ -290,13 +291,15 @@ fn with_indicators_tree_value(
     source: &str,
     options: TreeRenderOptions,
 ) -> TreeValue {
-    match word {
-        WithIndicators::Plain(word_like) => morphology_tree_value(word_like, source, options),
-        WithIndicators::Emphasized {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => {
+            morphology_tree_value(word_like, source, options)
+        }
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => {
+        }) => {
             let mut entries = vec![TreeEntry {
                 label: Some("bahe"),
                 value: word_tree_value(bahe, source, options),
@@ -321,13 +324,13 @@ fn with_indicators_tree_value(
                 entries,
             })
         }
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             let mut entries = vec![
                 TreeEntry {
                     label: None,

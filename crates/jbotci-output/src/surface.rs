@@ -4,7 +4,7 @@ use jbotci_morphology::{
     WordLike, WordLikeData, segment_words_for_display_with_options,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
-use jbotci_syntax::{Token, WithIndicators};
+use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -124,9 +124,11 @@ pub(crate) fn format_word_like_with_options(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn is_compound_with_indicators(word: &Token) -> bool {
-    match word.as_indicators() {
-        WithIndicators::Emphasized { .. } | WithIndicators::WithIndicator { .. } => true,
-        WithIndicators::Plain(word_like) => match word_like.as_data() {
+    match word.as_indicators().as_data() {
+        data!(WithIndicators::Emphasized { .. }) | data!(WithIndicators::WithIndicator { .. }) => {
+            true
+        }
+        data!(WithIndicators::Plain(word_like)) => match word_like.as_data() {
             data!(WordLike::PlainWord(..)) => false,
             data!(WordLike::QuotedWord { .. })
             | data!(WordLike::DelimitedNonLojbanQuote { .. })
@@ -278,13 +280,15 @@ fn flatten_with_indicators_surface(
     source: &str,
     options: PhonemeRenderOptions,
 ) -> Vec<SurfaceChunk> {
-    match word {
-        WithIndicators::Plain(word_like) => flatten_word_like_surface(word_like, source, options),
-        WithIndicators::Emphasized {
+    match word.as_data() {
+        data!(WithIndicators::Plain(word_like)) => {
+            flatten_word_like_surface(word_like, source, options)
+        }
+        data!(WithIndicators::Emphasized {
             bahe,
             extra_bahe,
             word_like,
-        } => {
+        }) => {
             let mut chunks = vec![SurfaceChunk::Word(render_word(bahe, options))];
             chunks.extend(
                 extra_bahe
@@ -294,13 +298,13 @@ fn flatten_with_indicators_surface(
             chunks.extend(flatten_word_like_surface(word_like, source, options));
             chunks
         }
-        WithIndicators::WithIndicator {
+        data!(WithIndicators::WithIndicator {
             base,
             indicator_bahe,
             indicator,
             nai_bahe,
             nai,
-        } => {
+        }) => {
             let mut chunks = flatten_with_indicators_surface(base, source, options);
             for bahe in indicator_bahe {
                 chunks.push(SurfaceChunk::Word(render_word(bahe, options)));

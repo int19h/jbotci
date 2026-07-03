@@ -27,7 +27,7 @@ use jbotci_syntax::generated_model::{
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
 use jbotci_syntax::tree::Token;
-use jbotci_syntax::{WithIndicators, elidable_terminator_for_absent_field_ref};
+use jbotci_syntax::{WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref};
 use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 
@@ -555,26 +555,26 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
     #[requires(true)]
     #[ensures(true)]
     fn push_with_indicators(&mut self, value: &WithIndicators<WordLike>) {
-        match value {
-            WithIndicators::Plain(word_like) => self.push_word_like(word_like),
-            WithIndicators::Emphasized {
+        match value.as_data() {
+            data!(WithIndicators::Plain(word_like)) => self.push_word_like(word_like),
+            data!(WithIndicators::Emphasized {
                 bahe,
                 extra_bahe,
                 word_like,
-            } => {
+            }) => {
                 self.push_word(bahe);
                 for bahe in extra_bahe {
                     self.push_word(bahe);
                 }
                 self.push_word_like(word_like);
             }
-            WithIndicators::WithIndicator {
+            data!(WithIndicators::WithIndicator {
                 base,
                 indicator_bahe,
                 indicator,
                 nai_bahe,
                 nai,
-            } => {
+            }) => {
                 self.push_with_indicators(base);
                 for bahe in indicator_bahe {
                     self.push_word(bahe);

@@ -1201,15 +1201,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
-        "parser state is mutable chumsky inspector state",
+        "mutable parser inspector state uses impl invariants for parser-location and memo-key relationships",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccess",
-        "syntax memo entries are written only after successful parser advancement and replayed by memoized_rule",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
