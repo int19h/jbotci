@@ -1261,14 +1261,14 @@ impl SemanticObject {
         object
     }
 
-    #[requires(literal.is_some() || operator.as_ref().is_some_and(|operator| !operator.is_empty()))]
+    #[requires(literal.is_some() || operator.is_some())]
     #[requires(literal.is_some() == operands.is_empty())]
     #[requires(operands
         .iter()
         .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_expression(
-        operator: Option<String>,
+        operator: Option<MathOperator>,
         operands: Vec<SemanticObjectId>,
         literal: Option<MathLiteral>,
         source: Option<SemanticSource>,
@@ -1283,14 +1283,14 @@ impl SemanticObject {
         object
     }
 
-    #[requires(operator.ends_with("Interval"))]
+    #[requires(operator.is_interval())]
     #[requires(!operands.is_empty())]
     #[requires(operands
         .iter()
         .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_interval_expression(
-        operator: String,
+        operator: MathOperator,
         operands: Vec<SemanticObjectId>,
         endpoint_inclusion: Option<IntervalEndpointInclusion>,
         source: Option<SemanticSource>,
@@ -1332,7 +1332,7 @@ impl SemanticObject {
             None,
             Vec::new(),
             Some(MathLiteral::text(
-                "sumtiOperand".to_owned(),
+                MathLiteralKind::SumtiOperand,
                 "mo'e".to_owned(),
             )),
             source,
@@ -1353,7 +1353,7 @@ impl SemanticObject {
             None,
             Vec::new(),
             Some(MathLiteral::text(
-                "selbriOperand".to_owned(),
+                MathLiteralKind::SelbriOperand,
                 "ni'e".to_owned(),
             )),
             source,
@@ -2317,7 +2317,7 @@ impl IntervalModifier {
 }
 
 #[invariant(!introduced_by.is_empty(), "recurrence connection source marker must be named")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecurrenceConnection {
     pub kind: RecurrenceConnectionKind,
@@ -2336,14 +2336,14 @@ impl RecurrenceConnection {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecurrenceConnectionKind {
     Product,
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecurrenceKind {
     OccurrenceCount,
@@ -2511,11 +2511,11 @@ pub enum IndexicalKind {
     DistalDemonstrative,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(!word.is_empty() || *kind == DescriptorKind::Description, "only bare descriptions may omit a descriptor word")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Descriptor {
-    pub kind: String,
+    pub kind: DescriptorKind,
     pub word: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub speaker: Option<SemanticObjectId>,
@@ -2553,6 +2553,45 @@ impl Descriptor {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub enum DescriptorKind {
+    Number,
+    Name,
+    MassName,
+    SetName,
+    SpeakerDescription,
+    Scale,
+    ProSumti,
+    UnloweredSumti,
+    Description,
+    VeridicalDescription,
+    VeridicalMassDescription,
+    VeridicalSetDescription,
+    SpeakerMassDescription,
+    SpeakerSetDescription,
+    SpeakerStereotypeDescription,
+    MassNameDescription,
+    SetNameDescription,
+    TypicalDescription,
+    TypicalPlaceValue,
+    UtteranceReference,
+    Elided,
+    AbstractionAbout,
+    ReferentOfSymbol,
+    SymbolForReferent,
+    MemberOf,
+    SetFrom,
+    MassFrom,
+    SequenceFrom,
+    QualifiedSumti,
+    OppositeOf,
+    NeutralOf,
+    AffirmedAs,
+    OtherThan,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DescriptorDefiniteness {
     AffirmedPoint,
     IndefiniteAlternative,
@@ -2560,17 +2599,16 @@ pub enum DescriptorDefiniteness {
     UniqueExtreme,
 }
 
-#[invariant(!operator.is_empty(), "composition operator must be named")]
 #[invariant(members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "composition members must be semantic objects that can fill an argument")]
 #[invariant(excluded_members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "excluded composition members must be semantic objects that can fill an argument")]
-#[invariant(endpoint_inclusion.is_none() || operator.ends_with("Interval"), "endpoint inclusion only applies to interval compositions")]
-#[invariant(*complement != Some(true) || operator.ends_with("Interval"), "composition complements are interval complements")]
-#[invariant((operator == "connectiveQuestion") == operator_parameter.is_some(), "connective-question compositions must carry exactly one operator parameter")]
+#[invariant(endpoint_inclusion.is_none() || operator.is_interval(), "endpoint inclusion only applies to interval compositions")]
+#[invariant(*complement != Some(true) || operator.is_interval(), "composition complements are interval complements")]
+#[invariant((*operator == CompositionOperator::ConnectiveQuestion) == operator_parameter.is_some(), "connective-question compositions must carry exactly one operator parameter")]
 #[invariant(operator_parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter), "composition operator parameter must be a parameter object")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Composition {
-    pub operator: String,
+    pub operator: CompositionOperator,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operator_parameter: Option<SemanticObjectId>,
     pub members: Vec<SemanticObjectId>,
@@ -2584,6 +2622,60 @@ pub struct Composition {
     pub complement: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint_inclusion: Option<IntervalEndpointInclusion>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CompositionOperator {
+    ConnectiveQuestion,
+    Joint,
+    Mass,
+    Set,
+    Sequence,
+    Respectively,
+    Union,
+    Intersection,
+    CrossProduct,
+    UnorderedInterval,
+    OrderedInterval,
+    CenteredInterval,
+}
+
+impl CompositionOperator {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ConnectiveQuestion => "connectiveQuestion",
+            Self::Joint => "joint",
+            Self::Mass => "mass",
+            Self::Set => "set",
+            Self::Sequence => "sequence",
+            Self::Respectively => "respectively",
+            Self::Union => "union",
+            Self::Intersection => "intersection",
+            Self::CrossProduct => "crossProduct",
+            Self::UnorderedInterval => "unorderedInterval",
+            Self::OrderedInterval => "orderedInterval",
+            Self::CenteredInterval => "centeredInterval",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::UnorderedInterval | Self::OrderedInterval | Self::CenteredInterval))]
+    pub fn is_interval(self) -> bool {
+        matches!(
+            self,
+            Self::UnorderedInterval | Self::OrderedInterval | Self::CenteredInterval
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self == Self::Mass))]
+    pub fn is_mass(self) -> bool {
+        self == Self::Mass
+    }
 }
 
 #[invariant(true)]
@@ -2914,7 +3006,7 @@ impl PlaceQuestionBinding {
 }
 
 #[invariant(!introduced_by.is_empty(), "modal negation source marker must be named")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalNegation {
     pub kind: ModalNegationKind,
@@ -2933,7 +3025,7 @@ impl ModalNegation {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ModalNegationKind {
     Contradictory,
@@ -3220,11 +3312,11 @@ pub enum ScalarNegationKind {
 }
 
 #[invariant(::Formula(_) => true)]
-#[invariant(::Math(operator) => !operator.is_empty())]
+#[invariant(::Math(operator) => !operator.label().is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SemanticOperator {
     Formula(FormulaOperator),
-    Math(String),
+    Math(MathOperator),
 }
 
 impl SemanticOperator {
@@ -3234,9 +3326,9 @@ impl SemanticOperator {
         Self::from_data(data!(SemanticOperator::Formula(operator)))
     }
 
-    #[requires(!operator.is_empty())]
+    #[requires(true)]
     #[ensures(matches!(ret.as_data(), data!(SemanticOperator::Math(_))))]
-    fn math(operator: String) -> Self {
+    fn math(operator: MathOperator) -> Self {
         Self::from_data(data!(SemanticOperator::Math(operator)))
     }
 }
@@ -3250,8 +3342,109 @@ impl Serialize for SemanticOperator {
     {
         match self.as_data() {
             data!(SemanticOperator::Formula(operator)) => operator.serialize(serializer),
-            data!(SemanticOperator::Math(operator)) => serializer.serialize_str(operator),
+            data!(SemanticOperator::Math(operator)) => operator.serialize(serializer),
         }
+    }
+}
+
+#[invariant(::Named(label) => !label.is_empty() && MathOperator::known_label(label).is_none())]
+#[invariant(::Add => self.label() == "add")]
+#[invariant(::Multiply => self.label() == "multiply")]
+#[invariant(::Power => self.label() == "power")]
+#[invariant(::Subtract => self.label() == "subtract")]
+#[invariant(::Divide => self.label() == "divide")]
+#[invariant(::Base => self.label() == "base")]
+#[invariant(::BoGroup => self.label() == "boGroup")]
+#[invariant(::OperandGroup => self.label() == "operandGroup")]
+#[invariant(::Array => self.label() == "array")]
+#[invariant(::UnorderedInterval => self.label() == "unorderedInterval" && self.is_interval())]
+#[invariant(::OrderedInterval => self.label() == "orderedInterval" && self.is_interval())]
+#[invariant(::CenteredInterval => self.label() == "centeredInterval" && self.is_interval())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MathOperator {
+    Add,
+    Multiply,
+    Power,
+    Subtract,
+    Divide,
+    Base,
+    BoGroup,
+    OperandGroup,
+    Array,
+    UnorderedInterval,
+    OrderedInterval,
+    CenteredInterval,
+    Named(String),
+}
+
+impl MathOperator {
+    #[requires(!label.is_empty())]
+    #[ensures(true)]
+    pub fn from_label(label: String) -> Self {
+        Self::known_label(&label)
+            .unwrap_or_else(|| Self::from_data(data!(MathOperator::Named(label))))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn known_label(label: &str) -> Option<Self> {
+        match label {
+            "add" => Some(new!(MathOperator::Add)),
+            "multiply" => Some(new!(MathOperator::Multiply)),
+            "power" => Some(new!(MathOperator::Power)),
+            "subtract" => Some(new!(MathOperator::Subtract)),
+            "divide" => Some(new!(MathOperator::Divide)),
+            "base" => Some(new!(MathOperator::Base)),
+            "boGroup" => Some(new!(MathOperator::BoGroup)),
+            "operandGroup" => Some(new!(MathOperator::OperandGroup)),
+            "array" => Some(new!(MathOperator::Array)),
+            "unorderedInterval" => Some(new!(MathOperator::UnorderedInterval)),
+            "orderedInterval" => Some(new!(MathOperator::OrderedInterval)),
+            "centeredInterval" => Some(new!(MathOperator::CenteredInterval)),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(&self) -> &str {
+        match self.as_data() {
+            data!(MathOperator::Add) => "add",
+            data!(MathOperator::Multiply) => "multiply",
+            data!(MathOperator::Power) => "power",
+            data!(MathOperator::Subtract) => "subtract",
+            data!(MathOperator::Divide) => "divide",
+            data!(MathOperator::Base) => "base",
+            data!(MathOperator::BoGroup) => "boGroup",
+            data!(MathOperator::OperandGroup) => "operandGroup",
+            data!(MathOperator::Array) => "array",
+            data!(MathOperator::UnorderedInterval) => "unorderedInterval",
+            data!(MathOperator::OrderedInterval) => "orderedInterval",
+            data!(MathOperator::CenteredInterval) => "centeredInterval",
+            data!(MathOperator::Named(label)) => label,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(MathOperator::UnorderedInterval) | data!(MathOperator::OrderedInterval) | data!(MathOperator::CenteredInterval)))]
+    pub fn is_interval(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(MathOperator::UnorderedInterval)
+                | data!(MathOperator::OrderedInterval)
+                | data!(MathOperator::CenteredInterval)
+        )
+    }
+}
+
+impl Serialize for MathOperator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.label())
     }
 }
 
@@ -3648,27 +3841,30 @@ impl Subscript {
     }
 }
 
-#[invariant(!kind.is_empty(), "math literal kind must be named")]
+#[invariant((*kind == MathLiteralKind::Integer) == matches!(value.as_data(), data!(MathLiteralValue::Integer(_))), "integer math literals must carry an integer value")]
+#[invariant((*kind == MathLiteralKind::MixedRadix) == matches!(value.as_data(), data!(MathLiteralValue::MixedRadix(_))), "mixed-radix math literals must carry mixed-radix values")]
+#[invariant(kind.is_text() == matches!(value.as_data(), data!(MathLiteralValue::Text(_))), "text math literal kinds must carry text values")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MathLiteral {
-    pub kind: String,
+    pub kind: MathLiteralKind,
     pub value: MathLiteralValue,
 }
 
 impl MathLiteral {
     #[requires(true)]
-    #[ensures(ret.kind == "integer")]
+    #[ensures(ret.kind == MathLiteralKind::Integer)]
     pub fn integer(value: i64) -> Self {
         Self::from_data(data!(MathLiteral {
-            kind: "integer".to_owned(),
+            kind: MathLiteralKind::Integer,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::Integer(value))),
         }))
     }
 
+    #[requires(kind.is_text())]
     #[requires(!value.is_empty())]
     #[ensures(ret.kind == old(kind.clone()))]
-    pub fn text(kind: String, value: String) -> Self {
+    pub fn text(kind: MathLiteralKind, value: String) -> Self {
         Self::from_data(data!(MathLiteral {
             kind,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::Text(value))),
@@ -3676,14 +3872,36 @@ impl MathLiteral {
     }
 
     #[requires(components.len() >= 2)]
-    #[ensures(ret.kind == "mixedRadix")]
+    #[ensures(ret.kind == MathLiteralKind::MixedRadix)]
     pub fn mixed_radix(components: Vec<MixedRadixComponent>) -> Self {
         Self::from_data(data!(MathLiteral {
-            kind: "mixedRadix".to_owned(),
+            kind: MathLiteralKind::MixedRadix,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::MixedRadix(
                 MixedRadixLiteral::from_data(data!(MixedRadixLiteral { components }))
             ))),
         }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MathLiteralKind {
+    Integer,
+    Decimal,
+    Number,
+    SumtiOperand,
+    SelbriOperand,
+    Expression,
+    Variable,
+    MixedRadix,
+}
+
+impl MathLiteralKind {
+    #[requires(true)]
+    #[ensures(ret == !matches!(self, Self::Integer | Self::MixedRadix))]
+    pub fn is_text(self) -> bool {
+        !matches!(self, Self::Integer | Self::MixedRadix)
     }
 }
 
@@ -4301,9 +4519,9 @@ fn composition_operator_parameter_is_valid(
     composition: &Composition,
 ) -> bool {
     let Some(parameter) = composition.operator_parameter else {
-        return composition.operator != "connectiveQuestion";
+        return composition.operator != CompositionOperator::ConnectiveQuestion;
     };
-    composition.operator == "connectiveQuestion"
+    composition.operator == CompositionOperator::ConnectiveQuestion
         && parameter_has_sort_and_role(
             objects,
             parameter,
@@ -4403,7 +4621,7 @@ fn math_endpoint_inclusion_matches_role(object: &SemanticObject) -> bool {
     object
         .operator
         .as_ref()
-        .is_some_and(|operator| matches!(operator.as_data(), data!(SemanticOperator::Math(operator)) if operator.ends_with("Interval")))
+        .is_some_and(|operator| matches!(operator.as_data(), data!(SemanticOperator::Math(operator)) if operator.is_interval()))
 }
 
 #[requires(true)]

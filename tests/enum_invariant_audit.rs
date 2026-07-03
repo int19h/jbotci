@@ -1268,6 +1268,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantityCacheValue::Integer",
+        "direct recurrence quantity cache integers are fully constrained by the i64 payload type",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::GohaWord",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),

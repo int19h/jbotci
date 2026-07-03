@@ -86,21 +86,22 @@ use crate::builder::{
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, AnchorMagnitude, AnchorRelation, AnchorRelationData,
     ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName, AssignedNameData,
-    CommandTarget, Composition, Connector, Descriptor, DescriptorDefiniteness,
-    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
-    DisplayedContentPolarity, DisplayedContentTargetFocus, EventualityClass, EventualitySort,
-    FormulaOperator, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
-    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral, MixedRadixComponent,
-    ModalArgument, ModalNegation, ModalNegationKind, NonlogicalConnection, ParameterRole,
-    PlaceIndex, PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm,
-    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole,
-    Quotation, RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection,
-    RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause,
-    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
-    SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort,
-    SequenceRelation, SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind,
-    Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
-    TimeSpan, TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
+    CommandTarget, Composition, CompositionOperator, Connector, Descriptor, DescriptorDefiniteness,
+    DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
+    DisplayedContentModifier, DisplayedContentPolarity, DisplayedContentTargetFocus,
+    EventualityClass, EventualitySort, FormulaOperator, IndexicalKind, IntervalEndpointInclusion,
+    IntervalModifier, IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral,
+    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
+    ModalNegation, ModalNegationKind, NonlogicalConnection, ParameterRole, PlaceIndex,
+    PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm, QuantityScale,
+    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
+    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
+    RecurrenceKind, ReferentCategory, RelationExpansion, RelativeClause, RelativeClauseKind,
+    RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph,
+    SemanticObject, SemanticObjectId, SemanticOperatorData, SemanticSort, SequenceRelation,
+    SignKind, SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript,
+    TanruLink, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval, TimeSpan,
+    TimeSpanEndpoint, UtteranceForce, argument_object_kind_can_fill, diagnostic,
     displayed_content_target_kind_is_allowed, source_from_spans,
 };
 
@@ -634,6 +635,94 @@ struct GeneratedRecurrenceEventModifiers {
 enum GeneratedRecurrenceQuantity {
     Object(SemanticObjectId),
     Value(QuantityValue),
+}
+
+type GeneratedRecurrenceQuantityCache =
+    BTreeMap<GeneratedRecurrenceQuantityCacheKey, SemanticObjectId>;
+
+#[invariant(!introduced_by.is_empty(), "recurrence quantity cache marker must be named")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct GeneratedRecurrenceQuantityCacheKey {
+    kind: RecurrenceKind,
+    introduced_by: String,
+    connection: Option<RecurrenceConnection>,
+    value: GeneratedRecurrenceQuantityCacheValue,
+    negation: Option<ModalNegation>,
+}
+
+impl GeneratedRecurrenceQuantityCacheKey {
+    #[requires(recurrence.value.is_some())]
+    #[ensures(!ret.introduced_by.is_empty())]
+    fn from_recurrence(recurrence: &Recurrence) -> Self {
+        let value = recurrence
+            .value
+            .as_ref()
+            .expect("checked by recurrence cache-key precondition");
+        Self::new(
+            recurrence.kind,
+            recurrence.introduced_by.clone(),
+            recurrence.connection.clone(),
+            GeneratedRecurrenceQuantityCacheValue::from_quantity_value(value),
+            recurrence.negation.clone(),
+        )
+    }
+
+    #[requires(!introduced_by.is_empty())]
+    #[ensures(ret.introduced_by == old(introduced_by.clone()))]
+    fn new(
+        kind: RecurrenceKind,
+        introduced_by: String,
+        connection: Option<RecurrenceConnection>,
+        value: GeneratedRecurrenceQuantityCacheValue,
+        negation: Option<ModalNegation>,
+    ) -> Self {
+        Self::from_data(data!(GeneratedRecurrenceQuantityCacheKey {
+            kind,
+            introduced_by,
+            connection,
+            value,
+            negation,
+        }))
+    }
+}
+
+#[invariant(::Integer(_) => true)]
+#[invariant(::ParsedInteger { text, .. } => !text.is_empty(), "parsed recurrence integers keep their source text in the cache key")]
+#[invariant(::Text(text) => !text.is_empty())]
+#[invariant(::MathExpression(math_expression) => math_expression.object_kind() == crate::model::SemanticObjectKind::MathExpression)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum GeneratedRecurrenceQuantityCacheValue {
+    Integer(i64),
+    ParsedInteger { text: String, integer: i64 },
+    Text(String),
+    MathExpression(SemanticObjectId),
+}
+
+impl GeneratedRecurrenceQuantityCacheValue {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_quantity_value(value: &QuantityValue) -> Self {
+        if let Some(integer) = value.integer {
+            return new!(GeneratedRecurrenceQuantityCacheValue::Integer(integer));
+        }
+        if let Some(text) = &value.text {
+            return new!(GeneratedRecurrenceQuantityCacheValue::Text(text.clone()));
+        }
+        let math_expression = value
+            .math_expression
+            .expect("quantity values always carry exactly one payload");
+        new!(GeneratedRecurrenceQuantityCacheValue::MathExpression(
+            math_expression
+        ))
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn parsed_integer(text: String, integer: i64) -> Self {
+        Self::from_data(data!(
+            GeneratedRecurrenceQuantityCacheValue::ParsedInteger { text, integer }
+        ))
+    }
 }
 
 #[invariant(true)]
@@ -1712,7 +1801,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Number,
                 None,
                 Some(new!(Descriptor {
-                    kind: "number".to_owned(),
+                    kind: DescriptorKind::Number,
                     word: "mex".to_owned(),
                     speaker: None,
                     body: None,
@@ -3187,7 +3276,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticSort::Entity,
             None,
             Some(new!(Descriptor {
-                kind: "name".to_owned(),
+                kind: DescriptorKind::Name,
                 word: "la".to_owned(),
                 speaker: Some(self.current_speaker()),
                 body: None,
@@ -3241,7 +3330,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "speakerDescription".to_owned(),
+                    kind: DescriptorKind::SpeakerDescription,
                     word: "le".to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: Some(body),
@@ -7051,7 +7140,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     let operator = generated_nonlogical_statement_composition_operator(
                         &continuation.connective,
                     )?;
-                    let collective = (operator == "mass").then_some(true);
+                    let collective = operator.is_mass().then_some(true);
                     let endpoint_inclusion = generated_statement_connective_endpoint_inclusion(
                         &continuation.connective,
                         reverse_members,
@@ -7199,7 +7288,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     };
                     let operator =
                         generated_nonlogical_modal_forethought_composition_operator(&termset.gek)?;
-                    let collective = (operator == "mass").then_some(true);
+                    let collective = operator.is_mass().then_some(true);
                     let endpoint_inclusion =
                         generated_modal_forethought_connective_endpoint_inclusion(
                             &termset.gek,
@@ -13188,7 +13277,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn promote_generated_interval_modifier_quantities(
         &mut self,
         modifiers: &mut [IntervalModifier],
-        quantity_cache: &mut BTreeMap<String, SemanticObjectId>,
+        quantity_cache: &mut GeneratedRecurrenceQuantityCache,
     ) -> Result<(), SemanticsError> {
         for modifier in modifiers {
             if let data!(IntervalModifier::Recurrence(recurrence)) = modifier.as_data() {
@@ -13205,7 +13294,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn promote_generated_recurrence_quantities(
         &mut self,
         recurrences: &mut [Recurrence],
-        quantity_cache: &mut BTreeMap<String, SemanticObjectId>,
+        quantity_cache: &mut GeneratedRecurrenceQuantityCache,
     ) -> Result<(), SemanticsError> {
         for recurrence in recurrences {
             self.promote_generated_recurrence_quantity(recurrence, quantity_cache)?;
@@ -13218,12 +13307,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     fn promote_generated_recurrence_quantity(
         &mut self,
         recurrence: &mut Recurrence,
-        quantity_cache: &mut BTreeMap<String, SemanticObjectId>,
+        quantity_cache: &mut GeneratedRecurrenceQuantityCache,
     ) -> Result<(), SemanticsError> {
         if recurrence.quantity.is_some() || recurrence.value.is_none() {
             return Ok(());
         }
-        let key = generated_recurrence_quantity_cache_key(recurrence);
+        let key = GeneratedRecurrenceQuantityCacheKey::from_recurrence(recurrence);
         if let Some(quantity) = quantity_cache.get(&key).copied() {
             *recurrence = recurrence.clone().with_data(data! {
                 quantity: Some(quantity),
@@ -14053,7 +14142,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return Err(unsupported("non-binary afterthought sumti distribution"));
         };
         let connector = generated_argument_connective_operator(&continuation.connective)?;
-        if connector != "joint" {
+        if connector != CompositionOperator::Joint {
             return Err(unsupported("non-joint afterthought sumti distribution"));
         }
         let relation = semantic_relation_label(relation_label_from_selbri(&simple_tail.selbri)?);
@@ -14809,8 +14898,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             return None;
         }
         let composition = object.composition.as_ref()?;
-        (composition.operator == "respectively" && !composition.members.is_empty())
-            .then(|| composition.members.clone())
+        (composition.operator == CompositionOperator::Respectively
+            && !composition.members.is_empty())
+        .then(|| composition.members.clone())
     }
 
     #[requires(!introduced_by.is_empty())]
@@ -17517,7 +17607,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             members.reverse();
         }
         let operator = generated_nonlogical_composition_operator(connective)?;
-        let collective = (operator == "mass").then_some(true);
+        let collective = operator.is_mass().then_some(true);
         let id = self.next_referent_with_sort_id(SemanticSort::Concept);
         self.insert(
             id,
@@ -19353,7 +19443,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Scale,
                 None,
                 Some(new!(Descriptor {
-                    kind: "scale".to_owned(),
+                    kind: DescriptorKind::Scale,
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -21406,7 +21496,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let mut next_property_is_spatial = false;
         let mut pending_recurrence_index = None::<(bool, usize, usize)>;
         let mut pending_recurrence_connection = None::<RecurrenceConnection>;
-        let mut quantity_cache = BTreeMap::<String, SemanticObjectId>::new();
+        let mut quantity_cache = GeneratedRecurrenceQuantityCache::new();
         for token in tokens {
             if token.is_cmavo(Cmavo::Fehe) {
                 pending_number_tokens.clear();
@@ -21461,9 +21551,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     None
                 } else {
                     let text = token_list_text(number_tokens.iter());
-                    let cache_key = format!("{kind:?}:{introduced_by}:{text}:{connection:?}");
                     let value = parse_generated_recurrence_integer(&number_tokens, &text);
                     let quantity = if let Some(value) = value {
+                        let cache_key = GeneratedRecurrenceQuantityCacheKey::new(
+                            kind,
+                            introduced_by.clone(),
+                            connection.clone(),
+                            GeneratedRecurrenceQuantityCacheValue::parsed_integer(
+                                text.clone(),
+                                value,
+                            ),
+                            None,
+                        );
                         let quantity = if let Some(quantity) =
                             quantity_cache.get(&cache_key).copied()
                         {
@@ -22106,7 +22205,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> bool {
         self.objects.get(&referent).is_some_and(|object| {
             object.descriptor.as_ref().is_some_and(|descriptor| {
-                descriptor.kind == "abstractionAbout"
+                descriptor.kind == DescriptorKind::AbstractionAbout
                     && descriptor.word == word
                     && descriptor.operand == Some(operand)
             })
@@ -23109,7 +23208,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 && object
                     .descriptor
                     .as_ref()
-                    .is_some_and(|descriptor| descriptor.kind == "elided")
+                    .is_some_and(|descriptor| descriptor.kind == DescriptorKind::Elided)
         })
     }
 
@@ -23150,7 +23249,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 sort,
                 None,
                 Some(new!(Descriptor {
-                    kind: "proSumti".to_owned(),
+                    kind: DescriptorKind::ProSumti,
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
                     body: None,
@@ -24469,7 +24568,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 sort,
                 None,
                 Some(new!(Descriptor {
-                    kind: scalar_negated_sumti_qualifier_kind(cmavo).to_owned(),
+                    kind: scalar_negated_sumti_qualifier_kind(cmavo),
                     word,
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -24519,7 +24618,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "unloweredSumti".to_owned(),
+                    kind: DescriptorKind::UnloweredSumti,
                     word: "sumti".to_owned(),
                     speaker: None,
                     body: None,
@@ -24590,7 +24689,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Number,
                 None,
                 Some(new!(Descriptor {
-                    kind: "number".to_owned(),
+                    kind: DescriptorKind::Number,
                     word: token_text(&li.value),
                     speaker: None,
                     body: None,
@@ -24890,7 +24989,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             );
         }
         self.build_generated_math_operator_expression(
-            generated_zantufa_mekso_operator_sequence_label(operators)?,
+            MathOperator::from_label(generated_zantufa_mekso_operator_sequence_label(operators)?),
             operands,
             source,
         )
@@ -24931,8 +25030,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             operators,
             replacement_operator,
         )?;
-        self.build_generated_math_operator_expression(label, operands, source)
-            .map(|id| (id, replaced))
+        self.build_generated_math_operator_expression(
+            MathOperator::from_label(label),
+            operands,
+            source,
+        )
+        .map(|id| (id, replaced))
     }
 
     #[requires(true)]
@@ -25085,7 +25188,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 operands.push(operand);
             }
         }
-        self.build_generated_math_operator_expression("boGroup".to_owned(), operands, source)
+        self.build_generated_math_operator_expression(new!(MathOperator::BoGroup), operands, source)
             .map(|id| (id, replaced))
     }
 
@@ -25113,8 +25216,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 operands.push(operand);
             }
         }
-        self.build_generated_math_operator_expression("operandGroup".to_owned(), operands, source)
-            .map(|id| (id, replaced))
+        self.build_generated_math_operator_expression(
+            new!(MathOperator::OperandGroup),
+            operands,
+            source,
+        )
+        .map(|id| (id, replaced))
     }
 
     #[requires(true)]
@@ -25255,7 +25362,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     )?
                 };
                 self.build_generated_math_operator_expression(
-                    generated_modal_forethought_connective_source(&operand.gek),
+                    MathOperator::from_label(generated_modal_forethought_connective_source(
+                        &operand.gek,
+                    )),
                     vec![left, right],
                     source,
                 )
@@ -25296,7 +25405,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     }
                 }
                 self.build_generated_math_operator_expression(
-                    "array".to_owned(),
+                    new!(MathOperator::Array),
                     built_expressions,
                     source,
                 )
@@ -25419,7 +25528,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for continuation in &group.continuations {
             operands.push(self.build_generated_mekso_operand(&continuation.expression, None)?);
         }
-        self.build_generated_math_operator_expression("boGroup".to_owned(), operands, source)
+        self.build_generated_math_operator_expression(new!(MathOperator::BoGroup), operands, source)
     }
 
     #[requires(true)]
@@ -25434,7 +25543,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .iter()
             .map(|operand| self.build_generated_mekso_operand(operand, None))
             .collect::<Result<Vec<_>, _>>()?;
-        self.build_generated_math_operator_expression("operandGroup".to_owned(), operands, source)
+        self.build_generated_math_operator_expression(
+            new!(MathOperator::OperandGroup),
+            operands,
+            source,
+        )
     }
 
     #[requires(true)]
@@ -25544,7 +25657,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 else {
                     return self.build_generated_math_literal(
                         MathLiteral::text(
-                            "selbriOperand".to_owned(),
+                            MathLiteralKind::SelbriOperand,
                             generated_selbri_surface_text(&operand.selbri)?,
                         ),
                         source,
@@ -25583,7 +25696,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let left = self.build_generated_mekso_operand(&operand.left_expression, None)?;
         let right = self.build_generated_mekso_operand(&operand.right_expression, None)?;
         self.build_generated_math_operator_expression(
-            generated_modal_forethought_connective_source(&operand.gek),
+            MathOperator::from_label(generated_modal_forethought_connective_source(&operand.gek)),
             vec![left, right],
             source,
         )
@@ -25710,7 +25823,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let Some(abstraction) = self.single_abstraction_from_selbri(&operand.selbri)? else {
             return self.build_generated_math_literal(
                 MathLiteral::text(
-                    "selbriOperand".to_owned(),
+                    MathLiteralKind::SelbriOperand,
                     generated_selbri_surface_text(&operand.selbri)?,
                 ),
                 source,
@@ -25740,7 +25853,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .iter()
             .map(|expression| self.build_generated_math_expression(expression, None))
             .collect::<Result<Vec<_>, _>>()?;
-        self.build_generated_math_operator_expression("array".to_owned(), operands, source)
+        self.build_generated_math_operator_expression(new!(MathOperator::Array), operands, source)
     }
 
     #[requires(true)]
@@ -25841,7 +25954,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_generated_math_literal(
             MathLiteral::text(
-                "expression".to_owned(),
+                MathLiteralKind::Expression,
                 generated_reverse_polish_surface_text(reverse_polish)?,
             ),
             source,
@@ -25869,7 +25982,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let tokens = generated_letter_string_tokens(&letter.letters);
         let value = generated_math_letteral_text(&tokens);
         let id = self.build_generated_math_literal(
-            MathLiteral::text("variable".to_owned(), value),
+            MathLiteral::text(MathLiteralKind::Variable, value),
             source,
         )?;
         self.attach_subscript_from_free_modifiers(id, &letter.free_modifiers)?;
@@ -26038,13 +26151,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.build_property_abstraction_output(body, vec![parameter], source)
     }
 
-    #[requires(!operator.is_empty())]
+    #[requires(true)]
     #[requires(!operands.is_empty())]
     #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     fn build_generated_math_operator_expression(
         &mut self,
-        operator: String,
+        operator: MathOperator,
         operands: Vec<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -26080,13 +26193,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         )
     }
 
-    #[requires(operator.ends_with("Interval"))]
+    #[requires(operator.is_interval())]
     #[requires(!operands.is_empty())]
     #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     fn build_generated_math_interval_expression(
         &mut self,
-        operator: String,
+        operator: MathOperator,
         operands: Vec<SemanticObjectId>,
         endpoint_inclusion: Option<IntervalEndpointInclusion>,
         source: Option<crate::model::SemanticSource>,
@@ -26222,7 +26335,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 sort,
                 None,
                 Some(new!(Descriptor {
-                    kind: referent_qualifier_kind(sumti.lahe.value.cmavo()).to_owned(),
+                    kind: referent_qualifier_kind(sumti.lahe.value.cmavo()),
                     word: token_text(&sumti.lahe.value),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -26257,7 +26370,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "description".to_owned(),
+                    kind: DescriptorKind::Description,
                     word: String::new(),
                     speaker: None,
                     body: None,
@@ -26318,9 +26431,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && generated_argument_connective_negates_right(connective))
         .then_some(true);
         let operator = if operator_parameter.is_some() {
-            "connectiveQuestion".to_owned()
+            CompositionOperator::ConnectiveQuestion
         } else if logical_connective {
-            "joint".to_owned()
+            CompositionOperator::Joint
         } else {
             generated_nonlogical_argument_composition_operator(connective)?
         };
@@ -26341,7 +26454,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             Vec::new()
         };
-        let collective = (operator == "mass").then_some(true);
+        let collective = operator.is_mass().then_some(true);
         let endpoint_inclusion =
             generated_argument_connective_endpoint_inclusion(connective, reverse_members);
         let id = self.next_referent_id();
@@ -26424,9 +26537,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             && gik.nai.is_some())
         .then_some(true);
         let operator = if operator_parameter.is_some() {
-            "connectiveQuestion".to_owned()
+            CompositionOperator::ConnectiveQuestion
         } else if logical_connective {
-            "joint".to_owned()
+            CompositionOperator::Joint
         } else {
             generated_nonlogical_modal_forethought_composition_operator(connective)?
         };
@@ -26447,7 +26560,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             Vec::new()
         };
-        let collective = (operator == "mass").then_some(true);
+        let collective = operator.is_mass().then_some(true);
         let endpoint_inclusion =
             generated_modal_forethought_connective_endpoint_inclusion(connective, reverse_members);
         let id = self.next_referent_id();
@@ -26491,9 +26604,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 connective,
             )?;
         let operator = if operator_parameter.is_some() {
-            "connectiveQuestion".to_owned()
+            CompositionOperator::ConnectiveQuestion
         } else if logical_connective {
-            "joint".to_owned()
+            CompositionOperator::Joint
         } else {
             generated_nonlogical_modal_forethought_composition_operator(connective)?
         };
@@ -26504,7 +26617,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         } else {
             (source, trailing)
         };
-        let collective = (operator == "mass").then_some(true);
+        let collective = operator.is_mass().then_some(true);
         let endpoint_inclusion =
             generated_modal_forethought_connective_endpoint_inclusion(connective, reverse_members);
         let id = self.next_referent_id();
@@ -26675,7 +26788,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "proSumti".to_owned(),
+                    kind: DescriptorKind::ProSumti,
                     word,
                     speaker: None,
                     body: None,
@@ -26814,7 +26927,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "proSumti".to_owned(),
+                    kind: DescriptorKind::ProSumti,
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
                     body: None,
@@ -26993,7 +27106,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "proSumti".to_owned(),
+                    kind: DescriptorKind::ProSumti,
                     word: token_text(&pro_sumti.0.value),
                     speaker: None,
                     body: None,
@@ -27035,7 +27148,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: "typicalPlaceValue".to_owned(),
+                    kind: DescriptorKind::TypicalPlaceValue,
                     word: token_text(&pro_sumti.0.value),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -27083,7 +27196,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             SemanticSort::Sign,
             None,
             Some(new!(Descriptor {
-                kind: "utteranceReference".to_owned(),
+                kind: DescriptorKind::UtteranceReference,
                 word,
                 speaker: Some(self.current_speaker()),
                 body: None,
@@ -27143,7 +27256,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 sort,
                 None,
                 Some(new!(Descriptor {
-                    kind: name_description_kind_for_cmavo(name.la.value.cmavo()).to_owned(),
+                    kind: name_description_kind_for_cmavo(name.la.value.cmavo()),
                     word: token_text(&name.la.value),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -27250,7 +27363,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let cmavo = description_head.0.value.cmavo();
         let word = token_text(&description_head.0.value);
-        let kind = description_kind_for_cmavo(cmavo).to_owned();
+        let kind = description_kind_for_cmavo(cmavo);
         if let Some(spec) = cmavo.and_then(aggregate_description_spec) {
             return self.build_generated_aggregate_description_referent(
                 description_node,
@@ -27406,7 +27519,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(id)
     }
 
-    #[requires(!kind.is_empty())]
     #[requires(!word.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_generated_aggregate_description_referent<N: TreeNode>(
@@ -27414,7 +27526,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         description_node: &N,
         tail: &DescriptionTailSyntax,
         spec: AggregateDescriptionSpec,
-        kind: String,
+        kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let relative_clauses = match tail.tail.as_ref() {
@@ -27528,7 +27640,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::Entity,
                 None,
                 Some(new!(Descriptor {
-                    kind: description_kind_for_cmavo(Some(spec.member_cmavo)).to_owned(),
+                    kind: description_kind_for_cmavo(Some(spec.member_cmavo)),
                     word: spec.member_word.to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -27644,7 +27756,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         ))
     }
 
-    #[requires(!kind.is_empty())]
     #[requires(!word.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     fn build_abstraction_description_output(
@@ -27652,7 +27763,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
         cmavo: Option<Cmavo>,
         abstraction: &AbstractionTanruUnitSyntax,
-        kind: String,
+        kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if !abstraction.abstractor_connections.is_empty() {
@@ -27690,7 +27801,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         Ok(id)
     }
 
-    #[requires(!kind.is_empty())]
     #[requires(!word.is_empty())]
     #[requires(!abstraction.abstractor_connections.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
@@ -27699,7 +27809,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         source: Option<crate::model::SemanticSource>,
         cmavo: Option<Cmavo>,
         abstraction: &AbstractionTanruUnitSyntax,
-        kind: String,
+        kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if abstraction.nai.is_some() {
@@ -28985,7 +29095,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 sort,
                 None,
                 Some(new!(Descriptor {
-                    kind: "elided".to_owned(),
+                    kind: DescriptorKind::Elided,
                     word: label,
                     speaker: None,
                     body: None,
@@ -29022,7 +29132,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 SemanticSort::eventuality(),
                 None,
                 Some(new!(Descriptor {
-                    kind: "abstractionAbout".to_owned(),
+                    kind: DescriptorKind::AbstractionAbout,
                     word: word.to_owned(),
                     speaker: Some(self.current_speaker()),
                     body: None,
@@ -34324,19 +34434,20 @@ fn generated_simple_mekso_operand_letteral_tokens<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-fn generated_math_operator_label(operator: &MeksoOperatorSyntax) -> Result<String, SemanticsError> {
+#[ensures(ret.is_ok() || ret.is_err())]
+fn generated_math_operator_label(
+    operator: &MeksoOperatorSyntax,
+) -> Result<MathOperator, SemanticsError> {
     let source = generated_mekso_operator_label(operator)?;
-    let label = match source.as_str() {
-        "su'i" => "add",
-        "pi'i" => "multiply",
-        "te'a" => "power",
-        "vu'u" => "subtract",
-        "fe'i" => "divide",
-        "ju'u" => "base",
-        _ => return Ok(source),
-    };
-    Ok(label.to_owned())
+    Ok(match source.as_str() {
+        "su'i" => new!(MathOperator::Add),
+        "pi'i" => new!(MathOperator::Multiply),
+        "te'a" => new!(MathOperator::Power),
+        "vu'u" => new!(MathOperator::Subtract),
+        "fe'i" => new!(MathOperator::Divide),
+        "ju'u" => new!(MathOperator::Base),
+        _ => MathOperator::from_label(source),
+    })
 }
 
 #[requires(true)]
@@ -34718,22 +34829,22 @@ fn generated_operand_connective_has_se(
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
+#[ensures(true)]
 fn generated_operand_connective_math_operator(
     connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
-) -> String {
-    generated_operand_connective_source(connective)
+) -> MathOperator {
+    MathOperator::from_label(generated_operand_connective_source(connective))
 }
 
 #[requires(generated_operand_connective_is_interval(connective))]
-#[ensures(ret.as_ref().is_ok_and(|operator| operator.ends_with("Interval")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|operator| operator.is_interval()) || ret.is_err())]
 fn generated_operand_connective_interval_operator(
     connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<MathOperator, SemanticsError> {
     match generated_operand_connective_primary_cmavo(connective) {
-        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
-        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
-        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
+        Some(Cmavo::Bihi) => Ok(new!(MathOperator::UnorderedInterval)),
+        Some(Cmavo::Biho) => Ok(new!(MathOperator::OrderedInterval)),
+        Some(Cmavo::Mihi) => Ok(new!(MathOperator::CenteredInterval)),
         _ => Err(unsupported("non-interval operand connective")),
     }
 }
@@ -35571,26 +35682,26 @@ fn generated_modal_forethought_connective_is_interval(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn generated_nonlogical_modal_forethought_composition_operator(
     connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<CompositionOperator, SemanticsError> {
     match generated_modal_forethought_connective_primary_cmavo(connective) {
-        Some(Cmavo::Johu) => Ok("joint".to_owned()),
-        Some(Cmavo::Joi) => Ok("mass".to_owned()),
-        Some(Cmavo::Ce) => Ok("set".to_owned()),
-        Some(Cmavo::Ceho) => Ok("sequence".to_owned()),
-        Some(Cmavo::Fahu) => Ok("respectively".to_owned()),
-        Some(Cmavo::Johe) => Ok("union".to_owned()),
-        Some(Cmavo::Kuha) => Ok("intersection".to_owned()),
-        Some(Cmavo::Pihu) => Ok("crossProduct".to_owned()),
-        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
-        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
-        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
-        _ => Ok(format!(
-            "nonlogical:{}",
+        Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
+        Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
+        Some(Cmavo::Ce) => Ok(CompositionOperator::Set),
+        Some(Cmavo::Ceho) => Ok(CompositionOperator::Sequence),
+        Some(Cmavo::Fahu) => Ok(CompositionOperator::Respectively),
+        Some(Cmavo::Johe) => Ok(CompositionOperator::Union),
+        Some(Cmavo::Kuha) => Ok(CompositionOperator::Intersection),
+        Some(Cmavo::Pihu) => Ok(CompositionOperator::CrossProduct),
+        Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
+        Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
+        Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
+        _ => Err(unsupported(&format!(
+            "unsupported nonlogical forethought connective {}",
             generated_modal_forethought_connective_source(connective)
-        )),
+        ))),
     }
 }
 
@@ -40850,31 +40961,31 @@ fn description_characterization_for_cmavo(cmavo: Option<Cmavo>) -> DescriptionCh
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn description_kind_for_cmavo(cmavo: Option<Cmavo>) -> &'static str {
+#[ensures(true)]
+fn description_kind_for_cmavo(cmavo: Option<Cmavo>) -> DescriptorKind {
     match cmavo {
-        Some(Cmavo::Lo) => "veridicalDescription",
-        Some(Cmavo::Loi) => "veridicalMassDescription",
-        Some(Cmavo::Lohi) => "veridicalSetDescription",
-        Some(Cmavo::Le) => "speakerDescription",
-        Some(Cmavo::Lei) => "speakerMassDescription",
-        Some(Cmavo::Lehi) => "speakerSetDescription",
-        Some(Cmavo::Lehe) => "speakerStereotypeDescription",
-        Some(Cmavo::La) => "name",
-        Some(Cmavo::Lai) => "massNameDescription",
-        Some(Cmavo::Lahi) => "setNameDescription",
-        Some(Cmavo::Lohe) => "typicalDescription",
-        _ => "description",
+        Some(Cmavo::Lo) => DescriptorKind::VeridicalDescription,
+        Some(Cmavo::Loi) => DescriptorKind::VeridicalMassDescription,
+        Some(Cmavo::Lohi) => DescriptorKind::VeridicalSetDescription,
+        Some(Cmavo::Le) => DescriptorKind::SpeakerDescription,
+        Some(Cmavo::Lei) => DescriptorKind::SpeakerMassDescription,
+        Some(Cmavo::Lehi) => DescriptorKind::SpeakerSetDescription,
+        Some(Cmavo::Lehe) => DescriptorKind::SpeakerStereotypeDescription,
+        Some(Cmavo::La) => DescriptorKind::Name,
+        Some(Cmavo::Lai) => DescriptorKind::MassNameDescription,
+        Some(Cmavo::Lahi) => DescriptorKind::SetNameDescription,
+        Some(Cmavo::Lohe) => DescriptorKind::TypicalDescription,
+        _ => DescriptorKind::Description,
     }
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn name_description_kind_for_cmavo(cmavo: Option<Cmavo>) -> &'static str {
+#[ensures(true)]
+fn name_description_kind_for_cmavo(cmavo: Option<Cmavo>) -> DescriptorKind {
     match cmavo {
-        Some(Cmavo::Lai) => "massName",
-        Some(Cmavo::Lahi) => "setName",
-        _ => "name",
+        Some(Cmavo::Lai) => DescriptorKind::MassName,
+        Some(Cmavo::Lahi) => DescriptorKind::SetName,
+        _ => DescriptorKind::Name,
     }
 }
 
@@ -40889,15 +41000,15 @@ fn gadri_name_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn generated_argument_connective_operator(
     connective: &ArgumentConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<CompositionOperator, SemanticsError> {
     if generated_argument_connective_question_token(connective).is_some() {
-        return Ok("connectiveQuestion".to_owned());
+        return Ok(CompositionOperator::ConnectiveQuestion);
     }
     if generated_argument_connective_is_logical(connective) {
-        Ok("joint".to_owned())
+        Ok(CompositionOperator::Joint)
     } else {
         generated_nonlogical_argument_composition_operator(connective)
     }
@@ -40958,26 +41069,26 @@ fn generated_argument_connective_is_interval(connective: &ArgumentConnectiveSynt
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn generated_nonlogical_argument_composition_operator(
     connective: &ArgumentConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<CompositionOperator, SemanticsError> {
     match generated_argument_connective_primary_cmavo(connective) {
-        Some(Cmavo::Johu) => Ok("joint".to_owned()),
-        Some(Cmavo::Joi) => Ok("mass".to_owned()),
-        Some(Cmavo::Ce) => Ok("set".to_owned()),
-        Some(Cmavo::Ceho) => Ok("sequence".to_owned()),
-        Some(Cmavo::Fahu) => Ok("respectively".to_owned()),
-        Some(Cmavo::Johe) => Ok("union".to_owned()),
-        Some(Cmavo::Kuha) => Ok("intersection".to_owned()),
-        Some(Cmavo::Pihu) => Ok("crossProduct".to_owned()),
-        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
-        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
-        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
-        _ => Ok(format!(
-            "nonlogical:{}",
+        Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
+        Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
+        Some(Cmavo::Ce) => Ok(CompositionOperator::Set),
+        Some(Cmavo::Ceho) => Ok(CompositionOperator::Sequence),
+        Some(Cmavo::Fahu) => Ok(CompositionOperator::Respectively),
+        Some(Cmavo::Johe) => Ok(CompositionOperator::Union),
+        Some(Cmavo::Kuha) => Ok(CompositionOperator::Intersection),
+        Some(Cmavo::Pihu) => Ok(CompositionOperator::CrossProduct),
+        Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
+        Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
+        Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
+        _ => Err(unsupported(&format!(
+            "unsupported nonlogical argument connective {}",
             generated_argument_connective_source(connective)?
-        )),
+        ))),
     }
 }
 
@@ -42266,7 +42377,9 @@ fn generated_i_statement_nonlogical_connection(
 ) -> Result<NonlogicalConnection, SemanticsError> {
     let source = generated_i_statement_connective_token_source(connective);
     let operator = match generated_i_statement_connective_core(connective)? {
-        Some(core) => generated_nonlogical_statement_composition_operator(core)?,
+        Some(core) => generated_nonlogical_statement_composition_operator(core)?
+            .label()
+            .to_owned(),
         None => format!("nonlogical:{source}"),
     };
     let truth_table = generated_statement_connective_truth_table(connective)?;
@@ -42446,26 +42559,26 @@ fn generated_statement_connective_question_token(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn generated_nonlogical_statement_composition_operator(
     connective: &StatementConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<CompositionOperator, SemanticsError> {
     match generated_statement_connective_primary_cmavo(connective) {
-        Some(Cmavo::Johu) => Ok("joint".to_owned()),
-        Some(Cmavo::Joi) => Ok("mass".to_owned()),
-        Some(Cmavo::Ce) => Ok("set".to_owned()),
-        Some(Cmavo::Ceho) => Ok("sequence".to_owned()),
-        Some(Cmavo::Fahu) => Ok("respectively".to_owned()),
-        Some(Cmavo::Johe) => Ok("union".to_owned()),
-        Some(Cmavo::Kuha) => Ok("intersection".to_owned()),
-        Some(Cmavo::Pihu) => Ok("crossProduct".to_owned()),
-        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
-        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
-        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
-        _ => Ok(format!(
-            "nonlogical:{}",
+        Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
+        Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
+        Some(Cmavo::Ce) => Ok(CompositionOperator::Set),
+        Some(Cmavo::Ceho) => Ok(CompositionOperator::Sequence),
+        Some(Cmavo::Fahu) => Ok(CompositionOperator::Respectively),
+        Some(Cmavo::Johe) => Ok(CompositionOperator::Union),
+        Some(Cmavo::Kuha) => Ok(CompositionOperator::Intersection),
+        Some(Cmavo::Pihu) => Ok(CompositionOperator::CrossProduct),
+        Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
+        Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
+        Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
+        _ => Err(unsupported(&format!(
+            "unsupported nonlogical statement connective {}",
             generated_statement_connective_core_source(connective)?
-        )),
+        ))),
     }
 }
 
@@ -42829,26 +42942,26 @@ fn generated_relation_afterthought_connective_is_logical(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|operator| !operator.is_empty()) || ret.is_err())]
+#[ensures(ret.is_ok() || ret.is_err())]
 fn generated_nonlogical_composition_operator(
     connective: &RelationAfterthoughtConnectiveSyntax,
-) -> Result<String, SemanticsError> {
+) -> Result<CompositionOperator, SemanticsError> {
     match generated_relation_afterthought_connective_primary_cmavo(connective) {
-        Some(Cmavo::Johu) => Ok("joint".to_owned()),
-        Some(Cmavo::Joi) => Ok("mass".to_owned()),
-        Some(Cmavo::Ce) => Ok("set".to_owned()),
-        Some(Cmavo::Ceho) => Ok("sequence".to_owned()),
-        Some(Cmavo::Fahu) => Ok("respectively".to_owned()),
-        Some(Cmavo::Johe) => Ok("union".to_owned()),
-        Some(Cmavo::Kuha) => Ok("intersection".to_owned()),
-        Some(Cmavo::Pihu) => Ok("crossProduct".to_owned()),
-        Some(Cmavo::Bihi) => Ok("unorderedInterval".to_owned()),
-        Some(Cmavo::Biho) => Ok("orderedInterval".to_owned()),
-        Some(Cmavo::Mihi) => Ok("centeredInterval".to_owned()),
-        _ => Ok(format!(
-            "nonlogical:{}",
+        Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
+        Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
+        Some(Cmavo::Ce) => Ok(CompositionOperator::Set),
+        Some(Cmavo::Ceho) => Ok(CompositionOperator::Sequence),
+        Some(Cmavo::Fahu) => Ok(CompositionOperator::Respectively),
+        Some(Cmavo::Johe) => Ok(CompositionOperator::Union),
+        Some(Cmavo::Kuha) => Ok(CompositionOperator::Intersection),
+        Some(Cmavo::Pihu) => Ok(CompositionOperator::CrossProduct),
+        Some(Cmavo::Bihi) => Ok(CompositionOperator::UnorderedInterval),
+        Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
+        Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
+        _ => Err(unsupported(&format!(
+            "unsupported nonlogical relation connective {}",
             generated_relation_afterthought_connective_source(connective)?
-        )),
+        ))),
     }
 }
 
@@ -43026,17 +43139,17 @@ fn generated_semantic_object_is_eventuality(object: &SemanticObject) -> bool {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn referent_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
+#[ensures(true)]
+fn referent_qualifier_kind(cmavo: Option<Cmavo>) -> DescriptorKind {
     match cmavo {
-        Some(Cmavo::Lahe) => "referentOfSymbol",
-        Some(Cmavo::Luhe) => "symbolForReferent",
-        Some(Cmavo::Tuha) => "abstractionAbout",
-        Some(Cmavo::Luha) => "memberOf",
-        Some(Cmavo::Luhi) => "setFrom",
-        Some(Cmavo::Luho) => "massFrom",
-        Some(Cmavo::Vuhi) => "sequenceFrom",
-        _ => "qualifiedSumti",
+        Some(Cmavo::Lahe) => DescriptorKind::ReferentOfSymbol,
+        Some(Cmavo::Luhe) => DescriptorKind::SymbolForReferent,
+        Some(Cmavo::Tuha) => DescriptorKind::AbstractionAbout,
+        Some(Cmavo::Luha) => DescriptorKind::MemberOf,
+        Some(Cmavo::Luhi) => DescriptorKind::SetFrom,
+        Some(Cmavo::Luho) => DescriptorKind::MassFrom,
+        Some(Cmavo::Vuhi) => DescriptorKind::SequenceFrom,
+        _ => DescriptorKind::QualifiedSumti,
     }
 }
 
@@ -43140,7 +43253,7 @@ fn pa_digit_value(cmavo: Cmavo) -> Option<i64> {
 }
 
 #[requires(!text.is_empty())]
-#[ensures(!ret.kind.is_empty())]
+#[ensures(true)]
 fn math_literal_for_pa_text(text: String) -> MathLiteral {
     if let Some(components) = parse_generated_mixed_radix_pa_components(&text) {
         return MathLiteral::mixed_radix(components);
@@ -43149,9 +43262,9 @@ fn math_literal_for_pa_text(text: String) -> MathLiteral {
         .map(MathLiteral::integer)
         .or_else(|| {
             parse_generated_simple_pa_decimal(&text)
-                .map(|decimal| MathLiteral::text("decimal".to_owned(), decimal))
+                .map(|decimal| MathLiteral::text(MathLiteralKind::Decimal, decimal))
         })
-        .unwrap_or_else(|| MathLiteral::text("number".to_owned(), text))
+        .unwrap_or_else(|| MathLiteral::text(MathLiteralKind::Number, text))
 }
 
 #[requires(!text.is_empty())]
@@ -43496,19 +43609,6 @@ fn quantity_form_for_value(value: &QuantityValue) -> QuantityForm {
         .unwrap_or(QuantityForm::Exact)
 }
 
-#[requires(recurrence.value.is_some())]
-#[ensures(!ret.is_empty())]
-fn generated_recurrence_quantity_cache_key(recurrence: &Recurrence) -> String {
-    format!(
-        "{:?}|{}|{:?}|{:?}|{:?}",
-        recurrence.kind,
-        recurrence.introduced_by,
-        recurrence.connection,
-        recurrence.value,
-        recurrence.negation,
-    )
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn generated_quantifier_formula_operator(quantifier: &QuantifierSyntax) -> FormulaOperator {
@@ -43697,12 +43797,12 @@ fn scalar_negation_kind_for_cmavo(cmavo: Option<Cmavo>) -> ScalarNegationKind {
 
 #[requires(true)]
 #[ensures(true)]
-fn scalar_negated_sumti_qualifier_kind(cmavo: Option<Cmavo>) -> &'static str {
+fn scalar_negated_sumti_qualifier_kind(cmavo: Option<Cmavo>) -> DescriptorKind {
     match cmavo {
-        Some(Cmavo::Tohe) => "oppositeOf",
-        Some(Cmavo::Nohe) => "neutralOf",
-        Some(Cmavo::Jeha) => "affirmedAs",
-        _ => "otherThan",
+        Some(Cmavo::Tohe) => DescriptorKind::OppositeOf,
+        Some(Cmavo::Nohe) => DescriptorKind::NeutralOf,
+        Some(Cmavo::Jeha) => DescriptorKind::AffirmedAs,
+        _ => DescriptorKind::OtherThan,
     }
 }
 
