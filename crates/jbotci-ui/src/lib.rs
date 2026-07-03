@@ -1250,7 +1250,7 @@ fn collect_cll_block_page_find_entries(
                     for line in &example.lines {
                         push_page_find_entry(
                             entries,
-                            cll_display_text_for_kind(script, &line.kind, &line.text),
+                            cll_display_text_for_kind(script, line.kind.as_str(), &line.text),
                         );
                     }
                 } else {
@@ -1323,7 +1323,7 @@ fn collect_cll_block_page_find_entries(
             ..
         } => {
             for row in rows {
-                let row_context = cll_kind_is_lojban(&row.kind);
+                let row_context = row.kind.is_lojban();
                 for cell in &row.cells {
                     collect_cll_inlines_page_find_entries(entries, cell, script, row_context);
                 }
@@ -1355,8 +1355,8 @@ fn collect_cll_block_page_find_entries(
         }
         CllBlock::Lojbanization { lines, .. } => {
             for line in lines {
-                push_page_find_entry(entries, line.kind.clone());
-                let line_context = cll_kind_is_lojban(&line.kind);
+                push_page_find_entry(entries, line.kind.as_str());
+                let line_context = line.kind.is_lojban();
                 collect_cll_inlines_page_find_entries(entries, &line.body, script, line_context);
                 if let Some(comment) = &line.comment {
                     collect_cll_inlines_page_find_entries(entries, comment, script, false);
@@ -1365,8 +1365,8 @@ fn collect_cll_block_page_find_entries(
         }
         CllBlock::LujvoMaking { parts, .. } => {
             for part in parts {
-                push_page_find_entry(entries, part.kind.clone());
-                let part_context = cll_kind_is_lojban(&part.kind);
+                push_page_find_entry(entries, part.kind.as_str());
+                let part_context = part.kind.is_lojban();
                 collect_cll_inlines_page_find_entries(entries, &part.body, script, part_context);
             }
         }
@@ -8751,8 +8751,9 @@ fn render_cll_block(
                             div { class: "cll-interlinear",
                                 for line in example.lines.iter() {
                                     {
-                                        let text = cll_display_text_for_kind(script, &line.kind, &line.text);
-                                        rsx! { p { class: "cll-ig-line cll-ig-{line.kind}", { render_page_find_text(page_find, &text) } } }
+                                        let kind = line.kind.as_str();
+                                        let text = cll_display_text_for_kind(script, kind, &line.text);
+                                        rsx! { p { class: "cll-ig-line cll-ig-{kind}", { render_page_find_text(page_find, &text) } } }
                                     }
                                 }
                             }
@@ -9313,9 +9314,10 @@ fn render_cll_interlinear(
                         tbody {
                             for row in rows.iter() {
                                 {
-                                    let row_context = cll_kind_is_lojban(&row.kind);
+                                    let kind = row.kind.as_str();
+                                    let row_context = row.kind.is_lojban();
                                     rsx! {
-                                        tr { class: "cll-ig-row cll-ig-{row.kind} cll-interlinear-row cll-interlinear-row-{row.kind}",
+                                        tr { class: "cll-ig-row cll-ig-{kind} cll-interlinear-row cll-interlinear-row-{kind}",
                                             for cell in row.cells.iter() {
                                                 td { class: "cll-ig-cell",
                                                     for inline in cell.iter() {
@@ -9333,10 +9335,11 @@ fn render_cll_interlinear(
                     div { class: "cll-interlinear-itemized",
                         for row in rows.iter() {
                             {
-                                let row_context = cll_kind_is_lojban(&row.kind);
+                                let kind = row.kind.as_str();
+                                let row_context = row.kind.is_lojban();
                                 rsx! {
                                     div { class: "cll-ig-line-wrap",
-                                        p { class: "cll-ig-line cll-ig-inline cll-ig-{row.kind}",
+                                        p { class: "cll-ig-line cll-ig-inline cll-ig-{kind}",
                                             for cell in row.cells.iter() {
                                                 for inline in cell.iter() {
                                                     { render_cll_inline(inline, pending_cukta_scroll, base_path, script, row_context, page_find) }
@@ -9434,10 +9437,11 @@ fn render_cll_lojbanization(
             tbody {
                 for line in lines.iter() {
                     {
-                        let line_context = cll_kind_is_lojban(&line.kind);
+                        let kind = line.kind.as_str();
+                        let line_context = line.kind.is_lojban();
                         rsx! {
-                            tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{line.kind} cll-lojbanization-{line.kind}",
-                                th { { render_page_find_text(page_find, &line.kind) } }
+                            tr { class: "cll-lojbanization-row cll-lojbanization-line cll-lojbanization-line-{kind} cll-lojbanization-{kind}",
+                                th { { render_page_find_text(page_find, kind) } }
                                 td {
                                     for inline in line.body.iter() {
                                         { render_cll_inline(inline, pending_cukta_scroll, base_path, script, line_context, page_find) }
@@ -9473,11 +9477,12 @@ fn render_cll_lujvo_making(
         ul { id: id.unwrap_or_default(), class: "cll-lujvo-making",
             for part in parts.iter() {
                 {
-                    let part_context = cll_kind_is_lojban(&part.kind);
+                    let kind = part.kind.as_str();
+                    let part_context = part.kind.is_lojban();
                         rsx! {
-                            li { class: "cll-lujvo-part cll-lujvo-part-{part.kind}",
+                            li { class: "cll-lujvo-part cll-lujvo-part-{kind}",
                             span { class: "cll-lujvo-part-kind",
-                                { render_page_find_text(page_find, &part.kind) }
+                                { render_page_find_text(page_find, kind) }
                             }
                             for inline in part.body.iter() {
                                 { render_cll_inline(inline, pending_cukta_scroll, base_path, script, part_context, page_find) }

@@ -13,7 +13,7 @@ use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
-use jbotci_cll::{CllExample, CllSite, embedded_cll_site};
+use jbotci_cll::{CllExample, CllExampleLineKind, CllSite, embedded_cll_site};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
@@ -5912,7 +5912,7 @@ fn cll_fixture_metadata_field_values(
                 example
                     .lines
                     .iter()
-                    .filter(|line| line.kind == "jbo" || line.kind == "jbophrase")
+                    .filter(|line| line.kind.is_lojban())
                     .map(|line| line.text.as_str()),
             );
             if !example.lojban.trim().is_empty() {
@@ -5925,7 +5925,7 @@ fn cll_fixture_metadata_field_values(
                 example
                     .lines
                     .iter()
-                    .filter(|line| line.kind == "natlang")
+                    .filter(|line| line.kind == CllExampleLineKind::Natlang)
                     .map(|line| line.text.as_str()),
             );
             if let Some(value) = &example.translation_en {
@@ -5938,7 +5938,7 @@ fn cll_fixture_metadata_field_values(
                 example
                     .lines
                     .iter()
-                    .filter(|line| line.kind == "gloss")
+                    .filter(|line| line.kind == CllExampleLineKind::Gloss)
                     .map(|line| line.text.as_str()),
             );
             if let Some(value) = &example.gloss_en {
@@ -11729,11 +11729,11 @@ mod tests {
             translation_en: Some("joined translation".to_owned()),
             lines: vec![
                 new!(CllExampleLine {
-                    kind: "natlang".to_owned(),
+                    kind: CllExampleLineKind::Natlang,
                     text: "First translation.".to_owned(),
                 }),
                 new!(CllExampleLine {
-                    kind: "natlang".to_owned(),
+                    kind: CllExampleLineKind::Natlang,
                     text: "Second translation.".to_owned(),
                 }),
             ],

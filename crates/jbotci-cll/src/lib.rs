@@ -165,11 +165,58 @@ pub struct CllExample {
     pub plain_text: String,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CllExampleLineKind {
+    #[serde(rename = "jbo")]
+    Jbo,
+    #[serde(rename = "jbophrase")]
+    Jbophrase,
+    #[serde(rename = "gloss")]
+    Gloss,
+    #[serde(rename = "natlang")]
+    Natlang,
+    #[serde(rename = "text")]
+    Text,
+}
+
+impl CllExampleLineKind {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(|kind| !kind.as_str().is_empty()) || ret.is_none())]
+    pub fn parse_tag(tag_name: &str) -> Option<Self> {
+        match tag_name.as_bytes() {
+            b"jbo" => Some(Self::Jbo),
+            b"jbophrase" => Some(Self::Jbophrase),
+            b"gloss" => Some(Self::Gloss),
+            b"natlang" => Some(Self::Natlang),
+            b"text" => Some(Self::Text),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Jbo => "jbo",
+            Self::Jbophrase => "jbophrase",
+            Self::Gloss => "gloss",
+            Self::Natlang => "natlang",
+            Self::Text => "text",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lojban(self) -> bool {
+        matches!(self, Self::Jbo | Self::Jbophrase)
+    }
+}
+
 #[invariant(!text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllExampleLine {
-    pub kind: String,
+    pub kind: CllExampleLineKind,
     pub text: String,
 }
 
@@ -364,29 +411,176 @@ pub struct CllVariableEntry {
     pub blocks: Vec<CllBlock>,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CllInterlinearRowKind {
+    #[serde(rename = "jbo")]
+    Jbo,
+    #[serde(rename = "jbophrase")]
+    Jbophrase,
+    #[serde(rename = "gloss")]
+    Gloss,
+    #[serde(rename = "dbmath")]
+    Dbmath,
+    #[serde(rename = "mmlmath")]
+    Mmlmath,
+    #[serde(rename = "math")]
+    Math,
+    #[serde(rename = "para")]
+    Para,
+}
+
+impl CllInterlinearRowKind {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(|kind| !kind.as_str().is_empty()) || ret.is_none())]
+    pub fn parse_tag(tag_name: &str) -> Option<Self> {
+        match tag_name.as_bytes() {
+            b"jbo" => Some(Self::Jbo),
+            b"jbophrase" => Some(Self::Jbophrase),
+            b"gloss" => Some(Self::Gloss),
+            b"dbmath" => Some(Self::Dbmath),
+            b"mmlmath" => Some(Self::Mmlmath),
+            b"math" => Some(Self::Math),
+            b"para" => Some(Self::Para),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Jbo => "jbo",
+            Self::Jbophrase => "jbophrase",
+            Self::Gloss => "gloss",
+            Self::Dbmath => "dbmath",
+            Self::Mmlmath => "mmlmath",
+            Self::Math => "math",
+            Self::Para => "para",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lojban(self) -> bool {
+        matches!(self, Self::Jbo | Self::Jbophrase)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_math(self) -> bool {
+        matches!(self, Self::Dbmath | Self::Mmlmath | Self::Math)
+    }
+}
+
 #[invariant(!cells.is_empty())]
 #[invariant(cells.iter().all(|cell| !cell.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllInterlinearRow {
-    pub kind: String,
+    pub kind: CllInterlinearRowKind,
     pub cells: Vec<Vec<CllInline>>,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CllLojbanizationLineKind {
+    #[serde(rename = "jbo")]
+    Jbo,
+    #[serde(rename = "natlang")]
+    Natlang,
+}
+
+impl CllLojbanizationLineKind {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(|kind| !kind.as_str().is_empty()) || ret.is_none())]
+    pub fn parse_tag(tag_name: &str) -> Option<Self> {
+        match tag_name.as_bytes() {
+            b"jbo" => Some(Self::Jbo),
+            b"natlang" => Some(Self::Natlang),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Jbo => "jbo",
+            Self::Natlang => "natlang",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lojban(self) -> bool {
+        matches!(self, Self::Jbo)
+    }
+}
+
 #[invariant(!body.is_empty() || comment.as_ref().is_some_and(|line| !line.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllLojbanizationLine {
-    pub kind: String,
+    pub kind: CllLojbanizationLineKind,
     pub body: Vec<CllInline>,
     pub comment: Option<Vec<CllInline>>,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CllLujvoPartKind {
+    #[serde(rename = "jbo")]
+    Jbo,
+    #[serde(rename = "veljvo")]
+    Veljvo,
+    #[serde(rename = "rafsi")]
+    Rafsi,
+    #[serde(rename = "gloss")]
+    Gloss,
+    #[serde(rename = "natlang")]
+    Natlang,
+    #[serde(rename = "score")]
+    Score,
+}
+
+impl CllLujvoPartKind {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(|kind| !kind.as_str().is_empty()) || ret.is_none())]
+    pub fn parse_tag(tag_name: &str) -> Option<Self> {
+        match tag_name.as_bytes() {
+            b"jbo" => Some(Self::Jbo),
+            b"veljvo" => Some(Self::Veljvo),
+            b"rafsi" => Some(Self::Rafsi),
+            b"gloss" => Some(Self::Gloss),
+            b"natlang" => Some(Self::Natlang),
+            b"score" => Some(Self::Score),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Jbo => "jbo",
+            Self::Veljvo => "veljvo",
+            Self::Rafsi => "rafsi",
+            Self::Gloss => "gloss",
+            Self::Natlang => "natlang",
+            Self::Score => "score",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lojban(self) -> bool {
+        matches!(self, Self::Jbo | Self::Veljvo | Self::Rafsi)
+    }
+}
+
 #[invariant(!body.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllLujvoPart {
-    pub kind: String,
+    pub kind: CllLujvoPartKind,
     pub body: Vec<CllInline>,
 }
 
@@ -1528,17 +1722,17 @@ fn parse_example_block(
     }
     let lojban = lines
         .iter()
-        .filter(|line| line.kind == "jbo" || line.kind == "jbophrase")
+        .filter(|line| line.kind.is_lojban())
         .map(|line| line.text.as_str())
         .collect::<Vec<_>>()
         .join("\n");
     let gloss_en = lines
         .iter()
-        .find(|line| line.kind == "gloss")
+        .find(|line| line.kind == CllExampleLineKind::Gloss)
         .map(|line| line.text.clone());
     let translation_en = lines
         .iter()
-        .find(|line| line.kind == "natlang")
+        .find(|line| line.kind == CllExampleLineKind::Natlang)
         .map(|line| line.text.clone());
     let plain_text = if lines.is_empty() {
         visible_text(node)
@@ -2051,19 +2245,16 @@ fn parse_variable_list_entry(
 #[ensures(true)]
 fn parse_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
     node.descendants()
-        .filter(|descendant| {
-            descendant.is_element()
-                && matches!(
-                    descendant.tag_name().name(),
-                    "jbo" | "jbophrase" | "gloss" | "natlang"
-                )
+        .filter_map(|descendant| {
+            if !descendant.is_element() {
+                return None;
+            }
+            let kind = CllExampleLineKind::parse_tag(descendant.tag_name().name())?;
+            (kind != CllExampleLineKind::Text).then_some((descendant, kind))
         })
-        .filter_map(|line| {
+        .filter_map(|(line, kind)| {
             let text = visible_text(line);
-            (!text.is_empty()).then_some(new!(CllExampleLine {
-                kind: line.tag_name().name().to_owned(),
-                text,
-            }))
+            (!text.is_empty()).then_some(new!(CllExampleLine { kind, text }))
         })
         .collect()
 }
@@ -2079,7 +2270,7 @@ fn parse_plain_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
         .filter_map(|line| {
             let text = visible_text(line);
             (!text.is_empty()).then_some(new!(CllExampleLine {
-                kind: "text".to_owned(),
+                kind: CllExampleLineKind::Text,
                 text,
             }))
         })
@@ -2088,7 +2279,7 @@ fn parse_plain_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
         let text = visible_text(node);
         (!text.is_empty())
             .then_some(new!(CllExampleLine {
-                kind: "text".to_owned(),
+                kind: CllExampleLineKind::Text,
                 text,
             }))
             .into_iter()
@@ -2846,14 +3037,14 @@ fn aligned_interlinear_rows(line_elements: &[Node<'_, '_>]) -> Option<Vec<CllInt
     }
     Some(vec![
         new!(CllInterlinearRow {
-            kind: "jbo".to_owned(),
+            kind: CllInterlinearRowKind::Jbo,
             cells: jbo_tokens
                 .iter()
                 .map(|token| linked_jbo_text_inlines(token))
                 .collect(),
         }),
         new!(CllInterlinearRow {
-            kind: "gloss".to_owned(),
+            kind: CllInterlinearRowKind::Gloss,
             cells: gloss_tokens
                 .into_iter()
                 .map(|token| vec![CllInline::Text(token)])
@@ -2879,13 +3070,10 @@ fn single_named_line<'a, 'input>(
 #[requires(line.is_element())]
 #[ensures(true)]
 fn plain_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
-    let kind = line.tag_name().name().to_owned();
-    let body = if line.has_tag_name("jbo") || line.has_tag_name("jbophrase") {
+    let kind = CllInterlinearRowKind::parse_tag(line.tag_name().name())?;
+    let body = if kind.is_lojban() {
         linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(line)))
-    } else if line.has_tag_name("dbmath")
-        || line.has_tag_name("mmlmath")
-        || line.has_tag_name("math")
-    {
+    } else if kind.is_math() {
         let rendered = render_math_node(line, CllMathDisplay::Inline).into_data();
         vec![CllInline::InlineMath {
             text: rendered.text,
@@ -2946,10 +3134,10 @@ fn parse_interlinear_gloss_itemized_block(
 #[requires(line.is_element())]
 #[ensures(true)]
 fn itemized_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
-    let kind = line.tag_name().name().to_owned();
+    let kind = CllInterlinearRowKind::parse_tag(line.tag_name().name())?;
     let cells = line
         .children()
-        .flat_map(|child| collect_interlinear_cell(child, &kind))
+        .flat_map(|child| collect_interlinear_cell(child, kind))
         .map(trim_inline_runs)
         .filter(|cell| !cell.is_empty())
         .collect::<Vec<_>>();
@@ -2958,13 +3146,16 @@ fn itemized_interlinear_row(line: Node<'_, '_>) -> Option<CllInterlinearRow> {
 
 #[requires(true)]
 #[ensures(true)]
-fn collect_interlinear_cell(node: Node<'_, '_>, kind: &str) -> Vec<Vec<CllInline>> {
+fn collect_interlinear_cell(
+    node: Node<'_, '_>,
+    kind: CllInterlinearRowKind,
+) -> Vec<Vec<CllInline>> {
     if node.is_text() {
         let text = normalized_plain_text(node.text().unwrap_or_default());
         if text.is_empty() {
             return Vec::new();
         }
-        return vec![if kind == "jbo" {
+        return vec![if kind.is_lojban() {
             linked_jbo_text_inlines(&text)
         } else {
             vec![CllInline::Text(text)]
@@ -2973,7 +3164,7 @@ fn collect_interlinear_cell(node: Node<'_, '_>, kind: &str) -> Vec<Vec<CllInline
     if !node.is_element() || node.has_tag_name("indexterm") {
         return Vec::new();
     }
-    if kind == "jbo" {
+    if kind.is_lojban() {
         if node.has_tag_name("elidable") {
             return vec![vec![CllInline::Elidable {
                 shown: visible_text(node),
@@ -3063,7 +3254,7 @@ fn parse_lojbanization_block(
         .children()
         .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
         .filter_map(|line| {
-            let kind = line.tag_name().name().to_owned();
+            let kind = CllLojbanizationLineKind::parse_tag(line.tag_name().name())?;
             let body_nodes = line
                 .children()
                 .filter(|child| {
@@ -3073,7 +3264,7 @@ fn parse_lojbanization_block(
                             && !child.has_tag_name("indexterm"))
                 })
                 .collect::<Vec<_>>();
-            let body = if kind == "jbo" {
+            let body = if kind == CllLojbanizationLineKind::Jbo {
                 linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(line)))
             } else {
                 trim_inline_runs(parse_inline_nodes(&body_nodes))
@@ -3106,8 +3297,8 @@ fn parse_lujvo_making_block(
         .children()
         .filter(|child| child.is_element() && !child.has_tag_name("indexterm"))
         .filter_map(|part| {
-            let kind = part.tag_name().name().to_owned();
-            let body = if matches!(kind.as_str(), "jbo" | "veljvo" | "rafsi") {
+            let kind = CllLujvoPartKind::parse_tag(part.tag_name().name())?;
+            let body = if kind.is_lojban() {
                 linked_jbo_text_inlines(&normalized_plain_text(&visible_text_raw(part)))
             } else {
                 trim_inline_runs(parse_inlines(part))
@@ -4603,11 +4794,11 @@ pub fn render_example(site: &CllSite, example: &CllExample, format: CllRenderFor
             }
             if example.blocks.is_empty() {
                 for line in &example.lines {
-                    if line.kind == "text" {
+                    if line.kind == CllExampleLineKind::Text {
                         output.push_str(&line.text);
                         output.push('\n');
                     } else {
-                        output.push_str(&format!("{}: {}\n", line.kind, line.text));
+                        output.push_str(&format!("{}: {}\n", line.kind.as_str(), line.text));
                     }
                 }
                 output.push('\n');
@@ -4891,7 +5082,7 @@ fn example_tagged_words(example: &CllExample) -> BTreeSet<String> {
     example
         .lines
         .iter()
-        .filter(|line| line.kind == "jbo" || line.kind == "jbophrase")
+        .filter(|line| line.kind.is_lojban())
         .flat_map(|line| collect_tagged_words(&line.text))
         .collect()
 }
@@ -5071,7 +5262,7 @@ fn render_block_markdown(site: &CllSite, block: &CllBlock, output: &mut String, 
         CllBlock::LujvoMaking { parts, .. } => {
             for part in parts {
                 output.push_str("- **");
-                output.push_str(&part.kind);
+                output.push_str(part.kind.as_str());
                 output.push_str("**: ");
                 output.push_str(&render_inlines_markdown(site, &part.body));
                 output.push('\n');
@@ -5585,7 +5776,7 @@ fn render_interlinear_markdown(
                 .collect::<Vec<_>>()
                 .join(" ");
             if !body.is_empty() {
-                output.push_str(&row.kind);
+                output.push_str(row.kind.as_str());
                 output.push_str(": ");
                 output.push_str(&body);
                 output.push('\n');
@@ -5677,7 +5868,7 @@ fn render_lojbanization_markdown(
 ) {
     let rows = lines.iter().map(|line| {
         vec![
-            line.kind.clone(),
+            line.kind.as_str().to_owned(),
             markdown_table_cell_text(&render_inlines_markdown(site, &line.body)),
             line.comment
                 .as_deref()
@@ -5916,7 +6107,7 @@ fn render_interlinear_html(
             output.push_str("\"><tbody>");
             for row in rows {
                 output.push_str("<tr class=\"cll-interlinear-row cll-interlinear-row-");
-                output.push_str(&escape_html(&row.kind));
+                output.push_str(&escape_html(row.kind.as_str()));
                 output.push_str("\">");
                 for cell in &row.cells {
                     output.push_str("<td>");
@@ -5932,7 +6123,7 @@ fn render_interlinear_html(
                 output.push_str(
                     "<div class=\"cll-ig-line-wrap\"><p class=\"cll-ig-line cll-ig-inline cll-ig-",
                 );
-                output.push_str(&escape_html(&row.kind));
+                output.push_str(&escape_html(row.kind.as_str()));
                 output.push_str("\">");
                 for cell in &row.cells {
                     output.push_str(&render_inlines_html(site, cell));
@@ -6007,9 +6198,9 @@ fn render_lojbanization_html(
     );
     for line in lines {
         output.push_str("<tr class=\"cll-lojbanization-line cll-lojbanization-line-");
-        output.push_str(&escape_html(&line.kind));
+        output.push_str(&escape_html(line.kind.as_str()));
         output.push_str("\"><th>");
-        output.push_str(&escape_html(&line.kind));
+        output.push_str(&escape_html(line.kind.as_str()));
         output.push_str("</th><td>");
         output.push_str(&render_inlines_html(site, &line.body));
         output.push_str("</td><td>");
@@ -6028,9 +6219,9 @@ fn render_lujvo_making_html(site: &CllSite, id: Option<&str>, parts: &[CllLujvoP
     let mut output = format!("<ul{} class=\"cll-lujvo-making\">", render_optional_id(id));
     for part in parts {
         output.push_str("<li class=\"cll-lujvo-part cll-lujvo-part-");
-        output.push_str(&escape_html(&part.kind));
+        output.push_str(&escape_html(part.kind.as_str()));
         output.push_str("\"><span class=\"cll-lujvo-part-kind\">");
-        output.push_str(&escape_html(&part.kind));
+        output.push_str(&escape_html(part.kind.as_str()));
         output.push_str("</span> ");
         output.push_str(&render_inlines_html(site, &part.body));
         output.push_str("</li>");
@@ -6718,7 +6909,7 @@ mod tests {
             itemized: false,
             parse_href: None,
             rows: vec![new!(CllInterlinearRow {
-                kind: "jbo".to_owned(),
+                kind: CllInterlinearRowKind::Jbo,
                 cells: vec![coi],
             })],
             natlang: Vec::new(),
