@@ -95,6 +95,18 @@ assertAlmostArray(
   1e-6,
 );
 
+const paddedQ4 = quantizeQ4Rowwise([
+  [0.20, -0.20, 0.40],
+  [0.10, 0.30, -0.40],
+], 2);
+assert.deepEqual(Array.from(paddedQ4.qbytes), [31, 15, 250, 1]);
+assertAlmostArray(
+  dequantizeQ4(paddedQ4).flat(),
+  [0.20000000298023224, -0.20000000298023224, 0.4000000059604645,
+    0.08571428805589676, 0.30000001192092896, -0.4000000059604645],
+  1e-6,
+);
+
 const embedding = embed([0, 1, 2], MODEL, q4, F32);
 console.log("tiny CPU embedding", JSON.stringify(Array.from(embedding)));
 assertAlmostArray(Array.from(embedding), EXPECTED_EMBEDDING, 1e-6);
@@ -152,7 +164,8 @@ function quantizeQ4Rowwise(matrix, groupSize) {
   const rows = matrix.length;
   const cols = matrix[0].length;
   const groups = Math.ceil(cols / groupSize);
-  const qbytes = new Uint8Array(Math.ceil((rows * cols) / 2));
+  const rowStride = groups * groupSize;
+  const qbytes = new Uint8Array(Math.ceil((rows * rowStride) / 2));
   const scales = new Float32Array(rows * groups);
   for (let row = 0; row < rows; row += 1) {
     for (let group = 0; group < groups; group += 1) {
@@ -166,7 +179,7 @@ function quantizeQ4Rowwise(matrix, groupSize) {
       scales[row * groups + group] = scale;
       for (let col = start; col < end; col += 1) {
         const q = Math.max(0, Math.min(15, roundTiesToEven(matrix[row][col] / scale) + 8));
-        const element = row * cols + col;
+        const element = row * rowStride + col;
         const byteIndex = Math.floor(element / 2);
         if (element % 2 === 0) {
           qbytes[byteIndex] = (qbytes[byteIndex] & 0xf0) | q;
@@ -202,9 +215,10 @@ function dequantizeQ4(tensor) {
 
 function dequantizeRow(tensor, row) {
   const cols = tensor.shape[1];
+  const rowStride = tensor.groups * tensor.groupSize;
   const output = new Float32Array(cols);
   for (let col = 0; col < cols; col += 1) {
-    const element = row * cols + col;
+    const element = row * rowStride + col;
     const byte = tensor.qbytes[Math.floor(element / 2)];
     const nibble = element % 2 === 0 ? byte & 15 : (byte >> 4) & 15;
     const scale = tensor.scales[row * tensor.groups + Math.floor(col / tensor.groupSize)];
