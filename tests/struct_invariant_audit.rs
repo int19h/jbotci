@@ -268,6 +268,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "custom dialect definitions are parsed and normalized through dialect resolution helpers",
     ),
     (
+        "crates/jbotci-dialect/src/lib.rs:DialectDefinition",
+        "cmavo entry validity is enforced by CmavoDialectEntry and feature validity by the closed DialectFeature enum",
+    ),
+    (
         "crates/jbotci-dialect/src/lib.rs:DialectError",
         "diagnostic struct carries a human-readable error message",
     ),
@@ -654,6 +658,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
         "render options are independent booleans with no cross-field invariant",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:MorphologyOptions",
+        "cmavo dialect entry validity is enforced by CmavoDialectEntry and other fields are independent parser options",
     ),
     (
         "crates/jbotci-morphology/src/segment.rs:LujvoParseFailure",

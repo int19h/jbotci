@@ -101,7 +101,6 @@ impl fmt::Display for DialectFeature {
     }
 }
 
-#[invariant(true)]
 #[invariant(::Swap => is_normalized_cmavo(left) && is_normalized_cmavo(right))]
 #[invariant(::Expansion => is_normalized_cmavo(source) && !replacement.is_empty() && replacement.iter().all(|word| is_normalized_cmavo(word)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,32 +116,10 @@ pub enum CmavoDialectEntry {
     },
 }
 
-impl CmavoDialectEntry {
-    #[requires(true)]
-    #[ensures(ret -> match self.as_data() {
-        data!(CmavoDialectEntry::Swap { left, right }) => is_normalized_cmavo(left) && is_normalized_cmavo(right),
-        data!(CmavoDialectEntry::Expansion { source, replacement }) => is_normalized_cmavo(source)
-            && !replacement.is_empty()
-            && replacement.iter().all(|word| is_normalized_cmavo(word)),
-    })]
-    pub fn is_valid(&self) -> bool {
-        match self.as_data() {
-            data!(CmavoDialectEntry::Swap { left, right }) => {
-                is_normalized_cmavo(left) && is_normalized_cmavo(right)
-            }
-            data!(CmavoDialectEntry::Expansion {
-                source,
-                replacement,
-            }) => {
-                is_normalized_cmavo(source)
-                    && !replacement.is_empty()
-                    && replacement.iter().all(|word| is_normalized_cmavo(word))
-            }
-        }
-    }
-}
-
-#[invariant(self.cmavo_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
+#[invariant(
+    true,
+    "cmavo dialect entry validity is guaranteed by CmavoDialectEntry"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DialectDefinition {
@@ -409,10 +386,10 @@ pub fn dialect_definition_to_text(definition: &DialectDefinition) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub fn cmavo_dialect_entries_to_definition(entries: &[CmavoDialectEntry]) -> String {
-    let definition = new!(DialectDefinition {
+    let definition = DialectDefinition {
         cmavo_entries: entries.to_vec(),
         features: BTreeSet::new(),
-    });
+    };
     dialect_definition_to_text(&definition)
 }
 
@@ -728,7 +705,7 @@ fn render_compact_cmavo_entries(
     Ok(rendered)
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.message().is_empty()))]
 fn render_compact_cmavo_entry(entry: &CmavoDialectEntry) -> Result<String, DialectError> {
     match entry.as_data() {
@@ -740,22 +717,15 @@ fn render_compact_cmavo_entry(entry: &CmavoDialectEntry) -> Result<String, Diale
         data!(CmavoDialectEntry::Expansion {
             source,
             replacement,
-        }) => {
-            if replacement.is_empty() {
-                return Err(DialectError::new(
-                    "Expansion entries require at least one replacement word.".to_owned(),
-                ));
-            }
-            Ok(format!(
-                "{}*{}",
-                cmavo_to_compact(source)?,
-                replacement
-                    .iter()
-                    .map(|word| cmavo_to_compact(word))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .join("+")
-            ))
-        }
+        }) => Ok(format!(
+            "{}*{}",
+            cmavo_to_compact(source)?,
+            replacement
+                .iter()
+                .map(|word| cmavo_to_compact(word))
+                .collect::<Result<Vec<_>, _>>()?
+                .join("+")
+        )),
     }
 }
 
@@ -891,7 +861,7 @@ fn common_swap_for_code(raw_code: char) -> Result<JohauShorthandSwap, DialectErr
         })
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn common_swap_code(entry: &CmavoDialectEntry) -> Option<char> {
     match entry.as_data() {
@@ -1056,20 +1026,20 @@ fn parse_compact_dialect_feature(raw_feature: &str) -> Result<DialectFeature, Di
 #[requires(true)]
 #[ensures(true)]
 fn canonical_dialect_definition(definition: &DialectDefinition) -> DialectDefinition {
-    new!(DialectDefinition {
+    DialectDefinition {
         cmavo_entries: canonical_cmavo_dialect_entries(&definition.cmavo_entries),
         features: definition.features.clone(),
-    })
+    }
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(CmavoDialectEntry::is_valid))]
+#[ensures(ret.len() == entries.len())]
 fn canonical_cmavo_dialect_entries(entries: &[CmavoDialectEntry]) -> Vec<CmavoDialectEntry> {
     entries.iter().map(canonical_cmavo_dialect_entry).collect()
 }
 
-#[requires(entry.is_valid())]
-#[ensures(ret.is_valid())]
+#[requires(true)]
+#[ensures(true)]
 fn canonical_cmavo_dialect_entry(entry: &CmavoDialectEntry) -> CmavoDialectEntry {
     match entry.as_data() {
         data!(CmavoDialectEntry::Swap { left, right }) => {
@@ -1346,7 +1316,7 @@ fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|entry| match entry { DialectDefinitionEntry::Cmavo(entry) => entry.is_valid(), DialectDefinitionEntry::Feature(_, feature) => DialectFeature::all().contains(feature) }))]
+#[ensures(ret.len() == definition.features.len() + definition.cmavo_entries.len())]
 fn dialect_definition_entries(definition: &DialectDefinition) -> Vec<DialectDefinitionEntry> {
     definition
         .features
@@ -1381,10 +1351,10 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
             }
         }
     }
-    new!(DialectDefinition {
+    DialectDefinition {
         cmavo_entries: cmavo_entries,
         features: features,
-    })
+    }
 }
 
 #[requires(true)]

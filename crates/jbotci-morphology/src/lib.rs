@@ -59,7 +59,10 @@ pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "CMEVLA",
 ];
 
-#[invariant(self.cmavo_dialect_entries.iter().all(CmavoDialectEntry::is_valid), "cmavo dialect entries must be normalized and internally valid")]
+#[invariant(
+    true,
+    "cmavo dialect entry validity is guaranteed by CmavoDialectEntry"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct MorphologyOptions {
@@ -77,7 +80,7 @@ impl Default for MorphologyOptions {
     #[requires(true)]
     #[ensures(true)]
     fn default() -> Self {
-        new!(MorphologyOptions {
+        MorphologyOptions {
             accept_latin: true,
             accept_cyrillic: true,
             accept_zbalermorna: true,
@@ -85,7 +88,7 @@ impl Default for MorphologyOptions {
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
             trace: TraceOptions::disabled(),
-        })
+        }
     }
 }
 
@@ -97,19 +100,22 @@ impl MorphologyOptions {
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
         let uppercase_marks_stress = self.uppercase_marks_stress;
-        self.with_data(data! {
+        MorphologyOptions {
             cmavo_dialect_entries: definition.cmavo_entries.clone(),
             cmevla_as_relation_words: cmevla_as_relation_words
                 || definition.features.contains(&DialectFeature::Cbm),
             uppercase_marks_stress: uppercase_marks_stress
-                && !definition.features.contains(&DialectFeature::CaseInsensitive),
-        })
+                && !definition
+                    .features
+                    .contains(&DialectFeature::CaseInsensitive),
+            ..self
+        }
     }
 
     #[requires(true)]
     #[ensures(true)]
     pub fn with_trace_options(self, trace: TraceOptions) -> Self {
-        self.with_data(data! { trace: trace })
+        MorphologyOptions { trace, ..self }
     }
 }
 
@@ -2062,7 +2068,7 @@ pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, Strin
         .ok_or_else(|| format!("could not syllabify `{}`", phonemes.as_str()))
 }
 
-#[requires(entries.iter().all(CmavoDialectEntry::is_valid))]
+#[requires(true)]
 #[ensures(true)]
 fn apply_cmavo_dialect_entries(
     mut words: Vec<WordLike>,
@@ -2074,7 +2080,7 @@ fn apply_cmavo_dialect_entries(
     words
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(true)]
 fn apply_cmavo_dialect_entry(words: Vec<WordLike>, entry: &CmavoDialectEntry) -> Vec<WordLike> {
     words
@@ -2083,7 +2089,7 @@ fn apply_cmavo_dialect_entry(words: Vec<WordLike>, entry: &CmavoDialectEntry) ->
         .collect()
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(!ret.is_empty())]
 fn apply_cmavo_dialect_entry_to_word_like(
     word_like: WordLike,
@@ -2098,7 +2104,7 @@ fn apply_cmavo_dialect_entry_to_word_like(
     replacement
 }
 
-#[requires(entry.is_valid())]
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|words| !words.is_empty()))]
 fn cmavo_dialect_replacement(word: &Word, entry: &CmavoDialectEntry) -> Option<Vec<WordLike>> {
     if word.kind() != WordKind::Cmavo {
@@ -3648,13 +3654,11 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn invalid_morphology_options_are_rejected() {
+    fn invalid_cmavo_dialect_entries_are_rejected() {
         let panic = std::panic::catch_unwind(|| {
-            let _ = MorphologyOptions::default().with_data(data! {
-                cmavo_dialect_entries: vec![new!(CmavoDialectEntry::Expansion {
-                    source: "mi".to_owned(),
-                    replacement: Vec::new(),
-                })],
+            let _ = new!(CmavoDialectEntry::Expansion {
+                source: "mi".to_owned(),
+                replacement: Vec::new(),
             });
         });
         assert!(panic.is_err());
