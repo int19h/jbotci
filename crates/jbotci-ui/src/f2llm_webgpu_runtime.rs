@@ -2560,9 +2560,11 @@ fn parse_corpus_vector_spec(value: &JsValue) -> Result<CorpusVectorSpec, JsValue
             "elementType must be f16le, got {element_type}"
         )));
     }
+    let corpus_id = optional_string(value, "corpusId")?.unwrap_or_default();
+    let input_hash = optional_string(value, "inputHash")?.unwrap_or_default();
     Ok(new!(CorpusVectorSpec {
-        corpus_id: optional_string(value, "corpusId")?.unwrap_or_default(),
-        input_hash: optional_string(value, "inputHash")?.unwrap_or_default(),
+        corpus_id: corpus_id,
+        input_hash: input_hash,
         row_count: row_count,
         dimensions: dimensions,
         element_type: element_type,
