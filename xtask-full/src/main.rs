@@ -3190,11 +3190,10 @@ fn write_web_embedding_corpus(output: &Path) -> Result<()> {
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating `{}`", parent.display()))?;
     }
-    fs::write(
-        output,
-        jbotci_embedding_inputs::embedding_input_corpus_json(),
-    )
-    .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
+    let corpus_json = jbotci_embedding_inputs::embedding_input_corpus_json()
+        .context("building web embedding corpus JSON")?;
+    fs::write(output, corpus_json)
+        .with_context(|| format!("writing web embedding corpus `{}`", output.display()))
 }
 
 #[requires(true)]
@@ -12512,11 +12511,11 @@ diagnostics = []
             r#"[{ severity = "error", code = "syntax.parse" }]"#,
         )
         .unwrap();
-        let value: toml::Value = updated.parse().unwrap();
+        let value: toml::Value = toml::from_str(&updated).unwrap();
 
         assert_eq!(
             value["expectations"]["syntax"]["raw"].as_str(),
-            Some("\ndiagnostics = \"not a real key\"\n")
+            Some("diagnostics = \"not a real key\"\n")
         );
         assert_eq!(
             value["expectations"]["syntax"]["diagnostics"][0]["code"].as_str(),
@@ -12547,7 +12546,7 @@ brackets = "not a real key"
         };
 
         let updated = replace_gentufa_output_sections(source, &replacements).unwrap();
-        let value: toml::Value = updated.parse().unwrap();
+        let value: toml::Value = toml::from_str(&updated).unwrap();
 
         assert_eq!(
             value["expectations"]["output"]["gentufa"]["brackets"].as_str(),
@@ -12555,7 +12554,7 @@ brackets = "not a real key"
         );
         assert_eq!(
             value["expectations"]["output"]["gentufa"]["tree"].as_str(),
-            Some("\nbrackets = \"not a real key\"\n")
+            Some("brackets = \"not a real key\"\n")
         );
     }
 
