@@ -140,7 +140,7 @@ pub fn pretty_generated_model_tree_with_reference_display(
 
 #[doc(hidden)]
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 pub fn generated_reference_display<'tree>(
     generated_tree: &'tree GeneratedTextSyntax,
     source: &str,

@@ -9,7 +9,7 @@ pub mod tree;
 
 use std::{fmt, sync::Arc};
 
-use bityzba::{data, ensures, invariant, new, requires, try_new};
+use bityzba::{data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
     DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TraceReport,
@@ -90,10 +90,10 @@ impl Default for MorphologyOptions {
 }
 
 impl MorphologyOptions {
+    #[requires(true)]
     #[ensures(ret.cmavo_dialect_entries == definition.cmavo_entries)]
     #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
     #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
-    #[requires(true)]
     pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
         let uppercase_marks_stress = self.uppercase_marks_stress;
@@ -2386,8 +2386,8 @@ pub fn is_valid_phoneme(value: char) -> bool {
     )
 }
 
-#[ensures(!ret.is_empty() || text.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || text.is_empty())]
 pub fn canonicalize_text(text: &str) -> String {
     text.chars()
         .filter(|value| *value != ',')

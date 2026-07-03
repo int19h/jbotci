@@ -1267,7 +1267,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_text(mut self, syntax: &TextSyntax) -> Result<SemanticGraph, SemanticsError> {
         let plan = generated_text_plan_from_text(syntax)?;
         let items = self.build_generated_text_plan_items(plan)?;
@@ -1306,7 +1306,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_text_plan_items(
         &mut self,
         plan: GeneratedTextPlan<'_>,
@@ -1971,7 +1971,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn queue_generated_vocative_asides(
         &mut self,
         free_modifiers: &[FreeModifierSyntax],
@@ -1982,7 +1982,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_statement_reciprocity_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -2012,7 +2012,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_reciprocity_to_predication_for_terms(
         &mut self,
         predication: SemanticObjectId,
@@ -2039,7 +2039,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_reciprocity_from_free_modifier_refs(
         &mut self,
         predication: SemanticObjectId,
@@ -2066,7 +2066,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchanges_from_term(
         &mut self,
         predication: SemanticObjectId,
@@ -2105,7 +2105,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchanges_from_simple_term(
         &mut self,
         predication: SemanticObjectId,
@@ -2153,7 +2153,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchanges_from_sumti(
         &mut self,
         predication: SemanticObjectId,
@@ -2172,7 +2172,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchanges_from_free_modifier_refs(
         &mut self,
         predication: SemanticObjectId,
@@ -2194,7 +2194,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchanges_from_free_modifiers(
         &mut self,
         predication: SemanticObjectId,
@@ -2216,7 +2216,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_reciprocal_exchange_from_soi(
         &mut self,
         predication: SemanticObjectId,
@@ -2256,7 +2256,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_reciprocal_argument_for_sumti(
         &mut self,
         predication: SemanticObjectId,
@@ -2270,7 +2270,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[requires(place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn generated_predication_argument(
         &mut self,
         predication: SemanticObjectId,
@@ -2361,7 +2361,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_leading_indicators_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -2403,7 +2403,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_statement_separator_indicators_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -2422,7 +2422,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
     #[requires(target_override.is_none_or(|target| displayed_content_target_kind_is_allowed(target.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_statement_separator_indicators_to_discourse_item_with_target(
         &mut self,
         item: SemanticObjectId,
@@ -2944,7 +2944,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(displayed_content_target_kind_is_allowed(target.object_kind()))]
     #[requires(anchor.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[requires(!source_construct.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_indicator_displays_with_target_focus(
         &mut self,
         parts: Vec<IndicatorPart>,
@@ -3809,7 +3809,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_prenex_terms_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -3820,7 +3820,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_prenex_scopes_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
@@ -4002,7 +4002,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(variables.iter().all(|variable| matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter)))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn strip_generated_implicit_quantifiers_for_variables_everywhere(
         &mut self,
         variables: &HashSet<SemanticObjectId>,
@@ -4193,7 +4193,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn generated_prenex_formula_scopes_for_terms<'syntax>(
         &mut self,
         terms: &'syntax [TermSyntax],
@@ -4258,7 +4258,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_prenex_goi_assignments_for_sumti(
         &mut self,
         sumti: &SumtiSyntax,
@@ -4299,7 +4299,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn generated_prenex_formula_scope_for_term<'syntax>(
         &mut self,
         term: &'syntax TermSyntax,
@@ -4331,7 +4331,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn generated_prenex_formula_scope_for_sumti<'syntax>(
         &mut self,
         sumti: &'syntax SumtiSyntax,
@@ -5369,7 +5369,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_bridi_formula(
         &mut self,
         bridi: &BridiSyntax,
@@ -5518,7 +5518,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_term_formula_scopes_for_term(
         &self,
         term: &TermSyntax,
@@ -5557,7 +5557,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_term_formula_scopes_for_simple_term<N: TreeNode>(
         &self,
         node: &N,
@@ -5586,7 +5586,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_bridi_formula_with_options(
         &mut self,
         bridi: &BridiSyntax,
@@ -5608,7 +5608,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_subbridi_formula_with_eventuality(
         &mut self,
         subbridi: &SubbridiSyntax,
@@ -5839,7 +5839,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_relation_only_bridi_formula_with_options(
         &mut self,
         bridi: &RelationOnlyBridiSyntax,
@@ -5954,7 +5954,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_bridi_with_leading_terms_formula(
         &mut self,
         bridi: &BridiWithLeadingTermsSyntax,
@@ -5967,7 +5967,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_bridi_with_leading_terms_formula_with_options(
         &mut self,
         bridi: &BridiWithLeadingTermsSyntax,
@@ -6937,7 +6937,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(*next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_pehe_termset_operand_assignment<'syntax>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -7379,7 +7379,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_selbri_simple_bridi_tail_formula_from_terms<N: TreeNode>(
         &mut self,
         source_node: &N,
@@ -7405,7 +7405,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(!formula_construct.is_empty())]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_selbri_simple_bridi_tail_formula_from_terms_with_formula_construct<N: TreeNode>(
         &mut self,
         source_node: &N,
@@ -7891,7 +7891,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!predication_construct.is_empty())]
     #[requires(!formula_construct.is_empty())]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_selbri_simple_bridi_tail_formula_from_terms_with_source_constructs<N: TreeNode>(
         &mut self,
         source_node: &N,
@@ -8359,7 +8359,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(preassigned_visible_arguments.keys().all(|place| *place > 0))]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_selbri_simple_bridi_tail_formula_with_preassigned_arguments<N: TreeNode>(
         &mut self,
         source_node: &N,
@@ -8391,7 +8391,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(preassigned_visible_arguments.keys().all(|place| *place > 0))]
     #[requires(!formula_construct.is_empty())]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_selbri_simple_bridi_tail_formula_with_preassigned_arguments_and_formula_construct<
         N: TreeNode,
     >(
@@ -9232,7 +9232,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(arguments.iter().all(|argument| argument.value.is_some()))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_shared_head_arguments(
         &mut self,
         formula: SemanticObjectId,
@@ -9869,7 +9869,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_simple_tail_formula_with_options(
         &mut self,
         simple_tail: &SelbriSimpleBridiTailSyntax,
@@ -12096,7 +12096,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_alternative_argument_for_sumti_branch<'syntax>(
         &mut self,
         sumti: GeneratedDistributedSumtiBranch<'syntax>,
@@ -12323,7 +12323,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_alternative_argument_source<'syntax>(
         &mut self,
         source: GeneratedAlternativeArgumentSource<'syntax>,
@@ -12352,7 +12352,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_alternative_argument_for_sumti_bound<'syntax>(
         &mut self,
         sumti: &'syntax SumtiBoundSyntax,
@@ -12458,7 +12458,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_alternative_argument_for_sumti_forethought<'syntax>(
         &mut self,
         sumti: &'syntax SumtiForethoughtSyntax,
@@ -13042,7 +13042,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_generated_tense_modal_event_modifier(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13073,7 +13073,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_generated_leading_term_tag_event_modifier(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13090,7 +13090,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_generated_leading_term_tag_event_modifier_with_magnitude(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13121,7 +13121,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn flush_generated_event_modifiers(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13178,7 +13178,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn flush_generated_event_modifiers_with_recurrence_quantity_promotion(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13188,7 +13188,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn promote_generated_eventuality_recurrence_quantities(
         &mut self,
         eventuality: SemanticObjectId,
@@ -13223,7 +13223,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn promote_generated_interval_modifier_quantities(
         &mut self,
         modifiers: &mut [IntervalModifier],
@@ -13240,7 +13240,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn promote_generated_recurrence_quantities(
         &mut self,
         recurrences: &mut [Recurrence],
@@ -13253,7 +13253,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn promote_generated_recurrence_quantity(
         &mut self,
         recurrence: &mut Recurrence,
@@ -13293,7 +13293,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_generated_assigned_pro_bridi_bindings_for_tanru_unit(
         &mut self,
         unit: &TanruUnitSyntax,
@@ -13331,7 +13331,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(!tanru.additional_units.is_empty())]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_generated_assigned_pro_bridi_bindings_for_tanru_selbri(
         &mut self,
         tanru: &TanruSelbriSyntax,
@@ -18589,7 +18589,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[requires(arguments.keys().all(|place| *place > 0))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn extend_visible_arguments_with_linkargs(
         &mut self,
         arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -18693,7 +18693,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(assignments.next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn add_linked_sumti_assignment(
         &mut self,
         assignments: &mut GeneratedLinkargsAssignments,
@@ -18731,7 +18731,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_argument_for_generated_tense_tagged_linked_sumti(
         &mut self,
         tense_modal: &TenseModalSyntax,
@@ -19496,7 +19496,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn set_scalar_negation(
         &mut self,
         predication: SemanticObjectId,
@@ -19521,7 +19521,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_scalar_negation_to_tanru_links(
         &mut self,
         formula: SemanticObjectId,
@@ -19558,7 +19558,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_scalar_negation_to_formula_predications(
         &mut self,
         formula: SemanticObjectId,
@@ -19672,7 +19672,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_term_referent(
         &mut self,
         term: &TermSyntax,
@@ -19693,7 +19693,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(*next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_term_assignment<'syntax>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -19747,7 +19747,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(*next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_termset_group_assignment<'syntax, N: TreeNode>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -19797,7 +19797,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(*next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_simple_term_assignment<'syntax, N: TreeNode>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -19976,7 +19976,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(*next_visible_place > 0)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_sumti_bound_termset_assignment<'syntax>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -19992,7 +19992,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_argument_for_generated_tagged_sumti(
         &mut self,
         term: &TaggedSumtiTermSyntax,
@@ -20001,7 +20001,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_argument_for_generated_tagged_sumti_with_visible_arguments(
         &mut self,
         term: &TaggedSumtiTermSyntax,
@@ -20053,7 +20053,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_argument_for_generated_tagged_sumti_with_predication_arguments(
         &mut self,
         term: &TaggedSumtiTermSyntax,
@@ -20300,7 +20300,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_modal_terms_to_formula(
         &mut self,
         formula: SemanticObjectId,
@@ -20313,7 +20313,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_modal_term_to_formula(
         &mut self,
         formula: SemanticObjectId,
@@ -20337,7 +20337,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_modal_term_to_predication(
         &mut self,
         predication: SemanticObjectId,
@@ -20371,7 +20371,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(!construct.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_argument_for_generated_tense_modal(
         &mut self,
         tense_modal: &TenseModalSyntax,
@@ -20417,7 +20417,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_modal_argument_to_generated_discourse_item(
         &mut self,
         id: SemanticObjectId,
@@ -20448,7 +20448,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_modal_argument_to_generated_content(
         &mut self,
         id: SemanticObjectId,
@@ -20467,7 +20467,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_modal_argument_to_generated_formula(
         &mut self,
         id: SemanticObjectId,
@@ -20491,7 +20491,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn prepend_modal_argument_to_generated_formula(
         &mut self,
         id: SemanticObjectId,
@@ -20515,7 +20515,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_modal_argument_to_generated_predication(
         &mut self,
         id: SemanticObjectId,
@@ -20545,7 +20545,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(id.object_kind() == crate::model::SemanticObjectKind::Predication)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn prepend_modal_argument_to_generated_predication(
         &mut self,
         id: SemanticObjectId,
@@ -20615,7 +20615,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_arguments_for_generated_tagged_terms(
         &mut self,
         modal_terms: &[TaggedSumtiTermSyntax],
@@ -20640,7 +20640,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_arguments_for_generated_tagged_terms_for_event(
         &mut self,
         eventuality: SemanticObjectId,
@@ -20654,7 +20654,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
         &mut self,
         eventuality: SemanticObjectId,
@@ -20687,7 +20687,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
         &mut self,
         eventuality: SemanticObjectId,
@@ -20766,7 +20766,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn record_completed_generated_pro_bridi_frame_from_bridi(
         &mut self,
         bridi: &BridiSyntax,
@@ -21125,7 +21125,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_pending_sumti_candidates_for_term(
         &self,
         term: &TermSyntax,
@@ -21238,7 +21238,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tagged_term_event_modifiers_in_terms<'syntax>(
         &mut self,
         eventuality: SemanticObjectId,
@@ -21272,7 +21272,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tagged_term_event_modifiers(
         &mut self,
         eventuality: SemanticObjectId,
@@ -21342,7 +21342,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_governed_termset_members<'syntax>(
         &mut self,
         term: &'syntax TermSyntax,
@@ -21375,7 +21375,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn collect_generated_governed_termset_simple_member<'syntax>(
         &mut self,
         simple: &'syntax SimpleTermSyntax,
@@ -21425,7 +21425,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tagged_term_event_modifier(
         &mut self,
         eventuality: SemanticObjectId,
@@ -21449,7 +21449,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tagged_term_event_modifier_with_governed_termset(
         &mut self,
         eventuality: SemanticObjectId,
@@ -21485,7 +21485,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality_interval.is_none_or(|interval| crate::model::argument_object_kind_can_fill(interval.object_kind())))]
     #[requires(spatial_eventuality_interval.is_none_or(|interval| crate::model::argument_object_kind_can_fill(interval.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_recurrence_event_modifiers<N: TreeNode>(
         &mut self,
         tense_modal: &N,
@@ -21659,7 +21659,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_argument_for_generated_term(
         &mut self,
         term: &TermSyntax,
@@ -21928,7 +21928,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tense_modal_event_modifier_to_eventuality(
         &mut self,
         eventuality: SemanticObjectId,
@@ -21941,7 +21941,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
     #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn apply_generated_tense_modal_event_modifier_to_eventuality_now<N: TreeNode>(
         &mut self,
         eventuality: SemanticObjectId,
@@ -22093,7 +22093,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn split_generated_fai_terms<'syntax>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
@@ -22208,7 +22208,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_cached_sumti_referent_for_node<N: TreeNode>(
         &mut self,
         node: &N,
@@ -22230,7 +22230,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_sumti_referent(
         &mut self,
         sumti: &SumtiSyntax,
@@ -22345,7 +22345,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_argument_for_generated_sumti(
         &mut self,
         sumti: &SumtiSyntax,
@@ -22438,7 +22438,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_occurrence_relative_clauses_for_sumti(
         &mut self,
         sumti: &SumtiSyntax,
@@ -22454,7 +22454,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_occurrence_relative_clause_list(
         &mut self,
         relative_clauses: &RelativeClauseListSyntax,
@@ -22477,7 +22477,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_generated_relative_clauses_to_referent(
         &mut self,
         head: SemanticObjectId,
@@ -22500,7 +22500,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_argument_for_generated_sumti_with_formula_scopes<'syntax>(
         &mut self,
         sumti: &'syntax SumtiSyntax,
@@ -23265,7 +23265,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_relative_clause_list(
         &mut self,
         relative_clauses: &RelativeClauseListSyntax,
@@ -23290,7 +23290,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_relative_clause_atom(
         &mut self,
         clause: &RelativeClauseAtomSyntax,
@@ -23307,7 +23307,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_descriptor_relative_clause_list(
         &mut self,
         relative_clauses: &RelativeClauseListSyntax,
@@ -23337,7 +23337,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_sumti_association_relative_clause(
         &mut self,
         clause: &SumtiAssociationRelativeClauseSyntax,
@@ -23416,7 +23416,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_goi_associated_referent(
         &mut self,
         sumti: &SumtiSyntax,
@@ -23477,7 +23477,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn add_generated_assigned_name_to_referent(
         &mut self,
         referent: SemanticObjectId,
@@ -23501,7 +23501,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(referent.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn push_generated_goi_assigned_names_to_referent(
         &mut self,
         referent: SemanticObjectId,
@@ -23517,7 +23517,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn add_generated_goi_assignment_to_referent(
         &mut self,
         head: SemanticObjectId,
@@ -23613,7 +23613,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[requires(!marker_text.is_empty())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_modal_sumti_association_clause(
         &mut self,
         sumti: &TenseTaggedRelativeSumtiSyntax,
@@ -23703,7 +23703,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_bridi_relative_clause(
         &mut self,
         clause: &BridiRelativeClauseSyntax,
@@ -23735,7 +23735,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_restrictive_bridi_relative_clause(
         &mut self,
         clause: &RestrictiveBridiRelativeClauseSyntax,
@@ -23757,7 +23757,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_nonveridical_relative_bridi_clause(
         &mut self,
         clause: &RestrictiveBridiRelativeClauseSyntax,
@@ -23837,7 +23837,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_relative_subbridi(
         &mut self,
         subbridi: &SubbridiSyntax,
@@ -23865,7 +23865,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn lower_generated_relative_statement(
         &mut self,
         statement: &StatementSyntax,
@@ -23908,7 +23908,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn fill_first_elided_generated_formula_argument(
         &mut self,
         formula: SemanticObjectId,
@@ -23934,7 +23934,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(argument.value.is_some())]
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn fill_first_elided_generated_formula_argument_with_argument(
         &mut self,
         formula: SemanticObjectId,
@@ -23965,7 +23965,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn replace_first_elided_generated_formula_argument(
         &mut self,
         formula: SemanticObjectId,
@@ -24016,7 +24016,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn replace_first_elided_generated_predication_argument(
         &mut self,
         predication: SemanticObjectId,
@@ -24066,7 +24066,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn fill_first_elided_generated_predication_argument(
         &mut self,
         predication: SemanticObjectId,
@@ -26248,7 +26248,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             | crate::model::SemanticObjectKind::Parameter
             | crate::model::SemanticObjectKind::MathExpression
     ))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn attach_subscript_from_free_modifiers(
         &mut self,
         object: SemanticObjectId,
@@ -26628,7 +26628,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_pro_sumti_referent(
         &mut self,
         pro_sumti: &ProSumtiSyntax,
@@ -27692,7 +27692,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[requires(operand.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn build_generated_possessive_association_clause<N: TreeNode>(
         &mut self,
         head: SemanticObjectId,
@@ -27915,7 +27915,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(arguments.contains_key("x1"))]
     #[requires(arguments.contains_key("x2"))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_generated_abstraction_link_extra_argument(
         &mut self,
         kind: AbstractionKind,
@@ -28983,7 +28983,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(body.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert_implicit_generated_property_slot_parameter(
         &mut self,
         body: SemanticObjectId,
@@ -29139,7 +29139,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(id.object_kind() == object.object_kind())]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn insert(
         &mut self,
         id: SemanticObjectId,
@@ -29163,7 +29163,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn finalize_generated_eventuality_for_predication_mode(
         &mut self,
         eventuality: SemanticObjectId,
@@ -29210,7 +29210,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok() || ret.is_err())]
+    #[ensures(true)]
     fn set_semantic_object_source(
         &mut self,
         id: SemanticObjectId,
@@ -29666,7 +29666,7 @@ fn generated_node_surface_text<N: TreeNode>(node: &N) -> Result<String, Semantic
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_text_plan_from_text(
     syntax: &TextSyntax,
 ) -> Result<GeneratedTextPlan<'_>, SemanticsError> {
@@ -29753,7 +29753,7 @@ fn generated_soi_free_modifier(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_text_paragraphs<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     paragraphs: &'syntax TextParagraphsSyntax,
@@ -29772,7 +29772,7 @@ fn push_generated_text_paragraphs<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_text_paragraph_with_additional_niho<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     paragraphs: &'syntax TextParagraphWithAdditionalNihoSyntax,
@@ -29785,7 +29785,7 @@ fn push_generated_text_paragraph_with_additional_niho<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_paragraph_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     paragraph: &'syntax ParagraphSyntax,
@@ -29805,7 +29805,7 @@ fn push_generated_paragraph_items<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_niho_paragraph_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     paragraph: &'syntax NihoParagraphSyntax,
@@ -29818,7 +29818,7 @@ fn push_generated_niho_paragraph_items<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_optional_niho_statement_sequence_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     sequence: Option<&'syntax ParagraphStatementSequenceSyntax>,
@@ -29837,7 +29837,7 @@ fn push_generated_optional_niho_statement_sequence_items<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_paragraph_statement_sequence_items<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     sequence: &'syntax ParagraphStatementSequenceSyntax,
@@ -29858,7 +29858,7 @@ fn push_generated_paragraph_statement_sequence_items<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn push_generated_following_paragraph_statement_item<'syntax>(
     items: &mut Vec<GeneratedTextPlanItem<'syntax>>,
     following: &'syntax FollowingParagraphStatementSyntax,
@@ -29890,7 +29890,7 @@ fn push_generated_following_paragraph_statement_item<'syntax>(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn semantic_root_from_statement_or_fragment(
     statement_or_fragment: &StatementOrFragmentSyntax,
 ) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
@@ -29918,7 +29918,7 @@ fn semantic_root_from_statement_or_fragment(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn semantic_root_from_statement(
     statement: &StatementSyntax,
 ) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
@@ -30023,7 +30023,7 @@ fn bridi_from_statement_base(base: &StatementBaseSyntax) -> Result<&BridiSyntax,
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn semantic_root_from_statement_base(
     base: &StatementBaseSyntax,
 ) -> Result<GeneratedTextRoot<'_>, SemanticsError> {
@@ -30143,7 +30143,7 @@ fn main_generated_selbri_for_bridi_tail(tail: &BridiTailSyntax) -> Option<&Selbr
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn statement_connection_tail_parts(
     tail: &IStatementConnectionTailSyntax,
 ) -> Result<
@@ -30178,7 +30178,7 @@ fn generated_text_group_statement_connection_spec(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn simple_tail_from_bridi_tail(
     tail: &BridiTailSyntax,
 ) -> Result<&SelbriSimpleBridiTailSyntax, SemanticsError> {
@@ -30358,7 +30358,7 @@ fn relation_label_from_co_selbri(selbri: &CoSelbriSyntax) -> Result<String, Sema
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_question_syntax_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<Option<GeneratedRelationQuestionSyntax<'_>>, SemanticsError> {
@@ -30383,7 +30383,7 @@ fn relation_question_syntax_from_co_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_question_syntax_from_generated_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationQuestionSyntax<'_>>, SemanticsError> {
@@ -30394,7 +30394,7 @@ fn relation_question_syntax_from_generated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_question_syntax_from_bo_or_linked_tanru_unit(
     unit: &BoOrLinkedTanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationQuestionSyntax<'_>>, SemanticsError> {
@@ -30409,7 +30409,7 @@ fn relation_question_syntax_from_bo_or_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_question_syntax_from_linked_tanru_unit(
     unit: &LinkedTanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationQuestionSyntax<'_>>, SemanticsError> {
@@ -30443,7 +30443,7 @@ fn generated_relation_question_token(question: GeneratedRelationQuestionSyntax<'
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_variable_syntax_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30461,7 +30461,7 @@ fn relation_variable_syntax_from_co_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn unspecified_relation_syntax_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30476,7 +30476,7 @@ fn unspecified_relation_syntax_from_co_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_variable_syntax_from_generated_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30487,7 +30487,7 @@ fn relation_variable_syntax_from_generated_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn relation_variable_syntax_from_no_gadri_prenex_sumti(
     sumti: &SumtiSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30501,7 +30501,7 @@ fn relation_variable_syntax_from_no_gadri_prenex_sumti(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn single_relation_parameter_syntax_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30526,7 +30526,7 @@ fn single_relation_parameter_syntax_from_co_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn single_relation_parameter_syntax_from_generated_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30537,7 +30537,7 @@ fn single_relation_parameter_syntax_from_generated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn single_relation_parameter_syntax_from_bo_or_linked_tanru_unit(
     unit: &BoOrLinkedTanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30552,7 +30552,7 @@ fn single_relation_parameter_syntax_from_bo_or_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn single_relation_parameter_syntax_from_linked_tanru_unit(
     unit: &LinkedTanruUnitSyntax,
 ) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
@@ -30571,7 +30571,7 @@ fn single_relation_parameter_syntax_from_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn resolvable_generated_pro_bridi_cmavo_from_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<Option<Cmavo>, SemanticsError> {
@@ -30618,7 +30618,7 @@ fn generated_goha_word_tanru_unit_token(unit: &GohaWordTanruUnitSyntax) -> &Toke
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn tanru_selbri_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&TanruSelbriSyntax>, SemanticsError> {
@@ -30636,7 +30636,7 @@ fn tanru_selbri_from_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn tanru_selbri_from_co_selbri(
     selbri: &CoSelbriSyntax,
 ) -> Result<Option<&TanruSelbriSyntax>, SemanticsError> {
@@ -30654,7 +30654,7 @@ fn tanru_selbri_from_co_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn connected_selbri_as_tanru(
     selbri: &ConnectedSelbriSyntax,
 ) -> Result<&TanruSelbriSyntax, SemanticsError> {
@@ -30665,7 +30665,7 @@ fn connected_selbri_as_tanru(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn sumti_selbri_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&SumtiSelbriTanruUnitSyntax>, SemanticsError> {
@@ -30679,7 +30679,7 @@ fn sumti_selbri_from_selbri(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn sumti_selbri_from_generated_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<Option<&SumtiSelbriTanruUnitSyntax>, SemanticsError> {
@@ -30704,7 +30704,7 @@ fn sumti_selbri_from_generated_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_selbri_requires_direct_description_body(
     selbri: &SelbriSyntax,
 ) -> Result<bool, SemanticsError> {
@@ -30718,7 +30718,7 @@ fn generated_selbri_requires_direct_description_body(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_tanru_unit_is_jai_conversion(unit: &TanruUnitSyntax) -> Result<bool, SemanticsError> {
     if !unit.0.links.is_empty() {
         return Ok(false);
@@ -30748,7 +30748,7 @@ fn generated_tanru_unit_atom_base_is_jai_conversion(base: &TanruUnitAtomBaseSynt
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_tanru_unit_is_grouped(unit: &TanruUnitSyntax) -> Result<bool, SemanticsError> {
     if !unit.0.links.is_empty() {
         return Ok(false);
@@ -30775,7 +30775,7 @@ fn generated_tanru_unit_is_grouped(unit: &TanruUnitSyntax) -> Result<bool, Seman
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn abstraction_from_generated_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<Option<&AbstractionTanruUnitSyntax>, SemanticsError> {
@@ -30821,7 +30821,7 @@ fn generated_tanru_unit_atom(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_linked_tanru_unit(
     unit: &TanruUnitSyntax,
 ) -> Result<&LinkedTanruUnitSyntax, SemanticsError> {
@@ -30835,7 +30835,7 @@ fn generated_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_linked_tanru_unit_parts(
     unit: &TanruUnitSyntax,
 ) -> Result<(&TanruUnitAtomSyntax, Option<&LinkargsSyntax>), SemanticsError> {
@@ -31088,7 +31088,7 @@ fn linked_sumti_place(token: &Token) -> Result<usize, SemanticsError> {
 }
 
 #[requires(first_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn linkargs_assign_visible_place_before(
     linkargs: &LinkargsSyntax,
     first_visible_place: usize,
@@ -31105,7 +31105,7 @@ fn linkargs_assign_visible_place_before(
 }
 
 #[requires(first_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn linked_sumti_assigns_visible_place_before(
     link: &LinkedSumtiSyntax,
     first_visible_place: usize,
@@ -31135,7 +31135,7 @@ fn next_visible_place_after_linkargs(
 }
 
 #[requires(*next_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn advance_visible_place_after_linked_sumti(
     next_visible_place: &mut usize,
     link: &LinkedSumtiSyntax,
@@ -31159,7 +31159,7 @@ fn advance_visible_place_after_linked_sumti(
 }
 
 #[requires(place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn insert_visible_argument(
     arguments: &mut BTreeMap<usize, ArgumentValue>,
     place: usize,
@@ -31200,7 +31200,7 @@ fn replace_generated_argument_value_object(
 }
 
 #[requires(visible_arguments.keys().all(|place| *place > 0))]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn apply_generated_bare_jai_visible_argument(
     builder: &mut GeneratedGraphBuilder<'_, '_>,
     visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -31211,7 +31211,7 @@ fn apply_generated_bare_jai_visible_argument(
 }
 
 #[requires(visible_arguments.keys().all(|place| *place > 0))]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn apply_generated_bare_jai_visible_argument_with_source(
     builder: &mut GeneratedGraphBuilder<'_, '_>,
     visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
@@ -34921,7 +34921,7 @@ fn generated_shared_head_term_uses_shared_source(term: &TermSyntax) -> bool {
 #[requires(true)]
 #[requires(target.visible_arguments.keys().all(|place| *place > 0))]
 #[requires(source.visible_arguments.keys().all(|place| *place > 0))]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn extend_generated_term_assignments_shifted<'syntax>(
     target: &mut GeneratedTermAssignments<'syntax>,
     source: &GeneratedTermAssignments<'syntax>,
@@ -35028,7 +35028,7 @@ fn generated_numbered_sumti_assignments_for_terms<'syntax>(
 #[requires(*next_visible_place > 0)]
 #[requires(assignments.iter().all(|(place, _)| *place > 0))]
 #[requires(assigned_places.iter().all(|place| *place > 0))]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_numbered_sumti_assignments_for_term<'syntax>(
     term: &'syntax TermSyntax,
     assignments: &mut Vec<(usize, &'syntax SumtiSyntax)>,
@@ -35075,7 +35075,7 @@ fn generated_numbered_sumti_assignments_for_term<'syntax>(
 #[requires(*next_visible_place > 0)]
 #[requires(assignments.iter().all(|(place, _)| *place > 0))]
 #[requires(assigned_places.iter().all(|place| *place > 0))]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
     term: &'syntax SimpleTermSyntax,
     assignments: &mut Vec<(usize, &'syntax SumtiSyntax)>,
@@ -35139,7 +35139,7 @@ fn generated_numbered_sumti_assignments_for_simple_term<'syntax>(
 }
 
 #[requires(*next_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn advance_next_visible_place_after_generated_term(
     term: &TermSyntax,
     next_visible_place: &mut usize,
@@ -35179,7 +35179,7 @@ fn advance_next_visible_place_after_generated_term(
 }
 
 #[requires(*next_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn advance_next_visible_place_after_generated_simple_term(
     simple: &SimpleTermSyntax,
     next_visible_place: &mut usize,
@@ -36396,7 +36396,7 @@ fn relation_label_from_tanru_unit_atom(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn simple_sumti_from_term(term: &TermSyntax) -> Result<&SumtiSyntax, SemanticsError> {
     let simple = match term {
         TermSyntax::SimpleTerm(simple) => simple,
@@ -36413,7 +36413,7 @@ fn simple_sumti_from_term(term: &TermSyntax) -> Result<&SumtiSyntax, SemanticsEr
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_simple_term_for_assignment(
     term: &TermSyntax,
 ) -> Result<&SimpleTermSyntax, SemanticsError> {
@@ -36525,7 +36525,7 @@ fn generated_term_has_distributed_sumti_connection(term: &TermSyntax) -> bool {
 }
 
 #[requires(first_visible_place > 0)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_terms_have_duplicate_numbered_assignments(
     terms: &[&TermSyntax],
     first_visible_place: usize,
@@ -36569,7 +36569,7 @@ fn generated_terms_have_duplicate_numbered_assignments(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_logical_sumti_connection_for_branch(
     branch: GeneratedDistributedSumtiBranch<'_>,
 ) -> Result<Option<GeneratedLogicalSumtiConnection<'_>>, SemanticsError> {
@@ -36725,7 +36725,7 @@ fn generated_distributed_sumti_connective_negates_right(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn simple_sumti_base_from_sumti(sumti: &SumtiSyntax) -> Result<&SumtiBaseSyntax, SemanticsError> {
     let SumtiSyntax {
         base_sumti,
@@ -36927,7 +36927,7 @@ fn aggregate_description_spec(cmavo: Cmavo) -> Option<AggregateDescriptionSpec> 
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn afterthought_sumti_from_sumti(
     sumti: &SumtiSyntax,
 ) -> Result<Option<&SumtiAfterthoughtSyntax>, SemanticsError> {
@@ -37034,7 +37034,7 @@ fn generated_sumti_forethought_for_distribution(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn no_gadri_description_from_sumti(
     sumti: &SumtiSyntax,
 ) -> Result<Option<&DescriptorWithoutGadriSumtiSyntax>, SemanticsError> {
@@ -37190,7 +37190,7 @@ fn outer_quantified_description_from_sumti_bound(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn no_gadri_description_from_sumti_bound(
     sumti: &SumtiBoundSyntax,
 ) -> Result<Option<&DescriptorWithoutGadriSumtiSyntax>, SemanticsError> {
@@ -38872,7 +38872,7 @@ fn generated_prenex_scope_binding_key(
 }
 
 #[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
+#[ensures(true)]
 fn generated_prenex_binding_sumti_for_term(
     term: &TermSyntax,
 ) -> Result<Option<&SumtiSyntax>, SemanticsError> {

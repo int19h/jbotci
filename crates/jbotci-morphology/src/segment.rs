@@ -1,6 +1,6 @@
 use std::{cell::Cell, ops::Range};
 
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use vec1::Vec1;
 
 use crate::{
@@ -431,8 +431,8 @@ fn source_range_from_normalized_range(
     (start < end).then(|| SourceRange::new(start, end))
 }
 
-#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
 pub(crate) fn classify_word_with_options(
     normalized_word: &str,
     options: &MorphologyOptions,
@@ -480,8 +480,8 @@ pub(crate) fn classify_word_with_options(
     None
 }
 
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     let chars: Vec<char> = normalized_word.chars().collect();
     let mut out = String::new();
@@ -502,8 +502,8 @@ pub(crate) fn canonicalize_word_phonemes(normalized_word: &str) -> String {
     out
 }
 
-#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || normalized_word.is_empty())]
 fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     mark_predictable_stress(
         &canonicalize_word_phonemes(normalized_word)
@@ -513,8 +513,8 @@ fn canonicalize_brivla_phonemes(normalized_word: &str) -> String {
     )
 }
 
-#[ensures(!ret.is_empty() || phonemes.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || phonemes.is_empty())]
 fn mark_predictable_stress(phonemes: &str) -> String {
     if has_explicit_stress(phonemes) {
         return phonemes.to_owned();
@@ -1738,8 +1738,8 @@ pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
     starts_with_cvcy_lujvo_chars(&chars, 0)
 }
 
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;

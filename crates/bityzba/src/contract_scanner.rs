@@ -227,6 +227,12 @@ impl FileScanner {
     }
 
     fn scan_free_function(&mut self, item: &ItemFn) {
+        self.require_contract_attribute_order(
+            &item.attrs,
+            "function",
+            &item.sig.ident.to_string(),
+            item.sig.ident.span(),
+        );
         self.require_function_contracts(
             &item.attrs,
             &item.sig.output,
@@ -237,6 +243,12 @@ impl FileScanner {
     }
 
     fn scan_struct(&mut self, item: &ItemStruct) {
+        self.require_contract_attribute_order(
+            &item.attrs,
+            "struct",
+            &item.ident.to_string(),
+            item.ident.span(),
+        );
         if !has_type_invariant(&item.attrs) {
             self.diagnostics.push(Diagnostic::new(
                 self.path.clone(),
@@ -248,6 +260,12 @@ impl FileScanner {
     }
 
     fn scan_enum(&mut self, item: &ItemEnum) {
+        self.require_contract_attribute_order(
+            &item.attrs,
+            "enum",
+            &item.ident.to_string(),
+            item.ident.span(),
+        );
         let has_data_variants = item
             .variants
             .iter()
@@ -300,6 +318,12 @@ impl FileScanner {
     }
 
     fn scan_trait_method(&mut self, trait_name: &str, method: &TraitItemFn) {
+        self.require_contract_attribute_order(
+            &method.attrs,
+            "trait method",
+            &format!("{trait_name}::{}", method.sig.ident),
+            method.sig.ident.span(),
+        );
         self.require_function_contracts(
             &method.attrs,
             &method.sig.output,
@@ -316,6 +340,12 @@ impl FileScanner {
 
         for impl_item in &item.items {
             if let ImplItem::Fn(method) = impl_item {
+                self.require_contract_attribute_order(
+                    &method.attrs,
+                    "method",
+                    &method.sig.ident.to_string(),
+                    method.sig.ident.span(),
+                );
                 self.require_function_contracts(
                     &method.attrs,
                     &method.sig.output,
@@ -323,6 +353,40 @@ impl FileScanner {
                     &method.sig.ident.to_string(),
                     method.sig.ident.span(),
                 );
+            }
+        }
+    }
+
+    fn require_contract_attribute_order(
+        &mut self,
+        attrs: &[Attribute],
+        item_kind: &str,
+        item_name: &str,
+        span: Span,
+    ) {
+        let mut highest_rank = 0u8;
+        let mut highest_name = None::<&'static str>;
+        for attr in attrs {
+            let Some((rank, name)) = contract_attr_rank(attr) else {
+                continue;
+            };
+            if rank < highest_rank {
+                let line = attr.path().segments.last().map_or_else(
+                    || span.start().line,
+                    |segment| segment.ident.span().start().line,
+                );
+                self.diagnostics.push(Diagnostic::new(
+                    self.path.clone(),
+                    line,
+                    format!(
+                        "bityzba contract attribute `{name}` appears after `{}` on {item_kind} `{item_name}`",
+                        highest_name.unwrap_or("a later contract attribute")
+                    ),
+                    "order bityzba contract attributes as `requires`, then `ensures`, then `invariant`",
+                ));
+            } else {
+                highest_rank = rank;
+                highest_name = Some(name);
             }
         }
     }
@@ -372,6 +436,16 @@ impl FileScanner {
                 ));
             }
         }
+    }
+}
+
+fn contract_attr_rank(attr: &Attribute) -> Option<(u8, &'static str)> {
+    let name = attr.path().segments.last()?.ident.to_string();
+    match name.as_str() {
+        "requires" | "expensive_requires" => Some((0, "requires")),
+        "ensures" | "expensive_ensures" => Some((1, "ensures")),
+        "invariant" | "expensive_invariant" => Some((2, "invariant")),
+        _ => None,
     }
 }
 

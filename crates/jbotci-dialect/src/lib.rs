@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -23,8 +23,8 @@ impl DialectError {
         Self { message }
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     pub fn message(&self) -> &str {
         &self.message
     }
@@ -67,8 +67,8 @@ impl DialectFeature {
         ]
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Cbm => "cbm",
@@ -86,8 +86,8 @@ impl DialectFeature {
         }
     }
 
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     fn atom_name(self) -> String {
         self.name().to_ascii_uppercase()
     }
@@ -151,14 +151,14 @@ pub struct DialectDefinition {
 }
 
 impl DialectDefinition {
-    #[ensures(ret.is_baseline())]
     #[requires(true)]
+    #[ensures(ret.is_baseline())]
     pub fn baseline() -> Self {
         Self::default()
     }
 
-    #[ensures(ret == self.cmavo_entries.is_empty() && self.features.is_empty())]
     #[requires(true)]
+    #[ensures(ret == self.cmavo_entries.is_empty() && self.features.is_empty())]
     pub fn is_baseline(&self) -> bool {
         self.cmavo_entries.is_empty() && self.features.is_empty()
     }
@@ -252,8 +252,8 @@ pub fn builtin_dialects() -> Vec<BuiltinDialect> {
         .collect()
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 pub fn builtin_dialect_names() -> Vec<&'static str> {
     builtin_dialect_sources()
         .into_iter()
@@ -1333,8 +1333,8 @@ fn parse_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectErr
         .ok_or_else(|| DialectError::new(format!("Unknown dialect feature: {requested_name}")))
 }
 
-#[ensures(ret.1.len() <= tokens.len())]
 #[requires(true)]
+#[ensures(ret.1.len() <= tokens.len())]
 fn collect_entry_words(tokens: &[DialectToken]) -> (Vec<String>, &[DialectToken]) {
     let mut words = Vec::new();
     let mut index = 0;
@@ -1422,8 +1422,8 @@ fn lookup_builtin_dialect_reference_in_stack(
     })
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     vec![
         ("cbm", "(+CBM)"),
@@ -1446,14 +1446,14 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
     ]
 }
 
-#[ensures(!ret.is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty())]
 fn builtin_dialect_source_map() -> BTreeMap<&'static str, &'static str> {
     builtin_dialect_sources().into_iter().collect()
 }
 
-#[ensures(!ret.is_empty() || source.trim().is_empty())]
 #[requires(true)]
+#[ensures(!ret.is_empty() || source.trim().is_empty())]
 fn tokenize(source: &str) -> Vec<DialectToken> {
     let chars: Vec<char> = source.chars().collect();
     let mut tokens = Vec::new();
@@ -1526,8 +1526,8 @@ fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
     })
 }
 
-#[ensures(ret -> !word.is_empty())]
 #[requires(true)]
+#[ensures(ret -> !word.is_empty())]
 fn is_normalized_cmavo(word: &str) -> bool {
     parse_cmavo_form(word).as_deref() == Some(word)
 }
@@ -1593,8 +1593,8 @@ fn parse_cmavo_form(text: &str) -> Option<String> {
     parse_cmavo_form_main(&chars)
 }
 
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
     if starts_with_cluster(chars, 0) {
         return None;
@@ -1901,8 +1901,8 @@ fn base_semivowel(value: char) -> Option<char> {
 }
 
 impl DialectToken {
-    #[ensures(!ret.is_empty())]
     #[requires(true)]
+    #[ensures(!ret.is_empty())]
     fn text(&self) -> String {
         match self {
             Self::OpenParen => "(".to_owned(),
@@ -1915,7 +1915,7 @@ impl DialectToken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bityzba::{contract_trait, ensures, invariant, requires};
+    use bityzba::{contract_trait, invariant, requires};
 
     #[test]
     #[requires(true)]
@@ -2204,8 +2204,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait precondition requires positive input")]
-    #[ensures(true)]
     #[requires(true)]
+    #[ensures(true)]
     fn trait_contract_precondition_is_reported_on_concrete_call() {
         let mapper = BadMapper;
         let _ = mapper.map_positive(0);
@@ -2213,8 +2213,8 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "trait postcondition requires positive output")]
-    #[ensures(true)]
     #[requires(true)]
+    #[ensures(true)]
     fn trait_contract_postcondition_is_reported_on_dyn_call() {
         let mapper: &dyn PositiveMapper = &BadMapper;
         let _ = mapper.map_positive(1);

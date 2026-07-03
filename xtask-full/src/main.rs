@@ -10033,8 +10033,8 @@ fn trim_fixture_worker_heap() {
     }
 }
 
-#[ensures(ret > 0)]
 #[requires(true)]
+#[ensures(ret > 0)]
 fn default_fixture_jobs() -> usize {
     DEFAULT_TEST_JOBS
 }
@@ -11299,8 +11299,8 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
     }
 }
 
-#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(FacetResult::is_valid))]
 fn syntax_xfail_result(
     expectation: &fixtures::SyntaxExpectation,
     actual_status: ExpectationStatus,
@@ -11437,8 +11437,8 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     }
 }
 
-#[ensures(ret.as_ref().is_none_or(|status| matches!(status, ExpectationStatus::Success | ExpectationStatus::Failure | ExpectationStatus::Pending | ExpectationStatus::NotApplicable)))]
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|status| matches!(status, ExpectationStatus::Success | ExpectationStatus::Failure | ExpectationStatus::Pending | ExpectationStatus::NotApplicable)))]
 fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<ExpectationStatus> {
     let expectations = &fixture.test_case.expectations;
     match facet {
