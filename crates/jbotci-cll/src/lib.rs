@@ -5,7 +5,7 @@ use std::io::Read;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use bzip2::read::BzDecoder;
 use jbotci_morphology::normalize_lojban_input_text;
 use roxmltree::{Document, Node};
@@ -35,14 +35,33 @@ const CHRESTOMATHY_METADATA_TOML: &str = include_str!(concat!(
     "/../../vendor/cll-chrestomathy.toml"
 ));
 
-#[invariant(true)]
+#[invariant(!title.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllMetadata {
     pub title: String,
     pub chapter_count: usize,
 }
 
-#[invariant(true)]
+#[invariant(metadata.chapter_count == chapters.len(), "metadata chapter count mirrors loaded chapters")]
+#[expensive_invariant(
+    cll_site_section_references_are_consistent(
+        chapters,
+        sections_by_id,
+        section_order,
+        section_ids_by_normalized_reference,
+        anchors_by_id,
+        index_entries,
+    ),
+    "section navigation, anchors, and indexes must reference existing section ids"
+)]
+#[expensive_invariant(
+    cll_site_example_references_are_consistent(
+        sections_by_id,
+        examples_by_id,
+        example_ids_by_normalized_reference,
+    ),
+    "example indexes must be keyed by anchor id and reference existing sections"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllSite {
     pub metadata: CllMetadata,
@@ -57,7 +76,10 @@ pub struct CllSite {
     pub search_chunks: Vec<CllSearchChunk>,
 }
 
-#[invariant(true)]
+#[invariant(!chapter_id.is_empty())]
+#[invariant(*chapter_number > 0)]
+#[invariant(!chapter_title.is_empty())]
+#[expensive_invariant(root_section_ids.iter().all(|section_id| !section_id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllChapter {
     pub chapter_id: String,
@@ -67,7 +89,14 @@ pub struct CllChapter {
     pub prelude_blocks: Vec<CllBlock>,
 }
 
-#[invariant(true)]
+#[invariant(!section_id.is_empty())]
+#[invariant(!chapter_id.is_empty())]
+#[invariant(*chapter_number > 0)]
+#[invariant(!number.is_empty())]
+#[invariant(!title.is_empty())]
+#[invariant(parent_section_id.as_ref().is_none_or(|section_id| !section_id.is_empty()))]
+#[invariant(!source_path.is_empty())]
+#[expensive_invariant(child_section_ids.iter().all(|section_id| !section_id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllSection {
     pub section_id: String,
@@ -82,21 +111,30 @@ pub struct CllSection {
     pub plain_text: String,
 }
 
-#[invariant(true)]
+#[invariant(!section_id.is_empty())]
+#[invariant(!label.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllAnchor {
     pub section_id: String,
     pub label: String,
 }
 
-#[invariant(true)]
+#[invariant(!key.is_empty())]
+#[invariant(!section_ids.is_empty())]
+#[expensive_invariant(section_ids.iter().all(|section_id| !section_id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllIndexEntry {
     pub key: String,
     pub section_ids: Vec<String>,
 }
 
-#[invariant(true)]
+#[invariant(*chapter > 0)]
+#[invariant(!section_number.is_empty())]
+#[invariant(!section_id.is_empty())]
+#[invariant(example_number.is_some() == example_id.is_some())]
+#[invariant(example_number.as_ref().is_none_or(|number| !number.is_empty()))]
+#[invariant(example_id.as_ref().is_none_or(|id| !id.is_empty()))]
+#[invariant(!source_path.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllReference {
     pub chapter: u16,
@@ -107,7 +145,11 @@ pub struct CllReference {
     pub source_path: String,
 }
 
-#[invariant(true)]
+#[invariant(reference.example_id.as_ref().is_some_and(|example_id| example_id == anchor_id))]
+#[invariant(!label.is_empty())]
+#[invariant(!anchor_id.is_empty())]
+#[invariant(title.as_ref().is_none_or(|title| !title.is_empty()))]
+#[invariant(parse_href.as_ref().is_none_or(|href| !href.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllExample {
     pub reference: CllReference,
@@ -123,11 +165,105 @@ pub struct CllExample {
     pub plain_text: String,
 }
 
-#[invariant(true)]
+#[invariant(!kind.is_empty())]
+#[invariant(!text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllExampleLine {
     pub kind: String,
     pub text: String,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_site_section_references_are_consistent(
+    chapters: &[CllChapter],
+    sections_by_id: &BTreeMap<String, CllSection>,
+    section_order: &[String],
+    section_ids_by_normalized_reference: &BTreeMap<String, String>,
+    anchors_by_id: &BTreeMap<String, CllAnchor>,
+    index_entries: &[CllIndexEntry],
+) -> bool {
+    section_order.len() == sections_by_id.len()
+        && section_order.iter().enumerate().all(|(index, section_id)| {
+            !section_id.is_empty()
+                && sections_by_id.contains_key(section_id)
+                && !section_order[..index].contains(section_id)
+        })
+        && sections_by_id.iter().all(|(section_id, section)| {
+            section_id == &section.section_id
+                && chapters.iter().any(|chapter| {
+                    chapter.chapter_id == section.chapter_id
+                        && chapter.chapter_number == section.chapter_number
+                })
+                && section
+                    .parent_section_id
+                    .as_ref()
+                    .is_none_or(|parent_id| sections_by_id.contains_key(parent_id))
+                && section
+                    .child_section_ids
+                    .iter()
+                    .all(|child_id| sections_by_id.contains_key(child_id))
+        })
+        && chapters.iter().all(|chapter| {
+            chapter
+                .root_section_ids
+                .iter()
+                .all(|section_id| sections_by_id.contains_key(section_id))
+        })
+        && section_ids_by_normalized_reference
+            .iter()
+            .all(|(reference, section_id)| {
+                !reference.is_empty() && sections_by_id.contains_key(section_id)
+            })
+        && anchors_by_id.iter().all(|(anchor_id, anchor)| {
+            !anchor_id.is_empty()
+                && cll_anchor_resolves_to_section(chapters, sections_by_id, anchor)
+        })
+        && index_entries.iter().all(|entry| {
+            entry
+                .section_ids
+                .iter()
+                .all(|section_id| sections_by_id.contains_key(section_id))
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_anchor_resolves_to_section(
+    chapters: &[CllChapter],
+    sections_by_id: &BTreeMap<String, CllSection>,
+    anchor: &CllAnchor,
+) -> bool {
+    sections_by_id.contains_key(&anchor.section_id)
+        || chapters.iter().any(|chapter| {
+            chapter.chapter_id == anchor.section_id
+                && chapter
+                    .root_section_ids
+                    .first()
+                    .is_some_and(|section_id| sections_by_id.contains_key(section_id))
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cll_site_example_references_are_consistent(
+    sections_by_id: &BTreeMap<String, CllSection>,
+    examples_by_id: &BTreeMap<String, CllExample>,
+    example_ids_by_normalized_reference: &BTreeMap<String, String>,
+) -> bool {
+    examples_by_id.iter().all(|(example_id, example)| {
+        example_id == &example.anchor_id
+            && example
+                .reference
+                .example_id
+                .as_ref()
+                .is_some_and(|reference_id| reference_id == example_id)
+            && sections_by_id.contains_key(&example.reference.section_id)
+    }) && example_ids_by_normalized_reference
+        .iter()
+        .all(|(reference, example_id)| {
+            !reference.is_empty() && examples_by_id.contains_key(example_id)
+        })
 }
 
 #[invariant(true)]
@@ -698,11 +834,11 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
         chapters.push(chapter);
     }
 
-    let mut site = CllSite {
-        metadata: CllMetadata {
+    let mut site = new!(CllSite {
+        metadata: new!(CllMetadata {
             title: "The Complete Lojban Language".to_owned(),
             chapter_count: chapters.len(),
-        },
+        }),
         chapters,
         sections_by_id,
         section_order,
@@ -712,11 +848,20 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
         anchors_by_id,
         index_entries: build_index_entries(&pending_index_entries),
         search_chunks: Vec::new(),
-    };
-    site.section_ids_by_normalized_reference = build_section_reference_index(&site);
-    site.example_ids_by_normalized_reference = build_example_reference_index(&site);
-    resolve_site_links(&mut site);
-    site.search_chunks = build_search_chunks(&site);
+    });
+    let section_ids_by_normalized_reference = build_section_reference_index(&site);
+    site = site.with_data(data! {
+        section_ids_by_normalized_reference: section_ids_by_normalized_reference,
+    });
+    let example_ids_by_normalized_reference = build_example_reference_index(&site);
+    site = site.with_data(data! {
+        example_ids_by_normalized_reference: example_ids_by_normalized_reference,
+    });
+    site = resolve_site_links(site);
+    let search_chunks = build_search_chunks(&site);
+    site = site.with_data(data! {
+        search_chunks: search_chunks,
+    });
     Ok(site)
 }
 
@@ -812,23 +957,23 @@ fn parse_chapter(
 
     anchors.push((
         chapter_id.clone(),
-        CllAnchor {
+        new!(CllAnchor {
             section_id: root_section_ids
                 .first()
                 .cloned()
                 .unwrap_or_else(|| chapter_id.clone()),
             label: chapter_xref_label(chapter_number),
-        },
+        }),
     ));
 
     Ok((
-        CllChapter {
+        new!(CllChapter {
             chapter_id,
             chapter_number,
             chapter_title,
             root_section_ids,
             prelude_blocks,
-        },
+        }),
         sections,
         examples,
         anchors,
@@ -921,14 +1066,14 @@ fn parse_section(
     );
     anchors.push((
         section_id.clone(),
-        CllAnchor {
+        new!(CllAnchor {
             section_id: section_id.clone(),
             label: format!("{section_number}. {section_title}"),
-        },
+        }),
     ));
 
     Ok((
-        CllSection {
+        new!(CllSection {
             section_id,
             chapter_id: chapter_id.to_owned(),
             chapter_number,
@@ -939,7 +1084,7 @@ fn parse_section(
             blocks,
             source_path: source_path.to_owned(),
             plain_text: String::new(),
-        },
+        }),
         examples,
         anchors,
         index_entries,
@@ -1412,15 +1557,15 @@ fn parse_example_block(
             text: normalized_plain_text(&plain_text),
         });
     }
-    let example = CllExample {
-        reference: CllReference {
+    let example = new!(CllExample {
+        reference: new!(CllReference {
             chapter: context.chapter_number,
             section_number: context.section_number.clone(),
             section_id: context.section_id.clone(),
             example_number: Some(example_number),
             example_id: Some(anchor_id.clone()),
             source_path: context.source_path.clone(),
-        },
+        }),
         label: display_label.clone(),
         anchor_id: anchor_id.clone(),
         title: explicit_title,
@@ -1431,21 +1576,21 @@ fn parse_example_block(
         translation_en,
         lines,
         plain_text,
-    };
+    });
     anchors.push((
         anchor_id.clone(),
-        CllAnchor {
+        new!(CllAnchor {
             section_id: context.section_id.clone(),
             label: display_label.clone(),
-        },
+        }),
     ));
     if let Some(xml_id) = xml_id {
         anchors.push((
             xml_id,
-            CllAnchor {
+            new!(CllAnchor {
                 section_id: context.section_id.clone(),
                 label: display_label,
-            },
+            }),
         ));
     }
     examples.push(example);
@@ -1915,10 +2060,10 @@ fn parse_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
         })
         .filter_map(|line| {
             let text = visible_text(line);
-            (!text.is_empty()).then_some(CllExampleLine {
+            (!text.is_empty()).then_some(new!(CllExampleLine {
                 kind: line.tag_name().name().to_owned(),
                 text,
-            })
+            }))
         })
         .collect()
 }
@@ -1933,19 +2078,19 @@ fn parse_plain_example_lines(node: Node<'_, '_>) -> Vec<CllExampleLine> {
         })
         .filter_map(|line| {
             let text = visible_text(line);
-            (!text.is_empty()).then_some(CllExampleLine {
+            (!text.is_empty()).then_some(new!(CllExampleLine {
                 kind: "text".to_owned(),
                 text,
-            })
+            }))
         })
         .collect::<Vec<_>>();
     if lines.is_empty() {
         let text = visible_text(node);
         (!text.is_empty())
-            .then_some(CllExampleLine {
+            .then_some(new!(CllExampleLine {
                 kind: "text".to_owned(),
                 text,
-            })
+            }))
             .into_iter()
             .collect()
     } else {
@@ -3356,10 +3501,10 @@ fn collect_title_anchors(
     {
         anchors.push((
             anchor_id,
-            CllAnchor {
+            new!(CllAnchor {
                 section_id: section_id.to_owned(),
                 label: label.to_owned(),
-            },
+            }),
         ));
     }
 }
@@ -3384,7 +3529,7 @@ fn build_index_entries(entries: &[PendingIndexEntry]) -> Vec<CllIndexEntry> {
     }
     grouped
         .into_iter()
-        .map(|(key, section_ids)| CllIndexEntry { key, section_ids })
+        .map(|(key, section_ids)| new!(CllIndexEntry { key, section_ids }))
         .collect()
 }
 
@@ -3442,37 +3587,73 @@ fn build_example_reference_index(site: &CllSite) -> BTreeMap<String, String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn resolve_site_links(site: &mut CllSite) {
-    let resolutions = build_link_resolutions(site);
-    for chapter in &mut site.chapters {
-        resolve_block_links(&mut chapter.prelude_blocks, &resolutions);
-    }
-    for example in site.examples_by_id.values_mut() {
-        resolve_block_links(&mut example.blocks, &resolutions);
-    }
+fn resolve_site_links(site: CllSite) -> CllSite {
+    let resolutions = build_link_resolutions(&site);
+    let mut site_data = site.into_data();
+    site_data.chapters = site_data
+        .chapters
+        .into_iter()
+        .map(|chapter| {
+            let mut chapter_data = chapter.into_data();
+            resolve_block_links(&mut chapter_data.prelude_blocks, &resolutions);
+            CllChapter::from_data(chapter_data)
+        })
+        .collect();
+    site_data.examples_by_id = site_data
+        .examples_by_id
+        .into_iter()
+        .map(|(id, example)| {
+            let mut example_data = example.into_data();
+            resolve_block_links(&mut example_data.blocks, &resolutions);
+            (id, CllExample::from_data(example_data))
+        })
+        .collect();
+    let site = CllSite::from_data(site_data);
     let example_plain_texts = site
         .examples_by_id
         .iter()
         .map(|(id, example)| (id.clone(), example_plain_text(example)))
         .collect::<BTreeMap<_, _>>();
-    for (id, plain_text) in example_plain_texts {
-        if let Some(example) = site.examples_by_id.get_mut(&id) {
-            example.plain_text = plain_text;
-        }
-    }
-    for section in site.sections_by_id.values_mut() {
-        resolve_block_links(&mut section.blocks, &resolutions);
-    }
+    let mut site_data = site.into_data();
+    site_data.examples_by_id = site_data
+        .examples_by_id
+        .into_iter()
+        .map(|(id, example)| {
+            let mut example_data = example.into_data();
+            if let Some(plain_text) = example_plain_texts.get(&id) {
+                example_data.plain_text = plain_text.clone();
+            }
+            (id, CllExample::from_data(example_data))
+        })
+        .collect();
+    site_data.sections_by_id = site_data
+        .sections_by_id
+        .into_iter()
+        .map(|(id, section)| {
+            let mut section_data = section.into_data();
+            resolve_block_links(&mut section_data.blocks, &resolutions);
+            (id, CllSection::from_data(section_data))
+        })
+        .collect();
+    let site = CllSite::from_data(site_data);
     let section_plain_texts = site
         .sections_by_id
         .iter()
-        .map(|(id, section)| (id.clone(), blocks_plain_text(site, &section.blocks)))
+        .map(|(id, section)| (id.clone(), blocks_plain_text(&site, &section.blocks)))
         .collect::<BTreeMap<_, _>>();
-    for (id, plain_text) in section_plain_texts {
-        if let Some(section) = site.sections_by_id.get_mut(&id) {
-            section.plain_text = normalized_plain_text(&plain_text);
-        }
-    }
+    let mut site_data = site.into_data();
+    site_data.sections_by_id = site_data
+        .sections_by_id
+        .into_iter()
+        .map(|(id, section)| {
+            let mut section_data = section.into_data();
+            if let Some(plain_text) = section_plain_texts.get(&id) {
+                section_data.plain_text = normalized_plain_text(plain_text);
+            }
+            (id, CllSection::from_data(section_data))
+        })
+        .collect();
+    CllSite::from_data(site_data)
 }
 
 #[requires(true)]
@@ -3773,24 +3954,26 @@ fn insert_reference(index: &mut BTreeMap<String, String>, reference: &str, value
 fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
     let mut chunks = Vec::new();
     for section_id in &site.section_order {
-        if let Some(section) = site.sections_by_id.get(section_id) {
-            let section_label = format_section_display_title(section);
-            let section_text =
-                normalized_plain_text(&format!("{}\n{}", section.title, section.plain_text));
-            if !section_text.is_empty() {
-                chunks.push(CllSearchChunk {
-                    kind: CllSearchChunkKind::Section,
-                    section_id: section.section_id.clone(),
-                    anchor_id: section.section_id.clone(),
-                    section_number: section.number.clone(),
-                    section_title: section.title.clone(),
-                    label: section_label.clone(),
-                    text: section_text.clone(),
-                    tagged_words: blocks_tagged_words(site, &section.blocks),
-                });
-            }
-            collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
+        let section = site
+            .sections_by_id
+            .get(section_id)
+            .expect("CllSite invariant guarantees section_order ids resolve");
+        let section_label = format_section_display_title(section);
+        let section_text =
+            normalized_plain_text(&format!("{}\n{}", section.title, section.plain_text));
+        if !section_text.is_empty() {
+            chunks.push(CllSearchChunk {
+                kind: CllSearchChunkKind::Section,
+                section_id: section.section_id.clone(),
+                anchor_id: section.section_id.clone(),
+                section_number: section.number.clone(),
+                section_title: section.title.clone(),
+                label: section_label.clone(),
+                text: section_text.clone(),
+                tagged_words: blocks_tagged_words(site, &section.blocks),
+            });
         }
+        collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
     }
     chunks
 }
@@ -4256,13 +4439,15 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat) -> String {
                 )));
                 output.push_str("<ol>");
                 for section_id in &chapter.root_section_ids {
-                    if let Some(section) = site.sections_by_id.get(section_id) {
-                        output.push_str("<li><a href=\"");
-                        output.push_str(&escape_html(&section_href(&section.section_id)));
-                        output.push_str("\">");
-                        output.push_str(&escape_html(&format_section_display_title(section)));
-                        output.push_str("</a></li>");
-                    }
+                    let section = site
+                        .sections_by_id
+                        .get(section_id)
+                        .expect("CllSite invariant guarantees chapter root section ids resolve");
+                    output.push_str("<li><a href=\"");
+                    output.push_str(&escape_html(&section_href(&section.section_id)));
+                    output.push_str("\">");
+                    output.push_str(&escape_html(&format_section_display_title(section)));
+                    output.push_str("</a></li>");
                 }
                 output.push_str("</ol></li>");
             }
@@ -4277,10 +4462,11 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat) -> String {
                     chapter.chapter_number, chapter.chapter_title
                 ));
                 for section_id in &chapter.root_section_ids {
-                    if let Some(section) = site.sections_by_id.get(section_id) {
-                        output
-                            .push_str(&format!("  - {}\n", format_section_display_title(section)));
-                    }
+                    let section = site
+                        .sections_by_id
+                        .get(section_id)
+                        .expect("CllSite invariant guarantees chapter root section ids resolve");
+                    output.push_str(&format!("  - {}\n", format_section_display_title(section)));
                 }
                 output.push('\n');
             }
@@ -4303,7 +4489,11 @@ pub fn render_index(site: &CllSite, format: CllRenderFormat) -> String {
                     &entry
                         .section_ids
                         .iter()
-                        .filter_map(|section_id| site.sections_by_id.get(section_id))
+                        .map(|section_id| {
+                            site.sections_by_id.get(section_id).expect(
+                                "CllSite invariant guarantees index entry section ids resolve",
+                            )
+                        })
                         .map(|section| {
                             format!(
                                 "<a href=\"{}\">{}</a>",
@@ -4325,7 +4515,11 @@ pub fn render_index(site: &CllSite, format: CllRenderFormat) -> String {
                 let refs = entry
                     .section_ids
                     .iter()
-                    .filter_map(|section_id| site.sections_by_id.get(section_id))
+                    .map(|section_id| {
+                        site.sections_by_id
+                            .get(section_id)
+                            .expect("CllSite invariant guarantees index entry section ids resolve")
+                    })
                     .map(|section| section.number.as_str())
                     .collect::<Vec<_>>()
                     .join(", ");

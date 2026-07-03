@@ -184,48 +184,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllAnchor",
-        "CLL anchor records are constructed from parsed DocBook ids and grouped in site indexes",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllChapter",
-        "CLL chapter records are constructed by the embedded DocBook loader from ordered chapter files",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllExample",
-        "CLL examples are assembled by parse_example_block from section context and interlinear lines",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllExampleLine",
-        "CLL example lines preserve upstream DocBook line kind and normalized text",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllIndexEntry",
-        "CLL index entries are grouped from parsed indexterm nodes with duplicate section ids removed",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllMetadata",
-        "CLL metadata is fixed by the embedded loader for the bundled CLL corpus",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllReference",
-        "CLL references are created from parsed section/example context in the embedded loader",
-    ),
-    (
         "crates/jbotci-cll/src/lib.rs:CllSearchChunk",
         "CLL search chunks are generated from parsed sections and tagged-word extraction",
     ),
     (
         "crates/jbotci-cll/src/lib.rs:CllSearchMatch",
         "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSection",
-        "CLL sections are constructed from DocBook section nodes with computed numbering and text",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSite",
-        "CLL site is assembled once by load_embedded_cll_site and owns all derived indexes",
     ),
     (
         "crates/jbotci-cll/src/lib.rs:CuktaSearchOutput",
