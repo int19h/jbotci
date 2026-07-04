@@ -54,6 +54,10 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
         #atom_ref
 
         pub trait TreeNode {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                None
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>;
@@ -195,6 +199,10 @@ fn recovered_module(
             #atom_ref
 
             pub trait TreeNode {
+                fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                    None
+                }
+
                 fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>;
@@ -2002,6 +2010,7 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
     });
     let equality_arms = node_ref_equality_arms(items);
     let hash_arms = node_ref_hash_arms(items);
+    let from_impls = node_ref_from_impls(items)?;
     Ok(quote! {
         #[derive(Clone, Copy, Debug)]
         pub enum NodeRef<'tree> {
@@ -2043,6 +2052,8 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
                 }
             }
         }
+
+        #(#from_impls)*
     })
 }
 
@@ -2120,6 +2131,97 @@ fn node_ref_hash_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
             }
         })
         .collect()
+}
+
+fn node_ref_from_impls(items: &[Item]) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Struct(item) => Some(Ok(node_ref_struct_from_impl(item))),
+            Item::Enum(item) => Some(node_ref_enum_from_impl(item)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn node_ref_struct_from_impl(item: &ItemStruct) -> proc_macro2::TokenStream {
+    let ident = &item.ident;
+    quote! {
+        impl<'tree> ::core::convert::From<&'tree #ident> for NodeRef<'tree> {
+            fn from(node: &'tree #ident) -> Self {
+                NodeRef::#ident(node)
+            }
+        }
+    }
+}
+
+fn node_ref_enum_from_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
+    let enum_ident = &item.ident;
+    let uses_data_patterns = enum_uses_data_patterns(item);
+    let arms = item
+        .variants
+        .iter()
+        .map(|variant| {
+            let variant_ident = &variant.ident;
+            let node_ref_variant = node_ref_variant_ident(enum_ident, variant_ident);
+            let pattern = enum_variant_wildcard_pattern(
+                enum_ident,
+                variant_ident,
+                &variant.fields,
+                uses_data_patterns,
+            )?;
+            Ok(quote! {
+                #pattern => NodeRef::#node_ref_variant(node),
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let match_value = if uses_data_patterns {
+        quote!(node.as_data())
+    } else {
+        quote!(node)
+    };
+    Ok(quote! {
+        impl<'tree> ::core::convert::From<&'tree #enum_ident> for NodeRef<'tree> {
+            fn from(node: &'tree #enum_ident) -> Self {
+                match #match_value {
+                    #(#arms)*
+                }
+            }
+        }
+    })
+}
+
+fn enum_variant_wildcard_pattern(
+    enum_ident: &Ident,
+    variant_ident: &Ident,
+    fields: &Fields,
+    uses_data_patterns: bool,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let pattern = match fields {
+        Fields::Named(fields) => {
+            let fields = fields
+                .named
+                .iter()
+                .map(|field| {
+                    let ident = field.ident.as_ref().ok_or_else(|| {
+                        syn::Error::new_spanned(field, "named field is missing an identifier")
+                    })?;
+                    Ok(quote!(#ident: _))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            quote!(#enum_ident::#variant_ident { #(#fields,)* })
+        }
+        Fields::Unnamed(fields) => {
+            let fields = fields.unnamed.iter().map(|_| quote!(_));
+            quote!(#enum_ident::#variant_ident(#(#fields,)*))
+        }
+        Fields::Unit => quote!(#enum_ident::#variant_ident),
+    };
+    if uses_data_patterns {
+        Ok(quote!(::bityzba::data!(#pattern)))
+    } else {
+        Ok(pattern)
+    }
 }
 
 fn node_ref_variant_idents(items: &[Item]) -> Vec<Ident> {
@@ -2210,6 +2312,14 @@ fn wrapper_trait_impls(
     let recovered_impl = include_recovered.then(|| {
         quote! {
             impl<T: TreeNode> TreeNode for Recovered<T> {
+                fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                    match self {
+                        ::jbotci_tree::Recovered::Valid(value) => value.as_node_ref(),
+                        ::jbotci_tree::Recovered::Error(_) => None,
+                        ::jbotci_tree::Recovered::Prefix(prefix) => prefix.value.as_node_ref(),
+                    }
+                }
+
                 fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2265,6 +2375,10 @@ fn wrapper_trait_impls(
         };
         quote! {
             #impl_header {
+                fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                    self.value.as_node_ref()
+                }
+
                 fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
                 where
                     V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2318,6 +2432,10 @@ fn wrapper_trait_impls(
         #with_free_modifiers_impl
 
         impl<T: TreeNode + ?Sized> TreeNode for Box<T> {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                (**self).as_node_ref()
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2342,6 +2460,10 @@ fn wrapper_trait_impls(
         }
 
         impl<T: TreeNode + ?Sized> TreeNode for ::std::sync::Arc<T> {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                (**self).as_node_ref()
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2366,6 +2488,10 @@ fn wrapper_trait_impls(
         }
 
         impl<T: TreeNode> TreeNode for Option<T> {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                self.as_ref().and_then(TreeNode::as_node_ref)
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2741,6 +2867,10 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
     })?;
     Ok(quote! {
         impl TreeNode for #ident {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                Some(NodeRef::#ident(self))
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,
@@ -2933,6 +3063,10 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
     };
     Ok(quote! {
         impl TreeNode for #enum_ident {
+            fn as_node_ref<'tree>(&'tree self) -> Option<NodeRef<'tree>> {
+                Some(NodeRef::from(self))
+            }
+
             fn visit_in_order<'tree, V>(&'tree self, visitor: &mut V)
             where
                 V: ::jbotci_tree::TreeVisitor<'tree, Node = NodeRef<'tree>, Atom = AtomRef<'tree>>,

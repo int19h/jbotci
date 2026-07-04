@@ -9,8 +9,10 @@ use crate::{
 };
 
 mod phonotactics;
-use phonotactics::{
-    experimental_permissible_consonant_pair, initial_pair_chars, permissible_consonant_pair,
+pub use phonotactics::ConsonantPairClass;
+pub(crate) use phonotactics::{
+    consonant_pair_class, experimental_permissible_consonant_pair, initial_pair_chars,
+    permissible_consonant_pair,
 };
 
 #[requires(true)]
@@ -1649,7 +1651,7 @@ pub(crate) fn is_valid_normalized_char(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn text_chars(text: &str) -> Vec<char> {
+pub(crate) fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
@@ -1663,71 +1665,58 @@ pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
-    if chars.is_empty() {
-        return None;
-    }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return Some(chars.iter().collect());
-    }
-    if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return Some(digit_to_cmavo(chars[0]).to_owned());
-    }
-    parse_cmavo_form_main(chars)
+    let mut normalized = String::new();
+    let mut output = Some(&mut normalized);
+    parse_cmavo_form_chars_into(chars, &mut output)?;
+    Some(normalized)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn matches_cmavo_form_chars(chars: &[char]) -> bool {
-    if chars.is_empty() {
-        return false;
-    }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return true;
-    }
-    if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return true;
-    }
-    matches_cmavo_form_main(chars)
+    let mut output = None;
+    parse_cmavo_form_chars_into(chars, &mut output).is_some()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn matches_cmavo_form_main(chars: &[char]) -> bool {
-    if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
-        return false;
+fn parse_cmavo_form_chars_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
+    if chars.is_empty() {
+        return None;
     }
-    if parse_glide_end(chars, 0).is_some_and(|end| matches_cmavo_form_tail(chars, end)) {
-        return true;
+    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
+        append_cmavo_chars(output, chars);
+        return Some(());
     }
-    (0..=max_initial_end(chars, 0)).rev().any(|end| {
-        parse_initial_end(chars, 0, end).is_some() && matches_cmavo_form_tail(chars, end)
-    })
+    if chars.len() == 1 && chars[0].is_ascii_digit() {
+        append_cmavo_str(output, digit_to_cmavo(chars[0])?);
+        return Some(());
+    }
+    parse_cmavo_form_main_into(chars, output)
 }
 
-#[requires(start <= chars.len())]
+#[requires(true)]
 #[ensures(true)]
-fn matches_cmavo_form_tail(chars: &[char], start: usize) -> bool {
-    if let Some((_, after_nucleus)) = parse_diphthong_end(chars, start) {
-        if after_nucleus == chars.len() {
-            return true;
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
-            && matches_cmavo_form_tail(chars, after_nucleus + 1)
-        {
-            return true;
-        }
+fn append_cmavo_chars(output: &mut Option<&mut String>, chars: &[char]) {
+    if let Some(text) = output.as_mut() {
+        text.extend(chars.iter().copied());
     }
-    if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
-        if after_nucleus == chars.len() {
-            return true;
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
-            && matches_cmavo_form_tail(chars, after_nucleus + 1)
-        {
-            return true;
-        }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_str(output: &mut Option<&mut String>, value: &str) {
+    if let Some(text) = output.as_mut() {
+        text.push_str(value);
     }
-    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_char(output: &mut Option<&mut String>, value: char) {
+    if let Some(text) = output.as_mut() {
+        text.push(value);
+    }
 }
 
 #[requires(true)]
@@ -1738,56 +1727,115 @@ pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
+#[ensures(true)]
+fn parse_cmavo_form_main_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
     }
-    for (onset, after_onset) in parse_onsets(chars, 0) {
-        if let Some(rest) = parse_cmavo_form_tail(chars, after_onset) {
-            return Some(onset + &rest);
+    for onset in parse_onsets(chars, 0) {
+        if with_cmavo_output_rollback(output, |output| {
+            append_cmavo_str(output, &onset.normalized);
+            parse_cmavo_form_tail_into(chars, onset.end, output)
+        })
+        .is_some()
+        {
+            return Some(());
         }
     }
     None
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
+#[ensures(true)]
+fn parse_cmavo_form_tail_into(
+    chars: &[char],
+    start: usize,
+    output: &mut Option<&mut String>,
+) -> Option<()> {
     if let Some((semivowel, after_nucleus)) = parse_diphthong_end(chars, start) {
-        let nucleus = format!("{}{}", normalize_vowel(chars[start]), semivowel);
         if after_nucleus == chars.len() {
-            return Some(nucleus);
+            append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
+            return Some(());
         }
         if chars.get(after_nucleus) == Some(&'\'')
-            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+            })
+            .is_some()
         {
-            return Some(format!("{nucleus}'{rest}"));
+            return Some(());
         }
     }
     if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
         let value = chars[start];
-        let nucleus = if is_y(value) {
-            value
-        } else {
-            normalize_vowel(value)
-        }
-        .to_string();
         if after_nucleus == chars.len() {
-            return Some(nucleus);
+            append_cmavo_single_nucleus(output, value);
+            return Some(());
         }
         if chars.get(after_nucleus) == Some(&'\'')
-            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_single_nucleus(output, value);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+            })
+            .is_some()
         {
-            return Some(format!("{nucleus}'{rest}"));
+            return Some(());
         }
     }
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_diphthong_nucleus(output: &mut Option<&mut String>, first: char, semivowel: char) {
+    append_cmavo_char(output, normalize_vowel(first));
+    append_cmavo_char(output, semivowel);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_single_nucleus(output: &mut Option<&mut String>, value: char) {
+    let nucleus = if is_y(value) {
+        value
+    } else {
+        normalize_vowel(value)
+    };
+    append_cmavo_char(output, nucleus);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn with_cmavo_output_rollback(
+    output: &mut Option<&mut String>,
+    parse: impl FnOnce(&mut Option<&mut String>) -> Option<()>,
+) -> Option<()> {
+    let original_len = output.as_ref().map(|text| text.len());
+    if parse(output).is_some() {
+        return Some(());
+    }
+    if let Some(original_len) = original_len
+        && let Some(text) = output.as_mut()
+    {
+        text.truncate(original_len);
+    }
+    None
+}
+
+#[invariant(self.start <= self.end)]
+#[invariant(self.normalized.chars().count() == self.end - self.start)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParsedOnset {
+    start: usize,
+    end: usize,
+    normalized: String,
+}
+
 #[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|(_, end)| *end >= start && *end <= chars.len()))]
-fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
+#[ensures(ret.iter().all(|onset| onset.start == start && onset.end >= start && onset.end <= chars.len()))]
+fn parse_onsets(chars: &[char], start: usize) -> Vec<ParsedOnset> {
     let mut onsets = Vec::new();
     if let Some(end) = parse_glide_end(chars, start) {
         let glide = match chars[start] {
@@ -1795,11 +1843,19 @@ fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
             'u' | 'ú' | 'ŭ' => 'ŭ',
             _ => unreachable!("parse_glide_end only accepts glide starts"),
         };
-        onsets.push((glide.to_string(), end));
+        onsets.push(new!(ParsedOnset {
+            start: start,
+            end: end,
+            normalized: glide.to_string(),
+        }));
     }
     for end in (start..=max_initial_end(chars, start)).rev() {
         if let Some(initial) = parse_initial(chars, start, end) {
-            onsets.push((initial, end));
+            onsets.push(new!(ParsedOnset {
+                start: start,
+                end: end,
+                normalized: initial,
+            }));
         }
     }
     onsets
@@ -1907,7 +1963,7 @@ fn has_parse_nucleus_end_at_or_before(chars: &[char], start: usize, limit: usize
 
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
-fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
+pub(crate) fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
     let first = *chars.get(start)?;
     let second = *chars.get(start + 1)?;
     let semivowel = match (base_vowel(first)?, second) {
@@ -1929,7 +1985,7 @@ fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
 
 #[requires(true)]
 #[ensures(true)]
-fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
+pub(crate) fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
     match semivowel {
         'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
         'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
@@ -1939,7 +1995,7 @@ fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
 
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|end| end == start + 1))]
-fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
+pub(crate) fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
     let value = *chars.get(start)?;
     if value == 'y' || value == 'ý' {
         let end = start + 1;
@@ -1953,6 +2009,63 @@ fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
     }
     let end = start + 1;
     if starts_with_nucleus(chars, end) {
+        return None;
+    }
+    Some(end)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
+pub(crate) fn parse_explicit_stress_nucleus_end(
+    chars: &[char],
+    start: usize,
+) -> Option<(bool, usize)> {
+    if let Some(end) = parse_explicit_stress_diphthong_end(chars, start) {
+        return Some((true, end));
+    }
+    let value = *chars.get(start)?;
+    parse_explicit_stress_single_vowel_end(chars, start)
+        .map(|end| (!matches!(value, 'y' | 'ý'), end))
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
+fn parse_explicit_stress_diphthong_end(chars: &[char], start: usize) -> Option<usize> {
+    let first = *chars.get(start)?;
+    let second = *chars.get(start + 1)?;
+    let semivowel = match (base_vowel(first)?, second) {
+        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
+        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
+        _ => return None,
+    };
+    let end = start + 2;
+    if next_non_comma_index(chars, end)
+        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
+    {
+        return None;
+    }
+    if starts_with_pause_required_nucleus(chars, end) {
+        return None;
+    }
+    Some(end)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|end| end == start + 1))]
+fn parse_explicit_stress_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
+    let value = *chars.get(start)?;
+    if value == 'y' || value == 'ý' {
+        let end = start + 1;
+        if starts_with_pause_required_nucleus(chars, end) {
+            return None;
+        }
+        return Some(end);
+    }
+    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
+        return None;
+    }
+    let end = start + 1;
+    if starts_with_pause_required_nucleus(chars, end) {
         return None;
     }
     Some(end)
@@ -1982,7 +2095,7 @@ fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
 
 #[requires(start <= chars.len())]
 #[ensures(true)]
-fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
+pub(crate) fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
     }
@@ -2185,13 +2298,13 @@ fn y_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_vowel(value: char) -> bool {
+pub(crate) fn is_vowel(value: char) -> bool {
     base_vowel(value).is_some()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn base_vowel(value: char) -> Option<char> {
+pub(crate) fn base_vowel(value: char) -> Option<char> {
     match value {
         'a' | 'á' => Some('a'),
         'e' | 'é' => Some('e'),
@@ -2204,7 +2317,7 @@ fn base_vowel(value: char) -> Option<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn normalize_vowel(value: char) -> char {
+pub(crate) fn normalize_vowel(value: char) -> char {
     match value {
         'á' => 'á',
         'é' => 'é',
@@ -4103,7 +4216,7 @@ fn is_cmevla_slice(chars: &[char], start: usize, end: usize) -> bool {
 
 #[requires(start <= chars.len())]
 #[ensures(true)]
-fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
+pub(crate) fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
     let Some(start) = next_non_comma_index(chars, start) else {
         return false;
     };
@@ -4720,7 +4833,7 @@ fn starts_repeated_glide_diphthong_sequence(chars: &[char], index: usize) -> boo
 
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
-fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
+pub(crate) fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
     while chars.get(index) == Some(&',') {
         index += 1;
     }
@@ -4839,8 +4952,8 @@ fn is_y(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn digit_to_cmavo(value: char) -> &'static str {
-    match value {
+pub(crate) fn digit_to_cmavo(value: char) -> Option<&'static str> {
+    Some(match value {
         '0' => "no",
         '1' => "pa",
         '2' => "re",
@@ -4851,13 +4964,28 @@ fn digit_to_cmavo(value: char) -> &'static str {
         '7' => "ze",
         '8' => "bi",
         '9' => "so",
-        _ => "",
-    }
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn segment_and_lujvo_pair_matrices_are_equivalent() {
+        for first in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
+            for second in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
+                assert_eq!(
+                    phonotactics::consonant_pair_class_for_test(first, second),
+                    crate::lujvo::consonant_pair_class(first, second),
+                    "{first}{second}"
+                );
+            }
+        }
+    }
 
     #[test]
     #[requires(true)]

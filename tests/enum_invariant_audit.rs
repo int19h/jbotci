@@ -112,147 +112,147 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::All",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::All",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::None",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::None",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::Official",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::Official",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Html",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Html",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Markdown",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Markdown",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Raw",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Example",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Example",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Meaning",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Meaning",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Section",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Section",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Toc",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Word",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Word",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Example",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Paragraph",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Section",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Brackets",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Brackets",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Json",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Png",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Png",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Raw",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Svg",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Svg",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Tree",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolGimfihiFormat::Json",
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Table",
+        "apps/jbotci/src/tool.rs:ToolGimfihiFormat::Table",
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Cmevla",
+        "apps/jbotci/src/tool.rs:ToolJvozbaMode::Cmevla",
         "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Lujvo",
+        "apps/jbotci/src/tool.rs:ToolJvozbaMode::Lujvo",
         "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::FixedRafsi",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPartKind::FixedRafsi",
         "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::Word",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPartKind::Word",
         "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Lujvo",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Lujvo",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Meaning",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Rafsi",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Rafsi",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Sound",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Sound",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Word",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Brackets",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Brackets",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Ipa",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Ipa",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Json",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Raw",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Tree",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Tree",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
@@ -284,175 +284,175 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::BlockQuote",
+        "crates/jbotci-cll/src/model.rs:CllBlock::BlockQuote",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::CmavoList",
+        "crates/jbotci-cll/src/model.rs:CllBlock::CmavoList",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Code",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Code",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Definition",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Definition",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::DisplayMath",
+        "crates/jbotci-cll/src/model.rs:CllBlock::DisplayMath",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Ebnf",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Ebnf",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Example",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Example",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::GrammarTemplate",
+        "crates/jbotci-cll/src/model.rs:CllBlock::GrammarTemplate",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Heading",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Heading",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::InterlinearGloss",
+        "crates/jbotci-cll/src/model.rs:CllBlock::InterlinearGloss",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::List",
+        "crates/jbotci-cll/src/model.rs:CllBlock::List",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Lojbanization",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Lojbanization",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::LujvoMaking",
+        "crates/jbotci-cll/src/model.rs:CllBlock::LujvoMaking",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Media",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Media",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Paragraph",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Paragraph",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Rule",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Rule",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::SimpleListTable",
+        "crates/jbotci-cll/src/model.rs:CllBlock::SimpleListTable",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::Table",
+        "crates/jbotci-cll/src/model.rs:CllBlock::Table",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllBlock::VariableList",
+        "crates/jbotci-cll/src/model.rs:CllBlock::VariableList",
         "CLL content blocks are parsed presentation variants generated only by the DocBook loader",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::ElidableTerminator",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::ElidableTerminator",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::Hash",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Hash",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::Nonterminal",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Nonterminal",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::Operator",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Operator",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::Terminal",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Terminal",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllEbnfToken::Text",
+        "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Text",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllError::Load",
+        "crates/jbotci-cll/src/model.rs:CllError::Load",
         "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllError::NotFound",
+        "crates/jbotci-cll/src/model.rs:CllError::NotFound",
         "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllError::Parse",
+        "crates/jbotci-cll/src/model.rs:CllError::Parse",
         "CLL errors carry renderer/loader diagnostic text without additional semantic invariants",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Anchor",
+        "crates/jbotci-cll/src/model.rs:CllInline::Anchor",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::CiteTitle",
+        "crates/jbotci-cll/src/model.rs:CllInline::CiteTitle",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Code",
+        "crates/jbotci-cll/src/model.rs:CllInline::Code",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Elidable",
+        "crates/jbotci-cll/src/model.rs:CllInline::Elidable",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Emphasis",
+        "crates/jbotci-cll/src/model.rs:CllInline::Emphasis",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::InlineMath",
+        "crates/jbotci-cll/src/model.rs:CllInline::InlineMath",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::LanguageSpan",
+        "crates/jbotci-cll/src/model.rs:CllInline::LanguageSpan",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Link",
+        "crates/jbotci-cll/src/model.rs:CllInline::Link",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Quote",
+        "crates/jbotci-cll/src/model.rs:CllInline::Quote",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Subscript",
+        "crates/jbotci-cll/src/model.rs:CllInline::Subscript",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Superscript",
+        "crates/jbotci-cll/src/model.rs:CllInline::Superscript",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllInline::Text",
+        "crates/jbotci-cll/src/model.rs:CllInline::Text",
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Example",
+        "crates/jbotci-cll/src/search.rs:CuktaRequest::Example",
         "cukta request variants are validated from CLI/web mode parsing before execution",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Search",
+        "crates/jbotci-cll/src/search.rs:CuktaRequest::Search",
         "cukta request variants are validated from CLI/web mode parsing before execution",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CuktaRequest::Section",
+        "crates/jbotci-cll/src/search.rs:CuktaRequest::Section",
         "cukta request variants are validated from CLI/web mode parsing before execution",
     ),
     (
@@ -824,6 +824,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental quote erasure tags are private static category names",
     ),
     (
+        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Forbidden",
+        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Initial",
+        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
+    ),
+    (
+        "crates/jbotci-morphology/src/segment/phonotactics.rs:ConsonantPairClass::Permissible",
+        "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Display",
+        "segment mode is a private closed selector for trace label and FAhO handling",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Raw",
+        "segment mode is a private closed selector for trace label and FAhO handling",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tokens.rs:ExperimentalCmavoContext::Label",
         "experimental cmavo context labels are private static grammar category names",
     ),
@@ -1128,231 +1148,231 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "composition kind is a closed display tag; surface/source fields carry data validity",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Built",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Built",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiForethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::SumtiForethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierScopeNode::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierScopeNode::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::NoGadriDescription",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::NoGadriDescription",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::OuterQuantifiedDescription",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::OuterQuantifiedDescription",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::QuantifiedSumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::QuantifiedSumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiAfterthought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiAfterthought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiForethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiForethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiGrouped",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiGrouped",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiConnective::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Forethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiConnective::Forethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::LeadingTermTag",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedEventTenseModal::LeadingTermTag",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::TenseModal",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedEventTenseModal::TenseModal",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Bundle",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Bundle",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Absent",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPredicationEventuality::Absent",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Fresh",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPredicationEventuality::Fresh",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Negation",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Quantifier",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScope::Quantifier",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Bundle",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Bundle",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::Description",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPropertyTanruContext::Description",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::PropertyAbstraction",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPropertyTanruContext::PropertyAbstraction",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantity::Value",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRecurrenceQuantity::Value",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantityCacheValue::Integer",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRecurrenceQuantityCacheValue::Integer",
         "direct recurrence quantity cache integers are fully constrained by the i64 payload type",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::GohaWord",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationParameterSyntax::GohaWord",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::ProBridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationParameterSyntax::ProBridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::GohaWord",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationQuestionSyntax::GohaWord",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::ProBridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationQuestionSyntax::ProBridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::MarkerOnly",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedScalarNegationScope::MarkerOnly",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTermFormulaScope::Negation",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTermFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::Root",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::Root",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::TrailingSeparator",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::TrailingSeparator",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::Bridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::Bridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::EkFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::EkFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::GihekFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::GihekFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ForethoughtStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ForethoughtStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PrenexStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::PrenexStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PreposedStatementConnection",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::PreposedStatementConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::StatementConnection",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::StatementConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TermsFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TermsFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TextGroupStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TextGroupStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaMeksoFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaMeksoFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaStatementTerms",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaStatementTerms",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (

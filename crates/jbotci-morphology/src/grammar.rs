@@ -2,6 +2,10 @@ use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
+use crate::segment::{
+    base_vowel, matches_diphthong_semivowel, next_non_comma_index,
+    parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus, text_chars,
+};
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
@@ -97,6 +101,31 @@ struct Segmenter<'a> {
     trace: TraceRecorder,
 }
 
+#[invariant(::Raw => true)]
+#[invariant(::Display => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SegmentMode {
+    Raw,
+    Display,
+}
+
+impl SegmentMode {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn trace_label(self) -> &'static str {
+        match self {
+            Self::Raw => "segment",
+            Self::Display => "display segment",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Raw))]
+    fn consumes_faho(self) -> bool {
+        matches!(self, Self::Raw)
+    }
+}
+
 impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(ret.index == 0)]
@@ -150,7 +179,7 @@ impl<'a> Segmenter<'a> {
             if self.index == self.chars.len() {
                 break;
             }
-            let segment = self.next_segment()?;
+            let segment = self.next_segment(SegmentMode::Raw)?;
             self.process_segment(&mut acc, segment)?;
         }
         Ok(acc)
@@ -165,7 +194,7 @@ impl<'a> Segmenter<'a> {
             if self.index == self.chars.len() {
                 break;
             }
-            acc.extend(self.next_display_segment()?);
+            acc.extend(self.next_segment(SegmentMode::Display)?);
         }
         Ok(acc)
     }
@@ -231,12 +260,12 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    fn next_segment(&mut self, mode: SegmentMode) -> Result<Vec<WordLike>, MorphologyError> {
         self.skip_separators();
         let segment_start = self.index;
         self.trace_step(
             TraceLevel::Detailed,
-            "segment",
+            mode.trace_label(),
             segment_start,
             segment_start,
             || None,
@@ -295,87 +324,10 @@ impl<'a> Segmenter<'a> {
             self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
             return self.zo_quote(word);
         }
-        if is_simple_cmavo_text(&word, "fa'o") {
+        if mode.consumes_faho() && is_simple_cmavo_text(&word, "fa'o") {
             self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
             self.index = self.chars.len();
             return Ok(vec![word]);
-        }
-        if self.index == start {
-            return Err(self.invalid_span(
-                MorphologyErrorKind::UnrecognizedWord,
-                start,
-                start,
-                None,
-            ));
-        }
-        Ok(vec![word])
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn next_display_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
-        self.skip_separators();
-        let segment_start = self.index;
-        self.trace_step(
-            TraceLevel::Detailed,
-            "display segment",
-            segment_start,
-            segment_start,
-            || None,
-        );
-        if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
-            let candidate_end = self.candidate_end(self.index);
-            if self.is_digit_sequence_candidate(self.index, candidate_end) {
-                let detail = self.trace_slice_detail(
-                    TraceLevel::Detailed,
-                    "digit sequence",
-                    self.index,
-                    candidate_end,
-                );
-                self.trace_step(
-                    TraceLevel::Detailed,
-                    "digit sequence",
-                    self.index,
-                    candidate_end,
-                    move || detail,
-                );
-                return self.digit_sequence();
-            }
-        }
-        let start = self.index;
-        let word = self.next_plain_word()?;
-        if is_simple_cmavo_text(&word, "lo'u") {
-            self.trace_step(
-                TraceLevel::Detailed,
-                "LOhU quote",
-                start,
-                self.index,
-                || None,
-            );
-            return self.lohu_quote(word);
-        }
-        if is_simple_cmavo_text(&word, "zoi")
-            || is_simple_cmavo_text(&word, "la'o")
-            || is_simple_cmavo_text(&word, "mu'oi")
-        {
-            self.trace_step(TraceLevel::Detailed, "ZOI quote", start, self.index, || {
-                None
-            });
-            return self.zoi_quote(word);
-        }
-        if is_single_word_quote_marker_text(&word) {
-            self.trace_step(
-                TraceLevel::Detailed,
-                "single-word quote",
-                start,
-                self.index,
-                || None,
-            );
-            return self.single_word_quote(word);
-        }
-        if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
-            self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
-            return self.zo_quote(word);
         }
         if self.index == start {
             return Err(self.invalid_span(
@@ -1316,7 +1268,9 @@ impl<'a> Segmenter<'a> {
             return false;
         }
         self.checked_normalized_slice(index, candidate_end)
-            .is_some_and(|normalized| !starts_with_nucleus(&text_chars(&normalized), 0))
+            .is_some_and(|normalized| {
+                !starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
+            })
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -1360,7 +1314,9 @@ impl<'a> Segmenter<'a> {
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| starts_with_pause_required_nucleus(&text_chars(&normalized)))
+            .is_some_and(|normalized| {
+                starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
+            })
     }
 
     #[requires(index <= self.chars.len())]
@@ -1501,7 +1457,7 @@ impl<'a> Segmenter<'a> {
             let value = self.chars[start].value;
             if value.is_ascii_digit() {
                 self.index += 1;
-                let phonemes = digit_to_cmavo(value).ok_or_else(|| {
+                let phonemes = crate::segment::digit_to_cmavo(value).ok_or_else(|| {
                     self.invalid_span(
                         MorphologyErrorKind::UnrecognizedWord,
                         start,
@@ -1536,7 +1492,7 @@ impl<'a> Segmenter<'a> {
             {
                 self.index += 2;
                 let digit = self.chars[start + 1].value;
-                let phonemes = digit_to_cmavo(digit).ok_or_else(|| {
+                let phonemes = crate::segment::digit_to_cmavo(digit).ok_or_else(|| {
                     self.invalid_span(
                         MorphologyErrorKind::UnrecognizedWord,
                         start + 1,
@@ -2045,12 +2001,6 @@ fn find_nth_matching_word_index(
 
 #[requires(true)]
 #[ensures(true)]
-fn text_chars(text: &str) -> Vec<char> {
-    text.chars().collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
     let prefix_chars = text_chars(prefix);
     let remainder_chars = text_chars(remainder);
@@ -2115,11 +2065,8 @@ fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
             index += 1;
             continue;
         }
-        if let Some((_, end)) = parse_diphthong(chars, index) {
-            starts.push(index);
-            index = end;
-        } else if let Some((_, end)) = parse_single_vowel(chars, index) {
-            if !matches!(chars[index], 'y' | 'ý') {
+        if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
+            if stressable {
                 starts.push(index);
             }
             index = end;
@@ -2142,148 +2089,11 @@ fn previous_non_comma(chars: &[char], mut index: usize) -> Option<(usize, char)>
     None
 }
 
-#[requires(start <= chars.len())]
-#[ensures(true)]
-fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
-    let mut start = start;
-    while chars.get(start) == Some(&',') {
-        start += 1;
-    }
-    if start >= chars.len() {
-        return false;
-    }
-    parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_pause_required_nucleus(chars: &[char]) -> bool {
-    let mut start = 0;
-    while chars.get(start) == Some(&',') {
-        start += 1;
-    }
-    starts_with_nucleus(chars, start)
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_cmavo_text(text: &str) -> bool {
     Cmavo::from_text(text)
         .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let first = *chars.get(start)?;
-    let second = *chars.get(start + 1)?;
-    let semivowel = match (base_vowel(first)?, second) {
-        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
-        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
-        _ => return None,
-    };
-    let end = start + 2;
-    if next_non_comma_index(chars, end)
-        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
-    {
-        return None;
-    }
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some((format!("{}{}", normalize_vowel(first), semivowel), end))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
-    match semivowel {
-        'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
-        'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
-        _ => false,
-    }
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
-fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
-    while chars.get(index) == Some(&',') {
-        index += 1;
-    }
-    (index < chars.len()).then_some(index)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
-fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let value = *chars.get(start)?;
-    if value == 'y' || value == 'ý' {
-        let end = start + 1;
-        if starts_with_nucleus(chars, end) {
-            return None;
-        }
-        return Some((value.to_string(), end));
-    }
-    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
-        return None;
-    }
-    let end = start + 1;
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some((normalize_vowel(value).to_string(), end))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_vowel(value: char) -> bool {
-    base_vowel(value).is_some()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_vowel(value: char) -> Option<char> {
-    match value {
-        'a' | 'á' => Some('a'),
-        'e' | 'é' => Some('e'),
-        'i' | 'í' => Some('i'),
-        'o' | 'ó' => Some('o'),
-        'u' | 'ú' => Some('u'),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_vowel(value: char) -> char {
-    match value {
-        'á' => 'á',
-        'é' => 'é',
-        'í' => 'í',
-        'ó' => 'ó',
-        'ú' => 'ú',
-        'ĭ' => 'i',
-        'ŭ' => 'u',
-        _ => base_vowel(value).unwrap_or(value),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn digit_to_cmavo(value: char) -> Option<&'static str> {
-    Some(match value {
-        '0' => "no",
-        '1' => "pa",
-        '2' => "re",
-        '3' => "ci",
-        '4' => "vo",
-        '5' => "mu",
-        '6' => "xa",
-        '7' => "ze",
-        '8' => "bi",
-        '9' => "so",
-        _ => return None,
-    })
 }
 
 #[cfg(test)]

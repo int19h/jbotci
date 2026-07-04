@@ -9,8 +9,8 @@ use std::sync::LazyLock;
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, WordType};
 use jbotci_morphology::{
-    GlideMark, PhonemeRenderOptions, StressMark, WordKind, is_consonant, is_vowel,
-    permissible_consonant_pair, segment_words_with_modifiers,
+    ConsonantPairClass, GlideMark, PhonemeRenderOptions, StressMark, WordKind,
+    consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -980,7 +980,7 @@ fn append_shape_candidates(
         GismuShape::Ccvcv => {
             for c0 in consonants {
                 for c1 in consonants {
-                    if permissible_consonant_pair(*c0, *c1) != Some(2) {
+                    if consonant_pair_class(*c0, *c1) != Some(ConsonantPairClass::Initial) {
                         continue;
                     }
                     for v2 in vowels {
@@ -998,7 +998,9 @@ fn append_shape_candidates(
                 for v1 in vowels {
                     for c2 in consonants {
                         for c3 in consonants {
-                            if permissible_consonant_pair(*c2, *c3).is_none_or(|rank| rank == 0) {
+                            if !consonant_pair_class(*c2, *c3)
+                                .is_some_and(ConsonantPairClass::is_permissible)
+                            {
                                 continue;
                             }
                             for v4 in vowels {
@@ -1535,7 +1537,7 @@ fn push_cvv_without_apostrophe(
 #[requires(is_vowel(vowel))]
 #[ensures(true)]
 fn push_ccv_if_initial(output: &mut Vec<RafsiCandidate>, first: char, second: char, vowel: char) {
-    if permissible_consonant_pair(first, second) == Some(2) {
+    if consonant_pair_class(first, second) == Some(ConsonantPairClass::Initial) {
         push_rafsi(output, RafsiKind::Ccv, &[first, second, vowel]);
     }
 }

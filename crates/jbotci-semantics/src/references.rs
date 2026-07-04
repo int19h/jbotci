@@ -74,8 +74,9 @@ pub struct MeksoNodeId(pub RawSyntaxNodeId);
 pub struct MeksoOperatorNodeId(pub RawSyntaxNodeId);
 
 #[invariant(leaf_start <= leaf_end)]
-#[invariant(source_spans.windows(2).all(|pair| pair[0].byte_start <= pair[1].byte_start
-    && pair[0].char_start <= pair[1].char_start))]
+#[invariant(first_source_span.is_some() == last_source_span.is_some())]
+#[invariant(first_source_span.as_ref().zip(last_source_span.as_ref()).is_none_or(|(first, last)| first.byte_start <= last.byte_start
+    && first.char_start <= last.char_start))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxNodeMetadata {
     pub id: RawSyntaxNodeId,
@@ -84,7 +85,8 @@ pub struct SyntaxNodeMetadata {
     pub depth: usize,
     pub leaf_start: usize,
     pub leaf_end: usize,
-    pub source_spans: Vec<SourceSpan>,
+    pub first_source_span: Option<SourceSpan>,
+    pub last_source_span: Option<SourceSpan>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1128,8 +1130,8 @@ fn span_key_for_generated_node(
     node: RawSyntaxNodeId,
 ) -> Option<SyntaxSpanKey> {
     let metadata = index.metadata(node)?;
-    let first = metadata.source_spans.first()?;
-    let last = metadata.source_spans.last()?;
+    let first = metadata.first_source_span.as_ref()?;
+    let last = metadata.last_source_span.as_ref()?;
     Some(new!(SyntaxSpanKey {
         source_id: first.source_id.clone(),
         byte_start: first.byte_start,
@@ -4497,9 +4499,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
-        self.index
-            .id_for_tree_node(node)
-            .expect("generated syntax node belongs to indexed syntax tree and has source span")
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
     }
 
     #[requires(true)]
@@ -4632,7 +4637,9 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
     pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
         let mut builder = GeneratedSyntaxIndexBuilder::new();
         root.visit_in_order(&mut builder);
-        let root_ref = generated_text_node_ref(root);
+        let root_ref = root
+            .as_node_ref()
+            .ok_or(ReferenceAnalysisError::MissingRootNode)?;
         let root_raw = builder
             .by_ref
             .get(&root_ref)
@@ -4678,7 +4685,9 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
     #[requires(true)]
     #[ensures(true)]
     pub fn text_node_id(&self, node: &'tree GeneratedTextSyntax) -> Option<TextNodeId> {
-        self.id_of(generated_text_node_ref(node)).map(TextNodeId)
+        node.as_node_ref()
+            .and_then(|node| self.id_of(node))
+            .map(TextNodeId)
     }
 
     #[requires(true)]
@@ -4687,101 +4696,7 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
         &self,
         node: &'tree N,
     ) -> Option<RawSyntaxNodeId> {
-        let key = span_key_for_generated_tree_node(node)?;
-        self.deepest_id_for_span_key(&key)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn deepest_id_for_span_key(&self, key: &SyntaxSpanKey) -> Option<RawSyntaxNodeId> {
-        self.nodes
-            .iter()
-            .filter(|node| metadata_span_key(&node.metadata).as_ref() == Some(key))
-            .max_by_key(|node| (node.metadata.depth, node.metadata.preorder))
-            .map(|node| node.metadata.id)
-    }
-}
-
-#[derive(Debug)]
-#[invariant(true)]
-struct GeneratedSpanCollector {
-    source_spans: Vec<SourceSpan>,
-}
-
-impl GeneratedSpanCollector {
-    #[requires(true)]
-    #[ensures(ret.source_spans.is_empty())]
-    fn new() -> Self {
-        Self {
-            source_spans: Vec::new(),
-        }
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
-    type Node = GeneratedSyntaxNodeRef<'tree>;
-    type Atom = GeneratedSyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_node(&mut self, _node: Self::Node) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_node(&mut self, _node: Self::Node) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            GeneratedSyntaxAtomRef::Token(token) => {
-                self.source_spans
-                    .extend(token.source_spans().into_iter().cloned());
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn span_key_for_generated_tree_node<N: GeneratedSyntaxTreeNode>(node: &N) -> Option<SyntaxSpanKey> {
-    let mut collector = GeneratedSpanCollector::new();
-    node.visit_in_order(&mut collector);
-    let first = collector.source_spans.first()?;
-    let last = collector.source_spans.last()?;
-    Some(new!(SyntaxSpanKey {
-        source_id: first.source_id.clone(),
-        byte_start: first.byte_start,
-        byte_end: last.byte_end,
-        char_start: first.char_start,
-        char_end: last.char_end,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn metadata_span_key(metadata: &SyntaxNodeMetadata) -> Option<SyntaxSpanKey> {
-    let first = metadata.source_spans.first()?;
-    let last = metadata.source_spans.last()?;
-    Some(new!(SyntaxSpanKey {
-        source_id: first.source_id.clone(),
-        byte_start: first.byte_start,
-        byte_end: last.byte_end,
-        char_start: first.char_start,
-        char_end: last.char_end,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_text_node_ref<'tree>(
-    text: &'tree GeneratedTextSyntax,
-) -> GeneratedSyntaxNodeRef<'tree> {
-    match text {
-        GeneratedTextSyntax::ExplicitXauhaLohoiText(_) => {
-            GeneratedSyntaxNodeRef::TextSyntaxExplicitXauhaLohoiText(text)
-        }
-        GeneratedTextSyntax::RegularText(_) => GeneratedSyntaxNodeRef::TextSyntaxRegularText(text),
+        node.as_node_ref().and_then(|node| self.id_of(node))
     }
 }
 
@@ -4812,7 +4727,10 @@ impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
         for id in &self.stack {
             if let Some(node) = self.nodes.get_mut(id.0) {
                 let mut metadata = node.metadata.clone().into_data();
-                metadata.source_spans.push(span.clone());
+                if metadata.first_source_span.is_none() {
+                    metadata.first_source_span = Some(span.clone());
+                }
+                metadata.last_source_span = Some(span.clone());
                 node.metadata = SyntaxNodeMetadata::from_data(metadata);
             }
         }
@@ -4836,7 +4754,8 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
             depth: self.stack.len(),
             leaf_start: self.leaf_index,
             leaf_end: self.leaf_index,
-            source_spans: Vec::new(),
+            first_source_span: None,
+            last_source_span: None,
         });
         self.nodes
             .push(GeneratedIndexedSyntaxNode { node, metadata });
@@ -4931,6 +4850,228 @@ impl CeiLabel {
 struct CeiAssignmentSource {
     label: CeiLabel,
     node: RawSyntaxNodeId,
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedPrenexCeiAssignmentSourceCollector<'index, 'tree> {
+    index: &'index GeneratedSyntaxIndex<'tree>,
+    skip_depth: usize,
+    sources: Vec<CeiAssignmentSource>,
+}
+
+impl<'index, 'tree> GeneratedPrenexCeiAssignmentSourceCollector<'index, 'tree> {
+    #[requires(true)]
+    #[ensures(ret.skip_depth == 0)]
+    #[ensures(ret.sources.is_empty())]
+    fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
+        Self {
+            index,
+            skip_depth: 0,
+            sources: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_sources(self) -> Vec<CeiAssignmentSource> {
+        self.sources
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn record_assignment(&mut self, unit: &'tree generated::LinkedTanruUnitForCeiSyntax) {
+        if let Some(label) = generated_relation_unit_assignment_label(unit) {
+            let node = self.raw_for_node(unit);
+            self.sources.push(CeiAssignmentSource { label, node });
+        }
+    }
+}
+
+impl<'index, 'tree> TreeVisitor<'tree>
+    for GeneratedPrenexCeiAssignmentSourceCollector<'index, 'tree>
+{
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth += 1;
+            return;
+        }
+        if generated_prenex_binding_should_skip_node(node) {
+            self.skip_depth = 1;
+            return;
+        }
+        if let GeneratedSyntaxNodeRef::AssignedProBridiTanruUnitSyntax(unit) = node {
+            for assignment in &unit.assignments {
+                self.record_assignment(assignment.tanru_unit.as_ref());
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth -= 1;
+        }
+    }
+}
+
+#[derive(Debug)]
+#[invariant(true)]
+struct GeneratedPrenexRelationVariableBindingCollector<'index, 'tree> {
+    index: &'index GeneratedSyntaxIndex<'tree>,
+    skip_depth: usize,
+    bindings: Vec<(Cmavo, SelbriNodeId)>,
+}
+
+impl<'index, 'tree> GeneratedPrenexRelationVariableBindingCollector<'index, 'tree> {
+    #[requires(true)]
+    #[ensures(ret.skip_depth == 0)]
+    #[ensures(ret.bindings.is_empty())]
+    fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
+        Self {
+            index,
+            skip_depth: 0,
+            bindings: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_bindings(self) -> Vec<(Cmavo, SelbriNodeId)> {
+        self.bindings
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bind_relation(&mut self, selbri: &'tree generated::SelbriSyntax) {
+        if let Some(cmavo @ (Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi)) =
+            generated_relation_pro_bridi_cmavo(selbri)
+        {
+            let target = SelbriNodeId(self.raw_for_node(selbri));
+            self.bindings.push((cmavo, target));
+        }
+    }
+}
+
+impl<'index, 'tree> TreeVisitor<'tree>
+    for GeneratedPrenexRelationVariableBindingCollector<'index, 'tree>
+{
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth += 1;
+            return;
+        }
+        if generated_prenex_binding_should_skip_node(node) {
+            self.skip_depth = 1;
+            return;
+        }
+        match node {
+            GeneratedSyntaxNodeRef::NoihaVariableAdverbialTermSyntax(term) => {
+                self.bind_relation(&term.selbri);
+            }
+            GeneratedSyntaxNodeRef::NoihaRelativeAdverbialTermSyntax(term) => {
+                self.bind_relation(&term.selbri);
+            }
+            GeneratedSyntaxNodeRef::DescriptorWithoutGadriSumtiSyntax(description) => {
+                self.bind_relation(&description.selbri);
+            }
+            GeneratedSyntaxNodeRef::RelationDescriptionTailSyntax(tail) => {
+                self.bind_relation(&tail.selbri);
+            }
+            GeneratedSyntaxNodeRef::QuantifierRelationDescriptionTailSyntax(tail) => {
+                self.bind_relation(&tail.selbri);
+            }
+            GeneratedSyntaxNodeRef::SelbriFragmentSyntax(fragment) => {
+                self.bind_relation(&fragment.0);
+            }
+            GeneratedSyntaxNodeRef::SelbriSimpleBridiTailSyntax(tail) => {
+                self.bind_relation(&tail.selbri);
+            }
+            GeneratedSyntaxNodeRef::SelbriSimpleBridiTailWithoutTailTermsSyntax(tail) => {
+                self.bind_relation(&tail.selbri);
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth -= 1;
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
+    matches!(
+        node,
+        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxSoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
+            | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNumberSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxLerfuStringSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxQuotedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMeksoFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxZantufaMeksoFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
+            | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
+            | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
+            | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
+            | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(_)
+    )
 }
 
 #[derive(Debug)]
@@ -5848,8 +5989,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn bind_prenex_relation_variables(&mut self, terms: &'tree [generated::TermSyntax]) {
+        let mut collector = GeneratedPrenexRelationVariableBindingCollector::new(self.index);
         for term in terms {
-            self.bind_prenex_relation_variables_in_term(term);
+            term.visit_in_order(&mut collector);
+        }
+        for (cmavo, target) in collector.into_bindings() {
+            self.selbri_variable_bindings.insert(cmavo, target);
         }
     }
 
@@ -5949,2365 +6094,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         &self,
         terms: &'tree [generated::TermSyntax],
     ) -> Vec<CeiAssignmentSource> {
-        let mut sources = Vec::new();
+        let mut collector = GeneratedPrenexCeiAssignmentSourceCollector::new(self.index);
         for term in terms {
-            self.collect_prenex_cei_assignment_sources_in_term(term, &mut sources);
+            term.visit_in_order(&mut collector);
         }
-        sources
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_term(
-        &self,
-        term: &'tree generated::TermSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match term {
-            generated::TermSyntax::SimpleTerm(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(term, sources);
-            }
-            generated::TermSyntax::ConnectedTerm(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.leading_term,
-                    sources,
-                );
-                for continuation in &term.continuations {
-                    self.collect_prenex_cei_assignment_sources_in_simple_term(
-                        &continuation.trailing_term,
-                        sources,
-                    );
-                }
-            }
-            generated::TermSyntax::BoundTermConnection(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.leading_term,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.trailing_term,
-                    sources,
-                );
-            }
-            generated::TermSyntax::TermsetGroup(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.leading_term,
-                    sources,
-                );
-                for continuation in &term.continuations {
-                    self.collect_prenex_cei_assignment_sources_in_simple_term(
-                        &continuation.trailing_term,
-                        sources,
-                    );
-                }
-            }
-            generated::TermSyntax::PeheTermsetConnection(term) => {
-                self.collect_prenex_cei_assignment_sources_in_pehe_operand(
-                    &term.leading_term,
-                    sources,
-                );
-                for continuation in &term.continuations {
-                    self.collect_prenex_cei_assignment_sources_in_pehe_operand(
-                        &continuation.trailing_term,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_pehe_operand(
-        &self,
-        term: &'tree generated::PeheTermsetOperandSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match term {
-            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(term, sources);
-            }
-            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.leading_term,
-                    sources,
-                );
-                for continuation in &term.continuations {
-                    self.collect_prenex_cei_assignment_sources_in_simple_term(
-                        &continuation.trailing_term,
-                        sources,
-                    );
-                }
-            }
-            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.leading_term,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_simple_term(
-                    &term.trailing_term,
-                    sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_simple_term(
-        &self,
-        term: &'tree generated::SimpleTermSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match term {
-            generated::SimpleTermSyntax::SumtiTerm(term) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&term.0, sources);
-            }
-            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-                }
-            }
-            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-                }
-            }
-            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&term.sumti, sources);
-            }
-            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
-                self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.terms, sources);
-                self.collect_prenex_cei_assignment_sources_in_boxed_terms(
-                    &term.first_branch.terms,
-                    sources,
-                );
-                for branch in &term.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_boxed_terms(
-                        &branch.terms,
-                        sources,
-                    );
-                }
-            }
-            generated::SimpleTermSyntax::NuhiTermset(term) => {
-                self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.termset, sources);
-            }
-            generated::SimpleTermSyntax::KeTermset(term) => {
-                self.collect_prenex_cei_assignment_sources_in_boxed_terms(&term.termset, sources);
-            }
-            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    self.collect_prenex_cei_assignment_sources_in_relation(&term.selbri, sources);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.collect_prenex_cei_assignment_sources_in_relation(&term.selbri, sources);
-                }
-            },
-            generated::SimpleTermSyntax::FihoiAdverbialTerm(_)
-            | generated::SimpleTermSyntax::SoiAdverbialTerm(_)
-            | generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
-            | generated::SimpleTermSyntax::NaKuTerm(_)
-            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_boxed_terms<'term, I, T>(
-        &self,
-        terms: I,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) where
-        I: IntoIterator<Item = &'term T>,
-        T: AsRef<generated::TermSyntax> + 'term,
-        'term: 'tree,
-    {
-        for term in terms {
-            self.collect_prenex_cei_assignment_sources_in_term(term.as_ref(), sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_argument(
-        &self,
-        sumti: &'tree generated::SumtiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_sumti_grouped(&sumti.base_sumti, sources);
-        if let Some(attachment) = &sumti.vuho_attachment {
-            match attachment {
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.collect_prenex_cei_assignment_sources_in_relative_clause_list(
-                        &attachment.relative_clauses,
-                        sources,
-                    );
-                    if let Some(connection) = attachment.sumti_connection.as_deref() {
-                        self.collect_prenex_cei_assignment_sources_in_argument(
-                            &connection.sumti,
-                            sources,
-                        );
-                    }
-                }
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.collect_prenex_cei_assignment_sources_in_argument(
-                        &attachment.sumti_connection.sumti,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_grouped(
-        &self,
-        sumti: &'tree generated::SumtiGroupedSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_sumti_afterthought(
-            &sumti.leading_sumti,
-            sources,
-        );
-        if let Some(tail) = sumti.grouped_tail.as_ref() {
-            self.collect_prenex_cei_assignment_sources_in_argument(&tail.inner_sumti, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_afterthought(
-        &self,
-        sumti: &'tree generated::SumtiAfterthoughtSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_sumti_bound(&sumti.leading_sumti, sources);
-        for continuation in &sumti.continuations {
-            self.collect_prenex_cei_assignment_sources_in_sumti_bound(&continuation.sumti, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_bound(
-        &self,
-        sumti: &'tree generated::SumtiBoundSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
-            &sumti.leading_sumti,
-            sources,
-        );
-        if let Some(tail) = sumti.bound_tail.as_ref() {
-            self.collect_prenex_cei_assignment_sources_in_sumti_bound(
-                &tail.trailing_sumti,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_forethought(
-        &self,
-        sumti: &'tree generated::SumtiForethoughtSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match sumti {
-            generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(
-                    &sumti.leading_sumti,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
-                    &sumti.first_branch.sumti,
-                    sources,
-                );
-                for branch in &sumti.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_sumti_forethought(
-                        &branch.sumti,
-                        sources,
-                    );
-                }
-            }
-            generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_simple_sumti(sumti, sources);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_simple_sumti(
-        &self,
-        sumti: &'tree generated::SimpleSumtiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_sumti_atom(&sumti.base_sumti, sources);
-        if let Some(clauses) = &sumti.relative_clauses {
-            self.collect_prenex_cei_assignment_sources_in_relative_clause_list(clauses, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_atom(
-        &self,
-        sumti: &'tree generated::SumtiAtomSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match sumti {
-            generated::SumtiAtomSyntax::SumtiBase(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_sumti_base(sumti, sources);
-            }
-            generated::SumtiAtomSyntax::QuantifiedSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_sumti_base(
-                    &sumti.inner_sumti,
-                    sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_base(
-        &self,
-        sumti: &'tree generated::SumtiBaseSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match sumti {
-            generated::SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
-                self.collect_prenex_cei_assignment_sources_in_description_tail(
-                    &description.tail,
-                    sources,
-                );
-            }
-            generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
-                self.collect_prenex_cei_assignment_sources_in_description_tail(
-                    &description.tail,
-                    sources,
-                );
-            }
-            generated::SumtiBaseSyntax::DescriptionConnectionSumti(description) => {
-                self.collect_prenex_cei_assignment_sources_in_description_tail(
-                    &description.tail,
-                    sources,
-                );
-            }
-            generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(description) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(
-                    &description.selbri,
-                    sources,
-                );
-            }
-            generated::SumtiBaseSyntax::LaheSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&sumti.inner_sumti, sources);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&sumti.inner_sumti, sources);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedSumtiWithBo(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&sumti.inner_sumti, sources);
-            }
-            generated::SumtiBaseSyntax::LaheTermWrapper(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_term(&sumti.inner_term, sources);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedTermWrapper(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_term(&sumti.inner_term, sources);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_term(&sumti.inner_term, sources);
-            }
-            generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&sumti.statement, sources);
-            }
-            generated::SumtiBaseSyntax::NumberSumti(_)
-            | generated::SumtiBaseSyntax::LerfuStringSumti(_)
-            | generated::SumtiBaseSyntax::QuotedSumti(_)
-            | generated::SumtiBaseSyntax::ProSumti(_)
-            | generated::SumtiBaseSyntax::NameSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_description_tail(
-        &self,
-        tail: &'tree generated::DescriptionTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        if let Some(sumti) = &tail.leading_tail_elements.tail_sumti {
-            self.collect_prenex_cei_assignment_sources_in_sumti_base(&sumti.0, sources);
-        }
-        if let Some(clauses) = &tail.leading_tail_elements.relative_clauses {
-            self.collect_prenex_cei_assignment_sources_in_relative_clause_list(clauses, sources);
-        }
-        match tail.tail.as_ref() {
-            generated::DescriptionTailBodySyntax::RelationDescriptionTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(&tail.selbri, sources);
-            }
-            generated::DescriptionTailBodySyntax::QuantifierRelationDescriptionTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(&tail.selbri, sources);
-            }
-            generated::DescriptionTailBodySyntax::QuantifierSumtiDescriptionTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&tail.sumti, sources);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_relative_clause_list(
-        &self,
-        clauses: &'tree generated::RelativeClauseListSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_relative_clause_atom(&clauses.first, sources);
-        for tail in &clauses.additional {
-            match tail {
-                generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
-                    self.collect_prenex_cei_assignment_sources_in_relative_clause_atom(
-                        &tail.inner,
-                        sources,
-                    );
-                }
-                generated::RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => {
-                    self.collect_prenex_cei_assignment_sources_in_relative_clause_atom(
-                        &tail.inner,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_relative_clause_atom(
-        &self,
-        clause: &'tree generated::RelativeClauseAtomSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match clause {
-            generated::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
-                self.collect_prenex_cei_assignment_sources_in_relative_sumti(
-                    &clause.sumti,
-                    sources,
-                );
-            }
-            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause {
-                generated::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(clause) => {
-                    self.collect_prenex_cei_assignment_sources_in_subbridi(
-                        &clause.subbridi,
-                        sources,
-                    );
-                }
-                generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
-                    self.collect_prenex_cei_assignment_sources_in_subbridi(
-                        &clause.subbridi,
-                        sources,
-                    );
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.collect_prenex_cei_assignment_sources_in_statement(
-                        &clause.statement,
-                        sources,
-                    );
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.collect_prenex_cei_assignment_sources_in_statement(
-                        &clause.statement,
-                        sources,
-                    );
-                }
-            },
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_statement(
-        &self,
-        statement: &'tree generated::StatementSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match statement {
-            generated::StatementSyntax::StatementBase(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement_base(statement, sources);
-            }
-            generated::StatementSyntax::IStatementConnection(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement_base(
-                    &statement.leading_statement,
-                    sources,
-                );
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(
-                            tail,
-                        ) => self
-                            .collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
-                                &tail.trailing_statement,
-                                sources,
-                            ),
-                        generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
-                            tail,
-                        ) => self
-                            .collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
-                                &tail.trailing_statement,
-                                sources,
-                            ),
-                    }
-                }
-            }
-            generated::StatementSyntax::PreposedIStatementConnection(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement_base(
-                    &statement.leading_statement,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
-                    &statement.trailing_statement,
-                    sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_statement_base(
-        &self,
-        statement: &'tree generated::StatementBaseSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match statement {
-            generated::StatementBaseSyntax::BridiStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_bridi(&statement.bridi, sources);
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                            continuation,
-                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
-                            &continuation.trailing_subbridi,
-                            sources,
-                        ),
-                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                            continuation,
-                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
-                            &continuation.trailing_subbridi,
-                            sources,
-                        ),
-                    }
-                }
-            }
-            generated::StatementBaseSyntax::PrenexStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(
-                    &statement.inner_statement,
-                    sources,
-                );
-            }
-            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_text(&statement.text, sources);
-            }
-            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&statement.first, sources);
-                self.collect_prenex_cei_assignment_sources_in_statement(
-                    &statement.first_branch.statement,
-                    sources,
-                );
-                for branch in &statement.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_statement(
-                        &branch.statement,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_statement_after_i_connective(
-        &self,
-        statement: &'tree generated::StatementAfterIConnectiveSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match statement {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_bridi(&statement.bridi, sources);
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                            continuation,
-                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
-                            &continuation.trailing_subbridi,
-                            sources,
-                        ),
-                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                            continuation,
-                        ) => self.collect_prenex_cei_assignment_sources_in_subbridi(
-                            &continuation.trailing_subbridi,
-                            sources,
-                        ),
-                    }
-                }
-            }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_text(&statement.text, sources);
-            }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&statement.first, sources);
-                self.collect_prenex_cei_assignment_sources_in_statement(
-                    &statement.first_branch.statement,
-                    sources,
-                );
-                for branch in &statement.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_statement(
-                        &branch.statement,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_text(
-        &self,
-        text: &'tree GeneratedTextSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match text {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
-                    &text.0, sources,
-                );
-            }
-            generated::TextSyntax::RegularText(text) => {
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.collect_prenex_cei_assignment_sources_in_text_paragraphs(
-                        paragraphs, sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_text_paragraphs(
-        &self,
-        paragraphs: &'tree generated::TextParagraphsSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match paragraphs {
-            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
-                self.collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
-                    paragraphs, sources,
-                );
-            }
-            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
-                for paragraph in &paragraphs.0 {
-                    self.collect_prenex_cei_assignment_sources_in_niho_paragraph(
-                        paragraph, sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_text_paragraph_with_additional_niho(
-        &self,
-        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_paragraph(&paragraphs.first, sources);
-        for paragraph in &paragraphs.additional_niho {
-            self.collect_prenex_cei_assignment_sources_in_niho_paragraph(paragraph, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_paragraph(
-        &self,
-        paragraph: &'tree generated::ParagraphSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match paragraph {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
-                    &paragraph.0,
-                    sources,
-                );
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
-                        statements, sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_niho_paragraph(
-        &self,
-        paragraph: &'tree generated::NihoParagraphSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        if let Some(statements) = paragraph.statements.as_deref() {
-            self.collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
-                statements, sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_paragraph_statement_sequence(
-        &self,
-        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_statement_or_fragment(
-            &sequence.initial.0,
-            sources,
-        );
-        for following in &sequence.following {
-            if let Some(statement) = following.statement.as_deref() {
-                self.collect_prenex_cei_assignment_sources_in_statement_or_fragment(
-                    statement, sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_statement_or_fragment(
-        &self,
-        statement: &'tree generated::StatementOrFragmentSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match statement {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(
-                    &statement.statement,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_zantufa_statement_terms_tail(
-                    &statement.tail,
-                    sources,
-                );
-            }
-            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&statement.0, sources);
-            }
-            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_fragment(fragment, sources);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_fragment(
-        &self,
-        fragment: &'tree generated::FragmentStatementSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match fragment {
-            generated::FragmentStatementSyntax::TermsFragment(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_terms(&fragment.terms, sources);
-            }
-            generated::FragmentStatementSyntax::PrenexFragment(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_terms(&fragment.terms, sources);
-            }
-            generated::FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_relative_clause_list(
-                    &fragment.0,
-                    sources,
-                );
-            }
-            generated::FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_linkargs(&fragment.0, sources);
-            }
-            generated::FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
-                for link in &fragment.0 {
-                    self.collect_prenex_cei_assignment_sources_in_linked_sumti(&link.link, sources);
-                }
-            }
-            generated::FragmentStatementSyntax::SelbriFragment(fragment) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(&fragment.0, sources);
-            }
-            generated::FragmentStatementSyntax::EkFragment(_)
-            | generated::FragmentStatementSyntax::GihekFragment(_)
-            | generated::FragmentStatementSyntax::MeksoFragment(_)
-            | generated::FragmentStatementSyntax::ZantufaMeksoFragment(_)
-            | generated::FragmentStatementSyntax::MultipleNaFragment(_)
-            | generated::FragmentStatementSyntax::SingleNaFragment(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_terms(
-        &self,
-        terms: &'tree [generated::TermSyntax],
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        for term in terms {
-            self.collect_prenex_cei_assignment_sources_in_term(term, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_zantufa_statement_terms_tail(
-        &self,
-        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match tail {
-            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_terms(&tail.terms, sources);
-            }
-            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
-                for term in tail.0.iter() {
-                    self.collect_prenex_cei_assignment_sources_in_term(term, sources);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_relative_sumti(
-        &self,
-        sumti: &'tree generated::RelativeSumtiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match sumti {
-            generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&sumti.0, sources);
-            }
-            generated::RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-                }
-            }
-            generated::RelativeSumtiSyntax::NaKuRelativeSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_subbridi(
-        &self,
-        subbridi: &'tree generated::SubbridiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match subbridi {
-            generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
-                self.collect_prenex_cei_assignment_sources_in_bridi(&subbridi.0, sources);
-            }
-            generated::SubbridiSyntax::PrenexSubbridi(subbridi) => {
-                self.collect_prenex_cei_assignment_sources_in_subbridi(
-                    &subbridi.inner_subbridi,
-                    sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_bridi(
-        &self,
-        bridi: &'tree generated::BridiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_bridi_tail(
-            generated_bridi_tail(bridi),
-            sources,
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_bridi_tail(
-        &self,
-        tail: &'tree generated::BridiTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match tail {
-            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_bridi_tail(&tail.bridi_tail, sources);
-                self.collect_prenex_cei_assignment_sources_in_terms(&tail.tail_terms, sources);
-            }
-            generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail(
-                    &tail.first,
-                    sources,
-                );
-            }
-            generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail_without_tail_terms(
-                    &tail.first,
-                    sources,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail(
-        &self,
-        tail: &'tree generated::AfterthoughtBridiTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(&tail.0.first, sources);
-        for continuation in &tail.0.links {
-            self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(
-                &continuation.bridi_tail,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_afterthought_bridi_tail_without_tail_terms(
-        &self,
-        tail: &'tree generated::AfterthoughtBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
-            &tail.0.first,
-            sources,
-        );
-        for continuation in &tail.0.links {
-            self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(
-        &self,
-        tail: &'tree generated::BoGroupedBridiTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_simple_bridi_tail(&tail.first, sources);
-        if let Some(continuation) = tail.bo_continuation.as_deref() {
-            self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail(
-                &continuation.bridi_tail,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
-        &self,
-        tail: &'tree generated::BoGroupedBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_simple_bridi_tail_without_tail_terms(
-            &tail.first,
-            sources,
-        );
-        if let Some(continuation) = tail.bo_continuation.as_deref() {
-            self.collect_prenex_cei_assignment_sources_in_bo_grouped_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_simple_bridi_tail(
-        &self,
-        tail: &'tree generated::SimpleBridiTailSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(&tail.selbri, sources);
-            }
-            generated::SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_simple_bridi_tail_without_tail_terms(
-        &self,
-        tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(&tail.selbri, sources);
-            }
-            generated::SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_relation(
-        &self,
-        selbri: &'tree generated::SelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match selbri {
-            generated::SelbriSyntax::TaggedSelbri(selbri) => {
-                self.collect_prenex_cei_assignment_sources_in_untagged_relation(
-                    &selbri.inner_selbri,
-                    sources,
-                );
-            }
-            generated::SelbriSyntax::UntaggedSelbri(selbri) => {
-                self.collect_prenex_cei_assignment_sources_in_untagged_relation(selbri, sources);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_untagged_relation(
-        &self,
-        selbri: &'tree generated::UntaggedSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match selbri {
-            generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
-                self.collect_prenex_cei_assignment_sources_in_co_selbri(selbri, sources);
-            }
-            generated::UntaggedSelbriSyntax::NegatedSelbri(selbri) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(
-                    &selbri.inner_selbri,
-                    sources,
-                );
-            }
-            generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(
-                    &selbri.leading_selbri,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_relation(
-                    &selbri.first_branch.selbri,
-                    sources,
-                );
-                for branch in &selbri.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_relation(&branch.selbri, sources);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_co_selbri(
-        &self,
-        selbri: &'tree generated::CoSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_connected_selbri(
-            &selbri.leading_selbri,
-            sources,
-        );
-        if let Some(tail) = selbri.co_tail.as_ref() {
-            self.collect_prenex_cei_assignment_sources_in_co_selbri(&tail.trailing_selbri, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_connected_selbri(
-        &self,
-        selbri: &'tree generated::ConnectedSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_selbri(&selbri.leading_selbri, sources);
-        for continuation in &selbri.continuations {
-            self.collect_prenex_cei_assignment_sources_in_tanru_selbri(
-                &continuation.trailing_selbri,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_selbri(
-        &self,
-        selbri: &'tree generated::TanruSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_unit(&selbri.first_unit, sources);
-        for unit in &selbri.additional_units {
-            self.collect_prenex_cei_assignment_sources_in_tanru_unit(unit, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_unit(
-        &self,
-        unit: &'tree generated::TanruUnitSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-            &unit.0.first,
-            sources,
-        );
-        for link in &unit.0.links {
-            self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-                &link.trailing_unit,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-        &self,
-        unit: &'tree generated::BoOrLinkedTanruUnitSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match unit {
-            generated::BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_linked_tanru_unit_for_cei(
-                    &unit.base, sources,
-                );
-                for assignment in &unit.assignments {
-                    self.collect_prenex_cei_assignment_sources_in_linked_tanru_unit_for_cei(
-                        &assignment.tanru_unit,
-                        sources,
-                    );
-                    if let Some(label) =
-                        generated_relation_unit_assignment_label(&assignment.tanru_unit)
-                    {
-                        sources.push(CeiAssignmentSource {
-                            label,
-                            node: self.raw_for_node(assignment.tanru_unit.as_ref()),
-                        });
-                    }
-                }
-            }
-            generated::BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_linked_tanru_unit(unit, sources);
-            }
-            generated::BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_linked_tanru_unit(
-                    &unit.leading_unit,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-                    &unit.trailing_unit,
-                    sources,
-                );
-            }
-            generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_relation(
-                    &unit.leading_selbri,
-                    sources,
-                );
-                self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-                    &unit.first_branch.unit,
-                    sources,
-                );
-                for branch in &unit.additional_branches {
-                    self.collect_prenex_cei_assignment_sources_in_bo_or_linked_tanru_unit(
-                        &branch.unit,
-                        sources,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_linked_tanru_unit(
-        &self,
-        unit: &'tree generated::LinkedTanruUnitSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom(&unit.base, sources);
-        if let Some(linkargs) = &unit.linkargs {
-            self.collect_prenex_cei_assignment_sources_in_linkargs(linkargs, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom(
-        &self,
-        unit: &'tree generated::TanruUnitAtomSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base(&unit.base, sources);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base(
-        &self,
-        unit: &'tree generated::TanruUnitAtomBaseSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match unit {
-            generated::TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_linkargs(&unit.linkargs, sources);
-                self.collect_prenex_cei_assignment_sources_in_tanru_unit(&unit.base, sources);
-            }
-            generated::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_scalar_negated_tanru_inner_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_subbridi(&unit.subbridi, sources);
-            }
-            generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&unit.statement, sources);
-            }
-            generated::TanruUnitAtomBaseSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
-                    &unit.sumti,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_connected_selbri(
-                    &unit.selbri,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_) => {
-                // A bare pro-bridi here is a reference, not a nested CEI
-                // assignment source; the reference visitor resolves it.
-            }
-            generated::TanruUnitAtomBaseSyntax::OperatorSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::ZantufaMeTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_linked_tanru_unit_for_cei(
-        &self,
-        unit: &'tree generated::LinkedTanruUnitForCeiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_for_cei(&unit.base, sources);
-        if let Some(linkargs) = &unit.linkargs {
-            self.collect_prenex_cei_assignment_sources_in_linkargs(linkargs, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_for_cei(
-        &self,
-        unit: &'tree generated::TanruUnitAtomForCeiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base_for_cei(
-            &unit.base, sources,
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base_for_cei(
-        &self,
-        unit: &'tree generated::TanruUnitAtomBaseForCeiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match unit {
-            generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_linkargs(&unit.linkargs, sources);
-                self.collect_prenex_cei_assignment_sources_in_tanru_unit(&unit.base, sources);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_scalar_negated_tanru_inner_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_subbridi(&unit.subbridi, sources);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
-                unit,
-            ) => {
-                self.collect_prenex_cei_assignment_sources_in_statement(&unit.statement, sources);
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
-                    &unit.sumti,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_connected_selbri(
-                    &unit.selbri,
-                    sources,
-                );
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_) => {
-                // A bare pro-bridi here is a reference, not a nested CEI
-                // assignment source; the reference visitor resolves it.
-            }
-            generated::TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(_)
-            | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_scalar_negated_tanru_inner_unit(
-        &self,
-        unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match unit {
-            generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_connected_selbri(
-                    &unit.inner_selbri,
-                    sources,
-                );
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_tanru_unit_atom_base(
-                    &unit.base, sources,
-                );
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => {
-                // Scalar negation can wrap a pro-bridi reference, but not a CEI
-                // assignment source; the reference visitor resolves it.
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-        &self,
-        unit: &'tree generated::JaiInnerTanruUnitSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match unit {
-            generated::JaiInnerTanruUnitSyntax::ConvertedJaiInnerTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::JaiInnerTanruUnitSyntax::ScalarNegatedJaiInnerTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-                    &unit.inner_unit,
-                    sources,
-                );
-            }
-            generated::JaiInnerTanruUnitSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
-                    &unit.sumti,
-                    sources,
-                );
-            }
-            generated::JaiInnerTanruUnitSyntax::GroupedJaiInnerTanruUnit(unit) => {
-                self.collect_prenex_cei_assignment_sources_in_connected_jai_inner_selbri(
-                    &unit.selbri,
-                    sources,
-                );
-            }
-            generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_) => {
-                // JAI can wrap a pro-bridi reference, but not a CEI assignment
-                // source; the reference visitor resolves it.
-            }
-            generated::JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::OrdinalTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::WordTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_connected_jai_inner_selbri(
-        &self,
-        selbri: &'tree generated::ConnectedJaiInnerSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_tanru_jai_inner_selbri(
-            &selbri.leading_selbri,
-            sources,
-        );
-        for continuation in &selbri.continuations {
-            self.collect_prenex_cei_assignment_sources_in_tanru_jai_inner_selbri(
-                &continuation.trailing_selbri,
-                sources,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_tanru_jai_inner_selbri(
-        &self,
-        selbri: &'tree generated::TanruJaiInnerSelbriSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(
-            &selbri.first_unit,
-            sources,
-        );
-        for unit in &selbri.additional_units {
-            self.collect_prenex_cei_assignment_sources_in_jai_inner_tanru_unit(unit, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_sumti_selbri_sumti(
-        &self,
-        sumti: &'tree generated::SumtiSelbriSumtiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        if let generated::SumtiSelbriSumtiSyntax::Sumti(sumti) = sumti {
-            self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_linkargs(
-        &self,
-        linkargs: &'tree generated::LinkargsSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        self.collect_prenex_cei_assignment_sources_in_linked_sumti(&linkargs.first_link, sources);
-        for link in &linkargs.bei_links {
-            self.collect_prenex_cei_assignment_sources_in_linked_sumti(&link.link, sources);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn collect_prenex_cei_assignment_sources_in_linked_sumti(
-        &self,
-        link: &'tree generated::LinkedSumtiSyntax,
-        sources: &mut Vec<CeiAssignmentSource>,
-    ) {
-        match link {
-            generated::LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
-                self.collect_prenex_cei_assignment_sources_in_argument(&sumti.0, sources);
-            }
-            generated::LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-                }
-            }
-            generated::LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.collect_prenex_cei_assignment_sources_in_argument(sumti, sources);
-                }
-            }
-            generated::LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_term(&mut self, term: &'tree generated::TermSyntax) {
-        match term {
-            generated::TermSyntax::SimpleTerm(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(term);
-            }
-            generated::TermSyntax::ConnectedTerm(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(&term.leading_term);
-                for continuation in &term.continuations {
-                    self.bind_prenex_relation_variables_in_simple_term(&continuation.trailing_term);
-                }
-            }
-            generated::TermSyntax::BoundTermConnection(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(&term.leading_term);
-                self.bind_prenex_relation_variables_in_simple_term(&term.trailing_term);
-            }
-            generated::TermSyntax::TermsetGroup(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(&term.leading_term);
-                for continuation in &term.continuations {
-                    self.bind_prenex_relation_variables_in_simple_term(&continuation.trailing_term);
-                }
-            }
-            generated::TermSyntax::PeheTermsetConnection(term) => {
-                self.bind_prenex_relation_variables_in_pehe_operand(&term.leading_term);
-                for continuation in &term.continuations {
-                    self.bind_prenex_relation_variables_in_pehe_operand(
-                        &continuation.trailing_term,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_pehe_operand(
-        &mut self,
-        term: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        match term {
-            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(term);
-            }
-            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(&term.leading_term);
-                for continuation in &term.continuations {
-                    self.bind_prenex_relation_variables_in_simple_term(&continuation.trailing_term);
-                }
-            }
-            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
-                self.bind_prenex_relation_variables_in_simple_term(&term.leading_term);
-                self.bind_prenex_relation_variables_in_simple_term(&term.trailing_term);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_simple_term(
-        &mut self,
-        term: &'tree generated::SimpleTermSyntax,
-    ) {
-        match term {
-            generated::SimpleTermSyntax::SumtiTerm(term) => {
-                self.bind_prenex_relation_variables_in_argument(&term.0);
-            }
-            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.bind_prenex_relation_variables_in_argument(sumti);
-                }
-            }
-            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.bind_prenex_relation_variables_in_argument(sumti);
-                }
-            }
-            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
-                self.bind_prenex_relation_variables_in_argument(&term.sumti);
-            }
-            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
-                self.bind_prenex_relation_variables_in_boxed_terms(&term.terms);
-                self.bind_prenex_relation_variables_in_boxed_terms(&term.first_branch.terms);
-                for branch in &term.additional_branches {
-                    self.bind_prenex_relation_variables_in_boxed_terms(&branch.terms);
-                }
-            }
-            generated::SimpleTermSyntax::NuhiTermset(term) => {
-                self.bind_prenex_relation_variables_in_boxed_terms(&term.termset);
-            }
-            generated::SimpleTermSyntax::KeTermset(term) => {
-                self.bind_prenex_relation_variables_in_boxed_terms(&term.termset);
-            }
-            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    self.bind_prenex_relation_variable_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.bind_prenex_relation_variable_relation(&term.selbri);
-                }
-            },
-            generated::SimpleTermSyntax::FihoiAdverbialTerm(_)
-            | generated::SimpleTermSyntax::SoiAdverbialTerm(_)
-            | generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(_)
-            | generated::SimpleTermSyntax::NaKuTerm(_)
-            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_boxed_terms<'term, I, T>(&mut self, terms: I)
-    where
-        I: IntoIterator<Item = &'term T>,
-        T: AsRef<generated::TermSyntax> + 'term,
-        'term: 'tree,
-    {
-        for term in terms {
-            self.bind_prenex_relation_variables_in_term(term.as_ref());
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_argument(&mut self, sumti: &'tree generated::SumtiSyntax) {
-        self.bind_prenex_relation_variables_in_sumti_grouped(&sumti.base_sumti);
-        if let Some(attachment) = &sumti.vuho_attachment {
-            match attachment {
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.bind_prenex_relation_variables_in_relative_clause_list(
-                        &attachment.relative_clauses,
-                    );
-                    if let Some(connection) = attachment.sumti_connection.as_deref() {
-                        self.bind_prenex_relation_variables_in_argument(&connection.sumti);
-                    }
-                }
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(
-                    attachment,
-                ) => {
-                    self.bind_prenex_relation_variables_in_argument(
-                        &attachment.sumti_connection.sumti,
-                    );
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_grouped(
-        &mut self,
-        sumti: &'tree generated::SumtiGroupedSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_sumti_afterthought(&sumti.leading_sumti);
-        if let Some(tail) = sumti.grouped_tail.as_ref() {
-            self.bind_prenex_relation_variables_in_argument(&tail.inner_sumti);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_afterthought(
-        &mut self,
-        sumti: &'tree generated::SumtiAfterthoughtSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_sumti_bound(&sumti.leading_sumti);
-        for continuation in &sumti.continuations {
-            self.bind_prenex_relation_variables_in_sumti_bound(&continuation.sumti);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_bound(
-        &mut self,
-        sumti: &'tree generated::SumtiBoundSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_sumti_forethought(&sumti.leading_sumti);
-        if let Some(tail) = sumti.bound_tail.as_ref() {
-            self.bind_prenex_relation_variables_in_sumti_bound(&tail.trailing_sumti);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_forethought(
-        &mut self,
-        sumti: &'tree generated::SumtiForethoughtSyntax,
-    ) {
-        match sumti {
-            generated::SumtiForethoughtSyntax::ForethoughtSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.leading_sumti);
-                self.bind_prenex_relation_variables_in_sumti_forethought(&sumti.first_branch.sumti);
-                for branch in &sumti.additional_branches {
-                    self.bind_prenex_relation_variables_in_sumti_forethought(&branch.sumti);
-                }
-            }
-            generated::SumtiForethoughtSyntax::SimpleSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_simple_sumti(sumti);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_simple_sumti(
-        &mut self,
-        sumti: &'tree generated::SimpleSumtiSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_sumti_atom(&sumti.base_sumti);
-        if let Some(clauses) = &sumti.relative_clauses {
-            self.bind_prenex_relation_variables_in_relative_clause_list(clauses);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_atom(
-        &mut self,
-        sumti: &'tree generated::SumtiAtomSyntax,
-    ) {
-        match sumti {
-            generated::SumtiAtomSyntax::SumtiBase(sumti) => {
-                self.bind_prenex_relation_variables_in_sumti_base(sumti);
-            }
-            generated::SumtiAtomSyntax::QuantifiedSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_sumti_base(&sumti.inner_sumti);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_sumti_base(
-        &mut self,
-        sumti: &'tree generated::SumtiBaseSyntax,
-    ) {
-        match sumti {
-            generated::SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
-                self.bind_prenex_relation_variables_in_description_tail(&description.tail);
-            }
-            generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
-                self.bind_prenex_relation_variables_in_description_tail(&description.tail);
-            }
-            generated::SumtiBaseSyntax::DescriptionConnectionSumti(description) => {
-                self.bind_prenex_relation_variables_in_description_tail(&description.tail);
-            }
-            generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(description) => {
-                self.bind_prenex_relation_variable_relation(&description.selbri);
-            }
-            generated::SumtiBaseSyntax::LaheSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.inner_sumti);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.inner_sumti);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedSumtiWithBo(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.inner_sumti);
-            }
-            generated::SumtiBaseSyntax::LaheTermWrapper(sumti) => {
-                self.bind_prenex_relation_variables_in_term(&sumti.inner_term);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedTermWrapper(sumti) => {
-                self.bind_prenex_relation_variables_in_term(&sumti.inner_term);
-            }
-            generated::SumtiBaseSyntax::ScalarNegatedTermWrapperWithBo(sumti) => {
-                self.bind_prenex_relation_variables_in_term(&sumti.inner_term);
-            }
-            generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_statement(&sumti.statement);
-            }
-            generated::SumtiBaseSyntax::NumberSumti(_)
-            | generated::SumtiBaseSyntax::LerfuStringSumti(_)
-            | generated::SumtiBaseSyntax::QuotedSumti(_)
-            | generated::SumtiBaseSyntax::ProSumti(_)
-            | generated::SumtiBaseSyntax::NameSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_description_tail(
-        &mut self,
-        tail: &'tree generated::DescriptionTailSyntax,
-    ) {
-        if let Some(sumti) = &tail.leading_tail_elements.tail_sumti {
-            self.bind_prenex_relation_variables_in_sumti_base(&sumti.0);
-        }
-        if let Some(clauses) = &tail.leading_tail_elements.relative_clauses {
-            self.bind_prenex_relation_variables_in_relative_clause_list(clauses);
-        }
-        match tail.tail.as_ref() {
-            generated::DescriptionTailBodySyntax::RelationDescriptionTail(tail) => {
-                self.bind_prenex_relation_variable_relation(&tail.selbri);
-            }
-            generated::DescriptionTailBodySyntax::QuantifierRelationDescriptionTail(tail) => {
-                self.bind_prenex_relation_variable_relation(&tail.selbri);
-            }
-            generated::DescriptionTailBodySyntax::QuantifierSumtiDescriptionTail(tail) => {
-                self.bind_prenex_relation_variables_in_argument(&tail.sumti);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_relative_clause_list(
-        &mut self,
-        clauses: &'tree generated::RelativeClauseListSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_relative_clause_atom(&clauses.first);
-        for tail in &clauses.additional {
-            match tail {
-                generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
-                    self.bind_prenex_relation_variables_in_relative_clause_atom(&tail.inner);
-                }
-                generated::RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => {
-                    self.bind_prenex_relation_variables_in_relative_clause_atom(&tail.inner);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_relative_clause_atom(
-        &mut self,
-        clause: &'tree generated::RelativeClauseAtomSyntax,
-    ) {
-        match clause {
-            generated::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) => {
-                self.bind_prenex_relation_variables_in_relative_sumti(&clause.sumti);
-            }
-            generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause {
-                generated::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(clause) => {
-                    self.bind_prenex_relation_variables_in_subbridi(&clause.subbridi);
-                }
-                generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
-                    self.bind_prenex_relation_variables_in_subbridi(&clause.subbridi);
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.bind_prenex_relation_variables_in_statement(&clause.statement);
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.bind_prenex_relation_variables_in_statement(&clause.statement);
-                }
-            },
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_statement(
-        &mut self,
-        statement: &'tree generated::StatementSyntax,
-    ) {
-        match statement {
-            generated::StatementSyntax::StatementBase(statement) => {
-                self.bind_prenex_relation_variables_in_statement_base(statement);
-            }
-            generated::StatementSyntax::IStatementConnection(statement) => {
-                self.bind_prenex_relation_variables_in_statement_base(&statement.leading_statement);
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(
-                            tail,
-                        ) => self.bind_prenex_relation_variables_in_statement_after_i_connective(
-                            &tail.trailing_statement,
-                        ),
-                        generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(
-                            tail,
-                        ) => self.bind_prenex_relation_variables_in_statement_after_i_connective(
-                            &tail.trailing_statement,
-                        ),
-                    }
-                }
-            }
-            generated::StatementSyntax::PreposedIStatementConnection(statement) => {
-                self.bind_prenex_relation_variables_in_statement_base(&statement.leading_statement);
-                self.bind_prenex_relation_variables_in_statement_after_i_connective(
-                    &statement.trailing_statement,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_statement_base(
-        &mut self,
-        statement: &'tree generated::StatementBaseSyntax,
-    ) {
-        match statement {
-            generated::StatementBaseSyntax::BridiStatement(statement) => {
-                self.bind_prenex_relation_variables_in_bridi(&statement.bridi);
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                            continuation,
-                        ) => self.bind_prenex_relation_variables_in_subbridi(
-                            &continuation.trailing_subbridi,
-                        ),
-                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                            continuation,
-                        ) => self.bind_prenex_relation_variables_in_subbridi(
-                            &continuation.trailing_subbridi,
-                        ),
-                    }
-                }
-            }
-            generated::StatementBaseSyntax::PrenexStatement(statement) => {
-                self.bind_prenex_relation_variables_in_statement(&statement.inner_statement);
-            }
-            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
-                self.bind_prenex_relation_variables_in_text(&statement.text);
-            }
-            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.bind_prenex_relation_variables_in_statement(&statement.first);
-                self.bind_prenex_relation_variables_in_statement(&statement.first_branch.statement);
-                for branch in &statement.additional_branches {
-                    self.bind_prenex_relation_variables_in_statement(&branch.statement);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_statement_after_i_connective(
-        &mut self,
-        statement: &'tree generated::StatementAfterIConnectiveSyntax,
-    ) {
-        match statement {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
-                self.bind_prenex_relation_variables_in_bridi(&statement.bridi);
-                for continuation in &statement.continuations {
-                    match continuation {
-                        generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                            continuation,
-                        ) => self.bind_prenex_relation_variables_in_subbridi(
-                            &continuation.trailing_subbridi,
-                        ),
-                        generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                            continuation,
-                        ) => self.bind_prenex_relation_variables_in_subbridi(
-                            &continuation.trailing_subbridi,
-                        ),
-                    }
-                }
-            }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
-                self.bind_prenex_relation_variables_in_text(&statement.text);
-            }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.bind_prenex_relation_variables_in_statement(&statement.first);
-                self.bind_prenex_relation_variables_in_statement(&statement.first_branch.statement);
-                for branch in &statement.additional_branches {
-                    self.bind_prenex_relation_variables_in_statement(&branch.statement);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_text(&mut self, text: &'tree GeneratedTextSyntax) {
-        match text {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(&text.0);
-            }
-            generated::TextSyntax::RegularText(text) => {
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.bind_prenex_relation_variables_in_text_paragraphs(paragraphs);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_text_paragraphs(
-        &mut self,
-        paragraphs: &'tree generated::TextParagraphsSyntax,
-    ) {
-        match paragraphs {
-            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
-                self.bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(
-                    paragraphs,
-                );
-            }
-            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
-                for paragraph in &paragraphs.0 {
-                    self.bind_prenex_relation_variables_in_niho_paragraph(paragraph);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_text_paragraph_with_additional_niho(
-        &mut self,
-        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_paragraph(&paragraphs.first);
-        for paragraph in &paragraphs.additional_niho {
-            self.bind_prenex_relation_variables_in_niho_paragraph(paragraph);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_paragraph(
-        &mut self,
-        paragraph: &'tree generated::ParagraphSyntax,
-    ) {
-        match paragraph {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.bind_prenex_relation_variables_in_paragraph_statement_sequence(&paragraph.0);
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.bind_prenex_relation_variables_in_paragraph_statement_sequence(statements);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_niho_paragraph(
-        &mut self,
-        paragraph: &'tree generated::NihoParagraphSyntax,
-    ) {
-        if let Some(statements) = paragraph.statements.as_deref() {
-            self.bind_prenex_relation_variables_in_paragraph_statement_sequence(statements);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_paragraph_statement_sequence(
-        &mut self,
-        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_statement_or_fragment(&sequence.initial.0);
-        for following in &sequence.following {
-            if let Some(statement) = following.statement.as_deref() {
-                self.bind_prenex_relation_variables_in_statement_or_fragment(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_statement_or_fragment(
-        &mut self,
-        statement: &'tree generated::StatementOrFragmentSyntax,
-    ) {
-        match statement {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.bind_prenex_relation_variables_in_statement(&statement.statement);
-                self.bind_prenex_relation_variables_in_zantufa_statement_terms_tail(
-                    &statement.tail,
-                );
-            }
-            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
-                self.bind_prenex_relation_variables_in_statement(&statement.0);
-            }
-            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
-                self.bind_prenex_relation_variables_in_fragment(fragment);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_fragment(
-        &mut self,
-        fragment: &'tree generated::FragmentStatementSyntax,
-    ) {
-        match fragment {
-            generated::FragmentStatementSyntax::TermsFragment(fragment) => {
-                self.bind_prenex_relation_variables_in_terms(&fragment.terms);
-            }
-            generated::FragmentStatementSyntax::PrenexFragment(fragment) => {
-                self.bind_prenex_relation_variables_in_terms(&fragment.terms);
-            }
-            generated::FragmentStatementSyntax::RelativeClauseFragment(fragment) => {
-                self.bind_prenex_relation_variables_in_relative_clause_list(&fragment.0);
-            }
-            generated::FragmentStatementSyntax::LinkedSumtiFragment(fragment) => {
-                self.bind_prenex_relation_variables_in_linkargs(&fragment.0);
-            }
-            generated::FragmentStatementSyntax::LinkedSumtiContinuationFragment(fragment) => {
-                for link in &fragment.0 {
-                    self.bind_prenex_relation_variables_in_linked_sumti(&link.link);
-                }
-            }
-            generated::FragmentStatementSyntax::SelbriFragment(fragment) => {
-                self.bind_prenex_relation_variable_relation(&fragment.0);
-            }
-            generated::FragmentStatementSyntax::EkFragment(_)
-            | generated::FragmentStatementSyntax::GihekFragment(_)
-            | generated::FragmentStatementSyntax::MeksoFragment(_)
-            | generated::FragmentStatementSyntax::ZantufaMeksoFragment(_)
-            | generated::FragmentStatementSyntax::MultipleNaFragment(_)
-            | generated::FragmentStatementSyntax::SingleNaFragment(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_terms(&mut self, terms: &'tree [generated::TermSyntax]) {
-        for term in terms {
-            self.bind_prenex_relation_variables_in_term(term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_zantufa_statement_terms_tail(
-        &mut self,
-        tail: &'tree generated::ZantufaStatementTermsTailSyntax,
-    ) {
-        match tail {
-            generated::ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
-                self.bind_prenex_relation_variables_in_terms(&tail.terms);
-            }
-            generated::ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
-                for term in tail.0.iter() {
-                    self.bind_prenex_relation_variables_in_term(term);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_linkargs(
-        &mut self,
-        linkargs: &'tree generated::LinkargsSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_linked_sumti(&linkargs.first_link);
-        for link in &linkargs.bei_links {
-            self.bind_prenex_relation_variables_in_linked_sumti(&link.link);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_linked_sumti(
-        &mut self,
-        link: &'tree generated::LinkedSumtiSyntax,
-    ) {
-        match link {
-            generated::LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.0);
-            }
-            generated::LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.bind_prenex_relation_variables_in_argument(sumti);
-                }
-            }
-            generated::LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.bind_prenex_relation_variables_in_argument(sumti);
-                }
-            }
-            generated::LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_relative_sumti(
-        &mut self,
-        sumti: &'tree generated::RelativeSumtiSyntax,
-    ) {
-        match sumti {
-            generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
-                self.bind_prenex_relation_variables_in_argument(&sumti.0);
-            }
-            generated::RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() {
-                    self.bind_prenex_relation_variables_in_argument(sumti);
-                }
-            }
-            generated::RelativeSumtiSyntax::NaKuRelativeSumti(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_subbridi(
-        &mut self,
-        subbridi: &'tree generated::SubbridiSyntax,
-    ) {
-        match subbridi {
-            generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
-                self.bind_prenex_relation_variables_in_bridi(&subbridi.0);
-            }
-            generated::SubbridiSyntax::PrenexSubbridi(subbridi) => {
-                self.bind_prenex_relation_variables_in_subbridi(&subbridi.inner_subbridi);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_bridi(&mut self, bridi: &'tree generated::BridiSyntax) {
-        self.bind_prenex_relation_variables_in_bridi_tail(generated_bridi_tail(bridi));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_bridi_tail(
-        &mut self,
-        tail: &'tree generated::BridiTailSyntax,
-    ) {
-        match tail {
-            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
-                self.bind_prenex_relation_variables_in_bridi_tail(&tail.bridi_tail);
-                self.bind_prenex_relation_variables_in_terms(&tail.tail_terms);
-            }
-            generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
-                self.bind_prenex_relation_variables_in_afterthought_bridi_tail(&tail.first);
-            }
-            generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
-                self.bind_prenex_relation_variables_in_afterthought_bridi_tail_without_tail_terms(
-                    &tail.first,
-                );
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_afterthought_bridi_tail(
-        &mut self,
-        tail: &'tree generated::AfterthoughtBridiTailSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail(&tail.0.first);
-        for continuation in &tail.0.links {
-            self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail(&continuation.bridi_tail);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_afterthought_bridi_tail_without_tail_terms(
-        &mut self,
-        tail: &'tree generated::AfterthoughtBridiTailWithoutTailTermsSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail_without_tail_terms(
-            &tail.0.first,
-        );
-        for continuation in &tail.0.links {
-            self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_bo_grouped_bridi_tail(
-        &mut self,
-        tail: &'tree generated::BoGroupedBridiTailSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_simple_bridi_tail(&tail.first);
-        if let Some(continuation) = tail.bo_continuation.as_deref() {
-            self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail(&continuation.bridi_tail);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_bo_grouped_bridi_tail_without_tail_terms(
-        &mut self,
-        tail: &'tree generated::BoGroupedBridiTailWithoutTailTermsSyntax,
-    ) {
-        self.bind_prenex_relation_variables_in_simple_bridi_tail_without_tail_terms(&tail.first);
-        if let Some(continuation) = tail.bo_continuation.as_deref() {
-            self.bind_prenex_relation_variables_in_bo_grouped_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
-            );
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_simple_bridi_tail(
-        &mut self,
-        tail: &'tree generated::SimpleBridiTailSyntax,
-    ) {
-        match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                self.bind_prenex_relation_variable_relation(&tail.selbri);
-            }
-            generated::SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variables_in_simple_bridi_tail_without_tail_terms(
-        &mut self,
-        tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
-    ) {
-        match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                self.bind_prenex_relation_variable_relation(&tail.selbri);
-            }
-            generated::SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn bind_prenex_relation_variable_relation(&mut self, selbri: &'tree generated::SelbriSyntax) {
-        if let Some(cmavo @ (Cmavo::Buha | Cmavo::Buhe | Cmavo::Buhi)) =
-            generated_relation_pro_bridi_cmavo(selbri)
-        {
-            let target = SelbriNodeId(self.raw_for_node(selbri));
-            self.selbri_variable_bindings.insert(cmavo, target);
-        }
+        collector.into_sources()
     }
 
     #[requires(true)]
@@ -8654,8 +6445,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         let outer_predicate_stack = std::mem::take(&mut self.predicate_stack);
         let outer_discourse_predicate_stack = std::mem::take(&mut self.discourse_predicate_stack);
         let outer_current_bridi = self.current_bridi.take();
+        let outer_cei_bridi_bindings = std::mem::take(&mut self.cei_bridi_bindings);
         self.visit_text(text);
         self.flush_unresolved_pending_next_utterance_sources();
+        self.cei_bridi_bindings = outer_cei_bridi_bindings;
         self.current_bridi = outer_current_bridi;
         self.discourse_predicate_stack = outer_discourse_predicate_stack;
         self.predicate_stack = outer_predicate_stack;
@@ -9585,8 +7378,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             .metadata(source)
             .and_then(|metadata| {
                 metadata
-                    .source_spans
-                    .first()
+                    .first_source_span
+                    .as_ref()
                     .map(|span| span.byte_start)
                     .or(Some(metadata.preorder))
             })
@@ -9746,7 +7539,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn sumti_mention_position(&self, source: SumtiNodeId) -> usize {
         self.index
             .metadata(source.0)
-            .and_then(|metadata| metadata.source_spans.first().map(|span| span.byte_start))
+            .and_then(|metadata| {
+                metadata
+                    .first_source_span
+                    .as_ref()
+                    .map(|span| span.byte_start)
+            })
             .or_else(|| {
                 self.index
                     .metadata(source.0)
@@ -10064,9 +7862,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
-        self.index
-            .id_for_tree_node(node)
-            .expect("generated syntax node belongs to indexed syntax tree and has source span")
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
     }
 }
 
@@ -11186,12 +8987,18 @@ mod tests {
             let root = index
                 .metadata(index.root().0)
                 .expect("root metadata is present");
-            let spans = root
-                .source_spans
-                .iter()
-                .map(|span| (span.byte_start, span.byte_end))
-                .collect::<Vec<_>>();
-            assert_eq!(spans, vec![(0, 2), (3, 8), (9, 11)]);
+            assert_eq!(
+                root.first_source_span
+                    .as_ref()
+                    .map(|span| (span.byte_start, span.byte_end)),
+                Some((0, 2))
+            );
+            assert_eq!(
+                root.last_source_span
+                    .as_ref()
+                    .map(|span| (span.byte_start, span.byte_end)),
+                Some((9, 11))
+            );
         });
     }
 
@@ -11319,6 +9126,54 @@ mod tests {
                     FixtureReferenceTarget::ResolvedNode { .. }
                 ),
                 "later broda should resolve through grouped CEI assignment"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_cei_inside_quote_does_not_bind_outer_broda_series() {
+        run_reference_test(|| {
+            let input = "lu mi broda cei brode li'u zo'u mi brode";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let outer_brode = nth_span_key(input, "brode", 1);
+
+            assert!(
+                !projection.references.iter().any(|edge| {
+                    edge.kind == ReferenceKind::BrodaSeries && edge.source == outer_brode
+                }),
+                "CEI inside a quoted sumti must not bind the outer brode"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_cei_inside_prenex_grouped_tanru_unit_is_collected() {
+        run_reference_test(|| {
+            let input = "lo ke broda cei brode ke'e ku zo'u mi brode";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let later_brode = nth_span_key(input, "brode", 1);
+            let brode_edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::BrodaSeries && edge.source == later_brode)
+                .expect("later brode resolves through grouped prenex CEI assignment");
+
+            assert!(
+                matches!(
+                    brode_edge.target,
+                    FixtureReferenceTarget::ResolvedNode { .. }
+                ),
+                "later brode should resolve through grouped prenex CEI assignment"
             );
         });
     }

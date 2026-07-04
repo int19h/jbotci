@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 
+pub use crate::segment::ConsonantPairClass;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LujvoBuildMode {
     Lujvo,
@@ -332,14 +334,14 @@ pub fn is_cmevla(text: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn permissible_consonant_pair(first: char, second: char) -> Option<i32> {
-    let consonant_order = "rlnmbvdgjzscxktfp";
-    let first_index = consonant_order.chars().position(|value| value == first)?;
-    let second_index = consonant_order.chars().position(|value| value == second)?;
-    PAIR_MATRIX
-        .get(first_index)
-        .and_then(|row| row.get(second_index))
-        .copied()
+pub fn consonant_pair_class(first: char, second: char) -> Option<ConsonantPairClass> {
+    crate::segment::consonant_pair_class(first, second)
+}
+
+#[requires(true)]
+#[ensures(ret == consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible))]
+pub fn permissible_consonant_pair(first: char, second: char) -> bool {
+    consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible)
 }
 
 #[requires(true)]
@@ -370,7 +372,7 @@ fn needs_y_hyphen(previous: &str, next: &str) -> bool {
             (Some(left), Some(right))
                 if is_consonant(left)
                     && is_consonant(right)
-                    && permissible_consonant_pair(left, right) == Some(0)
+                    && consonant_pair_class(left, right) == Some(ConsonantPairClass::Forbidden)
         )
         || (previous_tail == Some('n')
             && (next.starts_with("ts")
@@ -457,7 +459,7 @@ fn tosmabru(parts: &[String]) -> bool {
         if chars.len() >= 4
             && is_consonant(chars[2])
             && is_consonant(chars[3])
-            && permissible_consonant_pair(chars[2], chars[3]) == Some(2)
+            && consonant_pair_class(chars[2], chars[3]) == Some(ConsonantPairClass::Initial)
         {
             let heads = &parts[..parts.len().saturating_sub(1)];
             return !heads.is_empty()
@@ -480,7 +482,7 @@ fn consonant_pair_is_rank_two(left: &str, right: &str) -> bool {
         (Some(left_tail), Some(right_head))
             if is_consonant(left_tail)
                 && is_consonant(right_head)
-                && permissible_consonant_pair(left_tail, right_head) == Some(2)
+                && consonant_pair_class(left_tail, right_head) == Some(ConsonantPairClass::Initial)
     )
 }
 
@@ -503,26 +505,6 @@ fn lujvo_score(rafsi_sequence: &[String]) -> i32 {
         - 10 * rafsi_shape_score
         - vowel_count
 }
-
-const PAIR_MATRIX: [[i32; 17]; 17] = [
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 1, 1, 1, 1, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1],
-    [2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 1, 1, 0, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
-];
 
 #[cfg(test)]
 mod tests {

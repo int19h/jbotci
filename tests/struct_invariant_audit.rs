@@ -52,7 +52,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
     ),
     (
-        "apps/jbotci/src/lib.rs:CapturedCliRun",
+        "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
     ),
     (
@@ -72,7 +72,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI progress policy is derived from terminal capability and caller-selected verbosity",
     ),
     (
-        "apps/jbotci/src/lib.rs:CliSetupProgressReporter",
+        "apps/jbotci/src/commands/setup.rs:CliSetupProgressReporter",
         "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
@@ -112,47 +112,51 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaRequest",
+        "apps/jbotci/src/tool.rs:ToolCuktaRequest",
         "shared cukta tool request is API transport state normalized into CuktaInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolExecutionContext",
+        "apps/jbotci/src/tool.rs:ToolExecutionContext",
         "tool execution context is constructed only as stateless, borrowed embedding service, or cached embedding error",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaRequest",
+        "apps/jbotci/src/tool.rs:ToolGentufaRequest",
         "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiRequest",
+        "apps/jbotci/src/tool.rs:ToolGimfihiRequest",
         "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiSource",
+        "apps/jbotci/src/tool.rs:ToolGimfihiCommandInput",
+        "tool gimfi'i command conversion pairs API transport state with the caller-specific word interpretation mode",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolGimfihiSource",
         "MCP gimfi'i source carries free-form language/word/weight fields validated downstream by the gimfi'i engine",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPart",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPart",
         "shared jvozba part is API transport state whose value is interpreted according to the closed part-kind enum",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaRequest",
+        "apps/jbotci/src/tool.rs:ToolJvozbaRequest",
         "shared jvozba tool request is API transport state normalized into the CLI source list before composition",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolRenderedOutput",
+        "apps/jbotci/src/tool.rs:ToolRenderedOutput",
         "shared tool output is a transport envelope produced by run_tool_command from validated CLI status and byte output",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolTersmuRequest",
+        "apps/jbotci/src/tool.rs:ToolTersmuRequest",
         "shared tersmu tool request is API transport state normalized into TersmuInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuRequest",
+        "apps/jbotci/src/tool.rs:ToolVlackuRequest",
         "shared vlacku tool request is API transport state normalized into explicit dictionary search requests",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiRequest",
+        "apps/jbotci/src/tool.rs:ToolVlaseiRequest",
         "shared vlasei tool request is API transport state validated by the CLI option validator during execution",
     ),
     (
@@ -180,36 +184,60 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "bityzba fixture covers explicit no-op type markers",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:BlockParseState",
+        "crates/jbotci-cll/src/import.rs:BlockParseState",
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllSearchChunk",
-        "CLL search chunks are generated from parsed sections and tagged-word extraction",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSearchMatch",
-        "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CuktaSearchOutput",
-        "cukta search output is built by cukta_search from normalized query/count inputs",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CuktaTargetFilter",
-        "target filters intentionally preserve all checkbox states before validation/defaulting",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:LinkResolution",
-        "link resolutions are private loader intermediates derived from the completed anchor index",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:PendingIndexEntry",
+        "crates/jbotci-cll/src/import.rs:PendingIndexEntry",
         "pending index entries are private loader intermediates from DocBook indexterm nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:SectionParseContext",
+        "crates/jbotci-cll/src/import.rs:SectionParseContext",
         "section parse context is private loader state derived from an already parsed section heading",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:BlockPlainTextVisitor",
+        "plain text visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:ChrestomathyGroupVisitor",
+        "chrestomathy grouping visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
+        "inline plain text visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/links.rs:LinkResolution",
+        "link resolutions are private loader intermediates derived from the completed anchor index",
+    ),
+    (
+        "crates/jbotci-cll/src/links.rs:LinkResolutionVisitor",
+        "link resolution visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CllSearchChunk",
+        "CLL search chunks are generated from parsed sections and tagged-word extraction",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CllSearchMatch",
+        "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CuktaSearchOutput",
+        "cukta search output is built by cukta_search from normalized query/count inputs",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CuktaTargetFilter",
+        "target filters intentionally preserve all checkbox states before validation/defaulting",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:SearchChunkVisitor",
+        "search chunk visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:TaggedWordsVisitor",
+        "tagged words visitor is private traversal accumulator state",
     ),
     (
         "crates/jbotci-diagnostics/src/lib.rs:TraceFailureBranch",
@@ -780,103 +808,103 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word classifications are produced from morphology segmentation of a single word-like token",
     ),
     (
-        "crates/jbotci-semantics/src/builder.rs:SemanticBuildOptions",
+        "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",
         "semantic build options are caller transport state with no invalid combination beyond lifetimes",
     ),
     (
-        "crates/jbotci-semantics/src/builder.rs:SemanticsError",
+        "crates/jbotci-semantics/src/facade.rs:SemanticsError",
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierBundleScope",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierBundleScope",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScope",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierScope",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDaSeriesScopeBinding",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDaSeriesScopeBinding",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDescriptionAbstraction",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDescriptionAbstraction",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedForethoughtPrefixContext",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedForethoughtPrefixContext",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedGraphBuilder",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedGraphBuilder",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedIndicatorCmavoVisitor",
+        "crates/jbotci-semantics/src/generated_builder/connectives.rs:GeneratedIndicatorCmavoVisitor",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedLinkargsAssignments",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedLinkargsAssignments",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedLogicalSumtiConnection",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedLogicalSumtiConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedArgumentFormulaScope",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedArgumentFormulaScope",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedArgumentQuantifierBundleScope",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedArgumentQuantifierBundleScope",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceEventModifiers",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRecurrenceEventModifiers",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScopedFormula",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedScopedFormula",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedSemanticDaSeriesScopeBinding",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedSemanticDaSeriesScopeBinding",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedSpanCollector",
+        "crates/jbotci-semantics/src/generated_builder/sources.rs:GeneratedSpanCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedStatementConnectionTail",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedStatementConnectionTail",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedStickyEventUpdate",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedStickyEventUpdate",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTermAssignments",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTermAssignments",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlan",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlan",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:IndicatorBaseSpec",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:IndicatorBaseSpec",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:IndicatorDisplayDraft",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:IndicatorDisplayDraft",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:IndicatorPart",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:IndicatorPart",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -988,7 +1016,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:GeneratedSpanCollector",
+        "crates/jbotci-semantics/src/references.rs:GeneratedPrenexCeiAssignmentSourceCollector",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:GeneratedPrenexRelationVariableBindingCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -1388,10 +1420,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:JvozbaPaneLayout",
-        "jvozba pane layout is a transient placement result derived from measured viewport state",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:JvozbaPaneMetrics",
         "jvozba pane metrics are direct layout measurements used to derive pane placement",
     ),
@@ -1404,20 +1432,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:PageFindState",
-        "page-find state is a transient UI aggregate whose per-route fields are validated by PageFindRouteState",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:PageFindTextKey",
-        "page-find text keys are transient ordinal identity tokens and every usize ordinal is a valid key",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:PendingLocalRouteWrites",
         "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:PositionedPoint",
-        "positioned points are direct layout measurements used transiently by render effects",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:ReferenceBottoms",
@@ -1456,6 +1472,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku semantic result state mirrors browser worker hits and is keyed by the committed search state",
     ),
     (
+        "crates/jbotci-ui/src/page_find.rs:PageFindState",
+        "page-find state is a transient UI aggregate whose per-route fields are validated by PageFindRouteState",
+    ),
+    (
+        "crates/jbotci-ui/src/page_find.rs:PageFindTextKey",
+        "page-find text keys are transient content identity tokens and every hash plus occurrence pair is a valid key",
+    ),
+    (
         "crates/jbotci-ui/src/platform.rs:EmbeddingSearchRequest",
         "embedding search requests are platform DTOs checked by service preconditions before execution",
     ),
@@ -1490,6 +1514,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/platform.rs:PlatformServiceError",
         "platform service errors carry display diagnostics produced by service implementations",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TimeoutHandle",
+        "timeout handles are opaque platform timer tokens returned by browser scheduling services",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:Rect",
