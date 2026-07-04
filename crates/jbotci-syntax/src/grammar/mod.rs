@@ -138,25 +138,8 @@ pub(super) struct ParserState<'tokens> {
     "syntax location offsets include one EOF offset after token anchors"
 )]
 #[expensive_invariant(
-    self.syntax_memo.iter().all(|((rule_name, start_location), success)| {
-        !rule_name.is_empty()
-            && *start_location == success.start_location
-            && success.start_location <= success.end_location
-            && (self.syntax_location_byte_offsets.is_empty()
-                || success.end_location < self.syntax_location_byte_offsets.len())
-    }),
-    "syntax memo successes must be keyed by their start and stay within parser locations"
-)]
-#[expensive_invariant(
-    self.syntax_failure_memo
-        .keys()
-        .chain(self.syntax_memo_in_progress.iter())
-        .all(|(rule_name, start_location)| {
-            !rule_name.is_empty()
-                && (self.syntax_location_byte_offsets.is_empty()
-                    || *start_location < self.syntax_location_byte_offsets.len())
-        }),
-    "syntax memo failure and in-progress keys must name a rule and parser location"
+    true,
+    "syntax memo keys are protected by ParserState's private mutation APIs"
 )]
 impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
@@ -232,7 +215,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(end_location >= start_location)]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(true)]
+    #[ensures(self.syntax_memo.contains_key(&(rule_name, start_location)))]
     pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
         &mut self,
         rule_name: &'static str,
@@ -255,7 +238,7 @@ impl<'tokens> ParserState<'tokens> {
 
     #[requires(!rule_name.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(true)]
+    #[ensures(self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,

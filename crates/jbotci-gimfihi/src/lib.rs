@@ -442,7 +442,7 @@ pub enum CollisionKind {
 pub struct GismuCollision {
     pub kind: CollisionKind,
     pub existing_word: String,
-    pub existing_word_type: String,
+    pub existing_word_type: WordType,
 }
 
 #[invariant(true)]
@@ -1351,7 +1351,7 @@ fn collision(kind: CollisionKind, existing: &str, word_type: WordType) -> GismuC
     GismuCollision {
         kind,
         existing_word: existing.to_owned(),
-        existing_word_type: word_type.as_str().to_owned(),
+        existing_word_type: word_type,
     }
 }
 

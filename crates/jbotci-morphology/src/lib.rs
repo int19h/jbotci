@@ -1767,7 +1767,8 @@ fn morphology_detail_note(message: &str, text: &str, reason: &str) -> Diagnostic
     DiagnosticStyledNote::new(
         DiagnosticNoteMode::Detailed,
         vec![
-            DiagnosticTextSegment::new(DiagnosticTextRole::Plain, "morphology detail: ".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Keyword, "morphology detail".to_owned()),
+            DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, ": ".to_owned()),
             DiagnosticTextSegment::new(DiagnosticTextRole::Construct, message.to_owned()),
             DiagnosticTextSegment::new(DiagnosticTextRole::Punctuation, " (".to_owned()),
             DiagnosticTextSegment::new(DiagnosticTextRole::SpecificWord, display_text.to_owned()),

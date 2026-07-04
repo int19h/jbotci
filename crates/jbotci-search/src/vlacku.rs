@@ -1,7 +1,7 @@
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
     Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegmentKind, Keyword,
-    normalize_lookup_query, universal_gismu_rafsi_forms,
+    WordType, normalize_lookup_query, universal_gismu_rafsi_forms,
 };
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
@@ -69,7 +69,7 @@ impl VlackuRequest {
 #[derive(Debug, Clone, PartialEq)]
 pub struct VlackuSearchOptions {
     pub count: usize,
-    pub word_types: Vec<String>,
+    pub word_types: Vec<WordTypeFilter>,
     pub min_votes: Option<i32>,
     pub min_similarity: Option<f32>,
     pub decompose_lujvo: bool,
@@ -86,6 +86,211 @@ impl Default for VlackuSearchOptions {
             min_similarity: None,
             decompose_lujvo: false,
         })
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WordTypeFilter {
+    Cmavo,
+    ExperimentalCmavo,
+    ObsoleteCmavo,
+    CmavoCompound,
+    Letteral,
+    BuLetteral,
+    Cmevla,
+    ObsoleteCmevla,
+    Gismu,
+    ExperimentalGismu,
+    Fuivla,
+    ObsoleteFuivla,
+    Lujvo,
+    ZeiLujvo,
+    ObsoleteZeiLujvo,
+    Brivla,
+    Phrase,
+}
+
+impl WordTypeFilter {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|filter| !filter.as_str().is_empty()))]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match normalize_word_type_filter(raw).as_str() {
+            "cmavo" => Some(Self::Cmavo),
+            "experimental-cmavo" => Some(Self::ExperimentalCmavo),
+            "obsolete-cmavo" => Some(Self::ObsoleteCmavo),
+            "cmavo-compound" => Some(Self::CmavoCompound),
+            "letteral" => Some(Self::Letteral),
+            "bu-letteral" => Some(Self::BuLetteral),
+            "cmevla" => Some(Self::Cmevla),
+            "obsolete-cmevla" => Some(Self::ObsoleteCmevla),
+            "gismu" => Some(Self::Gismu),
+            "experimental-gismu" => Some(Self::ExperimentalGismu),
+            "fu'ivla" => Some(Self::Fuivla),
+            "obsolete-fu'ivla" => Some(Self::ObsoleteFuivla),
+            "lujvo" => Some(Self::Lujvo),
+            "zei-lujvo" => Some(Self::ZeiLujvo),
+            "obsolete-zei-lujvo" => Some(Self::ObsoleteZeiLujvo),
+            "brivla" => Some(Self::Brivla),
+            "phrase" => Some(Self::Phrase),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Cmavo => "cmavo",
+            Self::ExperimentalCmavo => "experimental-cmavo",
+            Self::ObsoleteCmavo => "obsolete-cmavo",
+            Self::CmavoCompound => "cmavo-compound",
+            Self::Letteral => "letteral",
+            Self::BuLetteral => "bu-letteral",
+            Self::Cmevla => "cmevla",
+            Self::ObsoleteCmevla => "obsolete-cmevla",
+            Self::Gismu => "gismu",
+            Self::ExperimentalGismu => "experimental-gismu",
+            Self::Fuivla => "fu'ivla",
+            Self::ObsoleteFuivla => "obsolete-fu'ivla",
+            Self::Lujvo => "lujvo",
+            Self::ZeiLujvo => "zei-lujvo",
+            Self::ObsoleteZeiLujvo => "obsolete-zei-lujvo",
+            Self::Brivla => "brivla",
+            Self::Phrase => "phrase",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn from_word_type(word_type: WordType) -> Self {
+        match word_type {
+            WordType::Gismu => Self::Gismu,
+            WordType::ExperimentalGismu => Self::ExperimentalGismu,
+            WordType::Lujvo => Self::Lujvo,
+            WordType::ZeiLujvo => Self::ZeiLujvo,
+            WordType::ObsoleteZeiLujvo => Self::ObsoleteZeiLujvo,
+            WordType::Cmavo => Self::Cmavo,
+            WordType::ExperimentalCmavo => Self::ExperimentalCmavo,
+            WordType::ObsoleteCmavo => Self::ObsoleteCmavo,
+            WordType::CmavoCompound => Self::CmavoCompound,
+            WordType::Fuivla => Self::Fuivla,
+            WordType::ObsoleteFuivla => Self::ObsoleteFuivla,
+            WordType::Cmevla => Self::Cmevla,
+            WordType::ObsoleteCmevla => Self::ObsoleteCmevla,
+            WordType::BuLetteral => Self::BuLetteral,
+            WordType::Phrase => Self::Phrase,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn group_for_word_type(word_type: WordType) -> Self {
+        match word_type {
+            WordType::Cmavo
+            | WordType::ExperimentalCmavo
+            | WordType::ObsoleteCmavo
+            | WordType::CmavoCompound => Self::Cmavo,
+            WordType::BuLetteral => Self::Letteral,
+            WordType::Cmevla | WordType::ObsoleteCmevla => Self::Cmevla,
+            WordType::Gismu | WordType::ExperimentalGismu => Self::Gismu,
+            WordType::Fuivla | WordType::ObsoleteFuivla => Self::Fuivla,
+            WordType::Lujvo | WordType::ZeiLujvo | WordType::ObsoleteZeiLujvo => Self::Lujvo,
+            WordType::Phrase => Self::Phrase,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn matches_word_type(self, word_type: WordType) -> bool {
+        self.matches_filter(Self::from_word_type(word_type))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn matches_filter(self, actual: Self) -> bool {
+        self == actual
+            || match self {
+                Self::Cmavo => actual.is_cmavo_like(),
+                Self::Letteral => actual.is_letteral_like(),
+                Self::Cmevla => actual.is_cmevla_like(),
+                Self::Gismu => actual.is_gismu_like(),
+                Self::Fuivla => actual.is_fuivla_like(),
+                Self::Lujvo => actual.is_lujvo_like(),
+                Self::Brivla => actual.is_brivla_like(),
+                Self::ExperimentalCmavo
+                | Self::ObsoleteCmavo
+                | Self::CmavoCompound
+                | Self::BuLetteral
+                | Self::ObsoleteCmevla
+                | Self::ExperimentalGismu
+                | Self::ObsoleteFuivla
+                | Self::ZeiLujvo
+                | Self::ObsoleteZeiLujvo
+                | Self::Phrase => false,
+            }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.as_str().is_empty())]
+    pub const fn group(self) -> Self {
+        match self {
+            Self::Cmavo | Self::ExperimentalCmavo | Self::ObsoleteCmavo | Self::CmavoCompound => {
+                Self::Cmavo
+            }
+            Self::Letteral | Self::BuLetteral => Self::Letteral,
+            Self::Cmevla | Self::ObsoleteCmevla => Self::Cmevla,
+            Self::Gismu | Self::ExperimentalGismu => Self::Gismu,
+            Self::Fuivla | Self::ObsoleteFuivla => Self::Fuivla,
+            Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo => Self::Lujvo,
+            Self::Brivla => Self::Brivla,
+            Self::Phrase => Self::Phrase,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lujvo_like(self) -> bool {
+        matches!(self, Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_brivla_like(self) -> bool {
+        self.is_gismu_like() || self.is_lujvo_like() || self.is_fuivla_like()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    const fn is_cmavo_like(self) -> bool {
+        matches!(
+            self,
+            Self::Cmavo | Self::ExperimentalCmavo | Self::ObsoleteCmavo | Self::CmavoCompound
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    const fn is_letteral_like(self) -> bool {
+        matches!(self, Self::Letteral | Self::BuLetteral)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    const fn is_cmevla_like(self) -> bool {
+        matches!(self, Self::Cmevla | Self::ObsoleteCmevla)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    const fn is_gismu_like(self) -> bool {
+        matches!(self, Self::Gismu | Self::ExperimentalGismu)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    const fn is_fuivla_like(self) -> bool {
+        matches!(self, Self::Fuivla | Self::ObsoleteFuivla)
     }
 }
 
@@ -178,8 +383,44 @@ pub enum VlackuCompositionKind {
 #[invariant(true)]
 pub struct WordClassification {
     pub word: String,
-    pub word_type: String,
+    pub word_type: WordKindTypeKey,
     pub selmaho: Option<String>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WordKindTypeKey {
+    Cmavo,
+    Gismu,
+    Lujvo,
+    Fuivla,
+    Cmevla,
+}
+
+impl WordKindTypeKey {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Cmavo => "cmavo",
+            Self::Gismu => "gismu",
+            Self::Lujvo => "lujvo",
+            Self::Fuivla => "fu'ivla",
+            Self::Cmevla => "cmevla",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_lujvo(self) -> bool {
+        matches!(self, Self::Lujvo)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn is_brivla(self) -> bool {
+        matches!(self, Self::Gismu | Self::Lujvo | Self::Fuivla)
+    }
 }
 
 #[requires(true)]
@@ -255,35 +496,22 @@ pub fn normalize_word_type_filter(raw: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn matches_word_type_filter(wanted: &str, normalized_type: &str) -> bool {
-    wanted == normalized_type
-        || (wanted == "cmavo" && is_cmavo_like(normalized_type))
-        || (wanted == "letteral" && is_letteral_like(normalized_type))
-        || (wanted == "cmevla" && is_cmevla_like(normalized_type))
-        || (wanted == "gismu" && is_gismu_like(normalized_type))
-        || (wanted == "fu'ivla" && is_fuhivla_like(normalized_type))
-        || (wanted == "lujvo" && is_lujvo_like(normalized_type))
-        || (wanted == "brivla" && is_brivla_like(normalized_type))
+pub fn parse_word_type_filter(raw: &str) -> Option<WordTypeFilter> {
+    WordTypeFilter::parse(raw)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn matches_word_type_filter(wanted: WordTypeFilter, actual: WordTypeFilter) -> bool {
+    wanted.matches_filter(actual)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn grouped_word_type_filter_key(normalized_type: &str) -> String {
-    if is_cmavo_like(normalized_type) {
-        "cmavo".to_owned()
-    } else if is_letteral_like(normalized_type) {
-        "letteral".to_owned()
-    } else if is_cmevla_like(normalized_type) {
-        "cmevla".to_owned()
-    } else if is_gismu_like(normalized_type) {
-        "gismu".to_owned()
-    } else if is_fuhivla_like(normalized_type) {
-        "fu'ivla".to_owned()
-    } else if is_lujvo_like(normalized_type) {
-        "lujvo".to_owned()
-    } else {
-        normalized_type.to_owned()
-    }
+    WordTypeFilter::parse(normalized_type)
+        .map(|filter| filter.group().as_str().to_owned())
+        .unwrap_or_else(|| normalized_type.to_owned())
 }
 
 #[requires(true)]
@@ -296,50 +524,43 @@ pub fn vlacku_exact_query_is_pattern(query: &str) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn is_cmavo_like(normalized_type: &str) -> bool {
-    normalized_type == "cmavo"
-        || normalized_type.starts_with("cmavo-")
-        || normalized_type == "experimental-cmavo"
-        || normalized_type == "obsolete-cmavo"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_cmavo_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_letteral_like(normalized_type: &str) -> bool {
-    normalized_type == "bu-letteral" || normalized_type == "letteral"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_letteral_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_cmevla_like(normalized_type: &str) -> bool {
-    normalized_type == "cmevla" || normalized_type == "obsolete-cmevla"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_cmevla_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_gismu_like(normalized_type: &str) -> bool {
-    normalized_type == "gismu" || normalized_type == "experimental-gismu"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_gismu_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_fuhivla_like(normalized_type: &str) -> bool {
-    normalized_type == "fu'ivla" || normalized_type == "obsolete-fu'ivla"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_fuivla_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_lujvo_like(normalized_type: &str) -> bool {
-    normalized_type == "lujvo"
-        || normalized_type == "zei-lujvo"
-        || normalized_type == "obsolete-zei-lujvo"
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_lujvo_like)
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub fn is_brivla_like(normalized_type: &str) -> bool {
-    is_gismu_like(normalized_type)
-        || is_lujvo_like(normalized_type)
-        || is_fuhivla_like(normalized_type)
+    WordTypeFilter::parse(normalized_type).is_some_and(WordTypeFilter::is_brivla_like)
 }
 
 #[requires(true)]
@@ -384,12 +605,11 @@ pub fn dictionary_entry_passes_vlacku_entry_filters(
     entry: &DictionaryEntry<'_>,
     options: &VlackuSearchOptions,
 ) -> bool {
-    let normalized_type = normalize_word_type_filter(entry.word_type.as_str());
     let word_type_ok = options.word_types.is_empty()
         || options
             .word_types
             .iter()
-            .any(|wanted| matches_word_type_filter(wanted, &normalized_type));
+            .any(|wanted| wanted.matches_word_type(entry.word_type));
     let votes_ok = options
         .min_votes
         .is_none_or(|min_votes| entry_vote_count(entry) >= min_votes);
@@ -842,16 +1062,18 @@ fn cards_for_sound(
     };
 
     let mut scratch = AlineSimilarityScratch::default();
-    let mut scored = dictionary
-        .sound_index()
+    let query_view = query_sound.view();
+    let entries = dictionary.entries();
+    let sound_index = dictionary.sound_index();
+    let mut scored = sound_index
         .iter()
         .filter_map(|sound_entry| {
-            let entry = dictionary.entries().get(sound_entry.entry_index.get())?;
+            let entry = entries.get(sound_entry.entry_index.get())?;
             if !dictionary_entry_passes_vlacku_entry_filters(entry, options) {
                 return None;
             }
             let similarity = aline_phonetic_similarity_with_scratch(
-                query_sound.view(),
+                query_view,
                 sound_entry.token_sequence,
                 &mut scratch,
             ) as f32;
@@ -944,8 +1166,7 @@ fn missing_exact_output(
     let normalized = normalize_lookup_query(query);
     match classify_exact_word(query, &normalized) {
         Some(classification) => {
-            let normalized_type = normalize_word_type_filter(&classification.word_type);
-            let decomposition = (options.decompose_lujvo && is_lujvo_like(&normalized_type))
+            let decomposition = (options.decompose_lujvo && classification.word_type.is_lujvo())
                 .then(|| decompose_lujvo_like(dictionary, query))
                 .flatten();
             let cards = cards_with_optional_lujvo_sources(
@@ -974,8 +1195,7 @@ fn cards_with_optional_lujvo_sources(
 ) -> Vec<VlackuCard> {
     let should_decompose_sources = options.decompose_lujvo
         && cards.iter().any(|card| {
-            let normalized_type = normalize_word_type_filter(&card.word_type);
-            is_lujvo_like(&normalized_type)
+            WordTypeFilter::parse(&card.word_type).is_some_and(WordTypeFilter::is_lujvo_like)
         });
     if should_decompose_sources {
         if let Some(decomposition) = dictionary_lujvo_decomposition_for_query(dictionary, query) {
@@ -1109,7 +1329,7 @@ fn exact_word_cards_for_lujvo_final_segment(
     let Some(classification) = classify_exact_word(surface, &normalized) else {
         return Vec::new();
     };
-    if !is_brivla_like(&normalize_word_type_filter(&classification.word_type)) {
+    if !classification.word_type.is_brivla() {
         return Vec::new();
     }
 
@@ -1283,20 +1503,20 @@ fn classify_exact_word(raw_query: &str, normalized_query: &str) -> Option<WordCl
     let word = word_like.bare_word()?;
     Some(WordClassification {
         word: normalized_query.to_owned(),
-        word_type: word_kind_type_key(word.kind()).to_owned(),
+        word_type: word_kind_type_key(word.kind()),
         selmaho: word.selmaho().map(str::to_owned),
     })
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn word_kind_type_key(kind: WordKind) -> &'static str {
+#[ensures(!ret.as_str().is_empty())]
+fn word_kind_type_key(kind: WordKind) -> WordKindTypeKey {
     match kind {
-        WordKind::Cmavo => "cmavo",
-        WordKind::Gismu => "gismu",
-        WordKind::Lujvo => "lujvo",
-        WordKind::Fuhivla => "fu'ivla",
-        WordKind::Cmevla => "cmevla",
+        WordKind::Cmavo => WordKindTypeKey::Cmavo,
+        WordKind::Gismu => WordKindTypeKey::Gismu,
+        WordKind::Lujvo => WordKindTypeKey::Lujvo,
+        WordKind::Fuhivla => WordKindTypeKey::Fuivla,
+        WordKind::Cmevla => WordKindTypeKey::Cmevla,
     }
 }
 
@@ -1320,8 +1540,7 @@ fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
     dictionary: &'dictionary Dictionary<'dictionary>,
     entry: &'dictionary DictionaryEntry<'dictionary>,
 ) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
-    let normalized_type = normalize_word_type_filter(entry.word_type.as_str());
-    if !is_lujvo_like(&normalized_type) {
+    if !WordTypeFilter::Lujvo.matches_word_type(entry.word_type) {
         return None;
     }
     let index = dictionary.entry_index_for_entry(entry)?;
@@ -1408,7 +1627,7 @@ fn unknown_card(
 ) -> VlackuCard {
     new!(VlackuCard {
         word: classification.word,
-        word_type: classification.word_type,
+        word_type: classification.word_type.as_str().to_owned(),
         selmaho: classification.selmaho,
         author: None,
         is_official: false,
@@ -1507,12 +1726,14 @@ fn filter_and_limit(
 #[requires(true)]
 #[ensures(true)]
 fn passes_filters(card: &VlackuCard, options: &VlackuSearchOptions, similarity_mode: bool) -> bool {
-    let normalized_type = normalize_word_type_filter(&card.word_type);
+    let card_word_type = WordTypeFilter::parse(&card.word_type);
     let word_type_ok = options.word_types.is_empty()
-        || options
-            .word_types
-            .iter()
-            .any(|wanted| matches_word_type_filter(wanted, &normalized_type));
+        || card_word_type.is_some_and(|actual| {
+            options
+                .word_types
+                .iter()
+                .any(|wanted| wanted.matches_filter(actual))
+        });
     let votes_ok = options
         .min_votes
         .is_none_or(|min_votes| card.votes.unwrap_or(0) >= min_votes);
@@ -1772,17 +1993,38 @@ mod tests {
     use bityzba::requires;
     use jbotci_morphology::segment_words_with_modifiers;
 
+    #[requires(true)]
+    #[ensures(true)]
+    fn filter(value: &str) -> WordTypeFilter {
+        WordTypeFilter::parse(value).expect("known word type filter")
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn grouped_word_type_filters_keep_letterals_and_phrases_out_of_brivla() {
-        assert!(matches_word_type_filter("letteral", "bu-letteral"));
-        assert!(!matches_word_type_filter("cmavo", "bu-letteral"));
-        assert!(!matches_word_type_filter("brivla", "bu-letteral"));
-        assert!(!matches_word_type_filter("brivla", "phrase"));
-        assert!(matches_word_type_filter("brivla", "gismu"));
-        assert!(matches_word_type_filter("brivla", "lujvo"));
-        assert!(matches_word_type_filter("brivla", "fu'ivla"));
+        assert!(matches_word_type_filter(
+            filter("letteral"),
+            filter("bu-letteral")
+        ));
+        assert!(!matches_word_type_filter(
+            filter("cmavo"),
+            filter("bu-letteral")
+        ));
+        assert!(!matches_word_type_filter(
+            filter("brivla"),
+            filter("bu-letteral")
+        ));
+        assert!(!matches_word_type_filter(
+            filter("brivla"),
+            filter("phrase")
+        ));
+        assert!(matches_word_type_filter(filter("brivla"), filter("gismu")));
+        assert!(matches_word_type_filter(filter("brivla"), filter("lujvo")));
+        assert!(matches_word_type_filter(
+            filter("brivla"),
+            filter("fu'ivla")
+        ));
     }
 
     #[test]
@@ -2009,7 +2251,7 @@ mod tests {
         let compiled = compile_exact_pattern("*").expect("match-all glob compiles");
         let options = VlackuSearchOptions::default().with_data(data! {
             count: 2,
-            word_types: vec!["cmavo".to_owned()],
+            word_types: vec![WordTypeFilter::Cmavo],
             decompose_lujvo: true,
         });
         let mut visited = 0;
@@ -2032,7 +2274,8 @@ mod tests {
         assert_eq!(built, cards.len());
         assert!(visited < dictionary.entries().len());
         assert!(cards.iter().all(|card| {
-            matches_word_type_filter("cmavo", &normalize_word_type_filter(&card.word_type))
+            WordTypeFilter::parse(&card.word_type)
+                .is_some_and(|actual| WordTypeFilter::Cmavo.matches_filter(actual))
         }));
     }
 
@@ -2045,7 +2288,7 @@ mod tests {
             &[VlackuRequest::valsi("/.{10,}/".to_owned())],
             &VlackuSearchOptions::default().with_data(data! {
                 count: 40,
-                word_types: vec!["cmavo".to_owned()],
+                word_types: vec![WordTypeFilter::Cmavo],
                 decompose_lujvo: true,
             }),
         );
@@ -2054,7 +2297,8 @@ mod tests {
         assert_eq!(result.outcome, VlackuOutcome::Found);
         assert!(!result.cards.is_empty());
         assert!(result.cards.iter().all(|card| {
-            matches_word_type_filter("cmavo", &normalize_word_type_filter(&card.word_type))
+            WordTypeFilter::parse(&card.word_type)
+                .is_some_and(|actual| WordTypeFilter::Cmavo.matches_filter(actual))
         }));
         assert!(
             result
@@ -2074,10 +2318,10 @@ mod tests {
 
         for options in [
             VlackuSearchOptions::default().with_data(data! {
-                word_types: vec!["brivla".to_owned()],
+                word_types: vec![WordTypeFilter::Brivla],
             }),
             VlackuSearchOptions::default().with_data(data! {
-                word_types: vec!["cmavo".to_owned()],
+                word_types: vec![WordTypeFilter::Cmavo],
             }),
             VlackuSearchOptions::default().with_data(data! {
                 min_votes: Some(1),

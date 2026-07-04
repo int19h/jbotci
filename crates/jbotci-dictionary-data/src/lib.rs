@@ -144,13 +144,16 @@ mod tests {
     #[ensures(true)]
     fn embedded_lujvo_index_is_sorted_and_structural() {
         let mut previous_index = None;
-        for lujvo_entry in english().lujvo_index() {
+        let dictionary = english();
+        let entries = dictionary.entries();
+        let lujvo_index = dictionary.lujvo_index();
+        for lujvo_entry in lujvo_index {
             assert!(
                 previous_index.is_none_or(|previous| lujvo_entry.entry_index.get() > previous),
                 "lujvo index entry order regressed at {:?}",
                 lujvo_entry.entry_index
             );
-            let entry = &english().entries()[lujvo_entry.entry_index.get()];
+            let entry = &entries[lujvo_entry.entry_index.get()];
             assert!(entry.word_type.is_lujvo_like());
             assert!(!lujvo_entry.segments.is_empty());
             assert!(

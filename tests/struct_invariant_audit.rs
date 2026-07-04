@@ -896,6 +896,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "relation place descriptions are reserved metadata DTOs not externally constructed yet",
     ),
     (
+        "crates/jbotci-semantics/src/model.rs:PlaceIndex",
+        "NonZeroUsize owns the one-based place-index invariant and constructors enforce xN boundaries",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:QuestionSlot",
         "question slots are produced only when builder-created parameters appear in the body formula",
     ),
@@ -930,6 +934,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:BridiTailNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:CeiAssignmentSource",
+        "CEI assignment sources pair a closed CEI label with a syntax node id during validated traversal",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:DiscourseReferences",
@@ -1022,6 +1030,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
         "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
+        "reference edges are typed traversal facts whose id/index consistency is maintained by the builder",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceFixtureProjection",

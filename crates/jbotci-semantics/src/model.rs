@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::num::NonZeroUsize;
+use std::str::FromStr;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -10,6 +12,240 @@ use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
 
 pub const SEMANTIC_JSON_VERSION: &str = "lojban-semantics-json-1";
+
+/// One-based numbered argument place such as `x1`.
+///
+/// `Ord` follows the numeric index, not the serialized label text. This
+/// deliberately replaces the old string-key lexicographic JSON map order, so
+/// maps containing `x2` and `x10` serialize in numeric place order.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PlaceIndex(NonZeroUsize);
+
+impl PlaceIndex {
+    #[requires(index > 0)]
+    #[ensures(ret.get() == index)]
+    pub fn new(index: usize) -> Self {
+        Self(NonZeroUsize::new(index).expect("place indices are one-based"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn get(self) -> usize {
+        self.0.get()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|place| place.get() > 0))]
+    pub fn from_numbered_label(place: &str) -> Option<Self> {
+        let digits = place.strip_prefix('x')?;
+        if digits.is_empty() || digits.starts_with('0') {
+            return None;
+        }
+        digits
+            .parse::<usize>()
+            .ok()
+            .and_then(NonZeroUsize::new)
+            .map(Self)
+    }
+}
+
+impl fmt::Display for PlaceIndex {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "x{}", self.get())
+    }
+}
+
+impl FromStr for PlaceIndex {
+    type Err = ();
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|place| place.get() > 0) || ret.is_err())]
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::from_numbered_label(value).ok_or(())
+    }
+}
+
+impl Serialize for PlaceIndex {
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
+
+const RELATION_LABEL_IDENTITY_TEXT: &str = "identity";
+const RELATION_LABEL_DU_TEXT: &str = "du";
+
+#[invariant(::Brivla { word } => !word.is_empty())]
+#[invariant(::Identity => !RELATION_LABEL_IDENTITY_TEXT.is_empty())]
+#[invariant(::Du => !RELATION_LABEL_DU_TEXT.is_empty())]
+#[invariant(::ProBridi { word } => !word.is_empty())]
+#[invariant(::Abstraction { abstractor, relation, .. } =>
+    !abstractor.is_empty() && relation.is_displayable())]
+#[invariant(::NuhaOperator { operator } => !operator.is_empty())]
+#[invariant(::MeksoMoi { expression, moi } => !expression.is_empty() && !moi.is_empty())]
+#[invariant(::ZeiCompound { text } => !text.is_empty())]
+#[invariant(::Constructed { text } => !text.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RelationLabel {
+    Brivla {
+        word: String,
+    },
+    Identity,
+    Du,
+    ProBridi {
+        word: String,
+    },
+    Abstraction {
+        kind: AbstractionKind,
+        abstractor: String,
+        relation: Box<RelationLabel>,
+    },
+    NuhaOperator {
+        operator: String,
+    },
+    MeksoMoi {
+        expression: String,
+        moi: String,
+    },
+    ZeiCompound {
+        text: String,
+    },
+    Constructed {
+        text: String,
+    },
+}
+
+impl RelationLabel {
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn brivla(word: String) -> Self {
+        new!(RelationLabel::Brivla { word })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_displayable())]
+    pub fn identity() -> Self {
+        new!(RelationLabel::Identity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_displayable())]
+    pub fn du() -> Self {
+        new!(RelationLabel::Du)
+    }
+
+    #[requires(!word.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn pro_bridi(word: String) -> Self {
+        new!(RelationLabel::ProBridi { word })
+    }
+
+    #[requires(!abstractor.is_empty())]
+    #[requires(relation.is_displayable())]
+    #[ensures(ret.is_displayable())]
+    pub fn abstraction(kind: AbstractionKind, abstractor: String, relation: Self) -> Self {
+        new!(RelationLabel::Abstraction {
+            kind,
+            abstractor,
+            relation: Box::new(relation),
+        })
+    }
+
+    #[requires(!operator.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn nuha_operator(operator: String) -> Self {
+        new!(RelationLabel::NuhaOperator { operator })
+    }
+
+    #[requires(!expression.is_empty())]
+    #[requires(!moi.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn mekso_moi(expression: String, moi: String) -> Self {
+        new!(RelationLabel::MeksoMoi { expression, moi })
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn zei_compound(text: String) -> Self {
+        new!(RelationLabel::ZeiCompound { text })
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.is_displayable())]
+    pub fn constructed(text: String) -> Self {
+        new!(RelationLabel::Constructed { text })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_displayable(&self) -> bool {
+        match self.as_data() {
+            data!(RelationLabel::Brivla { word }) | data!(RelationLabel::ProBridi { word }) => {
+                !word.is_empty()
+            }
+            data!(RelationLabel::Identity) | data!(RelationLabel::Du) => true,
+            data!(RelationLabel::Abstraction {
+                abstractor,
+                relation,
+                ..
+            }) => !abstractor.is_empty() && relation.is_displayable(),
+            data!(RelationLabel::NuhaOperator { operator }) => !operator.is_empty(),
+            data!(RelationLabel::MeksoMoi { expression, moi }) => {
+                !expression.is_empty() && !moi.is_empty()
+            }
+            data!(RelationLabel::ZeiCompound { text })
+            | data!(RelationLabel::Constructed { text }) => !text.is_empty(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn display_text(&self) -> String {
+        match self.as_data() {
+            data!(RelationLabel::Brivla { word })
+            | data!(RelationLabel::ProBridi { word })
+            | data!(RelationLabel::ZeiCompound { text: word })
+            | data!(RelationLabel::Constructed { text: word }) => word.clone(),
+            data!(RelationLabel::Identity) => RELATION_LABEL_IDENTITY_TEXT.to_owned(),
+            data!(RelationLabel::Du) => RELATION_LABEL_DU_TEXT.to_owned(),
+            data!(RelationLabel::Abstraction {
+                abstractor,
+                relation,
+                ..
+            }) => format!("{abstractor} {relation}"),
+            data!(RelationLabel::NuhaOperator { operator }) => format!("nu'a {operator}"),
+            data!(RelationLabel::MeksoMoi { expression, moi }) => {
+                format!("{expression} {moi}")
+            }
+        }
+    }
+}
+
+impl fmt::Display for RelationLabel {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.display_text())
+    }
+}
+
+impl Serialize for RelationLabel {
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
 
 #[invariant(*index > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -535,7 +771,7 @@ pub struct SemanticObject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tanru_link: Option<TanruLink>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub arguments: BTreeMap<String, ArgumentValue>,
+    pub arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub place_questions: Vec<PlaceQuestionBinding>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -921,7 +1157,7 @@ impl SemanticObject {
     pub fn predication(
         relation: String,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
@@ -943,7 +1179,7 @@ impl SemanticObject {
     pub fn tanru_link_predication(
         relation: String,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         tanru_link: TanruLink,
         mode: PredicationMode,
         source: Option<SemanticSource>,
@@ -960,7 +1196,7 @@ impl SemanticObject {
     pub fn relation_parameter_predication(
         relation_parameter: SemanticObjectId,
         eventuality: Option<SemanticObjectId>,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         mode: PredicationMode,
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
@@ -1193,14 +1429,14 @@ impl SemanticObject {
         object
     }
 
-    #[requires(literal.is_some() || operator.as_ref().is_some_and(|operator| !operator.is_empty()))]
+    #[requires(literal.is_some() || operator.is_some())]
     #[requires(literal.is_some() == operands.is_empty())]
     #[requires(operands
         .iter()
         .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_expression(
-        operator: Option<String>,
+        operator: Option<MathOperator>,
         operands: Vec<SemanticObjectId>,
         literal: Option<MathLiteral>,
         source: Option<SemanticSource>,
@@ -1215,14 +1451,14 @@ impl SemanticObject {
         object
     }
 
-    #[requires(operator.ends_with("Interval"))]
+    #[requires(operator.is_interval())]
     #[requires(!operands.is_empty())]
     #[requires(operands
         .iter()
         .all(|operand| operand.object_kind() == SemanticObjectKind::MathExpression))]
     #[ensures(ret.object_kind() == SemanticObjectKind::MathExpression)]
     pub fn math_interval_expression(
-        operator: String,
+        operator: MathOperator,
         operands: Vec<SemanticObjectId>,
         endpoint_inclusion: Option<IntervalEndpointInclusion>,
         source: Option<SemanticSource>,
@@ -1264,7 +1500,7 @@ impl SemanticObject {
             None,
             Vec::new(),
             Some(MathLiteral::text(
-                "sumtiOperand".to_owned(),
+                MathLiteralKind::SumtiOperand,
                 "mo'e".to_owned(),
             )),
             source,
@@ -1285,7 +1521,7 @@ impl SemanticObject {
             None,
             Vec::new(),
             Some(MathLiteral::text(
-                "selbriOperand".to_owned(),
+                MathLiteralKind::SelbriOperand,
                 "ni'e".to_owned(),
             )),
             source,
@@ -2249,7 +2485,7 @@ impl IntervalModifier {
 }
 
 #[invariant(!introduced_by.is_empty(), "recurrence connection source marker must be named")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecurrenceConnection {
     pub kind: RecurrenceConnectionKind,
@@ -2268,14 +2504,14 @@ impl RecurrenceConnection {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecurrenceConnectionKind {
     Product,
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecurrenceKind {
     OccurrenceCount,
@@ -2443,11 +2679,11 @@ pub enum IndexicalKind {
     DistalDemonstrative,
 }
 
-#[invariant(!kind.is_empty())]
+#[invariant(!word.is_empty() || *kind == DescriptorKind::Description, "only bare descriptions may omit a descriptor word")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Descriptor {
-    pub kind: String,
+    pub kind: DescriptorKind,
     pub word: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub speaker: Option<SemanticObjectId>,
@@ -2485,6 +2721,45 @@ impl Descriptor {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub enum DescriptorKind {
+    Number,
+    Name,
+    MassName,
+    SetName,
+    SpeakerDescription,
+    Scale,
+    ProSumti,
+    UnloweredSumti,
+    Description,
+    VeridicalDescription,
+    VeridicalMassDescription,
+    VeridicalSetDescription,
+    SpeakerMassDescription,
+    SpeakerSetDescription,
+    SpeakerStereotypeDescription,
+    MassNameDescription,
+    SetNameDescription,
+    TypicalDescription,
+    TypicalPlaceValue,
+    UtteranceReference,
+    Elided,
+    AbstractionAbout,
+    ReferentOfSymbol,
+    SymbolForReferent,
+    MemberOf,
+    SetFrom,
+    MassFrom,
+    SequenceFrom,
+    QualifiedSumti,
+    OppositeOf,
+    NeutralOf,
+    AffirmedAs,
+    OtherThan,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DescriptorDefiniteness {
     AffirmedPoint,
     IndefiniteAlternative,
@@ -2492,17 +2767,16 @@ pub enum DescriptorDefiniteness {
     UniqueExtreme,
 }
 
-#[invariant(!operator.is_empty(), "composition operator must be named")]
 #[invariant(members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "composition members must be semantic objects that can fill an argument")]
 #[invariant(excluded_members.iter().all(|member| argument_object_kind_can_fill(member.object_kind())), "excluded composition members must be semantic objects that can fill an argument")]
-#[invariant(endpoint_inclusion.is_none() || operator.ends_with("Interval"), "endpoint inclusion only applies to interval compositions")]
-#[invariant(*complement != Some(true) || operator.ends_with("Interval"), "composition complements are interval complements")]
-#[invariant((operator == "connectiveQuestion") == operator_parameter.is_some(), "connective-question compositions must carry exactly one operator parameter")]
+#[invariant(endpoint_inclusion.is_none() || operator.is_interval(), "endpoint inclusion only applies to interval compositions")]
+#[invariant(*complement != Some(true) || operator.is_interval(), "composition complements are interval complements")]
+#[invariant((*operator == CompositionOperator::ConnectiveQuestion) == operator_parameter.is_some(), "connective-question compositions must carry exactly one operator parameter")]
 #[invariant(operator_parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter), "composition operator parameter must be a parameter object")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Composition {
-    pub operator: String,
+    pub operator: CompositionOperator,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub operator_parameter: Option<SemanticObjectId>,
     pub members: Vec<SemanticObjectId>,
@@ -2516,6 +2790,60 @@ pub struct Composition {
     pub complement: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint_inclusion: Option<IntervalEndpointInclusion>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CompositionOperator {
+    ConnectiveQuestion,
+    Joint,
+    Mass,
+    Set,
+    Sequence,
+    Respectively,
+    Union,
+    Intersection,
+    CrossProduct,
+    UnorderedInterval,
+    OrderedInterval,
+    CenteredInterval,
+}
+
+impl CompositionOperator {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ConnectiveQuestion => "connectiveQuestion",
+            Self::Joint => "joint",
+            Self::Mass => "mass",
+            Self::Set => "set",
+            Self::Sequence => "sequence",
+            Self::Respectively => "respectively",
+            Self::Union => "union",
+            Self::Intersection => "intersection",
+            Self::CrossProduct => "crossProduct",
+            Self::UnorderedInterval => "unorderedInterval",
+            Self::OrderedInterval => "orderedInterval",
+            Self::CenteredInterval => "centeredInterval",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::UnorderedInterval | Self::OrderedInterval | Self::CenteredInterval))]
+    pub fn is_interval(self) -> bool {
+        matches!(
+            self,
+            Self::UnorderedInterval | Self::OrderedInterval | Self::CenteredInterval
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self == Self::Mass))]
+    pub fn is_mass(self) -> bool {
+        self == Self::Mass
+    }
 }
 
 #[invariant(true)]
@@ -2806,14 +3134,14 @@ pub enum RelativeClauseKind {
 
 #[invariant(parameter.object_kind() == SemanticObjectKind::Parameter)]
 #[invariant(!candidate_places.is_empty(), "place questions must enumerate candidate places")]
-#[invariant(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+#[invariant(candidate_places.iter().all(|place| place.get() > 0))]
 #[invariant(candidate_places.iter().enumerate().all(|(index, place)| !candidate_places[..index].contains(place)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaceQuestionBinding {
     pub parameter: SemanticObjectId,
     pub argument: ArgumentValue,
-    pub candidate_places: Vec<String>,
+    pub candidate_places: Vec<PlaceIndex>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SemanticSource>,
 }
@@ -2821,12 +3149,12 @@ pub struct PlaceQuestionBinding {
 impl PlaceQuestionBinding {
     #[requires(parameter.object_kind() == SemanticObjectKind::Parameter)]
     #[requires(!candidate_places.is_empty())]
-    #[requires(candidate_places.iter().all(|place| is_numbered_argument_place(place)))]
+    #[requires(candidate_places.iter().all(|place| place.get() > 0))]
     #[ensures(ret.parameter == parameter)]
     pub fn new(
         parameter: SemanticObjectId,
         argument: ArgumentValue,
-        candidate_places: Vec<String>,
+        candidate_places: Vec<PlaceIndex>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::from_data(data!(PlaceQuestionBinding {
@@ -2846,7 +3174,7 @@ impl PlaceQuestionBinding {
 }
 
 #[invariant(!introduced_by.is_empty(), "modal negation source marker must be named")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalNegation {
     pub kind: ModalNegationKind,
@@ -2865,7 +3193,7 @@ impl ModalNegation {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ModalNegationKind {
     Contradictory,
@@ -2878,7 +3206,7 @@ pub enum ModalNegationKind {
 #[invariant(relation.is_some() != body.is_some(), "modal argument must use either relation arguments or a body formula")]
 #[invariant(body.is_some() || !arguments.is_empty(), "modal relation must have at least one explicit place")]
 #[invariant(body.is_none() || arguments.is_empty(), "modal body arguments are represented inside the body formula")]
-#[invariant(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+#[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[invariant(component.is_none_or(|component| argument_object_kind_can_fill(component.object_kind())))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -2887,7 +3215,7 @@ pub struct ModalArgument {
     pub relation: Option<String>,
     pub introduced_by: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub arguments: BTreeMap<String, ArgumentValue>,
+    pub arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<SemanticObjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2906,12 +3234,12 @@ impl ModalArgument {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
-    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(true)]
     pub fn new(
         relation: String,
         introduced_by: String,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         source: Option<SemanticSource>,
     ) -> Self {
         Self::new_with_polarity(relation, introduced_by, arguments, None, None, source)
@@ -2920,12 +3248,12 @@ impl ModalArgument {
     #[requires(!relation.is_empty())]
     #[requires(!introduced_by.is_empty())]
     #[requires(!arguments.is_empty())]
-    #[requires(arguments.keys().all(|place| is_numbered_argument_place(place)))]
+    #[requires(arguments.keys().all(|place| place.get() > 0))]
     #[ensures(true)]
     pub fn new_with_polarity(
         relation: String,
         introduced_by: String,
-        arguments: BTreeMap<String, ArgumentValue>,
+        arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         negation: Option<ModalNegation>,
         scalar_negation: Option<ScalarNegation>,
         source: Option<SemanticSource>,
@@ -3098,7 +3426,7 @@ pub enum PredicationMode {
 
 #[invariant(!introduced_by.is_empty(), "scalar negation source marker must be named")]
 #[invariant(scale.is_none_or(|scale| scale.object_kind() == SemanticObjectKind::Referent), "scalar negation scale must be a referent")]
-#[invariant(argument_scope.iter().all(|place| is_numbered_argument_place(place)), "scalar negation argument scope must use numbered argument places")]
+#[invariant(argument_scope.iter().all(|place| place.get() > 0), "scalar negation argument scope must use numbered argument places")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScalarNegation {
@@ -3107,7 +3435,7 @@ pub struct ScalarNegation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scale: Option<SemanticObjectId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub argument_scope: Vec<String>,
+    pub argument_scope: Vec<PlaceIndex>,
 }
 
 impl ScalarNegation {
@@ -3128,9 +3456,9 @@ impl ScalarNegation {
         self.with_data(data! { scale: Some(scale) })
     }
 
-    #[requires(argument_scope.iter().all(|place| is_numbered_argument_place(place)))]
+    #[requires(argument_scope.iter().all(|place| place.get() > 0))]
     #[ensures(ret.argument_scope == argument_scope)]
-    pub fn with_argument_scope(self, argument_scope: Vec<String>) -> Self {
+    pub fn with_argument_scope(self, argument_scope: Vec<PlaceIndex>) -> Self {
         self.with_data(data! { argument_scope: argument_scope.clone() })
     }
 
@@ -3152,11 +3480,11 @@ pub enum ScalarNegationKind {
 }
 
 #[invariant(::Formula(_) => true)]
-#[invariant(::Math(operator) => !operator.is_empty())]
+#[invariant(::Math(operator) => !operator.label().is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SemanticOperator {
     Formula(FormulaOperator),
-    Math(String),
+    Math(MathOperator),
 }
 
 impl SemanticOperator {
@@ -3166,9 +3494,9 @@ impl SemanticOperator {
         Self::from_data(data!(SemanticOperator::Formula(operator)))
     }
 
-    #[requires(!operator.is_empty())]
+    #[requires(true)]
     #[ensures(matches!(ret.as_data(), data!(SemanticOperator::Math(_))))]
-    fn math(operator: String) -> Self {
+    fn math(operator: MathOperator) -> Self {
         Self::from_data(data!(SemanticOperator::Math(operator)))
     }
 }
@@ -3182,8 +3510,109 @@ impl Serialize for SemanticOperator {
     {
         match self.as_data() {
             data!(SemanticOperator::Formula(operator)) => operator.serialize(serializer),
-            data!(SemanticOperator::Math(operator)) => serializer.serialize_str(operator),
+            data!(SemanticOperator::Math(operator)) => operator.serialize(serializer),
         }
+    }
+}
+
+#[invariant(::Named(label) => !label.is_empty() && MathOperator::known_label(label).is_none())]
+#[invariant(::Add => self.label() == "add")]
+#[invariant(::Multiply => self.label() == "multiply")]
+#[invariant(::Power => self.label() == "power")]
+#[invariant(::Subtract => self.label() == "subtract")]
+#[invariant(::Divide => self.label() == "divide")]
+#[invariant(::Base => self.label() == "base")]
+#[invariant(::BoGroup => self.label() == "boGroup")]
+#[invariant(::OperandGroup => self.label() == "operandGroup")]
+#[invariant(::Array => self.label() == "array")]
+#[invariant(::UnorderedInterval => self.label() == "unorderedInterval" && self.is_interval())]
+#[invariant(::OrderedInterval => self.label() == "orderedInterval" && self.is_interval())]
+#[invariant(::CenteredInterval => self.label() == "centeredInterval" && self.is_interval())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MathOperator {
+    Add,
+    Multiply,
+    Power,
+    Subtract,
+    Divide,
+    Base,
+    BoGroup,
+    OperandGroup,
+    Array,
+    UnorderedInterval,
+    OrderedInterval,
+    CenteredInterval,
+    Named(String),
+}
+
+impl MathOperator {
+    #[requires(!label.is_empty())]
+    #[ensures(true)]
+    pub fn from_label(label: String) -> Self {
+        Self::known_label(&label)
+            .unwrap_or_else(|| Self::from_data(data!(MathOperator::Named(label))))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn known_label(label: &str) -> Option<Self> {
+        match label {
+            "add" => Some(new!(MathOperator::Add)),
+            "multiply" => Some(new!(MathOperator::Multiply)),
+            "power" => Some(new!(MathOperator::Power)),
+            "subtract" => Some(new!(MathOperator::Subtract)),
+            "divide" => Some(new!(MathOperator::Divide)),
+            "base" => Some(new!(MathOperator::Base)),
+            "boGroup" => Some(new!(MathOperator::BoGroup)),
+            "operandGroup" => Some(new!(MathOperator::OperandGroup)),
+            "array" => Some(new!(MathOperator::Array)),
+            "unorderedInterval" => Some(new!(MathOperator::UnorderedInterval)),
+            "orderedInterval" => Some(new!(MathOperator::OrderedInterval)),
+            "centeredInterval" => Some(new!(MathOperator::CenteredInterval)),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn label(&self) -> &str {
+        match self.as_data() {
+            data!(MathOperator::Add) => "add",
+            data!(MathOperator::Multiply) => "multiply",
+            data!(MathOperator::Power) => "power",
+            data!(MathOperator::Subtract) => "subtract",
+            data!(MathOperator::Divide) => "divide",
+            data!(MathOperator::Base) => "base",
+            data!(MathOperator::BoGroup) => "boGroup",
+            data!(MathOperator::OperandGroup) => "operandGroup",
+            data!(MathOperator::Array) => "array",
+            data!(MathOperator::UnorderedInterval) => "unorderedInterval",
+            data!(MathOperator::OrderedInterval) => "orderedInterval",
+            data!(MathOperator::CenteredInterval) => "centeredInterval",
+            data!(MathOperator::Named(label)) => label,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(MathOperator::UnorderedInterval) | data!(MathOperator::OrderedInterval) | data!(MathOperator::CenteredInterval)))]
+    pub fn is_interval(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(MathOperator::UnorderedInterval)
+                | data!(MathOperator::OrderedInterval)
+                | data!(MathOperator::CenteredInterval)
+        )
+    }
+}
+
+impl Serialize for MathOperator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.label())
     }
 }
 
@@ -3301,21 +3730,25 @@ impl Connector {
 
 #[invariant(head.object_kind() == SemanticObjectKind::Predication)]
 #[invariant(argument_object_kind_can_fill(modifier.object_kind()), "tanru modifier must be a semantic argument value")]
-#[invariant(!relation_label.is_empty(), "tanru relation label must be displayable")]
+#[invariant(relation_label.is_displayable(), "tanru relation label must be displayable")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TanruLink {
     pub head: SemanticObjectId,
     pub modifier: SemanticObjectId,
-    pub relation_label: String,
+    pub relation_label: RelationLabel,
 }
 
 impl TanruLink {
     #[requires(head.object_kind() == SemanticObjectKind::Predication)]
     #[requires(argument_object_kind_can_fill(modifier.object_kind()))]
-    #[requires(!relation_label.is_empty())]
+    #[requires(relation_label.is_displayable())]
     #[ensures(ret.head == head)]
-    pub fn new(head: SemanticObjectId, modifier: SemanticObjectId, relation_label: String) -> Self {
+    pub fn new(
+        head: SemanticObjectId,
+        modifier: SemanticObjectId,
+        relation_label: RelationLabel,
+    ) -> Self {
         Self::from_data(data!(TanruLink {
             head,
             modifier,
@@ -3580,27 +4013,30 @@ impl Subscript {
     }
 }
 
-#[invariant(!kind.is_empty(), "math literal kind must be named")]
+#[invariant((*kind == MathLiteralKind::Integer) == matches!(value.as_data(), data!(MathLiteralValue::Integer(_))), "integer math literals must carry an integer value")]
+#[invariant((*kind == MathLiteralKind::MixedRadix) == matches!(value.as_data(), data!(MathLiteralValue::MixedRadix(_))), "mixed-radix math literals must carry mixed-radix values")]
+#[invariant(kind.is_text() == matches!(value.as_data(), data!(MathLiteralValue::Text(_))), "text math literal kinds must carry text values")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MathLiteral {
-    pub kind: String,
+    pub kind: MathLiteralKind,
     pub value: MathLiteralValue,
 }
 
 impl MathLiteral {
     #[requires(true)]
-    #[ensures(ret.kind == "integer")]
+    #[ensures(ret.kind == MathLiteralKind::Integer)]
     pub fn integer(value: i64) -> Self {
         Self::from_data(data!(MathLiteral {
-            kind: "integer".to_owned(),
+            kind: MathLiteralKind::Integer,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::Integer(value))),
         }))
     }
 
+    #[requires(kind.is_text())]
     #[requires(!value.is_empty())]
     #[ensures(ret.kind == old(kind.clone()))]
-    pub fn text(kind: String, value: String) -> Self {
+    pub fn text(kind: MathLiteralKind, value: String) -> Self {
         Self::from_data(data!(MathLiteral {
             kind,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::Text(value))),
@@ -3608,14 +4044,36 @@ impl MathLiteral {
     }
 
     #[requires(components.len() >= 2)]
-    #[ensures(ret.kind == "mixedRadix")]
+    #[ensures(ret.kind == MathLiteralKind::MixedRadix)]
     pub fn mixed_radix(components: Vec<MixedRadixComponent>) -> Self {
         Self::from_data(data!(MathLiteral {
-            kind: "mixedRadix".to_owned(),
+            kind: MathLiteralKind::MixedRadix,
             value: MathLiteralValue::from_data(data!(MathLiteralValue::MixedRadix(
                 MixedRadixLiteral::from_data(data!(MixedRadixLiteral { components }))
             ))),
         }))
+    }
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MathLiteralKind {
+    Integer,
+    Decimal,
+    Number,
+    SumtiOperand,
+    SelbriOperand,
+    Expression,
+    Variable,
+    MixedRadix,
+}
+
+impl MathLiteralKind {
+    #[requires(true)]
+    #[ensures(ret == !matches!(self, Self::Integer | Self::MixedRadix))]
+    pub fn is_text(self) -> bool {
+        !matches!(self, Self::Integer | Self::MixedRadix)
     }
 }
 
@@ -4097,7 +4555,7 @@ fn semantic_object_references_match_roles_for_object(object: &SemanticObject) ->
                 && question
                     .candidate_places
                     .iter()
-                    .all(|place| is_numbered_argument_place(place))
+                    .all(|place| place.get() > 0)
         })
         && question_focus_matches_role(object.focus)
         && question_focus_matches_role(object.presupposed_answer)
@@ -4233,9 +4691,9 @@ fn composition_operator_parameter_is_valid(
     composition: &Composition,
 ) -> bool {
     let Some(parameter) = composition.operator_parameter else {
-        return composition.operator != "connectiveQuestion";
+        return composition.operator != CompositionOperator::ConnectiveQuestion;
     };
-    composition.operator == "connectiveQuestion"
+    composition.operator == CompositionOperator::ConnectiveQuestion
         && parameter_has_sort_and_role(
             objects,
             parameter,
@@ -4335,7 +4793,7 @@ fn math_endpoint_inclusion_matches_role(object: &SemanticObject) -> bool {
     object
         .operator
         .as_ref()
-        .is_some_and(|operator| matches!(operator.as_data(), data!(SemanticOperator::Math(operator)) if operator.ends_with("Interval")))
+        .is_some_and(|operator| matches!(operator.as_data(), data!(SemanticOperator::Math(operator)) if operator.is_interval()))
 }
 
 #[requires(true)]
@@ -4533,8 +4991,7 @@ pub fn semantic_object_arguments_are_valid(
     objects.values().all(|object| {
         let modal_arguments_valid = object.modal_arguments.iter().all(|argument| {
             argument.arguments.iter().all(|(place, value)| {
-                is_numbered_argument_place(place)
-                    && argument_value_references_allowed_objects(value, objects)
+                place.get() > 0 && argument_value_references_allowed_objects(value, objects)
             })
         });
         if object.object_kind() != SemanticObjectKind::Predication {
@@ -4543,8 +5000,7 @@ pub fn semantic_object_arguments_are_valid(
         let has_relation = object.relation.is_some() ^ object.relation_parameter.is_some();
         has_relation
             && object.arguments.iter().all(|(place, value)| {
-                is_numbered_argument_place(place)
-                    && argument_value_references_allowed_objects(value, objects)
+                place.get() > 0 && argument_value_references_allowed_objects(value, objects)
             })
             && object.place_questions.iter().all(|question| {
                 objects
@@ -4554,7 +5010,7 @@ pub fn semantic_object_arguments_are_valid(
                     && question
                         .candidate_places
                         .iter()
-                        .all(|place| is_numbered_argument_place(place))
+                        .all(|place| place.get() > 0)
             })
             && modal_arguments_valid
             && object.reciprocity.iter().all(|exchange| {
@@ -4592,12 +5048,7 @@ fn argument_value_references_allowed_objects(
 #[requires(true)]
 #[ensures(true)]
 pub fn is_numbered_argument_place(place: &str) -> bool {
-    let Some(digits) = place.strip_prefix('x') else {
-        return false;
-    };
-    !digits.is_empty()
-        && !digits.starts_with('0')
-        && digits.bytes().all(|byte| byte.is_ascii_digit())
+    PlaceIndex::from_numbered_label(place).is_some()
 }
 
 #[requires(true)]
@@ -4776,44 +5227,46 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn semantic_graph_rejects_malformed_argument_places() {
-        let root = SemanticObjectId::formula(1);
-        let predication = SemanticObjectId::predication(2);
-        let referent = SemanticObjectId::referent(3);
+    fn place_index_rejects_malformed_argument_places() {
+        assert!(PlaceIndex::from_numbered_label("01").is_none());
+        assert!(PlaceIndex::from_numbered_label("x0").is_none());
+        assert!(PlaceIndex::from_numbered_label("x01").is_none());
+        assert_eq!(
+            serde_json::to_string(&PlaceIndex::new(10)).expect("place index serializes"),
+            "\"x10\""
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn place_index_serializes_argument_maps_in_numeric_order() {
         let mut arguments = BTreeMap::new();
-        arguments.insert("01".to_owned(), ArgumentValue::filled(referent, None));
-
-        let mut objects = BTreeMap::new();
-        objects.insert(
-            root,
-            SemanticObject::atom_formula(predication, None, Vec::new()),
+        arguments.insert(
+            PlaceIndex::new(10),
+            ArgumentValue::filled(SemanticObjectId::referent(10), None),
         );
-        objects.insert(
-            predication,
-            SemanticObject::predication(
-                "klama".to_owned(),
-                None,
-                arguments,
-                PredicationMode::Asserted,
-                None,
-                Vec::new(),
-            ),
-        );
-        objects.insert(
-            referent,
-            SemanticObject::referent(
-                ReferentCategory::Constant,
-                SemanticSort::Entity,
-                None,
-                None,
-                None,
-                None,
-                Vec::new(),
-            ),
+        arguments.insert(
+            PlaceIndex::new(2),
+            ArgumentValue::filled(SemanticObjectId::referent(2), None),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("malformed argument place");
-        assert!(error.to_string().contains("valid numbered places"));
+        let predication = SemanticObject::predication(
+            "broda".to_owned(),
+            None,
+            arguments,
+            PredicationMode::Restrictive,
+            None,
+            Vec::new(),
+        );
+        let json = serde_json::to_string(&predication).expect("predication serializes");
+
+        let x2_position = json.find(r#""x2""#).expect("x2 key is serialized");
+        let x10_position = json.find(r#""x10""#).expect("x10 key is serialized");
+        assert!(
+            x2_position < x10_position,
+            "argument map must serialize in numeric place order: {json}"
+        );
     }
 
     #[test]

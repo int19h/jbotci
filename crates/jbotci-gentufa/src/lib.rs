@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
     Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    segment_words_with_modifiers,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -154,7 +155,7 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub label: String,
     pub is_leaf: bool,
     pub is_elided: bool,
-    pub token_kind: Option<String>,
+    pub token_kind: Option<WordKind>,
     pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
     pub span: Option<WebSourceRange>,
     pub node_types: Vec<String>,
@@ -193,12 +194,31 @@ pub enum ReferenceMarkerRole {
     Referent,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum ReferenceMarkerKind {
+    Reference,
+    Sumti,
+}
+
+impl ReferenceMarkerKind {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Reference => "reference",
+            Self::Sumti => "sumti",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
 pub struct ReferenceMarker<Tooltip = ()> {
     pub role: ReferenceMarkerRole,
-    pub kind: String,
+    pub kind: ReferenceMarkerKind,
     pub label: ReferenceLabel,
     pub source: Option<ReferenceMarkerSource>,
     pub tooltip: Option<Tooltip>,
@@ -605,6 +625,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
                 id,
                 range,
                 is_elided: false,
+                token_kind: word_like.bare_word().map(Word::kind),
                 raw_text: source_text_for_range(self.source, Some(range)),
                 display_text: render_word_like(word_like, self.source, self.options),
             }),
@@ -624,6 +645,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
                 id,
                 range,
                 is_elided: false,
+                token_kind: Some(word.kind()),
                 raw_text: source_text_for_range(self.source, Some(range)),
                 display_text: render_word(word, self.options),
             }),
@@ -649,6 +671,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
                 id,
                 range,
                 is_elided: true,
+                token_kind: Some(WordKind::Cmavo),
                 raw_text: String::new(),
                 display_text: render_elided_cmavo(cmavo, self.options),
             }),
@@ -801,7 +824,7 @@ fn generated_block_tree_node_from_parts(
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
     is_elided: bool,
-    token_kind: Option<String>,
+    token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     node_types: Vec<String>,
     mut children: Vec<BlockTreeNode>,
@@ -826,16 +849,18 @@ fn generated_block_tree_node_from_parts(
     } else {
         None
     };
+    let leaf_token_kind = if children.is_empty() && leaf_parts.len() == 1 {
+        leaf_parts[0].token_kind
+    } else {
+        None
+    };
     Some(new!(BlockTreeNode {
         id,
         field_label,
         node_ids,
         label,
         is_elided,
-        token_kind: leaf_word
-            .as_deref()
-            .and_then(token_kind_for_text)
-            .or(token_kind),
+        token_kind: leaf_token_kind.or(token_kind),
         ref_markers,
         span,
         source_spans,
@@ -1055,7 +1080,7 @@ struct BlockTreeNode {
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
     is_elided: bool,
-    token_kind: Option<String>,
+    token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
     source_spans: Vec<SourceSpan>,
@@ -1076,6 +1101,7 @@ struct BlockLeafPart {
     id: RawSyntaxNodeId,
     range: WebSourceRange,
     is_elided: bool,
+    token_kind: Option<WordKind>,
     raw_text: String,
     display_text: String,
 }
@@ -1465,7 +1491,7 @@ fn synthetic_leaf_block<Tooltip>(
         label: part.display_text.clone(),
         is_leaf: true,
         is_elided: part.is_elided,
-        token_kind: token_kind_for_text(&part.display_text),
+        token_kind: part.token_kind,
         ref_markers: Vec::new(),
         span: Some(part.range),
         node_types: node.node_types.clone(),
@@ -1570,7 +1596,7 @@ fn block_from_tree_node<Tooltip>(
         },
         is_leaf,
         is_elided: node.is_elided,
-        token_kind: node.token_kind.clone(),
+        token_kind: node.token_kind,
         ref_markers: node.ref_markers.clone(),
         span: node.span,
         node_types: node.node_types.clone(),
@@ -1871,12 +1897,12 @@ fn reference_marker_source_from_output(
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn reference_kind_for_label(label: &ReferenceLabel) -> String {
+#[ensures(!ret.as_str().is_empty())]
+fn reference_kind_for_label(label: &ReferenceLabel) -> ReferenceMarkerKind {
     if label.slot.is_some() {
-        "sumti".to_owned()
+        ReferenceMarkerKind::Sumti
     } else {
-        "reference".to_owned()
+        ReferenceMarkerKind::Reference
     }
 }
 
@@ -1903,12 +1929,12 @@ pub fn reference_slot_label_from_output(slot: &OutputReferenceSlotName) -> Refer
 
 #[requires(true)]
 #[ensures(true)]
-fn token_kind_for_text(text: &str) -> Option<String> {
-    if text.is_empty() {
-        None
-    } else {
-        Some("word".to_owned())
-    }
+fn token_kind_for_text(text: &str) -> Option<WordKind> {
+    let words = segment_words_with_modifiers(text).ok()?;
+    let [word_like] = words.as_slice() else {
+        return None;
+    };
+    word_like.bare_word().map(Word::kind)
 }
 
 #[requires(true)]
@@ -2323,6 +2349,7 @@ mod tests {
                         char_end: index + 1,
                     }),
                     is_elided: false,
+                    token_kind: token_kind_for_text(&format!("w{index}")),
                     raw_text: format!("w{index}"),
                     display_text: format!("w{index}"),
                 })
@@ -2379,6 +2406,7 @@ mod tests {
             id: RawSyntaxNodeId(id),
             range,
             is_elided: false,
+            token_kind: token_kind_for_text(display_text),
             raw_text: display_text.to_owned(),
             display_text: display_text.to_owned(),
         })
