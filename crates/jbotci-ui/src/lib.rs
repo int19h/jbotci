@@ -693,10 +693,11 @@ struct PageFindRouteState {
     scroll_request: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[invariant(true)]
 struct PageFindTextKey {
-    ordinal: usize,
+    content_hash: u64,
+    occurrence: usize,
 }
 
 #[invariant(byte_start <= byte_end)]
@@ -717,6 +718,7 @@ struct PageFindMatch {
 #[invariant(!self.text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PageFindTextEntry {
+    key: PageFindTextKey,
     text: String,
 }
 
@@ -730,6 +732,7 @@ struct PageFindIndex {
     query: String,
     matches: Vec<PageFindMatch>,
     matches_by_key: BTreeMap<PageFindTextKey, Vec<PageFindMatch>>,
+    entry_keys: Vec<PageFindTextKey>,
     signature: u64,
 }
 
@@ -740,7 +743,8 @@ struct PageFindContext {
     active_index: Option<usize>,
     match_count: usize,
     matches_by_key: Rc<BTreeMap<PageFindTextKey, Vec<PageFindMatch>>>,
-    next_text_ordinal: Rc<Cell<usize>>,
+    entry_keys: Rc<Vec<PageFindTextKey>>,
+    next_entry_key_index: Rc<Cell<usize>>,
 }
 
 impl PartialEq for PageFindContext {
@@ -793,16 +797,23 @@ impl PageFindContext {
             active_index,
             match_count: index.matches.len(),
             matches_by_key: Rc::new(index.matches_by_key.clone()),
-            next_text_ordinal: Rc::new(Cell::new(0)),
+            entry_keys: Rc::new(index.entry_keys.clone()),
+            next_entry_key_index: Rc::new(Cell::new(0)),
         })
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn next_text_key(&self) -> PageFindTextKey {
-        let ordinal = self.next_text_ordinal.get();
-        self.next_text_ordinal.set(ordinal.saturating_add(1));
-        PageFindTextKey { ordinal }
+        let index = self.next_entry_key_index.get();
+        self.next_entry_key_index.set(index.saturating_add(1));
+        self.entry_keys
+            .get(index)
+            .copied()
+            .unwrap_or(PageFindTextKey {
+                content_hash: 0,
+                occurrence: usize::MAX,
+            })
     }
 
     #[requires(true)]
@@ -821,17 +832,19 @@ fn build_page_find_index(query: &str, entries: &[PageFindTextEntry]) -> PageFind
     let signature = page_find_result_signature(query, entries);
     let mut matches = Vec::<PageFindMatch>::new();
     let mut matches_by_key = BTreeMap::<PageFindTextKey, Vec<PageFindMatch>>::new();
+    let entry_keys = entries.iter().map(|entry| entry.key).collect::<Vec<_>>();
     if query.is_empty() {
         return new!(PageFindIndex {
             query: query.to_owned(),
             matches,
             matches_by_key,
+            entry_keys,
             signature,
         });
     }
 
-    for (ordinal, entry) in entries.iter().enumerate() {
-        let key = PageFindTextKey { ordinal };
+    for entry in entries {
+        let key = entry.key;
         for range in page_find_match_ranges(&entry.text, query) {
             let index = matches.len();
             let page_match = new!(PageFindMatch { key, range, index });
@@ -847,6 +860,7 @@ fn build_page_find_index(query: &str, entries: &[PageFindTextEntry]) -> PageFind
         query: query.to_owned(),
         matches,
         matches_by_key,
+        entry_keys,
         signature,
     })
 }
@@ -858,6 +872,7 @@ fn page_find_result_signature(query: &str, entries: &[PageFindTextEntry]) -> u64
     query.hash(&mut hasher);
     entries.len().hash(&mut hasher);
     for entry in entries {
+        entry.key.hash(&mut hasher);
         entry.text.hash(&mut hasher);
     }
     hasher.finish()
@@ -974,7 +989,24 @@ fn original_range_for_normalized_match(
 fn push_page_find_entry(entries: &mut Vec<PageFindTextEntry>, text: impl Into<String>) {
     let text = text.into();
     if !text.is_empty() {
-        entries.push(new!(PageFindTextEntry { text }));
+        let key = page_find_text_key(entries, &text);
+        entries.push(new!(PageFindTextEntry { key, text }));
+    }
+}
+
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn page_find_text_key(entries: &[PageFindTextEntry], text: &str) -> PageFindTextKey {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    let content_hash = hasher.finish();
+    let occurrence = entries
+        .iter()
+        .filter(|entry| entry.key.content_hash == content_hash)
+        .count();
+    PageFindTextKey {
+        content_hash,
+        occurrence,
     }
 }
 
@@ -22199,6 +22231,32 @@ mod tests {
             &unicode_text[unicode[0].byte_start..unicode[0].byte_end],
             unicode_text
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_find_text_keys_are_content_stable() {
+        let mut entries = Vec::new();
+        push_page_find_entry(&mut entries, "alpha");
+        push_page_find_entry(&mut entries, "beta");
+        push_page_find_entry(&mut entries, "alpha");
+
+        let first_alpha = entries[0].key;
+        let beta = entries[1].key;
+        let second_alpha = entries[2].key;
+        assert_eq!(first_alpha.content_hash, second_alpha.content_hash);
+        assert_ne!(first_alpha.occurrence, second_alpha.occurrence);
+
+        let mut shifted = Vec::new();
+        push_page_find_entry(&mut shifted, "inserted");
+        push_page_find_entry(&mut shifted, "alpha");
+        push_page_find_entry(&mut shifted, "beta");
+        push_page_find_entry(&mut shifted, "alpha");
+
+        assert_eq!(shifted[1].key, first_alpha);
+        assert_eq!(shifted[2].key, beta);
+        assert_eq!(shifted[3].key, second_alpha);
     }
 
     #[test]
