@@ -1,6 +1,8 @@
+mod cukta;
 mod setup;
 mod vlacku;
 
+pub(super) use cukta::run_cukta;
 pub(super) use setup::run_setup;
 pub(super) use vlacku::{VlackuRenderOptions, render_vlacku_output_with_options, run_vlacku};
 #[cfg(test)]
