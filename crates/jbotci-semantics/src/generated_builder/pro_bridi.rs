@@ -86,7 +86,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         binding: &GeneratedAssignedProBridiBinding,
         current_visible_arguments: BTreeMap<usize, ArgumentValue>,
         place_question_assignments: &[GeneratedPlaceQuestionAssignment],
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
         eventuality: SemanticObjectId,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -246,7 +246,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let base = linked_tanru_unit_from_cei(unit.base.as_ref());
         self.build_tanru_head_relation_formula_from_parts(

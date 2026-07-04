@@ -198,7 +198,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     }
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(term.clone());
+                    modal_terms.push(term);
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -670,7 +670,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     }
                 }
                 SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(term.clone());
+                    modal_terms.push(term);
                 }
                 SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
@@ -761,7 +761,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
         additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some(connection) = generated_logical_sumti_connection_for_branch(sumti)? else {
@@ -895,7 +895,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
         negated: bool,
         additional_relative_clause_lists: &[&'syntax RelativeClauseListSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {

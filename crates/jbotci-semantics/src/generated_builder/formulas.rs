@@ -1569,7 +1569,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
@@ -4619,7 +4619,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             place_count,
             highest_argument,
         )?;
-        let modal_terms = assignments.modal_terms.clone();
+        let modal_terms = assignments.modal_terms;
         let formula_scopes = assignments.formula_scopes;
         let coequal_scope_groups = assignments.coequal_scope_groups;
         let implicit_existentials = assignments.implicit_existentials;

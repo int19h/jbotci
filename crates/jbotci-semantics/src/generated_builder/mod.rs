@@ -596,7 +596,7 @@ struct GeneratedTermAssignments<'syntax> {
     visible_arguments: BTreeMap<usize, ArgumentValue>,
     next_visible_place: usize,
     place_questions: Vec<GeneratedPlaceQuestionAssignment>,
-    modal_terms: Vec<TaggedSumtiTermSyntax>,
+    modal_terms: Vec<&'syntax TaggedSumtiTermSyntax>,
     formula_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     coequal_scope_groups: Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
     implicit_existentials: Vec<GeneratedImplicitExistential>,
@@ -2556,7 +2556,9 @@ fn extend_generated_term_assignments_shifted<'syntax>(
     target
         .place_questions
         .extend(source.place_questions.clone());
-    target.modal_terms.extend(source.modal_terms.clone());
+    target
+        .modal_terms
+        .extend(source.modal_terms.iter().copied());
     target.formula_scopes.extend(source.formula_scopes.clone());
     target
         .coequal_scope_groups

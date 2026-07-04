@@ -28,7 +28,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
@@ -82,7 +82,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
@@ -132,7 +132,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
-        modal_terms: &mut Vec<TaggedSumtiTermSyntax>,
+        modal_terms: &mut Vec<&'syntax TaggedSumtiTermSyntax>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
@@ -206,7 +206,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 Ok(())
             }
             SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                modal_terms.push(term.clone());
+                modal_terms.push(term);
                 Ok(())
             }
             SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
@@ -634,7 +634,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn attach_generated_modal_terms_to_formula(
         &mut self,
         formula: SemanticObjectId,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<(), SemanticsError> {
         for modal_term in modal_terms {
             self.attach_generated_modal_term_to_formula(formula, modal_term)?;
@@ -948,7 +948,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_modal_arguments_for_generated_tagged_terms(
         &mut self,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
         let mut modal_arguments = Vec::new();
@@ -974,7 +974,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event(
         &mut self,
         eventuality: SemanticObjectId,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         self.build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
             eventuality,
@@ -988,7 +988,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event_with_visible_arguments(
         &mut self,
         eventuality: SemanticObjectId,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
@@ -1021,7 +1021,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
         &mut self,
         eventuality: SemanticObjectId,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let inherited_modal_arguments = self.sticky_modal_arguments.clone();
@@ -1265,7 +1265,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn apply_generated_tagged_term_event_modifiers(
         &mut self,
         eventuality: SemanticObjectId,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<(), SemanticsError> {
         for term in modal_terms {
             self.apply_generated_tagged_term_event_modifier(eventuality, term)?;

@@ -1720,7 +1720,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some((trailing_unit, modifier_units)) = tanru.additional_units.split_last() else {
             return Err(unsupported("empty tanru continuation"));
@@ -2345,7 +2345,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !unit.0.links.is_empty() {
             if eventuality.is_some() {
@@ -2529,7 +2529,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[TaggedSumtiTermSyntax],
+        modal_terms: &[&TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
         if let Some(scalar_unit) = scalar_unit
