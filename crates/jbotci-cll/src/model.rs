@@ -554,35 +554,7 @@ pub struct CllLujvoPart {
     pub body: Vec<CllInline>,
 }
 
-#[invariant(!rule_name.is_empty())]
-#[invariant(!anchor_id.is_empty())]
-#[invariant(rule_href.as_ref().is_none_or(|href| !href.is_empty()))]
-#[invariant(!rhs.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CllEbnfEntry {
-    pub rule_name: String,
-    pub anchor_id: String,
-    pub rule_href: Option<String>,
-    pub rhs: Vec<CllEbnfToken>,
-}
-
-#[invariant(true)]
-#[invariant(::Text { .. } => true)]
-#[invariant(::Operator { .. } => true)]
-#[invariant(::Hash { .. } => true)]
-#[invariant(::Terminal { .. } => true)]
-#[invariant(::ElidableTerminator { .. } => true)]
-#[invariant(::Nonterminal { .. } => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CllEbnfToken {
-    Text { body: String },
-    Operator { body: String },
-    Hash { body: String },
-    Terminal { body: String, href: Option<String> },
-    ElidableTerminator { body: String, href: Option<String> },
-    Nonterminal { body: String, href: Option<String> },
-}
+use crate::ebnf::CllEbnfEntry;
 
 #[invariant(true)]
 #[invariant(::Paragraph { .. } => true)]
