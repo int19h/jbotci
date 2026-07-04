@@ -106,6 +106,10 @@ use crate::model::{
     source_from_spans,
 };
 
+mod sources;
+
+use sources::*;
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|graph| !graph.objects.is_empty()) || ret.is_err())]
 pub fn build_generated_semantic_graph_with_dictionary(
@@ -29620,41 +29624,6 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn collect_generated_node_spans<N: TreeNode>(node: &N, spans: &mut Vec<SourceSpan>) {
-    let mut visitor = GeneratedSpanCollector::default();
-    node.visit_in_order(&mut visitor);
-    spans.extend(visitor.spans);
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[ensures(true)]
-fn generated_node_contains_byte_span<N: TreeNode>(node: &N, span: &SourceByteSpan) -> bool {
-    let mut spans = Vec::new();
-    collect_generated_node_spans(node, &mut spans);
-    generated_source_spans_contain_byte_span(&spans, span)
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[ensures(true)]
-fn generated_source_spans_contain_byte_span(spans: &[SourceSpan], span: &SourceByteSpan) -> bool {
-    let Some(first) = spans.first() else {
-        return false;
-    };
-    let byte_start = spans
-        .iter()
-        .map(|span| span.byte_start)
-        .min()
-        .unwrap_or(first.byte_start);
-    let byte_end = spans
-        .iter()
-        .map(|span| span.byte_end)
-        .max()
-        .unwrap_or(first.byte_end);
-    byte_start <= span.byte_start && span.byte_end <= byte_end
-}
-
 #[requires(first_visible_place > 0)]
 #[ensures(ret.2 > 0)]
 fn split_generated_co_terms<'syntax>(
@@ -29669,35 +29638,6 @@ fn split_generated_co_terms<'syntax>(
         return (Vec::new(), Vec::new(), first_visible_place + 1);
     };
     (vec![head_term], terms.collect(), first_visible_place + 1)
-}
-
-#[derive(Default)]
-#[invariant(true)]
-struct GeneratedSpanCollector {
-    spans: Vec<SourceSpan>,
-    tokens: Vec<Token>,
-}
-
-impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
-    type Atom = GeneratedAtomRef<'tree>;
-    type Node = jbotci_syntax::generated_model::NodeRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        let GeneratedAtomRef::Token(token) = atom;
-        self.spans.extend(token.source_spans().into_iter().cloned());
-        self.tokens.push(token.clone());
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn generated_node_surface_text<N: TreeNode>(node: &N) -> Result<String, SemanticsError> {
-    let mut visitor = GeneratedSpanCollector::default();
-    node.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter())
-        .ok_or_else(|| unsupported("empty generated node surface text"))
 }
 
 #[requires(true)]
