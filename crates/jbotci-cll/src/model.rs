@@ -765,21 +765,6 @@ pub enum CllInline {
 }
 
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CllMathDisplay {
-    Inline,
-    Block,
-}
-
-#[invariant(markup.starts_with("<math") && markup.ends_with("</math>"))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CllMathRender {
-    pub(crate) text: String,
-    pub(crate) latex: String,
-    pub(crate) markup: String,
-}
-
-#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllLanguageSpanKind {
