@@ -372,11 +372,14 @@ fn browser_embedding_model_spec_json(
     value
 }
 
+thread_local! {
+    static VLACKU_URL_TIMER: Cell<Option<platform::TimeoutHandle>> = const { Cell::new(None) };
+    static VLACKU_SEARCH_TIMER: Cell<Option<platform::TimeoutHandle>> = const { Cell::new(None) };
+    static CUKTA_SEARCH_TIMER: Cell<Option<platform::TimeoutHandle>> = const { Cell::new(None) };
+}
+
 #[cfg(target_arch = "wasm32")]
 thread_local! {
-    static VLACKU_URL_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
-    static VLACKU_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
-    static CUKTA_SEARCH_TIMER: Cell<Option<i32>> = const { Cell::new(None) };
     static BROWSER_STATE_HANDLERS_INSTALLED: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -18962,6 +18965,11 @@ fn schedule_scroll_container_to_y(y: i32) {
     closure.forget();
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+fn schedule_scroll_container_to_y(_y: i32) {}
+
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
@@ -19100,128 +19108,61 @@ fn set_vlacku_state_immediate(
     committed_state.set(state);
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_vlacku_search_commit(
     mut committed_state: Signal<VlackuWebState>,
     state: VlackuWebState,
 ) {
-    let Some(window) = web_sys::window() else {
-        committed_state.set(state);
-        return;
-    };
     clear_vlacku_url_timer();
     clear_vlacku_search_timer();
-    let closure = Closure::once(move || {
+    if let Some(handle) = platform::schedule_timeout_once(VLACKU_SEARCH_DEBOUNCE_MS, move || {
         committed_state.set(state);
-    });
-    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        VLACKU_SEARCH_DEBOUNCE_MS,
-    ) {
+    }) {
         VLACKU_SEARCH_TIMER.with(|timer| timer.set(Some(handle)));
-        closure.forget();
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn schedule_vlacku_search_commit(
-    mut committed_state: Signal<VlackuWebState>,
-    state: VlackuWebState,
-) {
-    let _ = VLACKU_SEARCH_DEBOUNCE_MS;
-    clear_vlacku_url_timer();
-    committed_state.set(state);
-}
-
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_cukta_search_commit(mut committed_state: Signal<CuktaWebState>, state: CuktaWebState) {
-    let Some(window) = web_sys::window() else {
-        committed_state.set(state);
-        return;
-    };
     clear_cukta_search_timer();
-    let closure = Closure::once(move || {
+    if let Some(handle) = platform::schedule_timeout_once(CUKTA_SEARCH_DEBOUNCE_MS, move || {
         committed_state.set(state);
-    });
-    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        CUKTA_SEARCH_DEBOUNCE_MS,
-    ) {
+    }) {
         CUKTA_SEARCH_TIMER.with(|timer| timer.set(Some(handle)));
-        closure.forget();
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn schedule_cukta_search_commit(mut committed_state: Signal<CuktaWebState>, state: CuktaWebState) {
-    let _ = CUKTA_SEARCH_DEBOUNCE_MS;
-    committed_state.set(state);
-}
-
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn clear_vlacku_search_timer() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
     VLACKU_SEARCH_TIMER.with(|timer| {
         if let Some(handle) = timer.replace(None) {
-            window.clear_timeout_with_handle(handle);
+            platform::clear_timeout(handle);
         }
     });
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn clear_vlacku_search_timer() {}
-
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn clear_cukta_search_timer() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
     CUKTA_SEARCH_TIMER.with(|timer| {
         if let Some(handle) = timer.replace(None) {
-            window.clear_timeout_with_handle(handle);
+            platform::clear_timeout(handle);
         }
     });
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn clear_cukta_search_timer() {}
-
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn clear_vlacku_url_timer() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
     VLACKU_URL_TIMER.with(|timer| {
         if let Some(handle) = timer.replace(None) {
-            window.clear_timeout_with_handle(handle);
+            platform::clear_timeout(handle);
         }
     });
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn clear_vlacku_url_timer() {}
 
 #[requires(true)]
 #[ensures(true)]
@@ -19253,7 +19194,6 @@ fn schedule_vlacku_url_push(
     );
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 fn schedule_route_push(
@@ -19263,40 +19203,17 @@ fn schedule_route_push(
     delay_ms: i32,
     restore_scroll_y: Option<i32>,
 ) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
     clear_vlacku_url_timer();
-    let closure = Closure::once(move || {
+    if let Some(handle) = platform::schedule_timeout_once(delay_ms, move || {
         let mut pending_writes = pending_writes;
         pending_writes.with_mut(|pending| pending.record(&target));
         history.push(route_path_for_route(&target));
         if let Some(y) = restore_scroll_y {
             schedule_scroll_container_to_y(y);
         }
-    });
-    if let Ok(handle) = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
-        delay_ms,
-    ) {
+    }) {
         VLACKU_URL_TIMER.with(|timer| timer.set(Some(handle)));
-        closure.forget();
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-fn schedule_route_push(
-    history: Rc<dyn History>,
-    mut pending_writes: Signal<PendingLocalRouteWrites>,
-    target: JbotciRoute,
-    delay_ms: i32,
-    restore_scroll_y: Option<i32>,
-) {
-    let _ = (delay_ms, restore_scroll_y);
-    pending_writes.with_mut(|pending| pending.record(&target));
-    history.push(route_path_for_route(&target));
 }
 
 #[requires(true)]

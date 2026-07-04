@@ -2,10 +2,16 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+#[cfg(target_arch = "wasm32")]
+use std::rc::Rc;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
 use serde::{Deserialize, Serialize};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsCast;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::closure::Closure;
 
 pub type PlatformFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
@@ -127,6 +133,18 @@ pub struct TooltipPlacement {
     pub left: f64,
     pub top: f64,
 }
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub struct TimeoutHandle {
+    handle: i32,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+pub struct TimeoutHandle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[invariant(true)]
@@ -390,6 +408,69 @@ pub fn place_tooltip(
     TooltipPlacement { left, top }
 }
 
+#[cfg(target_arch = "wasm32")]
+#[requires(delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_timeout_once<F>(delay_ms: i32, callback: F) -> Option<TimeoutHandle>
+where
+    F: FnOnce() + 'static,
+{
+    let callback = Rc::new(RefCell::new(Some(callback)));
+    let Some(window) = web_sys::window() else {
+        if let Some(callback) = callback.borrow_mut().take() {
+            callback();
+        }
+        return None;
+    };
+    let scheduled_callback = Rc::clone(&callback);
+    let closure = Closure::once(move || {
+        if let Some(callback) = scheduled_callback.borrow_mut().take() {
+            callback();
+        }
+    });
+    match window.set_timeout_with_callback_and_timeout_and_arguments_0(
+        closure.as_ref().unchecked_ref(),
+        delay_ms,
+    ) {
+        Ok(handle) => {
+            closure.forget();
+            Some(TimeoutHandle { handle })
+        }
+        Err(_) => {
+            if let Some(callback) = callback.borrow_mut().take() {
+                callback();
+            }
+            None
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(delay_ms >= 0)]
+#[ensures(ret.is_none())]
+pub fn schedule_timeout_once<F>(delay_ms: i32, callback: F) -> Option<TimeoutHandle>
+where
+    F: FnOnce() + 'static,
+{
+    let _ = delay_ms;
+    callback();
+    None
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub fn clear_timeout(handle: TimeoutHandle) {
+    if let Some(window) = web_sys::window() {
+        window.clear_timeout_with_handle(handle.handle);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+pub fn clear_timeout(_handle: TimeoutHandle) {}
+
 #[requires(metrics.available_width >= 0.0)]
 #[ensures(true)]
 pub fn choose_topbar_layout(metrics: TopbarLayoutMetrics) -> SharedTopbarSettingsLayout {
@@ -515,6 +596,20 @@ mod tests {
         );
         assert_eq!(placement.left, 8.0);
         assert_eq!(placement.top, 20.0);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn timeout_runs_immediately_without_browser_timer() {
+        let ran = std::rc::Rc::new(std::cell::Cell::new(false));
+        let callback_ran = std::rc::Rc::clone(&ran);
+
+        let handle = schedule_timeout_once(1, move || callback_ran.set(true));
+
+        assert_eq!(handle, None);
+        assert!(ran.get());
     }
 
     #[test]
