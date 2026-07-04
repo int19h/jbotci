@@ -1002,11 +1002,19 @@ fn generated_source_span_words(
     index
         .metadata(node)
         .into_iter()
-        .flat_map(|metadata| metadata.source_spans.iter())
-        .filter_map(|span| source.get(span.byte_start..span.byte_end))
-        .filter(|word| !word.is_empty())
-        .map(str::to_owned)
+        .filter_map(|metadata| generated_metadata_source_text(metadata, source))
         .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn generated_metadata_source_text(metadata: &SyntaxNodeMetadata, source: &str) -> Option<String> {
+    let first = metadata.first_source_span.as_ref()?;
+    let last = metadata.last_source_span.as_ref()?;
+    source
+        .get(first.byte_start..last.byte_end)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
 }
 
 #[requires(true)]

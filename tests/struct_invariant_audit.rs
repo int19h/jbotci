@@ -1020,7 +1020,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:GeneratedSpanCollector",
+        "crates/jbotci-semantics/src/references.rs:GeneratedPrenexCeiAssignmentSourceCollector",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:GeneratedPrenexRelationVariableBindingCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (

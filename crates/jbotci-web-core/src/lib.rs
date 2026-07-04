@@ -899,24 +899,22 @@ fn generated_reference_target_text_for_node(
     analysis
         .syntax_index
         .metadata(node)
-        .map(|metadata| source_text_for_spans(source, &metadata.source_spans))
+        .and_then(|metadata| source_text_for_metadata(source, metadata))
         .unwrap_or_default()
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn source_text_for_spans(source: &str, spans: &[jbotci_source::SourceSpan]) -> String {
-    let mut text = String::new();
-    for span in spans {
-        let Some(fragment) = source.get(span.byte_start..span.byte_end) else {
-            continue;
-        };
-        if !text.is_empty() {
-            text.push(' ');
-        }
-        text.push_str(fragment);
-    }
-    text
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn source_text_for_metadata(
+    source: &str,
+    metadata: &jbotci_semantics::references::SyntaxNodeMetadata,
+) -> Option<String> {
+    let first = metadata.first_source_span.as_ref()?;
+    let last = metadata.last_source_span.as_ref()?;
+    source
+        .get(first.byte_start..last.byte_end)
+        .filter(|text| !text.is_empty())
+        .map(str::to_owned)
 }
 
 #[requires(true)]
