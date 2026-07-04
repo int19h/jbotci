@@ -1,7 +1,7 @@
 //! The Complete Lojban Language reference model.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
 #[cfg(test)]
 use roxmltree::Document;
 
@@ -64,6 +64,9 @@ use search::{build_search_chunks, example_plain_text, search_chunk_kind_label};
 mod render;
 use render::{render_block_html, render_block_markdown};
 
+mod visitor;
+use visitor::{CllBlockVisitor, walk_block};
+
 #[requires(true)]
 #[ensures(true)]
 pub fn cll_chapters(site: &CllSite) -> &[CllChapter] {
@@ -124,54 +127,54 @@ fn chrestomathy_block_group_texts(
     block: &CllBlock,
     groups: &mut Vec<CllChrestomathyGroupText>,
 ) {
-    match block {
-        CllBlock::Table {
-            header_rows,
-            body_rows,
-            ..
-        } => {
-            chrestomathy_table_group_texts(
-                site,
-                section_id,
-                CllTableRowArea::Header,
+    let mut visitor = ChrestomathyGroupVisitor {
+        site,
+        section_id,
+        groups,
+    };
+    visitor.visit_block(block);
+}
+
+#[invariant(true)]
+struct ChrestomathyGroupVisitor<'site, 'section, 'groups> {
+    site: &'site CllSite,
+    section_id: &'section str,
+    groups: &'groups mut Vec<CllChrestomathyGroupText>,
+}
+
+#[contract_trait]
+impl CllBlockVisitor for ChrestomathyGroupVisitor<'_, '_, '_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_block(&mut self, block: &CllBlock) {
+        match block {
+            CllBlock::Table {
                 header_rows,
-                groups,
-            );
-            chrestomathy_table_group_texts(
-                site,
-                section_id,
-                CllTableRowArea::Body,
                 body_rows,
-                groups,
-            );
-        }
-        CllBlock::List { items, .. } => {
-            for item in items {
-                for child in item {
-                    chrestomathy_block_group_texts(site, section_id, child, groups);
+                ..
+            } => {
+                chrestomathy_table_group_texts(
+                    self.site,
+                    self.section_id,
+                    CllTableRowArea::Header,
+                    header_rows,
+                    self.groups,
+                );
+                chrestomathy_table_group_texts(
+                    self.site,
+                    self.section_id,
+                    CllTableRowArea::Body,
+                    body_rows,
+                    self.groups,
+                );
+            }
+            CllBlock::Example { example_id } => {
+                if let Some(example) = cll_lookup_example(self.site, example_id) {
+                    self.visit_blocks(&example.blocks);
                 }
             }
+            _ => walk_block(self, block),
         }
-        CllBlock::Example { example_id } => {
-            if let Some(example) = cll_lookup_example(site, example_id) {
-                for child in &example.blocks {
-                    chrestomathy_block_group_texts(site, section_id, child, groups);
-                }
-            }
-        }
-        CllBlock::BlockQuote { blocks, .. } | CllBlock::Rule { body: blocks, .. } => {
-            for child in blocks {
-                chrestomathy_block_group_texts(site, section_id, child, groups);
-            }
-        }
-        CllBlock::VariableList { entries, .. } => {
-            for entry in entries {
-                for child in &entry.blocks {
-                    chrestomathy_block_group_texts(site, section_id, child, groups);
-                }
-            }
-        }
-        _ => {}
     }
 }
 
@@ -562,12 +565,27 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
 #[requires(true)]
 #[ensures(true)]
 fn inline_plain_text(inlines: &[CllInline]) -> String {
-    let mut output = String::new();
-    for inline in inlines {
+    let mut visitor = InlinePlainTextVisitor {
+        output: String::new(),
+    };
+    visitor.visit_inline_run(inlines);
+    normalized_plain_text(&visitor.output)
+}
+
+#[invariant(true)]
+struct InlinePlainTextVisitor {
+    output: String,
+}
+
+#[contract_trait]
+impl CllBlockVisitor for InlinePlainTextVisitor {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_inline(&mut self, inline: &CllInline) {
         match inline {
             CllInline::Text(text) | CllInline::Code(text) | CllInline::InlineMath { text, .. } => {
-                output.push_str(text);
-                output.push(' ');
+                self.output.push_str(text);
+                self.output.push(' ');
             }
             CllInline::Emphasis { inlines, .. }
             | CllInline::Quote { inlines, .. }
@@ -576,46 +594,62 @@ fn inline_plain_text(inlines: &[CllInline]) -> String {
             | CllInline::Subscript { inlines }
             | CllInline::Superscript { inlines }
             | CllInline::Link { inlines, .. } => {
-                output.push_str(&inline_plain_text(inlines));
-                output.push(' ');
+                self.visit_inline_run(inlines);
+                self.output.push(' ');
             }
             CllInline::Elidable { shown, inlines, .. } => {
                 if inlines.is_empty() {
-                    output.push_str(shown);
+                    self.output.push_str(shown);
                 } else {
-                    output.push_str(&inline_plain_text(inlines));
+                    self.visit_inline_run(inlines);
                 }
-                output.push(' ');
+                self.output.push(' ');
             }
             CllInline::Anchor { .. } => {}
         }
     }
-    normalized_plain_text(&output)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
-    let mut output = String::new();
-    for block in blocks {
+    let mut visitor = BlockPlainTextVisitor {
+        site,
+        output: String::new(),
+    };
+    visitor.visit_blocks(blocks);
+    normalized_plain_text(&visitor.output)
+}
+
+#[invariant(true)]
+struct BlockPlainTextVisitor<'site> {
+    site: &'site CllSite,
+    output: String,
+}
+
+#[contract_trait]
+impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_block(&mut self, block: &CllBlock) {
         match block {
             CllBlock::Paragraph { text, .. }
             | CllBlock::Code { text, .. }
             | CllBlock::Heading { title: text, .. }
             | CllBlock::DisplayMath { text, .. } => {
-                output.push_str(text);
-                output.push('\n');
+                self.output.push_str(text);
+                self.output.push('\n');
             }
             CllBlock::List { items, .. } => {
                 for item in items {
-                    output.push_str(&blocks_plain_text(site, item));
-                    output.push('\n');
+                    self.visit_blocks(item);
+                    self.output.push('\n');
                 }
             }
             CllBlock::Example { example_id } => {
-                if let Some(example) = cll_lookup_example(site, example_id) {
-                    output.push_str(&example.plain_text);
-                    output.push('\n');
+                if let Some(example) = cll_lookup_example(self.site, example_id) {
+                    self.output.push_str(&example.plain_text);
+                    self.output.push('\n');
                 }
             }
             CllBlock::Table {
@@ -625,48 +659,48 @@ fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
                 ..
             } => {
                 if let Some(caption) = caption {
-                    output.push_str(&inline_plain_text(caption));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(caption));
+                    self.output.push('\n');
                 }
                 for row in header_rows.iter().chain(body_rows.iter()) {
                     for cell in row {
-                        output.push_str(&blocks_plain_text(site, &cell.blocks));
-                        output.push('\n');
+                        self.visit_blocks(&cell.blocks);
+                        self.output.push('\n');
                     }
                 }
             }
             CllBlock::SimpleListTable { rows, .. } => {
                 for row in rows {
                     for cell in row.iter().flatten() {
-                        output.push_str(&inline_plain_text(cell));
-                        output.push('\n');
+                        self.output.push_str(&inline_plain_text(cell));
+                        self.output.push('\n');
                     }
                 }
             }
             CllBlock::VariableList { entries, .. } => {
                 for entry in entries {
-                    output.push_str(&inline_plain_text(&entry.term));
-                    output.push('\n');
-                    output.push_str(&blocks_plain_text(site, &entry.blocks));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(&entry.term));
+                    self.output.push('\n');
+                    self.visit_blocks(&entry.blocks);
+                    self.output.push('\n');
                 }
             }
             CllBlock::Media { alt, .. } => {
-                output.push_str(alt);
-                output.push('\n');
+                self.output.push_str(alt);
+                self.output.push('\n');
             }
             CllBlock::Rule { term, body, .. } => {
-                output.push_str(term);
-                output.push('\n');
-                output.push_str(&blocks_plain_text(site, body));
+                self.output.push_str(term);
+                self.output.push('\n');
+                self.visit_blocks(body);
             }
             CllBlock::BlockQuote { blocks, .. } => {
-                output.push_str(&blocks_plain_text(site, blocks));
-                output.push('\n');
+                self.visit_blocks(blocks);
+                self.output.push('\n');
             }
             CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-                output.push_str(&inline_plain_text(body));
-                output.push('\n');
+                self.output.push_str(&inline_plain_text(body));
+                self.output.push('\n');
             }
             CllBlock::InterlinearGloss {
                 rows,
@@ -676,13 +710,13 @@ fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
             } => {
                 for row in rows {
                     for cell in &row.cells {
-                        output.push_str(&inline_plain_text(cell));
-                        output.push('\n');
+                        self.output.push_str(&inline_plain_text(cell));
+                        self.output.push('\n');
                     }
                 }
                 for line in natlang.iter().chain(comments.iter()) {
-                    output.push_str(&inline_plain_text(line));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(line));
+                    self.output.push('\n');
                 }
             }
             CllBlock::CmavoList {
@@ -692,45 +726,44 @@ fn blocks_plain_text(site: &CllSite, blocks: &[CllBlock]) -> String {
                 ..
             } => {
                 for line in titles.iter().chain(headers.iter()) {
-                    output.push_str(&inline_plain_text(line));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(line));
+                    self.output.push('\n');
                 }
                 for row in rows {
                     for cell in row {
-                        output.push_str(&inline_plain_text(cell));
-                        output.push('\n');
+                        self.output.push_str(&inline_plain_text(cell));
+                        self.output.push('\n');
                     }
                 }
             }
             CllBlock::Lojbanization { lines, .. } => {
                 for line in lines {
-                    output.push_str(&inline_plain_text(&line.body));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(&line.body));
+                    self.output.push('\n');
                     if let Some(comment) = &line.comment {
-                        output.push_str(&inline_plain_text(comment));
-                        output.push('\n');
+                        self.output.push_str(&inline_plain_text(comment));
+                        self.output.push('\n');
                     }
                 }
             }
             CllBlock::LujvoMaking { parts, .. } => {
                 for part in parts {
-                    output.push_str(&inline_plain_text(&part.body));
-                    output.push('\n');
+                    self.output.push_str(&inline_plain_text(&part.body));
+                    self.output.push('\n');
                 }
             }
             CllBlock::Ebnf { entries, .. } => {
                 for entry in entries {
-                    output.push_str(&entry.rule_name);
-                    output.push('\n');
+                    self.output.push_str(&entry.rule_name);
+                    self.output.push('\n');
                     for token in &entry.rhs {
-                        output.push_str(&ebnf_token_plain_text(token));
+                        self.output.push_str(&ebnf_token_plain_text(token));
                     }
-                    output.push('\n');
+                    self.output.push('\n');
                 }
             }
         }
     }
-    normalized_plain_text(&output)
 }
 
 #[requires(true)]

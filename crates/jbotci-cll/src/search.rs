@@ -1,8 +1,11 @@
 use std::collections::BTreeSet;
 
-use bityzba::{invariant, requires};
+#[allow(unused_imports)]
+use bityzba::{contract_trait, ensures, invariant, requires};
 use jbotci_morphology::normalize_lojban_input_text;
 use serde::{Deserialize, Serialize};
+
+use crate::visitor::{CllBlockVisitor, walk_block, walk_inline};
 
 use super::*;
 
@@ -137,7 +140,26 @@ fn collect_block_search_chunks(
     blocks: &[CllBlock],
     chunks: &mut Vec<CllSearchChunk>,
 ) {
-    for block in blocks {
+    let mut visitor = SearchChunkVisitor {
+        site,
+        section,
+        chunks,
+    };
+    visitor.visit_blocks(blocks);
+}
+
+#[invariant(true)]
+struct SearchChunkVisitor<'site, 'section, 'chunks> {
+    site: &'site CllSite,
+    section: &'section CllSection,
+    chunks: &'chunks mut Vec<CllSearchChunk>,
+}
+
+#[contract_trait]
+impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_block(&mut self, block: &CllBlock) {
         match block {
             CllBlock::Paragraph {
                 anchor_id,
@@ -146,74 +168,41 @@ fn collect_block_search_chunks(
                 ..
             } => {
                 if text.chars().count() > PARAGRAPH_SEARCH_MIN_CHARS {
-                    chunks.push(CllSearchChunk {
+                    self.chunks.push(CllSearchChunk {
                         kind: CllSearchChunkKind::Paragraph,
-                        section_id: section.section_id.clone(),
+                        section_id: self.section.section_id.clone(),
                         anchor_id: anchor_id
                             .clone()
-                            .unwrap_or_else(|| section.section_id.clone()),
-                        section_number: section.number.clone(),
-                        section_title: section.title.clone(),
-                        label: format!("Paragraph in {}", format_section_display_title(section)),
+                            .unwrap_or_else(|| self.section.section_id.clone()),
+                        section_number: self.section.number.clone(),
+                        section_title: self.section.title.clone(),
+                        label: format!(
+                            "Paragraph in {}",
+                            format_section_display_title(self.section)
+                        ),
                         text: text.clone(),
                         tagged_words: inlines_tagged_words(inlines),
                     });
                 }
             }
             CllBlock::Example { example_id } => {
-                if let Some(example) = cll_lookup_example(site, example_id) {
+                if let Some(example) = cll_lookup_example(self.site, example_id) {
                     if !example.plain_text.trim().is_empty() {
-                        chunks.push(CllSearchChunk {
+                        self.chunks.push(CllSearchChunk {
                             kind: CllSearchChunkKind::Example,
-                            section_id: section.section_id.clone(),
+                            section_id: self.section.section_id.clone(),
                             anchor_id: example.anchor_id.clone(),
-                            section_number: section.number.clone(),
-                            section_title: section.title.clone(),
+                            section_number: self.section.number.clone(),
+                            section_title: self.section.title.clone(),
                             label: example.label.clone(),
                             text: example.plain_text.clone(),
                             tagged_words: example_tagged_words(example),
                         });
                     }
-                    collect_block_search_chunks(site, section, &example.blocks, chunks);
+                    self.visit_blocks(&example.blocks);
                 }
             }
-            CllBlock::List { items, .. } => {
-                for item in items {
-                    collect_block_search_chunks(site, section, item, chunks);
-                }
-            }
-            CllBlock::Table {
-                header_rows,
-                body_rows,
-                ..
-            } => {
-                for row in header_rows.iter().chain(body_rows.iter()) {
-                    for cell in row {
-                        collect_block_search_chunks(site, section, &cell.blocks, chunks);
-                    }
-                }
-            }
-            CllBlock::VariableList { entries, .. } => {
-                for entry in entries {
-                    collect_block_search_chunks(site, section, &entry.blocks, chunks);
-                }
-            }
-            CllBlock::Rule { body, .. } => collect_block_search_chunks(site, section, body, chunks),
-            CllBlock::BlockQuote { blocks, .. } => {
-                collect_block_search_chunks(site, section, blocks, chunks)
-            }
-            CllBlock::SimpleListTable { .. }
-            | CllBlock::Media { .. }
-            | CllBlock::Code { .. }
-            | CllBlock::Heading { .. }
-            | CllBlock::Definition { .. }
-            | CllBlock::InterlinearGloss { .. }
-            | CllBlock::CmavoList { .. }
-            | CllBlock::Lojbanization { .. }
-            | CllBlock::LujvoMaking { .. }
-            | CllBlock::GrammarTemplate { .. }
-            | CllBlock::Ebnf { .. }
-            | CllBlock::DisplayMath { .. } => {}
+            _ => walk_block(self, block),
         }
     }
 }
@@ -375,154 +364,97 @@ pub fn collect_tagged_words(text: &str) -> BTreeSet<String> {
 #[requires(true)]
 #[ensures(true)]
 fn blocks_tagged_words(site: &CllSite, blocks: &[CllBlock]) -> BTreeSet<String> {
-    let mut words = BTreeSet::new();
-    for block in blocks {
-        words.extend(block_tagged_words(site, block));
-    }
-    words
+    let mut visitor = TaggedWordsVisitor::new(site);
+    visitor.visit_blocks(blocks);
+    visitor.words
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn block_tagged_words(site: &CllSite, block: &CllBlock) -> BTreeSet<String> {
-    match block {
-        CllBlock::Paragraph { inlines, .. } => inlines_tagged_words(inlines),
-        CllBlock::List { items, .. } => items
-            .iter()
-            .flat_map(|item| blocks_tagged_words(site, item))
-            .collect(),
-        CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
-            .map(example_tagged_words)
-            .unwrap_or_default(),
-        CllBlock::Table {
-            header_rows,
-            body_rows,
-            ..
-        } => header_rows
-            .iter()
-            .chain(body_rows.iter())
-            .flat_map(|row| {
-                row.iter()
-                    .flat_map(|cell| blocks_tagged_words(site, &cell.blocks))
-            })
-            .collect(),
-        CllBlock::VariableList { entries, .. } => entries
-            .iter()
-            .flat_map(|entry| {
-                let mut words = inlines_tagged_words(&entry.term);
-                words.extend(blocks_tagged_words(site, &entry.blocks));
-                words
-            })
-            .collect(),
-        CllBlock::Rule { body, .. } => blocks_tagged_words(site, body),
-        CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(site, blocks),
-        CllBlock::Heading { inlines, .. } => inlines_tagged_words(inlines),
-        CllBlock::SimpleListTable { rows, .. } => rows
-            .iter()
-            .flat_map(|row| {
-                row.iter()
-                    .flatten()
-                    .flat_map(|cell| inlines_tagged_words(cell))
-            })
-            .collect(),
-        CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-            inlines_tagged_words(body)
-        }
-        CllBlock::InterlinearGloss {
-            rows,
-            natlang,
-            comments,
-            ..
-        } => {
-            let mut words = BTreeSet::new();
-            for row in rows {
-                for cell in &row.cells {
-                    words.extend(inlines_tagged_words(cell));
-                }
-            }
-            for line in natlang.iter().chain(comments.iter()) {
-                words.extend(inlines_tagged_words(line));
-            }
-            words
-        }
-        CllBlock::CmavoList {
-            titles,
-            headers,
-            rows,
-            ..
-        } => {
-            let mut words = BTreeSet::new();
-            for inline_set in titles.iter().chain(headers.iter()) {
-                words.extend(inlines_tagged_words(inline_set));
-            }
-            for row in rows {
-                for cell in row {
-                    words.extend(inlines_tagged_words(cell));
-                }
-            }
-            words
-        }
-        CllBlock::Lojbanization { lines, .. } => {
-            let mut words = BTreeSet::new();
-            for line in lines {
-                words.extend(inlines_tagged_words(&line.body));
-                if let Some(comment) = &line.comment {
-                    words.extend(inlines_tagged_words(comment));
-                }
-            }
-            words
-        }
-        CllBlock::LujvoMaking { parts, .. } => parts
-            .iter()
-            .flat_map(|part| inlines_tagged_words(&part.body))
-            .collect(),
-        CllBlock::Ebnf { entries, .. } => entries
-            .iter()
-            .flat_map(|entry| {
-                let mut words = collect_tagged_words(&entry.rule_name);
-                for token in &entry.rhs {
-                    words.extend(collect_tagged_words(&ebnf_token_plain_text(token)));
-                }
-                words
-            })
-            .collect(),
-        CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::DisplayMath { .. } => {
-            BTreeSet::new()
-        }
-    }
+    let mut visitor = TaggedWordsVisitor::new(site);
+    visitor.visit_block(block);
+    visitor.words
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn inlines_tagged_words(inlines: &[CllInline]) -> BTreeSet<String> {
-    let mut words = BTreeSet::new();
-    for inline in inlines {
+    let mut visitor = TaggedWordsVisitor::new_without_site();
+    visitor.visit_inline_run(inlines);
+    visitor.words
+}
+
+#[invariant(true)]
+struct TaggedWordsVisitor<'site> {
+    site: Option<&'site CllSite>,
+    words: BTreeSet<String>,
+}
+
+impl<'site> TaggedWordsVisitor<'site> {
+    #[requires(true)]
+    #[ensures(ret.site.is_some())]
+    fn new(site: &'site CllSite) -> Self {
+        Self {
+            site: Some(site),
+            words: BTreeSet::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.site.is_none())]
+    fn new_without_site() -> Self {
+        Self {
+            site: None,
+            words: BTreeSet::new(),
+        }
+    }
+}
+
+#[contract_trait]
+impl CllBlockVisitor for TaggedWordsVisitor<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_block(&mut self, block: &CllBlock) {
+        match block {
+            CllBlock::Example { example_id } => {
+                if let Some(site) = self.site
+                    && let Some(example) = cll_lookup_example(site, example_id)
+                {
+                    self.words.extend(example_tagged_words(example));
+                }
+            }
+            CllBlock::Ebnf { entries, .. } => {
+                for entry in entries {
+                    self.words.extend(collect_tagged_words(&entry.rule_name));
+                    for token in &entry.rhs {
+                        self.words
+                            .extend(collect_tagged_words(&ebnf_token_plain_text(token)));
+                    }
+                }
+            }
+            CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::DisplayMath { .. } => {}
+            _ => walk_block(self, block),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_inline(&mut self, inline: &CllInline) {
         match inline {
             CllInline::Link {
                 target,
                 inlines,
                 kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
             } => {
-                words.extend(collect_tagged_words(target));
-                words.extend(collect_tagged_words(&inline_plain_text(inlines)));
+                self.words.extend(collect_tagged_words(target));
+                self.words
+                    .extend(collect_tagged_words(&inline_plain_text(inlines)));
             }
-            CllInline::Emphasis { inlines, .. }
-            | CllInline::Quote { inlines, .. }
-            | CllInline::LanguageSpan { inlines, .. }
-            | CllInline::CiteTitle { inlines }
-            | CllInline::Subscript { inlines }
-            | CllInline::Superscript { inlines }
-            | CllInline::Elidable { inlines, .. } => {
-                words.extend(inlines_tagged_words(inlines));
-            }
-            CllInline::Text(_)
-            | CllInline::Code(_)
-            | CllInline::Link { .. }
-            | CllInline::InlineMath { .. }
-            | CllInline::Anchor { .. } => {}
+            CllInline::Link { .. } => {}
+            _ => walk_inline(self, inline),
         }
     }
-    words
 }
 
 #[requires(true)]

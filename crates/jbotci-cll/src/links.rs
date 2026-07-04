@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
-use bityzba::{data, invariant, requires};
+#[allow(unused_imports)]
+use bityzba::{contract_trait, ensures, invariant, requires};
 use roxmltree::Node;
+
+use crate::visitor::{CllBlockVisitor, walk_block_mut, walk_inline_mut};
 
 use super::*;
 
@@ -316,198 +319,45 @@ fn insert_link_resolution(
 #[requires(true)]
 #[ensures(true)]
 fn resolve_block_links(blocks: &mut [CllBlock], resolutions: &BTreeMap<String, LinkResolution>) {
-    for block in blocks {
+    let mut visitor = LinkResolutionVisitor { resolutions };
+    visitor.visit_blocks_mut(blocks);
+}
+
+#[invariant(true)]
+struct LinkResolutionVisitor<'a> {
+    resolutions: &'a BTreeMap<String, LinkResolution>,
+}
+
+#[contract_trait]
+impl CllBlockVisitor for LinkResolutionVisitor<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_block_mut(&mut self, block: &mut CllBlock) {
         match block {
             CllBlock::Paragraph { inlines, text, .. } => {
-                resolve_inline_links(inlines, resolutions);
+                self.visit_inline_run_mut(inlines);
                 *text = normalized_plain_text(&inline_plain_text(inlines));
             }
-            CllBlock::List { items, .. } => {
-                for item in items {
-                    resolve_block_links(item, resolutions);
-                }
-            }
-            CllBlock::Table {
-                caption,
-                header_rows,
-                body_rows,
-                ..
-            } => {
-                if let Some(caption) = caption {
-                    resolve_inline_links(caption, resolutions);
-                }
-                for row in header_rows.iter_mut().chain(body_rows.iter_mut()) {
-                    *row = std::mem::take(row)
-                        .into_iter()
-                        .map(|cell| resolve_table_cell_links(cell, resolutions))
-                        .collect();
-                }
-            }
-            CllBlock::SimpleListTable { rows, .. } => {
-                for row in rows {
-                    for cell in row.iter_mut().flatten() {
-                        resolve_inline_links(cell, resolutions);
-                    }
-                }
-            }
-            CllBlock::VariableList { entries, .. } => {
-                *entries = std::mem::take(entries)
-                    .into_iter()
-                    .map(|entry| resolve_variable_entry_links(entry, resolutions))
-                    .collect();
-            }
-            CllBlock::Rule { body, .. } => resolve_block_links(body, resolutions),
-            CllBlock::Example { .. } => {}
-            CllBlock::Media { title, .. } => {
-                if let Some(title) = title {
-                    resolve_inline_links(title, resolutions);
-                }
-            }
-            CllBlock::BlockQuote { blocks, .. } => resolve_block_links(blocks, resolutions),
-            CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-                resolve_inline_links(body, resolutions);
-            }
-            CllBlock::InterlinearGloss {
-                rows,
-                natlang,
-                comments,
-                ..
-            } => {
-                *rows = std::mem::take(rows)
-                    .into_iter()
-                    .map(|row| resolve_interlinear_row_links(row, resolutions))
-                    .collect();
-                for line in natlang.iter_mut().chain(comments.iter_mut()) {
-                    resolve_inline_links(line, resolutions);
-                }
-            }
-            CllBlock::CmavoList {
-                titles,
-                headers,
-                rows,
-                ..
-            } => {
-                for title in titles.iter_mut().chain(headers.iter_mut()) {
-                    resolve_inline_links(title, resolutions);
-                }
-                for row in rows {
-                    for cell in row {
-                        resolve_inline_links(cell, resolutions);
-                    }
-                }
-            }
-            CllBlock::Lojbanization { lines, .. } => {
-                *lines = std::mem::take(lines)
-                    .into_iter()
-                    .map(|line| resolve_lojbanization_line_links(line, resolutions))
-                    .collect();
-            }
-            CllBlock::LujvoMaking { parts, .. } => {
-                *parts = std::mem::take(parts)
-                    .into_iter()
-                    .map(|part| resolve_lujvo_part_links(part, resolutions))
-                    .collect();
-            }
             CllBlock::Heading { inlines, title, .. } => {
-                resolve_inline_links(inlines, resolutions);
+                self.visit_inline_run_mut(inlines);
                 *title = normalized_plain_text(&inline_plain_text(inlines));
             }
-            CllBlock::Code { .. } | CllBlock::Ebnf { .. } | CllBlock::DisplayMath { .. } => {}
+            _ => walk_block_mut(self, block),
         }
     }
-}
 
-#[requires(true)]
-#[ensures(true)]
-fn resolve_table_cell_links(
-    cell: CllTableCell,
-    resolutions: &BTreeMap<String, LinkResolution>,
-) -> CllTableCell {
-    let data = cell.into_data();
-    let mut blocks = data.blocks;
-    resolve_block_links(&mut blocks, resolutions);
-    CllTableCell::from_data(data!(CllTableCell { blocks, ..data }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn resolve_variable_entry_links(
-    entry: CllVariableEntry,
-    resolutions: &BTreeMap<String, LinkResolution>,
-) -> CllVariableEntry {
-    let data = entry.into_data();
-    let mut term = data.term;
-    let mut blocks = data.blocks;
-    resolve_inline_links(&mut term, resolutions);
-    resolve_block_links(&mut blocks, resolutions);
-    CllVariableEntry::from_data(data!(CllVariableEntry { term, blocks }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn resolve_interlinear_row_links(
-    row: CllInterlinearRow,
-    resolutions: &BTreeMap<String, LinkResolution>,
-) -> CllInterlinearRow {
-    let data = row.into_data();
-    let mut cells = data.cells;
-    for cell in &mut cells {
-        resolve_inline_links(cell, resolutions);
-    }
-    CllInterlinearRow::from_data(data!(CllInterlinearRow {
-        kind: data.kind,
-        cells,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn resolve_lojbanization_line_links(
-    line: CllLojbanizationLine,
-    resolutions: &BTreeMap<String, LinkResolution>,
-) -> CllLojbanizationLine {
-    let data = line.into_data();
-    let mut body = data.body;
-    let mut comment = data.comment;
-    resolve_inline_links(&mut body, resolutions);
-    if let Some(comment) = &mut comment {
-        resolve_inline_links(comment, resolutions);
-    }
-    CllLojbanizationLine::from_data(data!(CllLojbanizationLine {
-        kind: data.kind,
-        body,
-        comment,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn resolve_lujvo_part_links(
-    part: CllLujvoPart,
-    resolutions: &BTreeMap<String, LinkResolution>,
-) -> CllLujvoPart {
-    let data = part.into_data();
-    let mut body = data.body;
-    resolve_inline_links(&mut body, resolutions);
-    CllLujvoPart::from_data(data!(CllLujvoPart {
-        kind: data.kind,
-        body,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn resolve_inline_links(inlines: &mut [CllInline], resolutions: &BTreeMap<String, LinkResolution>) {
-    for inline in inlines {
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_inline_mut(&mut self, inline: &mut CllInline) {
         match inline {
             CllInline::Link {
                 target,
                 inlines,
                 kind,
             } => {
-                resolve_inline_links(inlines, resolutions);
+                self.visit_inline_run_mut(inlines);
                 if *kind == CllLinkKind::Section
-                    && let Some(resolution) = resolutions.get(target)
+                    && let Some(resolution) = self.resolutions.get(target)
                 {
                     *kind = resolution.kind;
                     if inline_plain_text(inlines) == *target {
@@ -515,17 +365,7 @@ fn resolve_inline_links(inlines: &mut [CllInline], resolutions: &BTreeMap<String
                     }
                 }
             }
-            CllInline::Emphasis { inlines, .. }
-            | CllInline::Quote { inlines, .. }
-            | CllInline::LanguageSpan { inlines, .. }
-            | CllInline::CiteTitle { inlines }
-            | CllInline::Subscript { inlines }
-            | CllInline::Superscript { inlines }
-            | CllInline::Elidable { inlines, .. } => resolve_inline_links(inlines, resolutions),
-            CllInline::Text(_)
-            | CllInline::Code(_)
-            | CllInline::InlineMath { .. }
-            | CllInline::Anchor { .. } => {}
+            _ => walk_inline_mut(self, inline),
         }
     }
 }
