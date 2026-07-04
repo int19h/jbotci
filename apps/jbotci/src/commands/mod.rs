@@ -5,6 +5,7 @@ mod jvozba;
 mod setup;
 mod tersmu;
 mod vlacku;
+mod vlasei;
 mod vlatai;
 
 pub(super) use cukta::run_cukta;
@@ -18,4 +19,5 @@ pub(super) use tersmu::run_tersmu;
 pub(super) use vlacku::{VlackuRenderOptions, render_vlacku_output_with_options, run_vlacku};
 #[cfg(test)]
 pub(super) use vlacku::{render_vlacku_output, render_vlacku_output_with_width};
-pub(super) use vlatai::{render_vlatai_json, render_vlatai_text, vlatai_source_label};
+pub(super) use vlasei::run_vlasei;
+pub(super) use vlatai::run_vlatai;

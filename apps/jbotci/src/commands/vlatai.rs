@@ -1,5 +1,61 @@
 use super::super::*;
 
+#[requires(diagnostic_terminal_width > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn run_vlatai<WOut: Write>(
+    input: VlataiInput,
+    stdout: &mut WOut,
+    color_policy: CliColorPolicy,
+    diagnostic_terminal_width: usize,
+) -> Result<CliStatus> {
+    let glyphs = cli_glyph_style(input.ascii);
+    let diagnostic_detail = cli_diagnostic_detail(input.detailed_errors);
+    let dialect = input.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
+    let analyses = input
+        .words
+        .iter()
+        .enumerate()
+        .map(|(index, word)| {
+            let source_label = vlatai_source_label(index);
+            analyze_valsi_with_options_and_source_id(
+                word,
+                &morphology_options,
+                Some(SourceId(source_label)),
+            )
+        })
+        .collect::<Vec<_>>();
+    let status = if analyses.iter().all(|analysis| analysis.result.is_valid()) {
+        CliStatus::Success
+    } else {
+        CliStatus::Failure
+    };
+    match input.format {
+        VlataiFormat::Text => {
+            let rendered = render_vlatai_text(
+                &analyses,
+                phoneme_options,
+                color_policy.stdout,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+            )?;
+            stdout.write_all(rendered.as_bytes())?;
+        }
+        VlataiFormat::Json => {
+            let rendered = render_vlatai_json(
+                &analyses,
+                phoneme_options,
+                input.indent.unwrap_or(2),
+                color_policy.stdout,
+            )?;
+            writeln!(stdout, "{rendered}")?;
+        }
+    }
+    Ok(status)
+}
+
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(crate) fn vlatai_source_label(index: usize) -> String {
