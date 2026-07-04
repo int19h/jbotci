@@ -1424,10 +1424,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:JvozbaPaneLayout",
-        "jvozba pane layout is a transient placement result derived from measured viewport state",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:JvozbaPaneMetrics",
         "jvozba pane metrics are direct layout measurements used to derive pane placement",
     ),
@@ -1440,20 +1436,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:PageFindState",
-        "page-find state is a transient UI aggregate whose per-route fields are validated by PageFindRouteState",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:PageFindTextKey",
-        "page-find text keys are transient ordinal identity tokens and every usize ordinal is a valid key",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:PendingLocalRouteWrites",
         "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:PositionedPoint",
-        "positioned points are direct layout measurements used transiently by render effects",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:ReferenceBottoms",
@@ -1492,6 +1476,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vlacku semantic result state mirrors browser worker hits and is keyed by the committed search state",
     ),
     (
+        "crates/jbotci-ui/src/page_find.rs:PageFindState",
+        "page-find state is a transient UI aggregate whose per-route fields are validated by PageFindRouteState",
+    ),
+    (
+        "crates/jbotci-ui/src/page_find.rs:PageFindTextKey",
+        "page-find text keys are transient content identity tokens and every hash plus occurrence pair is a valid key",
+    ),
+    (
         "crates/jbotci-ui/src/platform.rs:EmbeddingSearchRequest",
         "embedding search requests are platform DTOs checked by service preconditions before execution",
     ),
@@ -1526,6 +1518,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/platform.rs:PlatformServiceError",
         "platform service errors carry display diagnostics produced by service implementations",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TimeoutHandle",
+        "timeout handles are opaque platform timer tokens returned by browser scheduling services",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:Rect",
