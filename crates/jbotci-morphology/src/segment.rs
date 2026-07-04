@@ -1651,7 +1651,7 @@ pub(crate) fn is_valid_normalized_char(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn text_chars(text: &str) -> Vec<char> {
+pub(crate) fn text_chars(text: &str) -> Vec<char> {
     text.chars().collect()
 }
 
@@ -1963,7 +1963,7 @@ fn has_parse_nucleus_end_at_or_before(chars: &[char], start: usize, limit: usize
 
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
-fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
+pub(crate) fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
     let first = *chars.get(start)?;
     let second = *chars.get(start + 1)?;
     let semivowel = match (base_vowel(first)?, second) {
@@ -1985,7 +1985,7 @@ fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
 
 #[requires(true)]
 #[ensures(true)]
-fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
+pub(crate) fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
     match semivowel {
         'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
         'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
@@ -1995,7 +1995,7 @@ fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
 
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|end| end == start + 1))]
-fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
+pub(crate) fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
     let value = *chars.get(start)?;
     if value == 'y' || value == 'ý' {
         let end = start + 1;
@@ -2009,6 +2009,63 @@ fn parse_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
     }
     let end = start + 1;
     if starts_with_nucleus(chars, end) {
+        return None;
+    }
+    Some(end)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
+pub(crate) fn parse_explicit_stress_nucleus_end(
+    chars: &[char],
+    start: usize,
+) -> Option<(bool, usize)> {
+    if let Some(end) = parse_explicit_stress_diphthong_end(chars, start) {
+        return Some((true, end));
+    }
+    let value = *chars.get(start)?;
+    parse_explicit_stress_single_vowel_end(chars, start)
+        .map(|end| (!matches!(value, 'y' | 'ý'), end))
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
+fn parse_explicit_stress_diphthong_end(chars: &[char], start: usize) -> Option<usize> {
+    let first = *chars.get(start)?;
+    let second = *chars.get(start + 1)?;
+    let semivowel = match (base_vowel(first)?, second) {
+        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
+        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
+        _ => return None,
+    };
+    let end = start + 2;
+    if next_non_comma_index(chars, end)
+        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
+    {
+        return None;
+    }
+    if starts_with_pause_required_nucleus(chars, end) {
+        return None;
+    }
+    Some(end)
+}
+
+#[requires(start <= chars.len())]
+#[ensures(ret.is_none_or(|end| end == start + 1))]
+fn parse_explicit_stress_single_vowel_end(chars: &[char], start: usize) -> Option<usize> {
+    let value = *chars.get(start)?;
+    if value == 'y' || value == 'ý' {
+        let end = start + 1;
+        if starts_with_pause_required_nucleus(chars, end) {
+            return None;
+        }
+        return Some(end);
+    }
+    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
+        return None;
+    }
+    let end = start + 1;
+    if starts_with_pause_required_nucleus(chars, end) {
         return None;
     }
     Some(end)
@@ -2038,7 +2095,7 @@ fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
 
 #[requires(start <= chars.len())]
 #[ensures(true)]
-fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
+pub(crate) fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
     if start >= chars.len() {
         return false;
     }
@@ -2241,13 +2298,13 @@ fn y_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_vowel(value: char) -> bool {
+pub(crate) fn is_vowel(value: char) -> bool {
     base_vowel(value).is_some()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn base_vowel(value: char) -> Option<char> {
+pub(crate) fn base_vowel(value: char) -> Option<char> {
     match value {
         'a' | 'á' => Some('a'),
         'e' | 'é' => Some('e'),
@@ -2260,7 +2317,7 @@ fn base_vowel(value: char) -> Option<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn normalize_vowel(value: char) -> char {
+pub(crate) fn normalize_vowel(value: char) -> char {
     match value {
         'á' => 'á',
         'é' => 'é',
@@ -4159,7 +4216,7 @@ fn is_cmevla_slice(chars: &[char], start: usize, end: usize) -> bool {
 
 #[requires(start <= chars.len())]
 #[ensures(true)]
-fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
+pub(crate) fn starts_with_pause_required_nucleus(chars: &[char], start: usize) -> bool {
     let Some(start) = next_non_comma_index(chars, start) else {
         return false;
     };
@@ -4776,7 +4833,7 @@ fn starts_repeated_glide_diphthong_sequence(chars: &[char], index: usize) -> boo
 
 #[requires(index <= chars.len())]
 #[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
-fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
+pub(crate) fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
     while chars.get(index) == Some(&',') {
         index += 1;
     }

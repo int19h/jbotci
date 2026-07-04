@@ -2,6 +2,10 @@ use bityzba::{data, invariant, new, requires};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
+use crate::segment::{
+    base_vowel, matches_diphthong_semivowel, next_non_comma_index,
+    parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus, text_chars,
+};
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
@@ -1264,7 +1268,9 @@ impl<'a> Segmenter<'a> {
             return false;
         }
         self.checked_normalized_slice(index, candidate_end)
-            .is_some_and(|normalized| !starts_with_nucleus(&text_chars(&normalized), 0))
+            .is_some_and(|normalized| {
+                !starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
+            })
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
@@ -1308,7 +1314,9 @@ impl<'a> Segmenter<'a> {
         }
         let end = self.candidate_end(index);
         self.checked_normalized_slice(index, end)
-            .is_some_and(|normalized| starts_with_pause_required_nucleus(&text_chars(&normalized)))
+            .is_some_and(|normalized| {
+                starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
+            })
     }
 
     #[requires(index <= self.chars.len())]
@@ -1993,12 +2001,6 @@ fn find_nth_matching_word_index(
 
 #[requires(true)]
 #[ensures(true)]
-fn text_chars(text: &str) -> Vec<char> {
-    text.chars().collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn boundary_repeats_diphthong_semivowel(prefix: &str, remainder: &str) -> bool {
     let prefix_chars = text_chars(prefix);
     let remainder_chars = text_chars(remainder);
@@ -2063,11 +2065,8 @@ fn stressable_nucleus_starts(chars: &[char]) -> Vec<usize> {
             index += 1;
             continue;
         }
-        if let Some((_, end)) = parse_diphthong(chars, index) {
-            starts.push(index);
-            index = end;
-        } else if let Some((_, end)) = parse_single_vowel(chars, index) {
-            if !matches!(chars[index], 'y' | 'ý') {
+        if let Some((stressable, end)) = parse_explicit_stress_nucleus_end(chars, index) {
+            if stressable {
                 starts.push(index);
             }
             index = end;
@@ -2090,130 +2089,11 @@ fn previous_non_comma(chars: &[char], mut index: usize) -> Option<(usize, char)>
     None
 }
 
-#[requires(start <= chars.len())]
-#[ensures(true)]
-fn starts_with_nucleus(chars: &[char], start: usize) -> bool {
-    let mut start = start;
-    while chars.get(start) == Some(&',') {
-        start += 1;
-    }
-    if start >= chars.len() {
-        return false;
-    }
-    parse_diphthong(chars, start).is_some() || parse_single_vowel(chars, start).is_some()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_pause_required_nucleus(chars: &[char]) -> bool {
-    let mut start = 0;
-    while chars.get(start) == Some(&',') {
-        start += 1;
-    }
-    starts_with_nucleus(chars, start)
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn is_indicator_cmavo_text(text: &str) -> bool {
     Cmavo::from_text(text)
         .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let first = *chars.get(start)?;
-    let second = *chars.get(start + 1)?;
-    let semivowel = match (base_vowel(first)?, second) {
-        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
-        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
-        _ => return None,
-    };
-    let end = start + 2;
-    if next_non_comma_index(chars, end)
-        .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
-    {
-        return None;
-    }
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some((format!("{}{}", normalize_vowel(first), semivowel), end))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn matches_diphthong_semivowel(value: char, semivowel: char) -> bool {
-    match semivowel {
-        'ĭ' => matches!(value, 'i' | 'í' | 'ĭ'),
-        'ŭ' => matches!(value, 'u' | 'ú' | 'ŭ'),
-        _ => false,
-    }
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.is_none_or(|found| found >= index && found < chars.len()))]
-fn next_non_comma_index(chars: &[char], mut index: usize) -> Option<usize> {
-    while chars.get(index) == Some(&',') {
-        index += 1;
-    }
-    (index < chars.len()).then_some(index)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
-fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let value = *chars.get(start)?;
-    if value == 'y' || value == 'ý' {
-        let end = start + 1;
-        if starts_with_nucleus(chars, end) {
-            return None;
-        }
-        return Some((value.to_string(), end));
-    }
-    if !is_vowel(value) && !matches!(value, 'ĭ' | 'ŭ') {
-        return None;
-    }
-    let end = start + 1;
-    if starts_with_nucleus(chars, end) {
-        return None;
-    }
-    Some((normalize_vowel(value).to_string(), end))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_vowel(value: char) -> bool {
-    base_vowel(value).is_some()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_vowel(value: char) -> Option<char> {
-    match value {
-        'a' | 'á' => Some('a'),
-        'e' | 'é' => Some('e'),
-        'i' | 'í' => Some('i'),
-        'o' | 'ó' => Some('o'),
-        'u' | 'ú' => Some('u'),
-        _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_vowel(value: char) -> char {
-    match value {
-        'á' => 'á',
-        'é' => 'é',
-        'í' => 'í',
-        'ó' => 'ó',
-        'ú' => 'ú',
-        'ĭ' => 'i',
-        'ŭ' => 'u',
-        _ => base_vowel(value).unwrap_or(value),
-    }
 }
 
 #[cfg(test)]
