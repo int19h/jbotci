@@ -1,6 +1,9 @@
 //! Semantic builder that consumes the generated syntax model directly.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet},
+    ptr::NonNull,
+};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
@@ -185,7 +188,7 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
     indirect_question_stack: Vec<Vec<GeneratedIndirectQuestionFocus>>,
     temporal_context_stack: Vec<SemanticObjectId>,
-    pro_bridi_scope_stack: Vec<BridiSyntax>,
+    pro_bridi_scope_stack: Vec<GeneratedBridiScopeRef>,
     completed_pro_bridi_frames: Vec<GeneratedProBridiFrame>,
     current_quote_depth: usize,
     sumti_referents: BTreeMap<(usize, usize), SemanticObjectId>,
@@ -365,6 +368,31 @@ struct GeneratedProBridiReplaySource {
     selbri: SelbriSyntax,
     terms: Vec<TermSyntax>,
     first_visible_place: usize,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedBridiScopeRef {
+    bridi: NonNull<BridiSyntax>,
+}
+
+impl GeneratedBridiScopeRef {
+    #[requires(true)]
+    #[ensures(true)]
+    fn new(bridi: &BridiSyntax) -> Self {
+        Self {
+            bridi: NonNull::from(bridi),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn as_bridi(&self) -> &BridiSyntax {
+        // The pro-bridi scope stack is strictly scoped: entries are pushed before
+        // a synchronous descent into a bridi and popped before that borrow can end.
+        // The pointer is never retained outside the stack frame that pushed it.
+        unsafe { self.bridi.as_ref() }
+    }
 }
 
 #[invariant(::Bridi(_) => true)]
@@ -4723,9 +4751,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(start <= connection.continuations.len())]
     #[ensures(ret.as_ref().is_ok_and(|(_, index)| *index <= connection.continuations.len()) || ret.is_err())]
-    fn build_generated_statement_bo_connection_group<'syntax>(
+    fn build_generated_statement_bo_connection_group(
         &mut self,
-        connection: &'syntax IStatementConnectionSyntax,
+        connection: &IStatementConnectionSyntax,
         left: GeneratedStatementConnectionOperand,
         start: usize,
     ) -> Result<(GeneratedStatementConnectionOperand, usize), SemanticsError> {
@@ -5494,7 +5522,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         bridi: &BridiSyntax,
         suffix_terms: &[&TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.pro_bridi_scope_stack.push(bridi.clone());
+        self.pro_bridi_scope_stack
+            .push(GeneratedBridiScopeRef::new(bridi));
         let result = match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => self
                 .build_bridi_with_leading_terms_formula_with_suffix_terms(
@@ -5702,7 +5731,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.pro_bridi_scope_stack.push(bridi.clone());
+        self.pro_bridi_scope_stack
+            .push(GeneratedBridiScopeRef::new(bridi));
         let result = match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
                 self.build_bridi_with_leading_terms_formula_with_options(bridi, eventuality, mode)
@@ -20699,18 +20729,20 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .nth(1)
                 .cloned()),
             Cmavo::Nei => {
-                let bridi = self.pro_bridi_scope_stack.first().cloned();
+                let bridi = self.pro_bridi_scope_stack.first().copied();
                 bridi
-                    .as_ref()
-                    .map(|bridi| self.generated_pro_bridi_frame_from_bridi(bridi, source))
+                    .map(|bridi| {
+                        self.generated_pro_bridi_frame_from_bridi(bridi.as_bridi(), source)
+                    })
                     .transpose()
                     .map(Option::flatten)
             }
             Cmavo::Noha => {
-                let bridi = self.pro_bridi_scope_stack.iter().rev().nth(1).cloned();
+                let bridi = self.pro_bridi_scope_stack.iter().rev().nth(1).copied();
                 bridi
-                    .as_ref()
-                    .map(|bridi| self.generated_pro_bridi_frame_from_bridi(bridi, source))
+                    .map(|bridi| {
+                        self.generated_pro_bridi_frame_from_bridi(bridi.as_bridi(), source)
+                    })
                     .transpose()
                     .map(Option::flatten)
             }
