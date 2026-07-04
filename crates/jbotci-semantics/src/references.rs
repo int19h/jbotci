@@ -4856,15 +4856,18 @@ struct CeiAssignmentSource {
 #[invariant(true)]
 struct GeneratedPrenexCeiAssignmentSourceCollector<'index, 'tree> {
     index: &'index GeneratedSyntaxIndex<'tree>,
+    skip_depth: usize,
     sources: Vec<CeiAssignmentSource>,
 }
 
 impl<'index, 'tree> GeneratedPrenexCeiAssignmentSourceCollector<'index, 'tree> {
     #[requires(true)]
+    #[ensures(ret.skip_depth == 0)]
     #[ensures(ret.sources.is_empty())]
     fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
         Self {
             index,
+            skip_depth: 0,
             sources: Vec::new(),
         }
     }
@@ -4905,10 +4908,26 @@ impl<'index, 'tree> TreeVisitor<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth += 1;
+            return;
+        }
+        if generated_prenex_binding_should_skip_node(node) {
+            self.skip_depth = 1;
+            return;
+        }
         if let GeneratedSyntaxNodeRef::AssignedProBridiTanruUnitSyntax(unit) = node {
             for assignment in &unit.assignments {
                 self.record_assignment(assignment.tanru_unit.as_ref());
             }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        if self.skip_depth > 0 {
+            self.skip_depth -= 1;
         }
     }
 }
@@ -4960,44 +4979,6 @@ impl<'index, 'tree> GeneratedPrenexRelationVariableBindingCollector<'index, 'tre
             self.bindings.push((cmavo, target));
         }
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn should_skip_node(node: GeneratedSyntaxNodeRef<'tree>) -> bool {
-        matches!(
-            node,
-            GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiAdverbialTerm(_)
-                | GeneratedSyntaxNodeRef::SimpleTermSyntaxSoiAdverbialTerm(_)
-                | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
-                | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
-                | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
-                | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
-                | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNumberSumti(_)
-                | GeneratedSyntaxNodeRef::SumtiBaseSyntaxLerfuStringSumti(_)
-                | GeneratedSyntaxNodeRef::SumtiBaseSyntaxQuotedSumti(_)
-                | GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(_)
-                | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMeksoFragment(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxZantufaMeksoFragment(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
-                | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
-                | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
-                | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
-                | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
-                | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(_)
-                | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(_)
-        )
-    }
 }
 
 impl<'index, 'tree> TreeVisitor<'tree>
@@ -5013,7 +4994,7 @@ impl<'index, 'tree> TreeVisitor<'tree>
             self.skip_depth += 1;
             return;
         }
-        if Self::should_skip_node(node) {
+        if generated_prenex_binding_should_skip_node(node) {
             self.skip_depth = 1;
             return;
         }
@@ -5053,6 +5034,44 @@ impl<'index, 'tree> TreeVisitor<'tree>
             self.skip_depth -= 1;
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
+    matches!(
+        node,
+        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxSoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
+            | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNumberSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxLerfuStringSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxQuotedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMeksoFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxZantufaMeksoFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
+            | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
+            | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
+            | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
+            | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(_)
+    )
 }
 
 #[derive(Debug)]
@@ -6426,8 +6445,10 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         let outer_predicate_stack = std::mem::take(&mut self.predicate_stack);
         let outer_discourse_predicate_stack = std::mem::take(&mut self.discourse_predicate_stack);
         let outer_current_bridi = self.current_bridi.take();
+        let outer_cei_bridi_bindings = std::mem::take(&mut self.cei_bridi_bindings);
         self.visit_text(text);
         self.flush_unresolved_pending_next_utterance_sources();
+        self.cei_bridi_bindings = outer_cei_bridi_bindings;
         self.current_bridi = outer_current_bridi;
         self.discourse_predicate_stack = outer_discourse_predicate_stack;
         self.predicate_stack = outer_predicate_stack;
@@ -9105,6 +9126,54 @@ mod tests {
                     FixtureReferenceTarget::ResolvedNode { .. }
                 ),
                 "later broda should resolve through grouped CEI assignment"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_cei_inside_quote_does_not_bind_outer_broda_series() {
+        run_reference_test(|| {
+            let input = "lu mi broda cei brode li'u zo'u mi brode";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let outer_brode = nth_span_key(input, "brode", 1);
+
+            assert!(
+                !projection.references.iter().any(|edge| {
+                    edge.kind == ReferenceKind::BrodaSeries && edge.source == outer_brode
+                }),
+                "CEI inside a quoted sumti must not bind the outer brode"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_cei_inside_prenex_grouped_tanru_unit_is_collected() {
+        run_reference_test(|| {
+            let input = "lo ke broda cei brode ke'e ku zo'u mi brode";
+            let syntax = parse_generated_syntax(input);
+            let analysis =
+                analyze_generated_references(&syntax).expect("reference analysis succeeds");
+            let projection = analysis.fixture_projection();
+            let later_brode = nth_span_key(input, "brode", 1);
+            let brode_edge = projection
+                .references
+                .iter()
+                .find(|edge| edge.kind == ReferenceKind::BrodaSeries && edge.source == later_brode)
+                .expect("later brode resolves through grouped prenex CEI assignment");
+
+            assert!(
+                matches!(
+                    brode_edge.target,
+                    FixtureReferenceTarget::ResolvedNode { .. }
+                ),
+                "later brode should resolve through grouped prenex CEI assignment"
             );
         });
     }

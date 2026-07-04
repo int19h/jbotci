@@ -828,10 +828,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiScopeRef",
-        "pro-bridi scope references are pushed and popped in a synchronous stack discipline",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDaSeriesScopeBinding",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),

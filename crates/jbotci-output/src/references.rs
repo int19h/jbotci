@@ -1011,6 +1011,7 @@ fn generated_source_span_words(
 fn generated_metadata_source_text(metadata: &SyntaxNodeMetadata, source: &str) -> Option<String> {
     let first = metadata.first_source_span.as_ref()?;
     let last = metadata.last_source_span.as_ref()?;
+    // Reference labels preserve the user's raw spacing between boundary tokens.
     source
         .get(first.byte_start..last.byte_end)
         .filter(|text| !text.is_empty())
