@@ -1665,71 +1665,58 @@ pub(crate) fn parse_cmavo_form(text: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
 fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
-    if chars.is_empty() {
-        return None;
-    }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return Some(chars.iter().collect());
-    }
-    if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return Some(digit_to_cmavo(chars[0])?.to_owned());
-    }
-    parse_cmavo_form_main(chars)
+    let mut normalized = String::new();
+    let mut output = Some(&mut normalized);
+    parse_cmavo_form_chars_into(chars, &mut output)?;
+    Some(normalized)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn matches_cmavo_form_chars(chars: &[char]) -> bool {
-    if chars.is_empty() {
-        return false;
-    }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return true;
-    }
-    if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return digit_to_cmavo(chars[0]).is_some();
-    }
-    matches_cmavo_form_main(chars)
+    let mut output = None;
+    parse_cmavo_form_chars_into(chars, &mut output).is_some()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn matches_cmavo_form_main(chars: &[char]) -> bool {
-    if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
-        return false;
+fn parse_cmavo_form_chars_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
+    if chars.is_empty() {
+        return None;
     }
-    if parse_glide_end(chars, 0).is_some_and(|end| matches_cmavo_form_tail(chars, end)) {
-        return true;
+    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
+        append_cmavo_chars(output, chars);
+        return Some(());
     }
-    (0..=max_initial_end(chars, 0)).rev().any(|end| {
-        parse_initial_end(chars, 0, end).is_some() && matches_cmavo_form_tail(chars, end)
-    })
+    if chars.len() == 1 && chars[0].is_ascii_digit() {
+        append_cmavo_str(output, digit_to_cmavo(chars[0])?);
+        return Some(());
+    }
+    parse_cmavo_form_main_into(chars, output)
 }
 
-#[requires(start <= chars.len())]
+#[requires(true)]
 #[ensures(true)]
-fn matches_cmavo_form_tail(chars: &[char], start: usize) -> bool {
-    if let Some((_, after_nucleus)) = parse_diphthong_end(chars, start) {
-        if after_nucleus == chars.len() {
-            return true;
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
-            && matches_cmavo_form_tail(chars, after_nucleus + 1)
-        {
-            return true;
-        }
+fn append_cmavo_chars(output: &mut Option<&mut String>, chars: &[char]) {
+    if let Some(text) = output.as_mut() {
+        text.extend(chars.iter().copied());
     }
-    if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
-        if after_nucleus == chars.len() {
-            return true;
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
-            && matches_cmavo_form_tail(chars, after_nucleus + 1)
-        {
-            return true;
-        }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_str(output: &mut Option<&mut String>, value: &str) {
+    if let Some(text) = output.as_mut() {
+        text.push_str(value);
     }
-    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_char(output: &mut Option<&mut String>, value: char) {
+    if let Some(text) = output.as_mut() {
+        text.push(value);
+    }
 }
 
 #[requires(true)]
@@ -1740,56 +1727,115 @@ pub(crate) fn starts_with_cvcy_lujvo(text: &str) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
+#[ensures(true)]
+fn parse_cmavo_form_main_into(chars: &[char], output: &mut Option<&mut String>) -> Option<()> {
     if chars.first().is_some_and(|value| *value == '\'') || starts_with_cluster(chars, 0) {
         return None;
     }
-    for (onset, after_onset) in parse_onsets(chars, 0) {
-        if let Some(rest) = parse_cmavo_form_tail(chars, after_onset) {
-            return Some(onset + &rest);
+    for onset in parse_onsets(chars, 0) {
+        if with_cmavo_output_rollback(output, |output| {
+            append_cmavo_str(output, &onset.normalized);
+            parse_cmavo_form_tail_into(chars, onset.end, output)
+        })
+        .is_some()
+        {
+            return Some(());
         }
     }
     None
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
+#[ensures(true)]
+fn parse_cmavo_form_tail_into(
+    chars: &[char],
+    start: usize,
+    output: &mut Option<&mut String>,
+) -> Option<()> {
     if let Some((semivowel, after_nucleus)) = parse_diphthong_end(chars, start) {
-        let nucleus = format!("{}{}", normalize_vowel(chars[start]), semivowel);
         if after_nucleus == chars.len() {
-            return Some(nucleus);
+            append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
+            return Some(());
         }
         if chars.get(after_nucleus) == Some(&'\'')
-            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_diphthong_nucleus(output, chars[start], semivowel);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+            })
+            .is_some()
         {
-            return Some(format!("{nucleus}'{rest}"));
+            return Some(());
         }
     }
     if let Some(after_nucleus) = parse_single_vowel_end(chars, start) {
         let value = chars[start];
-        let nucleus = if is_y(value) {
-            value
-        } else {
-            normalize_vowel(value)
-        }
-        .to_string();
         if after_nucleus == chars.len() {
-            return Some(nucleus);
+            append_cmavo_single_nucleus(output, value);
+            return Some(());
         }
         if chars.get(after_nucleus) == Some(&'\'')
-            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
+            && with_cmavo_output_rollback(output, |output| {
+                append_cmavo_single_nucleus(output, value);
+                append_cmavo_char(output, '\'');
+                parse_cmavo_form_tail_into(chars, after_nucleus + 1, output)
+            })
+            .is_some()
         {
-            return Some(format!("{nucleus}'{rest}"));
+            return Some(());
         }
     }
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_diphthong_nucleus(output: &mut Option<&mut String>, first: char, semivowel: char) {
+    append_cmavo_char(output, normalize_vowel(first));
+    append_cmavo_char(output, semivowel);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_cmavo_single_nucleus(output: &mut Option<&mut String>, value: char) {
+    let nucleus = if is_y(value) {
+        value
+    } else {
+        normalize_vowel(value)
+    };
+    append_cmavo_char(output, nucleus);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn with_cmavo_output_rollback(
+    output: &mut Option<&mut String>,
+    parse: impl FnOnce(&mut Option<&mut String>) -> Option<()>,
+) -> Option<()> {
+    let original_len = output.as_ref().map(|text| text.len());
+    if parse(output).is_some() {
+        return Some(());
+    }
+    if let Some(original_len) = original_len
+        && let Some(text) = output.as_mut()
+    {
+        text.truncate(original_len);
+    }
+    None
+}
+
+#[invariant(self.start <= self.end)]
+#[invariant(self.normalized.chars().count() == self.end - self.start)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParsedOnset {
+    start: usize,
+    end: usize,
+    normalized: String,
+}
+
 #[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|(_, end)| *end >= start && *end <= chars.len()))]
-fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
+#[ensures(ret.iter().all(|onset| onset.start == start && onset.end >= start && onset.end <= chars.len()))]
+fn parse_onsets(chars: &[char], start: usize) -> Vec<ParsedOnset> {
     let mut onsets = Vec::new();
     if let Some(end) = parse_glide_end(chars, start) {
         let glide = match chars[start] {
@@ -1797,11 +1843,19 @@ fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
             'u' | 'ú' | 'ŭ' => 'ŭ',
             _ => unreachable!("parse_glide_end only accepts glide starts"),
         };
-        onsets.push((glide.to_string(), end));
+        onsets.push(new!(ParsedOnset {
+            start: start,
+            end: end,
+            normalized: glide.to_string(),
+        }));
     }
     for end in (start..=max_initial_end(chars, start)).rev() {
         if let Some(initial) = parse_initial(chars, start, end) {
-            onsets.push((initial, end));
+            onsets.push(new!(ParsedOnset {
+                start: start,
+                end: end,
+                normalized: initial,
+            }));
         }
     }
     onsets
