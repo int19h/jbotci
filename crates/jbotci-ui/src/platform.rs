@@ -7,11 +7,14 @@ use std::rc::Rc;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
+use dioxus::prelude::spawn;
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::JsValue;
 
 pub type PlatformFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
@@ -470,6 +473,223 @@ pub fn clear_timeout(handle: TimeoutHandle) {
 #[requires(true)]
 #[ensures(true)]
 pub fn clear_timeout(_handle: TimeoutHandle) {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(milliseconds >= 0)]
+#[ensures(true)]
+pub async fn sleep_ms(milliseconds: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        let Some(window) = web_sys::window() else {
+            let _ = resolve.call0(&JsValue::NULL);
+            return;
+        };
+        let resolve_now = resolve.clone();
+        let closure = Closure::once(move || {
+            let _ = resolve_now.call0(&JsValue::NULL);
+        });
+        if window
+            .set_timeout_with_callback_and_timeout_and_arguments_0(
+                closure.as_ref().unchecked_ref(),
+                milliseconds,
+            )
+            .is_ok()
+        {
+            closure.forget();
+        } else {
+            let _ = resolve.call0(&JsValue::NULL);
+        }
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(milliseconds >= 0)]
+#[ensures(true)]
+pub async fn sleep_ms(milliseconds: i32) {
+    let delay = u64::try_from(milliseconds).unwrap_or(0);
+    let _ = run_native_task(move || {
+        std::thread::sleep(std::time::Duration::from_millis(delay));
+        Ok(())
+    })
+    .await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+pub async fn run_native_task<T>(
+    task: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String>
+where
+    T: Send + 'static,
+{
+    let (sender, receiver) = futures_channel::oneshot::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(task());
+    });
+    receiver
+        .await
+        .map_err(|_| "native task was cancelled before it completed".to_owned())?
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+async fn wait_animation_frame() {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        let Some(window) = web_sys::window() else {
+            let _ = resolve.call0(&JsValue::NULL);
+            return;
+        };
+        let resolve_now = resolve.clone();
+        let closure = Closure::once(move |_timestamp: f64| {
+            let _ = resolve_now.call0(&JsValue::NULL);
+        });
+        if window
+            .request_animation_frame(closure.as_ref().unchecked_ref())
+            .is_ok()
+        {
+            closure.forget();
+        } else {
+            let _ = resolve.call0(&JsValue::NULL);
+        }
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+async fn wait_animation_frame() {
+    sleep_ms(16).await;
+}
+
+#[cfg(any(
+    target_arch = "wasm32",
+    all(not(target_arch = "wasm32"), feature = "desktop")
+))]
+#[requires(delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_task_after_delay<F, Fut>(delay_ms: i32, task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    spawn(async move {
+        sleep_ms(delay_ms).await;
+        task().await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_task_after_delay<F, Fut>(delay_ms: i32, task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    let _ = delay_ms;
+    let _ = task;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub fn schedule_visual_measure_task<F, Fut>(task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    spawn(async move {
+        wait_animation_frame().await;
+        task().await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub fn schedule_visual_measure_task<F, Fut>(task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    spawn(async move {
+        sleep_ms(0).await;
+        task().await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+pub fn schedule_visual_measure_task<F, Fut>(task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    spawn(async move {
+        task().await;
+    });
+}
+
+#[cfg(any(
+    target_arch = "wasm32",
+    all(not(target_arch = "wasm32"), feature = "desktop")
+))]
+#[requires(initial_delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_passes<F, Fut>(initial_delay_ms: i32, frame_passes: u8, mut task: F)
+where
+    F: FnMut() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    spawn(async move {
+        sleep_ms(initial_delay_ms).await;
+        task().await;
+        for _ in 0..frame_passes {
+            wait_animation_frame().await;
+            task().await;
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(initial_delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_passes<F, Fut>(initial_delay_ms: i32, frame_passes: u8, task: F)
+where
+    F: FnMut() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    let _ = initial_delay_ms;
+    let _ = frame_passes;
+    let _ = task;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub fn schedule_after_fonts_ready<F, Fut>(document: &web_sys::Document, task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
+        return;
+    };
+    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
+        return;
+    };
+    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
+        return;
+    };
+    wasm_bindgen_futures::spawn_local(async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+        task().await;
+    });
+}
 
 #[requires(metrics.available_width >= 0.0)]
 #[ensures(true)]

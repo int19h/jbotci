@@ -202,17 +202,12 @@ const PAGE_FIND_INPUT_ID: &str = "app-page-find-input";
 const VLACKU_JVOZBA_MIN_WIDTH_PX: f64 = 981.0;
 #[cfg(target_arch = "wasm32")]
 const CUKTA_TOC_FORCED_AUTOHIDE_WIDTH_PX: f64 = 1100.0;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
+#[allow(dead_code)]
 const VLACKU_JVOZBA_HEIGHT_SCALE: f64 = 0.5;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const VLACKU_JVOZBA_LAYOUT_FRAME_PASSES: u8 = 2;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS: i32 = 30;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES: u8 = 2;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_TREE_LAYOUT_DELAY_MS: i32 = 30;
-#[cfg(any(target_arch = "wasm32", feature = "desktop"))]
 const GENTUFA_TREE_LAYOUT_FRAME_PASSES: u8 = 2;
 #[allow(dead_code)]
 const BLOCK_REFERENCE_LABEL_GAP_PX: f64 = 8.0;

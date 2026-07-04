@@ -448,7 +448,7 @@ pub(super) fn AppShell() -> Element {
         let mut visible_for_delay = visible;
         let mut delay_task_for_delay = delay_task;
         let task = spawn(async move {
-            sleep_ms(ASYNC_ACTIVITY_INDICATOR_DELAY_MS).await;
+            platform::sleep_ms(ASYNC_ACTIVITY_INDICATOR_DELAY_MS).await;
             if activity_for_delay.read().is_active() {
                 visible_for_delay.set(true);
             }

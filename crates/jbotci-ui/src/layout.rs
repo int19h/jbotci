@@ -71,7 +71,6 @@ pub(super) fn update_topbar_layout(
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_topbar_settings_layout_measure(
@@ -79,105 +78,85 @@ pub(super) fn schedule_topbar_settings_layout_measure(
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
 ) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
+    platform::schedule_visual_measure_task(move || async move {
         update_topbar_layout(
             settings_layout,
             settings_open,
             nav_layout,
-            measure_topbar_settings_layout(),
+            measure_topbar_settings_layout_scheduled().await,
         );
     });
-    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
-    closure.forget();
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn schedule_topbar_active_nav_sync() {
+    platform::schedule_visual_measure_task(|| async {
+        scroll_active_topbar_nav_into_view_scheduled().await;
+    });
 }
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_topbar_active_nav_sync() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        scroll_active_topbar_nav_into_view();
-    });
-    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
-    closure.forget();
+pub(super) async fn scroll_active_topbar_nav_into_view_scheduled() {
+    scroll_active_topbar_nav_into_view();
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_topbar_active_nav_sync() {
-    spawn(async move {
-        sleep_ms(0).await;
-        let _ = document::eval(
-            r#"
-            const active = document.querySelector('.app-topbar-nav-carousel-track [data-topbar-nav-active="true"]');
-            if (active) {
-                active.scrollIntoView({ block: "nearest", inline: "center" });
-            }
-            return null;
-            "#,
-        )
-        .await;
-    });
-}
-
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_topbar_active_nav_sync() {}
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_topbar_settings_layout_measure(
-    settings_layout: Signal<TopbarSettingsLayout>,
-    settings_open: Signal<bool>,
-    nav_layout: Signal<TopbarNavLayout>,
-) {
-    spawn(async move {
-        let mut layout = None;
-        for delay_ms in [0, 16, 64] {
-            sleep_ms(delay_ms).await;
-            layout = measure_topbar_settings_layout_desktop().await;
-            if layout.is_some() {
-                break;
-            }
+pub(super) async fn scroll_active_topbar_nav_into_view_scheduled() {
+    let _ = document::eval(
+        r#"
+        const active = document.querySelector('.app-topbar-nav-carousel-track [data-topbar-nav-active="true"]');
+        if (active) {
+            active.scrollIntoView({ block: "nearest", inline: "center" });
         }
-        update_topbar_layout(
-            settings_layout,
-            settings_open,
-            nav_layout,
-            layout.unwrap_or(new!(TopbarLayout {
-                settings: TopbarSettingsLayout::BothInline,
-                nav: TopbarNavLayout::Full,
-            })),
-        );
-    });
+        return null;
+        "#,
+    )
+    .await;
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_topbar_settings_layout_measure(
-    settings_layout: Signal<TopbarSettingsLayout>,
-    settings_open: Signal<bool>,
-    nav_layout: Signal<TopbarNavLayout>,
-) {
-    update_topbar_layout(
-        settings_layout,
-        settings_open,
-        nav_layout,
-        new!(TopbarLayout {
-            settings: TopbarSettingsLayout::BothInline,
-            nav: TopbarNavLayout::Full,
-        }),
-    );
+pub(super) async fn scroll_active_topbar_nav_into_view_scheduled() {}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_topbar_settings_layout_scheduled() -> TopbarLayout {
+    measure_topbar_settings_layout()
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_topbar_settings_layout_scheduled() -> TopbarLayout {
+    let mut layout = None;
+    for delay_ms in [0, 16, 64] {
+        platform::sleep_ms(delay_ms).await;
+        layout = measure_topbar_settings_layout_desktop().await;
+        if layout.is_some() {
+            break;
+        }
+    }
+    layout.unwrap_or(new!(TopbarLayout {
+        settings: TopbarSettingsLayout::BothInline,
+        nav: TopbarNavLayout::Full,
+    }))
+}
+
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn measure_topbar_settings_layout_scheduled() -> TopbarLayout {
+    new!(TopbarLayout {
+        settings: TopbarSettingsLayout::BothInline,
+        nav: TopbarNavLayout::Full,
+    })
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -189,17 +168,7 @@ pub(super) fn schedule_topbar_settings_layout_after_fonts_ready(
     settings_open: Signal<bool>,
     nav_layout: Signal<TopbarNavLayout>,
 ) {
-    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
-        return;
-    };
-    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
-        return;
-    };
-    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
-        return;
-    };
-    wasm_bindgen_futures::spawn_local(async move {
-        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    platform::schedule_after_fonts_ready(document, move || async move {
         schedule_topbar_settings_layout_measure(settings_layout, settings_open, nav_layout);
     });
 }
@@ -515,33 +484,32 @@ pub(super) fn topbar_column_gap(element: &web_sys::Element) -> f64 {
         .unwrap_or(0.0)
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_page_find_match_scroll(match_index: usize) {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || scroll_page_find_match(match_index));
-    let _ = window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
-    closure.forget();
+    platform::schedule_layout_task_after_delay(0, move || async move {
+        scroll_page_find_match_scheduled(match_index).await;
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn scroll_page_find_match_scheduled(match_index: usize) {
+    scroll_page_find_match(match_index);
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_page_find_match_scroll(match_index: usize) {
-    spawn(async move {
-        sleep_ms(0).await;
-        scroll_page_find_match_desktop(match_index).await;
-    });
+pub(super) async fn scroll_page_find_match_scheduled(match_index: usize) {
+    scroll_page_find_match_desktop(match_index).await;
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_page_find_match_scroll(_match_index: usize) {}
+pub(super) async fn scroll_page_find_match_scheduled(_match_index: usize) {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -1222,7 +1190,7 @@ pub(super) async fn poll_embedding_settings_while_busy(
     mut settings: Signal<EmbeddingSettingsState>,
 ) {
     loop {
-        sleep_ms(350).await;
+        platform::sleep_ms(350).await;
         if !settings.read().busy {
             break;
         }
@@ -1291,7 +1259,7 @@ pub(super) fn spawn_vlacku_semantic_loading_message(
     state: VlackuWebState,
 ) {
     spawn(async move {
-        sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
+        platform::sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
         if embedding_status_is_loading_model().await {
             result_signal.with_mut(|current| {
                 if current.loading && current.state.as_ref() == Some(&state) {
@@ -1353,7 +1321,7 @@ pub(super) fn spawn_cukta_semantic_loading_message(
     state: CuktaWebSearchState,
 ) {
     spawn(async move {
-        sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
+        platform::sleep_ms(SEMANTIC_LOADING_MESSAGE_DELAY_MS).await;
         if embedding_status_is_loading_model().await {
             result_signal.with_mut(|current| {
                 if current.loading && current.state.as_ref() == Some(&state) {
@@ -1750,7 +1718,7 @@ pub(super) async fn embedding_status_json() -> Result<String, String> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 pub(super) async fn embedding_status_json() -> Result<String, String> {
-    run_native_task(native_embedding_status_json_result).await
+    platform::run_native_task(native_embedding_status_json_result).await
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
@@ -1783,7 +1751,7 @@ pub(super) async fn embedding_setup_json(corpus_json: &str) -> Result<String, St
 pub(super) async fn embedding_setup_json(corpus_json: &str) -> Result<String, String> {
     let _ = corpus_json;
     let model_key = load_embedding_model_key();
-    run_native_task(move || native_embedding_setup_json_result(model_key)).await
+    platform::run_native_task(move || native_embedding_setup_json_result(model_key)).await
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
@@ -1805,7 +1773,7 @@ pub(super) async fn embedding_remove_json() -> Result<String, String> {
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
 pub(super) async fn embedding_remove_json() -> Result<String, String> {
     let model_key = load_embedding_model_key();
-    run_native_task(move || native_embedding_remove_json_result(model_key)).await
+    platform::run_native_task(move || native_embedding_remove_json_result(model_key)).await
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
@@ -1852,7 +1820,7 @@ pub(super) async fn embedding_search_json(
     let corpus_id = corpus_id.to_owned();
     let query = query.to_owned();
     let kind_filters = kind_filters.to_owned();
-    run_native_task(move || {
+    platform::run_native_task(move || {
         native_embedding_search_json_result(&model_key, &corpus_id, &query, limit, &kind_filters)
     })
     .await
@@ -2477,64 +2445,6 @@ pub(super) async fn promise_to_string(promise: js_sys::Promise) -> Result<String
     value
         .as_string()
         .ok_or_else(|| "embedding worker returned a non-string response".to_owned())
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(milliseconds >= 0)]
-#[ensures(true)]
-pub(super) async fn sleep_ms(milliseconds: i32) {
-    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
-        let Some(window) = web_sys::window() else {
-            let _ = resolve.call0(&JsValue::NULL);
-            return;
-        };
-        let resolve_now = resolve.clone();
-        let closure = Closure::once(move || {
-            let _ = resolve_now.call0(&JsValue::NULL);
-        });
-        if window
-            .set_timeout_with_callback_and_timeout_and_arguments_0(
-                closure.as_ref().unchecked_ref(),
-                milliseconds,
-            )
-            .is_ok()
-        {
-            closure.forget();
-        } else {
-            let _ = resolve.call0(&JsValue::NULL);
-        }
-    });
-    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(milliseconds >= 0)]
-#[ensures(true)]
-pub(super) async fn sleep_ms(milliseconds: i32) {
-    let delay = u64::try_from(milliseconds).unwrap_or(0);
-    let _ = run_native_task(move || {
-        std::thread::sleep(std::time::Duration::from_millis(delay));
-        Ok(())
-    })
-    .await;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
-pub(super) async fn run_native_task<T>(
-    task: impl FnOnce() -> Result<T, String> + Send + 'static,
-) -> Result<T, String>
-where
-    T: Send + 'static,
-{
-    let (sender, receiver) = futures_channel::oneshot::channel();
-    std::thread::spawn(move || {
-        let _ = sender.send(task());
-    });
-    receiver
-        .await
-        .map_err(|_| "native task was cancelled before it completed".to_owned())?
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -3224,23 +3134,13 @@ pub(super) fn install_browser_dom_handlers(
     );
 }
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_gentufa_textarea_resize() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || resize_gentufa_textarea());
-    let _ = window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0);
-    closure.forget();
+    platform::schedule_layout_task_after_delay(0, || async {
+        resize_gentufa_textarea();
+    });
 }
-
-#[cfg(not(target_arch = "wasm32"))]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_gentufa_textarea_resize() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -3260,117 +3160,72 @@ pub(super) fn resize_gentufa_textarea() {
     let _ = style.remove_property("height");
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(target_arch = "wasm32"))]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn resize_gentufa_textarea() {}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_gentufa_block_reference_layout() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        adjust_gentufa_block_reference_layout();
-        schedule_gentufa_block_reference_layout_animation_frames(
-            GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES,
-        );
-    });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
+    platform::schedule_layout_passes(
         GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS,
+        GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES,
+        || async {
+            adjust_gentufa_block_reference_layout_scheduled().await;
+        },
     );
-    closure.forget();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn adjust_gentufa_block_reference_layout_scheduled() {
+    adjust_gentufa_block_reference_layout();
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_gentufa_block_reference_layout() {
-    spawn(async move {
-        sleep_ms(GENTUFA_BLOCK_REFERENCE_LAYOUT_DELAY_MS).await;
-        adjust_gentufa_block_reference_layout_desktop().await;
-        for _ in 0..GENTUFA_BLOCK_REFERENCE_LAYOUT_FRAME_PASSES {
-            sleep_ms(16).await;
-            adjust_gentufa_block_reference_layout_desktop().await;
-        }
-    });
+pub(super) async fn adjust_gentufa_block_reference_layout_scheduled() {
+    adjust_gentufa_block_reference_layout_desktop().await;
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_gentufa_block_reference_layout() {}
+pub(super) async fn adjust_gentufa_block_reference_layout_scheduled() {}
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_gentufa_tree_layout() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        layout_gentufa_tree_lines();
-        schedule_gentufa_tree_layout_animation_frames(GENTUFA_TREE_LAYOUT_FRAME_PASSES);
-    });
-    let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
-        closure.as_ref().unchecked_ref(),
+    platform::schedule_layout_passes(
         GENTUFA_TREE_LAYOUT_DELAY_MS,
+        GENTUFA_TREE_LAYOUT_FRAME_PASSES,
+        || async {
+            layout_gentufa_tree_lines_scheduled().await;
+        },
     );
-    closure.forget();
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn layout_gentufa_tree_lines_scheduled() {
+    layout_gentufa_tree_lines();
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_gentufa_tree_layout() {
-    spawn(async move {
-        sleep_ms(GENTUFA_TREE_LAYOUT_DELAY_MS).await;
-        layout_gentufa_tree_lines_desktop().await;
-        for _ in 0..GENTUFA_TREE_LAYOUT_FRAME_PASSES {
-            sleep_ms(16).await;
-            layout_gentufa_tree_lines_desktop().await;
-        }
-    });
+pub(super) async fn layout_gentufa_tree_lines_scheduled() {
+    layout_gentufa_tree_lines_desktop().await;
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_gentufa_tree_layout() {}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_gentufa_block_reference_layout_animation_frames(remaining: u8) {
-    if remaining == 0 {
-        return;
-    }
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move |_timestamp: f64| {
-        adjust_gentufa_block_reference_layout();
-        schedule_gentufa_block_reference_layout_animation_frames(remaining - 1);
-    });
-    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
-    closure.forget();
-}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_gentufa_tree_layout_animation_frames(remaining: u8) {
-    if remaining == 0 {
-        return;
-    }
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move |_timestamp: f64| {
-        layout_gentufa_tree_lines();
-        schedule_gentufa_tree_layout_animation_frames(remaining - 1);
-    });
-    let _ = window.request_animation_frame(closure.as_ref().unchecked_ref());
-    closure.forget();
-}
+pub(super) async fn layout_gentufa_tree_lines_scheduled() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
@@ -3378,17 +3233,7 @@ pub(super) fn schedule_gentufa_tree_layout_animation_frames(remaining: u8) {
 pub(super) fn schedule_gentufa_block_reference_layout_after_fonts_ready(
     document: &web_sys::Document,
 ) {
-    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
-        return;
-    };
-    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
-        return;
-    };
-    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
-        return;
-    };
-    wasm_bindgen_futures::spawn_local(async move {
-        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    platform::schedule_after_fonts_ready(document, || async {
         adjust_gentufa_block_reference_layout();
     });
 }
@@ -3397,17 +3242,7 @@ pub(super) fn schedule_gentufa_block_reference_layout_after_fonts_ready(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_gentufa_tree_layout_after_fonts_ready(document: &web_sys::Document) {
-    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
-        return;
-    };
-    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
-        return;
-    };
-    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
-        return;
-    };
-    wasm_bindgen_futures::spawn_local(async move {
-        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    platform::schedule_after_fonts_ready(document, || async {
         layout_gentufa_tree_lines();
     });
 }
@@ -5125,85 +4960,38 @@ pub(super) fn set_brivla_toggle_indeterminate(indeterminate: bool) {
 #[ensures(true)]
 pub(super) fn set_brivla_toggle_indeterminate(_indeterminate: bool) {}
 
-#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_vlacku_jvozba_pane_metrics_sync() {
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move || {
-        sync_vlacku_jvozba_pane_metrics();
-        schedule_vlacku_jvozba_pane_metrics_animation_frames(VLACKU_JVOZBA_LAYOUT_FRAME_PASSES);
+    platform::schedule_layout_passes(0, VLACKU_JVOZBA_LAYOUT_FRAME_PASSES, || async {
+        sync_vlacku_jvozba_pane_metrics_scheduled().await;
     });
-    if window
-        .set_timeout_with_callback_and_timeout_and_arguments_0(closure.as_ref().unchecked_ref(), 0)
-        .is_ok()
-    {
-        closure.forget();
-    } else {
-        sync_vlacku_jvozba_pane_metrics();
-    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[requires(true)]
+#[ensures(true)]
+pub(super) async fn sync_vlacku_jvozba_pane_metrics_scheduled() {
+    sync_vlacku_jvozba_pane_metrics();
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_vlacku_jvozba_pane_metrics_sync() {
-    spawn(async move {
-        sleep_ms(0).await;
-        sync_vlacku_jvozba_pane_metrics_desktop().await;
-        for _ in 0..VLACKU_JVOZBA_LAYOUT_FRAME_PASSES {
-            sleep_ms(16).await;
-            sync_vlacku_jvozba_pane_metrics_desktop().await;
-        }
-    });
+pub(super) async fn sync_vlacku_jvozba_pane_metrics_scheduled() {
+    sync_vlacku_jvozba_pane_metrics_desktop().await;
 }
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "desktop")))]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn schedule_vlacku_jvozba_pane_metrics_sync() {}
-
-#[cfg(target_arch = "wasm32")]
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn schedule_vlacku_jvozba_pane_metrics_animation_frames(remaining: u8) {
-    if remaining == 0 {
-        return;
-    }
-    let Some(window) = web_sys::window() else {
-        return;
-    };
-    let closure = Closure::once(move |_timestamp: f64| {
-        sync_vlacku_jvozba_pane_metrics();
-        schedule_vlacku_jvozba_pane_metrics_animation_frames(remaining - 1);
-    });
-    if window
-        .request_animation_frame(closure.as_ref().unchecked_ref())
-        .is_ok()
-    {
-        closure.forget();
-    } else {
-        sync_vlacku_jvozba_pane_metrics();
-    }
-}
+pub(super) async fn sync_vlacku_jvozba_pane_metrics_scheduled() {}
 
 #[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn schedule_vlacku_jvozba_pane_metrics_after_fonts_ready(document: &web_sys::Document) {
-    let Ok(fonts) = js_sys::Reflect::get(document.as_ref(), &JsValue::from_str("fonts")) else {
-        return;
-    };
-    let Ok(ready) = js_sys::Reflect::get(&fonts, &JsValue::from_str("ready")) else {
-        return;
-    };
-    let Ok(promise) = ready.dyn_into::<js_sys::Promise>() else {
-        return;
-    };
-    wasm_bindgen_futures::spawn_local(async move {
-        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    platform::schedule_after_fonts_ready(document, || async {
         schedule_vlacku_jvozba_pane_metrics_sync();
     });
 }
