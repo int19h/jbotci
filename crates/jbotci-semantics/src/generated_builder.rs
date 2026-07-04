@@ -80,7 +80,7 @@ use jbotci_syntax::generated_model::{
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
 
-use crate::builder::{
+use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::model::{
