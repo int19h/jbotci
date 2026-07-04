@@ -318,6 +318,13 @@ enum GeneratedScalarNegationScope {
     VisibleArgumentsAndLinkargs,
 }
 
+#[invariant(eventuality.is_none_or(|eventuality| eventuality.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+#[derive(Debug, Clone)]
+struct ScalarNegationContext {
+    eventuality: Option<SemanticObjectId>,
+    scalar_negation: ScalarNegation,
+}
+
 #[invariant(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
 #[invariant(head_predication.object_kind() == crate::model::SemanticObjectKind::Predication)]
 #[derive(Debug, Clone)]
@@ -10915,6 +10922,38 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        self.build_generated_logical_sumti_connection_formula_for_terms_with_scalar_negation_context(
+            relation,
+            terms,
+            first_visible_place,
+            place_limit,
+            conversions,
+            mode,
+            predication_source,
+            formula_source,
+            None,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[requires(first_visible_place > 0)]
+    #[requires(place_limit > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    fn build_generated_logical_sumti_connection_formula_for_terms_with_scalar_negation_context<
+        'syntax,
+        F,
+    >(
+        &mut self,
+        relation: &str,
+        terms: &[&'syntax TermSyntax],
+        first_visible_place: usize,
+        place_limit: usize,
+        conversions: &[WithFreeModifiers<Token, F>],
+        mode: PredicationMode,
+        predication_source: Option<crate::model::SemanticSource>,
+        formula_source: Option<crate::model::SemanticSource>,
+        scalar_negation_context: Option<ScalarNegationContext>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let has_distributed_sumti_connection = terms
             .iter()
             .any(|term| generated_term_has_distributed_sumti_connection(term));
@@ -10923,7 +10962,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         if !has_distributed_sumti_connection && !has_duplicate_numbered_assignments {
             return Ok(None);
         }
-        if !has_duplicate_numbered_assignments {
+        if scalar_negation_context.is_none() && !has_duplicate_numbered_assignments {
             if let Some(formula) = self
                 .build_recursive_generated_logical_sumti_connection_formula_for_terms(
                     relation,
@@ -11186,78 +11225,184 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .values()
             .flat_map(|value| value.formula_scopes.iter().cloned())
             .collect::<Vec<_>>();
+        let connection_formula_source =
+            source_with_construct(source.clone(), "sumti-connection-formula");
         let pure_modal_connection =
             connective.is_some_and(generated_distributed_sumti_connective_is_pure_modal);
         let mut children = Vec::new();
-        for mut branch in branches {
-            for place in 1..=fill_through {
-                if !branch.contains_key(&place) && !shared_arguments.contains_key(&place) {
-                    branch.insert(
-                        place,
-                        GeneratedAlternativeArgument {
-                            argument: self.build_elided_argument_for_place(place)?,
-                            negated: false,
-                            formula_scopes: Vec::new(),
-                        },
-                    );
+        if let Some(scalar_negation_context) = scalar_negation_context {
+            let event_template = self.take_deferred_generated_eventuality_template(
+                scalar_negation_context.eventuality,
+            )?;
+            let mut prebuilt_branches = Vec::with_capacity(branches.len());
+            for branch in branches {
+                let mut values = shared_arguments.clone();
+                for (place, value) in branch {
+                    if values.insert(place, value).is_some() {
+                        return Err(invalid_graph(format!(
+                            "multiple generated bridi arguments map to x{place}"
+                        )));
+                    }
                 }
+                prebuilt_branches.push(values);
             }
-            let mut arguments = BTreeMap::new();
-            let mut branch_negated = false;
-            let mut branch_scopes = Vec::new();
-            for (place, value) in &shared_arguments {
-                branch_negated |= value.negated;
-                let place = mapped_place_for_generated_conversions(*place, conversions)?;
-                arguments.insert(argument_key(place), value.argument.clone());
-            }
-            for (place, value) in branch {
-                branch_negated |= value.negated;
-                branch_scopes.extend(value.formula_scopes);
-                let place = mapped_place_for_generated_conversions(place, conversions)?;
-                arguments.insert(argument_key(place), value.argument);
-            }
-            let eventuality = self.build_generated_predication_eventuality(
-                source_with_construct(source.clone(), "distributed-predication"),
-            )?;
-            self.apply_generated_tagged_term_event_modifiers(eventuality, &modal_terms)?;
-            let modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
-                    eventuality,
-                    &modal_terms,
-                    Some(&arguments),
+
+            let mut reserved_deferred_event_compatibility_id = false;
+            let mut reserved_scalar_branch_compatibility_id = false;
+            for mut branch in prebuilt_branches {
+                let eventuality = self.build_generated_branch_eventuality_from_template(
+                    event_template.as_ref(),
+                    connection_formula_source.clone(),
                 )?;
-            let mut predication_object = SemanticObject::predication(
-                relation.to_owned(),
-                Some(eventuality),
-                arguments,
-                predication_mode_for_relation(relation, mode),
-                source_with_construct(source.clone(), "distributed-predication"),
-                Vec::new(),
-            );
-            predication_object.modal_arguments = modal_arguments;
-            let predication = self.next_predication_id();
-            self.insert(predication, predication_object)?;
-            let formula = self.next_formula_id();
-            self.insert(
-                formula,
-                SemanticObject::atom_formula(
-                    predication,
-                    source_with_construct(source.clone(), "distributed-formula"),
+                self.apply_generated_tagged_term_event_modifiers(eventuality, &modal_terms)?;
+                if event_template.is_some() && !reserved_deferred_event_compatibility_id {
+                    self.reserve_generated_semantic_id();
+                    reserved_deferred_event_compatibility_id = true;
+                }
+                if event_template.is_none() && !reserved_scalar_branch_compatibility_id {
+                    self.reserve_generated_semantic_id();
+                    reserved_scalar_branch_compatibility_id = true;
+                }
+                for place in 1..=fill_through {
+                    if !branch.contains_key(&place) {
+                        branch.insert(
+                            place,
+                            GeneratedAlternativeArgument {
+                                argument: self.build_elided_argument_for_place(place)?,
+                                negated: false,
+                                formula_scopes: Vec::new(),
+                            },
+                        );
+                    }
+                }
+                let mut arguments = BTreeMap::new();
+                let mut branch_negated = false;
+                let mut branch_scopes = Vec::new();
+                for (place, value) in branch {
+                    branch_negated |= value.negated;
+                    branch_scopes.extend(value.formula_scopes);
+                    let place = mapped_place_for_generated_conversions(place, conversions)?;
+                    let key = argument_key(place);
+                    if arguments.insert(key.clone(), value.argument).is_some() {
+                        return Err(invalid_graph(format!(
+                            "multiple generated bridi arguments map to {key}"
+                        )));
+                    }
+                }
+                let modal_arguments = self
+                    .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                        eventuality,
+                        &modal_terms,
+                        Some(&arguments),
+                    )?;
+                let mut predication_object = SemanticObject::predication(
+                    relation.to_owned(),
+                    Some(eventuality),
+                    arguments,
+                    predication_mode_for_relation(relation, mode),
+                    connection_formula_source.clone(),
                     Vec::new(),
-                ),
-            )?;
-            let formula =
-                self.wrap_formula_with_generated_argument_scopes(formula, branch_scopes)?;
-            let formula = if branch_negated {
-                self.build_unary_formula(
-                    FormulaOperator::Not,
+                );
+                predication_object.modal_arguments = modal_arguments;
+                let predication = self.next_predication_id();
+                self.insert(predication, predication_object)?;
+                self.set_scalar_negation(
+                    predication,
+                    scalar_negation_context.scalar_negation.clone(),
+                )?;
+                let formula = self.next_formula_id();
+                self.insert(
                     formula,
-                    source_with_construct(source.clone(), "distributed-negation"),
-                )?
-            } else {
-                formula
-            };
-            children.push(formula);
+                    SemanticObject::atom_formula(
+                        predication,
+                        connection_formula_source.clone(),
+                        Vec::new(),
+                    ),
+                )?;
+                let formula =
+                    self.wrap_formula_with_generated_argument_scopes(formula, branch_scopes)?;
+                let formula = if branch_negated {
+                    self.build_unary_formula(
+                        FormulaOperator::Not,
+                        formula,
+                        source_with_construct(source.clone(), "distributed-negation"),
+                    )?
+                } else {
+                    formula
+                };
+                children.push(formula);
+            }
+        } else {
+            for mut branch in branches {
+                for place in 1..=fill_through {
+                    if !branch.contains_key(&place) && !shared_arguments.contains_key(&place) {
+                        branch.insert(
+                            place,
+                            GeneratedAlternativeArgument {
+                                argument: self.build_elided_argument_for_place(place)?,
+                                negated: false,
+                                formula_scopes: Vec::new(),
+                            },
+                        );
+                    }
+                }
+                let mut arguments = BTreeMap::new();
+                let mut branch_negated = false;
+                let mut branch_scopes = Vec::new();
+                for (place, value) in &shared_arguments {
+                    branch_negated |= value.negated;
+                    let place = mapped_place_for_generated_conversions(*place, conversions)?;
+                    arguments.insert(argument_key(place), value.argument.clone());
+                }
+                for (place, value) in branch {
+                    branch_negated |= value.negated;
+                    branch_scopes.extend(value.formula_scopes);
+                    let place = mapped_place_for_generated_conversions(place, conversions)?;
+                    arguments.insert(argument_key(place), value.argument);
+                }
+                let eventuality = self.build_generated_predication_eventuality(
+                    source_with_construct(source.clone(), "distributed-predication"),
+                )?;
+                self.apply_generated_tagged_term_event_modifiers(eventuality, &modal_terms)?;
+                let modal_arguments = self
+                    .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
+                        eventuality,
+                        &modal_terms,
+                        Some(&arguments),
+                    )?;
+                let mut predication_object = SemanticObject::predication(
+                    relation.to_owned(),
+                    Some(eventuality),
+                    arguments,
+                    predication_mode_for_relation(relation, mode),
+                    source_with_construct(source.clone(), "distributed-predication"),
+                    Vec::new(),
+                );
+                predication_object.modal_arguments = modal_arguments;
+                let predication = self.next_predication_id();
+                self.insert(predication, predication_object)?;
+                let formula = self.next_formula_id();
+                self.insert(
+                    formula,
+                    SemanticObject::atom_formula(
+                        predication,
+                        source_with_construct(source.clone(), "distributed-formula"),
+                        Vec::new(),
+                    ),
+                )?;
+                let formula =
+                    self.wrap_formula_with_generated_argument_scopes(formula, branch_scopes)?;
+                let formula = if branch_negated {
+                    self.build_unary_formula(
+                        FormulaOperator::Not,
+                        formula,
+                        source_with_construct(source.clone(), "distributed-negation"),
+                    )?
+                } else {
+                    formula
+                };
+                children.push(formula);
+            }
         }
 
         let mut diagnostics = Vec::new();
@@ -11278,7 +11423,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     other_formula,
                     &spec,
                     source_with_construct(source.clone(), "sumti-connection-claim"),
-                )? {
+                )?
+                {
                     Some(claim) => {
                         if pure_modal_connection {
                             self.set_formula_predication_mode(
@@ -11328,7 +11474,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     .unwrap_or(FormulaOperator::And),
                 children,
                 generated_distributed_sumti_connector(connective, connector_parameter)?,
-                source_with_construct(source, "sumti-connection-formula"),
+                connection_formula_source,
                 diagnostics,
             ),
         )?;
@@ -11487,438 +11633,20 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         formula_source: Option<crate::model::SemanticSource>,
         scalar_negation: ScalarNegation,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let has_distributed_sumti_connection = terms
-            .iter()
-            .any(|term| generated_term_has_distributed_sumti_connection(term));
-        let has_duplicate_numbered_assignments =
-            generated_terms_have_duplicate_numbered_assignments(terms, first_visible_place)?;
-        if !has_distributed_sumti_connection && !has_duplicate_numbered_assignments {
-            return Ok(None);
-        }
-        let event_template = self.take_deferred_generated_eventuality_template(eventuality)?;
-
-        let mut alternatives = BTreeMap::<usize, Vec<GeneratedAlternativeArgumentSource>>::new();
-        let mut modal_terms = Vec::new();
-        let mut term_formula_scopes = Vec::new();
-        let mut connective = None;
-        let mut pending_connections = Vec::<(usize, &'syntax SumtiAfterthoughtSyntax)>::new();
-        let mut pending_bound_connections = Vec::<(usize, &'syntax SumtiBoundSyntax)>::new();
-        let mut pending_forethought_connections =
-            Vec::<(usize, &'syntax ForethoughtSumtiSyntax)>::new();
-        let mut next_visible_place = first_visible_place;
-        let mut highest_assigned_place = 0usize;
-        for term in terms {
-            let simple = generated_simple_term_for_assignment(term)?;
-            match simple {
-                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
-                    let place = next_visible_place;
-                    next_visible_place += 1;
-                    highest_assigned_place = highest_assigned_place.max(place);
-                    if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti)
-                    {
-                        let [continuation] = afterthought.continuations.as_slice() else {
-                            return Err(unsupported(
-                                "multi-continuation generated sumti distribution",
-                            ));
-                        };
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
-                                connective: &continuation.connective,
-                                tense_modal: None,
-                                bo: false,
-                            }));
-                        pending_connections.push((place, afterthought));
-                    } else if let Some(bound) = generated_sumti_bound_for_distribution(sumti) {
-                        let tail = bound
-                            .bound_tail
-                            .as_ref()
-                            .expect("bound distribution has tail");
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
-                                connective: tail.connective.as_ref(),
-                                tense_modal: tail.tense_modal.as_deref(),
-                                bo: true,
-                            }));
-                        pending_bound_connections.push((place, bound));
-                    } else if let Some(forethought) =
-                        generated_sumti_forethought_for_distribution(sumti)
-                    {
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
-                                gek: &forethought.gek,
-                                gik: &forethought.first_branch.gik,
-                            }));
-                        pending_forethought_connections.push((place, forethought));
-                    } else {
-                        self.insert_generated_sumti_distribution_alternatives(
-                            &mut alternatives,
-                            place,
-                            sumti,
-                        )?;
-                    }
-                }
-                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                    let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
-                        let place = fa_place(&term.fa.value)?;
-                        insert_generated_alternative_argument(
-                            &mut alternatives,
-                            place,
-                            GeneratedAlternativeArgument {
-                                argument: self
-                                    .build_tagged_or_elided_sumti_argument(&term.sumti)?,
-                                negated: false,
-                                formula_scopes: Vec::new(),
-                            }
-                            .into(),
-                        )?;
-                        next_visible_place = next_visible_place.max(place + 1);
-                        highest_assigned_place = highest_assigned_place.max(place);
-                        continue;
-                    };
-                    let place = fa_place(&term.fa.value)?;
-                    highest_assigned_place = highest_assigned_place.max(place);
-                    next_visible_place = next_visible_place.max(place + 1);
-                    if let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti)
-                    {
-                        let [continuation] = afterthought.continuations.as_slice() else {
-                            return Err(unsupported(
-                                "multi-continuation generated sumti distribution",
-                            ));
-                        };
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
-                                connective: &continuation.connective,
-                                tense_modal: None,
-                                bo: false,
-                            }));
-                        pending_connections.push((place, afterthought));
-                    } else if let Some(bound) = generated_sumti_bound_for_distribution(sumti) {
-                        let tail = bound
-                            .bound_tail
-                            .as_ref()
-                            .expect("bound distribution has tail");
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
-                                connective: tail.connective.as_ref(),
-                                tense_modal: tail.tense_modal.as_deref(),
-                                bo: true,
-                            }));
-                        pending_bound_connections.push((place, bound));
-                    } else if let Some(forethought) =
-                        generated_sumti_forethought_for_distribution(sumti)
-                    {
-                        connective =
-                            connective.or(Some(GeneratedDistributedSumtiConnective::Forethought {
-                                gek: &forethought.gek,
-                                gik: &forethought.first_branch.gik,
-                            }));
-                        pending_forethought_connections.push((place, forethought));
-                    } else {
-                        self.insert_generated_sumti_distribution_alternatives(
-                            &mut alternatives,
-                            place,
-                            sumti,
-                        )?;
-                    }
-                }
-                SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                    modal_terms.push(term.clone());
-                }
-                SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
-                    self.collect_generated_term_formula_scopes_for_simple_term(
-                        *term,
-                        simple,
-                        &mut term_formula_scopes,
-                    )?;
-                }
-                _ => return Err(unsupported("non-sumti term")),
-            }
-        }
-        for (place, afterthought) in pending_connections {
-            let [continuation] = afterthought.continuations.as_slice() else {
-                return Err(unsupported(
-                    "multi-continuation generated sumti distribution",
-                ));
-            };
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::SumtiBound {
-                    sumti: &afterthought.leading_sumti,
-                    negated: generated_argument_connective_negates_left(&continuation.connective),
-                },
-            )?;
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::SumtiBound {
-                    sumti: &continuation.sumti,
-                    negated: generated_argument_connective_negates_right(&continuation.connective),
-                },
-            )?;
-        }
-        for (place, bound) in pending_bound_connections {
-            let tail = bound
-                .bound_tail
-                .as_ref()
-                .expect("bound distribution has tail");
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::SumtiForethought {
-                    sumti: &bound.leading_sumti,
-                    negated: generated_argument_connective_negates_left(tail.connective.as_ref()),
-                },
-            )?;
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::SumtiBound {
-                    sumti: &tail.trailing_sumti,
-                    negated: generated_argument_connective_negates_right(tail.connective.as_ref()),
-                },
-            )?;
-        }
-        for (place, forethought) in pending_forethought_connections {
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::Sumti {
-                    sumti: &forethought.leading_sumti,
-                    negated: generated_modal_forethought_connective_negates_left(&forethought.gek),
-                },
-            )?;
-            insert_generated_alternative_argument(
-                &mut alternatives,
-                place,
-                GeneratedAlternativeArgumentSource::SumtiForethought {
-                    sumti: &forethought.first_branch.sumti,
-                    negated: forethought.first_branch.gik.nai.is_some(),
-                },
-            )?;
-            for branch in &forethought.additional_branches {
-                insert_generated_alternative_argument(
-                    &mut alternatives,
-                    place,
-                    GeneratedAlternativeArgumentSource::SumtiForethought {
-                        sumti: &branch.sumti,
-                        negated: false,
-                    },
-                )?;
-            }
-        }
-
-        if connective.is_none() && !has_duplicate_numbered_assignments {
-            return Ok(None);
-        }
-        let fill_through = place_limit.max(highest_assigned_place);
-        let alternatives = self.prebuild_generated_alternative_arguments_by_place(alternatives)?;
-        let mut shared_arguments = BTreeMap::<usize, GeneratedAlternativeArgument>::new();
-        let mut branch_alternatives = BTreeMap::<usize, Vec<GeneratedAlternativeArgument>>::new();
-        for (place, mut values) in alternatives {
-            if values.len() == 1 {
-                let value = values.pop().expect("single value just checked");
-                shared_arguments.insert(place, value);
-            } else {
-                branch_alternatives.insert(place, values);
-            }
-        }
-        let mut branch_sources = vec![BTreeMap::<usize, GeneratedAlternativeArgument>::new()];
-        for (place, values) in branch_alternatives {
-            let mut next = Vec::new();
-            for branch in &branch_sources {
-                for value in &values {
-                    let mut branch = branch.clone();
-                    branch.insert(place, value.clone());
-                    next.push(branch);
-                }
-            }
-            branch_sources = next;
-        }
-
-        let outer_scopes = shared_arguments
-            .values()
-            .flat_map(|value| value.formula_scopes.iter().cloned())
-            .collect::<Vec<_>>();
-        let mut prebuilt_branches = Vec::with_capacity(branch_sources.len());
-        for branch in branch_sources {
-            let mut values = shared_arguments.clone();
-            for (place, value) in branch {
-                if values.insert(place, value).is_some() {
-                    return Err(invalid_graph(format!(
-                        "multiple generated bridi arguments map to x{place}"
-                    )));
-                }
-            }
-            prebuilt_branches.push(values);
-        }
-
-        let source = predication_source
-            .clone()
-            .or_else(|| formula_source.clone());
-        let branch_source = source_with_construct(source.clone(), "sumti-connection-formula");
-        let pure_modal_connection =
-            connective.is_some_and(generated_distributed_sumti_connective_is_pure_modal);
-        let mut children = Vec::new();
-        let mut reserved_deferred_event_compatibility_id = false;
-        let mut reserved_scalar_branch_compatibility_id = false;
-        for mut branch in prebuilt_branches {
-            let eventuality = self.build_generated_branch_eventuality_from_template(
-                event_template.as_ref(),
-                branch_source.clone(),
-            )?;
-            self.apply_generated_tagged_term_event_modifiers(eventuality, &modal_terms)?;
-            if event_template.is_some() && !reserved_deferred_event_compatibility_id {
-                self.reserve_generated_semantic_id();
-                reserved_deferred_event_compatibility_id = true;
-            }
-            if event_template.is_none() && !reserved_scalar_branch_compatibility_id {
-                self.reserve_generated_semantic_id();
-                reserved_scalar_branch_compatibility_id = true;
-            }
-            for place in 1..=fill_through {
-                if !branch.contains_key(&place) {
-                    branch.insert(
-                        place,
-                        GeneratedAlternativeArgument {
-                            argument: self.build_elided_argument_for_place(place)?,
-                            negated: false,
-                            formula_scopes: Vec::new(),
-                        },
-                    );
-                }
-            }
-            let mut arguments = BTreeMap::new();
-            let mut branch_negated = false;
-            let mut branch_scopes = Vec::new();
-            for (place, value) in branch {
-                branch_negated |= value.negated;
-                branch_scopes.extend(value.formula_scopes);
-                let place = mapped_place_for_generated_conversions(place, conversions)?;
-                let key = argument_key(place);
-                if arguments.insert(key.clone(), value.argument).is_some() {
-                    return Err(invalid_graph(format!(
-                        "multiple generated bridi arguments map to {key}"
-                    )));
-                }
-            }
-            let modal_arguments = self
-                .build_modal_arguments_for_generated_tagged_terms_for_event_with_predication_arguments(
-                    eventuality,
-                    &modal_terms,
-                    Some(&arguments),
-                )?;
-            let mut predication_object = SemanticObject::predication(
-                relation.to_owned(),
-                Some(eventuality),
-                arguments,
-                predication_mode_for_relation(relation, mode),
-                branch_source.clone(),
-                Vec::new(),
-            );
-            predication_object.modal_arguments = modal_arguments;
-            let predication = self.next_predication_id();
-            self.insert(predication, predication_object)?;
-            self.set_scalar_negation(predication, scalar_negation.clone())?;
-            let formula = self.next_formula_id();
-            self.insert(
-                formula,
-                SemanticObject::atom_formula(predication, branch_source.clone(), Vec::new()),
-            )?;
-            let formula =
-                self.wrap_formula_with_generated_argument_scopes(formula, branch_scopes)?;
-            let formula = if branch_negated {
-                self.build_unary_formula(
-                    FormulaOperator::Not,
-                    formula,
-                    source_with_construct(source.clone(), "distributed-negation"),
-                )?
-            } else {
-                formula
-            };
-            children.push(formula);
-        }
-
-        let mut diagnostics = Vec::new();
-        let mut modal_claim = None;
-        if let Some(connective) = connective
-            && let Some(spec) = generated_distributed_sumti_connective_modal_spec(connective)
-        {
-            if let [first_formula, second_formula] = children.as_slice() {
-                let (visible_formula, other_formula) =
-                    if generated_distributed_sumti_connective_visible_argument_is_first(connective)
-                    {
-                        (*first_formula, *second_formula)
-                    } else {
-                        (*second_formula, *first_formula)
-                    };
-                match self.build_generated_modal_formula_connection_claim(
-                    visible_formula,
-                    other_formula,
-                    &spec,
-                    source_with_construct(source.clone(), "sumti-connection-claim"),
-                )? {
-                    Some(claim) => {
-                        if pure_modal_connection {
-                            self.set_formula_predication_mode(
-                                *first_formula,
-                                PredicationMode::Inert,
-                            );
-                            self.set_formula_predication_mode(
-                                *second_formula,
-                                PredicationMode::Inert,
-                            );
-                            modal_claim = Some(claim);
-                        } else {
-                            children.push(claim);
-                        }
-                    }
-                    None => diagnostics.push(diagnostic(
-                        "modal sumti connection could not find formula-bearing bridi events to relate",
-                    )),
-                }
-            } else {
-                diagnostics.push(diagnostic(
-                    "modal sumti connection with more than two distributed branches is not fully lowered yet",
-                ));
-            }
-        }
-        if let Some(claim) = modal_claim {
-            let formula = self.wrap_formula_with_generated_assignment_scopes(
-                claim,
-                outer_scopes,
-                Vec::new(),
-                Vec::new(),
-                term_formula_scopes,
-            )?;
-            return Ok(Some(formula));
-        }
-
-        let formula = self.next_formula_id();
-        let connector_parameter = self
-            .build_generated_connective_question_parameter_for_distributed_sumti_connective_option(
-                connective,
-            )?;
-        self.insert(
-            formula,
-            SemanticObject::connective_formula(
-                connective
-                    .map(generated_distributed_sumti_connective_formula_operator)
-                    .unwrap_or(FormulaOperator::And),
-                children,
-                generated_distributed_sumti_connector(connective, connector_parameter)?,
-                branch_source,
-                diagnostics,
-            ),
-        )?;
-        let formula = self.wrap_formula_with_generated_assignment_scopes(
-            formula,
-            outer_scopes,
-            Vec::new(),
-            Vec::new(),
-            term_formula_scopes,
-        )?;
-        Ok(Some(formula))
+        self.build_generated_logical_sumti_connection_formula_for_terms_with_scalar_negation_context(
+            relation,
+            terms,
+            first_visible_place,
+            place_limit,
+            conversions,
+            mode,
+            predication_source,
+            formula_source,
+            Some(new!(ScalarNegationContext {
+                eventuality,
+                scalar_negation,
+            })),
+        )
     }
 
     #[requires(!relation.is_empty())]
