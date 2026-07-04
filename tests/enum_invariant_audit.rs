@@ -1148,231 +1148,231 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "composition kind is a closed display tag; surface/source fields carry data validity",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Built",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Built",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedAlternativeArgumentSource::SumtiForethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::SumtiForethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierScopeNode::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierScopeNode::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierScopeNode::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::NoGadriDescription",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::NoGadriDescription",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::OuterQuantifiedDescription",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::OuterQuantifiedDescription",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedArgumentQuantifierSource::QuantifiedSumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedArgumentQuantifierSource::QuantifiedSumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedBridiFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::Sumti",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::Sumti",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiAfterthought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiAfterthought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiBound",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiBound",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiForethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiForethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiBranch::SumtiGrouped",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::SumtiGrouped",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiConnective::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedDistributedSumtiConnective::Forethought",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiConnective::Forethought",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::LeadingTermTag",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedEventTenseModal::LeadingTermTag",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedEventTenseModal::TenseModal",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedEventTenseModal::TenseModal",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Bundle",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Bundle",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedOrderedFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedOrderedFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Absent",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPredicationEventuality::Absent",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPredicationEventuality::Fresh",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPredicationEventuality::Fresh",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Negation",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPrenexFormulaScope::Quantifier",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScope::Quantifier",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Argument",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Bundle",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Bundle",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::ImplicitExistential",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::ImplicitExistential",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPreparedOrderedFormulaScope::Term",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::Description",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPropertyTanruContext::Description",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedPropertyTanruContext::PropertyAbstraction",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPropertyTanruContext::PropertyAbstraction",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantity::Value",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRecurrenceQuantity::Value",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRecurrenceQuantityCacheValue::Integer",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRecurrenceQuantityCacheValue::Integer",
         "direct recurrence quantity cache integers are fully constrained by the i64 payload type",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::GohaWord",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationParameterSyntax::GohaWord",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationParameterSyntax::ProBridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationParameterSyntax::ProBridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::GohaWord",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationQuestionSyntax::GohaWord",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedRelationQuestionSyntax::ProBridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedRelationQuestionSyntax::ProBridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::MarkerOnly",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedScalarNegationScope::MarkerOnly",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTermFormulaScope::Negation",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTermFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::Root",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::Root",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::StandaloneFreeModifiers",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextPlanItem::TrailingSeparator",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextPlanItem::TrailingSeparator",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::Bridi",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::Bridi",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::EkFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::EkFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::GihekFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::GihekFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ForethoughtStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ForethoughtStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PrenexStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::PrenexStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::PreposedStatementConnection",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::PreposedStatementConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::StatementConnection",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::StatementConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TermsFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TermsFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::TextGroupStatement",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::TextGroupStatement",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaMeksoFragment",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaMeksoFragment",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder.rs:GeneratedTextRoot::ZantufaStatementTerms",
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaStatementTerms",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
