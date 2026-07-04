@@ -46,6 +46,16 @@ fn consonant_pair_class(first: char, second: char) -> Option<u8> {
         .copied()
 }
 
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn consonant_pair_class_for_test(first: char, second: char) -> Option<u8> {
+    consonant_pair_class(first, second)
+}
+
+#[cfg(test)]
+pub(super) const CONSONANT_ORDER_FOR_TEST: &str = CONSONANT_ORDER;
+
 const CONSONANT_ORDER: &str = "rlnmbvdgjzscxktfp";
 
 const PAIR_MATRIX: [[u8; 17]; 17] = [

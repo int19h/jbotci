@@ -4862,6 +4862,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn segment_and_lujvo_pair_matrices_are_equivalent() {
+        for first in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
+            for second in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
+                assert_eq!(
+                    phonotactics::consonant_pair_class_for_test(first, second),
+                    crate::lujvo::permissible_consonant_pair(first, second)
+                        .map(|rank| u8::try_from(rank).expect("lujvo pair rank fits u8")),
+                    "{first}{second}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn lujvo_recognition_cache_has_one_slot_per_index_and_state() {
         for char_count in [0, 1, 5, 32] {
             let cache = LujvoRecognitionCache::new(char_count);
