@@ -1,32 +1,40 @@
 #[allow(unused_imports)]
-use bityzba::{ensures, requires};
+use bityzba::{ensures, invariant, requires};
 
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn initial_pair_chars(first: char, second: char) -> bool {
-    matches!(
-        (first, second),
-        ('b', 'l' | 'r')
-            | ('c', 'f' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 't')
-            | ('d', 'j' | 'r' | 'z')
-            | ('f', 'l' | 'r')
-            | ('g', 'l' | 'r')
-            | ('j', 'b' | 'd' | 'g' | 'm' | 'v')
-            | ('k', 'l' | 'r')
-            | ('m', 'l' | 'r')
-            | ('p', 'l' | 'r')
-            | ('s', 'f' | 'k' | 'l' | 'm' | 'n' | 'p' | 'r' | 't')
-            | ('t', 'c' | 'r' | 's')
-            | ('v', 'l' | 'r')
-            | ('x', 'l' | 'r')
-            | ('z', 'b' | 'd' | 'g' | 'm' | 'v')
-    )
+#[invariant(::Forbidden => true)]
+#[invariant(::Permissible => true)]
+#[invariant(::Initial => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConsonantPairClass {
+    Forbidden,
+    Permissible,
+    Initial,
+}
+
+impl ConsonantPairClass {
+    #[requires(true)]
+    #[ensures(ret == !matches!(self, Self::Forbidden))]
+    pub fn is_permissible(self) -> bool {
+        !matches!(self, Self::Forbidden)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Initial))]
+    pub fn is_initial(self) -> bool {
+        matches!(self, Self::Initial)
+    }
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret == consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_initial))]
+pub(super) fn initial_pair_chars(first: char, second: char) -> bool {
+    consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_initial)
+}
+
+#[requires(true)]
+#[ensures(ret == consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible))]
 pub(super) fn permissible_consonant_pair(first: char, second: char) -> bool {
-    matches!(consonant_pair_class(first, second), Some(1 | 2))
+    consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible)
 }
 
 #[requires(true)]
@@ -37,7 +45,7 @@ pub(super) fn experimental_permissible_consonant_pair(first: char, second: char)
 
 #[requires(true)]
 #[ensures(true)]
-fn consonant_pair_class(first: char, second: char) -> Option<u8> {
+pub(crate) fn consonant_pair_class(first: char, second: char) -> Option<ConsonantPairClass> {
     let first_index = CONSONANT_ORDER.find(first)?;
     let second_index = CONSONANT_ORDER.find(second)?;
     PAIR_MATRIX
@@ -49,7 +57,10 @@ fn consonant_pair_class(first: char, second: char) -> Option<u8> {
 #[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn consonant_pair_class_for_test(first: char, second: char) -> Option<u8> {
+pub(super) fn consonant_pair_class_for_test(
+    first: char,
+    second: char,
+) -> Option<ConsonantPairClass> {
     consonant_pair_class(first, second)
 }
 
@@ -58,22 +69,27 @@ pub(super) const CONSONANT_ORDER_FOR_TEST: &str = CONSONANT_ORDER;
 
 const CONSONANT_ORDER: &str = "rlnmbvdgjzscxktfp";
 
-const PAIR_MATRIX: [[u8; 17]; 17] = [
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [2, 2, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [2, 1, 1, 1, 1, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2],
-    [2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1],
-    [2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 2, 2, 1, 1, 0, 1, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1],
-    [2, 2, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+use ConsonantPairClass::{Forbidden as F, Initial as I, Permissible as P};
+
+// CLL 3.6 defines permissible consonant pairs; CLL 3.7 defines the smaller
+// subset that can begin ordinary words. `Initial` pairs are therefore also
+// permissible; `Forbidden` pairs require a hyphen or a word boundary.
+const PAIR_MATRIX: [[ConsonantPairClass; 17]; 17] = [
+    [F, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+    [P, F, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+    [P, P, F, P, P, P, P, P, P, P, P, P, P, P, P, P, P],
+    [I, I, P, F, P, P, P, P, P, F, P, P, P, P, P, P, P],
+    [I, I, P, P, F, P, P, P, P, P, F, F, F, F, F, F, F],
+    [I, I, P, P, P, F, P, P, P, P, F, F, F, F, F, F, F],
+    [I, P, P, P, P, P, F, P, I, I, F, F, F, F, F, F, F],
+    [I, I, P, P, P, P, P, F, P, P, F, F, F, F, F, F, F],
+    [P, P, P, I, I, I, I, I, F, F, F, F, F, F, F, F, F],
+    [P, P, P, I, I, I, I, I, F, F, F, F, F, F, F, F, F],
+    [I, I, I, I, F, F, F, F, F, F, F, F, P, I, I, I, I],
+    [I, I, I, I, F, F, F, F, F, F, F, F, F, I, I, I, I],
+    [I, I, P, P, F, F, F, F, F, F, P, F, F, F, P, P, P],
+    [I, I, P, P, F, F, F, F, F, F, P, P, F, F, P, P, P],
+    [I, P, P, P, F, F, F, F, F, F, I, I, P, P, F, P, P],
+    [I, I, P, P, F, F, F, F, F, F, P, P, P, P, P, F, P],
+    [I, I, P, P, F, F, F, F, F, F, P, P, P, P, P, P, F],
 ];

@@ -9,6 +9,8 @@ use crate::{
 };
 
 mod phonotactics;
+pub use phonotactics::ConsonantPairClass;
+pub(crate) use phonotactics::consonant_pair_class;
 use phonotactics::{
     experimental_permissible_consonant_pair, initial_pair_chars, permissible_consonant_pair,
 };
@@ -4867,8 +4869,7 @@ mod tests {
             for second in phonotactics::CONSONANT_ORDER_FOR_TEST.chars() {
                 assert_eq!(
                     phonotactics::consonant_pair_class_for_test(first, second),
-                    crate::lujvo::permissible_consonant_pair(first, second)
-                        .map(|rank| u8::try_from(rank).expect("lujvo pair rank fits u8")),
+                    crate::lujvo::consonant_pair_class(first, second),
                     "{first}{second}"
                 );
             }
