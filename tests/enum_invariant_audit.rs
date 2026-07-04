@@ -836,6 +836,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "consonant pair class is a closed selector for CLL 3.6/3.7 phonotactic categories",
     ),
     (
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Display",
+        "segment mode is a private closed selector for trace label and FAhO handling",
+    ),
+    (
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Raw",
+        "segment mode is a private closed selector for trace label and FAhO handling",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tokens.rs:ExperimentalCmavoContext::Label",
         "experimental cmavo context labels are private static grammar category names",
     ),

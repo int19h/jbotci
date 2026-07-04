@@ -97,6 +97,31 @@ struct Segmenter<'a> {
     trace: TraceRecorder,
 }
 
+#[invariant(::Raw => true)]
+#[invariant(::Display => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SegmentMode {
+    Raw,
+    Display,
+}
+
+impl SegmentMode {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn trace_label(self) -> &'static str {
+        match self {
+            Self::Raw => "segment",
+            Self::Display => "display segment",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Raw))]
+    fn consumes_faho(self) -> bool {
+        matches!(self, Self::Raw)
+    }
+}
+
 impl<'a> Segmenter<'a> {
     #[requires(true)]
     #[ensures(ret.index == 0)]
@@ -150,7 +175,7 @@ impl<'a> Segmenter<'a> {
             if self.index == self.chars.len() {
                 break;
             }
-            let segment = self.next_segment()?;
+            let segment = self.next_segment(SegmentMode::Raw)?;
             self.process_segment(&mut acc, segment)?;
         }
         Ok(acc)
@@ -165,7 +190,7 @@ impl<'a> Segmenter<'a> {
             if self.index == self.chars.len() {
                 break;
             }
-            acc.extend(self.next_display_segment()?);
+            acc.extend(self.next_segment(SegmentMode::Display)?);
         }
         Ok(acc)
     }
@@ -231,12 +256,12 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn next_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    fn next_segment(&mut self, mode: SegmentMode) -> Result<Vec<WordLike>, MorphologyError> {
         self.skip_separators();
         let segment_start = self.index;
         self.trace_step(
             TraceLevel::Detailed,
-            "segment",
+            mode.trace_label(),
             segment_start,
             segment_start,
             || None,
@@ -295,87 +320,10 @@ impl<'a> Segmenter<'a> {
             self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
             return self.zo_quote(word);
         }
-        if is_simple_cmavo_text(&word, "fa'o") {
+        if mode.consumes_faho() && is_simple_cmavo_text(&word, "fa'o") {
             self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
             self.index = self.chars.len();
             return Ok(vec![word]);
-        }
-        if self.index == start {
-            return Err(self.invalid_span(
-                MorphologyErrorKind::UnrecognizedWord,
-                start,
-                start,
-                None,
-            ));
-        }
-        Ok(vec![word])
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn next_display_segment(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
-        self.skip_separators();
-        let segment_start = self.index;
-        self.trace_step(
-            TraceLevel::Detailed,
-            "display segment",
-            segment_start,
-            segment_start,
-            || None,
-        );
-        if self.peek_char().is_some_and(|value| value.is_ascii_digit()) {
-            let candidate_end = self.candidate_end(self.index);
-            if self.is_digit_sequence_candidate(self.index, candidate_end) {
-                let detail = self.trace_slice_detail(
-                    TraceLevel::Detailed,
-                    "digit sequence",
-                    self.index,
-                    candidate_end,
-                );
-                self.trace_step(
-                    TraceLevel::Detailed,
-                    "digit sequence",
-                    self.index,
-                    candidate_end,
-                    move || detail,
-                );
-                return self.digit_sequence();
-            }
-        }
-        let start = self.index;
-        let word = self.next_plain_word()?;
-        if is_simple_cmavo_text(&word, "lo'u") {
-            self.trace_step(
-                TraceLevel::Detailed,
-                "LOhU quote",
-                start,
-                self.index,
-                || None,
-            );
-            return self.lohu_quote(word);
-        }
-        if is_simple_cmavo_text(&word, "zoi")
-            || is_simple_cmavo_text(&word, "la'o")
-            || is_simple_cmavo_text(&word, "mu'oi")
-        {
-            self.trace_step(TraceLevel::Detailed, "ZOI quote", start, self.index, || {
-                None
-            });
-            return self.zoi_quote(word);
-        }
-        if is_single_word_quote_marker_text(&word) {
-            self.trace_step(
-                TraceLevel::Detailed,
-                "single-word quote",
-                start,
-                self.index,
-                || None,
-            );
-            return self.single_word_quote(word);
-        }
-        if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
-            self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
-            return self.zo_quote(word);
         }
         if self.index == start {
             return Err(self.invalid_span(
