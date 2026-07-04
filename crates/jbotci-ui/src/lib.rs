@@ -93,6 +93,8 @@ mod gentufa;
 use gentufa::*;
 mod cukta;
 use cukta::*;
+mod diagnostics;
+use diagnostics::*;
 
 #[cfg(any(target_arch = "wasm32", test))]
 mod f2llm_runtime_core;
@@ -472,63 +474,6 @@ struct ReferenceRect {
     top: f64,
     right: f64,
     bottom: f64,
-}
-
-#[invariant(self.line > 0)]
-#[invariant(self.column > 0)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DiagnosticSourceLocation {
-    line: usize,
-    column: usize,
-}
-
-#[invariant(self.errors <= usize::MAX - self.warnings)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct DiagnosticCounts {
-    errors: usize,
-    warnings: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-enum DiagnosticOverlayRole {
-    Primary,
-    ActivePrimary,
-    ActiveContextPrefix,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[invariant(true)]
-struct DiagnosticOverlayMark {
-    diagnostic_index: usize,
-    role: DiagnosticOverlayRole,
-}
-
-#[invariant(self.class_name.split_whitespace().next().is_some())]
-#[invariant(self.diagnostic_index.is_none() || css_class_contains(&self.class_name, "has-diagnostic"))]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DiagnosticOverlayFragment {
-    text: String,
-    class_name: String,
-    selection_start: u32,
-    diagnostic_index: Option<usize>,
-}
-
-#[invariant(self.x.is_finite())]
-#[invariant(self.y.is_finite())]
-#[derive(Debug, Clone, Copy, PartialEq)]
-struct DiagnosticInputTooltip {
-    diagnostic_index: usize,
-    x: f64,
-    y: f64,
-}
-
-#[invariant(!self.text.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DiagnosticTextRenderPart {
-    role: DiagnosticTextRole,
-    text: String,
-    link: Option<DiagnosticTextLink>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
