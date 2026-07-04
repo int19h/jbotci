@@ -1608,11 +1608,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Clear",
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchCommand::Clear",
         "native embedding clear command carries only a typed response channel",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Search",
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchCommand::Search",
         "native embedding search command validity is enforced by worker-handle preconditions before sending",
     ),
     (
