@@ -399,6 +399,35 @@ fn page_find_text_keys_are_content_stable() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn page_find_render_keys_do_not_shift_after_skipped_unrelated_text() {
+    let mut entries = Vec::new();
+    push_page_find_entry(&mut entries, "alpha");
+    push_page_find_entry(&mut entries, "beta");
+    push_page_find_entry(&mut entries, "gamma");
+
+    let index = build_page_find_index("gamma", &entries);
+    let context = PageFindContext::new(&index, &PageFindRouteState::default());
+
+    let gamma_key_without_prior_renders = context.text_key("gamma");
+    assert_eq!(gamma_key_without_prior_renders, entries[2].key);
+    assert_eq!(
+        context.matches_for_key(gamma_key_without_prior_renders),
+        index.matches.as_slice()
+    );
+
+    let context = PageFindContext::new(&index, &PageFindRouteState::default());
+    assert_eq!(context.text_key("alpha"), entries[0].key);
+    let gamma_key_after_skipped_beta = context.text_key("gamma");
+    assert_eq!(gamma_key_after_skipped_beta, entries[2].key);
+    assert_eq!(
+        context.matches_for_key(gamma_key_after_skipped_beta),
+        index.matches.as_slice()
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn page_find_route_state_remembers_queries_and_resets_active_selection() {
     let mut state = PageFindState::default();
 
