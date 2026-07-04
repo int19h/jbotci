@@ -1,0 +1,359 @@
+use super::super::*;
+
+#[allow(clippy::too_many_arguments)]
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(trace.limit > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
+    input: GentufaInput,
+    stdout: &mut WOut,
+    stderr: &mut WErr,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    trace: CliTraceConfig,
+    stdin_text: Option<&str>,
+) -> Result<CliStatus> {
+    let output_file = input.output_file.clone();
+    let rendered = render_gentufa(
+        input,
+        color_policy,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+        trace,
+        stdin_text,
+    )?;
+    stderr.write_all(rendered.stderr.as_bytes())?;
+    if rendered.status == CliStatus::Success
+        && let Some(path) = output_file.as_ref()
+    {
+        fs::write(path, &rendered.stdout)
+            .with_context(|| format!("failed to write gentufa output to `{}`", path.display()))?;
+    } else {
+        stdout.write_all(&rendered.stdout)?;
+    }
+    Ok(rendered.status)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn run_gerna<WOut: Write>(input: GernaInput, stdout: &mut WOut) -> Result<CliStatus> {
+    let output_file = input.output_file.clone();
+    let rendered = render_gerna(input)?;
+    write_gerna_output(stdout, output_file.as_ref(), &rendered)?;
+    Ok(CliStatus::Success)
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gerna(input: GernaInput) -> Result<String> {
+    let dialect = input.dialect_definition()?;
+    let options = ParseOptions::default().with_dialect_definition(&dialect);
+    Ok(match input.format {
+        GernaFormat::Ebnf => syntax_grammar_ebnf(&options),
+        GernaFormat::Svg => syntax_grammar_svg(&options),
+    })
+}
+
+#[cfg(feature = "grammar-debug")]
+#[requires(!rendered.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn write_gerna_output<WOut: Write>(
+    stdout: &mut WOut,
+    output_file: Option<&PathBuf>,
+    rendered: &str,
+) -> Result<()> {
+    let mut output = rendered.to_owned();
+    if !output.ends_with('\n') {
+        output.push('\n');
+    }
+    if let Some(path) = output_file {
+        fs::write(path, output)
+            .with_context(|| format!("failed to write grammar output to `{}`", path.display()))?;
+    } else {
+        stdout.write_all(output.as_bytes())?;
+    }
+    Ok(())
+}
+
+#[requires(diagnostic_terminal_width > 0)]
+#[requires(trace.limit > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_gentufa(
+    mut input: GentufaInput,
+    color_policy: CliColorPolicy,
+    diagnostic_detail: DiagnosticDetailMode,
+    glyphs: GlyphStyle,
+    diagnostic_terminal_width: usize,
+    trace: CliTraceConfig,
+    stdin_text: Option<&str>,
+) -> Result<GentufaRendered> {
+    normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
+    validate_gentufa_options(&input, glyphs)?;
+    let morphology_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
+    let syntax_trace_options = trace_options(&input.trace, trace.phase, trace.limit)?;
+    let source_label = input_source_label(input.file.as_ref(), input.text.is_empty());
+    let text = input.read_text_with_stdin(stdin_text)?;
+    let dialect = input.dialect_definition()?;
+    let morphology_options = MorphologyOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(morphology_trace_options);
+    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &text,
+        &morphology_options,
+        Some(SourceId(source_label.clone())),
+    );
+    let morphology_attempt = morphology_attempt.into_data();
+    let morphology_trace_stderr = render_cli_trace(
+        morphology_attempt.trace.as_ref(),
+        color_policy.stderr,
+        diagnostic_terminal_width,
+    );
+    let morphology_diagnostics = morphology_warning_diagnostics(
+        &morphology_attempt.warnings,
+        Some(SourceId(source_label.clone())),
+        &text,
+    );
+    let words = match morphology_attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&render_source_diagnostics(
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+            )?);
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Failure,
+                stdout: Vec::new(),
+                stderr,
+            }));
+        }
+    };
+    let parse_options = ParseOptions::default()
+        .with_dialect_definition(&dialect)
+        .with_trace_options(syntax_trace_options)
+        .with_error_context_depth(input.error_context);
+    let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
+        &words,
+        &text,
+        &parse_options,
+    ) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            let mut diagnostics = morphology_diagnostics;
+            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
+            let mut stderr = morphology_trace_stderr;
+            stderr.push_str(&render_source_diagnostics(
+                &source_label,
+                &text,
+                &diagnostics,
+                color_policy.stderr,
+                diagnostic_detail,
+                glyphs,
+                diagnostic_terminal_width,
+            )?);
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Failure,
+                stdout: Vec::new(),
+                stderr,
+            }));
+        }
+    };
+    let diagnostics = morphology_diagnostics;
+    let mut stderr = morphology_trace_stderr;
+    stderr.push_str(&render_source_diagnostics(
+        &source_label,
+        &text,
+        &diagnostics,
+        color_policy.stderr,
+        diagnostic_detail,
+        glyphs,
+        diagnostic_terminal_width,
+    )?);
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
+    let mut stdout = String::new();
+    if input.show_defs {
+        let cards =
+            dictionary_cards_for_word_likes(jbotci_dictionary_data::english(), words.as_slice());
+        if !cards.is_empty() {
+            stdout.push_str(&render_vlacku_output_with_options(
+                &VlackuSearchOutput {
+                    cards,
+                    outcome: VlackuOutcome::Found,
+                    diagnostics: Vec::new(),
+                },
+                new!(VlackuRenderOptions {
+                    color: color_policy.stdout,
+                    glyphs,
+                    output_terminal_width: None,
+                    sumti_places: CliSumtiPlaces::Index,
+                    show_etymology: false,
+                }),
+            ));
+        }
+    }
+    match input.format {
+        GentufaFormat::Blocks => {
+            let output_type = resolve_gentufa_blocks_output_type(&input)?;
+            let stdout = render_gentufa_generated_blocks_output(
+                &generated_model,
+                &text,
+                words.as_slice(),
+                phoneme_options,
+                output_type,
+            )?;
+            return Ok(new!(GentufaRendered {
+                status: CliStatus::Success,
+                stdout,
+                stderr,
+            }));
+        }
+        GentufaFormat::Brackets => {
+            let rendered = pretty_generated_model_brackets_with_options(
+                &generated_model,
+                &text,
+                BracketRenderOptions {
+                    color: color_policy.stdout,
+                    phonemes: phoneme_options,
+                    script: LojbanScript::Latin,
+                    glyphs,
+                    decompose_lujvo: input.decompose_lujvo,
+                    insert_hair_space: false,
+                    show_elided: false,
+                },
+            )?;
+            stdout.push_str(&rendered);
+            stdout.push('\n');
+        }
+        GentufaFormat::Raw => {
+            stdout.push_str(&debug_output_string(&generated_model, input.indent));
+        }
+        GentufaFormat::Tree => {
+            let tree_options = TreeRenderOptions {
+                color: color_policy.stdout,
+                indent: input.indent.unwrap_or(2),
+                phonemes: phoneme_options,
+                glyphs,
+                show_spans: input.show_spans,
+                show_refs: input.show_refs,
+                decompose_lujvo: input.decompose_lujvo,
+                show_elided: false,
+            };
+            let rendered =
+                pretty_generated_model_tree_with_options(&generated_model, &text, tree_options)?;
+            stdout.push_str(&rendered);
+            stdout.push('\n');
+        }
+        GentufaFormat::Json => {
+            let rendered = compact_generated_model_json_string_with_options(
+                &generated_model,
+                JsonRenderOptions {
+                    indent: input.indent.unwrap_or(2),
+                    phonemes: phoneme_options,
+                    show_elided: false,
+                    color: color_policy.stdout,
+                },
+            )?;
+            stdout.push_str(&rendered);
+            stdout.push('\n');
+        }
+    }
+    let stdout = stdout.into_bytes();
+    Ok(new!(GentufaRendered {
+        status: CliStatus::Success,
+        stdout,
+        stderr,
+    }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gentufa_generated_blocks_output(
+    syntax: &jbotci_syntax::generated_model::TextSyntax,
+    source: &str,
+    words: &[WordLike],
+    phoneme_options: PhonemeRenderOptions,
+    output_type: GentufaImageOutputType,
+) -> Result<Vec<u8>> {
+    let block_options = GentufaBlockOptions {
+        script: GentufaScript::Latin,
+        show_elided: false,
+        phonemes: phoneme_options,
+    };
+    let annotations = gentufa_block_annotations(words);
+    let reference_display = generated_reference_display(
+        syntax,
+        source,
+        TreeRenderOptions {
+            color: false,
+            indent: 2,
+            phonemes: phoneme_options,
+            glyphs: GlyphStyle::Unicode,
+            show_spans: false,
+            show_refs: true,
+            decompose_lujvo: false,
+            show_elided: false,
+        },
+    )?;
+    let layout = generated_model_blocks_layout_with_references(
+        syntax,
+        source,
+        Some(&reference_display.analysis.syntax_index),
+        Some(&reference_display.references),
+        &annotations,
+        &block_options,
+    );
+    let svg_options = GentufaSvgOptions {
+        show_glosses: false,
+        script: GentufaScript::Latin,
+        title: "jbotci gentufa generated syntax".to_owned(),
+    };
+    let fonts = EmbeddedGentufaFonts::get();
+    match output_type {
+        GentufaImageOutputType::Svg => {
+            Ok(render_gentufa_blocks_svg(&layout, &svg_options, fonts)?.into_bytes())
+        }
+        GentufaImageOutputType::Png => Ok(render_gentufa_blocks_png(
+            &layout,
+            &GentufaPngOptions::default().with_data(data! { svg: svg_options }),
+            fonts,
+        )?),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<()>> {
+    dictionary_matches_for_word_likes(jbotci_dictionary_data::english(), words)
+        .into_iter()
+        .map(|parsed_match| {
+            let parsed_match = parsed_match.into_data();
+            let first = parsed_match.cards.first();
+            GentufaBlockAnnotation {
+                range: new!(WebSourceRange {
+                    byte_start: parsed_match.byte_start,
+                    byte_end: parsed_match.byte_end,
+                    char_start: parsed_match.char_start,
+                    char_end: parsed_match.char_end,
+                }),
+                text: Some(parsed_match.lookup_text),
+                glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
+                definition: first
+                    .map(|card| card.definition.trim().to_owned())
+                    .filter(|definition| !definition.is_empty()),
+                tooltip: None,
+            }
+        })
+        .collect()
+}
