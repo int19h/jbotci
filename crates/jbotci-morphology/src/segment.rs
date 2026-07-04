@@ -10,9 +10,9 @@ use crate::{
 
 mod phonotactics;
 pub use phonotactics::ConsonantPairClass;
-pub(crate) use phonotactics::consonant_pair_class;
-use phonotactics::{
-    experimental_permissible_consonant_pair, initial_pair_chars, permissible_consonant_pair,
+pub(crate) use phonotactics::{
+    consonant_pair_class, experimental_permissible_consonant_pair, initial_pair_chars,
+    permissible_consonant_pair,
 };
 
 #[requires(true)]
@@ -1672,7 +1672,7 @@ fn parse_cmavo_form_chars(chars: &[char]) -> Option<String> {
         return Some(chars.iter().collect());
     }
     if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return Some(digit_to_cmavo(chars[0]).to_owned());
+        return Some(digit_to_cmavo(chars[0])?.to_owned());
     }
     parse_cmavo_form_main(chars)
 }
@@ -1687,7 +1687,7 @@ fn matches_cmavo_form_chars(chars: &[char]) -> bool {
         return true;
     }
     if chars.len() == 1 && chars[0].is_ascii_digit() {
-        return true;
+        return digit_to_cmavo(chars[0]).is_some();
     }
     matches_cmavo_form_main(chars)
 }
@@ -4841,8 +4841,8 @@ fn is_y(value: char) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn digit_to_cmavo(value: char) -> &'static str {
-    match value {
+pub(crate) fn digit_to_cmavo(value: char) -> Option<&'static str> {
+    Some(match value {
         '0' => "no",
         '1' => "pa",
         '2' => "re",
@@ -4853,8 +4853,8 @@ fn digit_to_cmavo(value: char) -> &'static str {
         '7' => "ze",
         '8' => "bi",
         '9' => "so",
-        _ => "",
-    }
+        _ => return None,
+    })
 }
 
 #[cfg(test)]

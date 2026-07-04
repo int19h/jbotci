@@ -1449,7 +1449,7 @@ impl<'a> Segmenter<'a> {
             let value = self.chars[start].value;
             if value.is_ascii_digit() {
                 self.index += 1;
-                let phonemes = digit_to_cmavo(value).ok_or_else(|| {
+                let phonemes = crate::segment::digit_to_cmavo(value).ok_or_else(|| {
                     self.invalid_span(
                         MorphologyErrorKind::UnrecognizedWord,
                         start,
@@ -1484,7 +1484,7 @@ impl<'a> Segmenter<'a> {
             {
                 self.index += 2;
                 let digit = self.chars[start + 1].value;
-                let phonemes = digit_to_cmavo(digit).ok_or_else(|| {
+                let phonemes = crate::segment::digit_to_cmavo(digit).ok_or_else(|| {
                     self.invalid_span(
                         MorphologyErrorKind::UnrecognizedWord,
                         start + 1,
@@ -2214,24 +2214,6 @@ fn normalize_vowel(value: char) -> char {
         'ŭ' => 'u',
         _ => base_vowel(value).unwrap_or(value),
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn digit_to_cmavo(value: char) -> Option<&'static str> {
-    Some(match value {
-        '0' => "no",
-        '1' => "pa",
-        '2' => "re",
-        '3' => "ci",
-        '4' => "vo",
-        '5' => "mu",
-        '6' => "xa",
-        '7' => "ze",
-        '8' => "bi",
-        '9' => "so",
-        _ => return None,
-    })
 }
 
 #[cfg(test)]

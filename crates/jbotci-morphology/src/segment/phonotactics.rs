@@ -27,19 +27,19 @@ impl ConsonantPairClass {
 
 #[requires(true)]
 #[ensures(ret == consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_initial))]
-pub(super) fn initial_pair_chars(first: char, second: char) -> bool {
+pub(crate) fn initial_pair_chars(first: char, second: char) -> bool {
     consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_initial)
 }
 
 #[requires(true)]
 #[ensures(ret == consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible))]
-pub(super) fn permissible_consonant_pair(first: char, second: char) -> bool {
+pub(crate) fn permissible_consonant_pair(first: char, second: char) -> bool {
     consonant_pair_class(first, second).is_some_and(ConsonantPairClass::is_permissible)
 }
 
 #[requires(true)]
 #[ensures(ret == (permissible_consonant_pair(first, second) || (first == 'm' && second == 'z')))]
-pub(super) fn experimental_permissible_consonant_pair(first: char, second: char) -> bool {
+pub(crate) fn experimental_permissible_consonant_pair(first: char, second: char) -> bool {
     permissible_consonant_pair(first, second) || (first == 'm' && second == 'z')
 }
 
