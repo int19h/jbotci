@@ -1,8 +1,42 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+pub(super) struct VlackuPageSnapshot {
+    pub(super) committed_state: VlackuWebState,
+    pub(super) result_state: VlackuAsyncResultState,
+    pub(super) draft_state: VlackuWebState,
+    pub(super) word_type_options: Vec<VlackuWordTypeOption>,
+    pub(super) jvozba_available: bool,
+    pub(super) jvozba_pane: VlackuJvozbaPaneState,
+}
+
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn render_vlacku_page(
+pub(super) fn vlacku_page_snapshot(
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    vlacku_result: Signal<VlackuAsyncResultState>,
+    jvozba_available: Signal<bool>,
+    jvozba_pane: Signal<VlackuJvozbaPaneState>,
+) -> VlackuPageSnapshot {
+    let draft_state = vlacku_draft_state.peek().clone();
+    let word_type_options = vlacku_word_type_options(&draft_state.word_types);
+    VlackuPageSnapshot {
+        committed_state: vlacku_committed_state.read().clone(),
+        result_state: vlacku_result.read().clone(),
+        draft_state,
+        word_type_options,
+        jvozba_available: *jvozba_available.read(),
+        jvozba_pane: jvozba_pane.read().clone(),
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+pub(super) fn VlackuPage(
     vlacku_draft_state: Signal<VlackuWebState>,
     vlacku_committed_state: Signal<VlackuWebState>,
     vlacku_result: Signal<VlackuAsyncResultState>,
@@ -11,27 +45,58 @@ pub(super) fn render_vlacku_page(
     jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     pending_vlacku_scroll_restore: Signal<Option<i32>>,
+    base_path: String,
+    script: GentufaScript,
+    page_find: PageFindContext,
+) -> Element {
+    let snapshot = use_memo(move || {
+        vlacku_page_snapshot(
+            vlacku_draft_state,
+            vlacku_committed_state,
+            vlacku_result,
+            jvozba_available,
+            jvozba_pane,
+        )
+    });
+    let snapshot = snapshot.read().clone();
+    render_vlacku_page(
+        vlacku_draft_state,
+        vlacku_committed_state,
+        &snapshot,
+        jvozba_pane,
+        jvozba_drag,
+        pending_cukta_scroll,
+        pending_vlacku_scroll_restore,
+        &base_path,
+        script,
+        &page_find,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_vlacku_page(
+    vlacku_draft_state: Signal<VlackuWebState>,
+    vlacku_committed_state: Signal<VlackuWebState>,
+    snapshot: &VlackuPageSnapshot,
+    jvozba_pane: Signal<VlackuJvozbaPaneState>,
+    jvozba_drag: Signal<Option<VlackuJvozbaDragState>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    pending_vlacku_scroll_restore: Signal<Option<i32>>,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    let committed_state = vlacku_committed_state.read().clone();
-    let result_state = vlacku_result.read().clone();
-    let result = if result_state.state.as_ref() == Some(&committed_state) {
-        result_state.result
+    let result = if snapshot.result_state.state.as_ref() == Some(&snapshot.committed_state) {
+        snapshot.result_state.result.clone()
     } else {
-        vlacku_loading_result(&committed_state, "Loading dictionary results.")
+        vlacku_loading_result(&snapshot.committed_state, "Loading dictionary results.")
     };
-    // Keep result cards out of the draft-query dependency path; the focused input
-    // already reflects keystrokes until the debounced committed state catches up.
-    let draft_state = vlacku_draft_state.peek().clone();
-    let word_type_options = vlacku_word_type_options(&draft_state.word_types);
-    let jvozba_available_value = *jvozba_available.read();
-    let jvozba_open = jvozba_available_value && jvozba_pane.read().open;
+    let jvozba_open = snapshot.jvozba_available && snapshot.jvozba_pane.open;
     let shell_class = class_names(
         "dictionary-shell",
         &[
-            ("dictionary-jvozba-available", jvozba_available_value),
+            ("dictionary-jvozba-available", snapshot.jvozba_available),
             ("dictionary-jvozba-hints-active", jvozba_open),
         ],
     );
@@ -39,7 +104,7 @@ pub(super) fn render_vlacku_page(
         section { class: "spa-page dictionary-page vlacku-page",
             h1 { class: "sr-only", "jbotci vlacku" }
             div { class: "{shell_class}",
-                { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &draft_state, &word_type_options) }
+                { render_vlacku_controls(vlacku_draft_state, vlacku_committed_state, &snapshot.draft_state, &snapshot.word_type_options) }
                 if let Some(info) = &result.dictionary_info {
                     { render_dictionary_info(info) }
                 }
@@ -53,9 +118,9 @@ pub(super) fn render_vlacku_page(
                 }
                 div { class: "dictionary-layout",
                     div { class: "dictionary-main-column",
-                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, jvozba_available_value, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path, script, page_find) }
+                        { render_vlacku_body(&result, vlacku_draft_state, vlacku_committed_state, jvozba_pane, snapshot.jvozba_available, pending_cukta_scroll, pending_vlacku_scroll_restore, base_path, script, page_find) }
                     }
-                    if jvozba_available_value {
+                    if snapshot.jvozba_available {
                         { render_vlacku_jvozba_pane(jvozba_pane, jvozba_drag, script) }
                     }
                 }

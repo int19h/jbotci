@@ -1,5 +1,136 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+pub(super) struct GentufaPageSnapshot {
+    pub(super) active_diagnostic: Option<usize>,
+    pub(super) input_diagnostic_tooltip: Option<DiagnosticInputTooltip>,
+    pub(super) diagnostics_open: bool,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn gentufa_page_snapshot(
+    active_diagnostic: Signal<Option<usize>>,
+    input_diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
+    diagnostics_open: Signal<bool>,
+) -> GentufaPageSnapshot {
+    GentufaPageSnapshot {
+        active_diagnostic: *active_diagnostic.read(),
+        input_diagnostic_tooltip: input_diagnostic_tooltip.read().clone(),
+        diagnostics_open: *diagnostics_open.read(),
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+pub(super) fn GentufaPage(
+    input_text: Signal<String>,
+    dialect: Signal<String>,
+    dialect_settings: DialectSettings,
+    dialect_picker_open: Signal<bool>,
+    parsed_text_explicit: Signal<bool>,
+    parsed_text: Signal<String>,
+    parsed_dialect: Signal<String>,
+    url_write_intent: Signal<GentufaUrlWriteIntent>,
+    result: GentufaWebResult,
+    request: Option<GentufaWebRequest>,
+    diagnostics_open: Signal<bool>,
+    active_diagnostic: Signal<Option<usize>>,
+    input_diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: String,
+    view_mode: Signal<GentufaWebViewMode>,
+    view_mode_value: GentufaWebViewMode,
+    display: Signal<GentufaDisplayState>,
+    display_value: GentufaDisplayState,
+    settings: UserSettings,
+    reference_hover: Signal<ReferenceHoverState>,
+    reference_tooltip_open: Signal<Option<HoveredReference>>,
+    activity: Signal<AsyncActivityState>,
+    export_task: Signal<Option<LatestAsyncTask>>,
+    page_find: PageFindContext,
+) -> Element {
+    let snapshot = use_memo(move || {
+        gentufa_page_snapshot(
+            active_diagnostic,
+            input_diagnostic_tooltip,
+            diagnostics_open,
+        )
+    });
+    let snapshot = snapshot.read().clone();
+    rsx! {
+        section {
+            class: "spa-page parse-page spa-gentufa-page",
+            onmousemove: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::PointerMove),
+            onwheel: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::ViewportShift),
+            h1 { class: "sr-only", "jbotci gentufa" }
+            div { class: "page-container",
+                div { class: "input-form",
+                    div { class: "form-group",
+                        { render_gentufa_input(
+                            input_text,
+                            &result,
+                            request.as_ref(),
+                            snapshot.active_diagnostic,
+                            active_diagnostic,
+                            input_diagnostic_tooltip,
+                            snapshot.input_diagnostic_tooltip.clone(),
+                            pending_cukta_scroll,
+                            &base_path,
+                            settings.script,
+                        ) }
+                        div { class: "form-actions",
+                            { render_dialect_control(dialect, dialect_settings.clone(), dialect_picker_open) }
+                            button {
+                                class: "btn-parse",
+                                r#type: "button",
+                                onclick: move |_| {
+                                    let mut next_text = input_text.read().clone();
+                                    let next_dialect = dialect.read().clone();
+                                    if next_text.trim().is_empty() {
+                                        next_text = DEFAULT_GENTUFA_TEXT.to_owned();
+                                        input_text.set(next_text.clone());
+                                        schedule_gentufa_textarea_resize();
+                                    }
+                                    parsed_text_explicit.set(true);
+                                    parsed_text.set(next_text);
+                                    parsed_dialect.set(next_dialect);
+                                    url_write_intent.set(GentufaUrlWriteIntent::PushParse);
+                                },
+                                "Parse"
+                            }
+                        }
+                    }
+                }
+                div { class: "gentufa-result-stack",
+                    { render_result(
+                        &result,
+                        request.as_ref(),
+                        diagnostics_open,
+                        snapshot.diagnostics_open,
+                        active_diagnostic,
+                        pending_cukta_scroll,
+                        &base_path,
+                        view_mode,
+                        view_mode_value,
+                        display,
+                        display_value,
+                        settings,
+                        reference_hover,
+                        reference_tooltip_open,
+                        activity,
+                        export_task,
+                        &page_find,
+                    ) }
+                }
+            }
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_gentufa_input(

@@ -1,5 +1,48 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(true)]
+pub(super) struct GimfihiPageSnapshot {
+    pub(super) source_word_count: usize,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn gimfihi_page_snapshot(
+    gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
+) -> GimfihiPageSnapshot {
+    GimfihiPageSnapshot {
+        source_word_count: gimfihi_source_word_memory.read().len(),
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+pub(super) fn GimfihiPage(
+    gimfihi_draft_state: Signal<GimfihiWebState>,
+    gimfihi_committed_state: Signal<GimfihiWebState>,
+    gimfihi_result: Signal<GimfihiAsyncResultState>,
+    gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
+    base_path: String,
+    script: GentufaScript,
+    page_find: PageFindContext,
+) -> Element {
+    let snapshot = use_memo(move || gimfihi_page_snapshot(gimfihi_source_word_memory));
+    let snapshot = snapshot.read().clone();
+    render_gimfihi_page(
+        gimfihi_draft_state,
+        gimfihi_committed_state,
+        gimfihi_result,
+        gimfihi_source_word_memory,
+        &snapshot,
+        &base_path,
+        script,
+        &page_find,
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_gimfihi_page(
@@ -7,10 +50,12 @@ pub(super) fn render_gimfihi_page(
     gimfihi_committed_state: Signal<GimfihiWebState>,
     gimfihi_result: Signal<GimfihiAsyncResultState>,
     gimfihi_source_word_memory: Signal<BTreeMap<String, String>>,
+    snapshot: &GimfihiPageSnapshot,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
+    let _ = snapshot.source_word_count;
     rsx! {
         section { class: "spa-page dictionary-page gimfihi-page",
             h1 { class: "sr-only", "jbotci gimfi'i" }

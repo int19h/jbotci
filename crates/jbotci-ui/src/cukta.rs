@@ -1,53 +1,127 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+pub(super) struct CuktaPageSnapshot {
+    pub(super) page: CuktaPageData,
+    pub(super) toc_is_pinned: bool,
+    pub(super) toc_is_forced_autohide: bool,
+    pub(super) toc_overlay_is_visible: bool,
+    pub(super) is_resizing: bool,
+    pub(super) current_toc_width: f64,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn cukta_page_snapshot(
+    cukta_page: Signal<CuktaAsyncPageState>,
+    toc_pinned: Signal<bool>,
+    toc_forced_autohide: Signal<bool>,
+    toc_overlay_visible: Signal<bool>,
+    toc_resize: Signal<Option<CuktaTocResizeState>>,
+    toc_width: Signal<f64>,
+) -> CuktaPageSnapshot {
+    CuktaPageSnapshot {
+        page: cukta_page.read().page.clone(),
+        toc_is_pinned: *toc_pinned.read(),
+        toc_is_forced_autohide: *toc_forced_autohide.read(),
+        toc_overlay_is_visible: *toc_overlay_visible.read(),
+        is_resizing: toc_resize.read().is_some(),
+        current_toc_width: clamp_cukta_toc_width(*toc_width.read()),
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+pub(super) fn CuktaPage(
+    cukta_draft_state: Signal<CuktaWebState>,
+    cukta_committed_state: Signal<CuktaWebState>,
+    cukta_page: Signal<CuktaAsyncPageState>,
+    toc_filter: Signal<String>,
+    toc_pinned: Signal<bool>,
+    toc_expansion: Signal<CuktaTocExpansionState>,
+    toc_width: Signal<f64>,
+    toc_resize: Signal<Option<CuktaTocResizeState>>,
+    toc_overlay_visible: Signal<bool>,
+    toc_forced_autohide: Signal<bool>,
+    pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
+    base_path: String,
+    script: GentufaScript,
+    page_find: PageFindContext,
+) -> Element {
+    let snapshot = use_memo(move || {
+        cukta_page_snapshot(
+            cukta_page,
+            toc_pinned,
+            toc_forced_autohide,
+            toc_overlay_visible,
+            toc_resize,
+            toc_width,
+        )
+    });
+    let snapshot = snapshot.read().clone();
+    render_cukta_page(
+        cukta_draft_state,
+        cukta_committed_state,
+        &snapshot,
+        toc_filter,
+        toc_pinned,
+        toc_expansion,
+        toc_width,
+        toc_resize,
+        toc_overlay_visible,
+        pending_cukta_scroll,
+        &base_path,
+        script,
+        &page_find,
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_cukta_page(
     cukta_draft_state: Signal<CuktaWebState>,
     cukta_committed_state: Signal<CuktaWebState>,
-    cukta_page: Signal<CuktaAsyncPageState>,
+    snapshot: &CuktaPageSnapshot,
     mut toc_filter: Signal<String>,
     mut toc_pinned: Signal<bool>,
     toc_expansion: Signal<CuktaTocExpansionState>,
     toc_width: Signal<f64>,
     mut toc_resize: Signal<Option<CuktaTocResizeState>>,
     mut toc_overlay_visible: Signal<bool>,
-    toc_forced_autohide: Signal<bool>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    let page = cukta_page.read().page.clone();
-    let toc_is_pinned = *toc_pinned.read();
-    let toc_is_forced_autohide = *toc_forced_autohide.read();
-    let toc_overlay_is_visible = *toc_overlay_visible.read();
     let toc_is_visible = cukta_toc_panel_visible(
-        toc_is_pinned,
-        toc_is_forced_autohide,
-        toc_overlay_is_visible,
+        snapshot.toc_is_pinned,
+        snapshot.toc_is_forced_autohide,
+        snapshot.toc_overlay_is_visible,
     );
-    let toc_uses_autohide = toc_is_forced_autohide || !toc_is_pinned;
+    let toc_uses_autohide = snapshot.toc_is_forced_autohide || !snapshot.toc_is_pinned;
     let toc_button_state = cukta_toc_button_state(
-        toc_is_pinned,
-        toc_is_forced_autohide,
-        toc_overlay_is_visible,
+        snapshot.toc_is_pinned,
+        snapshot.toc_is_forced_autohide,
+        snapshot.toc_overlay_is_visible,
     );
     let toc_button_action = cukta_toc_button_action(toc_button_state);
     let toc_button_title = cukta_toc_button_title(toc_button_state);
-    let toc_hides_on_leave =
-        cukta_toc_hides_overlay_on_pointer_leave(toc_is_pinned, toc_is_forced_autohide);
-    let is_resizing = toc_resize.read().is_some();
+    let toc_hides_on_leave = cukta_toc_hides_overlay_on_pointer_leave(
+        snapshot.toc_is_pinned,
+        snapshot.toc_is_forced_autohide,
+    );
     let shell_class = class_names(
         "cll-shell",
         &[
             ("cll-toc-autohide", toc_uses_autohide),
             ("cll-toc-visible", toc_is_visible),
-            ("cll-is-resizing", is_resizing),
+            ("cll-is-resizing", snapshot.is_resizing),
         ],
     );
-    let current_toc_width = clamp_cukta_toc_width(*toc_width.read());
-    let shell_style = format!("--cll-sidebar-width:{current_toc_width:.0}px;");
+    let shell_style = format!("--cll-sidebar-width:{:.0}px;", snapshot.current_toc_width);
     let cukta_index_route = JbotciRoute::from_web_route(
         WebRoute::Cukta(CuktaWebState {
             view: CuktaWebView::Index,
@@ -153,7 +227,7 @@ pub(super) fn render_cukta_page(
                             "data-cukta-toc-scroll": "1",
                             onscroll: move |_| save_cukta_toc_scroll(),
                             ol { class: "cll-toc-tree",
-                                for node in page.toc.iter() {
+                                for node in snapshot.page.toc.iter() {
                                     { render_cukta_toc_node(toc_expansion, node, &toc_filter.read(), pending_cukta_scroll, base_path) }
                                 }
                             }
@@ -186,7 +260,7 @@ pub(super) fn render_cukta_page(
                         }
                     },
                     {
-                        match &page.page_kind {
+                        match &snapshot.page.page_kind {
                             CuktaPageKind::Section {
                                 section_heading,
                                 section_parse_href,

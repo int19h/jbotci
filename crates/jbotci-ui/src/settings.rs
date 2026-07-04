@@ -1,19 +1,67 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq)]
+#[invariant(true)]
+pub(super) struct SettingsPageSnapshot {
+    pub(super) current_settings: UserSettings,
+    pub(super) current_dialect_settings: DialectSettings,
+    pub(super) embedding_state: EmbeddingSettingsState,
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn settings_page_snapshot(
+    settings: Signal<UserSettings>,
+    dialect_settings: Signal<DialectSettings>,
+    embedding_settings: Signal<EmbeddingSettingsState>,
+) -> SettingsPageSnapshot {
+    SettingsPageSnapshot {
+        current_settings: *settings.read(),
+        current_dialect_settings: dialect_settings.read().clone(),
+        embedding_state: embedding_settings.read().clone(),
+    }
+}
+
+#[allow(non_snake_case)]
+#[requires(true)]
+#[ensures(true)]
+#[component]
+pub(super) fn SettingsPage(
+    settings: Signal<UserSettings>,
+    dialect_settings: Signal<DialectSettings>,
+    selected_dialect: Signal<String>,
+    qr_uri: Signal<Option<String>>,
+    embedding_settings: Signal<EmbeddingSettingsState>,
+    activity: Signal<AsyncActivityState>,
+    page_find: PageFindContext,
+) -> Element {
+    let snapshot =
+        use_memo(move || settings_page_snapshot(settings, dialect_settings, embedding_settings));
+    let snapshot = snapshot.read().clone();
+    render_settings(
+        settings,
+        &snapshot,
+        dialect_settings,
+        selected_dialect,
+        qr_uri,
+        embedding_settings,
+        activity,
+        &page_find,
+    )
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_settings(
     settings: Signal<UserSettings>,
-    current_settings: UserSettings,
+    snapshot: &SettingsPageSnapshot,
     dialect_settings: Signal<DialectSettings>,
-    current_dialect_settings: DialectSettings,
     selected_dialect: Signal<String>,
     qr_uri: Signal<Option<String>>,
     embedding_settings: Signal<EmbeddingSettingsState>,
     activity: Signal<AsyncActivityState>,
     page_find: &PageFindContext,
 ) -> Element {
-    let embedding_state = embedding_settings.read().clone();
     rsx! {
         section { class: "spa-page settings-page",
             div { class: "page-container settings-container",
@@ -21,10 +69,10 @@ pub(super) fn render_settings(
                     h1 { { render_page_find_text(page_find, "Settings") } }
                     { render_settings_commit_link(page_find) }
                 }
-                { render_embedding_settings(embedding_settings, &embedding_state, activity, page_find) }
-                { render_parsing_settings(settings, current_settings, page_find) }
-                { render_output_settings(settings, current_settings, page_find) }
-                { render_dialect_settings_section(dialect_settings, current_dialect_settings, selected_dialect, qr_uri, page_find) }
+                { render_embedding_settings(embedding_settings, &snapshot.embedding_state, activity, page_find) }
+                { render_parsing_settings(settings, snapshot.current_settings, page_find) }
+                { render_output_settings(settings, snapshot.current_settings, page_find) }
+                { render_dialect_settings_section(dialect_settings, snapshot.current_dialect_settings.clone(), selected_dialect, qr_uri, page_find) }
             }
         }
     }

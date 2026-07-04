@@ -164,8 +164,8 @@ pub(super) fn AppShell() -> Element {
     };
     let view_mode = use_signal(move || initial_gentufa_view_mode);
     let gentufa_display = use_signal(move || initial_gentufa_display);
-    let mut parsed_text_explicit = use_signal(move || initial_gentufa_has_text);
-    let mut gentufa_url_write_intent = use_signal(|| GentufaUrlWriteIntent::ReplaceCurrent);
+    let parsed_text_explicit = use_signal(move || initial_gentufa_has_text);
+    let gentufa_url_write_intent = use_signal(|| GentufaUrlWriteIntent::ReplaceCurrent);
     let initial_cukta = initial_cukta_state(&current_route_location);
     let cukta_draft_state = use_signal(|| initial_cukta.clone());
     let cukta_committed_state = use_signal(|| initial_cukta);
@@ -210,10 +210,10 @@ pub(super) fn AppShell() -> Element {
     let initial_parsed_text = initial_gentufa_parsed_text;
     let initial_dialect = initial_gentufa_dialect.clone();
     let initial_parsed_dialect = initial_gentufa_dialect;
-    let mut input_text = use_signal(move || initial_input_text.clone());
-    let mut parsed_text = use_signal(move || initial_parsed_text.clone());
+    let input_text = use_signal(move || initial_input_text.clone());
+    let parsed_text = use_signal(move || initial_parsed_text.clone());
     let dialect = use_signal(move || initial_dialect.clone());
-    let mut parsed_dialect = use_signal(move || initial_parsed_dialect.clone());
+    let parsed_dialect = use_signal(move || initial_parsed_dialect.clone());
     let reference_hover = use_signal(ReferenceHoverState::default);
     let reference_tooltip_open = use_signal(|| None::<HoveredReference>);
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
@@ -1005,104 +1005,65 @@ pub(super) fn AppShell() -> Element {
                     {
                         match route_value {
                             AppRoute::Gentufa => rsx! {
-                                section {
-                                    class: "spa-page parse-page spa-gentufa-page",
-                                    onmousemove: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::PointerMove),
-                                    onwheel: move |_| refresh_reference_hover(reference_hover, ReferenceHoverRefreshReason::ViewportShift),
-                                    h1 { class: "sr-only", "jbotci gentufa" }
-                                    div { class: "page-container",
-                                        div { class: "input-form",
-                                            div { class: "form-group",
-                                                { render_gentufa_input(
-                                                    input_text,
-                                                    &result,
-                                                    gentufa_request.as_ref(),
-                                                    *gentufa_active_diagnostic.read(),
-                                                    gentufa_active_diagnostic,
-                                                    gentufa_input_diagnostic_tooltip,
-                                                    *gentufa_input_diagnostic_tooltip.read(),
-                                                    pending_cukta_scroll,
-                                                    &base_path,
-                                                    settings_value.script,
-                                                ) }
-                                                div { class: "form-actions",
-                                                    { render_dialect_control(dialect, dialect_settings_value.clone(), gentufa_dialect_picker_open) }
-                                                    button {
-                                                        class: "btn-parse",
-                                                        r#type: "button",
-                                                        onclick: move |_| {
-                                                            let mut next_text = input_text.read().clone();
-                                                            let next_dialect = dialect.read().clone();
-                                                            if next_text.trim().is_empty() {
-                                                                next_text = DEFAULT_GENTUFA_TEXT.to_owned();
-                                                                input_text.set(next_text.clone());
-                                                                schedule_gentufa_textarea_resize();
-                                                            }
-                                                            parsed_text_explicit.set(true);
-                                                            parsed_text.set(next_text);
-                                                            parsed_dialect.set(next_dialect);
-                                                            gentufa_url_write_intent.set(GentufaUrlWriteIntent::PushParse);
-                                                        },
-                                                        "Parse"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        div { class: "gentufa-result-stack",
-                                            { render_result(
-                                                &result,
-                                                gentufa_request.as_ref(),
-                                                gentufa_diagnostics_open,
-                                                *gentufa_diagnostics_open.read(),
-                                                gentufa_active_diagnostic,
-                                                pending_cukta_scroll,
-                                                &base_path,
-                                                view_mode,
-                                                view_mode_value,
-                                                gentufa_display,
-                                                gentufa_display_value,
-                                                settings_value,
-                                                reference_hover,
-                                                reference_tooltip_open,
-                                                activity,
-                                                export_task,
-                                                &page_find_context,
-                                            ) }
-                                        }
-                                    }
+                                GentufaPage {
+                                    input_text,
+                                    dialect,
+                                    dialect_settings: dialect_settings_value.clone(),
+                                    dialect_picker_open: gentufa_dialect_picker_open,
+                                    parsed_text_explicit,
+                                    parsed_text,
+                                    parsed_dialect,
+                                    url_write_intent: gentufa_url_write_intent,
+                                    result: result.clone(),
+                                    request: gentufa_request.clone(),
+                                    diagnostics_open: gentufa_diagnostics_open,
+                                    active_diagnostic: gentufa_active_diagnostic,
+                                    input_diagnostic_tooltip: gentufa_input_diagnostic_tooltip,
+                                    pending_cukta_scroll,
+                                    base_path: base_path.clone(),
+                                    view_mode,
+                                    view_mode_value,
+                                    display: gentufa_display,
+                                    display_value: gentufa_display_value,
+                                    settings: settings_value,
+                                    reference_hover,
+                                    reference_tooltip_open,
+                                    activity,
+                                    export_task,
+                                    page_find: page_find_context.clone(),
                                 }
                             },
-                            AppRoute::Settings => render_settings(
-                                settings,
-                                settings_value,
-                                dialect_settings,
-                                dialect_settings_value.clone(),
-                                settings_dialect_selection,
-                                settings_dialect_qr_uri,
-                                embedding_settings,
-                                activity,
-                                &page_find_context,
-                            ),
-                            AppRoute::Cukta => {
-                                render_cukta_page(
+                            AppRoute::Settings => rsx! {
+                                SettingsPage {
+                                    settings,
+                                    dialect_settings,
+                                    selected_dialect: settings_dialect_selection,
+                                    qr_uri: settings_dialect_qr_uri,
+                                    embedding_settings,
+                                    activity,
+                                    page_find: page_find_context.clone(),
+                                }
+                            },
+                            AppRoute::Cukta => rsx! {
+                                CuktaPage {
                                     cukta_draft_state,
                                     cukta_committed_state,
                                     cukta_page,
-                                    cukta_toc_filter,
-                                    cukta_toc_pinned,
-                                    cukta_toc_expansion,
-                                    cukta_toc_width,
-                                    cukta_toc_resize,
-                                    cukta_toc_overlay_visible,
-                                    cukta_toc_forced_autohide,
+                                    toc_filter: cukta_toc_filter,
+                                    toc_pinned: cukta_toc_pinned,
+                                    toc_expansion: cukta_toc_expansion,
+                                    toc_width: cukta_toc_width,
+                                    toc_resize: cukta_toc_resize,
+                                    toc_overlay_visible: cukta_toc_overlay_visible,
+                                    toc_forced_autohide: cukta_toc_forced_autohide,
                                     pending_cukta_scroll,
-                                    &base_path,
-                                    settings_value.script,
-                                    &page_find_context,
-                                )
-                            }
-                            AppRoute::Vlacku => {
-                                render_vlacku_page(
+                                    base_path: base_path.clone(),
+                                    script: settings_value.script,
+                                    page_find: page_find_context.clone(),
+                                }
+                            },
+                            AppRoute::Vlacku => rsx! {
+                                VlackuPage {
                                     vlacku_draft_state,
                                     vlacku_committed_state,
                                     vlacku_result,
@@ -1111,21 +1072,21 @@ pub(super) fn AppShell() -> Element {
                                     jvozba_drag,
                                     pending_cukta_scroll,
                                     pending_vlacku_scroll_restore,
-                                    &base_path,
-                                    settings_value.script,
-                                    &page_find_context,
-                                )
+                                    base_path: base_path.clone(),
+                                    script: settings_value.script,
+                                    page_find: page_find_context.clone(),
+                                }
                             },
-                            AppRoute::Gimfihi => {
-                                render_gimfihi_page(
+                            AppRoute::Gimfihi => rsx! {
+                                GimfihiPage {
                                     gimfihi_draft_state,
                                     gimfihi_committed_state,
                                     gimfihi_result,
                                     gimfihi_source_word_memory,
-                                    &base_path,
-                                    settings_value.script,
-                                    &page_find_context,
-                                )
+                                    base_path: base_path.clone(),
+                                    script: settings_value.script,
+                                    page_find: page_find_context.clone(),
+                                }
                             },
                         }
                     }
