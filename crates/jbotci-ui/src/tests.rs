@@ -1471,22 +1471,24 @@ fn selected_script_renders_visible_lojban_text_only() {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_tooltip_position_keeps_normal_above_host_placement() {
-    let position = dictionary_tooltip_position(
-        new!(ReferenceRect {
+    let position = platform::place_tooltip(
+        platform::Rect {
             left: 240.0,
             top: 300.0,
-            right: 260.0,
-            bottom: 320.0,
-        }),
-        new!(ElementSize {
+            width: 20.0,
+            height: 20.0,
+        },
+        platform::Size {
             width: 160.0,
             height: 120.0,
-        }),
-        new!(TooltipViewport {
+        },
+        platform::Viewport {
             top: 40.0,
             width: 640.0,
             height: 480.0,
-        }),
+        },
+        DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+        DICTIONARY_TOOLTIP_HOST_GAP_PX,
     );
 
     assert_eq!(position.top, 172.0);
@@ -1497,22 +1499,24 @@ fn dictionary_tooltip_position_keeps_normal_above_host_placement() {
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_tooltip_position_clamps_oversized_stack_below_visible_top() {
-    let position = dictionary_tooltip_position(
-        new!(ReferenceRect {
+    let position = platform::place_tooltip(
+        platform::Rect {
             left: 240.0,
             top: 300.0,
-            right: 260.0,
-            bottom: 320.0,
-        }),
-        new!(ElementSize {
+            width: 20.0,
+            height: 20.0,
+        },
+        platform::Size {
             width: 160.0,
             height: 460.0,
-        }),
-        new!(TooltipViewport {
+        },
+        platform::Viewport {
             top: 56.0,
             width: 640.0,
             height: 480.0,
-        }),
+        },
+        DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+        DICTIONARY_TOOLTIP_HOST_GAP_PX,
     );
 
     assert_eq!(position.top, 64.0);
@@ -2457,8 +2461,8 @@ fn vlacku_load_more_state_clamps_count() {
 #[requires(true)]
 #[ensures(true)]
 fn stable_jvozba_pane_top_uses_anchor_at_unscrolled_position() {
-    let top_at_page_top = stable_jvozba_pane_top(Some(242.0), 0, 46.0, 34.0);
-    let top_after_scroll = stable_jvozba_pane_top(Some(-658.0), 900, 46.0, 34.0);
+    let top_at_page_top = platform::stable_jvozba_pane_top(Some(242.0), 0, 46.0, 34.0);
+    let top_after_scroll = platform::stable_jvozba_pane_top(Some(-658.0), 900, 46.0, 34.0);
 
     assert_eq!(top_at_page_top, 242.0);
     assert_eq!(top_after_scroll, top_at_page_top);
@@ -2468,7 +2472,7 @@ fn stable_jvozba_pane_top_uses_anchor_at_unscrolled_position() {
 #[requires(true)]
 #[ensures(true)]
 fn stable_jvozba_pane_top_uses_fallback_until_results_render() {
-    let top = stable_jvozba_pane_top(None, 900, 46.0, 34.0);
+    let top = platform::stable_jvozba_pane_top(None, 900, 46.0, 34.0);
 
     assert_eq!(top, 46.0);
 }

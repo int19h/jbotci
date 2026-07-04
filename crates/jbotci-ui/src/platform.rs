@@ -116,6 +116,7 @@ impl Rect {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct Viewport {
+    pub top: f64,
     pub width: f64,
     pub height: f64,
 }
@@ -359,10 +360,11 @@ impl ExportService for UnsupportedExportService {
 #[requires(host.height >= 0.0)]
 #[requires(tooltip.width >= 0.0)]
 #[requires(tooltip.height >= 0.0)]
+#[requires(viewport.top >= 0.0)]
 #[requires(viewport.width >= 0.0)]
 #[requires(viewport.height >= 0.0)]
 #[ensures(ret.left >= margin.max(0.0))]
-#[ensures(ret.top >= margin.max(0.0))]
+#[ensures(ret.top >= viewport.top + margin.max(0.0))]
 pub fn place_tooltip(
     host: Rect,
     tooltip: Size,
@@ -377,12 +379,13 @@ pub fn place_tooltip(
     let max_left = (viewport.width - tooltip_width - margin).max(margin);
     let centered_left = host.left + host.width / 2.0 - tooltip_width / 2.0;
     let left = centered_left.clamp(margin, max_left);
+    let min_top = viewport.top + margin;
     let preferred_top = host.top - tooltip_height - gap;
-    let max_top = (viewport.height - tooltip_height - margin).max(margin);
-    let top = if preferred_top >= margin {
+    let max_top = (viewport.height - tooltip_height - margin).max(min_top);
+    let top = if preferred_top >= min_top {
         preferred_top.min(max_top)
     } else {
-        (host.bottom() + gap).clamp(margin, max_top)
+        (host.bottom() + gap).clamp(min_top, max_top)
     };
     TooltipPlacement { left, top }
 }
@@ -503,6 +506,7 @@ mod tests {
                 height: 20.0,
             },
             Viewport {
+                top: 0.0,
                 width: 50.0,
                 height: 50.0,
             },

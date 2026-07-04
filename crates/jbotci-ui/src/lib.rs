@@ -459,31 +459,6 @@ struct ReferenceRect {
     bottom: f64,
 }
 
-#[invariant(width.is_finite() && *width >= 0.0)]
-#[invariant(height.is_finite() && *height >= 0.0)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-struct ElementSize {
-    width: f64,
-    height: f64,
-}
-
-#[invariant(*top >= 0.0)]
-#[invariant(*width >= 0.0)]
-#[invariant(*height >= 0.0)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-struct TooltipViewport {
-    top: f64,
-    width: f64,
-    height: f64,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[invariant(true)]
-struct PositionedPoint {
-    left: f64,
-    top: f64,
-}
-
 #[invariant(self.line > 0)]
 #[invariant(self.column > 0)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13905,42 +13880,14 @@ fn horizontal_ranges_overlap(
 }
 
 #[requires(true)]
-#[ensures(ret >= 0.0)]
-fn reference_rect_width(rect: ReferenceRect) -> f64 {
-    (rect.right - rect.left).max(0.0)
-}
-
-#[requires(true)]
-#[requires(tooltip_size.width >= 0.0)]
-#[requires(tooltip_size.height >= 0.0)]
-#[requires(viewport.top >= 0.0)]
-#[requires(viewport.width >= 0.0)]
-#[requires(viewport.height >= 0.0)]
-#[ensures(ret.left.is_finite())]
-#[ensures(ret.top.is_finite())]
-#[ensures(ret.top >= viewport.top + DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX)]
-fn dictionary_tooltip_position(
-    host_rect: ReferenceRect,
-    tooltip_size: ElementSize,
-    viewport: TooltipViewport,
-) -> PositionedPoint {
-    let margin = DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX;
-    let gap = DICTIONARY_TOOLTIP_HOST_GAP_PX;
-    let tooltip_width = tooltip_size.width.max(1.0);
-    let tooltip_height = tooltip_size.height.max(1.0);
-    let host_width = reference_rect_width(host_rect);
-    let max_left = (viewport.width - tooltip_width - margin).max(margin);
-    let centered_left = host_rect.left + host_width / 2.0 - tooltip_width / 2.0;
-    let left = centered_left.clamp(margin, max_left);
-    let min_top = viewport.top + margin;
-    let preferred_top = host_rect.top - tooltip_height - gap;
-    let max_top = (viewport.height - tooltip_height - margin).max(min_top);
-    let top = if preferred_top >= min_top {
-        preferred_top.min(max_top)
-    } else {
-        (host_rect.bottom + gap).clamp(min_top, max_top)
-    };
-    PositionedPoint { left, top }
+#[ensures(ret.left == rect.left)]
+fn platform_rect_from_reference_rect(rect: ReferenceRect) -> platform::Rect {
+    platform::Rect {
+        left: rect.left,
+        top: rect.top,
+        width: (rect.right - rect.left).max(0.0),
+        height: (rect.bottom - rect.top).max(0.0),
+    }
 }
 
 #[requires(true)]
@@ -18297,22 +18244,24 @@ fn position_dictionary_tooltip(host: &web_sys::Element) {
         .and_then(|height| height.as_f64())
         .unwrap_or(1.0);
     let viewport_top = dictionary_tooltip_visible_top(&document);
-    let position = dictionary_tooltip_position(
-        new!(ReferenceRect {
+    let position = platform::place_tooltip(
+        platform::Rect {
             left: host_rect.left(),
             top: host_rect.top(),
-            right: host_rect.right(),
-            bottom: host_rect.bottom(),
-        }),
-        new!(ElementSize {
+            width: host_rect.width().max(0.0),
+            height: host_rect.height().max(0.0),
+        },
+        platform::Size {
             width: tooltip_rect.width(),
             height: tooltip_rect.height(),
-        }),
-        new!(TooltipViewport {
+        },
+        platform::Viewport {
             top: viewport_top,
             width: viewport_width,
             height: viewport_height,
-        }),
+        },
+        DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+        DICTIONARY_TOOLTIP_HOST_GAP_PX,
     );
     let style = tooltip_html.style();
     let _ = style.set_property(
@@ -18353,8 +18302,8 @@ fn dictionary_tooltip_visible_top(document: &web_sys::Document) -> f64 {
 struct DesktopTooltipMeasure {
     id: String,
     host_rect: ReferenceRect,
-    tooltip_size: ElementSize,
-    viewport: TooltipViewport,
+    tooltip_size: platform::Size,
+    viewport: platform::Viewport,
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -18511,10 +18460,12 @@ fn install_desktop_tooltip_bridge() {
             "#,
         );
         while let Ok(measure) = eval.recv::<DesktopTooltipMeasure>().await {
-            let position = dictionary_tooltip_position(
-                measure.host_rect,
+            let position = platform::place_tooltip(
+                platform_rect_from_reference_rect(measure.host_rect),
                 measure.tooltip_size,
                 measure.viewport,
+                DICTIONARY_TOOLTIP_VIEWPORT_MARGIN_PX,
+                DICTIONARY_TOOLTIP_HOST_GAP_PX,
             );
             let _ = eval.send(DesktopTooltipPlacement {
                 id: measure.id,
@@ -19134,24 +19085,6 @@ fn vlacku_load_more_state(state: &VlackuWebState) -> VlackuWebState {
     let mut next = state.clone();
     next.count = next.count.saturating_mul(2).clamp(1, VLACKU_WEB_MAX_COUNT);
     next
-}
-
-#[requires(match anchor_viewport_top { Some(top) => top.is_finite(), None => true })]
-#[requires(scroll_top >= 0)]
-#[requires(fallback_top.is_finite())]
-#[requires(topbar_bottom.is_finite())]
-#[ensures(ret.is_finite())]
-#[ensures(ret >= topbar_bottom)]
-fn stable_jvozba_pane_top(
-    anchor_viewport_top: Option<f64>,
-    scroll_top: i32,
-    fallback_top: f64,
-    topbar_bottom: f64,
-) -> f64 {
-    anchor_viewport_top
-        .map(|top| top + f64::from(scroll_top))
-        .unwrap_or(fallback_top)
-        .max(topbar_bottom)
 }
 
 #[requires(true)]
@@ -19824,16 +19757,22 @@ fn sync_vlacku_jvozba_pane_metrics() {
         .map(|main| (main.offset_width() - main.client_width()).max(0))
         .unwrap_or(0);
     let fallback_top = form_bottom.unwrap_or(topbar_bottom).max(topbar_bottom) + 12.0;
-    let top = stable_jvozba_pane_top(anchor_top, app_scroll_top, fallback_top, topbar_bottom);
-    let bottom = 12.0;
-    let height = (viewport_height - top - bottom).max(280.0) * VLACKU_JVOZBA_HEIGHT_SCALE;
+    let layout = platform::compute_jvozba_pane_layout(
+        anchor_top,
+        app_scroll_top,
+        fallback_top,
+        topbar_bottom,
+        viewport_height,
+        app_scrollbar_gutter_width,
+        VLACKU_JVOZBA_HEIGHT_SCALE,
+    );
     let style = pane.style();
-    let _ = style.set_property("--jvozba-pane-top", &format!("{top}px"));
-    let _ = style.set_property("--jvozba-pane-bottom", &format!("{bottom}px"));
-    let _ = style.set_property("--jvozba-pane-height", &format!("{height}px"));
+    let _ = style.set_property("--jvozba-pane-top", &format!("{}px", layout.top));
+    let _ = style.set_property("--jvozba-pane-bottom", &format!("{}px", layout.bottom));
+    let _ = style.set_property("--jvozba-pane-height", &format!("{}px", layout.height));
     let _ = style.set_property(
         "--app-scrollbar-gutter-width",
-        &format!("{app_scrollbar_gutter_width}px"),
+        &format!("{}px", layout.scrollbar_gutter_width),
     );
 }
 
@@ -19864,38 +19803,23 @@ struct JvozbaPaneMetrics {
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
-#[invariant(true)]
-struct JvozbaPaneLayout {
-    top: f64,
-    bottom: f64,
-    height: f64,
-    app_scrollbar_gutter_width: i32,
-}
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(ret.top >= metrics.topbar_bottom)]
-fn jvozba_pane_layout_from_metrics(metrics: JvozbaPaneMetrics) -> JvozbaPaneLayout {
+fn jvozba_pane_layout_from_metrics(metrics: JvozbaPaneMetrics) -> platform::JvozbaPaneLayout {
     let fallback_top = metrics
         .form_bottom
         .unwrap_or(metrics.topbar_bottom)
         .max(metrics.topbar_bottom)
         + 12.0;
-    let top = stable_jvozba_pane_top(
+    platform::compute_jvozba_pane_layout(
         metrics.anchor_top,
         metrics.app_scroll_top,
         fallback_top,
         metrics.topbar_bottom,
-    );
-    let bottom = 12.0;
-    let height = (metrics.viewport_height - top - bottom).max(280.0) * VLACKU_JVOZBA_HEIGHT_SCALE;
-    JvozbaPaneLayout {
-        top,
-        bottom,
-        height,
-        app_scrollbar_gutter_width: metrics.app_scrollbar_gutter_width,
-    }
+        metrics.viewport_height,
+        metrics.app_scrollbar_gutter_width,
+        VLACKU_JVOZBA_HEIGHT_SCALE,
+    )
 }
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
@@ -19946,7 +19870,7 @@ async fn measure_vlacku_jvozba_pane_metrics_desktop() -> Option<JvozbaPaneMetric
 #[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(true)]
 #[ensures(true)]
-async fn apply_vlacku_jvozba_pane_layout_desktop(layout: JvozbaPaneLayout) {
+async fn apply_vlacku_jvozba_pane_layout_desktop(layout: platform::JvozbaPaneLayout) {
     let Ok(layout_json) = serde_json::to_string(&layout) else {
         return;
     };
@@ -19958,7 +19882,7 @@ async fn apply_vlacku_jvozba_pane_layout_desktop(layout: JvozbaPaneLayout) {
             pane.style.setProperty("--jvozba-pane-top", `${{Number(layout.top).toFixed(2)}}px`);
             pane.style.setProperty("--jvozba-pane-bottom", `${{Number(layout.bottom).toFixed(2)}}px`);
             pane.style.setProperty("--jvozba-pane-height", `${{Number(layout.height).toFixed(2)}}px`);
-            pane.style.setProperty("--app-scrollbar-gutter-width", `${{Number(layout.app_scrollbar_gutter_width)}}px`);
+            pane.style.setProperty("--app-scrollbar-gutter-width", `${{Number(layout.scrollbar_gutter_width)}}px`);
         }}
         return null;
         "#
