@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_invariant, invariant, requires};
@@ -757,99 +757,7 @@ pub enum CllLinkKind {
     External,
 }
 
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CllSearchChunkKind {
-    Section,
-    Paragraph,
-    Example,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CllSearchChunk {
-    pub kind: CllSearchChunkKind,
-    pub section_id: String,
-    pub anchor_id: String,
-    pub section_number: String,
-    pub section_title: String,
-    pub label: String,
-    pub text: String,
-    pub tagged_words: BTreeSet<String>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CllSearchMatch {
-    pub rank: usize,
-    pub similarity: Option<f32>,
-    pub chunk: CllSearchChunk,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CuktaTargetFilter {
-    pub sections: bool,
-    pub paragraphs: bool,
-    pub examples: bool,
-}
-
-impl Default for CuktaTargetFilter {
-    #[requires(true)]
-    #[ensures(ret.sections)]
-    #[ensures(ret.paragraphs)]
-    #[ensures(ret.examples)]
-    fn default() -> Self {
-        Self {
-            sections: true,
-            paragraphs: true,
-            examples: true,
-        }
-    }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CuktaSearchMode {
-    Meaning,
-    Word,
-}
-
-#[invariant(true)]
-#[invariant(::Section { .. } => true)]
-#[invariant(::Example { .. } => true)]
-#[invariant(::Search { .. } => true)]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CuktaRequest {
-    Toc,
-    Index,
-    Section {
-        reference: String,
-    },
-    Example {
-        reference: String,
-    },
-    Search {
-        mode: CuktaSearchMode,
-        query: String,
-        count: usize,
-        targets: CuktaTargetFilter,
-    },
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CuktaSearchOutput {
-    pub mode: CuktaSearchMode,
-    pub query: String,
-    pub count: usize,
-    pub matches: Vec<CllSearchMatch>,
-    pub message: Option<String>,
-    pub has_more: bool,
-}
+use crate::search::CllSearchChunk;
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

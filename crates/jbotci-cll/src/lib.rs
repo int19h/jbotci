@@ -1,6 +1,6 @@
 //! The Complete Lojban Language reference model.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::io::Read;
 use std::sync::OnceLock;
 
@@ -55,6 +55,17 @@ pub use links::{
     cll_link_href, cll_resolve_example_reference, cll_resolve_section_reference,
     cll_search_chunk_href, section_href,
 };
+
+mod search;
+#[cfg(test)]
+use search::block_tagged_words;
+pub use search::{
+    CllSearchChunk, CllSearchChunkKind, CllSearchMatch, CuktaRequest, CuktaSearchMode,
+    CuktaSearchOutput, CuktaTargetFilter, clamp_cukta_result_count, cll_search_all_chunks,
+    cll_search_section_chunks, collect_tagged_words, cukta_search, cukta_word_search_matches,
+    parse_word_search_terms, truncate_preview,
+};
+use search::{build_search_chunks, example_plain_text, search_chunk_kind_label};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -2128,124 +2139,6 @@ fn parse_lujvo_making_block(
 
 #[requires(true)]
 #[ensures(true)]
-fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
-    let mut chunks = Vec::new();
-    for section_id in &site.section_order {
-        let section = site
-            .sections_by_id
-            .get(section_id)
-            .expect("CllSite invariant guarantees section_order ids resolve");
-        let section_label = format_section_display_title(section);
-        let section_text =
-            normalized_plain_text(&format!("{}\n{}", section.title, section.plain_text));
-        if !section_text.is_empty() {
-            chunks.push(CllSearchChunk {
-                kind: CllSearchChunkKind::Section,
-                section_id: section.section_id.clone(),
-                anchor_id: section.section_id.clone(),
-                section_number: section.number.clone(),
-                section_title: section.title.clone(),
-                label: section_label.clone(),
-                text: section_text.clone(),
-                tagged_words: blocks_tagged_words(site, &section.blocks),
-            });
-        }
-        collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
-    }
-    chunks
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn collect_block_search_chunks(
-    site: &CllSite,
-    section: &CllSection,
-    blocks: &[CllBlock],
-    chunks: &mut Vec<CllSearchChunk>,
-) {
-    for block in blocks {
-        match block {
-            CllBlock::Paragraph {
-                anchor_id,
-                inlines,
-                text,
-                ..
-            } => {
-                if text.chars().count() > PARAGRAPH_SEARCH_MIN_CHARS {
-                    chunks.push(CllSearchChunk {
-                        kind: CllSearchChunkKind::Paragraph,
-                        section_id: section.section_id.clone(),
-                        anchor_id: anchor_id
-                            .clone()
-                            .unwrap_or_else(|| section.section_id.clone()),
-                        section_number: section.number.clone(),
-                        section_title: section.title.clone(),
-                        label: format!("Paragraph in {}", format_section_display_title(section)),
-                        text: text.clone(),
-                        tagged_words: inlines_tagged_words(inlines),
-                    });
-                }
-            }
-            CllBlock::Example { example_id } => {
-                if let Some(example) = cll_lookup_example(site, example_id) {
-                    if !example.plain_text.trim().is_empty() {
-                        chunks.push(CllSearchChunk {
-                            kind: CllSearchChunkKind::Example,
-                            section_id: section.section_id.clone(),
-                            anchor_id: example.anchor_id.clone(),
-                            section_number: section.number.clone(),
-                            section_title: section.title.clone(),
-                            label: example.label.clone(),
-                            text: example.plain_text.clone(),
-                            tagged_words: example_tagged_words(example),
-                        });
-                    }
-                    collect_block_search_chunks(site, section, &example.blocks, chunks);
-                }
-            }
-            CllBlock::List { items, .. } => {
-                for item in items {
-                    collect_block_search_chunks(site, section, item, chunks);
-                }
-            }
-            CllBlock::Table {
-                header_rows,
-                body_rows,
-                ..
-            } => {
-                for row in header_rows.iter().chain(body_rows.iter()) {
-                    for cell in row {
-                        collect_block_search_chunks(site, section, &cell.blocks, chunks);
-                    }
-                }
-            }
-            CllBlock::VariableList { entries, .. } => {
-                for entry in entries {
-                    collect_block_search_chunks(site, section, &entry.blocks, chunks);
-                }
-            }
-            CllBlock::Rule { body, .. } => collect_block_search_chunks(site, section, body, chunks),
-            CllBlock::BlockQuote { blocks, .. } => {
-                collect_block_search_chunks(site, section, blocks, chunks)
-            }
-            CllBlock::SimpleListTable { .. }
-            | CllBlock::Media { .. }
-            | CllBlock::Code { .. }
-            | CllBlock::Heading { .. }
-            | CllBlock::Definition { .. }
-            | CllBlock::InterlinearGloss { .. }
-            | CllBlock::CmavoList { .. }
-            | CllBlock::Lojbanization { .. }
-            | CllBlock::LujvoMaking { .. }
-            | CllBlock::GrammarTemplate { .. }
-            | CllBlock::Ebnf { .. }
-            | CllBlock::DisplayMath { .. } => {}
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn cll_chapters(site: &CllSite) -> &[CllChapter] {
     &site.chapters
 }
@@ -2430,118 +2323,6 @@ pub fn cll_next_section_id<'a>(site: &'a CllSite, section_id: &str) -> Option<&'
         .iter()
         .position(|candidate| candidate == section_id)?;
     site.section_order.get(index + 1).map(String::as_str)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn cll_search_all_chunks(site: &CllSite) -> &[CllSearchChunk] {
-    &site.search_chunks
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn cll_search_section_chunks(site: &CllSite) -> Vec<&CllSearchChunk> {
-    site.search_chunks
-        .iter()
-        .filter(|chunk| chunk.kind == CllSearchChunkKind::Section)
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(ret >= 1)]
-pub fn clamp_cukta_result_count(count: usize) -> usize {
-    count.clamp(1, MAX_CUKTA_RESULT_COUNT)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn cukta_word_search_matches(
-    site: &CllSite,
-    query: &str,
-    count: usize,
-    targets: CuktaTargetFilter,
-) -> Vec<CllSearchMatch> {
-    let terms = parse_word_search_terms(query);
-    if terms.is_empty() || !target_filter_has_any(targets) {
-        return Vec::new();
-    }
-    let selected = site
-        .search_chunks
-        .iter()
-        .filter(|chunk| chunk_kind_allowed(chunk.kind, targets))
-        .filter(|chunk| terms.iter().all(|term| chunk.tagged_words.contains(term)))
-        .take(clamp_cukta_result_count(count))
-        .cloned()
-        .collect::<Vec<_>>();
-    selected
-        .into_iter()
-        .enumerate()
-        .map(|(index, chunk)| CllSearchMatch {
-            rank: index + 1,
-            similarity: None,
-            chunk,
-        })
-        .collect()
-}
-
-#[requires(count > 0)]
-#[ensures(ret.count == clamp_cukta_result_count(count))]
-pub fn cukta_search(
-    site: &CllSite,
-    mode: CuktaSearchMode,
-    query: &str,
-    count: usize,
-    targets: CuktaTargetFilter,
-) -> CuktaSearchOutput {
-    let count = clamp_cukta_result_count(count);
-    let query = query.trim().to_owned();
-    if query.is_empty() {
-        return CuktaSearchOutput {
-            mode,
-            query,
-            count,
-            matches: Vec::new(),
-            message: None,
-            has_more: false,
-        };
-    }
-    if mode == CuktaSearchMode::Meaning {
-        return CuktaSearchOutput {
-            mode,
-            query,
-            count,
-            matches: Vec::new(),
-            message: Some("Meaning search is not available yet.".to_owned()),
-            has_more: false,
-        };
-    }
-    if !target_filter_has_any(targets) {
-        return CuktaSearchOutput {
-            mode,
-            query,
-            count,
-            matches: Vec::new(),
-            message: Some("Select at least one search target.".to_owned()),
-            has_more: false,
-        };
-    }
-    let fetch_count = count.saturating_add(1).min(MAX_CUKTA_RESULT_COUNT);
-    let mut matches = cukta_word_search_matches(site, &query, fetch_count, targets);
-    let has_more = matches.len() > count;
-    matches.truncate(count);
-    let message = if matches.is_empty() {
-        Some("No matches found.".to_owned())
-    } else {
-        None
-    };
-    CuktaSearchOutput {
-        mode,
-        query,
-        count,
-        matches,
-        message,
-        has_more,
-    }
 }
 
 #[requires(true)]
@@ -2849,255 +2630,6 @@ pub fn cll_section_chapter_title(site: &CllSite, section_id: &str) -> Option<Str
         .iter()
         .find(|chapter| chapter.chapter_id == section.chapter_id)
         .map(|chapter| chapter.chapter_title.clone())
-}
-
-#[requires(true)]
-#[ensures(ret.chars().count() <= max_chars + 1)]
-pub fn truncate_preview(text: &str, max_chars: usize) -> String {
-    let compact = normalized_plain_text(text);
-    if compact.chars().count() <= max_chars {
-        return compact;
-    }
-    let mut truncated = compact.chars().take(max_chars).collect::<String>();
-    truncated.push('\u{2026}');
-    truncated
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn parse_word_search_terms(query: &str) -> BTreeSet<String> {
-    let normalized = normalize_lojban_input_text(query).unwrap_or_else(|| query.to_owned());
-    collect_tagged_words(&normalized)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn collect_tagged_words(text: &str) -> BTreeSet<String> {
-    let mut words = BTreeSet::new();
-    let mut current = String::new();
-    for character in text.chars() {
-        let normalized = character.to_ascii_lowercase();
-        if normalized == 'h' {
-            current.push('\'');
-        } else if normalized == '.' {
-            continue;
-        } else if normalized.is_ascii_lowercase() || normalized == '\'' {
-            current.push(normalized);
-        } else if !current.is_empty() {
-            words.insert(std::mem::take(&mut current));
-        }
-    }
-    if !current.is_empty() {
-        words.insert(current);
-    }
-    words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn blocks_tagged_words(site: &CllSite, blocks: &[CllBlock]) -> BTreeSet<String> {
-    let mut words = BTreeSet::new();
-    for block in blocks {
-        words.extend(block_tagged_words(site, block));
-    }
-    words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn block_tagged_words(site: &CllSite, block: &CllBlock) -> BTreeSet<String> {
-    match block {
-        CllBlock::Paragraph { inlines, .. } => inlines_tagged_words(inlines),
-        CllBlock::List { items, .. } => items
-            .iter()
-            .flat_map(|item| blocks_tagged_words(site, item))
-            .collect(),
-        CllBlock::Example { example_id } => cll_lookup_example(site, example_id)
-            .map(example_tagged_words)
-            .unwrap_or_default(),
-        CllBlock::Table {
-            header_rows,
-            body_rows,
-            ..
-        } => header_rows
-            .iter()
-            .chain(body_rows.iter())
-            .flat_map(|row| {
-                row.iter()
-                    .flat_map(|cell| blocks_tagged_words(site, &cell.blocks))
-            })
-            .collect(),
-        CllBlock::VariableList { entries, .. } => entries
-            .iter()
-            .flat_map(|entry| {
-                let mut words = inlines_tagged_words(&entry.term);
-                words.extend(blocks_tagged_words(site, &entry.blocks));
-                words
-            })
-            .collect(),
-        CllBlock::Rule { body, .. } => blocks_tagged_words(site, body),
-        CllBlock::BlockQuote { blocks, .. } => blocks_tagged_words(site, blocks),
-        CllBlock::Heading { inlines, .. } => inlines_tagged_words(inlines),
-        CllBlock::SimpleListTable { rows, .. } => rows
-            .iter()
-            .flat_map(|row| {
-                row.iter()
-                    .flatten()
-                    .flat_map(|cell| inlines_tagged_words(cell))
-            })
-            .collect(),
-        CllBlock::Definition { body, .. } | CllBlock::GrammarTemplate { body, .. } => {
-            inlines_tagged_words(body)
-        }
-        CllBlock::InterlinearGloss {
-            rows,
-            natlang,
-            comments,
-            ..
-        } => {
-            let mut words = BTreeSet::new();
-            for row in rows {
-                for cell in &row.cells {
-                    words.extend(inlines_tagged_words(cell));
-                }
-            }
-            for line in natlang.iter().chain(comments.iter()) {
-                words.extend(inlines_tagged_words(line));
-            }
-            words
-        }
-        CllBlock::CmavoList {
-            titles,
-            headers,
-            rows,
-            ..
-        } => {
-            let mut words = BTreeSet::new();
-            for inline_set in titles.iter().chain(headers.iter()) {
-                words.extend(inlines_tagged_words(inline_set));
-            }
-            for row in rows {
-                for cell in row {
-                    words.extend(inlines_tagged_words(cell));
-                }
-            }
-            words
-        }
-        CllBlock::Lojbanization { lines, .. } => {
-            let mut words = BTreeSet::new();
-            for line in lines {
-                words.extend(inlines_tagged_words(&line.body));
-                if let Some(comment) = &line.comment {
-                    words.extend(inlines_tagged_words(comment));
-                }
-            }
-            words
-        }
-        CllBlock::LujvoMaking { parts, .. } => parts
-            .iter()
-            .flat_map(|part| inlines_tagged_words(&part.body))
-            .collect(),
-        CllBlock::Ebnf { entries, .. } => entries
-            .iter()
-            .flat_map(|entry| {
-                let mut words = collect_tagged_words(&entry.rule_name);
-                for token in &entry.rhs {
-                    words.extend(collect_tagged_words(&ebnf_token_plain_text(token)));
-                }
-                words
-            })
-            .collect(),
-        CllBlock::Media { .. } | CllBlock::Code { .. } | CllBlock::DisplayMath { .. } => {
-            BTreeSet::new()
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn inlines_tagged_words(inlines: &[CllInline]) -> BTreeSet<String> {
-    let mut words = BTreeSet::new();
-    for inline in inlines {
-        match inline {
-            CllInline::Link {
-                target,
-                inlines,
-                kind: CllLinkKind::Dictionary | CllLinkKind::Rafsi,
-            } => {
-                words.extend(collect_tagged_words(target));
-                words.extend(collect_tagged_words(&inline_plain_text(inlines)));
-            }
-            CllInline::Emphasis { inlines, .. }
-            | CllInline::Quote { inlines, .. }
-            | CllInline::LanguageSpan { inlines, .. }
-            | CllInline::CiteTitle { inlines }
-            | CllInline::Subscript { inlines }
-            | CllInline::Superscript { inlines }
-            | CllInline::Elidable { inlines, .. } => {
-                words.extend(inlines_tagged_words(inlines));
-            }
-            CllInline::Text(_)
-            | CllInline::Code(_)
-            | CllInline::Link { .. }
-            | CllInline::InlineMath { .. }
-            | CllInline::Anchor { .. } => {}
-        }
-    }
-    words
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn example_tagged_words(example: &CllExample) -> BTreeSet<String> {
-    example
-        .lines
-        .iter()
-        .filter(|line| line.kind.is_lojban())
-        .flat_map(|line| collect_tagged_words(&line.text))
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn example_plain_text(example: &CllExample) -> String {
-    if example.lines.is_empty() {
-        normalized_plain_text(&example.plain_text)
-    } else {
-        normalized_plain_text(
-            &example
-                .lines
-                .iter()
-                .map(|line| line.text.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
-        )
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn target_filter_has_any(filter: CuktaTargetFilter) -> bool {
-    filter.sections || filter.paragraphs || filter.examples
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn chunk_kind_allowed(kind: CllSearchChunkKind, filter: CuktaTargetFilter) -> bool {
-    match kind {
-        CllSearchChunkKind::Section => filter.sections,
-        CllSearchChunkKind::Paragraph => filter.paragraphs,
-        CllSearchChunkKind::Example => filter.examples,
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn search_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
-    match kind {
-        CllSearchChunkKind::Section => "section",
-        CllSearchChunkKind::Paragraph => "paragraph",
-        CllSearchChunkKind::Example => "example",
-    }
 }
 
 #[requires(true)]
@@ -4709,6 +4241,8 @@ fn escape_html(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
     #[allow(unused_imports)]
     use bityzba::{ensures, new, requires};
