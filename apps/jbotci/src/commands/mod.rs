@@ -16,8 +16,10 @@ pub(super) use gimfihi::run_gimfihi;
 pub(super) use jvozba::run_jvozba;
 pub(super) use setup::run_setup;
 pub(super) use tersmu::run_tersmu;
-pub(super) use vlacku::{VlackuRenderOptions, render_vlacku_output_with_options, run_vlacku};
-#[cfg(test)]
-pub(super) use vlacku::{render_vlacku_output, render_vlacku_output_with_width};
+pub use vlacku::VlackuRenderOptions;
+pub(super) use vlacku::{
+    render_vlacku_output, render_vlacku_output_with_options, render_vlacku_output_with_width,
+    run_vlacku,
+};
 pub(super) use vlasei::run_vlasei;
 pub(super) use vlatai::run_vlatai;

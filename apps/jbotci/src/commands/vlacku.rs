@@ -234,12 +234,12 @@ fn cli_status_from_vlacku_outcome(outcome: VlackuOutcome) -> CliStatus {
 
 #[invariant(self.output_terminal_width.is_none_or(|width| width > 0))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct VlackuRenderOptions {
-    pub(crate) color: bool,
-    pub(crate) glyphs: GlyphStyle,
-    pub(crate) output_terminal_width: Option<usize>,
-    pub(crate) sumti_places: CliSumtiPlaces,
-    pub(crate) show_etymology: bool,
+pub struct VlackuRenderOptions {
+    pub color: bool,
+    pub glyphs: GlyphStyle,
+    pub output_terminal_width: Option<usize>,
+    pub sumti_places: CliSumtiPlaces,
+    pub show_etymology: bool,
 }
 
 #[requires(true)]

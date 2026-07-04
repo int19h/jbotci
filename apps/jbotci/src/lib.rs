@@ -6,11 +6,106 @@ mod tool;
 
 pub use cli::main_entry;
 use cli::run_cli_command_with_tool_context;
-#[cfg(test)]
-use cli::{run_cli, run_cli_with_color_policy_and_width};
 use commands::*;
 use output::*;
 pub use tool::*;
+
+#[doc(hidden)]
+pub mod test_harness {
+    pub use super::commands::VlackuRenderOptions;
+    pub use super::{
+        Cli, CliCollisionScope, CliColorPolicy, CliGlideMark, CliStatus, CliStressMark,
+        CliSumtiPlaces, CliTracePhase, CliUsePrecomputed, Command, CuktaCliFormat, CuktaInput,
+        GentufaFormat, GentufaImageOutputType, GentufaInput, GimfihiCliFormat, GimfihiInput,
+        JvozbaInput, SetupInput, TersmuFormat, TersmuInput, TextInput, ToolCuktaFormat,
+        ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext, ToolStatus, ToolVlackuMode,
+        ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat, VlataiInput,
+        run_tool_cukta_with_context, run_tool_vlacku, run_tool_vlacku_with_context,
+    };
+    #[cfg(feature = "grammar-debug")]
+    pub use super::{GernaFormat, GernaInput};
+    pub use bityzba::{ensures, invariant, new, requires};
+    pub use clap::{CommandFactory, Parser};
+    pub use jbotci_diagnostics::{TraceLevel, TraceOptions, TracePhase};
+    pub use jbotci_gimfihi::GimfihiSourceInput;
+    pub use jbotci_jvozba::JvozbaInput as JvozbaSourceInput;
+    pub use jbotci_output::{DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, GlyphStyle};
+    pub use jbotci_search::vlacku::{
+        VlackuAuthor, VlackuCard, VlackuOutcome, VlackuRequest, VlackuSearchOutput,
+    };
+    pub use std::fs;
+    pub use std::num::NonZeroUsize;
+    pub use std::path::PathBuf;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn run_cli<WOut: std::io::Write, WErr: std::io::Write>(
+        cli: Cli,
+        stdout: &mut WOut,
+        stderr: &mut WErr,
+        color_enabled: bool,
+    ) -> anyhow::Result<CliStatus> {
+        super::cli::run_cli(cli, stdout, stderr, color_enabled)
+    }
+
+    #[requires(diagnostic_terminal_width > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn run_cli_with_color_policy_and_width<WOut: std::io::Write, WErr: std::io::Write>(
+        cli: Cli,
+        stdout: &mut WOut,
+        stderr: &mut WErr,
+        color_policy: CliColorPolicy,
+        diagnostic_terminal_width: usize,
+    ) -> anyhow::Result<CliStatus> {
+        super::cli::run_cli_with_color_policy_and_width(
+            cli,
+            stdout,
+            stderr,
+            color_policy,
+            diagnostic_terminal_width,
+        )
+    }
+
+    #[requires(limit > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub fn trace_options(
+        trace: &Option<Option<String>>,
+        phase: TracePhase,
+        limit: usize,
+    ) -> anyhow::Result<TraceOptions> {
+        super::trace_options(trace, phase, limit)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn render_vlacku_output(
+        output: &VlackuSearchOutput,
+        color: bool,
+        glyphs: GlyphStyle,
+    ) -> String {
+        super::render_vlacku_output(output, color, glyphs)
+    }
+
+    #[requires(output_terminal_width.is_none_or(|width| width > 0))]
+    #[ensures(!ret.is_empty())]
+    pub fn render_vlacku_output_with_width(
+        output: &VlackuSearchOutput,
+        color: bool,
+        glyphs: GlyphStyle,
+        output_terminal_width: Option<usize>,
+    ) -> String {
+        super::render_vlacku_output_with_width(output, color, glyphs, output_terminal_width)
+    }
+
+    #[requires(options.output_terminal_width.is_none_or(|width| width > 0))]
+    #[ensures(!ret.is_empty())]
+    pub fn render_vlacku_output_with_options(
+        output: &VlackuSearchOutput,
+        options: VlackuRenderOptions,
+    ) -> String {
+        super::render_vlacku_output_with_options(output, options)
+    }
+}
 
 use benchmark::BenchmarkMeasurement;
 use bityzba::{data, invariant, new, requires};
@@ -95,16 +190,13 @@ use jbotci_syntax::{
 use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use unicode_width::UnicodeWidthStr;
 
-#[cfg(test)]
-use jbotci_search::vlacku::VlackuAuthor;
-
 const VLACKU_DETAIL_INDENT: &str = "    ";
 
 #[derive(Debug, Clone, Parser)]
 #[command(name = "jbotci")]
 #[command(about = "Command-line Lojban toolkit")]
 #[invariant(true)]
-struct Cli {
+pub struct Cli {
     #[arg(
         long = "color",
         global = true,
@@ -115,11 +207,11 @@ struct Cli {
         default_missing_value = "always",
         require_equals = true,
     )]
-    color: concolor_clap::ColorChoice,
+    pub color: concolor_clap::ColorChoice,
     #[arg(long = "benchmark", global = true, value_name = "N")]
-    benchmark: Option<NonZeroUsize>,
+    pub benchmark: Option<NonZeroUsize>,
     #[command(subcommand)]
-    command: Command,
+    pub command: Command,
 }
 
 #[invariant(true)]
@@ -136,7 +228,7 @@ struct Cli {
 #[invariant(::Setup(..) => true)]
 #[invariant(::Gerna(..) => true)]
 #[derive(Debug, Clone, Subcommand)]
-enum Command {
+pub enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
     Vlasei(VlaseiInput),
     #[command(name = "vlatai")]
@@ -166,7 +258,7 @@ enum Command {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CliStatus {
+pub enum CliStatus {
     Success,
     Failure,
     ValidMissing,
@@ -175,16 +267,16 @@ enum CliStatus {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct CliColorPolicy {
-    stdout: bool,
-    stderr: bool,
+pub struct CliColorPolicy {
+    pub stdout: bool,
+    pub stderr: bool,
 }
 
 impl CliColorPolicy {
     #[requires(true)]
     #[ensures(!ret.stdout)]
     #[ensures(!ret.stderr)]
-    fn never() -> Self {
+    pub fn never() -> Self {
         Self {
             stdout: false,
             stderr: false,
@@ -194,7 +286,7 @@ impl CliColorPolicy {
     #[requires(true)]
     #[ensures(ret.stdout == enabled)]
     #[ensures(ret.stderr == enabled)]
-    fn same(enabled: bool) -> Self {
+    pub fn same(enabled: bool) -> Self {
         Self {
             stdout: enabled,
             stderr: enabled,
@@ -214,14 +306,14 @@ impl CliColorPolicy {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct CliProgressPolicy {
-    embedding_setup: bool,
+pub struct CliProgressPolicy {
+    pub embedding_setup: bool,
 }
 
 impl CliProgressPolicy {
     #[requires(true)]
     #[ensures(!ret.embedding_setup)]
-    fn disabled() -> Self {
+    pub fn disabled() -> Self {
         Self {
             embedding_setup: false,
         }
@@ -229,7 +321,7 @@ impl CliProgressPolicy {
 
     #[requires(true)]
     #[ensures(ret.embedding_setup == enabled)]
-    fn embedding_setup(enabled: bool) -> Self {
+    pub fn embedding_setup(enabled: bool) -> Self {
         Self {
             embedding_setup: enabled,
         }
@@ -237,7 +329,7 @@ impl CliProgressPolicy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GentufaFormat {
+pub enum GentufaFormat {
     Brackets,
     Blocks,
     #[value(alias = "vipcihe", help = "alias: vipcihe")]
@@ -249,19 +341,19 @@ enum GentufaFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum TersmuFormat {
+pub enum TersmuFormat {
     #[value(alias = "djeisone")]
     Json,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GentufaImageOutputType {
+pub enum GentufaImageOutputType {
     Svg,
     Png,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum VlaseiFormat {
+pub enum VlaseiFormat {
     Brackets,
     Tree,
     Ipa,
@@ -272,7 +364,7 @@ enum VlaseiFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum VlataiFormat {
+pub enum VlataiFormat {
     Text,
     #[value(alias = "djeisone")]
     Json,
@@ -280,7 +372,7 @@ enum VlataiFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GimfihiCliFormat {
+pub enum GimfihiCliFormat {
     Table,
     #[value(alias = "djeisone")]
     Json,
@@ -288,7 +380,7 @@ enum GimfihiCliFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CliCollisionScope {
+pub enum CliCollisionScope {
     All,
     Official,
     None,
@@ -308,13 +400,13 @@ impl From<CliCollisionScope> for CollisionScope {
 
 #[cfg(feature = "grammar-debug")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GernaFormat {
+pub enum GernaFormat {
     Ebnf,
     Svg,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CliStressMark {
+pub enum CliStressMark {
     None,
     Acute,
     Caps,
@@ -333,13 +425,13 @@ impl From<CliStressMark> for StressMark {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CliGlideMark {
+pub enum CliGlideMark {
     None,
     Breve,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CliTracePhase {
+pub enum CliTracePhase {
     Morphology,
     Syntax,
     All,
@@ -347,27 +439,27 @@ enum CliTracePhase {
 
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CliParsedTraceSpec {
-    level: TraceLevel,
-    filter: Option<TraceFilter>,
+pub struct CliParsedTraceSpec {
+    pub level: TraceLevel,
+    pub filter: Option<TraceFilter>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct CliTraceConfig {
-    phase: TracePhase,
-    limit: usize,
+pub struct CliTraceConfig {
+    pub phase: TracePhase,
+    pub limit: usize,
 }
 
 #[invariant(!self.command_name.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CliTraceValidation {
-    command_name: &'static str,
-    trace_phase: Option<TracePhase>,
-    trace_limit_present: bool,
-    trace_list: bool,
-    supports_morphology: bool,
-    supports_syntax: bool,
+pub struct CliTraceValidation {
+    pub command_name: &'static str,
+    pub trace_phase: Option<TracePhase>,
+    pub trace_limit_present: bool,
+    pub trace_list: bool,
+    pub supports_morphology: bool,
+    pub supports_syntax: bool,
 }
 
 impl From<CliTracePhase> for TracePhase {
@@ -395,26 +487,26 @@ impl From<CliGlideMark> for GlideMark {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct VlaseiInput {
+pub struct VlaseiInput {
     #[arg(long = "file", alias = "sfaile")]
-    file: Option<PathBuf>,
+    pub file: Option<PathBuf>,
     #[arg(long = "ascii")]
-    ascii: bool,
+    pub ascii: bool,
     #[arg(long = "detailed-errors")]
-    detailed_errors: bool,
+    pub detailed_errors: bool,
     #[arg(long = "trace-phase", value_enum)]
-    trace_phase: Option<CliTracePhase>,
+    pub trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]
-    trace_limit: Option<usize>,
+    pub trace_limit: Option<usize>,
     #[arg(long = "trace-list")]
-    trace_list: bool,
+    pub trace_list: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
         default_value_t = VlaseiFormat::Brackets,
         value_enum
     )]
-    format: VlaseiFormat,
+    pub format: VlaseiFormat,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -422,82 +514,82 @@ struct VlaseiInput {
         num_args = 0..=1,
         default_missing_value = "1"
     )]
-    trace: Option<Option<String>>,
+    pub trace: Option<Option<String>>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
     #[arg(long = "indent")]
-    indent: Option<usize>,
+    pub indent: Option<usize>,
     #[arg(long = "mark-stress", value_enum)]
-    mark_stress: Option<CliStressMark>,
+    pub mark_stress: Option<CliStressMark>,
     #[arg(long = "mark-glides", value_enum)]
-    mark_glides: Option<CliGlideMark>,
+    pub mark_glides: Option<CliGlideMark>,
     #[arg(long = "show-spans")]
-    show_spans: bool,
+    pub show_spans: bool,
     #[arg(long = "decompose-lujvo")]
-    decompose_lujvo: bool,
+    pub decompose_lujvo: bool,
     #[arg()]
-    text: Vec<String>,
+    pub text: Vec<String>,
 }
 
 impl VlaseiInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text(&self) -> Result<String> {
+    pub fn read_text(&self) -> Result<String> {
         self.read_text_with_stdin(None)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct VlataiInput {
+pub struct VlataiInput {
     #[arg(long = "ascii")]
-    ascii: bool,
+    pub ascii: bool,
     #[arg(long = "detailed-errors")]
-    detailed_errors: bool,
+    pub detailed_errors: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
         default_value_t = VlataiFormat::Text,
         value_enum
     )]
-    format: VlataiFormat,
+    pub format: VlataiFormat,
     #[arg(long = "indent")]
-    indent: Option<usize>,
+    pub indent: Option<usize>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
     #[arg(long = "mark-stress", value_enum)]
-    mark_stress: Option<CliStressMark>,
+    pub mark_stress: Option<CliStressMark>,
     #[arg(long = "mark-glides", value_enum)]
-    mark_glides: Option<CliGlideMark>,
+    pub mark_glides: Option<CliGlideMark>,
     #[arg(required = true)]
-    words: Vec<String>,
+    pub words: Vec<String>,
 }
 
 impl VlataiInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct TextInput {
+pub struct TextInput {
     #[arg(long = "file", alias = "sfaile")]
-    file: Option<PathBuf>,
+    pub file: Option<PathBuf>,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -505,46 +597,46 @@ struct TextInput {
         num_args = 0..=1,
         default_missing_value = "1"
     )]
-    trace: Option<Option<String>>,
+    pub trace: Option<Option<String>>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
     #[arg(long = "indent")]
-    indent: Option<usize>,
+    pub indent: Option<usize>,
     #[arg()]
-    text: Vec<String>,
+    pub text: Vec<String>,
 }
 
 impl TextInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text(&self) -> Result<String> {
+    pub fn read_text(&self) -> Result<String> {
         self.read_text_with_stdin(None)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct TersmuInput {
+pub struct TersmuInput {
     #[arg(long = "file", alias = "sfaile")]
-    file: Option<PathBuf>,
+    pub file: Option<PathBuf>,
     #[arg(
         long = "format",
         default_value_t = TersmuFormat::Json,
         value_enum
     )]
-    format: TersmuFormat,
+    pub format: TersmuFormat,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -552,55 +644,55 @@ struct TersmuInput {
         num_args = 0..=1,
         default_missing_value = "1"
     )]
-    trace: Option<Option<String>>,
+    pub trace: Option<Option<String>>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
     #[arg(long = "story-time")]
-    story_time: bool,
+    pub story_time: bool,
     #[arg(long = "indent")]
-    indent: Option<usize>,
+    pub indent: Option<usize>,
     #[arg()]
-    text: Vec<String>,
+    pub text: Vec<String>,
 }
 
 impl TersmuInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct GentufaInput {
+pub struct GentufaInput {
     #[arg(long = "file", alias = "sfaile")]
-    file: Option<PathBuf>,
+    pub file: Option<PathBuf>,
     #[arg(long = "ascii")]
-    ascii: bool,
+    pub ascii: bool,
     #[arg(long = "detailed-errors")]
-    detailed_errors: bool,
+    pub detailed_errors: bool,
     #[arg(long = "error-context", default_value_t = 1)]
-    error_context: usize,
+    pub error_context: usize,
     #[arg(long = "trace-phase", value_enum)]
-    trace_phase: Option<CliTracePhase>,
+    pub trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]
-    trace_limit: Option<usize>,
+    pub trace_limit: Option<usize>,
     #[arg(long = "trace-list")]
-    trace_list: bool,
+    pub trace_list: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
         default_value_t = GentufaFormat::Brackets,
         value_enum
     )]
-    format: GentufaFormat,
+    pub format: GentufaFormat,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -608,31 +700,31 @@ struct GentufaInput {
         num_args = 0..=1,
         default_missing_value = "1"
     )]
-    trace: Option<Option<String>>,
+    pub trace: Option<Option<String>>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
     #[arg(long = "show-defs")]
-    show_defs: bool,
+    pub show_defs: bool,
     #[arg(long = "indent")]
-    indent: Option<usize>,
+    pub indent: Option<usize>,
     #[arg(long = "mark-stress", value_enum)]
-    mark_stress: Option<CliStressMark>,
+    pub mark_stress: Option<CliStressMark>,
     #[arg(long = "mark-glides", value_enum)]
-    mark_glides: Option<CliGlideMark>,
+    pub mark_glides: Option<CliGlideMark>,
     #[arg(long = "show-spans")]
-    show_spans: bool,
+    pub show_spans: bool,
     #[arg(long = "show-refs")]
-    show_refs: bool,
+    pub show_refs: bool,
     #[arg(long = "show-elided")]
-    show_elided: bool,
+    pub show_elided: bool,
     #[arg(long = "decompose-lujvo")]
-    decompose_lujvo: bool,
+    pub decompose_lujvo: bool,
     #[arg(long = "output-type", value_enum)]
-    output_type: Option<GentufaImageOutputType>,
+    pub output_type: Option<GentufaImageOutputType>,
     #[arg(short = 'o', long = "output-file")]
-    output_file: Option<PathBuf>,
+    pub output_file: Option<PathBuf>,
     #[arg()]
-    text: Vec<String>,
+    pub text: Vec<String>,
 }
 
 #[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
@@ -652,19 +744,19 @@ struct TersmuRendered {
 impl GentufaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text(&self) -> Result<String> {
+    pub fn read_text(&self) -> Result<String> {
         self.read_text_with_stdin(None)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
+    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
@@ -672,64 +764,64 @@ impl GentufaInput {
 #[cfg(feature = "grammar-debug")]
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct GernaInput {
+pub struct GernaInput {
     #[arg(
         long = "turtai",
         visible_alias = "format",
         default_value_t = GernaFormat::Ebnf,
         value_enum
     )]
-    format: GernaFormat,
+    pub format: GernaFormat,
     #[arg(short = 'o', long = "output-file")]
-    output_file: Option<PathBuf>,
+    pub output_file: Option<PathBuf>,
     #[arg(long = "dialect")]
-    dialect: Option<String>,
+    pub dialect: Option<String>,
 }
 
 #[cfg(feature = "grammar-debug")]
 impl GernaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn dialect_definition(&self) -> Result<DialectDefinition> {
+    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
         dialect_definition(self.dialect.as_deref())
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct CuktaInput {
+pub struct CuktaInput {
     #[arg(short = 'n', long = "count")]
-    count: Option<usize>,
+    pub count: Option<usize>,
     #[arg(long = "toc")]
-    toc: bool,
+    pub toc: bool,
     #[arg(long = "section", value_name = "REF")]
-    section: Option<String>,
+    pub section: Option<String>,
     #[arg(long = "example", value_name = "REF")]
-    example: Option<String>,
+    pub example: Option<String>,
     #[arg(long = "valsi", value_name = "WORD")]
-    valsi: Option<String>,
+    pub valsi: Option<String>,
     #[arg(long = "target", value_name = "section|paragraph|example", action = ArgAction::Append)]
-    targets: Vec<String>,
+    pub targets: Vec<String>,
     #[arg(long = "sections")]
-    target_sections: bool,
+    pub target_sections: bool,
     #[arg(long = "paragraphs")]
-    target_paragraphs: bool,
+    pub target_paragraphs: bool,
     #[arg(long = "examples")]
-    target_examples: bool,
+    pub target_examples: bool,
     #[arg(
         long = "turtai",
         visible_alias = "format",
         default_value_t = CuktaCliFormat::Markdown,
         value_enum
     )]
-    format: CuktaCliFormat,
+    pub format: CuktaCliFormat,
     #[arg()]
-    query: Vec<String>,
+    pub query: Vec<String>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct GimfihiInput {
+pub struct GimfihiInput {
     /// A source word as `LANG[:WEIGHT]:WORD` (repeat per source). WORD is Lojban
     /// letters, or a phonemic IPA transcription in `[ ... ]` brackets (e.g.
     /// `eng:210:[kæt]`).
@@ -739,33 +831,33 @@ struct GimfihiInput {
         value_parser = parse_source_spec,
         action = ArgAction::Append
     )]
-    sources: Vec<GimfihiSourceInput>,
+    pub sources: Vec<GimfihiSourceInput>,
     #[arg(long = "preset", value_name = "PRESET")]
-    preset: Option<String>,
+    pub preset: Option<String>,
     #[arg(long = "shape", value_name = "SHAPE", action = ArgAction::Append)]
-    shapes: Vec<String>,
+    pub shapes: Vec<String>,
     #[arg(
         long = "check-collisions",
         value_enum,
         default_value_t = CliCollisionScope::All
     )]
-    check_collisions: CliCollisionScope,
+    pub check_collisions: CliCollisionScope,
     #[arg(long = "all-letters")]
-    all_letters: bool,
+    pub all_letters: bool,
     #[arg(long = "show-collisions")]
-    show_collisions: bool,
+    pub show_collisions: bool,
     #[arg(long = "require-free-short-rafsi")]
-    require_free_short_rafsi: bool,
+    pub require_free_short_rafsi: bool,
     #[arg(short = 'n', long = "count", value_name = "N")]
-    count: Option<usize>,
+    pub count: Option<usize>,
     #[arg(long = "highlight", value_name = "GISMU")]
-    highlight: Option<String>,
+    pub highlight: Option<String>,
     #[arg(long = "format", value_enum, default_value_t = GimfihiCliFormat::Table)]
-    format: GimfihiCliFormat,
+    pub format: GimfihiCliFormat,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CuktaCliFormat {
+pub enum CuktaCliFormat {
     Markdown,
     Html,
     #[value(alias = "docbook")]
@@ -786,7 +878,7 @@ impl From<CuktaCliFormat> for CllRenderFormat {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CliSumtiPlaces {
+pub enum CliSumtiPlaces {
     Raw,
     Index,
 }
@@ -805,47 +897,47 @@ impl CliSumtiPlaces {
 
 #[invariant(true)]
 #[derive(Debug, Clone)]
-struct VlackuInput {
-    count: Option<usize>,
-    ascii: bool,
-    word_types: Vec<String>,
-    min_votes: Option<i32>,
-    min_similarity: Option<f32>,
-    sumti_places: CliSumtiPlaces,
-    decompose_lujvo: bool,
-    show_etymology: bool,
-    requests: Vec<VlackuRequest>,
-    query: Vec<String>,
+pub struct VlackuInput {
+    pub count: Option<usize>,
+    pub ascii: bool,
+    pub word_types: Vec<String>,
+    pub min_votes: Option<i32>,
+    pub min_similarity: Option<f32>,
+    pub sumti_places: CliSumtiPlaces,
+    pub decompose_lujvo: bool,
+    pub show_etymology: bool,
+    pub requests: Vec<VlackuRequest>,
+    pub query: Vec<String>,
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-struct SetupInput {
+pub struct SetupInput {
     #[arg(long = "embedding")]
-    embedding: bool,
+    pub embedding: bool,
     #[arg(long = "force")]
-    force: bool,
+    pub force: bool,
     #[arg(
         long = "use-precomputed",
         value_enum,
         default_value_t = CliUsePrecomputed::Auto
     )]
-    use_precomputed: CliUsePrecomputed,
+    pub use_precomputed: CliUsePrecomputed,
     #[arg(long = "skip-validation")]
-    skip_validation: bool,
+    pub skip_validation: bool,
     #[arg(long = "model", default_value = DEFAULT_MODEL_KEY)]
-    model: String,
+    pub model: String,
     #[arg(long = "index-dir")]
-    index_dir: Option<PathBuf>,
+    pub index_dir: Option<PathBuf>,
     #[arg(long = "model-dir")]
-    model_dir: Option<PathBuf>,
+    pub model_dir: Option<PathBuf>,
 }
 
 #[invariant(::Auto => true)]
 #[invariant(::Always => true)]
 #[invariant(::Never => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum CliUsePrecomputed {
+pub enum CliUsePrecomputed {
     Auto,
     Always,
     Never,
@@ -1053,9 +1145,9 @@ fn collect_ordered_vlacku_requests<F>(
 
 #[invariant(true)]
 #[derive(Debug, Clone)]
-struct JvozbaInput {
-    cmevla: bool,
-    sources: Vec<JvozbaSourceInput>,
+pub struct JvozbaInput {
+    pub cmevla: bool,
+    pub sources: Vec<JvozbaSourceInput>,
 }
 
 impl Args for JvozbaInput {
@@ -1840,7 +1932,3 @@ fn command_not_implemented(command: &str) -> Result<()> {
         "`{command}` is scaffolded but its implementation has not been ported yet"
     ))
 }
-
-#[cfg(test)]
-#[path = "../tests/support/cli.rs"]
-mod tests;
