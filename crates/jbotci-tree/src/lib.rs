@@ -692,6 +692,7 @@ pub trait TreeVisitor<'tree> {
 mod tests {
     use super::*;
     use std::collections::HashSet;
+    use std::sync::Arc;
 
     #[allow(unused_imports)]
     use bityzba::{ensures, invariant, requires};
@@ -1067,6 +1068,47 @@ mod tests {
         set.insert(repeated_first_ref);
         set.insert(second_ref);
         assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn node_refs_convert_and_delegate_through_single_node_wrappers() {
+        let leaf = LeafNode {
+            text: "leaf".to_owned(),
+        };
+        let leaf_ref: NodeRef<'_> = (&leaf).into();
+        assert_eq!(leaf.as_node_ref(), Some(leaf_ref));
+
+        let boxed = Box::new(LeafNode {
+            text: "boxed".to_owned(),
+        });
+        assert_eq!(boxed.as_node_ref(), Some(NodeRef::LeafNode(boxed.as_ref())));
+
+        let arc = Arc::new(LeafNode {
+            text: "arc".to_owned(),
+        });
+        assert_eq!(arc.as_node_ref(), Some(NodeRef::LeafNode(arc.as_ref())));
+
+        let optional = Some(LeafNode {
+            text: "optional".to_owned(),
+        });
+        assert_eq!(
+            optional.as_node_ref(),
+            Some(NodeRef::LeafNode(optional.as_ref().unwrap()))
+        );
+
+        let wrapped = WrappedNode::Named {
+            left: LeafNode {
+                text: "left".to_owned(),
+            },
+            right: LeafNode {
+                text: "right".to_owned(),
+            },
+        };
+        let wrapped_ref: NodeRef<'_> = (&wrapped).into();
+        assert_eq!(wrapped.as_node_ref(), Some(wrapped_ref));
+        assert!(wrapped_ref.is_variant());
     }
 
     #[test]

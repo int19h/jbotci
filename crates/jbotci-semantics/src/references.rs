@@ -74,8 +74,9 @@ pub struct MeksoNodeId(pub RawSyntaxNodeId);
 pub struct MeksoOperatorNodeId(pub RawSyntaxNodeId);
 
 #[invariant(leaf_start <= leaf_end)]
-#[invariant(source_spans.windows(2).all(|pair| pair[0].byte_start <= pair[1].byte_start
-    && pair[0].char_start <= pair[1].char_start))]
+#[invariant(first_source_span.is_some() == last_source_span.is_some())]
+#[invariant(first_source_span.as_ref().zip(last_source_span.as_ref()).is_none_or(|(first, last)| first.byte_start <= last.byte_start
+    && first.char_start <= last.char_start))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxNodeMetadata {
     pub id: RawSyntaxNodeId,
@@ -84,7 +85,8 @@ pub struct SyntaxNodeMetadata {
     pub depth: usize,
     pub leaf_start: usize,
     pub leaf_end: usize,
-    pub source_spans: Vec<SourceSpan>,
+    pub first_source_span: Option<SourceSpan>,
+    pub last_source_span: Option<SourceSpan>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1128,8 +1130,8 @@ fn span_key_for_generated_node(
     node: RawSyntaxNodeId,
 ) -> Option<SyntaxSpanKey> {
     let metadata = index.metadata(node)?;
-    let first = metadata.source_spans.first()?;
-    let last = metadata.source_spans.last()?;
+    let first = metadata.first_source_span.as_ref()?;
+    let last = metadata.last_source_span.as_ref()?;
     Some(new!(SyntaxSpanKey {
         source_id: first.source_id.clone(),
         byte_start: first.byte_start,
@@ -4497,9 +4499,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
-        self.index
-            .id_for_tree_node(node)
-            .expect("generated syntax node belongs to indexed syntax tree and has source span")
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
     }
 
     #[requires(true)]
@@ -4632,7 +4637,9 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
     pub fn new(root: &'tree GeneratedTextSyntax) -> Result<Self, ReferenceAnalysisError> {
         let mut builder = GeneratedSyntaxIndexBuilder::new();
         root.visit_in_order(&mut builder);
-        let root_ref = generated_text_node_ref(root);
+        let root_ref = root
+            .as_node_ref()
+            .ok_or(ReferenceAnalysisError::MissingRootNode)?;
         let root_raw = builder
             .by_ref
             .get(&root_ref)
@@ -4678,7 +4685,9 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
     #[requires(true)]
     #[ensures(true)]
     pub fn text_node_id(&self, node: &'tree GeneratedTextSyntax) -> Option<TextNodeId> {
-        self.id_of(generated_text_node_ref(node)).map(TextNodeId)
+        node.as_node_ref()
+            .and_then(|node| self.id_of(node))
+            .map(TextNodeId)
     }
 
     #[requires(true)]
@@ -4687,101 +4696,7 @@ impl<'tree> GeneratedSyntaxIndex<'tree> {
         &self,
         node: &'tree N,
     ) -> Option<RawSyntaxNodeId> {
-        let key = span_key_for_generated_tree_node(node)?;
-        self.deepest_id_for_span_key(&key)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn deepest_id_for_span_key(&self, key: &SyntaxSpanKey) -> Option<RawSyntaxNodeId> {
-        self.nodes
-            .iter()
-            .filter(|node| metadata_span_key(&node.metadata).as_ref() == Some(key))
-            .max_by_key(|node| (node.metadata.depth, node.metadata.preorder))
-            .map(|node| node.metadata.id)
-    }
-}
-
-#[derive(Debug)]
-#[invariant(true)]
-struct GeneratedSpanCollector {
-    source_spans: Vec<SourceSpan>,
-}
-
-impl GeneratedSpanCollector {
-    #[requires(true)]
-    #[ensures(ret.source_spans.is_empty())]
-    fn new() -> Self {
-        Self {
-            source_spans: Vec::new(),
-        }
-    }
-}
-
-impl<'tree> TreeVisitor<'tree> for GeneratedSpanCollector {
-    type Node = GeneratedSyntaxNodeRef<'tree>;
-    type Atom = GeneratedSyntaxAtomRef<'tree>;
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn enter_node(&mut self, _node: Self::Node) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn exit_node(&mut self, _node: Self::Node) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_atom(&mut self, atom: Self::Atom) {
-        match atom {
-            GeneratedSyntaxAtomRef::Token(token) => {
-                self.source_spans
-                    .extend(token.source_spans().into_iter().cloned());
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn span_key_for_generated_tree_node<N: GeneratedSyntaxTreeNode>(node: &N) -> Option<SyntaxSpanKey> {
-    let mut collector = GeneratedSpanCollector::new();
-    node.visit_in_order(&mut collector);
-    let first = collector.source_spans.first()?;
-    let last = collector.source_spans.last()?;
-    Some(new!(SyntaxSpanKey {
-        source_id: first.source_id.clone(),
-        byte_start: first.byte_start,
-        byte_end: last.byte_end,
-        char_start: first.char_start,
-        char_end: last.char_end,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn metadata_span_key(metadata: &SyntaxNodeMetadata) -> Option<SyntaxSpanKey> {
-    let first = metadata.source_spans.first()?;
-    let last = metadata.source_spans.last()?;
-    Some(new!(SyntaxSpanKey {
-        source_id: first.source_id.clone(),
-        byte_start: first.byte_start,
-        byte_end: last.byte_end,
-        char_start: first.char_start,
-        char_end: last.char_end,
-    }))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_text_node_ref<'tree>(
-    text: &'tree GeneratedTextSyntax,
-) -> GeneratedSyntaxNodeRef<'tree> {
-    match text {
-        GeneratedTextSyntax::ExplicitXauhaLohoiText(_) => {
-            GeneratedSyntaxNodeRef::TextSyntaxExplicitXauhaLohoiText(text)
-        }
-        GeneratedTextSyntax::RegularText(_) => GeneratedSyntaxNodeRef::TextSyntaxRegularText(text),
+        node.as_node_ref().and_then(|node| self.id_of(node))
     }
 }
 
@@ -4812,7 +4727,10 @@ impl<'tree> GeneratedSyntaxIndexBuilder<'tree> {
         for id in &self.stack {
             if let Some(node) = self.nodes.get_mut(id.0) {
                 let mut metadata = node.metadata.clone().into_data();
-                metadata.source_spans.push(span.clone());
+                if metadata.first_source_span.is_none() {
+                    metadata.first_source_span = Some(span.clone());
+                }
+                metadata.last_source_span = Some(span.clone());
                 node.metadata = SyntaxNodeMetadata::from_data(metadata);
             }
         }
@@ -4836,7 +4754,8 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxIndexBuilder<'tree> {
             depth: self.stack.len(),
             leaf_start: self.leaf_index,
             leaf_end: self.leaf_index,
-            source_spans: Vec::new(),
+            first_source_span: None,
+            last_source_span: None,
         });
         self.nodes
             .push(GeneratedIndexedSyntaxNode { node, metadata });
@@ -9585,8 +9504,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             .metadata(source)
             .and_then(|metadata| {
                 metadata
-                    .source_spans
-                    .first()
+                    .first_source_span
+                    .as_ref()
                     .map(|span| span.byte_start)
                     .or(Some(metadata.preorder))
             })
@@ -9746,7 +9665,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn sumti_mention_position(&self, source: SumtiNodeId) -> usize {
         self.index
             .metadata(source.0)
-            .and_then(|metadata| metadata.source_spans.first().map(|span| span.byte_start))
+            .and_then(|metadata| {
+                metadata
+                    .first_source_span
+                    .as_ref()
+                    .map(|span| span.byte_start)
+            })
             .or_else(|| {
                 self.index
                     .metadata(source.0)
@@ -10064,9 +9988,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn raw_for_node<N: GeneratedSyntaxTreeNode>(&self, node: &'tree N) -> RawSyntaxNodeId {
-        self.index
-            .id_for_tree_node(node)
-            .expect("generated syntax node belongs to indexed syntax tree and has source span")
+        self.index.id_for_tree_node(node).unwrap_or_else(|| {
+            panic!(
+                "generated syntax node belongs to indexed syntax tree: {:?}",
+                node.as_node_ref().map(|node| node.constructor_name())
+            )
+        })
     }
 }
 
@@ -11186,12 +11113,18 @@ mod tests {
             let root = index
                 .metadata(index.root().0)
                 .expect("root metadata is present");
-            let spans = root
-                .source_spans
-                .iter()
-                .map(|span| (span.byte_start, span.byte_end))
-                .collect::<Vec<_>>();
-            assert_eq!(spans, vec![(0, 2), (3, 8), (9, 11)]);
+            assert_eq!(
+                root.first_source_span
+                    .as_ref()
+                    .map(|span| (span.byte_start, span.byte_end)),
+                Some((0, 2))
+            );
+            assert_eq!(
+                root.last_source_span
+                    .as_ref()
+                    .map(|span| (span.byte_start, span.byte_end)),
+                Some((9, 11))
+            );
         });
     }
 
