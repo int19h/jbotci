@@ -2991,23 +2991,27 @@ fn AppShell() -> Element {
     let gimfihi_result_value = gimfihi_result.read().clone();
     let page_find_state_value = page_find_state.read().clone();
     let current_page_find_route_state = page_find_state_value.route_state(route_value).clone();
-    let page_find_entries = page_find_entries_for_route(
-        route_value,
-        &cukta_page_value,
-        &vlacku_committed_state_value,
-        &vlacku_result_value,
-        &gimfihi_committed_state_value,
-        &gimfihi_result_value,
-        &result,
-        gentufa_request.as_ref(),
-        view_mode_value,
-        gentufa_display_value,
-        settings_value,
-        &dialect_settings_value,
-        &settings_dialect_selection_value,
-        &embedding_settings_value,
-        settings_value.script,
-    );
+    let page_find_entries = if current_page_find_route_state.query.is_empty() {
+        Vec::new()
+    } else {
+        page_find_entries_for_route(
+            route_value,
+            &cukta_page_value,
+            &vlacku_committed_state_value,
+            &vlacku_result_value,
+            &gimfihi_committed_state_value,
+            &gimfihi_result_value,
+            &result,
+            gentufa_request.as_ref(),
+            view_mode_value,
+            gentufa_display_value,
+            settings_value,
+            &dialect_settings_value,
+            &settings_dialect_selection_value,
+            &embedding_settings_value,
+            settings_value.script,
+        )
+    };
     let page_find_index =
         build_page_find_index(&current_page_find_route_state.query, &page_find_entries);
     let page_find_context = PageFindContext::new(&page_find_index, &current_page_find_route_state);
