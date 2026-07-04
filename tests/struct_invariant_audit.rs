@@ -184,36 +184,60 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "bityzba fixture covers explicit no-op type markers",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:BlockParseState",
+        "crates/jbotci-cll/src/import.rs:BlockParseState",
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:CllSearchChunk",
-        "CLL search chunks are generated from parsed sections and tagged-word extraction",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CllSearchMatch",
-        "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CuktaSearchOutput",
-        "cukta search output is built by cukta_search from normalized query/count inputs",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:CuktaTargetFilter",
-        "target filters intentionally preserve all checkbox states before validation/defaulting",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:LinkResolution",
-        "link resolutions are private loader intermediates derived from the completed anchor index",
-    ),
-    (
-        "crates/jbotci-cll/src/lib.rs:PendingIndexEntry",
+        "crates/jbotci-cll/src/import.rs:PendingIndexEntry",
         "pending index entries are private loader intermediates from DocBook indexterm nodes",
     ),
     (
-        "crates/jbotci-cll/src/lib.rs:SectionParseContext",
+        "crates/jbotci-cll/src/import.rs:SectionParseContext",
         "section parse context is private loader state derived from an already parsed section heading",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:BlockPlainTextVisitor",
+        "plain text visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:ChrestomathyGroupVisitor",
+        "chrestomathy grouping visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/lib.rs:InlinePlainTextVisitor",
+        "inline plain text visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/links.rs:LinkResolution",
+        "link resolutions are private loader intermediates derived from the completed anchor index",
+    ),
+    (
+        "crates/jbotci-cll/src/links.rs:LinkResolutionVisitor",
+        "link resolution visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CllSearchChunk",
+        "CLL search chunks are generated from parsed sections and tagged-word extraction",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CllSearchMatch",
+        "CLL search matches are ranked only by cukta_word_search_matches after target filtering",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CuktaSearchOutput",
+        "cukta search output is built by cukta_search from normalized query/count inputs",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:CuktaTargetFilter",
+        "target filters intentionally preserve all checkbox states before validation/defaulting",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:SearchChunkVisitor",
+        "search chunk visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/search.rs:TaggedWordsVisitor",
+        "tagged words visitor is private traversal accumulator state",
     ),
     (
         "crates/jbotci-diagnostics/src/lib.rs:TraceFailureBranch",
