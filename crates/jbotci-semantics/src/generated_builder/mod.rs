@@ -29903,6 +29903,8 @@ fn push_generated_coequal_scope_group_or_individual_scopes<'syntax>(
     individual_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
 ) {
+    // CLL 16.5 makes quantifier order scope-bearing; CLL 16.7 makes termsets
+    // the explicit equal-scope exception.
     if scopes.len() > 1 {
         coequal_scope_groups.push(GeneratedArgumentQuantifierBundleScope { scopes, source });
     } else {

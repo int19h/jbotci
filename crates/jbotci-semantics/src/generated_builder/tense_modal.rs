@@ -130,6 +130,8 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
 pub(super) fn generated_logical_modal_connection_spec_for_tense_modal(
     tense_modal: &TenseModalSyntax,
 ) -> Result<Option<GeneratedLogicalModalConnectionSpec>, SemanticsError> {
+    // CLL 10.23 keeps modal and tense connection grammar parallel, but their
+    // event-role order differs, so modal connection lowering stays separate.
     let TenseModalBodySyntax::ConnectedTenseModal(connected) = &tense_modal.0 else {
         return Ok(None);
     };
@@ -509,6 +511,8 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_sumti(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_tense_modal_makes_modal_sticky<N: TreeNode>(tense_modal: &N) -> bool {
+    // CLL 9.14 and 10.13 both use KI for stickiness, but modal stickiness
+    // replays tagged arguments while tense stickiness shifts the event origin.
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
     let mut saw_modal = false;
@@ -862,6 +866,8 @@ pub(super) fn aspect_contour_for_zaho_token(token: &Token) -> Option<String> {
 pub(super) fn generated_modal_relation_spec_for_tense_modal<N: TreeNode>(
     tense_modal: &N,
 ) -> Option<(String, String, usize)> {
+    // CLL 9.5-9.6/9.17 make the modal sumti fill the selected relation
+    // role; SE conversion chooses which underlying BAI place is selected.
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
     for (index, token) in collector.tokens.iter().enumerate() {
