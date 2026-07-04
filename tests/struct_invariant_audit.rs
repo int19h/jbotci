@@ -52,7 +52,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
     ),
     (
-        "apps/jbotci/src/lib.rs:CapturedCliRun",
+        "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
         "test helper records CLI process output after run_cli returns a status",
     ),
     (
@@ -72,7 +72,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI progress policy is derived from terminal capability and caller-selected verbosity",
     ),
     (
-        "apps/jbotci/src/lib.rs:CliSetupProgressReporter",
+        "apps/jbotci/src/commands/setup.rs:CliSetupProgressReporter",
         "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
@@ -112,47 +112,51 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaRequest",
+        "apps/jbotci/src/tool.rs:ToolCuktaRequest",
         "shared cukta tool request is API transport state normalized into CuktaInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolExecutionContext",
+        "apps/jbotci/src/tool.rs:ToolExecutionContext",
         "tool execution context is constructed only as stateless, borrowed embedding service, or cached embedding error",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaRequest",
+        "apps/jbotci/src/tool.rs:ToolGentufaRequest",
         "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiRequest",
+        "apps/jbotci/src/tool.rs:ToolGimfihiRequest",
         "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiSource",
+        "apps/jbotci/src/tool.rs:ToolGimfihiCommandInput",
+        "tool gimfi'i command conversion pairs API transport state with the caller-specific word interpretation mode",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolGimfihiSource",
         "MCP gimfi'i source carries free-form language/word/weight fields validated downstream by the gimfi'i engine",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPart",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPart",
         "shared jvozba part is API transport state whose value is interpreted according to the closed part-kind enum",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaRequest",
+        "apps/jbotci/src/tool.rs:ToolJvozbaRequest",
         "shared jvozba tool request is API transport state normalized into the CLI source list before composition",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolRenderedOutput",
+        "apps/jbotci/src/tool.rs:ToolRenderedOutput",
         "shared tool output is a transport envelope produced by run_tool_command from validated CLI status and byte output",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolTersmuRequest",
+        "apps/jbotci/src/tool.rs:ToolTersmuRequest",
         "shared tersmu tool request is API transport state normalized into TersmuInput and validated during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuRequest",
+        "apps/jbotci/src/tool.rs:ToolVlackuRequest",
         "shared vlacku tool request is API transport state normalized into explicit dictionary search requests",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiRequest",
+        "apps/jbotci/src/tool.rs:ToolVlaseiRequest",
         "shared vlasei tool request is API transport state validated by the CLI option validator during execution",
     ),
     (

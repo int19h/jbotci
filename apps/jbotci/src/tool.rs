@@ -199,7 +199,7 @@ pub struct ToolGentufaRequest {
     pub indent: Option<usize>,
 }
 
-#[invariant(true)]
+#[invariant(output_type.is_some() == matches!(format, GentufaFormat::Blocks))]
 struct ToolGentufaCommandFormat {
     format: GentufaFormat,
     output_type: Option<GentufaImageOutputType>,
@@ -210,30 +210,30 @@ impl ToolGentufaFormat {
     #[ensures(true)]
     fn command_format(self) -> ToolGentufaCommandFormat {
         match self {
-            Self::Brackets => ToolGentufaCommandFormat {
+            Self::Brackets => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Brackets,
                 output_type: None,
-            },
-            Self::Tree => ToolGentufaCommandFormat {
+            }),
+            Self::Tree => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Tree,
                 output_type: None,
-            },
-            Self::Raw => ToolGentufaCommandFormat {
+            }),
+            Self::Raw => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Raw,
                 output_type: None,
-            },
-            Self::Json => ToolGentufaCommandFormat {
+            }),
+            Self::Json => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Json,
                 output_type: None,
-            },
-            Self::Svg => ToolGentufaCommandFormat {
+            }),
+            Self::Svg => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Blocks,
                 output_type: Some(GentufaImageOutputType::Svg),
-            },
-            Self::Png => ToolGentufaCommandFormat {
+            }),
+            Self::Png => new!(ToolGentufaCommandFormat {
                 format: GentufaFormat::Blocks,
                 output_type: Some(GentufaImageOutputType::Png),
-            },
+            }),
         }
     }
 
@@ -673,7 +673,7 @@ impl ToolVlackuRequest {
     }
 }
 
-#[invariant(true)]
+#[invariant((requests.len() == 1 && query_text.is_empty()) || (requests.is_empty() && query_text.len() == 1))]
 struct ToolVlackuCommandQuery {
     requests: Vec<VlackuRequest>,
     query_text: Vec<String>,
@@ -684,26 +684,26 @@ impl ToolVlackuMode {
     #[ensures(true)]
     fn command_query(self, query: String) -> ToolVlackuCommandQuery {
         match self {
-            Self::Word => ToolVlackuCommandQuery {
+            Self::Word => new!(ToolVlackuCommandQuery {
                 requests: vec![VlackuRequest::valsi(query)],
                 query_text: Vec::new(),
-            },
-            Self::Rafsi => ToolVlackuCommandQuery {
+            }),
+            Self::Rafsi => new!(ToolVlackuCommandQuery {
                 requests: vec![VlackuRequest::rafsi(query)],
                 query_text: Vec::new(),
-            },
-            Self::Lujvo => ToolVlackuCommandQuery {
+            }),
+            Self::Lujvo => new!(ToolVlackuCommandQuery {
                 requests: vec![VlackuRequest::lujvo(query)],
                 query_text: Vec::new(),
-            },
-            Self::Sound => ToolVlackuCommandQuery {
+            }),
+            Self::Sound => new!(ToolVlackuCommandQuery {
                 requests: vec![VlackuRequest::sound(query)],
                 query_text: Vec::new(),
-            },
-            Self::Meaning => ToolVlackuCommandQuery {
+            }),
+            Self::Meaning => new!(ToolVlackuCommandQuery {
                 requests: Vec::new(),
                 query_text: vec![query],
-            },
+            }),
         }
     }
 }
@@ -718,7 +718,7 @@ impl TryFrom<ToolVlackuRequest> for Command {
         if query.is_empty() {
             bail!("vlacku query must not be empty");
         }
-        let command_query = request.mode.command_query(query);
+        let command_query = request.mode.command_query(query).into_data();
         Ok(Self::Vlacku(VlackuInput {
             count: request.count,
             ascii: false,

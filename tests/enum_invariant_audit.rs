@@ -112,147 +112,147 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::All",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::All",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::None",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::None",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCollisionScope::Official",
+        "apps/jbotci/src/tool.rs:ToolCollisionScope::Official",
         "MCP/Discord gimfi'i collision scope is a closed selector mapped directly to CLI collision scopes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Html",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Html",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Markdown",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Markdown",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolCuktaFormat::Raw",
         "MCP/Discord cukta output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Example",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Example",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Meaning",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Meaning",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Section",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Section",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Toc",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Toc",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaMode::Word",
+        "apps/jbotci/src/tool.rs:ToolCuktaMode::Word",
         "MCP/Discord cukta mode is a closed selector mapped directly to CLI lookup modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Example",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Example",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Paragraph",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Paragraph",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolCuktaSearchResultKind::Section",
+        "apps/jbotci/src/tool.rs:ToolCuktaSearchResultKind::Section",
         "MCP cukta target is a closed selector of CLL content kinds mapped to CLI target filters",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Brackets",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Brackets",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Json",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Png",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Png",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Raw",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Svg",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Svg",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGentufaFormat::Tree",
+        "apps/jbotci/src/tool.rs:ToolGentufaFormat::Tree",
         "MCP/Discord gentufa output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolGimfihiFormat::Json",
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolGimfihiFormat::Table",
+        "apps/jbotci/src/tool.rs:ToolGimfihiFormat::Table",
         "MCP/Discord gimfi'i output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Cmevla",
+        "apps/jbotci/src/tool.rs:ToolJvozbaMode::Cmevla",
         "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaMode::Lujvo",
+        "apps/jbotci/src/tool.rs:ToolJvozbaMode::Lujvo",
         "MCP/Discord jvozba mode is a closed selector mapped directly to CLI composition modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::FixedRafsi",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPartKind::FixedRafsi",
         "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolJvozbaPartKind::Word",
+        "apps/jbotci/src/tool.rs:ToolJvozbaPartKind::Word",
         "MCP/Discord jvozba part kind is a closed selector whose payload text is carried by ToolJvozbaPart",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Lujvo",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Lujvo",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Meaning",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Meaning",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Rafsi",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Rafsi",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Sound",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Sound",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlackuMode::Word",
+        "apps/jbotci/src/tool.rs:ToolVlackuMode::Word",
         "MCP/Discord vlacku mode is a closed selector mapped directly to explicit dictionary search modes",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Brackets",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Brackets",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Ipa",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Ipa",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Json",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Json",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Raw",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Raw",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
-        "apps/jbotci/src/lib.rs:ToolVlaseiFormat::Tree",
+        "apps/jbotci/src/tool.rs:ToolVlaseiFormat::Tree",
         "MCP/Discord vlasei output format is a closed selector mapped directly to CLI render formats",
     ),
     (
