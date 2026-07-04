@@ -199,6 +199,90 @@ pub struct ToolGentufaRequest {
     pub indent: Option<usize>,
 }
 
+#[invariant(true)]
+struct ToolGentufaCommandFormat {
+    format: GentufaFormat,
+    output_type: Option<GentufaImageOutputType>,
+}
+
+impl ToolGentufaFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_format(self) -> ToolGentufaCommandFormat {
+        match self {
+            Self::Brackets => ToolGentufaCommandFormat {
+                format: GentufaFormat::Brackets,
+                output_type: None,
+            },
+            Self::Tree => ToolGentufaCommandFormat {
+                format: GentufaFormat::Tree,
+                output_type: None,
+            },
+            Self::Raw => ToolGentufaCommandFormat {
+                format: GentufaFormat::Raw,
+                output_type: None,
+            },
+            Self::Json => ToolGentufaCommandFormat {
+                format: GentufaFormat::Json,
+                output_type: None,
+            },
+            Self::Svg => ToolGentufaCommandFormat {
+                format: GentufaFormat::Blocks,
+                output_type: Some(GentufaImageOutputType::Svg),
+            },
+            Self::Png => ToolGentufaCommandFormat {
+                format: GentufaFormat::Blocks,
+                output_type: Some(GentufaImageOutputType::Png),
+            },
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Json => APPLICATION_JSON_CONTENT_TYPE,
+            Self::Svg => "image/svg+xml; charset=utf-8",
+            Self::Png => "image/png",
+            Self::Brackets | Self::Tree | Self::Raw => TEXT_PLAIN_CONTENT_TYPE,
+        }
+    }
+}
+
+impl From<ToolGentufaRequest> for Command {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(request: ToolGentufaRequest) -> Self {
+        let show_refs = request
+            .show_refs
+            .unwrap_or(matches!(request.format, ToolGentufaFormat::Tree));
+        let command_format = request.format.command_format();
+        Self::Gentufa(GentufaInput {
+            file: None,
+            ascii: false,
+            detailed_errors: true,
+            error_context: 1,
+            trace_phase: None,
+            trace_limit: None,
+            trace_list: false,
+            format: command_format.format,
+            trace: None,
+            dialect: request.dialect,
+            show_defs: request.show_defs,
+            indent: request.indent,
+            mark_stress: None,
+            mark_glides: None,
+            show_spans: request.show_spans,
+            show_refs,
+            show_elided: request.show_elided,
+            decompose_lujvo: request.decompose_lujvo,
+            output_type: command_format.output_type,
+            output_file: None,
+            text: vec![request.text],
+        })
+    }
+}
+
 /// Output format for `vlasei` morphology analysis. `tree` is the readable
 /// default; `ipa` gives pronunciation.
 #[invariant(::Tree => true)]
@@ -258,6 +342,53 @@ pub struct ToolVlaseiRequest {
     /// Spaces per indent level for `tree`/`json`. Omit for the standard width.
     #[serde(default)]
     pub indent: Option<usize>,
+}
+
+impl ToolVlaseiFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_format(self) -> VlaseiFormat {
+        match self {
+            Self::Brackets => VlaseiFormat::Brackets,
+            Self::Tree => VlaseiFormat::Tree,
+            Self::Ipa => VlaseiFormat::Ipa,
+            Self::Raw => VlaseiFormat::Raw,
+            Self::Json => VlaseiFormat::Json,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Json => APPLICATION_JSON_CONTENT_TYPE,
+            Self::Brackets | Self::Tree | Self::Ipa | Self::Raw => TEXT_PLAIN_CONTENT_TYPE,
+        }
+    }
+}
+
+impl From<ToolVlaseiRequest> for Command {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(request: ToolVlaseiRequest) -> Self {
+        Self::Vlasei(VlaseiInput {
+            file: None,
+            ascii: false,
+            detailed_errors: true,
+            trace_phase: None,
+            trace_limit: None,
+            trace_list: false,
+            format: request.format.command_format(),
+            trace: None,
+            dialect: request.dialect,
+            indent: request.indent,
+            mark_stress: None,
+            mark_glides: None,
+            show_spans: request.show_spans,
+            decompose_lujvo: request.decompose_lujvo,
+            text: vec![request.text],
+        })
+    }
 }
 
 /// Output format for `cukta` (the CLL reference book). `markdown` is the
@@ -396,6 +527,67 @@ impl ToolCuktaRequest {
     }
 }
 
+impl ToolCuktaFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_format(self) -> CuktaCliFormat {
+        match self {
+            Self::Markdown => CuktaCliFormat::Markdown,
+            Self::Html => CuktaCliFormat::Html,
+            Self::Raw => CuktaCliFormat::Raw,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Markdown => "text/markdown; charset=utf-8",
+            Self::Html => "text/html; charset=utf-8",
+            Self::Raw => TEXT_PLAIN_CONTENT_TYPE,
+        }
+    }
+}
+
+impl From<ToolCuktaRequest> for Command {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(request: ToolCuktaRequest) -> Self {
+        let query = request.query.unwrap_or_default();
+        // The typed `search_result_kinds` set maps directly onto the CLI's
+        // per-kind target flags; the CLI's string `targets` channel stays empty.
+        // Filters only apply to the search modes and are rejected (downstream)
+        // for navigation.
+        let mut input = CuktaInput {
+            count: request.count,
+            toc: false,
+            section: None,
+            example: None,
+            valsi: None,
+            targets: Vec::new(),
+            target_sections: request
+                .search_result_kinds
+                .contains(&ToolCuktaSearchResultKind::Section),
+            target_paragraphs: request
+                .search_result_kinds
+                .contains(&ToolCuktaSearchResultKind::Paragraph),
+            target_examples: request
+                .search_result_kinds
+                .contains(&ToolCuktaSearchResultKind::Example),
+            format: request.format.command_format(),
+            query: Vec::new(),
+        };
+        match request.mode {
+            ToolCuktaMode::Meaning => input.query = vec![query],
+            ToolCuktaMode::Word => input.valsi = Some(query),
+            ToolCuktaMode::Section => input.section = Some(query),
+            ToolCuktaMode::Example => input.example = Some(query),
+            ToolCuktaMode::Toc => input.toc = true,
+        }
+        Self::Cukta(input)
+    }
+}
+
 /// Which field of a dictionary entry the `query` matches against. See the
 /// `query` field for the syntaxes (plain text, glob, and regex) accepted by the
 /// `word` and `rafsi` modes.
@@ -481,6 +673,67 @@ impl ToolVlackuRequest {
     }
 }
 
+#[invariant(true)]
+struct ToolVlackuCommandQuery {
+    requests: Vec<VlackuRequest>,
+    query_text: Vec<String>,
+}
+
+impl ToolVlackuMode {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_query(self, query: String) -> ToolVlackuCommandQuery {
+        match self {
+            Self::Word => ToolVlackuCommandQuery {
+                requests: vec![VlackuRequest::valsi(query)],
+                query_text: Vec::new(),
+            },
+            Self::Rafsi => ToolVlackuCommandQuery {
+                requests: vec![VlackuRequest::rafsi(query)],
+                query_text: Vec::new(),
+            },
+            Self::Lujvo => ToolVlackuCommandQuery {
+                requests: vec![VlackuRequest::lujvo(query)],
+                query_text: Vec::new(),
+            },
+            Self::Sound => ToolVlackuCommandQuery {
+                requests: vec![VlackuRequest::sound(query)],
+                query_text: Vec::new(),
+            },
+            Self::Meaning => ToolVlackuCommandQuery {
+                requests: Vec::new(),
+                query_text: vec![query],
+            },
+        }
+    }
+}
+
+impl TryFrom<ToolVlackuRequest> for Command {
+    type Error = anyhow::Error;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn try_from(request: ToolVlackuRequest) -> std::result::Result<Self, Self::Error> {
+        let query = request.query;
+        if query.is_empty() {
+            bail!("vlacku query must not be empty");
+        }
+        let command_query = request.mode.command_query(query);
+        Ok(Self::Vlacku(VlackuInput {
+            count: request.count,
+            ascii: false,
+            word_types: request.word_types,
+            min_votes: request.min_votes,
+            min_similarity: request.min_similarity,
+            sumti_places: CliSumtiPlaces::Index,
+            decompose_lujvo: request.decompose_lujvo,
+            show_etymology: request.show_etymology,
+            requests: command_query.requests,
+            query: command_query.query_text,
+        }))
+    }
+}
+
 /// What kind of word `jvozba` should assemble.
 #[invariant(::Lujvo => true)]
 #[invariant(::Cmevla => true)]
@@ -538,6 +791,28 @@ pub struct ToolJvozbaRequest {
     /// The source components, in order. Each is a whole word or a fixed rafsi.
     #[serde(default)]
     pub parts: Vec<ToolJvozbaPart>,
+}
+
+impl From<ToolJvozbaPart> for JvozbaSourceInput {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(part: ToolJvozbaPart) -> Self {
+        match part.kind {
+            ToolJvozbaPartKind::Word => Self::Word(part.value),
+            ToolJvozbaPartKind::FixedRafsi => Self::FixedRafsi(part.value),
+        }
+    }
+}
+
+impl From<ToolJvozbaRequest> for Command {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(request: ToolJvozbaRequest) -> Self {
+        Self::Jvozba(JvozbaInput {
+            cmevla: request.mode == ToolJvozbaMode::Cmevla,
+            sources: request.parts.into_iter().map(Into::into).collect(),
+        })
+    }
 }
 
 /// Output format for `gimfihi` candidate gismu.
@@ -734,6 +1009,59 @@ pub struct ToolGimfihiRequest {
     pub format: ToolGimfihiFormat,
 }
 
+impl ToolGimfihiFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_format(self) -> GimfihiCliFormat {
+        match self {
+            Self::Table => GimfihiCliFormat::Table,
+            Self::Json => GimfihiCliFormat::Json,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Json => APPLICATION_JSON_CONTENT_TYPE,
+            Self::Table => TEXT_PLAIN_CONTENT_TYPE,
+        }
+    }
+}
+
+#[invariant(true)]
+struct ToolGimfihiCommandInput {
+    request: ToolGimfihiRequest,
+    word_kind: GimfihiSourceWordKind,
+}
+
+impl TryFrom<ToolGimfihiCommandInput> for Command {
+    type Error = anyhow::Error;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn try_from(input: ToolGimfihiCommandInput) -> std::result::Result<Self, Self::Error> {
+        let request = input.request;
+        let sources = request
+            .sources
+            .into_iter()
+            .map(|source| tool_gimfihi_source_to_input(source, input.word_kind))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Self::Gimfihi(GimfihiInput {
+            sources,
+            preset: request.preset,
+            shapes: request.shapes,
+            check_collisions: request.check_collisions.into(),
+            all_letters: request.all_letters,
+            show_collisions: request.show_collisions,
+            require_free_short_rafsi: request.require_free_short_rafsi,
+            count: request.count,
+            highlight: request.highlight,
+            format: request.format.command_format(),
+        }))
+    }
+}
+
 /// Build the semantic representation of Lojban text as a JSON graph
 /// (`lojban-semantics-json-1`): the utterances, eventualities, referents,
 /// predications, and formulas that make up its meaning, with full argument
@@ -762,6 +1090,23 @@ pub struct ToolTersmuRequest {
     pub indent: Option<usize>,
 }
 
+impl From<ToolTersmuRequest> for Command {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(request: ToolTersmuRequest) -> Self {
+        Self::Tersmu(TersmuInput {
+            file: None,
+            format: TersmuFormat::Json,
+            trace: None,
+            dialect: request.dialect,
+            story_time: request.story_time,
+            // Default to pretty-printed JSON for readability; `0` opts into compact.
+            indent: Some(request.indent.unwrap_or(2)),
+            text: vec![request.text],
+        })
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.as_object().is_some())]
 fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
@@ -780,89 +1125,15 @@ fn tool_show_refs_default() -> Option<bool> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_gentufa(request: ToolGentufaRequest) -> Result<ToolRenderedOutput> {
-    let tool_format = request.format;
-    let show_refs = request
-        .show_refs
-        .unwrap_or(matches!(tool_format, ToolGentufaFormat::Tree));
-    let (format, output_type, content_type) = match tool_format {
-        ToolGentufaFormat::Brackets => (GentufaFormat::Brackets, None, TEXT_PLAIN_CONTENT_TYPE),
-        ToolGentufaFormat::Tree => (GentufaFormat::Tree, None, TEXT_PLAIN_CONTENT_TYPE),
-        ToolGentufaFormat::Raw => (GentufaFormat::Raw, None, TEXT_PLAIN_CONTENT_TYPE),
-        ToolGentufaFormat::Json => (GentufaFormat::Json, None, APPLICATION_JSON_CONTENT_TYPE),
-        ToolGentufaFormat::Svg => (
-            GentufaFormat::Blocks,
-            Some(GentufaImageOutputType::Svg),
-            "image/svg+xml; charset=utf-8",
-        ),
-        ToolGentufaFormat::Png => (
-            GentufaFormat::Blocks,
-            Some(GentufaImageOutputType::Png),
-            "image/png",
-        ),
-    };
-    run_tool_command(
-        Command::Gentufa(GentufaInput {
-            file: None,
-            ascii: false,
-            detailed_errors: true,
-            error_context: 1,
-            trace_phase: None,
-            trace_limit: None,
-            trace_list: false,
-            format,
-            trace: None,
-            dialect: request.dialect,
-            show_defs: request.show_defs,
-            indent: request.indent,
-            mark_stress: None,
-            mark_glides: None,
-            show_spans: request.show_spans,
-            show_refs,
-            show_elided: request.show_elided,
-            decompose_lujvo: request.decompose_lujvo,
-            output_type,
-            output_file: None,
-            text: vec![request.text],
-        }),
-        Some(content_type),
-    )
+    let content_type = request.format.content_type();
+    run_tool_command(Command::from(request), Some(content_type))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_vlasei(request: ToolVlaseiRequest) -> Result<ToolRenderedOutput> {
-    let tool_format = request.format;
-    let format = match tool_format {
-        ToolVlaseiFormat::Brackets => VlaseiFormat::Brackets,
-        ToolVlaseiFormat::Tree => VlaseiFormat::Tree,
-        ToolVlaseiFormat::Ipa => VlaseiFormat::Ipa,
-        ToolVlaseiFormat::Raw => VlaseiFormat::Raw,
-        ToolVlaseiFormat::Json => VlaseiFormat::Json,
-    };
-    let content_type = match tool_format {
-        ToolVlaseiFormat::Json => APPLICATION_JSON_CONTENT_TYPE,
-        _ => TEXT_PLAIN_CONTENT_TYPE,
-    };
-    run_tool_command(
-        Command::Vlasei(VlaseiInput {
-            file: None,
-            ascii: false,
-            detailed_errors: true,
-            trace_phase: None,
-            trace_limit: None,
-            trace_list: false,
-            format,
-            trace: None,
-            dialect: request.dialect,
-            indent: request.indent,
-            mark_stress: None,
-            mark_glides: None,
-            show_spans: request.show_spans,
-            decompose_lujvo: request.decompose_lujvo,
-            text: vec![request.text],
-        }),
-        Some(content_type),
-    )
+    let content_type = request.format.content_type();
+    run_tool_command(Command::from(request), Some(content_type))
 }
 
 #[requires(true)]
@@ -886,48 +1157,8 @@ fn run_tool_cukta_inner(
     request: ToolCuktaRequest,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<ToolRenderedOutput> {
-    let tool_format = request.format;
-    let format = match tool_format {
-        ToolCuktaFormat::Markdown => CuktaCliFormat::Markdown,
-        ToolCuktaFormat::Html => CuktaCliFormat::Html,
-        ToolCuktaFormat::Raw => CuktaCliFormat::Raw,
-    };
-    let content_type = match tool_format {
-        ToolCuktaFormat::Markdown => "text/markdown; charset=utf-8",
-        ToolCuktaFormat::Html => "text/html; charset=utf-8",
-        ToolCuktaFormat::Raw => TEXT_PLAIN_CONTENT_TYPE,
-    };
-    let query = request.query.unwrap_or_default();
-    // The typed `search_result_kinds` set maps directly onto the CLI's per-kind
-    // target flags; the CLI's string `targets` channel stays empty. Filters only
-    // apply to the search modes and are rejected (downstream) for navigation.
-    let mut input = CuktaInput {
-        count: request.count,
-        toc: false,
-        section: None,
-        example: None,
-        valsi: None,
-        targets: Vec::new(),
-        target_sections: request
-            .search_result_kinds
-            .contains(&ToolCuktaSearchResultKind::Section),
-        target_paragraphs: request
-            .search_result_kinds
-            .contains(&ToolCuktaSearchResultKind::Paragraph),
-        target_examples: request
-            .search_result_kinds
-            .contains(&ToolCuktaSearchResultKind::Example),
-        format,
-        query: Vec::new(),
-    };
-    match request.mode {
-        ToolCuktaMode::Meaning => input.query = vec![query],
-        ToolCuktaMode::Word => input.valsi = Some(query),
-        ToolCuktaMode::Section => input.section = Some(query),
-        ToolCuktaMode::Example => input.example = Some(query),
-        ToolCuktaMode::Toc => input.toc = true,
-    }
-    run_tool_command_with_context(Command::Cukta(input), Some(content_type), tool_context)
+    let content_type = request.format.content_type();
+    run_tool_command_with_context(Command::from(request), Some(content_type), tool_context)
 }
 
 #[requires(true)]
@@ -951,53 +1182,14 @@ fn run_tool_vlacku_inner(
     request: ToolVlackuRequest,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<ToolRenderedOutput> {
-    let query = request.query;
-    if query.is_empty() {
-        bail!("vlacku query must not be empty");
-    }
-    let (requests, query_text) = match request.mode {
-        ToolVlackuMode::Word => (vec![VlackuRequest::valsi(query)], Vec::new()),
-        ToolVlackuMode::Rafsi => (vec![VlackuRequest::rafsi(query)], Vec::new()),
-        ToolVlackuMode::Lujvo => (vec![VlackuRequest::lujvo(query)], Vec::new()),
-        ToolVlackuMode::Sound => (vec![VlackuRequest::sound(query)], Vec::new()),
-        ToolVlackuMode::Meaning => (Vec::new(), vec![query]),
-    };
-    run_tool_command_with_context(
-        Command::Vlacku(VlackuInput {
-            count: request.count,
-            ascii: false,
-            word_types: request.word_types,
-            min_votes: request.min_votes,
-            min_similarity: request.min_similarity,
-            sumti_places: CliSumtiPlaces::Index,
-            decompose_lujvo: request.decompose_lujvo,
-            show_etymology: request.show_etymology,
-            requests,
-            query: query_text,
-        }),
-        Some(TEXT_PLAIN_CONTENT_TYPE),
-        tool_context,
-    )
+    let command = Command::try_from(request)?;
+    run_tool_command_with_context(command, Some(TEXT_PLAIN_CONTENT_TYPE), tool_context)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_jvozba(request: ToolJvozbaRequest) -> Result<ToolRenderedOutput> {
-    let sources = request
-        .parts
-        .into_iter()
-        .map(|part| match part.kind {
-            ToolJvozbaPartKind::Word => JvozbaSourceInput::Word(part.value),
-            ToolJvozbaPartKind::FixedRafsi => JvozbaSourceInput::FixedRafsi(part.value),
-        })
-        .collect();
-    run_tool_command(
-        Command::Jvozba(JvozbaInput {
-            cmevla: request.mode == ToolJvozbaMode::Cmevla,
-            sources,
-        }),
-        Some(TEXT_PLAIN_CONTENT_TYPE),
-    )
+    run_tool_command(Command::from(request), Some(TEXT_PLAIN_CONTENT_TYPE))
 }
 
 /// How a tool caller's source `word` should be read.
@@ -1017,35 +1209,9 @@ pub fn run_tool_gimfihi(
     request: ToolGimfihiRequest,
     word_kind: GimfihiSourceWordKind,
 ) -> Result<ToolRenderedOutput> {
-    let tool_format = request.format;
-    let format = match tool_format {
-        ToolGimfihiFormat::Table => GimfihiCliFormat::Table,
-        ToolGimfihiFormat::Json => GimfihiCliFormat::Json,
-    };
-    let content_type = match tool_format {
-        ToolGimfihiFormat::Json => APPLICATION_JSON_CONTENT_TYPE,
-        ToolGimfihiFormat::Table => TEXT_PLAIN_CONTENT_TYPE,
-    };
-    let sources = request
-        .sources
-        .into_iter()
-        .map(|source| tool_gimfihi_source_to_input(source, word_kind))
-        .collect::<Result<Vec<_>>>()?;
-    run_tool_command(
-        Command::Gimfihi(GimfihiInput {
-            sources,
-            preset: request.preset,
-            shapes: request.shapes,
-            check_collisions: request.check_collisions.into(),
-            all_letters: request.all_letters,
-            show_collisions: request.show_collisions,
-            require_free_short_rafsi: request.require_free_short_rafsi,
-            count: request.count,
-            highlight: request.highlight,
-            format,
-        }),
-        Some(content_type),
-    )
+    let content_type = request.format.content_type();
+    let command = Command::try_from(ToolGimfihiCommandInput { request, word_kind })?;
+    run_tool_command(command, Some(content_type))
 }
 
 #[requires(true)]
@@ -1075,19 +1241,7 @@ fn tool_gimfihi_source_to_input(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    run_tool_command(
-        Command::Tersmu(TersmuInput {
-            file: None,
-            format: TersmuFormat::Json,
-            trace: None,
-            dialect: request.dialect,
-            story_time: request.story_time,
-            // Default to pretty-printed JSON for readability; `0` opts into compact.
-            indent: Some(request.indent.unwrap_or(2)),
-            text: vec![request.text],
-        }),
-        Some(APPLICATION_JSON_CONTENT_TYPE),
-    )
+    run_tool_command(Command::from(request), Some(APPLICATION_JSON_CONTENT_TYPE))
 }
 
 #[requires(true)]
