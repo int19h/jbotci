@@ -738,7 +738,19 @@ fn collect_enum_type_invariant_tokens(
         .iter()
         .any(|segment| parse_enum_variant_invariant(mode, segment.clone()).is_some())
     {
-        for segment in segments {
+        let mut index = 0;
+        while let Some(segment) = segments.get(index) {
+            let segment = if segments
+                .get(index + 1)
+                .is_some_and(is_string_literal_segment)
+            {
+                let description = &segments[index + 1];
+                index += 2;
+                quote! { #segment, #description }
+            } else {
+                index += 1;
+                segment.clone()
+            };
             match parse_enum_variant_invariant(mode, segment.clone()) {
                 Some(Ok(variant_arm)) => contracts.variant_arms.push(variant_arm),
                 Some(Err(error)) => contracts.errors.push(error.to_compile_error()),
@@ -754,6 +766,18 @@ fn collect_enum_type_invariant_tokens(
             .type_contracts
             .push(Contract::from_toks(ContractType::Invariant, mode, tokens));
     }
+}
+
+fn is_string_literal_segment(segment: &TokenStream) -> bool {
+    syn::parse2::<Expr>(segment.clone()).is_ok_and(|expr| {
+        matches!(
+            expr,
+            Expr::Lit(ExprLit {
+                lit: Lit::Str(_),
+                ..
+            })
+        )
+    })
 }
 
 fn invariant_expression(contracts: &[Contract], extra_check: TokenStream) -> TokenStream {
@@ -987,11 +1011,22 @@ fn parse_enum_variant_invariant(
         )));
     }
 
+    let (assertions, _, _) = parse::parse_attributes(expr_tokens);
+    if assertions.len() != 1 {
+        return Some(Err(syn::Error::new_spanned(
+            segment,
+            "enum variant invariant requires exactly one expression after `=>`",
+        )));
+    }
+
     Some(Ok(EnumVariantInvariant {
         mode,
         variant_ident: variant_ident.clone(),
         tail,
-        expr: parse::parse_contract_expr(expr_tokens),
+        expr: assertions
+            .into_iter()
+            .next()
+            .expect("length was checked above"),
         display: segment,
     }))
 }

@@ -10,6 +10,7 @@ use syn::{Expr, ExprLit, Lit};
 pub(crate) fn parse_attributes(
     attrs: TokenStream,
 ) -> (Vec<Expr>, Vec<TokenStream>, Option<String>) {
+    let original_attrs = attrs.clone();
     let segments = segment_input(attrs);
     let mut segments_stream: Vec<TokenStream> = segments
         .iter()
@@ -42,15 +43,12 @@ pub(crate) fn parse_attributes(
         segments_stream.pop();
     }
 
-    (conds, segments_stream, desc)
-}
-
-pub(crate) fn parse_contract_expr(attrs: TokenStream) -> Expr {
-    let rewritten = rewrite(attrs.into_iter().collect());
-    match syn::parse2::<Expr>(rewritten) {
-        Ok(expr) => expr,
-        Err(error) => Expr::Verbatim(error.to_compile_error()),
+    if conds.is_empty() {
+        conds.push(missing_contract_predicate_error(original_attrs.clone()));
+        segments_stream.push(original_attrs);
     }
+
+    (conds, segments_stream, desc)
 }
 
 pub(crate) fn parse_attribute_segments(attrs: TokenStream) -> Vec<TokenStream> {
@@ -58,6 +56,16 @@ pub(crate) fn parse_attribute_segments(attrs: TokenStream) -> Vec<TokenStream> {
         .into_iter()
         .map(|segment| segment.into_iter().collect())
         .collect()
+}
+
+fn missing_contract_predicate_error(attrs: TokenStream) -> Expr {
+    Expr::Verbatim(
+        syn::Error::new_spanned(
+            attrs,
+            "contract attribute requires a predicate expression; use `#[requires(expr)]` or `#[requires(expr, \"description\")]`",
+        )
+        .to_compile_error(),
+    )
 }
 
 // This function rewrites a list of TokenTrees so that the "pseudooperator" for
