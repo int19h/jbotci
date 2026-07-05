@@ -4,12 +4,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use proc_macro2::{Spacing, TokenStream, TokenTree};
+use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident,
-    ItemEnum, ItemStruct, Lit, Path, Type, TypePath, Variant, Visibility, parse::Parser, visit,
-    visit::Visit,
+    Attribute, Expr, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident, ItemEnum,
+    ItemStruct, Path, Type, TypePath, Variant, Visibility, parse::Parser, visit, visit::Visit,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType, parse};
@@ -742,7 +741,7 @@ fn collect_enum_type_invariant_tokens(
         while let Some(segment) = segments.get(index) {
             let segment = if segments
                 .get(index + 1)
-                .is_some_and(is_string_literal_segment)
+                .is_some_and(bityzba_contract_syntax::is_string_literal_segment)
             {
                 let description = &segments[index + 1];
                 index += 2;
@@ -766,18 +765,6 @@ fn collect_enum_type_invariant_tokens(
             .type_contracts
             .push(Contract::from_toks(ContractType::Invariant, mode, tokens));
     }
-}
-
-fn is_string_literal_segment(segment: &TokenStream) -> bool {
-    syn::parse2::<Expr>(segment.clone()).is_ok_and(|expr| {
-        matches!(
-            expr,
-            Expr::Lit(ExprLit {
-                lit: Lit::Str(_),
-                ..
-            })
-        )
-    })
 }
 
 fn invariant_expression(contracts: &[Contract], extra_check: TokenStream) -> TokenStream {
@@ -842,7 +829,11 @@ fn enum_invariant_docs(contracts: &EnumTypeInvariants) -> String {
 
 fn contracts_are_true_marker(contracts: &[Contract]) -> bool {
     contracts.iter().all(|contract| {
-        !contract.assertions.is_empty() && contract.assertions.iter().all(is_true_literal)
+        !contract.assertions.is_empty()
+            && contract
+                .assertions
+                .iter()
+                .all(bityzba_contract_syntax::expr_is_true_literal)
     })
 }
 
@@ -852,17 +843,7 @@ fn enum_contracts_are_true_marker(contracts: &EnumTypeInvariants) -> bool {
         && contracts
             .variant_arms
             .iter()
-            .all(|variant_arm| is_true_literal(&variant_arm.expr))
-}
-
-fn is_true_literal(expr: &Expr) -> bool {
-    matches!(
-        expr,
-        Expr::Lit(ExprLit {
-            lit: Lit::Bool(value),
-            ..
-        }) if value.value
-    )
+            .all(|variant_arm| bityzba_contract_syntax::expr_is_true_literal(&variant_arm.expr))
 }
 
 fn enum_variant_invariant_expression<'a>(
@@ -983,35 +964,12 @@ fn parse_enum_variant_invariant(
     mode: ContractMode,
     segment: TokenStream,
 ) -> Option<syn::Result<EnumVariantInvariant>> {
-    let tokens = segment.clone().into_iter().collect::<Vec<_>>();
-    if !starts_with_double_colon(&tokens) {
-        return None;
-    }
-    let arrow_index = top_level_fat_arrow_index(&tokens)?;
-
-    let Some(TokenTree::Ident(variant_ident)) = tokens.get(2) else {
-        return Some(Err(syn::Error::new_spanned(
-            segment,
-            "enum variant invariant must start with `::Variant`",
-        )));
+    let parsed = match bityzba_contract_syntax::parse_variant_invariant_segment(segment.clone())? {
+        Ok(parsed) => parsed,
+        Err(error) => return Some(Err(error)),
     };
 
-    let tail = tokens[3..arrow_index]
-        .iter()
-        .cloned()
-        .collect::<TokenStream>();
-    let expr_tokens = tokens[arrow_index + 2..]
-        .iter()
-        .cloned()
-        .collect::<TokenStream>();
-    if expr_tokens.is_empty() {
-        return Some(Err(syn::Error::new_spanned(
-            segment,
-            "enum variant invariant requires an expression after `=>`",
-        )));
-    }
-
-    let (assertions, _, _) = parse::parse_attributes(expr_tokens);
+    let (assertions, _, _) = parse::parse_attributes(parsed.expr);
     if assertions.len() != 1 {
         return Some(Err(syn::Error::new_spanned(
             segment,
@@ -1021,36 +979,14 @@ fn parse_enum_variant_invariant(
 
     Some(Ok(EnumVariantInvariant {
         mode,
-        variant_ident: variant_ident.clone(),
-        tail,
+        variant_ident: parsed.variant_ident,
+        tail: parsed.tail,
         expr: assertions
             .into_iter()
             .next()
             .expect("length was checked above"),
         display: segment,
     }))
-}
-
-fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
-    matches!(
-        (tokens.first(), tokens.get(1)),
-        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
-            if first.as_char() == ':'
-                && first.spacing() == Spacing::Joint
-                && second.as_char() == ':'
-    )
-}
-
-fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
-    tokens.windows(2).position(|window| {
-        matches!(
-            (&window[0], &window[1]),
-            (TokenTree::Punct(first), TokenTree::Punct(second))
-                if first.as_char() == '='
-                    && first.spacing() == Spacing::Joint
-                    && second.as_char() == '>'
-        )
-    })
 }
 
 #[derive(Default)]

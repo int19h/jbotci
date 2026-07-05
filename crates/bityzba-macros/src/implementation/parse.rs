@@ -52,10 +52,7 @@ pub(crate) fn parse_attributes(
 }
 
 pub(crate) fn parse_attribute_segments(attrs: TokenStream) -> Vec<TokenStream> {
-    segment_input(attrs)
-        .into_iter()
-        .map(|segment| segment.into_iter().collect())
-        .collect()
+    bityzba_contract_syntax::attribute_segments(attrs)
 }
 
 fn missing_contract_predicate_error(attrs: TokenStream) -> Expr {

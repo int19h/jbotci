@@ -698,6 +698,7 @@ dependencies = [
 name = "bityzba"
 version = "0.1.0"
 dependencies = [
+ "bityzba-contract-syntax",
  "bityzba-macros",
  "proc-macro2",
  "serde",
@@ -708,9 +709,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bityzba-contract-syntax"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "bityzba-macros"
 version = "0.1.0"
 dependencies = [
+ "bityzba-contract-syntax",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -4303,6 +4314,7 @@ dependencies = [
 name = "jbotci-tree-macros"
 version = "0.1.0"
 dependencies = [
+ "bityzba-contract-syntax",
  "proc-macro2",
  "quote",
  "syn 2.0.117",

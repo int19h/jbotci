@@ -8,7 +8,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Block, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod,
@@ -639,7 +639,7 @@ fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {
         let syn::Meta::List(list) = &attr.meta else {
             continue;
         };
-        for segment in attribute_segments(list.tokens.clone()) {
+        for segment in bityzba_contract_syntax::attribute_segments(list.tokens.clone()) {
             if let Some(variant) = variant_invariant_name(segment) {
                 variants.insert(variant);
             }
@@ -648,59 +648,10 @@ fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {
     variants
 }
 
-fn attribute_segments(tokens: TokenStream) -> Vec<TokenStream> {
-    let mut segments = Vec::new();
-    let mut segment = Vec::new();
-    for token in tokens {
-        match token {
-            TokenTree::Punct(punct)
-                if punct.as_char() == ',' && punct.spacing() == Spacing::Alone =>
-            {
-                if !segment.is_empty() {
-                    segments.push(segment.into_iter().collect());
-                    segment = Vec::new();
-                }
-            }
-            token => segment.push(token),
-        }
-    }
-    if !segment.is_empty() {
-        segments.push(segment.into_iter().collect());
-    }
-    segments
-}
-
 fn variant_invariant_name(segment: TokenStream) -> Option<String> {
-    let tokens = segment.into_iter().collect::<Vec<_>>();
-    if !starts_with_double_colon(&tokens) || top_level_fat_arrow_index(&tokens).is_none() {
-        return None;
-    }
-    match tokens.get(2) {
-        Some(TokenTree::Ident(ident)) => Some(ident.to_string()),
-        _ => None,
-    }
-}
-
-fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
-    matches!(
-        (tokens.first(), tokens.get(1)),
-        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
-            if first.as_char() == ':'
-                && first.spacing() == Spacing::Joint
-                && second.as_char() == ':'
-    )
-}
-
-fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
-    tokens.windows(2).position(|window| {
-        matches!(
-            (&window[0], &window[1]),
-            (TokenTree::Punct(first), TokenTree::Punct(second))
-                if first.as_char() == '='
-                    && first.spacing() == Spacing::Joint
-                    && second.as_char() == '>'
-        )
-    })
+    bityzba_contract_syntax::parse_variant_invariant_segment(segment)
+        .and_then(Result::ok)
+        .map(|parsed| parsed.variant_ident.to_string())
 }
 
 fn display_path(manifest_dir: &Path, path: &Path) -> String {
