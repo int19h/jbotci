@@ -1,12 +1,12 @@
 //! Compact JSON DOM builders over generated tree traversal.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{ensures, invariant, requires};
 use jbotci_morphology::{
-    Cmavo, PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, Word, WordLike,
+    Cmavo, PhonemeRenderOptions, Phonemes, TreeNode as MorphologyTreeNode, WordLike,
 };
 use jbotci_source::SourceSpan;
-use jbotci_syntax::{WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref};
+use jbotci_syntax::elidable_terminator_for_absent_field_ref;
 use jbotci_tree::{FieldRef, TreeVisitor};
 use serde_json::{Map, Value};
 
@@ -53,14 +53,6 @@ pub(crate) fn morphology_json_value(words: &[WordLike], phonemes: PhonemeRenderO
 fn morphology_word_like_value(word_like: &WordLike, phonemes: PhonemeRenderOptions) -> Value {
     let mut builder = MorphologyJsonBuilder::new(phonemes);
     word_like.visit_in_order(&mut builder);
-    builder.finish()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn morphology_word_value(word: &Word, phonemes: PhonemeRenderOptions) -> Value {
-    let mut builder = MorphologyJsonBuilder::new(phonemes);
-    MorphologyTreeNode::visit_in_order(word, &mut builder);
     builder.finish()
 }
 
@@ -522,80 +514,6 @@ pub(crate) fn render_phoneme_fields_in_json_value(
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn with_indicators_value(word: &WithIndicators<WordLike>, phonemes: PhonemeRenderOptions) -> Value {
-    match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => {
-            constructor_value("Plain", morphology_word_like_value(word_like, phonemes))
-        }
-        data!(WithIndicators::Emphasized {
-            bahe,
-            extra_bahe,
-            word_like,
-        }) => {
-            let mut payload = Map::new();
-            payload.insert("bahe".to_owned(), morphology_word_value(bahe, phonemes));
-            if !extra_bahe.is_empty() {
-                payload.insert(
-                    "extra_bahe".to_owned(),
-                    Value::Array(
-                        extra_bahe
-                            .iter()
-                            .map(|bahe| morphology_word_value(bahe, phonemes))
-                            .collect(),
-                    ),
-                );
-            }
-            payload.insert(
-                "word_like".to_owned(),
-                morphology_word_like_value(word_like, phonemes),
-            );
-            constructor_value("Emphasized", Value::Object(payload))
-        }
-        data!(WithIndicators::WithIndicator {
-            base,
-            indicator_bahe,
-            indicator,
-            nai_bahe,
-            nai,
-        }) => {
-            let mut payload = Map::new();
-            payload.insert("base".to_owned(), with_indicators_value(base, phonemes));
-            if !indicator_bahe.is_empty() {
-                payload.insert(
-                    "indicator_bahe".to_owned(),
-                    Value::Array(
-                        indicator_bahe
-                            .iter()
-                            .map(|bahe| morphology_word_value(bahe, phonemes))
-                            .collect(),
-                    ),
-                );
-            }
-            payload.insert(
-                "indicator".to_owned(),
-                morphology_word_value(indicator, phonemes),
-            );
-            if let Some(nai) = nai {
-                if !nai_bahe.is_empty() {
-                    payload.insert(
-                        "nai_bahe".to_owned(),
-                        Value::Array(
-                            nai_bahe
-                                .iter()
-                                .map(|bahe| morphology_word_value(bahe, phonemes))
-                                .collect(),
-                        ),
-                    );
-                }
-                payload.insert("nai".to_owned(), morphology_word_value(nai, phonemes));
-            }
-            constructor_value("WithIndicator", Value::Object(payload))
-        }
-    }
-}
-
 #[requires(span.char_start <= span.char_end)]
 #[ensures(true)]
 fn span_value(span: &SourceSpan) -> Value {
@@ -626,11 +544,5 @@ mod tests {
                 compact_json_value(&words).expect("serde compact JSON")
             );
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn run_on_normal_stack(f: impl FnOnce()) {
-        f();
     }
 }

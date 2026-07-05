@@ -120,7 +120,6 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
         if input.query.is_empty() {
             bail!("No query provided for vlacku. Use --valsi, --rafsi, --lujvo, or --sound.");
         }
-        let _ = joined_query_text(&input.query);
     }
     if !input.query.is_empty() && !input.requests.is_empty() {
         bail!(

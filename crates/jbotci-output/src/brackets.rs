@@ -3,9 +3,7 @@ use bityzba::ensures;
 use bityzba::{data, new};
 use bityzba::{invariant, requires};
 use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
-use jbotci_orthography::{
-    render_latin_word_surface_for_script, render_loose_latin_text_for_script,
-};
+use jbotci_orthography::render_latin_word_surface_for_script;
 use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
@@ -391,24 +389,4 @@ fn elided_cmavo_text(cmavo: Cmavo, options: jbotci_morphology::PhonemeRenderOpti
     Phonemes::from_canonical(cmavo.canonical_text().to_owned())
         .expect("cmavo canonical text is valid phoneme text")
         .render(options)
-}
-
-#[requires(true)]
-#[ensures(!ret.starts_with('.'))]
-fn normalize_attached_surface(text: String) -> String {
-    text.trim_start_matches('.').replace('.', "-")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn attached_word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
-    let latin = normalize_attached_surface(surface::format_with_indicators_with_options(
-        &Token::bare(WordLike::bare(word.clone())),
-        source.source,
-        source.options.phonemes,
-    ));
-    sexpr::leaf(render_loose_latin_text_for_script(
-        source.options.script,
-        &latin,
-    ))
 }
