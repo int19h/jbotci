@@ -9,9 +9,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
+use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct,
-    ItemTrait, ReturnType, TraitItem, TraitItemFn, Type,
+    Attribute, Block, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod,
+    ItemStruct, ItemTrait, ReturnType, TraitItem, TraitItemFn, Type,
 };
 use walkdir::WalkDir;
 
@@ -218,15 +219,19 @@ impl FileScanner {
 
     fn scan_items(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Fn(item) => self.scan_free_function(item),
-                Item::Struct(item) => self.scan_struct(item),
-                Item::Enum(item) => self.scan_enum(item),
-                Item::Trait(item) => self.scan_trait(item),
-                Item::Impl(item) => self.scan_impl(item),
-                Item::Mod(item) => self.scan_mod(item),
-                _ => {}
-            }
+            self.scan_item(item);
+        }
+    }
+
+    fn scan_item(&mut self, item: &Item) {
+        match item {
+            Item::Fn(item) => self.scan_free_function(item),
+            Item::Struct(item) => self.scan_struct(item),
+            Item::Enum(item) => self.scan_enum(item),
+            Item::Trait(item) => self.scan_trait(item),
+            Item::Impl(item) => self.scan_impl(item),
+            Item::Mod(item) => self.scan_mod(item),
+            _ => {}
         }
     }
 
@@ -250,6 +255,7 @@ impl FileScanner {
             &item.sig.ident.to_string(),
             item.sig.ident.span(),
         );
+        self.scan_block(&item.block);
     }
 
     fn scan_struct(&mut self, item: &ItemStruct) {
@@ -341,30 +347,37 @@ impl FileScanner {
             &format!("{trait_name}::{}", method.sig.ident),
             method.sig.ident.span(),
         );
+        if let Some(block) = &method.default {
+            self.scan_block(block);
+        }
     }
 
     fn scan_impl(&mut self, item: &ItemImpl) {
-        if item.trait_.is_some() {
-            return;
-        }
-
         for impl_item in &item.items {
             if let ImplItem::Fn(method) = impl_item {
-                self.require_contract_attribute_order(
-                    &method.attrs,
-                    "method",
-                    &method.sig.ident.to_string(),
-                    method.sig.ident.span(),
-                );
-                self.require_function_contracts(
-                    &method.attrs,
-                    &method.sig.output,
-                    "method",
-                    &method.sig.ident.to_string(),
-                    method.sig.ident.span(),
-                );
+                if item.trait_.is_none() {
+                    self.require_contract_attribute_order(
+                        &method.attrs,
+                        "method",
+                        &method.sig.ident.to_string(),
+                        method.sig.ident.span(),
+                    );
+                    self.require_function_contracts(
+                        &method.attrs,
+                        &method.sig.output,
+                        "method",
+                        &method.sig.ident.to_string(),
+                        method.sig.ident.span(),
+                    );
+                }
+                self.scan_block(&method.block);
             }
         }
+    }
+
+    fn scan_block(&mut self, block: &Block) {
+        let mut visitor = FunctionBodyScanner { scanner: self };
+        visitor.visit_block(block);
     }
 
     fn require_contract_attribute_order(
@@ -446,6 +459,20 @@ impl FileScanner {
                 ));
             }
         }
+    }
+}
+
+struct FunctionBodyScanner<'scanner> {
+    scanner: &'scanner mut FileScanner,
+}
+
+impl<'ast> Visit<'ast> for FunctionBodyScanner<'_> {
+    fn visit_item(&mut self, item: &'ast Item) {
+        self.scanner.scan_item(item);
+    }
+
+    fn visit_block(&mut self, block: &'ast Block) {
+        visit::visit_block(self, block);
     }
 }
 

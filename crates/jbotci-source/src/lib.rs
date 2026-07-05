@@ -82,6 +82,8 @@ impl<'de> Deserialize<'de> for SourceSpan {
     where
         D: Deserializer<'de>,
     {
+        #[invariant(::Compact(_) => true, "compact wire spans are validated by SourceSpan::new")]
+        #[invariant(::Verbose { .. } => true, "verbose wire spans are validated by SourceSpan::new")]
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum EncodedSpan {

@@ -68,6 +68,31 @@ fn missing_contracts_report_separate_diagnostics() {
 }
 
 #[test]
+fn function_local_items_are_scanned_recursively() {
+    let error = ContractScanner::new(fixture("fn_local"))
+        .scan()
+        .expect_err("fn-local item fixture should fail scanner");
+    let output = error.to_string();
+
+    assert!(output.contains("missing bityzba type invariant on struct `LocalStruct`"));
+    assert!(
+        output.contains(
+            "missing bityzba invariant on data-carrying enum variant `LocalEnum::Present`"
+        )
+    );
+    assert!(output.contains("missing bityzba contract_trait on trait `LocalTrait`"));
+    assert!(output.contains("missing bityzba precondition on trait method `LocalTrait::run`"));
+    assert!(output.contains("missing bityzba postcondition on trait method `LocalTrait::run`"));
+    assert!(output.contains("missing bityzba precondition on function `inner`"));
+    assert!(output.contains("missing bityzba postcondition on function `inner`"));
+    assert!(output.contains("missing bityzba precondition on method `local_method`"));
+    assert!(output.contains("missing bityzba postcondition on method `local_method`"));
+    assert!(output.contains("missing bityzba precondition on function `inside_expression`"));
+    assert!(output.contains("missing bityzba postcondition on function `inside_expression`"));
+    assert!(output.contains("missing bityzba type invariant on struct `InsideTraitImpl`"));
+}
+
+#[test]
 fn misordered_contracts_report_order_diagnostics() {
     let error = ContractScanner::new(fixture("misordered"))
         .scan()

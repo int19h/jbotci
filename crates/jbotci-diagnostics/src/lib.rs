@@ -653,6 +653,7 @@ impl<'de> Deserialize<'de> for DiagnosticTextSegment {
     where
         D: serde::Deserializer<'de>,
     {
+        #[invariant(!text.is_empty())]
         #[derive(Deserialize)]
         struct DiagnosticTextSegmentWire {
             role: DiagnosticTextRole,
@@ -660,7 +661,8 @@ impl<'de> Deserialize<'de> for DiagnosticTextSegment {
         }
 
         let wire = DiagnosticTextSegmentWire::deserialize(deserializer)?;
-        Ok(DiagnosticTextSegment::new(wire.role, wire.text))
+        let data!(DiagnosticTextSegmentWire { role, text }) = wire.into_data();
+        Ok(DiagnosticTextSegment::new(role, text))
     }
 }
 
@@ -710,6 +712,7 @@ impl<'de> Deserialize<'de> for DiagnosticLabel {
     where
         D: serde::Deserializer<'de>,
     {
+        #[invariant(!message.is_empty())]
         #[derive(Deserialize)]
         struct DiagnosticLabelWire {
             span: SourceSpan,
@@ -718,7 +721,12 @@ impl<'de> Deserialize<'de> for DiagnosticLabel {
         }
 
         let wire = DiagnosticLabelWire::deserialize(deserializer)?;
-        Ok(DiagnosticLabel::new(wire.span, wire.message, wire.primary))
+        let data!(DiagnosticLabelWire {
+            span,
+            message,
+            primary,
+        }) = wire.into_data();
+        Ok(DiagnosticLabel::new(span, message, primary))
     }
 }
 
@@ -800,6 +808,10 @@ impl<'de> Deserialize<'de> for Diagnostic {
     where
         D: serde::Deserializer<'de>,
     {
+        #[invariant(!code.is_empty())]
+        #[invariant(!message.is_empty())]
+        #[invariant(!labels.is_empty())]
+        #[invariant(labels.iter().any(|label| label.primary))]
         #[derive(Deserialize)]
         struct DiagnosticWire {
             severity: DiagnosticSeverity,
@@ -814,16 +826,20 @@ impl<'de> Deserialize<'de> for Diagnostic {
         }
 
         let wire = DiagnosticWire::deserialize(deserializer)?;
-        Ok(Diagnostic::new(
-            wire.severity,
-            wire.phase,
-            wire.code,
-            wire.message,
-            wire.labels,
-            wire.notes,
-            wire.word_index,
+        let data!(DiagnosticWire {
+            severity,
+            phase,
+            code,
+            message,
+            labels,
+            notes,
+            styled_notes,
+            word_index,
+        }) = wire.into_data();
+        Ok(
+            Diagnostic::new(severity, phase, code, message, labels, notes, word_index)
+                .with_styled_notes(styled_notes),
         )
-        .with_styled_notes(wire.styled_notes))
     }
 }
 
