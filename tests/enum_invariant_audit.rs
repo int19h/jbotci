@@ -852,6 +852,150 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "experimental cmavo context carries validated Selmaho values",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Chain",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Postfix",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Rust",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:ParserExpr::Vector",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::Assert",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::One",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::OneOrMore",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::OneOrMoreSpread",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::Spread",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::ZeroOrMore",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorItem::ZeroOrMoreSpread",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:Rule::Alias",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:Rule::Enum",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:Rule::Struct",
+        "macro parser AST variants delegate validity to their typed syn or grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Arc",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Boxed",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Choice",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Cmavo",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Ignored",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Lookahead",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Many",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Many1",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Not",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextRule",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextSelmaho",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::NotNextToken",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Opaque",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Opt",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::PayloadStart",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Rule",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Selmaho",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::Sequence",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::WithFreeModifiers",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveryExpr::WordCategory",
+        "macro recovery metadata variants delegate validity to their typed payloads and generated metadata tests",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/lib.rs:UnwrappedTreeType::Atom",
+        "tree macro helper variants delegate validity to borrowed syn types collected from parsed input",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/lib.rs:UnwrappedTreeType::Children",
+        "tree macro helper variants delegate validity to borrowed syn types collected from parsed input",
+    ),
+    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyError::Invalid",
         "diagnostic enum records rejected parser inputs",
     ),

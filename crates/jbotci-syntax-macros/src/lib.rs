@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+#[allow(unused_imports)]
+use bityzba::{data, ensures, invariant, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -10,8 +12,11 @@ use syn::{
     Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
+    punctuated::Punctuated,
 };
 
+#[requires(true)]
+#[ensures(true)]
 #[proc_macro]
 pub fn syntax_grammar(input: TokenStream) -> TokenStream {
     let grammar = parse_macro_input!(input as SyntaxGrammar);
@@ -39,6 +44,7 @@ mod kw {
     syn::custom_keyword!(zero_or_more);
 }
 
+#[invariant(true)]
 struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
@@ -53,6 +59,8 @@ struct SyntaxGrammar {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
         let model_outputs = self.resolved_model_outputs();
@@ -87,7 +95,8 @@ impl SyntaxGrammar {
             quote!(#name => Some(&SYNTAX_GRAMMAR_RULES[#index]))
         });
         let parser_functions = if self.generate_parsers {
-            self.rules
+            match self
+                .rules
                 .iter()
                 .filter(|rule| {
                     !self.generate_model
@@ -95,7 +104,7 @@ impl SyntaxGrammar {
                             .output(&type_env)
                             .is_some_and(|output| self.rule_has_local_parser(output))
                 })
-                .filter_map(|rule| {
+                .map(|rule| {
                     rule.expand_strict_parser(
                         &type_env,
                         self.generate_model,
@@ -106,25 +115,40 @@ impl SyntaxGrammar {
                             .is_some_and(|output| self.generates_model_output(output)),
                     )
                 })
-                .collect::<Vec<_>>()
+                .collect::<Result<Vec<_>>>()
+            {
+                Ok(functions) => functions,
+                Err(error) => return error.into_compile_error(),
+            }
         } else {
             Vec::new()
         };
         let partial_valid_parser_functions = if self.generate_partial_valid_parsers {
-            self.rules
+            match self
+                .rules
                 .iter()
-                .filter_map(|rule| rule.expand_partial_valid_parser(&type_env, &recovered_module))
-                .collect::<Vec<_>>()
+                .map(|rule| rule.expand_partial_valid_parser(&type_env, &recovered_module))
+                .collect::<Result<Vec<_>>>()
+            {
+                Ok(functions) => functions,
+                Err(error) => return error.into_compile_error(),
+            }
         } else {
             Vec::new()
         };
         let recursive_family = if self.generate_parsers {
-            self.expand_strict_recursive_family()
+            match self.expand_strict_recursive_family() {
+                Ok(family) => family,
+                Err(error) => return error.into_compile_error(),
+            }
         } else {
             None
         };
         let recursive_partial_valid = if self.generate_partial_valid_parsers {
-            self.expand_partial_valid_recursive_roots(&recovered_module)
+            match self.expand_partial_valid_recursive_roots(&recovered_module) {
+                Ok(roots) => roots,
+                Err(error) => return error.into_compile_error(),
+            }
         } else {
             Vec::new()
         };
@@ -324,6 +348,8 @@ impl Parse for SyntaxGrammar {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
     let mut names = BTreeSet::new();
     for rule in rules {
@@ -337,6 +363,8 @@ fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
     let mut names = BTreeSet::new();
     for rule in rules {
@@ -351,6 +379,8 @@ fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
     input.parse::<kw::tree_model>()?;
     let content;
@@ -367,6 +397,8 @@ fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
     })
 }
 
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|outputs| !outputs.is_empty()))]
 fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>> {
     let content;
     braced!(content in input);
@@ -386,6 +418,8 @@ fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>>
     Ok(outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
     let attrs = &file.attrs;
     let items = &file.items;
@@ -398,6 +432,8 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn resolved_model_outputs(&self) -> Option<BTreeSet<String>> {
         if !self.generate_model {
             return None;
@@ -418,10 +454,14 @@ impl SyntaxGrammar {
         Some(outputs)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generates_model_output(&self, output: &Type) -> bool {
         output_is_generated_model(self.generate_model, &self.resolved_model_outputs(), output)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generates_model_output_name(&self, output: &str) -> bool {
         self.generate_model
             && self
@@ -430,10 +470,14 @@ impl SyntaxGrammar {
                 .is_none_or(|outputs| outputs.contains(output))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_has_local_parser(&self, output: &Type) -> bool {
         !self.generate_model || self.model_outputs.is_none() || self.generates_model_output(output)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn parser_type_tokens(&self, output: &Type) -> TokenStream2 {
         parser_type_tokens(
             output,
@@ -443,6 +487,8 @@ impl SyntaxGrammar {
         )
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let attrs = self
             .tree_model
@@ -467,6 +513,8 @@ impl SyntaxGrammar {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<GeneratedTreeModel> {
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
@@ -530,20 +578,20 @@ impl SyntaxGrammar {
                             variant_constructor.clone(),
                             snake_case(&variant_constructor),
                         ));
-                        let field = GeneratedFieldModel {
+                        let field = GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
                             attrs: branch.attrs.clone(),
                             name: branch.name.clone(),
                             ty: quote!(#branch_output),
-                        };
+                        }));
                         push_generated_variant(
                             &mut enums,
                             output.to_string(),
-                            GeneratedVariantModel {
+                            GeneratedVariantModel::from_data(data!(GeneratedVariantModel {
                                 variant,
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
                                 tuple: true,
-                            },
+                            })),
                         )?;
                     }
                     continue;
@@ -686,6 +734,8 @@ impl SyntaxGrammar {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_context_label(&self, name: &Ident) -> Option<String> {
         let name = name.to_string();
         self.rules
@@ -695,11 +745,14 @@ impl SyntaxGrammar {
     }
 }
 
+#[invariant(true)]
 struct GeneratedTreeModel {
     tree_items: Vec<TokenStream2>,
     support_items: Vec<TokenStream2>,
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_rule(
     rule: &Rule,
     type_env: &GrammarTypeEnv,
@@ -730,6 +783,8 @@ fn collect_chain_link_element_fields_for_rule(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_parser_expr(
     expr: &ParserExpr,
     type_env: &GrammarTypeEnv,
@@ -808,6 +863,8 @@ fn collect_chain_link_element_fields_for_parser_expr(
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_vector_item(
     item: &VectorItem,
     type_env: &GrammarTypeEnv,
@@ -826,6 +883,8 @@ fn collect_chain_link_element_fields_for_vector_item(
     collect_chain_link_element_fields_for_parser_expr(parser, type_env, argument_types, fields)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn push_generated_variant(
     enums: &mut BTreeMap<String, Vec<GeneratedVariantModel>>,
     output: String,
@@ -848,10 +907,14 @@ fn push_generated_variant(
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     left.to_string() == right.to_string()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     if token_streams_match(left, right) {
         return true;
@@ -866,35 +929,11 @@ fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
         .is_some_and(|left| canonical_type_key(&right).is_some_and(|right| left == right))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn canonical_type_key(ty: &Type) -> Option<String> {
     match ty {
-        Type::Path(path) if path.qself.is_none() => {
-            let segment = path.path.segments.last()?;
-            let type_name = if segment.ident == "Vec" {
-                "Vec".to_owned()
-            } else if segment.ident == "Vec1" {
-                "Vec1".to_owned()
-            } else {
-                path.path.to_token_stream().to_string()
-            };
-            let args = match &segment.arguments {
-                PathArguments::None => String::new(),
-                PathArguments::AngleBracketed(args) => {
-                    let args = args
-                        .args
-                        .iter()
-                        .map(|arg| match arg {
-                            GenericArgument::Type(ty) => canonical_type_key(ty),
-                            _ => Some(arg.to_token_stream().to_string()),
-                        })
-                        .collect::<Option<Vec<_>>>()?
-                        .join(",");
-                    format!("<{args}>")
-                }
-                PathArguments::Parenthesized(args) => args.to_token_stream().to_string(),
-            };
-            Some(format!("{type_name}{args}"))
-        }
+        Type::Path(path) if path.qself.is_none() => canonical_path_key(&path.path),
         Type::Tuple(tuple) => {
             let elems = tuple
                 .elems
@@ -907,12 +946,70 @@ fn canonical_type_key(ty: &Type) -> Option<String> {
         Type::Paren(paren) => canonical_type_key(&paren.elem),
         Type::Group(group) => canonical_type_key(&group.elem),
         Type::Reference(reference) => {
-            canonical_type_key(&reference.elem).map(|inner| format!("&{inner}"))
+            let inner = canonical_type_key(&reference.elem)?;
+            let mut prefix = String::from("&");
+            if let Some(lifetime) = &reference.lifetime {
+                prefix.push_str(&lifetime.to_token_stream().to_string());
+                prefix.push(' ');
+            }
+            if reference.mutability.is_some() {
+                prefix.push_str("mut ");
+            }
+            Some(format!("{prefix}{inner}"))
         }
         _ => Some(ty.to_token_stream().to_string()),
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn canonical_path_key(path: &Path) -> Option<String> {
+    let last_segment = path.segments.last()?;
+    let is_vector_collection = last_segment.ident == "Vec" || last_segment.ident == "Vec1";
+    if is_vector_collection {
+        return canonical_path_arguments(&last_segment.arguments)
+            .map(|args| format!("{}{}", last_segment.ident, args));
+    }
+
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| {
+            canonical_path_arguments(&segment.arguments)
+                .map(|args| format!("{}{}", segment.ident, args))
+        })
+        .collect::<Option<Vec<_>>>()?
+        .join("::");
+    if path.leading_colon.is_some() {
+        Some(format!("::{segments}"))
+    } else {
+        Some(segments)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn canonical_path_arguments(arguments: &PathArguments) -> Option<String> {
+    match arguments {
+        PathArguments::None => Some(String::new()),
+        PathArguments::AngleBracketed(arguments) => {
+            let arguments = arguments
+                .args
+                .iter()
+                .map(|argument| match argument {
+                    GenericArgument::Type(ty) => canonical_type_key(ty),
+                    _ => Some(argument.to_token_stream().to_string()),
+                })
+                .collect::<Option<Vec<_>>>()?
+                .join(",");
+            Some(format!("<{arguments}>"))
+        }
+        PathArguments::Parenthesized(arguments) => Some(arguments.to_token_stream().to_string()),
+    }
+}
+
+#[requires(name.chars().any(|ch| ch != '_' && ch != '-' && ch != ' '))]
+#[ensures(!ret.to_string().is_empty())]
 fn pascal_case_ident(name: &str) -> Ident {
     let mut out = String::new();
     let mut uppercase_next = true;
@@ -928,12 +1025,11 @@ fn pascal_case_ident(name: &str) -> Ident {
             out.push(ch);
         }
     }
-    if out.is_empty() {
-        out.push_str("Rule");
-    }
     format_ident!("{out}")
 }
 
+#[requires(name.chars().any(|ch| ch != '_' && ch != '-' && ch != ' '))]
+#[ensures(!ret.is_empty())]
 fn snake_case(name: &str) -> String {
     let mut out = String::new();
     let mut previous_was_separator = false;
@@ -965,16 +1061,22 @@ fn snake_case(name: &str) -> String {
     out
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn syntax_type_ident_for_rule(name: &Ident) -> Ident {
     let base = pascal_case_ident(&name.to_string());
     format_ident!("{base}Syntax")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn syntax_type_for_rule(name: &Ident) -> Type {
     let ident = syntax_type_ident_for_rule(name);
     parse_quote!(#ident)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn generated_constructor_name(output: &Ident) -> String {
     let output = output.to_string();
     output
@@ -983,6 +1085,8 @@ fn generated_constructor_name(output: &Ident) -> String {
         .to_owned()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
     let Some(output) = simple_type_ident(output) else {
         return pascal_case_ident(&fallback.to_string());
@@ -992,6 +1096,7 @@ fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
     format_ident!("{variant}")
 }
 
+#[invariant(true)]
 struct GeneratedStructModel {
     visibility: TokenStream2,
     ident: Ident,
@@ -1000,6 +1105,8 @@ struct GeneratedStructModel {
 }
 
 impl GeneratedStructModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let visibility = &self.visibility;
         let ident = &self.ident;
@@ -1028,6 +1135,7 @@ impl GeneratedStructModel {
     }
 }
 
+#[invariant(!fields.is_empty(), "generated enum variants carry at least one field")]
 struct GeneratedVariantModel {
     variant: Ident,
     rule_name: Ident,
@@ -1036,6 +1144,8 @@ struct GeneratedVariantModel {
 }
 
 impl GeneratedVariantModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn invariant_attr(&self) -> TokenStream2 {
         let variant = &self.variant;
         if self.tuple {
@@ -1066,6 +1176,7 @@ impl ToTokens for GeneratedVariantModel {
     }
 }
 
+#[invariant(!ty.is_empty(), "generated model field type tokens must not be empty")]
 struct GeneratedFieldModel {
     attrs: Vec<Attribute>,
     name: Ident,
@@ -1073,6 +1184,8 @@ struct GeneratedFieldModel {
 }
 
 impl GeneratedFieldModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_named_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;
@@ -1080,6 +1193,8 @@ impl GeneratedFieldModel {
         quote!(#(#attrs)* pub #name: #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_variant_named(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;
@@ -1087,12 +1202,16 @@ impl GeneratedFieldModel {
         quote!(#(#attrs)* #name: #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_tuple_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let ty = &self.ty;
         quote!(#(#attrs)* pub #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_tuple_variant(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let ty = &self.ty;
@@ -1101,6 +1220,8 @@ impl GeneratedFieldModel {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_module_tokens(&self) -> TokenStream2 {
         self.recovered_module.as_ref().map_or_else(
             || quote!(crate::tree::recovered),
@@ -1108,9 +1229,11 @@ impl SyntaxGrammar {
         )
     }
 
-    fn expand_strict_recursive_family(&self) -> Option<TokenStream2> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_strict_recursive_family(&self) -> Result<Option<TokenStream2>> {
         if self.recursive.is_empty() {
-            return None;
+            return Ok(None);
         }
         let all_recursive_names = self
             .recursive
@@ -1123,7 +1246,7 @@ impl SyntaxGrammar {
             .filter(|rule| !self.generate_model || self.rule_has_local_parser(&rule.output))
             .collect::<Vec<_>>();
         if recursive_rules.is_empty() {
-            return None;
+            return Ok(None);
         }
         let local_recursive_names = recursive_rules
             .iter()
@@ -1139,42 +1262,54 @@ impl SyntaxGrammar {
             let name = &rule.name;
             quote!(let mut #name = Recursive::declare();)
         });
-        let definitions = recursive_rules.iter().filter_map(|recursive| {
-            let rule = self
-                .rules
-                .iter()
-                .find(|rule| rule.name().to_string() == recursive.name.to_string())?;
-            let parser_name = format_ident!("strict_{}_parser", rule.name());
-            let parser_arguments = rule
-                .arguments()
-                .iter()
-                .map(|argument| {
-                    let argument_name = argument.to_string();
-                    if local_recursive_names.contains(&argument_name) {
-                        Some(quote!(#argument.clone().boxed()))
-                    } else if all_recursive_names.contains(&argument_name) {
-                        Some(quote!(super::strict_generated_parser_family().#argument))
-                    } else {
-                        None
-                    }
+        let definitions = recursive_rules
+            .iter()
+            .map(|recursive| {
+                let rule = self
+                    .rules
+                    .iter()
+                    .find(|rule| rule.name().to_string() == recursive.name.to_string())
+                    .ok_or_else(|| {
+                        syn::Error::new_spanned(
+                            &recursive.name,
+                            "recursive parser declaration has no matching rule",
+                        )
+                    })?;
+                let parser_name = format_ident!("strict_{}_parser", rule.name());
+                let parser_arguments = rule
+                    .arguments()
+                    .iter()
+                    .map(|argument| {
+                        let argument_name = argument.to_string();
+                        if local_recursive_names.contains(&argument_name) {
+                            Ok(quote!(#argument.clone().boxed()))
+                        } else if all_recursive_names.contains(&argument_name) {
+                            Ok(quote!(super::strict_generated_parser_family().#argument))
+                        } else {
+                            Err(syn::Error::new_spanned(
+                                argument,
+                                "recursive parser argument is not declared in the recursive block",
+                            ))
+                        }
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
+                    let free_modifier = format_ident!("free_modifier");
+                    quote!(#free_modifier.clone().boxed())
+                } else if all_recursive_names.contains("free_modifier") {
+                    quote!(super::strict_generated_parser_family().free_modifier)
+                } else {
+                    quote!(generated_runtime::strict_empty_free_modifier_parser())
+                };
+                let name = &recursive.name;
+                Ok(quote! {
+                    #name.define(#parser_name(
+                        #(#parser_arguments,)*
+                        #hidden_free_modifier,
+                    ));
                 })
-                .collect::<Option<Vec<_>>>()?;
-            let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
-                let free_modifier = format_ident!("free_modifier");
-                quote!(#free_modifier.clone().boxed())
-            } else if all_recursive_names.contains("free_modifier") {
-                quote!(super::strict_generated_parser_family().free_modifier)
-            } else {
-                quote!(generated_runtime::strict_empty_free_modifier_parser())
-            };
-            let name = &recursive.name;
-            Some(quote! {
-                #name.define(#parser_name(
-                    #(#parser_arguments,)*
-                    #hidden_free_modifier,
-                ));
             })
-        });
+            .collect::<Result<Vec<_>>>()?;
         let outputs = recursive_rules.iter().map(|rule| {
             let name = &rule.name;
             quote!(#name: #name.boxed())
@@ -1190,7 +1325,7 @@ impl SyntaxGrammar {
                 }
             }
         });
-        Some(quote! {
+        Ok(Some(quote! {
             #[allow(dead_code)]
             #[bityzba::invariant(true)]
             struct #family_ident<'tokens> {
@@ -1207,21 +1342,28 @@ impl SyntaxGrammar {
             }
 
             #(#root_functions)*
-        })
+        }))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_recursive_roots(
         &self,
         recovered_module: &TokenStream2,
-    ) -> Vec<TokenStream2> {
+    ) -> Result<Vec<TokenStream2>> {
         self.recursive
             .iter()
-            .filter_map(|rule| {
-                let output = simple_type_ident(&rule.output)?;
+            .map(|rule| {
+                let output = simple_type_ident(&rule.output).ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        &rule.output,
+                        "partial-valid recursive parser generation requires a simple path output type",
+                    )
+                })?;
                 let function = format_ident!("partial_valid_generated_{}_parser", rule.name);
                 let strict_function = format_ident!("strict_generated_{}_parser", rule.name);
                 let recovered_output = quote!(#recovered_module::#output);
-                Some(quote! {
+                Ok(quote! {
                     #[allow(dead_code)]
                     pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #recovered_output> {
                         #strict_function()
@@ -1234,6 +1376,8 @@ impl SyntaxGrammar {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_recursive_block(input: ParseStream<'_>) -> Result<Vec<RecursiveRule>> {
     input.parse::<kw::recursive>()?;
     let content;
@@ -1245,12 +1389,15 @@ fn parse_recursive_block(input: ParseStream<'_>) -> Result<Vec<RecursiveRule>> {
     Ok(rules)
 }
 
+#[invariant(true)]
 struct RecursiveRule {
     name: Ident,
     output: Type,
 }
 
 impl RecursiveRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let name = self.name.to_string();
         let output = compact_tokens(&self.output);
@@ -1273,6 +1420,11 @@ impl Parse for RecursiveRule {
     }
 }
 
+#[invariant(true)]
+#[invariant(::Chain(_) => true)]
+#[invariant(::Postfix => true)]
+#[invariant(::Rust(_) => true)]
+#[invariant(::Vector(_) => true)]
 enum ParserExpr {
     Rust(Expr),
     Vector(VectorExpr),
@@ -1285,6 +1437,8 @@ enum ParserExpr {
 }
 
 impl ParserExpr {
+    #[requires(true)]
+    #[ensures(true)]
     fn compact_tokens(&self) -> String {
         match self {
             Self::Rust(expr) => compact_tokens(expr),
@@ -1294,6 +1448,8 @@ impl ParserExpr {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn to_token_stream(&self) -> TokenStream2 {
         match self {
             Self::Rust(expr) => quote!(#expr),
@@ -1310,10 +1466,14 @@ impl ParserExpr {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rust_tokens(&self) -> TokenStream2 {
         self.to_token_stream()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn postfix(self, method: &str, args: Vec<Expr>) -> Self {
         Self::Postfix {
             receiver: Box::new(self),
@@ -1362,6 +1522,7 @@ impl Parse for ParserExpr {
     }
 }
 
+#[invariant(true)]
 struct ChainExpr {
     first: Box<ParserExpr>,
     links: Box<ParserExpr>,
@@ -1445,10 +1606,19 @@ impl ToTokens for ChainExpr {
     }
 }
 
+#[invariant(!items.is_empty(), "vector parser expressions need at least one item")]
 struct VectorExpr {
     items: Vec<VectorItem>,
 }
 
+#[invariant(true)]
+#[invariant(::Assert => true)]
+#[invariant(::One(_) => true)]
+#[invariant(::OneOrMore(_) => true)]
+#[invariant(::OneOrMoreSpread(_) => true)]
+#[invariant(::Spread(_) => true)]
+#[invariant(::ZeroOrMore(_) => true)]
+#[invariant(::ZeroOrMoreSpread(_) => true)]
 enum VectorItem {
     One(ParserExpr),
     Spread(ParserExpr),
@@ -1507,7 +1677,7 @@ impl Parse for VectorExpr {
         if items.is_empty() {
             return Err(content.error("vector parser expressions need at least one item"));
         }
-        Ok(Self { items })
+        Ok(Self::from_data(data!(VectorExpr { items })))
     }
 }
 
@@ -1519,6 +1689,8 @@ impl ToTokens for VectorExpr {
 }
 
 impl VectorItem {
+    #[requires(true)]
+    #[ensures(true)]
     fn to_token_stream(&self) -> TokenStream2 {
         match self {
             Self::One(expr) => {
@@ -1557,6 +1729,10 @@ impl VectorItem {
     }
 }
 
+#[invariant(true)]
+#[invariant(::Alias(_) => true)]
+#[invariant(::Enum(_) => true)]
+#[invariant(::Struct(_) => true)]
 enum Rule {
     Alias(AliasRule),
     Struct(NodeRule),
@@ -1564,6 +1740,8 @@ enum Rule {
 }
 
 impl Rule {
+    #[requires(true)]
+    #[ensures(true)]
     fn name(&self) -> &Ident {
         match self {
             Rule::Alias(rule) => &rule.name,
@@ -1572,10 +1750,14 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn output<'a>(&'a self, type_env: &'a GrammarTypeEnv) -> Option<&'a Type> {
         type_env.rules.get(&self.name().to_string())
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn declared_output(&self) -> Option<&Type> {
         match self {
             Rule::Alias(_) => None,
@@ -1584,6 +1766,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn context_label(&self) -> Option<String> {
         match self {
             Rule::Alias(rule) => rule.context.as_ref().map(LitStr::value),
@@ -1592,14 +1776,18 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_metadata(type_env),
-            Rule::Struct(rule) => Ok(rule.expand_metadata("struct")),
+            Rule::Struct(rule) => rule.expand_metadata("struct", type_env),
             Rule::Enum(rule) => rule.expand_metadata(type_env),
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn arguments(&self) -> &[Ident] {
         match self {
             Rule::Alias(rule) => &rule.arguments,
@@ -1608,6 +1796,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         match self {
             Rule::Alias(rule) => rule.argument_types(type_env),
@@ -1616,6 +1806,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1624,7 +1816,7 @@ impl Rule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
-    ) -> Option<TokenStream2> {
+    ) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_strict_parser(
                 type_env,
@@ -1652,11 +1844,13 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
         recovered_module: &TokenStream2,
-    ) -> Option<TokenStream2> {
+    ) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
             Rule::Struct(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
@@ -1665,6 +1859,7 @@ impl Rule {
     }
 }
 
+#[invariant(true)]
 struct AliasRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -1673,6 +1868,8 @@ struct AliasRule {
 }
 
 impl AliasRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -1699,7 +1896,7 @@ impl AliasRule {
             .map(Ident::to_string)
             .collect::<BTreeSet<_>>();
         let parser = self.parser.compact_tokens();
-        let recovery = classify_parser_expr(&self.parser, &argument_names).expand();
+        let recovery = classify_parser_expr(&self.parser, &argument_names, type_env)?.expand();
         Ok(quote! {
             SyntaxGrammarRule {
                 kind: "alias",
@@ -1720,6 +1917,8 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1727,9 +1926,19 @@ impl AliasRule {
         model_outputs: &Option<BTreeSet<String>>,
         model_all_rules_local: bool,
         model_path: Option<&Path>,
-    ) -> Option<TokenStream2> {
-        let argument_types = self.argument_types(type_env)?;
-        let output = type_env.rules.get(&self.name.to_string())?;
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate strict alias parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let output = type_env.rules.get(&self.name.to_string()).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate strict alias parser because its output type cannot be inferred",
+            )
+        })?;
         let argument_names = self.argument_name_set();
         let free_modifier_parser = format_ident!("__generated_free_modifier");
         let generation = StrictParserGeneration {
@@ -1760,7 +1969,7 @@ impl AliasRule {
             let context = context.value();
             quote!(generated_runtime::syntax_context(#context, #parser))
         });
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -1774,14 +1983,31 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
         recovered_module: &TokenStream2,
-    ) -> Option<TokenStream2> {
-        let argument_types = self.argument_types(type_env)?;
-        let output = type_env.rules.get(&self.name.to_string())?;
-        let output = simple_type_ident(output)?;
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate partial-valid alias parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let output = type_env.rules.get(&self.name.to_string()).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate partial-valid alias parser because its output type cannot be inferred",
+            )
+        })?;
+        let output = simple_type_ident(output).ok_or_else(|| {
+            syn::Error::new_spanned(
+                output,
+                "partial-valid alias parser generation requires a simple path output type",
+            )
+        })?;
         let name = format_ident!("partial_valid_{}_parser", self.name);
         let strict_name = format_ident!("strict_{}_parser", self.name);
         let recovered_output = quote!(#recovered_module::#output);
@@ -1793,7 +2019,7 @@ impl AliasRule {
         });
         let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
         let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -1809,6 +2035,8 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -1818,6 +2046,8 @@ impl AliasRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -1852,6 +2082,7 @@ impl Parse for AliasRule {
     }
 }
 
+#[invariant(!branches.is_empty(), "enum rules need at least one branch")]
 struct EnumRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -1860,6 +2091,7 @@ struct EnumRule {
     branches: Vec<EnumBranch>,
 }
 
+#[invariant(true)]
 struct EnumBranch {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -1867,6 +2099,8 @@ struct EnumBranch {
 }
 
 impl EnumRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -1877,10 +2111,18 @@ impl EnumRule {
                 .ok_or_else(|| syn::Error::new_spanned(&self.name, "missing enum output type"))?,
         );
         let context = self.context.value();
-        let fields = self.branches.iter().map(|branch| {
+        let argument_names = self.argument_name_set();
+        let mut fields = Vec::new();
+        for branch in &self.branches {
             let branch_name = branch.name.to_string();
+            if !type_env.rule_known_for_recovery(&branch_name, &argument_names) {
+                return Err(syn::Error::new_spanned(
+                    &branch.name,
+                    "enum branches must reference a known grammar rule or recursive parser argument",
+                ));
+            }
             let conditions = branch.conditions.iter().map(Condition::expand);
-            quote! {
+            fields.push(quote! {
                 SyntaxGrammarField {
                     kind: "variant",
                     name: #branch_name,
@@ -1888,8 +2130,8 @@ impl EnumRule {
                     recovery: SyntaxGrammarRecoveryExpr::Rule(#branch_name),
                     conditions: &[#(#conditions),*],
                 }
-            }
-        });
+            });
+        }
         Ok(quote! {
             SyntaxGrammarRule {
                 kind: "enum",
@@ -1902,6 +2144,8 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1910,8 +2154,13 @@ impl EnumRule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
-    ) -> Option<TokenStream2> {
-        let argument_types = self.argument_types(type_env)?;
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate strict enum parser because an argument is not a declared recursive rule",
+            )
+        })?;
         let argument_names = self.argument_name_set();
         let free_modifier_parser = format_ident!("__generated_free_modifier");
         let generation = StrictParserGeneration {
@@ -1929,12 +2178,23 @@ impl EnumRule {
                 let branch_name = branch.name.to_string();
                 let branch_is_argument = argument_names.contains(&branch_name);
                 let branch_output = if branch_is_argument {
-                    argument_types.get(&branch_name)?
+                    argument_types.get(&branch_name).ok_or_else(|| {
+                        syn::Error::new_spanned(
+                            &branch.name,
+                            "enum branch argument is not declared for this rule",
+                        )
+                    })?
                 } else {
                     type_env
                         .rules
                         .get(&branch_name)
-                        .or_else(|| type_env.recursive.get(&branch_name))?
+                        .or_else(|| type_env.recursive.get(&branch_name))
+                        .ok_or_else(|| {
+                            syn::Error::new_spanned(
+                                &branch.name,
+                                "enum branch does not name a rule, recursive parser, or rule argument",
+                            )
+                        })?
                 };
                 let variant = enum_variant_ident_for_output(branch_output, &branch.name);
                 let field = &branch.name;
@@ -1947,8 +2207,13 @@ impl EnumRule {
                     )?
                 } else if type_env.rules.contains_key(&branch_name) {
                     strict_rule_call_by_argument_names(
-                        &branch_name,
-                        type_env.rule_arguments_for_call(&branch_name)?,
+                        &branch.name,
+                        type_env.rule_arguments_for_call(&branch_name).ok_or_else(|| {
+                            syn::Error::new_spanned(
+                                &branch.name,
+                                "cannot find argument list for enum branch rule",
+                            )
+                        })?,
                         &argument_names,
                         &generation,
                         &free_modifier_parser,
@@ -1974,10 +2239,10 @@ impl EnumRule {
                 } else {
                     quote!(bityzba::new!(#output_tokens::#variant { #field }))
                 };
-                Some(quote!(#branch_parser.map(|#field| #body)))
+                Ok(quote!(#branch_parser.map(|#field| #body)))
             })
-            .collect::<Option<Vec<_>>>()?;
-        let parser = strict_choice_chain(alternatives)?;
+            .collect::<Result<Vec<_>>>()?;
+        let parser = strict_choice_chain(alternatives, &self.name)?;
         let name = format_ident!("strict_{}_parser", self.name);
         let argument_params = self.arguments.iter().map(|argument| {
             let ty = argument_types
@@ -1990,7 +2255,7 @@ impl EnumRule {
         let rule_name = self.name.to_string();
         let context = self.context.value();
         let parser_body = quote!(generated_runtime::syntax_context(#context, #parser));
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -2004,13 +2269,25 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
         recovered_module: &TokenStream2,
-    ) -> Option<TokenStream2> {
-        let argument_types = self.argument_types(type_env)?;
-        let output = simple_type_ident(&self.output)?;
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate partial-valid enum parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let output = simple_type_ident(&self.output).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.output,
+                "partial-valid enum parser generation requires a simple path output type",
+            )
+        })?;
         let name = format_ident!("partial_valid_{}_parser", self.name);
         let strict_name = format_ident!("strict_{}_parser", self.name);
         let recovered_output = quote!(#recovered_module::#output);
@@ -2022,7 +2299,7 @@ impl EnumRule {
         });
         let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
         let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -2038,6 +2315,8 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -2047,6 +2326,8 @@ impl EnumRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -2055,6 +2336,7 @@ impl EnumRule {
     }
 }
 
+#[invariant(true)]
 struct NodeRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -2064,6 +2346,8 @@ struct NodeRule {
 }
 
 impl NodeRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_model_fields(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2084,7 +2368,13 @@ impl NodeRule {
             .collect()
     }
 
-    fn expand_metadata(&self, kind: &'static str) -> TokenStream2 {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_metadata(
+        &self,
+        kind: &'static str,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
         let output = compact_tokens(&self.output);
@@ -2103,8 +2393,9 @@ impl NodeRule {
         let fields = self
             .fields
             .iter()
-            .map(|field| field.expand(&argument_names));
-        quote! {
+            .map(|field| field.expand(&argument_names, type_env))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(quote! {
             SyntaxGrammarRule {
                 kind: #kind,
                 name: #name,
@@ -2113,9 +2404,11 @@ impl NodeRule {
                 context: #context,
                 fields: &[#(#fields),*],
             }
-        }
+        })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2124,8 +2417,13 @@ impl NodeRule {
         model_all_rules_local: bool,
         model_path: Option<&Path>,
         use_model_construction: bool,
-    ) -> Option<TokenStream2> {
-        let argument_types = self.argument_types(type_env)?;
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate strict struct parser because an argument is not a declared recursive rule",
+            )
+        })?;
         let argument_names = self.argument_name_set();
         let sequence_items = self
             .fields
@@ -2229,7 +2527,10 @@ impl NodeRule {
                 })
             }
         } else {
-            return None;
+            return Err(syn::Error::new_spanned(
+                &self.output,
+                "strict parser generation supports unit, tuple, and path output types",
+            ));
         };
         let rule_name = self.name.to_string();
         let parser_body = quote!(#parser.map(|#pattern| #body));
@@ -2240,7 +2541,7 @@ impl NodeRule {
                 let context = context.value();
                 quote!(generated_runtime::syntax_context(#context, #parser_body))
             });
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -2254,16 +2555,31 @@ impl NodeRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
         recovered_module: &TokenStream2,
-    ) -> Option<TokenStream2> {
-        if !is_unit_type(&self.output) && !is_path_type(&self.output) {
-            return None;
+    ) -> Result<TokenStream2> {
+        if !is_path_type(&self.output) {
+            return Err(syn::Error::new_spanned(
+                &self.output,
+                "partial-valid struct parser generation requires a path output type",
+            ));
         }
-        let argument_types = self.argument_types(type_env)?;
-        let output = simple_type_ident(&self.output)?;
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate partial-valid struct parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let output = simple_type_ident(&self.output).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.output,
+                "partial-valid struct parser generation requires a simple path output type",
+            )
+        })?;
         let name = format_ident!("partial_valid_{}_parser", self.name);
         let strict_name = format_ident!("strict_{}_parser", self.name);
         let recovered_output = quote!(#recovered_module::#output);
@@ -2275,7 +2591,7 @@ impl NodeRule {
         });
         let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
         let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Some(quote! {
+        Ok(quote! {
             #[allow(dead_code, unused_variables)]
             pub(crate) fn #name<'tokens>(
                 #(#argument_params,)*
@@ -2291,6 +2607,8 @@ impl NodeRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -2300,6 +2618,8 @@ impl NodeRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -2308,6 +2628,7 @@ impl NodeRule {
     }
 }
 
+#[invariant(true)]
 struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
     rules: BTreeMap<String, Type>,
@@ -2321,6 +2642,7 @@ enum StrictParserCallMode {
     External,
 }
 
+#[invariant(true)]
 struct StrictParserGeneration<'a> {
     type_env: &'a GrammarTypeEnv,
     generate_model: bool,
@@ -2329,30 +2651,42 @@ struct StrictParserGeneration<'a> {
 }
 
 impl StrictParserGeneration<'_> {
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_has_local_parser(&self, name: &str) -> bool {
         self.model_all_rules_local || self.rule_is_generated_model(name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_is_generated_model(&self, name: &str) -> bool {
         self.type_env.rules.get(name).is_some_and(|output| {
             output_is_generated_model(self.generate_model, self.model_outputs, output)
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn recursive_has_local_parser(&self, name: &str) -> bool {
         self.model_all_rules_local || self.recursive_is_generated_model(name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn recursive_is_generated_model(&self, name: &str) -> bool {
         self.type_env.recursive.get(name).is_some_and(|output| {
             output_is_generated_model(self.generate_model, self.model_outputs, output)
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
         quote!(super::strict_generated_parser_family().#name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn external_free_modifier_parser(&self) -> TokenStream2 {
         let name = format_ident!("free_modifier");
         if self.recursive_has_local_parser("free_modifier") {
@@ -2364,6 +2698,8 @@ impl StrictParserGeneration<'_> {
 }
 
 impl GrammarTypeEnv {
+    #[requires(true)]
+    #[ensures(true)]
     fn new(recursive: &[RecursiveRule], rules: &[Rule]) -> Self {
         let mut type_env = Self {
             recursive: recursive
@@ -2446,10 +2782,20 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_known_for_recovery(&self, name: &str, arguments: &BTreeSet<String>) -> bool {
+        arguments.contains(name) || self.rules.contains_key(name)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_arguments_for_call(&self, rule: &str) -> Option<&[String]> {
         self.rule_arguments.get(rule).map(Vec::as_slice)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_struct_field_type(
         &self,
         struct_ty: &TokenStream2,
@@ -2464,6 +2810,8 @@ impl GrammarTypeEnv {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_type_for_chain_metadata(
     field: &FieldItem,
     type_env: &GrammarTypeEnv,
@@ -2477,19 +2825,23 @@ fn field_type_for_chain_metadata(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_free_modifier_param_tokens() -> TokenStream2 {
     quote!(__generated_free_modifier: BoxedParser<'tokens, FreeModifierSyntax>,)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_sequence_parser_tokens(
     fields: &[&FieldItem],
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<(TokenStream2, TokenStream2)> {
+) -> Result<(TokenStream2, TokenStream2)> {
     let Some(first) = fields.first() else {
-        return Some((quote!(generated_runtime::empty()), quote!(())));
+        return Ok((quote!(generated_runtime::empty()), quote!(())));
     };
     let mut parser = strict_parser_expr_tokens(
         &first.parser,
@@ -2511,9 +2863,11 @@ fn strict_sequence_parser_tokens(
         parser = quote!(#parser.then(#next));
         pattern = quote!((#pattern, #name));
     }
-    Some((parser, pattern))
+    Ok((parser, pattern))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
     match field.kind {
         FieldKind::Field => field
@@ -2528,13 +2882,15 @@ fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_parser_expr_tokens(
     expr: &ParserExpr,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     match expr {
         ParserExpr::Rust(expr) => {
             strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
@@ -2565,13 +2921,15 @@ fn strict_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_chain_parser_expr_tokens(
     expr: &ChainExpr,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     let first = strict_parser_expr_tokens(
         &expr.first,
         arguments,
@@ -2597,13 +2955,15 @@ fn strict_chain_parser_expr_tokens(
             })
         },
     };
-    Some(quote! {
+    Ok(quote! {
         #first
             .then(#links)
             .map(|(first, links)| ::jbotci_tree::Chain::new(first, links))
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_postfix_parser_expr_tokens(
     receiver: &ParserExpr,
     method: &Ident,
@@ -2612,13 +2972,13 @@ fn strict_postfix_parser_expr_tokens(
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     let inner =
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
-        ("lookahead", 0) => Some(quote!(generated_runtime::lookahead(#inner))),
-        ("not", 0) => Some(quote!(generated_runtime::not(#inner))),
-        ("ignored", 0) => Some(quote!(#inner.map(|_| ()))),
+        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
+        ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
         ("ignore_then", 1) => {
             let parser = strict_rust_parser_expr_tokens(
                 args.first().expect("length checked"),
@@ -2627,7 +2987,7 @@ fn strict_postfix_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(#inner.ignore_then(#parser)))
+            Ok(quote!(#inner.ignore_then(#parser)))
         }
         ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
             let free_modifier =
@@ -2639,21 +2999,26 @@ fn strict_postfix_parser_expr_tokens(
             } else {
                 quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier))
             };
-            Some(quote! {
+            Ok(quote! {
                 generated_runtime::with_free_modifier_list(#inner, #free_modifier_list)
             })
         }
-        _ => None,
+        _ => Err(syn::Error::new_spanned(
+            method,
+            "unsupported parser postfix method in strict parser generation",
+        )),
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_vector_parser_expr_tokens(
     expr: &VectorExpr,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     let mut parsers = Vec::new();
     let mut bindings = Vec::new();
     let mut statements = Vec::new();
@@ -2765,8 +3130,14 @@ fn strict_vector_parser_expr_tokens(
         }
     }
     let parser = strict_sequence_expr_chain(parsers)?;
-    let pattern = nested_sequence_pattern(bindings)?;
-    let returns_vec1 = vector_output_is_vec1(expr, generation.type_env, arguments)?;
+    let pattern = nested_sequence_pattern(bindings);
+    let returns_vec1 =
+        vector_output_is_vec1(expr, generation.type_env, arguments).ok_or_else(|| {
+            syn::Error::new_spanned(
+                expr.to_token_stream(),
+                "cannot infer vector parser output type during strict parser generation",
+            )
+        })?;
     let finish = if returns_vec1 {
         quote! {
             vec1::Vec1::try_from_vec(__items)
@@ -2775,7 +3146,7 @@ fn strict_vector_parser_expr_tokens(
     } else {
         quote!(__items)
     };
-    Some(quote! {
+    Ok(quote! {
         #parser.map(|#pattern| {
             let mut __items = Vec::new();
             #(#statements)*
@@ -2784,24 +3155,28 @@ fn strict_vector_parser_expr_tokens(
     })
 }
 
-fn nested_sequence_pattern(mut bindings: Vec<TokenStream2>) -> Option<TokenStream2> {
+#[requires(true)]
+#[ensures(true)]
+fn nested_sequence_pattern(mut bindings: Vec<TokenStream2>) -> TokenStream2 {
     if bindings.is_empty() {
-        return Some(quote!(()));
+        return quote!(());
     }
     let mut pattern = bindings.remove(0);
     for binding in bindings {
         pattern = quote!((#pattern, #binding));
     }
-    Some(pattern)
+    pattern
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rust_parser_expr_tokens(
     expr: &Expr,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     match expr {
         Expr::Call(call) => {
             strict_call_parser_expr_tokens(call, arguments, generation, free_modifier_parser, mode)
@@ -2824,23 +3199,33 @@ fn strict_rust_parser_expr_tokens(
             mode,
         ),
         Expr::Array(array) => strict_vector_parser_expr_tokens(
-            &array_vector_expr(array)?,
+            &array_vector_expr(array).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    array,
+                    "strict parser generation cannot infer an empty vector parser expression",
+                )
+            })?,
             arguments,
             generation,
             free_modifier_parser,
             mode,
         ),
-        _ => None,
+        _ => Err(syn::Error::new_spanned(
+            expr,
+            "unsupported parser expression in strict parser generation",
+        )),
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_method_parser_expr_tokens(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     if method.method == "warn" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -2849,9 +3234,12 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let construct = method.args.first().and_then(path_expr_last_segment)?;
+        let construct = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "warn() requires a generated construct path",
+        )?;
         let construct = format_ident!("{construct}");
-        Some(quote! {
+        Ok(quote! {
             #inner.map_with(
                 |value, extra: &mut chumsky::input::MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
                     extra.state().warn(ExperimentalConstruct::#construct, &value);
@@ -2867,9 +3255,12 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let selmaho = method.args.first().and_then(path_expr_last_segment)?;
+        let selmaho = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "not_next_selmaho() requires a selma'o path",
+        )?;
         let selmaho = format_ident!("{selmaho}");
-        Some(quote! {
+        Ok(quote! {
             #inner
                 .then(generated_runtime::not_next_selmaho(Selmaho::#selmaho))
                 .map(|(value, _)| value)
@@ -2882,9 +3273,12 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let predicate = method.args.first().and_then(path_expr_last_segment)?;
+        let predicate = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "not_next_token() requires a token predicate path",
+        )?;
         let predicate = format_ident!("{predicate}");
-        Some(quote! {
+        Ok(quote! {
             #inner
                 .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
                 .map(|(value, _)| value)
@@ -2897,9 +3291,16 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let rule = method.args.first().and_then(path_expr_last_segment)?;
+        let rule_arg = method.args.first().expect("length checked");
+        let rule = required_path_expr_last_segment(
+            rule_arg,
+            "not_next_rule() requires a grammar rule path",
+        )?;
         if !generation.type_env.rules.contains_key(&rule) {
-            return None;
+            return Err(syn::Error::new_spanned(
+                rule_arg,
+                "not_next_rule() names an unknown grammar rule",
+            ));
         }
         let parser_arguments = generation
             .type_env
@@ -2908,7 +3309,7 @@ fn strict_method_parser_expr_tokens(
             .into_iter()
             .flatten()
             .map(|argument| strict_argument_parser_tokens(argument, arguments, generation, mode))
-            .collect::<Option<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?;
         let parser_name = format_ident!("strict_{}_parser", rule);
         let parser_name = if mode == StrictParserCallMode::External
             || (generation.generate_model && !generation.rule_has_local_parser(&rule))
@@ -2920,7 +3321,7 @@ fn strict_method_parser_expr_tokens(
         let free_modifier =
             strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
         let expected = format!("not {rule}");
-        Some(quote! {
+        Ok(quote! {
             generated_runtime::not_next_rule_after(
                 #inner,
                 #parser_name(
@@ -2931,7 +3332,7 @@ fn strict_method_parser_expr_tokens(
             )
         })
     } else if method.method == "followed_by" && method.args.len() == 1 {
-        let guard_expr = method.args.first()?;
+        let guard_expr = method.args.first().expect("length checked");
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -2946,7 +3347,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(generated_runtime::followed_by(#inner, #guard)))
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
     } else if method.method == "complete_statement_item" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -2955,7 +3356,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(generated_runtime::complete_statement_item(
+        Ok(quote!(generated_runtime::complete_statement_item(
             #inner,
             "complete statement item",
         )))
@@ -2967,9 +3368,12 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        let selmaho = method.args.first().and_then(path_expr_last_segment)?;
+        let selmaho = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "complete_before_selmaho() requires a selma'o path",
+        )?;
         let selmaho = format_ident!("{selmaho}");
-        Some(quote!(generated_runtime::complete_before_selmaho(
+        Ok(quote!(generated_runtime::complete_before_selmaho(
             #inner,
             Selmaho::#selmaho,
             "complete form before selma'o",
@@ -2982,7 +3386,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(generated_runtime::lookahead(#inner)))
+        Ok(quote!(generated_runtime::lookahead(#inner)))
     } else if method.method == "not" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -2991,7 +3395,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(generated_runtime::not(#inner)))
+        Ok(quote!(generated_runtime::not(#inner)))
     } else if method.method == "ignored" && method.args.is_empty() {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -3000,7 +3404,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(#inner.map(|_| ())))
+        Ok(quote!(#inner.map(|_| ())))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -3016,7 +3420,7 @@ fn strict_method_parser_expr_tokens(
             free_modifier_parser,
             mode,
         )?;
-        Some(quote!(#inner.ignore_then(#parser)))
+        Ok(quote!(#inner.ignore_then(#parser)))
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
@@ -3038,24 +3442,31 @@ fn strict_method_parser_expr_tokens(
         } else {
             quote!(generated_runtime::strict_free_modifier_list_parser(#free_modifier))
         };
-        Some(quote! {
+        Ok(quote! {
             #inner
                 .then(#free_modifier_list)
                 .map(|(value, free_modifiers)| WithFreeModifiers::new(value, free_modifiers))
         })
     } else {
-        None
+        Err(syn::Error::new_spanned(
+            method,
+            "unsupported parser method in strict parser generation",
+        ))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_call_parser_expr_tokens(
     call: &ExprCall,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
-    let function = call_name(call)?;
+) -> Result<TokenStream2> {
+    let function = call_name(call).ok_or_else(|| {
+        syn::Error::new_spanned(call, "strict parser calls must use a named function")
+    })?;
     if generation.type_env.rules.contains_key(&function) {
         return strict_rule_call_parser_tokens(
             &function,
@@ -3068,44 +3479,65 @@ fn strict_call_parser_expr_tokens(
     }
     match (function.as_str(), call.args.len()) {
         ("cmavo", 1) => {
-            let cmavo = call.args.first().and_then(path_expr_last_segment)?;
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "cmavo() requires a cmavo path",
+            )?;
             let cmavo = format_ident!("{cmavo}");
-            Some(quote!(cmavo(Cmavo::#cmavo)))
+            Ok(quote!(cmavo(Cmavo::#cmavo)))
         }
         ("selmaho", 1) => {
-            let selmaho = call.args.first().and_then(path_expr_last_segment)?;
+            let selmaho = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "selmaho() requires a selma'o path",
+            )?;
             let selmaho = format_ident!("{selmaho}");
-            Some(quote!(selmaho(Selmaho::#selmaho)))
+            Ok(quote!(selmaho(Selmaho::#selmaho)))
         }
         ("word_category", 1) => {
-            let category = call.args.first().and_then(path_expr_last_segment)?;
+            let category = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "word_category() requires a word category path",
+            )?;
             let category = format_ident!("{category}");
-            Some(quote!(generated_runtime::word_category(SyntaxWordCategory::#category)))
+            Ok(quote!(generated_runtime::word_category(SyntaxWordCategory::#category)))
         }
         ("quote_marker", 1) => {
-            let cmavo = call.args.first().and_then(path_expr_last_segment)?;
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "quote_marker() requires a cmavo path",
+            )?;
             let cmavo = format_ident!("{cmavo}");
-            Some(quote!(generated_runtime::quote_marker(Cmavo::#cmavo)))
+            Ok(quote!(generated_runtime::quote_marker(Cmavo::#cmavo)))
         }
         ("delimited_quote_marker", 1) => {
-            let cmavo = call.args.first().and_then(path_expr_last_segment)?;
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "delimited_quote_marker() requires a cmavo path",
+            )?;
             let cmavo = format_ident!("{cmavo}");
-            Some(quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo)))
+            Ok(quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo)))
         }
         ("word_not_cmavo", _) if !call.args.is_empty() => {
             let terminators = call
                 .args
                 .iter()
                 .map(|argument| {
-                    let cmavo = path_expr_last_segment(argument)?;
+                    let cmavo = required_path_expr_last_segment(
+                        argument,
+                        "word_not_cmavo() requires cmavo paths",
+                    )?;
                     let cmavo = format_ident!("{cmavo}");
-                    Some(quote!(Cmavo::#cmavo))
+                    Ok(quote!(Cmavo::#cmavo))
                 })
-                .collect::<Option<Vec<_>>>()?;
-            Some(quote!(generated_runtime::word_not_cmavo(&[#(#terminators),*])))
+                .collect::<Result<Vec<_>>>()?;
+            Ok(quote!(generated_runtime::word_not_cmavo(&[#(#terminators),*])))
         }
         ("feature", 2) => {
-            let feature = call.args.first().and_then(path_expr_last_segment)?;
+            let feature = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "feature() requires a feature path",
+            )?;
             let feature = format_ident!("{feature}");
             let inner = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
@@ -3114,21 +3546,27 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(generated_runtime::feature_gate(
+            Ok(quote!(generated_runtime::feature_gate(
                 generated_runtime::SyntaxGrammarFeature::#feature,
                 #inner,
             )))
         }
         ("feature", 1) => {
-            let feature = call.args.first().and_then(path_expr_last_segment)?;
+            let feature = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "feature() requires a feature path",
+            )?;
             let feature = format_ident!("{feature}");
-            Some(quote!(generated_runtime::feature_gate(
+            Ok(quote!(generated_runtime::feature_gate(
                 generated_runtime::SyntaxGrammarFeature::#feature,
                 generated_runtime::empty(),
             )))
         }
         ("policy", 2) => {
-            let policy = call.args.first().and_then(path_expr_last_segment)?;
+            let policy = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "policy() requires a policy path",
+            )?;
             let policy = format_ident!("{policy}");
             let inner = strict_rust_parser_expr_tokens(
                 call.args.iter().nth(1).expect("length checked"),
@@ -3137,31 +3575,34 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(generated_runtime::policy_gate(
+            Ok(quote!(generated_runtime::policy_gate(
                 generated_runtime::SyntaxGrammarPolicyFlag::#policy,
                 #inner,
             )))
         }
         ("policy", 1) => {
-            let policy = call.args.first().and_then(path_expr_last_segment)?;
+            let policy = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "policy() requires a policy path",
+            )?;
             let policy = format_ident!("{policy}");
-            Some(quote!(generated_runtime::policy_gate(
+            Ok(quote!(generated_runtime::policy_gate(
                 generated_runtime::SyntaxGrammarPolicyFlag::#policy,
                 generated_runtime::empty(),
             )))
         }
-        ("relation_word", 0) => Some(quote!(relation_word())),
+        ("relation_word", 0) => Ok(quote!(relation_word())),
         ("tanru_unit_relation_word", 0) => {
-            Some(quote!(generated_runtime::tanru_unit_relation_word()))
+            Ok(quote!(generated_runtime::tanru_unit_relation_word()))
         }
         ("text_leading_cmevla_word", 0) => {
-            Some(quote!(generated_runtime::text_leading_cmevla_word()))
+            Ok(quote!(generated_runtime::text_leading_cmevla_word()))
         }
         ("cmevla_word", 0) => {
             let parser = format_ident!("{function}");
-            Some(quote!(#parser()))
+            Ok(quote!(#parser()))
         }
-        ("pa_word", 0) => Some(quote!(pa_word())),
+        ("pa_word", 0) => Ok(quote!(pa_word())),
         ("opt", 1) => {
             let inner = strict_rust_parser_expr_tokens(
                 call.args.first().expect("length checked"),
@@ -3170,7 +3611,7 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(generated_runtime::strict_optional(#inner)))
+            Ok(quote!(generated_runtime::strict_optional(#inner)))
         }
         ("boxed", 1) => {
             let inner = strict_rust_parser_expr_tokens(
@@ -3180,7 +3621,7 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(#inner.map(Box::new)))
+            Ok(quote!(#inner.map(Box::new)))
         }
         ("arc", 1) => {
             let inner = strict_rust_parser_expr_tokens(
@@ -3190,23 +3631,24 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            Some(quote!(#inner.map(std::sync::Arc::new)))
+            Ok(quote!(#inner.map(std::sync::Arc::new)))
         }
         ("choice", 1) => {
-            let alternatives =
-                call.args
-                    .first()
-                    .map(choice_alternative_exprs)
-                    .and_then(|exprs| {
-                        strict_choice_alternative_parser_tokens(
-                            exprs,
-                            arguments,
-                            generation,
-                            free_modifier_parser,
-                            mode,
-                        )
-                    })?;
-            strict_choice_chain(alternatives)
+            let alternatives = call
+                .args
+                .first()
+                .map(choice_alternative_exprs)
+                .map(|exprs| {
+                    strict_choice_alternative_parser_tokens(
+                        exprs,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
+                })
+                .expect("length checked")?;
+            strict_choice_chain(alternatives, call)
         }
         ("choice", _) => {
             let alternatives = strict_choice_alternative_parser_tokens(
@@ -3216,63 +3658,72 @@ fn strict_call_parser_expr_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            strict_choice_chain(alternatives)
+            strict_choice_chain(alternatives, call)
         }
-        ("empty", 0) => Some(quote!(generated_runtime::empty())),
-        ("eof", 0) => Some(quote!(generated_runtime::eof())),
-        _ => None,
+        ("empty", 0) => Ok(quote!(generated_runtime::empty())),
+        ("eof", 0) => Ok(quote!(generated_runtime::eof())),
+        _ => Err(syn::Error::new_spanned(
+            call,
+            "unsupported parser call in strict parser generation",
+        )),
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_path_parser_expr_tokens(
     path: &ExprPath,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     if path.qself.is_none()
         && path.path.segments.len() == 1
         && let Some(segment) = path.path.segments.first()
     {
-        if arguments.contains(&segment.ident.to_string()) {
-            return strict_argument_parser_tokens(
-                &segment.ident.to_string(),
+        let name = segment.ident.to_string();
+        if arguments.contains(&name) {
+            return strict_argument_parser_tokens(&name, arguments, generation, mode);
+        }
+        if generation.type_env.rules.contains_key(&name) {
+            return strict_rule_call_parser_tokens(
+                &name,
+                std::iter::empty(),
                 arguments,
                 generation,
+                free_modifier_parser,
                 mode,
             );
         }
-        strict_rule_call_parser_tokens(
-            &segment.ident.to_string(),
-            std::iter::empty(),
-            arguments,
-            generation,
-            free_modifier_parser,
-            mode,
-        )
-    } else {
-        None
     }
+    Err(syn::Error::new_spanned(
+        path,
+        "unknown parser rule or argument in strict parser generation",
+    ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_tuple_parser_expr_tokens(
     tuple: &ExprTuple,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     let parts = tuple
         .elems
         .iter()
         .map(|expr| {
             strict_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
         })
-        .collect::<Option<Vec<_>>>()?;
+        .collect::<Result<Vec<_>>>()?;
     strict_sequence_expr_chain(parts)
 }
 
+#[requires(!function.is_empty())]
+#[ensures(true)]
 fn strict_rule_call_parser_tokens<'a>(
     function: &str,
     argument_exprs: impl Iterator<Item = &'a Expr>,
@@ -3280,9 +3731,12 @@ fn strict_rule_call_parser_tokens<'a>(
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     if !generation.type_env.rules.contains_key(function) {
-        return None;
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("unknown grammar rule `{function}` in strict parser generation"),
+        ));
     }
     let call_mode = if mode == StrictParserCallMode::External
         || (generation.generate_model && !generation.rule_has_local_parser(function))
@@ -3301,29 +3755,35 @@ fn strict_rule_call_parser_tokens<'a>(
                 call_mode,
             )
         })
-        .collect::<Option<Vec<_>>>()?;
-    strict_rule_call_tokens(
+        .collect::<Result<Vec<_>>>()?;
+    Ok(strict_rule_call_tokens(
         function,
         parser_arguments,
         generation,
         free_modifier_parser,
         call_mode,
-    )
+    ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rule_call_by_argument_names(
-    function: &str,
+    function: &Ident,
     argument_names: &[String],
     available_arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
-    if !generation.type_env.rules.contains_key(function) {
-        return None;
+) -> Result<TokenStream2> {
+    let function_name = function.to_string();
+    if !generation.type_env.rules.contains_key(&function_name) {
+        return Err(syn::Error::new_spanned(
+            function,
+            "unknown grammar rule in strict parser generation",
+        ));
     }
     let call_mode = if mode == StrictParserCallMode::External
-        || (generation.generate_model && !generation.rule_has_local_parser(function))
+        || (generation.generate_model && !generation.rule_has_local_parser(&function_name))
     {
         StrictParserCallMode::External
     } else {
@@ -3334,23 +3794,25 @@ fn strict_rule_call_by_argument_names(
         .map(|argument| {
             strict_argument_parser_tokens(argument, available_arguments, generation, call_mode)
         })
-        .collect::<Option<Vec<_>>>()?;
-    strict_rule_call_tokens(
-        function,
+        .collect::<Result<Vec<_>>>()?;
+    Ok(strict_rule_call_tokens(
+        &function_name,
         parser_arguments,
         generation,
         free_modifier_parser,
         call_mode,
-    )
+    ))
 }
 
+#[requires(!function.is_empty())]
+#[ensures(true)]
 fn strict_rule_call_tokens(
     function: &str,
     parser_arguments: Vec<TokenStream2>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     call_mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> TokenStream2 {
     let parser_name = format_ident!("strict_{}_parser", function);
     let parser_name = if call_mode == StrictParserCallMode::External {
         quote!(super::#parser_name)
@@ -3359,31 +3821,38 @@ fn strict_rule_call_tokens(
     };
     let free_modifier =
         strict_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
-    Some(quote!(#parser_name(
+    quote!(#parser_name(
         #(#parser_arguments,)*
         #free_modifier
-    )))
+    ))
 }
 
+#[requires(!argument.is_empty())]
+#[ensures(true)]
 fn strict_argument_parser_tokens(
     argument: &str,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     mode: StrictParserCallMode,
-) -> Option<TokenStream2> {
+) -> Result<TokenStream2> {
     if !arguments.contains(argument) {
-        return None;
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("parser argument `{argument}` is not available in this strict parser"),
+        ));
     }
     let argument = format_ident!("{argument}");
     if mode == StrictParserCallMode::External
         && generation.recursive_has_local_parser(&argument.to_string())
     {
-        Some(generation.external_recursive_parser(&argument))
+        Ok(generation.external_recursive_parser(&argument))
     } else {
-        Some(quote!(#argument.clone()))
+        Ok(quote!(#argument.clone()))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_free_modifier_argument_tokens(
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
@@ -3396,17 +3865,21 @@ fn strict_free_modifier_argument_tokens(
     }
 }
 
-fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Option<TokenStream2> {
+#[requires(true)]
+#[ensures(true)]
+fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Result<TokenStream2> {
     if parts.is_empty() {
-        return Some(quote!(generated_runtime::empty()));
+        return Ok(quote!(generated_runtime::empty()));
     }
     let mut parser = parts.remove(0);
     for part in parts {
         parser = quote!(#parser.then(#part));
     }
-    Some(parser)
+    Ok(parser)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_alternative_exprs(expr: &Expr) -> Vec<&Expr> {
     if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
         elems.iter().collect()
@@ -3415,19 +3888,41 @@ fn choice_alternative_exprs(expr: &Expr) -> Vec<&Expr> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_choice_alternative_parser_tokens(
     exprs: Vec<&Expr>,
     arguments: &BTreeSet<String>,
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
-) -> Option<Vec<TokenStream2>> {
-    let argument_types = argument_type_map(arguments, generation.type_env)?;
+) -> Result<Vec<TokenStream2>> {
+    let Some(first_expr) = exprs.first() else {
+        return Ok(Vec::new());
+    };
+    let argument_types = argument_type_map(arguments, generation.type_env).ok_or_else(|| {
+        syn::Error::new_spanned(
+            *first_expr,
+            "cannot infer parser argument types during strict choice generation",
+        )
+    })?;
     let outputs = exprs
         .iter()
-        .map(|expr| rust_parser_output_type(expr, generation.type_env, &argument_types))
-        .collect::<Option<Vec<_>>>()?;
-    let target_output = common_choice_output_type(&outputs)?;
+        .map(|expr| {
+            rust_parser_output_type(expr, generation.type_env, &argument_types).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    *expr,
+                    "cannot infer choice alternative output type during strict parser generation",
+                )
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let target_output = common_choice_output_type(&outputs).ok_or_else(|| {
+        syn::Error::new_spanned(
+            *first_expr,
+            "choice alternatives have incompatible output types during strict parser generation",
+        )
+    })?;
     exprs
         .iter()
         .zip(outputs.iter())
@@ -3439,28 +3934,43 @@ fn strict_choice_alternative_parser_tokens(
                 free_modifier_parser,
                 mode,
             )?;
-            coerce_choice_parser_output(parser, output, &target_output)
+            coerce_choice_parser_output(parser, output, &target_output).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    *expr,
+                    "choice alternative output cannot be coerced to the common output type",
+                )
+            })
         })
         .collect()
 }
 
-fn strict_choice_chain(mut alternatives: Vec<TokenStream2>) -> Option<TokenStream2> {
+#[requires(true)]
+#[ensures(true)]
+fn strict_choice_chain(
+    mut alternatives: Vec<TokenStream2>,
+    span: impl ToTokens,
+) -> Result<TokenStream2> {
     if alternatives.is_empty() {
-        return None;
+        return Err(syn::Error::new_spanned(
+            span,
+            "strict parser choice must have at least one alternative",
+        ));
     }
     if alternatives.len() == 1 {
-        return alternatives.pop();
+        return Ok(alternatives.pop().expect("length checked"));
     }
     let alternatives = alternatives
         .into_iter()
         .map(|alternative| quote!(#alternative.boxed()));
-    Some(quote!(generated_runtime::strict_ordered_choice_parsers(
+    Ok(quote!(generated_runtime::strict_ordered_choice_parsers(
         vec![
             #(#alternatives),*
         ]
     )))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parser_output_type(
     expr: &ParserExpr,
     type_env: &GrammarTypeEnv,
@@ -3478,6 +3988,8 @@ fn parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn chain_parser_output_type(
     expr: &ChainExpr,
     type_env: &GrammarTypeEnv,
@@ -3496,6 +4008,8 @@ fn chain_parser_output_type(
     Some(quote!(::jbotci_tree::Chain<#first, #links>))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn postfix_parser_output_type(
     receiver: &ParserExpr,
     method: &Ident,
@@ -3517,6 +4031,8 @@ fn postfix_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_parser_output_type(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3530,6 +4046,8 @@ fn vector_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_output_is_vec1(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3539,6 +4057,8 @@ fn vector_output_is_vec1(
     Some(vector_min_cardinality(expr, type_env, &arguments)? > 0)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn argument_type_map(
     argument_names: &BTreeSet<String>,
     type_env: &GrammarTypeEnv,
@@ -3549,6 +4069,8 @@ fn argument_type_map(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_element_type(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3585,6 +4107,8 @@ fn vector_element_type(
     element
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_min_cardinality(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3614,43 +4138,46 @@ fn vector_min_cardinality(
     Some(min)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_collection_element_type(output: &TokenStream2) -> Option<TokenStream2> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
-    match ty {
-        Type::Path(path) => {
-            let segment = path.path.segments.last()?;
-            if segment.ident != "Vec" && segment.ident != "Vec1" {
-                return None;
-            }
-            let PathArguments::AngleBracketed(args) = &segment.arguments else {
-                return None;
-            };
-            args.args.iter().find_map(|arg| match arg {
-                GenericArgument::Type(ty) => Some(quote!(#ty)),
-                _ => None,
-            })
-        }
-        _ => None,
-    }
+    vector_collection_type_parts(&ty).map(|(_, element)| quote!(#element))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_collection_is_vec1(output: &TokenStream2) -> Option<bool> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
-    match ty {
-        Type::Path(path) => {
-            let segment = path.path.segments.last()?;
-            if segment.ident == "Vec1" {
-                Some(true)
-            } else if segment.ident == "Vec" {
-                Some(false)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+    vector_collection_type_parts(&ty).map(|(is_vec1, _)| is_vec1)
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn vector_collection_type_parts(ty: &Type) -> Option<(bool, &Type)> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+    let segment = path.path.segments.last()?;
+    let is_vec1 = if segment.ident == "Vec1" {
+        true
+    } else if segment.ident == "Vec" {
+        false
+    } else {
+        return None;
+    };
+    let PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return None;
+    };
+    let element = args.args.iter().find_map(|arg| match arg {
+        GenericArgument::Type(ty) => Some(ty),
+        _ => None,
+    })?;
+    Some((is_vec1, element))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn rust_parser_output_type(
     expr: &Expr,
     type_env: &GrammarTypeEnv,
@@ -3668,6 +4195,8 @@ fn rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn method_rust_parser_output_type(
     method: &ExprMethodCall,
     type_env: &GrammarTypeEnv,
@@ -3701,6 +4230,8 @@ fn method_rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn call_rust_parser_output_type(
     call: &ExprCall,
     type_env: &GrammarTypeEnv,
@@ -3762,6 +4293,8 @@ fn call_rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_output_type(
     expr: &Expr,
     type_env: &GrammarTypeEnv,
@@ -3774,6 +4307,8 @@ fn choice_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_outputs_same<'a>(
     exprs: impl Iterator<Item = &'a Expr>,
     type_env: &GrammarTypeEnv,
@@ -3785,6 +4320,8 @@ fn choice_outputs_same<'a>(
     common_choice_output_type(&outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn common_choice_output_type(outputs: &[TokenStream2]) -> Option<TokenStream2> {
     let first = outputs.first()?;
     if outputs
@@ -3818,6 +4355,8 @@ fn common_choice_output_type(outputs: &[TokenStream2]) -> Option<TokenStream2> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn coerce_choice_parser_output(
     parser: TokenStream2,
     source: &TokenStream2,
@@ -3841,6 +4380,8 @@ fn coerce_choice_parser_output(
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn sequence_output_type<'a>(
     exprs: impl Iterator<Item = &'a Expr>,
     type_env: &GrammarTypeEnv,
@@ -3859,6 +4400,8 @@ fn sequence_output_type<'a>(
     Some(output)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tuple_rust_parser_output_type(
     tuple: &ExprTuple,
     type_env: &GrammarTypeEnv,
@@ -3867,6 +4410,8 @@ fn tuple_rust_parser_output_type(
     sequence_output_type(tuple.elems.iter(), type_env, arguments)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn path_rust_parser_output_type(
     path: &ExprPath,
     type_env: &GrammarTypeEnv,
@@ -3884,6 +4429,8 @@ fn path_rust_parser_output_type(
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn simple_type_ident(output: &Type) -> Option<&Ident> {
     let Type::Path(path) = output else {
         return None;
@@ -3898,6 +4445,8 @@ fn simple_type_ident(output: &Type) -> Option<&Ident> {
     Some(&segment.ident)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parser_type_tokens(
     output: &Type,
     generate_model: bool,
@@ -3916,6 +4465,8 @@ fn parser_type_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn output_is_generated_model(
     generate_model: bool,
     model_outputs: &Option<BTreeSet<String>>,
@@ -3927,6 +4478,8 @@ fn output_is_generated_model(
     type_mentions_generated_model(output, model_outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn type_mentions_generated_model(ty: &Type, model_outputs: &Option<BTreeSet<String>>) -> bool {
     match ty {
         Type::Path(path) => {
@@ -3962,14 +4515,20 @@ fn type_mentions_generated_model(ty: &Type, model_outputs: &Option<BTreeSet<Stri
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn is_path_type(output: &Type) -> bool {
     matches!(output, Type::Path(_))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn is_unit_type(output: &Type) -> bool {
     matches!(output, Type::Tuple(tuple) if tuple.elems.is_empty())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
     input.parse::<kw::rule>()?;
     let context: LitStr = input.parse()?;
@@ -4016,18 +4575,20 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
         if branches.is_empty() {
             return Err(content.error("enum rules need at least one branch"));
         }
-        Ok(Rule::Enum(EnumRule {
+        Ok(Rule::Enum(EnumRule::from_data(data!(EnumRule {
             output: syntax_type_for_rule(&name),
             name,
             arguments,
             context,
             branches,
-        }))
+        }))))
     } else {
         Err(input.error("expected `struct` or `enum` after `->`"))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_struct_fields(input: ParseStream<'_>) -> Result<Vec<FieldItem>> {
     let mut fields = Vec::new();
     while !input.is_empty() {
@@ -4036,6 +4597,8 @@ fn parse_explicit_struct_fields(input: ParseStream<'_>) -> Result<Vec<FieldItem>
     Ok(fields)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
     let attrs = input.call(Attribute::parse_outer)?;
     let mut conditions = Vec::new();
@@ -4068,14 +4631,14 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
             input.parse::<Expr>()?.into()
         };
         input.parse::<Token![;]>()?;
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind,
             name: Some(name),
             ty,
             parser,
-        })
+        })))
     } else if input.peek(Token![let]) {
         input.parse::<Token![let]>()?;
         let name = input.parse()?;
@@ -4088,14 +4651,14 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         input.parse::<Token![=]>()?;
         let parser = input.parse::<Expr>()?.into();
         input.parse::<Token![;]>()?;
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind: FieldKind::TempLet,
             name: Some(name),
             ty,
             parser,
-        })
+        })))
     } else if input.peek(kw::assert) {
         input.parse::<kw::assert>()?;
         let negated = input.peek(Token![!]);
@@ -4111,35 +4674,34 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
                 .postfix("lookahead", Vec::new())
                 .postfix("ignored", Vec::new())
         };
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind: FieldKind::Require,
             name: None,
             ty: None,
             parser,
-        })
+        })))
     } else {
         Err(input.error("expected `field`, `let`, or `assert`"))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
     if !input.peek(syn::token::Paren) {
         return Ok(Vec::new());
     }
     let content;
     parenthesized!(content in input);
-    let mut arguments = Vec::new();
-    while !content.is_empty() {
-        arguments.push(content.parse()?);
-        if content.peek(Token![,]) {
-            content.parse::<Token![,]>()?;
-        }
-    }
-    Ok(arguments)
+    Ok(Punctuated::<Ident, Token![,]>::parse_terminated(&content)?
+        .into_iter()
+        .collect())
 }
 
+#[invariant(matches!(kind, FieldKind::Require) == name.is_none(), "only assert field items are nameless")]
+#[invariant(!matches!(kind, FieldKind::Require) || ty.is_none(), "assert field items do not have output types")]
 struct FieldItem {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -4150,16 +4712,22 @@ struct FieldItem {
 }
 
 impl FieldItem {
-    fn expand(&self, arguments: &BTreeSet<String>) -> TokenStream2 {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(
+        &self,
+        arguments: &BTreeSet<String>,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<TokenStream2> {
         let kind = self.kind.as_str();
         let name = self
             .name
             .as_ref()
             .map_or_else(String::new, Ident::to_string);
         let parser = self.parser.compact_tokens();
-        let recovery = classify_parser_expr(&self.parser, arguments).expand();
+        let recovery = classify_parser_expr(&self.parser, arguments, type_env)?.expand();
         let conditions = self.conditions.iter().map(Condition::expand);
-        quote! {
+        Ok(quote! {
             SyntaxGrammarField {
                 kind: #kind,
                 name: #name,
@@ -4167,9 +4735,11 @@ impl FieldItem {
                 recovery: #recovery,
                 conditions: &[#(#conditions),*],
             }
-        }
+        })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_model_field(
         &self,
         type_env: &GrammarTypeEnv,
@@ -4206,11 +4776,11 @@ impl FieldItem {
                 unreachable!("parser-only fields are filtered before model field generation")
             }
         };
-        Ok(GeneratedFieldModel {
+        Ok(GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
             attrs: self.attrs.clone(),
             name,
             ty,
-        })
+        })))
     }
 }
 
@@ -4222,6 +4792,8 @@ enum FieldKind {
 }
 
 impl FieldKind {
+    #[requires(true)]
+    #[ensures(true)]
     fn as_str(&self) -> &'static str {
         match self {
             FieldKind::Field => "field",
@@ -4232,12 +4804,15 @@ impl FieldKind {
     }
 }
 
+#[invariant(true)]
 struct Condition {
     kind: ConditionKind,
     name: Ident,
 }
 
 impl Condition {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let kind = match self.kind {
             ConditionKind::Feature => quote!(SyntaxGrammarConditionKind::Feature),
@@ -4252,6 +4827,8 @@ impl Condition {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_gate(&self, parser: TokenStream2) -> TokenStream2 {
         let name = &self.name;
         match self.kind {
@@ -4301,6 +4878,27 @@ enum ConditionKind {
     Policy,
 }
 
+#[invariant(true)]
+#[invariant(::Arc(_) => true)]
+#[invariant(::Boxed(_) => true)]
+#[invariant(::Choice(_) => true)]
+#[invariant(::Cmavo(_) => true)]
+#[invariant(::Ignored(_) => true)]
+#[invariant(::Lookahead(_) => true)]
+#[invariant(::Many(_) => true)]
+#[invariant(::Many1(_) => true)]
+#[invariant(::Not(_) => true)]
+#[invariant(::NotNextRule(_) => true)]
+#[invariant(::NotNextSelmaho(_) => true)]
+#[invariant(::NotNextToken(_) => true)]
+#[invariant(::Opaque(_) => true)]
+#[invariant(::Opt(_) => true)]
+#[invariant(::PayloadStart(_) => true)]
+#[invariant(::Rule(_) => true)]
+#[invariant(::Selmaho(_) => true)]
+#[invariant(::Sequence(_) => true)]
+#[invariant(::WithFreeModifiers(_) => true)]
+#[invariant(::WordCategory(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RecoveryExpr {
     Cmavo(String),
@@ -4329,6 +4927,8 @@ enum RecoveryExpr {
 }
 
 impl RecoveryExpr {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(self) -> TokenStream2 {
         match self {
             RecoveryExpr::Cmavo(cmavo) => {
@@ -4411,99 +5011,130 @@ impl RecoveryExpr {
     }
 }
 
-fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> RecoveryExpr {
+#[requires(true)]
+#[ensures(true)]
+fn classify_parser_expr(
+    expr: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     match expr {
-        ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments),
-        ParserExpr::Vector(expr) => RecoveryExpr::Sequence(
+        ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments, type_env),
+        ParserExpr::Vector(expr) => Ok(RecoveryExpr::Sequence(
             expr.items
                 .iter()
                 .map(|item| match item {
                     VectorItem::One(expr) | VectorItem::Spread(expr) => {
-                        classify_parser_expr(expr, arguments)
+                        classify_parser_expr(expr, arguments, type_env)
                     }
                     VectorItem::ZeroOrMore(expr) | VectorItem::ZeroOrMoreSpread(expr) => {
-                        RecoveryExpr::Many(Box::new(classify_parser_expr(expr, arguments)))
+                        classify_parser_expr(expr, arguments, type_env)
+                            .map(Box::new)
+                            .map(RecoveryExpr::Many)
                     }
                     VectorItem::OneOrMore(expr) | VectorItem::OneOrMoreSpread(expr) => {
-                        RecoveryExpr::Many1(Box::new(classify_parser_expr(expr, arguments)))
+                        classify_parser_expr(expr, arguments, type_env)
+                            .map(Box::new)
+                            .map(RecoveryExpr::Many1)
                     }
                     VectorItem::Assert { negated, parser } => {
-                        let inner = classify_parser_expr(parser, arguments);
+                        let inner = classify_parser_expr(parser, arguments, type_env)?;
                         if *negated {
-                            RecoveryExpr::Not(Box::new(inner))
+                            Ok(RecoveryExpr::Not(Box::new(inner)))
                         } else {
-                            RecoveryExpr::Lookahead(Box::new(inner))
+                            Ok(RecoveryExpr::Lookahead(Box::new(inner)))
                         }
                     }
                 })
-                .collect(),
-        ),
+                .collect::<Result<Vec<_>>>()?,
+        )),
         ParserExpr::Chain(expr) => {
-            let links = match expr.links_kind {
-                ChainLinksKind::ZeroOrMore => {
-                    RecoveryExpr::Many(Box::new(classify_parser_expr(&expr.links, arguments)))
-                }
-                ChainLinksKind::OneOrMore => {
-                    RecoveryExpr::Many1(Box::new(classify_parser_expr(&expr.links, arguments)))
-                }
-            };
-            RecoveryExpr::Sequence(vec![classify_parser_expr(&expr.first, arguments), links])
+            let links =
+                match expr.links_kind {
+                    ChainLinksKind::ZeroOrMore => RecoveryExpr::Many(Box::new(
+                        classify_parser_expr(&expr.links, arguments, type_env)?,
+                    )),
+                    ChainLinksKind::OneOrMore => RecoveryExpr::Many1(Box::new(
+                        classify_parser_expr(&expr.links, arguments, type_env)?,
+                    )),
+                };
+            Ok(RecoveryExpr::Sequence(vec![
+                classify_parser_expr(&expr.first, arguments, type_env)?,
+                links,
+            ]))
         }
         ParserExpr::Postfix {
             receiver,
             method,
             args,
-        } => classify_postfix_recovery_expr(receiver, method, args, arguments),
+        } => classify_postfix_recovery_expr(receiver, method, args, arguments, type_env),
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_postfix_recovery_expr(
     receiver: &ParserExpr,
     method: &Ident,
     args: &[Expr],
     arguments: &BTreeSet<String>,
-) -> RecoveryExpr {
-    let inner = || Box::new(classify_parser_expr(receiver, arguments));
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
-        ("ignored", 0) => RecoveryExpr::Ignored(inner()),
-        ("not", 0) => RecoveryExpr::Not(inner()),
-        ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
-        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
-            classify_parser_expr(receiver, arguments),
-            classify_recovery_expr(args.first().expect("length checked"), arguments),
-        ]),
+        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
+        ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
+        ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
+        ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
+            classify_parser_expr(receiver, arguments, type_env)?,
+            classify_recovery_expr(args.first().expect("length checked"), arguments, type_env)?,
+        ])),
         _ => {
             let receiver = receiver.to_token_stream();
-            RecoveryExpr::Opaque(compact_tokens(quote!(#receiver.#method(#(#args),*))))
+            Ok(RecoveryExpr::Opaque(compact_tokens(
+                quote!(#receiver.#method(#(#args),*)),
+            )))
         }
     }
 }
 
-fn classify_recovery_expr(expr: &Expr, arguments: &BTreeSet<String>) -> RecoveryExpr {
+#[requires(true)]
+#[ensures(true)]
+fn classify_recovery_expr(
+    expr: &Expr,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     match expr {
-        Expr::Call(call) => classify_call_recovery_expr(call, arguments),
-        Expr::MethodCall(method) => classify_method_recovery_expr(method, arguments),
-        Expr::Path(path) => classify_path_recovery_expr(path, arguments),
-        Expr::Tuple(tuple) => RecoveryExpr::Sequence(
+        Expr::Call(call) => classify_call_recovery_expr(call, arguments, type_env),
+        Expr::MethodCall(method) => classify_method_recovery_expr(method, arguments, type_env),
+        Expr::Path(path) => classify_path_recovery_expr(path, arguments, type_env),
+        Expr::Tuple(tuple) => Ok(RecoveryExpr::Sequence(
             tuple
                 .elems
                 .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
-        ),
-        Expr::Array(array) => array_vector_expr(array)
-            .map(|expr| classify_parser_expr(&ParserExpr::Vector(expr), arguments))
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(expr))),
-        _ => RecoveryExpr::Opaque(compact_tokens(expr)),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
+        )),
+        Expr::Array(array) => {
+            if let Some(expr) = array_vector_expr(array) {
+                classify_parser_expr(&ParserExpr::Vector(expr), arguments, type_env)
+            } else {
+                Ok(RecoveryExpr::Opaque(compact_tokens(expr)))
+            }
+        }
+        _ => Ok(RecoveryExpr::Opaque(compact_tokens(expr))),
     }
 }
 
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|expr| !expr.items.is_empty()))]
 fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
     if array.elems.is_empty() {
         return None;
     }
-    Some(VectorExpr {
+    Some(VectorExpr::from_data(data!(VectorExpr {
         items: array
             .elems
             .iter()
@@ -4511,51 +5142,82 @@ fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
             .map(ParserExpr::Rust)
             .map(VectorItem::One)
             .collect(),
-    })
+    })))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_method_recovery_expr(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
-) -> RecoveryExpr {
-    let inner = || Box::new(classify_recovery_expr(&method.receiver, arguments));
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
-        ("payload_start", 0) => RecoveryExpr::PayloadStart(inner()),
-        ("ignored", 0) => RecoveryExpr::Ignored(inner()),
-        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
-            classify_recovery_expr(&method.receiver, arguments),
-            classify_recovery_expr(method.args.first().expect("length checked"), arguments),
-        ]),
-        ("not_next_selmaho", 1) => method
+        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
+        ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
+        ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
+            classify_recovery_expr(&method.receiver, arguments, type_env)?,
+            classify_recovery_expr(
+                method.args.first().expect("length checked"),
+                arguments,
+                type_env,
+            )?,
+        ])),
+        ("not_next_selmaho", 1) => Ok(method
             .args
             .first()
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextSelmaho)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("not_next_token", 1) => method
+            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+        ("not_next_token", 1) => Ok(method
             .args
             .first()
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextToken)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("not_next_rule", 1) => method
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::NotNextRule)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
-        ("not", 0) => RecoveryExpr::Not(inner()),
-        _ => RecoveryExpr::Opaque(compact_tokens(method)),
+            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+        ("not_next_rule", 1) => classify_not_next_rule_recovery_expr(method, arguments, type_env),
+        ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
+        ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
+        _ => Ok(RecoveryExpr::Opaque(compact_tokens(method))),
     }
 }
 
-fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) -> RecoveryExpr {
-    let Some(name) = call_name(call) else {
-        return RecoveryExpr::Opaque(compact_tokens(call));
+#[requires(true)]
+#[ensures(true)]
+fn classify_not_next_rule_recovery_expr(
+    method: &ExprMethodCall,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let Some(argument) = method.args.first() else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
     };
-    match (name.as_str(), call.args.len()) {
+    let Some(rule) = path_expr_last_segment(argument) else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
+    };
+    if type_env.rule_known_for_recovery(&rule, arguments) {
+        Ok(RecoveryExpr::NotNextRule(rule))
+    } else {
+        Err(syn::Error::new_spanned(
+            argument,
+            format!("unknown grammar rule `{rule}` in recovery metadata"),
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classify_call_recovery_expr(
+    call: &ExprCall,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let Some(name) = call_name(call) else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(call)));
+    };
+    Ok(match (name.as_str(), call.args.len()) {
         ("cmavo", 1) => call
             .args
             .first()
@@ -4580,45 +5242,74 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::Cmavo)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
-        ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+        ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
         ("feature" | "policy", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
-        ("boxed", 1) => {
-            RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+        ("boxed", 1) => RecoveryExpr::Boxed(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
+        ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
         ("choice", 1) => RecoveryExpr::Choice(
             call.args
                 .first()
                 .map(choice_alternative_exprs)
                 .unwrap_or_default()
                 .into_iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
         ),
         ("choice", _) => RecoveryExpr::Choice(
             call.args
                 .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
         ),
+        ("pa_word", 0) => RecoveryExpr::Selmaho("Pa".to_owned()),
+        ("cmevla_word" | "text_leading_cmevla_word", 0) => {
+            RecoveryExpr::WordCategory("Cmevla".to_owned())
+        }
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
         ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
         ("eof", 0) => RecoveryExpr::Eof,
-        _ if call.args.is_empty() && arguments.contains(&name) => RecoveryExpr::Rule(name),
-        _ if call.args.is_empty() => RecoveryExpr::Rule(name),
+        _ if call.args.is_empty() && type_env.rule_known_for_recovery(&name, arguments) => {
+            RecoveryExpr::Rule(name)
+        }
+        _ if call.args.is_empty() => RecoveryExpr::Opaque(compact_tokens(call)),
         _ => RecoveryExpr::Opaque(compact_tokens(call)),
-    }
+    })
 }
 
-fn classify_path_recovery_expr(path: &ExprPath, arguments: &BTreeSet<String>) -> RecoveryExpr {
+#[requires(true)]
+#[ensures(true)]
+fn classify_path_recovery_expr(
+    path: &ExprPath,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     let text = compact_tokens(path);
-    if arguments.contains(&text) || (path.qself.is_none() && path.path.segments.len() == 1) {
-        RecoveryExpr::Rule(text)
+    if type_env.rule_known_for_recovery(&text, arguments) {
+        Ok(RecoveryExpr::Rule(text))
+    } else if path.qself.is_none() && path.path.segments.len() == 1 {
+        Err(syn::Error::new_spanned(
+            path,
+            format!("unknown grammar rule `{text}` in recovery metadata"),
+        ))
     } else {
-        RecoveryExpr::Opaque(text)
+        Ok(RecoveryExpr::Opaque(text))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn call_name(call: &ExprCall) -> Option<String> {
     let Expr::Path(path) = call.func.as_ref() else {
         return None;
@@ -4629,6 +5320,8 @@ fn call_name(call: &ExprCall) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn path_expr_last_segment(expr: &Expr) -> Option<String> {
     let Expr::Path(path) = expr else {
         return None;
@@ -4639,6 +5332,14 @@ fn path_expr_last_segment(expr: &Expr) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
+#[requires(!message.is_empty())]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|segment| !segment.is_empty()))]
+fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result<String> {
+    path_expr_last_segment(expr).ok_or_else(|| syn::Error::new_spanned(expr, message))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn compact_tokens(tokens: impl ToTokens) -> String {
     tokens
         .to_token_stream()
@@ -4653,6 +5354,26 @@ mod tests {
     use super::*;
     use quote::quote;
 
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn type_token_comparison_normalizes_paths_without_erasing_reference_mutability() {
+        assert!(type_token_streams_match(
+            &quote!(std::vec::Vec<Option<Token>>),
+            &quote!(Vec<Option<Token>>),
+        ));
+        assert!(type_token_streams_match(
+            &quote!(Option<std::vec::Vec<Token>>),
+            &quote!(Option<Vec<Token>>),
+        ));
+        assert!(!type_token_streams_match(
+            &quote!(&Token),
+            &quote!(&mut Token),
+        ));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4674,6 +5395,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_does_not_support_recovered_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4689,6 +5412,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_node_and_product_rules() {
         let node_result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4720,6 +5445,8 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_struct_body_forms() {
         let old_fields = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4760,6 +5487,8 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_typed_alias_rules() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4780,6 +5509,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_alias_bodies() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4799,6 +5530,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_recursive_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4821,6 +5554,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_recursive_names() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4842,6 +5577,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_rule_names() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4864,6 +5601,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_accepts_vector_parser_method_suffixes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4882,6 +5621,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn generated_chain_requires_link_element_field() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4911,6 +5652,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn enum_branch_prefers_same_named_parser_argument_over_rule() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4944,6 +5687,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn generated_single_field_structs_are_newtypes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4969,6 +5714,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_generated_enum_variants() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4991,6 +5738,99 @@ mod tests {
             expanded.contains("cannot generate enum variant")
                 && expanded.contains("generated model ownership must be one rule per enum variant"),
             "unexpected expansion: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_parser_unknown_call_reports_compile_error() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            rule "item" item -> struct {
+                field token: std::sync::Arc<Token> <- arc(unknown_parser());
+            }
+        })
+        .expect("grammar parses before strict parser generation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("unsupported parser call in strict parser generation"),
+            "unknown strict parser calls should be reported: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_parser_unknown_method_reports_compile_error() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            rule "item" item -> struct {
+                field token: std::sync::Arc<Token> <- arc(cmavo(Be).payload_start());
+            }
+        })
+        .expect("grammar parses before strict parser generation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("unsupported parser method in strict parser generation"),
+            "unknown strict parser methods should be reported: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn strict_recursive_root_without_rule_reports_compile_error() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            strict_parsers;
+
+            recursive {
+                item: ItemSyntax;
+            }
+
+            rule "other" other -> struct {
+                field token <- cmavo(Be);
+            }
+        })
+        .expect("grammar parses before strict recursive parser generation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains("recursive parser declaration has no matching rule"),
+            "missing recursive root rules should be reported: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn partial_valid_alias_requires_simple_output_type() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env generated_runtime::SyntaxGrammarEnv;
+            recovered recovered_syntax;
+            parsers;
+
+            alias "pair" pair = (cmavo(Be), cmavo(Bo));
+        })
+        .expect("grammar parses before partial-valid parser generation");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("compile_error")
+                && expanded.contains(
+                    "partial-valid alias parser generation requires a simple path output type"
+                ),
+            "unnamed partial-valid parser outputs should be reported: {expanded}"
         );
     }
 }

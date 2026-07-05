@@ -25,17 +25,6 @@ pub struct VocativeMarkerWordsSyntax {
     pub words: Vec<Token>,
 }
 
-impl serde::Serialize for VocativeMarkerWordsSyntax {
-    #[requires(true)]
-    #[ensures(true)]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serde::Serialize::serialize(self.as_data(), serializer)
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) struct SyntaxGrammarEnv {

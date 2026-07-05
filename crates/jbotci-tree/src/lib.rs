@@ -726,7 +726,7 @@ mod tests {
         pub type LeafList = Vec<LeafNode>;
 
         #[derive(Debug, Clone, PartialEq, Eq)]
-        #[invariant(true)]
+        #[invariant(true, "test fixture leaf nodes accept all field values")]
         pub struct LeafNode {
             pub text: String,
         }

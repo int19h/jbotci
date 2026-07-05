@@ -35,11 +35,8 @@ pub(crate) fn generate_attributes(contracts: &[Contract]) -> Vec<Attribute> {
         let ty = contract.ty;
         let mode = match contract.mode {
             ContractMode::Always => None,
-            ContractMode::Disabled => None,
-            ContractMode::Debug => Some("debug"),
             ContractMode::Test => Some("test"),
             ContractMode::Expensive => Some("expensive"),
-            ContractMode::LogOnly => None,
         };
 
         if let Some(desc) = &contract.desc {

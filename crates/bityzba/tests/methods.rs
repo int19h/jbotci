@@ -6,9 +6,6 @@
 
 use bityzba::*;
 
-#[cfg(feature = "mirai_assertions")]
-mod mirai_assertion_mocks;
-
 #[test]
 fn methods() {
     fn is_even(x: usize) -> bool {

@@ -23,6 +23,30 @@ fn complete_contracts_scan_cleanly() {
 }
 
 #[test]
+fn qualified_bityzba_paths_count_as_contracts() {
+    ContractScanner::new(fixture("qualified"))
+        .scan()
+        .expect("qualified bityzba paths should satisfy scanner");
+}
+
+#[test]
+fn spoofed_qualified_paths_do_not_count_as_contracts() {
+    let error = ContractScanner::new(fixture("spoofed"))
+        .scan()
+        .expect_err("spoofed fixture should fail scanner");
+    let output = error.to_string();
+
+    assert!(output.contains("missing bityzba type invariant on struct `SpoofedType`"));
+    assert!(output.contains("missing bityzba contract_trait on trait `SpoofedTrait`"));
+    assert!(output.contains("missing bityzba precondition on trait method `SpoofedTrait::value`"));
+    assert!(output.contains("missing bityzba postcondition on trait method `SpoofedTrait::value`"));
+    assert!(output.contains("missing bityzba precondition on function `spoofed_function`"));
+    assert!(output.contains("missing bityzba postcondition on function `spoofed_function`"));
+    assert!(!output.contains("TuplePolicy"));
+    assert!(!output.contains("UnitPolicy"));
+}
+
+#[test]
 fn missing_contracts_report_separate_diagnostics() {
     let error = ContractScanner::new(fixture("missing"))
         .scan()
@@ -65,6 +89,31 @@ fn missing_contracts_report_separate_diagnostics() {
     assert!(output.contains(
         "only use `#[invariant(true)]` when the field types already express the invariant"
     ));
+}
+
+#[test]
+fn function_local_items_are_scanned_recursively() {
+    let error = ContractScanner::new(fixture("fn_local"))
+        .scan()
+        .expect_err("fn-local item fixture should fail scanner");
+    let output = error.to_string();
+
+    assert!(output.contains("missing bityzba type invariant on struct `LocalStruct`"));
+    assert!(
+        output.contains(
+            "missing bityzba invariant on data-carrying enum variant `LocalEnum::Present`"
+        )
+    );
+    assert!(output.contains("missing bityzba contract_trait on trait `LocalTrait`"));
+    assert!(output.contains("missing bityzba precondition on trait method `LocalTrait::run`"));
+    assert!(output.contains("missing bityzba postcondition on trait method `LocalTrait::run`"));
+    assert!(output.contains("missing bityzba precondition on function `inner`"));
+    assert!(output.contains("missing bityzba postcondition on function `inner`"));
+    assert!(output.contains("missing bityzba precondition on method `local_method`"));
+    assert!(output.contains("missing bityzba postcondition on method `local_method`"));
+    assert!(output.contains("missing bityzba precondition on function `inside_expression`"));
+    assert!(output.contains("missing bityzba postcondition on function `inside_expression`"));
+    assert!(output.contains("missing bityzba type invariant on struct `InsideTraitImpl`"));
 }
 
 #[test]

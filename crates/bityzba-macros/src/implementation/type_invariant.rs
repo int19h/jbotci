@@ -4,12 +4,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use proc_macro2::{Spacing, TokenStream, TokenTree};
+use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident,
-    ItemEnum, ItemStruct, Lit, Type, TypePath, Variant, Visibility, parse::Parser, visit,
-    visit::Visit,
+    Attribute, Expr, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident, ItemEnum,
+    ItemStruct, Path, Type, TypePath, Variant, Visibility, parse::Parser, visit, visit::Visit,
 };
 
 use crate::implementation::{Contract, ContractMode, ContractType, parse};
@@ -99,6 +98,13 @@ fn generate_struct(
         .iter()
         .map(|field| field.ident.clone().expect("named field"))
         .collect::<Vec<_>>();
+    let field_name_errors = generated_builder_field_name_errors(&field_idents);
+    if !field_name_errors.is_empty() {
+        return quote! {
+            #(#option_errors)*
+            #(#field_name_errors)*
+        };
+    }
     let field_types = fields
         .named
         .iter()
@@ -663,6 +669,20 @@ fn collect_type_option_errors(attrs: &mut Vec<Attribute>) -> Vec<TokenStream> {
     errors
 }
 
+fn generated_builder_field_name_errors(field_idents: &[Ident]) -> Vec<TokenStream> {
+    field_idents
+        .iter()
+        .filter(|ident| matches!(ident.to_string().as_str(), "build" | "from_data" | "new"))
+        .map(|ident| {
+            syn::Error::new_spanned(
+                ident,
+                format!("field `{ident}` conflicts with a generated bityzba builder method name"),
+            )
+            .to_compile_error()
+        })
+        .collect()
+}
+
 fn collect_type_invariants(
     initial_mode: ContractMode,
     initial_attr: TokenStream,
@@ -738,7 +758,19 @@ fn collect_enum_type_invariant_tokens(
         .iter()
         .any(|segment| parse_enum_variant_invariant(mode, segment.clone()).is_some())
     {
-        for segment in segments {
+        let mut index = 0;
+        while let Some(segment) = segments.get(index) {
+            let segment = if segments
+                .get(index + 1)
+                .is_some_and(bityzba_contract_syntax::is_string_literal_segment)
+            {
+                let description = &segments[index + 1];
+                index += 2;
+                quote! { #segment, #description }
+            } else {
+                index += 1;
+                segment.clone()
+            };
             match parse_enum_variant_invariant(mode, segment.clone()) {
                 Some(Ok(variant_arm)) => contracts.variant_arms.push(variant_arm),
                 Some(Err(error)) => contracts.errors.push(error.to_compile_error()),
@@ -818,7 +850,11 @@ fn enum_invariant_docs(contracts: &EnumTypeInvariants) -> String {
 
 fn contracts_are_true_marker(contracts: &[Contract]) -> bool {
     contracts.iter().all(|contract| {
-        !contract.assertions.is_empty() && contract.assertions.iter().all(is_true_literal)
+        !contract.assertions.is_empty()
+            && contract
+                .assertions
+                .iter()
+                .all(bityzba_contract_syntax::expr_is_true_literal)
     })
 }
 
@@ -828,17 +864,7 @@ fn enum_contracts_are_true_marker(contracts: &EnumTypeInvariants) -> bool {
         && contracts
             .variant_arms
             .iter()
-            .all(|variant_arm| is_true_literal(&variant_arm.expr))
-}
-
-fn is_true_literal(expr: &Expr) -> bool {
-    matches!(
-        expr,
-        Expr::Lit(ExprLit {
-            lit: Lit::Bool(value),
-            ..
-        }) if value.value
-    )
+            .all(|variant_arm| bityzba_contract_syntax::expr_is_true_literal(&variant_arm.expr))
 }
 
 fn enum_variant_invariant_expression<'a>(
@@ -959,63 +985,29 @@ fn parse_enum_variant_invariant(
     mode: ContractMode,
     segment: TokenStream,
 ) -> Option<syn::Result<EnumVariantInvariant>> {
-    let tokens = segment.clone().into_iter().collect::<Vec<_>>();
-    if !starts_with_double_colon(&tokens) {
-        return None;
-    }
-    let arrow_index = top_level_fat_arrow_index(&tokens)?;
-
-    let Some(TokenTree::Ident(variant_ident)) = tokens.get(2) else {
-        return Some(Err(syn::Error::new_spanned(
-            segment,
-            "enum variant invariant must start with `::Variant`",
-        )));
+    let parsed = match bityzba_contract_syntax::parse_variant_invariant_segment(segment.clone())? {
+        Ok(parsed) => parsed,
+        Err(error) => return Some(Err(error)),
     };
 
-    let tail = tokens[3..arrow_index]
-        .iter()
-        .cloned()
-        .collect::<TokenStream>();
-    let expr_tokens = tokens[arrow_index + 2..]
-        .iter()
-        .cloned()
-        .collect::<TokenStream>();
-    if expr_tokens.is_empty() {
+    let (assertions, _, _) = parse::parse_attributes(parsed.expr);
+    if assertions.len() != 1 {
         return Some(Err(syn::Error::new_spanned(
             segment,
-            "enum variant invariant requires an expression after `=>`",
+            "enum variant invariant requires exactly one expression after `=>`",
         )));
     }
 
     Some(Ok(EnumVariantInvariant {
         mode,
-        variant_ident: variant_ident.clone(),
-        tail,
-        expr: parse::parse_contract_expr(expr_tokens),
+        variant_ident: parsed.variant_ident,
+        tail: parsed.tail,
+        expr: assertions
+            .into_iter()
+            .next()
+            .expect("length was checked above"),
         display: segment,
     }))
-}
-
-fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
-    matches!(
-        (tokens.first(), tokens.get(1)),
-        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
-            if first.as_char() == ':'
-                && first.spacing() == Spacing::Joint
-                && second.as_char() == ':'
-    )
-}
-
-fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
-    tokens.windows(2).position(|window| {
-        matches!(
-            (&window[0], &window[1]),
-            (TokenTree::Punct(first), TokenTree::Punct(second))
-                if first.as_char() == '='
-                    && first.spacing() == Spacing::Joint
-                    && second.as_char() == '>'
-        )
-    })
 }
 
 #[derive(Default)]
@@ -1123,7 +1115,7 @@ struct TypeShape {
     wrapper_vis: Visibility,
     data_vis: Visibility,
     generics: Generics,
-    derive_traits: Vec<Ident>,
+    derive_traits: Vec<Path>,
     derives_debug: bool,
     derives_serialize: bool,
     derives_deserialize: bool,
@@ -1148,13 +1140,13 @@ impl TypeShape {
                 continue;
             }
             let _ = attr.parse_nested_meta(|meta| {
-                if let Some(ident) = meta.path.get_ident() {
-                    match ident.to_string().as_str() {
+                if let Some(segment) = meta.path.segments.last() {
+                    match segment.ident.to_string().as_str() {
                         "Debug" => derives_debug = true,
                         "Serialize" => derives_serialize = true,
                         "Deserialize" => derives_deserialize = true,
                         "Default" => derives_default = true,
-                        _ => derive_traits.push(ident.clone()),
+                        _ => derive_traits.push(meta.path.clone()),
                     }
                 }
                 Ok(())
@@ -1341,14 +1333,14 @@ impl TypeShape {
         generics
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Serialize));
+            .push(syn::parse_quote!(#data_ident #ty_generics: ::serde::Serialize));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         quote! {
-            impl #impl_generics serde::Serialize for #wrapper_ident #ty_generics #where_clause
+            impl #impl_generics ::serde::Serialize for #wrapper_ident #ty_generics #where_clause
             {
                 fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
                 where
-                    S: serde::Serializer,
+                    S: ::serde::Serializer,
                 {
                     self.as_data().serialize(serializer)
                 }
@@ -1370,17 +1362,17 @@ impl TypeShape {
         impl_generics_source
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Deserialize<'de>));
+            .push(syn::parse_quote!(#data_ident #ty_generics: ::serde::Deserialize<'de>));
         let (impl_generics, _, where_clause) = impl_generics_source.split_for_impl();
         quote! {
-            impl #impl_generics serde::Deserialize<'de> for #wrapper_ident #ty_generics #where_clause
+            impl #impl_generics ::serde::Deserialize<'de> for #wrapper_ident #ty_generics #where_clause
             {
                 fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
                 where
-                    D: serde::Deserializer<'de>,
+                    D: ::serde::Deserializer<'de>,
                 {
                     let data = #data_ident::deserialize(deserializer)?;
-                    Self::try_from_data(data).map_err(serde::de::Error::custom)
+                    Self::try_from_data(data).map_err(::serde::de::Error::custom)
                 }
             }
         }

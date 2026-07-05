@@ -8,9 +8,6 @@ use std::ops::{Add, Deref};
 
 use bityzba::*;
 
-#[cfg(feature = "mirai_assertions")]
-mod mirai_assertion_mocks;
-
 #[derive(Copy, Clone, Debug)]
 pub struct Range {
     min: usize,

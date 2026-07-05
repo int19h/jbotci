@@ -11,7 +11,6 @@ mod contract_scanner;
 pub use contract_scanner::{ContractScanError, ContractScanner, require_contracts};
 
 pub use bityzba_macros::{
-    contract_trait, data, debug_ensures, debug_invariant, debug_requires, ensures,
-    expensive_ensures, expensive_invariant, expensive_requires, invariant, new, requires,
-    test_ensures, test_invariant, test_requires, try_new,
+    contract_trait, data, ensures, expensive_ensures, expensive_invariant, expensive_requires,
+    invariant, new, requires, test_ensures, test_invariant, test_requires, try_new,
 };

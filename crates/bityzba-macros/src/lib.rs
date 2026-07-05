@@ -30,16 +30,6 @@ pub fn requires(attr: TokenStream, toks: TokenStream) -> TokenStream {
     implementation::requires(ContractMode::Always, attr, toks).into()
 }
 
-/// Same as [`requires`], but uses `debug_assert!`.
-///
-/// [`requires`]: attr.requires.html
-#[proc_macro_attribute]
-pub fn debug_requires(attr: TokenStream, toks: TokenStream) -> TokenStream {
-    let attr = attr.into();
-    let toks = toks.into();
-    implementation::requires(ContractMode::Debug, attr, toks).into()
-}
-
 /// Same as [`requires`], but is only enabled in `#[cfg(test)]` environments.
 ///
 /// [`requires`]: attr.requires.html
@@ -96,16 +86,6 @@ pub fn ensures(attr: TokenStream, toks: TokenStream) -> TokenStream {
     let attr = attr.into();
     let toks = toks.into();
     implementation::ensures(ContractMode::Always, attr, toks).into()
-}
-
-/// Same as [`ensures`], but uses `debug_assert!`.
-///
-/// [`ensures`]: attr.ensures.html
-#[proc_macro_attribute]
-pub fn debug_ensures(attr: TokenStream, toks: TokenStream) -> TokenStream {
-    let attr = attr.into();
-    let toks = toks.into();
-    implementation::ensures(ContractMode::Debug, attr, toks).into()
 }
 
 /// Same as [`ensures`], but is only enabled in `#[cfg(test)]` environments.
@@ -175,21 +155,9 @@ pub fn invariant(attr: TokenStream, toks: TokenStream) -> TokenStream {
     // Function expansions will resolve the actual mode themselves, so the
     // actual unreduced mode is passed here
     //
-    // TODO: update comment when implemented for traits
     let attr = attr.into();
     let toks = toks.into();
     let mode = ContractMode::Always;
-    implementation::invariant(mode, attr, toks).into()
-}
-
-/// Same as [`invariant`], but uses `debug_assert!`.
-///
-/// [`invariant`]: attr.invariant.html
-#[proc_macro_attribute]
-pub fn debug_invariant(attr: TokenStream, toks: TokenStream) -> TokenStream {
-    let mode = ContractMode::Debug;
-    let attr = attr.into();
-    let toks = toks.into();
     implementation::invariant(mode, attr, toks).into()
 }
 
@@ -251,18 +219,21 @@ pub fn contract_trait(attrs: TokenStream, toks: TokenStream) -> TokenStream {
     let attrs: proc_macro2::TokenStream = attrs.into();
     let toks: proc_macro2::TokenStream = toks.into();
 
-    let item: syn::Item = syn::parse_quote!(#toks);
+    let item = match syn::parse2::<syn::Item>(toks.clone()) {
+        Ok(item) => item,
+        Err(error) => return error.to_compile_error().into(),
+    };
 
     let tts = match item {
         syn::Item::Trait(trait_) => implementation::contract_trait_item_trait(attrs, trait_),
-        syn::Item::Impl(impl_) => {
-            assert!(
-                impl_.trait_.is_some(),
-                "#[contract_trait] can only be applied to `trait` and `impl ... for` items"
-            );
+        syn::Item::Impl(impl_) if impl_.trait_.is_some() => {
             implementation::contract_trait_item_impl(attrs, impl_)
         }
-        _ => panic!("#[contract_trait] can only be applied to `trait` and `impl ... for` items"),
+        other => syn::Error::new_spanned(
+            other,
+            "#[contract_trait] can only be applied to trait definitions and trait impl blocks",
+        )
+        .to_compile_error(),
     };
 
     tts.into()

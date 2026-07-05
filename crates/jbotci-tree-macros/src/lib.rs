@@ -3,15 +3,19 @@
 extern crate proc_macro;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
+#[allow(unused_imports)]
+use bityzba::{ensures, invariant, requires};
 use proc_macro::TokenStream;
-use proc_macro2::{Spacing, TokenTree};
 use quote::{format_ident, quote};
 use syn::{
     Attribute, Fields, GenericArgument, Ident, Item, ItemEnum, ItemStruct, ItemType, PathArguments,
     Type, parse_macro_input, parse_quote,
 };
 
+#[requires(true)]
+#[ensures(true)]
 #[proc_macro]
 pub fn tree_model(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::File);
@@ -20,6 +24,8 @@ pub fn tree_model(input: TokenStream) -> TokenStream {
         .into()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> {
     let options = tree_model_options(&input.attrs)?;
     let mut items = input.items;
@@ -100,11 +106,14 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     })
 }
 
+#[invariant(true)]
 struct TreeModelOptions {
     generate_recovered: bool,
     generate_with_free_modifiers: bool,
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
     let mut generate_recovered = false;
     let mut generate_with_free_modifiers = false;
@@ -138,6 +147,8 @@ fn tree_model_options(attrs: &[Attribute]) -> syn::Result<TreeModelOptions> {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn valid_module(items: &[Item]) -> proc_macro2::TokenStream {
     let names = items.iter().filter_map(item_ident);
     quote! {
@@ -147,6 +158,8 @@ fn valid_module(items: &[Item]) -> proc_macro2::TokenStream {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn item_ident(item: &Item) -> Option<&Ident> {
     match item {
         Item::Struct(item) => Some(&item.ident),
@@ -156,6 +169,8 @@ fn item_ident(item: &Item) -> Option<&Ident> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_module(
     items: &[Item],
     node_names: &BTreeSet<String>,
@@ -188,6 +203,10 @@ fn recovered_module(
         pub mod recovered {
             use super::*;
 
+            // The recovery module is intentionally tied to the jbotci syntax
+            // model conventions: callers provide a `RecoveryTreeItem` item
+            // type in the same tree model, and generated recovered values use
+            // that type for every recovery wrapper.
             pub type Recovered<T> = ::jbotci_tree::Recovered<T, super::RecoveryTreeItem>;
             pub type RecoveryError = ::jbotci_tree::RecoveryError<super::RecoveryTreeItem>;
 
@@ -247,6 +266,8 @@ fn recovered_module(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_node_names(items: &[Item]) -> syn::Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
     for item in items {
@@ -271,6 +292,8 @@ fn collect_node_names(items: &[Item]) -> syn::Result<BTreeSet<String>> {
     Ok(names)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_type_aliases(items: &[Item]) -> BTreeMap<String, Type> {
     items
         .iter()
@@ -281,6 +304,8 @@ fn collect_type_aliases(items: &[Item]) -> BTreeMap<String, Type> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn reject_generic_node(ident: &Ident, generics: &syn::Generics) -> syn::Result<()> {
     if generics.params.is_empty() {
         return Ok(());
@@ -291,6 +316,8 @@ fn reject_generic_node(ident: &Ident, generics: &syn::Generics) -> syn::Result<(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_atom_types(
     items: &[Item],
     node_names: &BTreeSet<String>,
@@ -313,6 +340,8 @@ fn collect_atom_types(
     Ok(atoms)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_atoms_from_fields(
     fields: &Fields,
     node_names: &BTreeSet<String>,
@@ -324,17 +353,20 @@ fn collect_atoms_from_fields(
         if flags.skip {
             continue;
         }
-        collect_atom_type(&field.ty, node_names, aliases, atoms);
+        collect_atom_type(&field.ty, node_names, aliases, atoms)?;
     }
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_atom_type(
     ty: &Type,
     node_names: &BTreeSet<String>,
     aliases: &BTreeMap<String, Type>,
     atoms: &mut BTreeMap<String, Type>,
-) {
+) -> syn::Result<()> {
+    reject_reference_tree_type(ty, aliases)?;
     match unwrap_tree_type(ty, node_names, aliases) {
         UnwrappedTreeType::Node => {}
         UnwrappedTreeType::Atom(atom) => {
@@ -343,18 +375,24 @@ fn collect_atom_type(
         }
         UnwrappedTreeType::Children(children) => {
             for child in children {
-                collect_atom_type(child, node_names, aliases, atoms);
+                collect_atom_type(child, node_names, aliases, atoms)?;
             }
         }
     }
+    Ok(())
 }
 
+#[invariant(true)]
+#[invariant(::Atom(_) => true)]
+#[invariant(::Children(_) => true)]
 enum UnwrappedTreeType<'a> {
     Node,
     Atom(&'a Type),
     Children(Vec<&'a Type>),
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn unwrap_tree_type<'a>(
     ty: &'a Type,
     node_names: &BTreeSet<String>,
@@ -363,6 +401,8 @@ fn unwrap_tree_type<'a>(
     unwrap_tree_type_with_seen(ty, node_names, aliases, &mut BTreeSet::new())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn unwrap_tree_type_with_seen<'a>(
     ty: &'a Type,
     node_names: &BTreeSet<String>,
@@ -431,14 +471,75 @@ const WRAPPER_TYPES: &[&str] = &[
     "Chain",
 ];
 
+#[requires(true)]
+#[ensures(ret.is_none_or(|_| !type_arguments(arguments).is_empty()))]
 fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
     type_arguments(arguments).into_iter().next()
 }
 
+#[requires(true)]
+#[ensures(ret.is_none_or(|_| index < type_arguments(arguments).len()))]
 fn nth_type_argument(arguments: &PathArguments, index: usize) -> Option<&Type> {
     type_arguments(arguments).into_iter().nth(index)
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn reject_reference_tree_type(ty: &Type, aliases: &BTreeMap<String, Type>) -> syn::Result<()> {
+    reject_reference_tree_type_with_seen(ty, aliases, &mut BTreeSet::new())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reject_reference_tree_type_with_seen(
+    ty: &Type,
+    aliases: &BTreeMap<String, Type>,
+    seen_aliases: &mut BTreeSet<String>,
+) -> syn::Result<()> {
+    match ty {
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
+        Type::Path(path) if path.qself.is_none() => {
+            if path.path.segments.len() == 1
+                && let Some(segment) = path.path.segments.last()
+                && let Some(alias) = aliases.get(&segment.ident.to_string())
+                && seen_aliases.insert(segment.ident.to_string())
+            {
+                return reject_reference_tree_type_with_seen(alias, aliases, seen_aliases);
+            }
+            for argument in path
+                .path
+                .segments
+                .iter()
+                .flat_map(|segment| type_arguments(&segment.arguments))
+            {
+                reject_reference_tree_type_with_seen(argument, aliases, seen_aliases)?;
+            }
+            Ok(())
+        }
+        Type::Array(array) => {
+            reject_reference_tree_type_with_seen(&array.elem, aliases, seen_aliases)
+        }
+        Type::Tuple(tuple) => {
+            for elem in &tuple.elems {
+                reject_reference_tree_type_with_seen(elem, aliases, seen_aliases)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tree_type_error(reference: &syn::TypeReference) -> syn::Error {
+    syn::Error::new_spanned(
+        reference,
+        "tree_model! tree fields cannot use reference types; use an owned field type",
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn type_arguments(arguments: &PathArguments) -> Vec<&Type> {
     let PathArguments::AngleBracketed(arguments) = arguments else {
         return Vec::new();
@@ -453,6 +554,8 @@ fn type_arguments(arguments: &PathArguments) -> Vec<&Type> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strip_tree_attrs_from_item(item: &mut Item) -> syn::Result<Item> {
     match item {
         Item::Struct(item) => {
@@ -482,6 +585,8 @@ fn strip_tree_attrs_from_item(item: &mut Item) -> syn::Result<Item> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_items(
     items: &[Item],
     node_names: &BTreeSet<String>,
@@ -493,6 +598,8 @@ fn recovered_items(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_item(
     item: &Item,
     node_names: &BTreeSet<String>,
@@ -525,6 +632,8 @@ fn recovered_item(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
     attrs
         .iter()
@@ -535,17 +644,22 @@ fn recovered_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn transform_fields_for_recovery(
     fields: &mut Fields,
     node_names: &BTreeSet<String>,
     aliases: &BTreeMap<String, Type>,
 ) -> syn::Result<()> {
     for field in fields {
+        reject_reference_tree_type(&field.ty, aliases)?;
         field.ty = transform_type_for_recovery(&field.ty, node_names, aliases)?;
     }
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn transform_type_for_recovery(
     ty: &Type,
     node_names: &BTreeSet<String>,
@@ -564,9 +678,7 @@ fn transform_type_for_recovery(
             }
             Ok(wrap_recovered(ty.clone()))
         }
-        Type::Reference(reference) => {
-            transform_type_for_recovery(&reference.elem, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             let mut array = array.clone();
             array.elem = Box::new(transform_type_for_recovery(
@@ -583,6 +695,8 @@ fn transform_type_for_recovery(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn transform_wrapper_type_for_recovery(
     ty: &Type,
     node_names: &BTreeSet<String>,
@@ -610,19 +724,27 @@ fn transform_wrapper_type_for_recovery(
     Ok(ty)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn wrap_recovered(ty: Type) -> Type {
     parse_quote!(Recovered<#ty>)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn is_wrapper_ident(ident: &Ident) -> bool {
     WRAPPER_TYPES.contains(&ident.to_string().as_str())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
     if !emit {
         return quote!();
     }
     quote! {
+        // `WithFreeModifiers` and `FreeModifierSyntax` are jbotci syntax-model
+        // conventions used by generated recovered syntax trees.
         #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
         pub struct WithFreeModifiers<T> {
             pub value: T,
@@ -631,6 +753,8 @@ fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_field_state_impls(
     recovered_items: &[Item],
     atom_types: &BTreeMap<String, Type>,
@@ -650,7 +774,7 @@ fn recovered_field_state_impls(
         .collect::<syn::Result<Vec<_>>>()?;
     let atom_impls = atom_types
         .values()
-        .filter(|ty| !atom_has_builtin_recovered_field_state(ty))
+        .filter(|ty| atom_needs_generated_recovered_field_state_impl(ty))
         .map(|ty| {
             quote! {
                 #[::bityzba::contract_trait]
@@ -660,6 +784,23 @@ fn recovered_field_state_impls(
                     fn recovery_error_slots(&self) -> usize {
                         0
                     }
+                }
+            }
+        });
+    let external_atom_checks = atom_types
+        .values()
+        .enumerate()
+        .filter(|(_index, ty)| atom_requires_external_recovered_field_state(ty))
+        .map(|(index, ty)| {
+            let assert_fn = format_ident!("__jbotci_tree_assert_recovered_field_state_{index}");
+            let check_fn = format_ident!("__jbotci_tree_check_recovered_field_state_{index}");
+            quote! {
+                #[allow(dead_code)]
+                fn #assert_fn<T: ::jbotci_tree::RecoveredFieldState>() {}
+
+                #[allow(dead_code)]
+                fn #check_fn() {
+                    #assert_fn::<#ty>();
                 }
             }
         });
@@ -689,10 +830,13 @@ fn recovered_field_state_impls(
     Ok(quote! {
         #(#node_impls)*
         #(#atom_impls)*
+        #(#external_atom_checks)*
         #with_free_modifiers_impl
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn valid_field_state_impls(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
     let impls = items
         .iter()
@@ -733,17 +877,22 @@ fn valid_field_state_impls(items: &[Item]) -> syn::Result<proc_macro2::TokenStre
     Ok(quote!(#(#impls)*))
 }
 
-fn atom_has_builtin_recovered_field_state(ty: &Type) -> bool {
+#[requires(true)]
+#[ensures(true)]
+fn atom_needs_generated_recovered_field_state_impl(ty: &Type) -> bool {
     let Type::Path(path) = ty else {
-        return false;
+        return true;
     };
     if path.qself.is_some() {
-        return false;
-    }
-    if path.path.segments.len() > 1 {
         return true;
     }
-    path.path.segments.last().is_some_and(|segment| {
+    if path.path.segments.len() > 1 {
+        return false;
+    }
+    !path.path.segments.last().is_some_and(|segment| {
+        // `Word` is a jbotci syntax-model convention: generated syntax models
+        // provide the corresponding RecoveredFieldState implementation outside
+        // this generic tree macro.
         matches!(
             segment.ident.to_string().as_str(),
             "String" | "SourceSpan" | "Word"
@@ -751,6 +900,17 @@ fn atom_has_builtin_recovered_field_state(ty: &Type) -> bool {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn atom_requires_external_recovered_field_state(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::Path(path) if path.qself.is_none() && path.path.segments.len() > 1
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn recovered_struct_field_state_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStream> {
     let ident = &item.ident;
     let sum = recovered_field_state_sum(&item.fields, |index, field| {
@@ -792,6 +952,8 @@ fn recovered_struct_field_state_impl(item: &ItemStruct) -> syn::Result<proc_macr
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_enum_field_state_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     let mut error_slot_arms = Vec::new();
@@ -877,6 +1039,8 @@ fn recovered_enum_field_state_impl(item: &ItemEnum) -> syn::Result<proc_macro2::
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_field_state_sum<F>(fields: &Fields, access: F) -> syn::Result<proc_macro2::TokenStream>
 where
     F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
@@ -898,6 +1062,8 @@ where
     Ok(quote!(0 #(#terms)*))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_field_state_unconsumed_missing_sum<F>(
     fields: &Fields,
     access: F,
@@ -922,6 +1088,8 @@ where
     Ok(quote!(0 #(#terms)*))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_conversion_impls(
     recovered_items: &[Item],
     valid_items: &[Item],
@@ -956,6 +1124,8 @@ fn recovered_conversion_impls(
     Ok(quote!(#(#try_into_impls)* #(#from_valid_impls)*))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_struct_conversion_impl(
     item: &ItemStruct,
     node_names: &BTreeSet<String>,
@@ -1034,6 +1204,8 @@ fn recovered_struct_conversion_impl(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_struct_conversion_destructure(
     item: &ItemStruct,
     bindings: &[Ident],
@@ -1052,6 +1224,8 @@ fn recovered_struct_conversion_destructure(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_enum_conversion_impl(
     item: &ItemEnum,
     node_names: &BTreeSet<String>,
@@ -1169,6 +1343,8 @@ fn recovered_enum_conversion_impl(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_struct_from_valid_impl(
     item: &ItemStruct,
     node_names: &BTreeSet<String>,
@@ -1234,6 +1410,8 @@ fn recovered_struct_from_valid_impl(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn struct_from_valid_destructure(
     item: &ItemStruct,
     bindings: &[Ident],
@@ -1274,6 +1452,8 @@ fn struct_from_valid_destructure(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn struct_from_valid_boxed_destructure(
     item: &ItemStruct,
     bindings: &[Ident],
@@ -1314,6 +1494,8 @@ fn struct_from_valid_boxed_destructure(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn recovered_enum_from_valid_impl(
     item: &ItemEnum,
     node_names: &BTreeSet<String>,
@@ -1439,6 +1621,8 @@ fn recovered_enum_from_valid_impl(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_binding_ident(index: usize, field: &syn::Field) -> Ident {
     field
         .ident
@@ -1447,6 +1631,8 @@ fn field_binding_ident(index: usize, field: &syn::Field) -> Ident {
         .unwrap_or_else(|| format_ident!("converted_{index}"))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn item_needs_new_macro(item: &Item) -> bool {
     match item {
         Item::Struct(item) => attrs_need_new_macro(&item.attrs),
@@ -1455,6 +1641,8 @@ fn item_needs_new_macro(item: &Item) -> bool {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn attrs_need_new_macro(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
@@ -1464,6 +1652,8 @@ fn attrs_need_new_macro(attrs: &[Attribute]) -> bool {
         .any(|attr| !attr_is_true_contract_marker(attr))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_value_for_type(
     ty: &Type,
     expr: proc_macro2::TokenStream,
@@ -1495,9 +1685,7 @@ fn convert_value_for_type(
                 Ok(convert_recovered_atom(expr))
             }
         }
-        Type::Reference(reference) => {
-            convert_value_for_type(&reference.elem, expr, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             convert_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
@@ -1505,6 +1693,8 @@ fn convert_value_for_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_wrapper_value_for_type(
     wrapper: &Ident,
     arguments: &PathArguments,
@@ -1624,6 +1814,8 @@ fn convert_wrapper_value_for_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn smallvec_item_type(inner: &Type) -> &Type {
     if let Type::Array(array) = inner {
         &array.elem
@@ -1632,6 +1824,8 @@ fn smallvec_item_type(inner: &Type) -> &Type {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_vec_value_for_type(
     inner: &Type,
     expr: proc_macro2::TokenStream,
@@ -1652,6 +1846,8 @@ fn convert_vec_value_for_type(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_array_value_for_type(
     inner: &Type,
     len: &syn::Expr,
@@ -1674,6 +1870,8 @@ fn convert_array_value_for_type(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_recovered_node(expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! {
         (#expr).try_into_valid_boxed_with(path, |value, path| {
@@ -1682,12 +1880,16 @@ fn convert_recovered_node(expr: proc_macro2::TokenStream) -> proc_macro2::TokenS
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_recovered_atom(expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! {
         (#expr).try_into_valid_with(path, |value, _path| Ok(value))
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_value_for_type(
     ty: &Type,
     expr: proc_macro2::TokenStream,
@@ -1719,9 +1921,7 @@ fn convert_valid_value_for_type(
                 Ok(convert_valid_atom(expr))
             }
         }
-        Type::Reference(reference) => {
-            convert_valid_value_for_type(&reference.elem, expr, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             convert_valid_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
@@ -1729,6 +1929,8 @@ fn convert_valid_value_for_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_wrapper_value_for_type(
     wrapper: &Ident,
     arguments: &PathArguments,
@@ -1842,6 +2044,8 @@ fn convert_valid_wrapper_value_for_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_boxed_value_for_type(
     ty: &Type,
     expr: proc_macro2::TokenStream,
@@ -1878,6 +2082,8 @@ fn convert_valid_boxed_value_for_type(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_vec_value_for_type(
     inner: &Type,
     expr: proc_macro2::TokenStream,
@@ -1895,6 +2101,8 @@ fn convert_valid_vec_value_for_type(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_array_value_for_type(
     inner: &Type,
     len: &syn::Expr,
@@ -1917,10 +2125,14 @@ fn convert_valid_array_value_for_type(
     }))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_node(ident: &Ident, expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote!(Recovered::valid(#ident::from_valid(#expr)))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_boxed_node(
     ident: &Ident,
     expr: proc_macro2::TokenStream,
@@ -1928,10 +2140,14 @@ fn convert_valid_boxed_node(
     quote!(Recovered::valid_boxed(#ident::from_valid_boxed(#expr)))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn convert_valid_atom(expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote!(Recovered::valid(#expr))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn items_use_wrapper(items: &[Item], wrapper: &str) -> bool {
     items.iter().any(|item| match item {
         Item::Struct(item) => fields_use_wrapper(&item.fields, wrapper),
@@ -1944,12 +2160,16 @@ fn items_use_wrapper(items: &[Item], wrapper: &str) -> bool {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn fields_use_wrapper(fields: &Fields, wrapper: &str) -> bool {
     fields
         .iter()
         .any(|field| type_uses_wrapper(&field.ty, wrapper))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn type_uses_wrapper(ty: &Type, wrapper: &str) -> bool {
     match ty {
         Type::Path(path) => {
@@ -1977,6 +2197,8 @@ fn type_uses_wrapper(ty: &Type, wrapper: &str) -> bool {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strip_tree_attrs_from_fields(fields: &mut Fields) -> syn::Result<()> {
     for field in fields {
         let mut checked = Vec::new();
@@ -1992,6 +2214,8 @@ fn strip_tree_attrs_from_fields(fields: &mut Fields) -> syn::Result<()> {
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
     let variants = items.iter().flat_map(|item| match item {
         Item::Struct(item) => vec![node_ref_struct_variant(item)],
@@ -2057,11 +2281,15 @@ fn node_ref_enum(items: &[Item]) -> syn::Result<proc_macro2::TokenStream> {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_struct_variant(item: &ItemStruct) -> proc_macro2::TokenStream {
     let ident = &item.ident;
     quote!(#ident(&'tree #ident))
 }
 
+#[requires(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_variants(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2073,12 +2301,16 @@ fn node_ref_enum_variants(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_struct_constructor_arm(item: &ItemStruct) -> proc_macro2::TokenStream {
     let ident = &item.ident;
     let constructor = ident.to_string();
     quote!(NodeRef::#ident(..) => #constructor)
 }
 
+#[requires(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_constructor_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2091,11 +2323,15 @@ fn node_ref_enum_constructor_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStre
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_struct_is_variant_arm(item: &ItemStruct) -> proc_macro2::TokenStream {
     let ident = &item.ident;
     quote!(NodeRef::#ident(..) => false)
 }
 
+#[requires(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_is_variant_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2107,6 +2343,8 @@ fn node_ref_enum_is_variant_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStrea
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_equality_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
     node_ref_variant_idents(items)
         .into_iter()
@@ -2118,6 +2356,8 @@ fn node_ref_equality_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_hash_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
     node_ref_variant_idents(items)
         .into_iter()
@@ -2133,6 +2373,8 @@ fn node_ref_hash_arms(items: &[Item]) -> Vec<proc_macro2::TokenStream> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_from_impls(items: &[Item]) -> syn::Result<Vec<proc_macro2::TokenStream>> {
     items
         .iter()
@@ -2144,6 +2386,8 @@ fn node_ref_from_impls(items: &[Item]) -> syn::Result<Vec<proc_macro2::TokenStre
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_struct_from_impl(item: &ItemStruct) -> proc_macro2::TokenStream {
     let ident = &item.ident;
     quote! {
@@ -2155,6 +2399,8 @@ fn node_ref_struct_from_impl(item: &ItemStruct) -> proc_macro2::TokenStream {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_enum_from_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     let uses_data_patterns = enum_uses_data_patterns(item);
@@ -2191,6 +2437,8 @@ fn node_ref_enum_from_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStr
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn enum_variant_wildcard_pattern(
     enum_ident: &Ident,
     variant_ident: &Ident,
@@ -2224,6 +2472,8 @@ fn enum_variant_wildcard_pattern(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn node_ref_variant_idents(items: &[Item]) -> Vec<Ident> {
     items
         .iter()
@@ -2241,10 +2491,14 @@ fn node_ref_variant_idents(items: &[Item]) -> Vec<Ident> {
         .collect()
 }
 
+#[requires(true)]
+#[ensures(!ret.to_string().is_empty())]
 fn node_ref_variant_ident(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
     format_ident!("{enum_ident}{variant_ident}")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn atom_ref_enum(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenStream {
     let variants = atom_types.values().map(|ty| {
         let ident = atom_variant_ident(ty);
@@ -2258,6 +2512,8 @@ fn atom_ref_enum(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenStrea
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn atom_trait_impls(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenStream {
     let impls = atom_types.values().map(|ty| {
         let variant = atom_variant_ident(ty);
@@ -2290,12 +2546,17 @@ fn atom_trait_impls(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenSt
     quote!(#(#impls)*)
 }
 
+#[requires(true)]
+#[ensures(!ret.to_string().is_empty())]
 fn atom_variant_ident(ty: &Type) -> Ident {
-    let mut text = quote!(#ty)
-        .to_string()
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect::<String>();
+    let mut text = String::new();
+    for ch in quote!(#ty).to_string().chars() {
+        if ch.is_ascii_alphanumeric() {
+            text.push(ch);
+        } else {
+            write!(&mut text, "_x{:X}_", ch as u32).expect("writing to String should not fail");
+        }
+    }
     if text.is_empty() {
         text = "Atom".to_owned();
     }
@@ -2305,6 +2566,8 @@ fn atom_variant_ident(ty: &Type) -> Ident {
     format_ident!("{text}")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn wrapper_trait_impls(
     include_recovered: bool,
     include_with_free_modifiers: bool,
@@ -2813,6 +3076,8 @@ fn wrapper_trait_impls(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tree_node_trait_impls(
     items: &[Item],
     node_names: &BTreeSet<String>,
@@ -2833,6 +3098,8 @@ fn tree_node_trait_impls(
     Ok(quote!(#(#impls)*))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStream> {
     let ident = &item.ident;
     let visits = field_visits(&item.fields, |index, field| {
@@ -2908,6 +3175,8 @@ fn tree_node_struct_impl(item: &ItemStruct) -> syn::Result<proc_macro2::TokenStr
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     let uses_data_patterns = enum_uses_data_patterns(item);
@@ -3098,6 +3367,8 @@ fn tree_node_enum_impl(item: &ItemEnum) -> syn::Result<proc_macro2::TokenStream>
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn enum_uses_data_patterns(item: &ItemEnum) -> bool {
     item.attrs
         .iter()
@@ -3107,92 +3378,17 @@ fn enum_uses_data_patterns(item: &ItemEnum) -> bool {
         .any(|attr| !attr_is_true_contract_marker(attr))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn attr_is_true_contract_marker(attr: &Attribute) -> bool {
     let syn::Meta::List(list) = &attr.meta else {
         return false;
     };
-    attribute_segments(list.tokens.clone())
-        .into_iter()
-        .all(segment_is_true_contract_marker)
+    bityzba_contract_syntax::contract_attribute_is_true_marker(list.tokens.clone())
 }
 
-fn segment_is_true_contract_marker(segment: proc_macro2::TokenStream) -> bool {
-    if let Some(expr) = variant_contract_expr(segment.clone()) {
-        return expr_is_true_literal(&expr);
-    }
-    let Ok(expr) = syn::parse2::<syn::Expr>(segment) else {
-        return false;
-    };
-    expr_is_true_literal(&expr)
-}
-
-fn variant_contract_expr(segment: proc_macro2::TokenStream) -> Option<syn::Expr> {
-    let tokens = segment.into_iter().collect::<Vec<_>>();
-    if !starts_with_double_colon(&tokens) {
-        return None;
-    }
-    let arrow_index = top_level_fat_arrow_index(&tokens)?;
-    let expr_tokens = tokens
-        .into_iter()
-        .skip(arrow_index + 2)
-        .collect::<proc_macro2::TokenStream>();
-    syn::parse2::<syn::Expr>(expr_tokens).ok()
-}
-
-fn expr_is_true_literal(expr: &syn::Expr) -> bool {
-    matches!(
-        expr,
-        syn::Expr::Lit(syn::ExprLit {
-            lit: syn::Lit::Bool(lit),
-            ..
-        }) if lit.value
-    )
-}
-
-fn attribute_segments(tokens: proc_macro2::TokenStream) -> Vec<proc_macro2::TokenStream> {
-    let mut segments = Vec::new();
-    let mut segment = Vec::new();
-    for token in tokens {
-        match token {
-            TokenTree::Punct(punct)
-                if punct.as_char() == ',' && punct.spacing() == Spacing::Alone =>
-            {
-                if !segment.is_empty() {
-                    segments.push(segment.into_iter().collect());
-                    segment = Vec::new();
-                }
-            }
-            token => segment.push(token),
-        }
-    }
-    if !segment.is_empty() {
-        segments.push(segment.into_iter().collect());
-    }
-    segments
-}
-
-fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
-    matches!(
-        (tokens.first(), tokens.get(1)),
-        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
-            if first.as_char() == ':'
-                && first.spacing() == Spacing::Joint
-                && second.as_char() == ':'
-    )
-}
-
-fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
-    tokens.windows(2).position(|window| {
-        matches!(
-            (&window[0], &window[1]),
-            (TokenTree::Punct(first), TokenTree::Punct(second))
-                if first.as_char() == '='
-                    && first.spacing() == Spacing::Joint
-                    && second.as_char() == '>'
-        )
-    })
-}
-
+#[requires(true)]
+#[ensures(true)]
 fn field_visits<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
 where
     F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
@@ -3232,6 +3428,8 @@ where
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_is_option(ty: &Type) -> bool {
     let Type::Path(path) = ty else {
         return false;
@@ -3244,6 +3442,8 @@ fn field_is_option(ty: &Type) -> bool {
             .is_some_and(|segment| segment.ident == "Option")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_paths<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
 where
     F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
@@ -3269,6 +3469,8 @@ where
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_child_lookups<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
 where
     F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
@@ -3294,6 +3496,8 @@ where
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_name_tokens(field: &syn::Field) -> proc_macro2::TokenStream {
     let name = field.ident.as_ref().map(Ident::to_string);
     match name {
@@ -3302,17 +3506,22 @@ fn field_name_tokens(field: &syn::Field) -> proc_macro2::TokenStream {
     }
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 struct TreeChildFlags {
     primary: bool,
     skip: bool,
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
     let mut flags = TreeChildFlags {
         primary: false,
         skip: false,
     };
+    let mut primary_attr = None::<&Attribute>;
+    let mut skip_attr = None::<&Attribute>;
     for attr in attrs
         .iter()
         .filter(|attr| attr.path().is_ident("tree_child"))
@@ -3322,11 +3531,13 @@ fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
             .is_ok_and(|lit| !lit.value)
         {
             flags.skip = true;
+            skip_attr = Some(attr);
             continue;
         }
         let ident = attr.parse_args::<Ident>()?;
         if ident == "primary" {
             flags.primary = true;
+            primary_attr = Some(attr);
         } else {
             return Err(syn::Error::new_spanned(
                 attr,
@@ -3335,8 +3546,11 @@ fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
         }
     }
     if flags.primary && flags.skip {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
+        let attr = skip_attr
+            .or(primary_attr)
+            .expect("conflicting flags came from attributes");
+        return Err(syn::Error::new_spanned(
+            attr,
             "`tree_child(primary)` cannot be combined with `tree_child(false)`",
         ));
     }

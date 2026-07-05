@@ -4,9 +4,6 @@
 
 use bityzba::*;
 
-#[cfg(feature = "mirai_assertions")]
-mod mirai_assertion_mocks;
-
 #[test]
 fn adder_example() {
     #[contract_trait]

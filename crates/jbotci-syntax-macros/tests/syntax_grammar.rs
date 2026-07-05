@@ -1,11 +1,16 @@
+#[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct SyntaxGrammarEnv;
+#[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct TextSyntax;
+#[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct StatementSyntax;
+#[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct LinkedSumtiListSyntax;
+#[bityzba::invariant(true)]
 #[allow(dead_code)]
 struct BoSumtiTail;
 
@@ -20,12 +25,15 @@ enum Cmavo {
 #[allow(dead_code)]
 enum Selmaho {
     Fa,
+    Pa,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 enum SyntaxWordCategory {
+    Cmevla,
     Quote,
+    SelbriWord,
 }
 
 jbotci_syntax_macros::syntax_grammar! {
@@ -59,6 +67,8 @@ jbotci_syntax_macros::syntax_grammar! {
     }
 }
 
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 #[test]
 fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_ENV, "SyntaxGrammarEnv");
@@ -156,6 +166,13 @@ fn grammar_macro_exports_declaration_metadata() {
     );
 
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "struct");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[2].fields[0].recovery,
+        SyntaxGrammarRecoveryExpr::Choice(&[
+            SyntaxGrammarRecoveryExpr::Opaque("joik()"),
+            SyntaxGrammarRecoveryExpr::Opaque("jek()"),
+        ])
+    );
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[1].name, "bo");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[2].fields[1].recovery,
@@ -168,6 +185,57 @@ fn grammar_macro_exports_declaration_metadata() {
     );
 }
 
+mod recovery_classification {
+    use crate::{Cmavo, Selmaho, SyntaxWordCategory};
+
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        env SyntaxGrammarEnv;
+
+        rule "token helpers" token_helpers -> struct {
+            field pa <- pa_word();
+            field cmevla <- cmevla_word();
+            field leading_cmevla <- text_leading_cmevla_word();
+            field relation <- relation_word();
+            field external <- external_helper();
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_macro_classifies_builtin_and_external_recovery_calls() {
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Selmaho(Selmaho::Pa)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[1].recovery,
+            SyntaxGrammarRecoveryExpr::WordCategory(SyntaxWordCategory::Cmevla)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[2].recovery,
+            SyntaxGrammarRecoveryExpr::WordCategory(SyntaxWordCategory::Cmevla)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[3].recovery,
+            SyntaxGrammarRecoveryExpr::RelationWord
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[4].recovery,
+            SyntaxGrammarRecoveryExpr::Opaque("external_helper()")
+        );
+    }
+}
+
+#[bityzba::requires(true)]
+#[bityzba::ensures(true)]
 #[test]
 fn grammar_macro_exports_rule_lookup() {
     let rule = syntax_grammar_rule_by_name("linkargs").expect("linkargs rule exists");
@@ -176,6 +244,7 @@ fn grammar_macro_exports_rule_lookup() {
 }
 
 mod generated_model {
+    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
@@ -223,6 +292,8 @@ mod generated_model {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_emits_model_items_from_type_bearing_rules() {
         let item = ItemSyntax { token: Token };
@@ -244,6 +315,7 @@ mod generated_model {
 }
 
 mod generated_model_filter {
+    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
@@ -264,6 +336,8 @@ mod generated_model_filter {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_filters_generated_model_outputs() {
         let kept = KeptSyntax(Token);
@@ -274,9 +348,11 @@ mod generated_model_filter {
 mod generated_model_with_env {
     use crate::{Cmavo, Selmaho};
 
+    #[bityzba::invariant(true)]
     #[allow(dead_code)]
     struct SyntaxGrammarEnv;
 
+    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
@@ -290,6 +366,8 @@ mod generated_model_with_env {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_emits_model_items_when_env_is_present() {
         let node = EnvNodeSyntax(Token);
@@ -301,12 +379,15 @@ mod generated_model_with_env {
 mod new_dsl {
     use crate::{Cmavo, Selmaho};
 
+    #[bityzba::invariant(true)]
     #[allow(dead_code)]
     struct SyntaxGrammarEnv;
 
+    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
 
+    #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct ExternalSyntax {
         pub token: Token,
@@ -381,6 +462,8 @@ mod new_dsl {
         }
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_accepts_explicit_struct_enum_and_alias_rules() {
         let item = ItemSyntax {
@@ -415,6 +498,8 @@ mod new_dsl {
         ));
     }
 
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     #[test]
     fn grammar_macro_exports_new_dsl_metadata() {
         assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 11);

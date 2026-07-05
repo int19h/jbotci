@@ -8,10 +8,11 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use proc_macro2::{Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
+use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod, ItemStruct,
-    ItemTrait, ReturnType, TraitItem, TraitItemFn, Type,
+    Attribute, Block, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod,
+    ItemStruct, ItemTrait, Path as SynPath, ReturnType, TraitItem, TraitItemFn, Type,
 };
 use walkdir::WalkDir;
 
@@ -47,13 +48,16 @@ impl ContractScanner {
     }
 
     fn scan_inner(&self, emit_rerun_if_changed: bool) -> Result<(), ContractScanError> {
+        if emit_rerun_if_changed {
+            for path in self.rerun_if_changed_paths() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+
         let files = self.rust_files()?;
         let mut diagnostics = Vec::new();
 
         for path in files {
-            if emit_rerun_if_changed {
-                println!("cargo:rerun-if-changed={}", path.display());
-            }
             let contents = fs::read_to_string(&path).map_err(|error| {
                 ContractScanError::setup(format!("failed to read {}: {error}", path.display()))
             })?;
@@ -108,6 +112,13 @@ impl ContractScanner {
         files.sort();
         files.dedup();
         Ok(files)
+    }
+
+    fn rerun_if_changed_paths(&self) -> Vec<PathBuf> {
+        ["src", "tests", "benches", "examples", "build.rs"]
+            .into_iter()
+            .map(|path| self.manifest_dir.join(path))
+            .collect()
     }
 }
 
@@ -208,15 +219,19 @@ impl FileScanner {
 
     fn scan_items(&mut self, items: &[Item]) {
         for item in items {
-            match item {
-                Item::Fn(item) => self.scan_free_function(item),
-                Item::Struct(item) => self.scan_struct(item),
-                Item::Enum(item) => self.scan_enum(item),
-                Item::Trait(item) => self.scan_trait(item),
-                Item::Impl(item) => self.scan_impl(item),
-                Item::Mod(item) => self.scan_mod(item),
-                _ => {}
-            }
+            self.scan_item(item);
+        }
+    }
+
+    fn scan_item(&mut self, item: &Item) {
+        match item {
+            Item::Fn(item) => self.scan_free_function(item),
+            Item::Struct(item) => self.scan_struct(item),
+            Item::Enum(item) => self.scan_enum(item),
+            Item::Trait(item) => self.scan_trait(item),
+            Item::Impl(item) => self.scan_impl(item),
+            Item::Mod(item) => self.scan_mod(item),
+            _ => {}
         }
     }
 
@@ -240,6 +255,7 @@ impl FileScanner {
             &item.sig.ident.to_string(),
             item.sig.ident.span(),
         );
+        self.scan_block(&item.block);
     }
 
     fn scan_struct(&mut self, item: &ItemStruct) {
@@ -249,7 +265,7 @@ impl FileScanner {
             &item.ident.to_string(),
             item.ident.span(),
         );
-        if !has_type_invariant(&item.attrs) {
+        if matches!(item.fields, Fields::Named(_)) && !has_type_invariant(&item.attrs) {
             self.diagnostics.push(Diagnostic::new(
                 self.path.clone(),
                 item.ident.span().start().line,
@@ -331,30 +347,37 @@ impl FileScanner {
             &format!("{trait_name}::{}", method.sig.ident),
             method.sig.ident.span(),
         );
+        if let Some(block) = &method.default {
+            self.scan_block(block);
+        }
     }
 
     fn scan_impl(&mut self, item: &ItemImpl) {
-        if item.trait_.is_some() {
-            return;
-        }
-
         for impl_item in &item.items {
             if let ImplItem::Fn(method) = impl_item {
-                self.require_contract_attribute_order(
-                    &method.attrs,
-                    "method",
-                    &method.sig.ident.to_string(),
-                    method.sig.ident.span(),
-                );
-                self.require_function_contracts(
-                    &method.attrs,
-                    &method.sig.output,
-                    "method",
-                    &method.sig.ident.to_string(),
-                    method.sig.ident.span(),
-                );
+                if item.trait_.is_none() {
+                    self.require_contract_attribute_order(
+                        &method.attrs,
+                        "method",
+                        &method.sig.ident.to_string(),
+                        method.sig.ident.span(),
+                    );
+                    self.require_function_contracts(
+                        &method.attrs,
+                        &method.sig.output,
+                        "method",
+                        &method.sig.ident.to_string(),
+                        method.sig.ident.span(),
+                    );
+                }
+                self.scan_block(&method.block);
             }
         }
+    }
+
+    fn scan_block(&mut self, block: &Block) {
+        let mut visitor = FunctionBodyScanner { scanner: self };
+        visitor.visit_block(block);
     }
 
     fn require_contract_attribute_order(
@@ -439,9 +462,22 @@ impl FileScanner {
     }
 }
 
+struct FunctionBodyScanner<'scanner> {
+    scanner: &'scanner mut FileScanner,
+}
+
+impl<'ast> Visit<'ast> for FunctionBodyScanner<'_> {
+    fn visit_item(&mut self, item: &'ast Item) {
+        self.scanner.scan_item(item);
+    }
+
+    fn visit_block(&mut self, block: &'ast Block) {
+        visit::visit_block(self, block);
+    }
+}
+
 fn contract_attr_rank(attr: &Attribute) -> Option<(u8, &'static str)> {
-    let name = attr.path().segments.last()?.ident.to_string();
-    match name.as_str() {
+    match contract_attr_name(attr)? {
         "requires" | "expensive_requires" => Some((0, "requires")),
         "ensures" | "expensive_ensures" => Some((1, "ensures")),
         "invariant" | "expensive_invariant" => Some((2, "invariant")),
@@ -462,16 +498,44 @@ fn has_type_invariant(attrs: &[Attribute]) -> bool {
 }
 
 fn has_any_attr_named(attrs: &[Attribute], names: &[&str]) -> bool {
-    attrs.iter().any(|attr| {
-        attr.path()
-            .segments
-            .last()
-            .is_some_and(|segment| names.iter().any(|name| segment.ident == *name))
-    })
+    attrs
+        .iter()
+        .any(|attr| contract_attr_name(attr).is_some_and(|name| names.contains(&name)))
 }
 
 fn has_attr_named(attrs: &[Attribute], name: &str) -> bool {
     has_any_attr_named(attrs, &[name])
+}
+
+fn contract_attr_name(attr: &Attribute) -> Option<&'static str> {
+    const NAMES: &[&str] = &[
+        "contract_trait",
+        "requires",
+        "expensive_requires",
+        "ensures",
+        "expensive_ensures",
+        "invariant",
+        "expensive_invariant",
+    ];
+
+    bityzba_attr_name(attr.path(), NAMES)
+}
+
+fn bityzba_attr_name(path: &SynPath, names: &[&'static str]) -> Option<&'static str> {
+    let mut segments = path.segments.iter();
+    let first = segments.next()?;
+    let second = segments.next();
+    if segments.next().is_some() {
+        return None;
+    }
+
+    match second {
+        None => names.iter().copied().find(|name| first.ident == *name),
+        Some(second) if first.ident == "bityzba" => {
+            names.iter().copied().find(|name| second.ident == *name)
+        }
+        Some(_) => None,
+    }
 }
 
 fn is_result_return_type(output: &ReturnType) -> bool {
@@ -602,7 +666,7 @@ fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {
         let syn::Meta::List(list) = &attr.meta else {
             continue;
         };
-        for segment in attribute_segments(list.tokens.clone()) {
+        for segment in bityzba_contract_syntax::attribute_segments(list.tokens.clone()) {
             if let Some(variant) = variant_invariant_name(segment) {
                 variants.insert(variant);
             }
@@ -611,62 +675,42 @@ fn enum_variant_invariants(attrs: &[Attribute]) -> BTreeSet<String> {
     variants
 }
 
-fn attribute_segments(tokens: TokenStream) -> Vec<TokenStream> {
-    let mut segments = Vec::new();
-    let mut segment = Vec::new();
-    for token in tokens {
-        match token {
-            TokenTree::Punct(punct)
-                if punct.as_char() == ',' && punct.spacing() == Spacing::Alone =>
-            {
-                if !segment.is_empty() {
-                    segments.push(segment.into_iter().collect());
-                    segment = Vec::new();
-                }
-            }
-            token => segment.push(token),
-        }
-    }
-    if !segment.is_empty() {
-        segments.push(segment.into_iter().collect());
-    }
-    segments
-}
-
 fn variant_invariant_name(segment: TokenStream) -> Option<String> {
-    let tokens = segment.into_iter().collect::<Vec<_>>();
-    if !starts_with_double_colon(&tokens) || top_level_fat_arrow_index(&tokens).is_none() {
-        return None;
-    }
-    match tokens.get(2) {
-        Some(TokenTree::Ident(ident)) => Some(ident.to_string()),
-        _ => None,
-    }
-}
-
-fn starts_with_double_colon(tokens: &[TokenTree]) -> bool {
-    matches!(
-        (tokens.first(), tokens.get(1)),
-        (Some(TokenTree::Punct(first)), Some(TokenTree::Punct(second)))
-            if first.as_char() == ':'
-                && first.spacing() == Spacing::Joint
-                && second.as_char() == ':'
-    )
-}
-
-fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
-    tokens.windows(2).position(|window| {
-        matches!(
-            (&window[0], &window[1]),
-            (TokenTree::Punct(first), TokenTree::Punct(second))
-                if first.as_char() == '='
-                    && first.spacing() == Spacing::Joint
-                    && second.as_char() == '>'
-        )
-    })
+    bityzba_contract_syntax::parse_variant_invariant_segment(segment)
+        .and_then(Result::ok)
+        .map(|parsed| parsed.variant_ident.to_string())
 }
 
 fn display_path(manifest_dir: &Path, path: &Path) -> String {
     let path = path.strip_prefix(manifest_dir).unwrap_or(path);
     path.to_string_lossy().replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::ContractScanner;
+
+    #[test]
+    fn rerun_paths_track_source_roots_and_build_script() {
+        let scanner = ContractScanner::new(PathBuf::from("/workspace/package"));
+
+        let paths = scanner
+            .rerun_if_changed_paths()
+            .into_iter()
+            .map(|path| path.strip_prefix("/workspace/package").unwrap().to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            paths,
+            vec![
+                PathBuf::from("src"),
+                PathBuf::from("tests"),
+                PathBuf::from("benches"),
+                PathBuf::from("examples"),
+                PathBuf::from("build.rs"),
+            ]
+        );
+    }
 }

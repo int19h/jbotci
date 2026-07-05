@@ -9,7 +9,14 @@ use crate::implementation::{ContractMode, ContractType, FuncWithContracts};
 pub(crate) fn ensures(mode: ContractMode, attr: TokenStream, toks: TokenStream) -> TokenStream {
     let ty = ContractType::Ensures;
 
-    let func = syn::parse_quote!(#toks);
+    let func = match syn::parse2::<syn::Item>(toks.clone()) {
+        Ok(syn::Item::Fn(func)) => func,
+        Ok(other) => {
+            return syn::Error::new_spanned(other, "#[ensures] can only be applied to functions")
+                .to_compile_error();
+        }
+        Err(error) => return error.to_compile_error(),
+    };
 
     let f = FuncWithContracts::new_with_initial_contract(func, ty, mode, attr);
 

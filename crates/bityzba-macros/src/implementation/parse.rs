@@ -10,6 +10,7 @@ use syn::{Expr, ExprLit, Lit};
 pub(crate) fn parse_attributes(
     attrs: TokenStream,
 ) -> (Vec<Expr>, Vec<TokenStream>, Option<String>) {
+    let original_attrs = attrs.clone();
     let segments = segment_input(attrs);
     let mut segments_stream: Vec<TokenStream> = segments
         .iter()
@@ -42,39 +43,49 @@ pub(crate) fn parse_attributes(
         segments_stream.pop();
     }
 
+    if conds.is_empty() {
+        conds.push(missing_contract_predicate_error(original_attrs.clone()));
+        segments_stream.push(original_attrs);
+    }
+
     (conds, segments_stream, desc)
 }
 
-pub(crate) fn parse_contract_expr(attrs: TokenStream) -> Expr {
-    let rewritten = rewrite(attrs.into_iter().collect());
-    match syn::parse2::<Expr>(rewritten) {
-        Ok(expr) => expr,
-        Err(error) => Expr::Verbatim(error.to_compile_error()),
-    }
-}
-
 pub(crate) fn parse_attribute_segments(attrs: TokenStream) -> Vec<TokenStream> {
-    segment_input(attrs)
-        .into_iter()
-        .map(|segment| segment.into_iter().collect())
-        .collect()
+    bityzba_contract_syntax::attribute_segments(attrs)
 }
 
-// This function rewrites a list of TokenTrees so that the "pseudooperator" for
-// implication `==>` gets transformed into an `if` expression.
+fn missing_contract_predicate_error(attrs: TokenStream) -> Expr {
+    Expr::Verbatim(
+        syn::Error::new_spanned(
+            attrs,
+            "contract attribute requires a predicate expression; use `#[requires(expr)]` or `#[requires(expr, \"description\")]`",
+        )
+        .to_compile_error(),
+    )
+}
+
+// This function rewrites a list of TokenTrees so that the contract
+// pseudo-operator for implication, `->`, gets transformed into a boolean
+// expression.
 //
 // This has to happen on a TokenStream/Tree because it's not possible to easily
 // add new syntax to the syn parsers without basically re-writing the whole
 // expression parsing functions from scratch.
 //
-// The input gets classified into "before `==>` op" and "after `==>` op". Those
-// two groups are then used to create an `if` that has implication semantics.
+// The input gets classified into "before `->` op" and "after `->` op". Those
+// two groups are then used to create an expression with implication semantics.
 // However, because the input is only split based on the operator, no precedence
 // is respected, including keywords such as `if`. This means the implication
 // operator should only be used in grouped expressions.
 // This also has the effect that implication is right-associative, which is the
 // expected behaviour.
 fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
+    let original = segments.iter().cloned().collect::<TokenStream>();
+    if syn::parse2::<Expr>(original.clone()).is_ok() {
+        return original;
+    }
+
     let mut lhs = vec![];
     let mut rhs: Option<_> = None;
     let mut span: Option<_> = None;
@@ -86,7 +97,11 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
             TokenTree::Group(group) => {
                 let stream: Vec<_> = group.stream().into_iter().collect();
 
-                let new_stream: TokenStream = rewrite(stream).into_iter().collect();
+                let new_stream = if matches!(group.delimiter(), proc_macro2::Delimiter::Brace) {
+                    stream.into_iter().collect()
+                } else {
+                    rewrite(stream)
+                };
 
                 let mut new_group = proc_macro2::Group::new(group.delimiter(), new_stream);
                 new_group.set_span(group.span());
@@ -117,7 +132,10 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
                     }
                 };
 
-                if punct(idx, '-', Spacing::Joint) && punct(idx + 1, '>', Spacing::Alone) {
+                if punct(idx, '-', Spacing::Joint)
+                    && punct(idx + 1, '>', Spacing::Alone)
+                    && !arrow_is_rust_syntax(&segments, idx)
+                {
                     // found the implication
                     let rest = Vec::from(&segments[idx + 2..]);
                     let rhs_stream = rewrite(rest);
@@ -126,8 +144,8 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
                     span = Some(segments[idx + 1].span());
                     break 'segment;
                 } else {
-                    // consume all so that =========> would not match with
-                    // implication
+                    // Consume the whole punctuation run so a longer operator
+                    // cannot match a contract implication suffix.
                     'op: while let Some(tt) = segments.get(idx) {
                         match tt {
                             TokenTree::Punct(p) => {
@@ -169,6 +187,34 @@ fn rewrite(segments: Vec<TokenTree>) -> proc_macro2::TokenStream {
             }
         }
     }
+}
+
+fn arrow_is_rust_syntax(segments: &[TokenTree], arrow_index: usize) -> bool {
+    arrow_is_closure_return_type(segments, arrow_index)
+        || arrow_is_function_pointer_return_type(segments, arrow_index)
+}
+
+fn arrow_is_closure_return_type(segments: &[TokenTree], arrow_index: usize) -> bool {
+    matches!(
+        arrow_index.checked_sub(1).and_then(|index| segments.get(index)),
+        Some(TokenTree::Punct(punct))
+            if punct.as_char() == '|' && punct.spacing() == Spacing::Alone
+    )
+}
+
+fn arrow_is_function_pointer_return_type(segments: &[TokenTree], arrow_index: usize) -> bool {
+    let mut previous_significant = segments[..arrow_index]
+        .iter()
+        .rev()
+        .filter(|token| !matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','));
+
+    match previous_significant.next() {
+        Some(TokenTree::Group(group))
+            if group.delimiter() == proc_macro2::Delimiter::Parenthesis => {}
+        _ => return false,
+    }
+
+    previous_significant.any(|token| matches!(token, TokenTree::Ident(ident) if ident == "fn"))
 }
 
 // The tokenstream can contain multiple expressions to be checked, separated by
