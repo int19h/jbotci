@@ -1128,27 +1128,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:EnumRule",
-        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:FieldItem",
-        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedFieldModel",
-        "syntax macro generated model state is assembled from typed grammar metadata",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:GeneratedStructModel",
         "syntax macro generated model state is assembled from typed grammar metadata",
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:GeneratedTreeModel",
-        "syntax macro generated model state is assembled from typed grammar metadata",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedVariantModel",
         "syntax macro generated model state is assembled from typed grammar metadata",
     ),
     (
@@ -1169,10 +1153,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:SyntaxGrammar",
-        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
-    ),
-    (
-        "crates/jbotci-syntax-macros/src/lib.rs:VectorExpr",
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (

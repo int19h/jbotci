@@ -185,4 +185,14 @@ mod tests {
         assert_eq!(parsed.tail.to_string(), "(left , right)");
         assert_eq!(parsed.expr.to_string(), "* right > 0");
     }
+
+    #[test]
+    fn variant_parse_errors_have_non_empty_diagnostics() {
+        for segment in [quote!(::Pair), quote!(:: => value > 0), quote!(::Pair =>)] {
+            let error = parse_variant_invariant_segment(segment)
+                .expect("variant arm")
+                .expect_err("invalid variant invariant shape");
+            assert!(!error.to_string().is_empty());
+        }
+    }
 }

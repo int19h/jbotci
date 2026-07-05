@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -398,7 +398,7 @@ fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|outputs| !outputs.is_empty()))]
 fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>> {
     let content;
     braced!(content in input);
@@ -578,20 +578,20 @@ impl SyntaxGrammar {
                             variant_constructor.clone(),
                             snake_case(&variant_constructor),
                         ));
-                        let field = GeneratedFieldModel {
+                        let field = GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
                             attrs: branch.attrs.clone(),
                             name: branch.name.clone(),
                             ty: quote!(#branch_output),
-                        };
+                        }));
                         push_generated_variant(
                             &mut enums,
                             output.to_string(),
-                            GeneratedVariantModel {
+                            GeneratedVariantModel::from_data(data!(GeneratedVariantModel {
                                 variant,
                                 rule_name: rule.name.clone(),
                                 fields: vec![field],
                                 tuple: true,
-                            },
+                            })),
                         )?;
                     }
                     continue;
@@ -1008,8 +1008,8 @@ fn canonical_path_arguments(arguments: &PathArguments) -> Option<String> {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
+#[requires(name.chars().any(|ch| ch != '_' && ch != '-' && ch != ' '))]
+#[ensures(!ret.to_string().is_empty())]
 fn pascal_case_ident(name: &str) -> Ident {
     let mut out = String::new();
     let mut uppercase_next = true;
@@ -1025,14 +1025,11 @@ fn pascal_case_ident(name: &str) -> Ident {
             out.push(ch);
         }
     }
-    if out.is_empty() {
-        out.push_str("Rule");
-    }
     format_ident!("{out}")
 }
 
-#[requires(true)]
-#[ensures(true)]
+#[requires(name.chars().any(|ch| ch != '_' && ch != '-' && ch != ' '))]
+#[ensures(!ret.is_empty())]
 fn snake_case(name: &str) -> String {
     let mut out = String::new();
     let mut previous_was_separator = false;
@@ -1138,7 +1135,7 @@ impl GeneratedStructModel {
     }
 }
 
-#[invariant(true)]
+#[invariant(!fields.is_empty(), "generated enum variants carry at least one field")]
 struct GeneratedVariantModel {
     variant: Ident,
     rule_name: Ident,
@@ -1179,7 +1176,7 @@ impl ToTokens for GeneratedVariantModel {
     }
 }
 
-#[invariant(true)]
+#[invariant(!ty.is_empty(), "generated model field type tokens must not be empty")]
 struct GeneratedFieldModel {
     attrs: Vec<Attribute>,
     name: Ident,
@@ -1609,7 +1606,7 @@ impl ToTokens for ChainExpr {
     }
 }
 
-#[invariant(true)]
+#[invariant(!items.is_empty(), "vector parser expressions need at least one item")]
 struct VectorExpr {
     items: Vec<VectorItem>,
 }
@@ -1680,7 +1677,7 @@ impl Parse for VectorExpr {
         if items.is_empty() {
             return Err(content.error("vector parser expressions need at least one item"));
         }
-        Ok(Self { items })
+        Ok(Self::from_data(data!(VectorExpr { items })))
     }
 }
 
@@ -2085,7 +2082,7 @@ impl Parse for AliasRule {
     }
 }
 
-#[invariant(true)]
+#[invariant(!branches.is_empty(), "enum rules need at least one branch")]
 struct EnumRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -3725,7 +3722,7 @@ fn strict_tuple_parser_expr_tokens(
     strict_sequence_expr_chain(parts)
 }
 
-#[requires(true)]
+#[requires(!function.is_empty())]
 #[ensures(true)]
 fn strict_rule_call_parser_tokens<'a>(
     function: &str,
@@ -3807,7 +3804,7 @@ fn strict_rule_call_by_argument_names(
     ))
 }
 
-#[requires(true)]
+#[requires(!function.is_empty())]
 #[ensures(true)]
 fn strict_rule_call_tokens(
     function: &str,
@@ -3830,7 +3827,7 @@ fn strict_rule_call_tokens(
     ))
 }
 
-#[requires(true)]
+#[requires(!argument.is_empty())]
 #[ensures(true)]
 fn strict_argument_parser_tokens(
     argument: &str,
@@ -4578,13 +4575,13 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
         if branches.is_empty() {
             return Err(content.error("enum rules need at least one branch"));
         }
-        Ok(Rule::Enum(EnumRule {
+        Ok(Rule::Enum(EnumRule::from_data(data!(EnumRule {
             output: syntax_type_for_rule(&name),
             name,
             arguments,
             context,
             branches,
-        }))
+        }))))
     } else {
         Err(input.error("expected `struct` or `enum` after `->`"))
     }
@@ -4634,14 +4631,14 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
             input.parse::<Expr>()?.into()
         };
         input.parse::<Token![;]>()?;
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind,
             name: Some(name),
             ty,
             parser,
-        })
+        })))
     } else if input.peek(Token![let]) {
         input.parse::<Token![let]>()?;
         let name = input.parse()?;
@@ -4654,14 +4651,14 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
         input.parse::<Token![=]>()?;
         let parser = input.parse::<Expr>()?.into();
         input.parse::<Token![;]>()?;
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind: FieldKind::TempLet,
             name: Some(name),
             ty,
             parser,
-        })
+        })))
     } else if input.peek(kw::assert) {
         input.parse::<kw::assert>()?;
         let negated = input.peek(Token![!]);
@@ -4677,14 +4674,14 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
                 .postfix("lookahead", Vec::new())
                 .postfix("ignored", Vec::new())
         };
-        Ok(FieldItem {
+        Ok(FieldItem::from_data(data!(FieldItem {
             attrs,
             conditions,
             kind: FieldKind::Require,
             name: None,
             ty: None,
             parser,
-        })
+        })))
     } else {
         Err(input.error("expected `field`, `let`, or `assert`"))
     }
@@ -4703,7 +4700,8 @@ fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
         .collect())
 }
 
-#[invariant(true)]
+#[invariant(matches!(kind, FieldKind::Require) == name.is_none(), "only assert field items are nameless")]
+#[invariant(!matches!(kind, FieldKind::Require) || ty.is_none(), "assert field items do not have output types")]
 struct FieldItem {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -4778,11 +4776,11 @@ impl FieldItem {
                 unreachable!("parser-only fields are filtered before model field generation")
             }
         };
-        Ok(GeneratedFieldModel {
+        Ok(GeneratedFieldModel::from_data(data!(GeneratedFieldModel {
             attrs: self.attrs.clone(),
             name,
             ty,
-        })
+        })))
     }
 }
 
@@ -5131,12 +5129,12 @@ fn classify_recovery_expr(
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_none_or(|expr| !expr.items.is_empty()))]
 fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
     if array.elems.is_empty() {
         return None;
     }
-    Some(VectorExpr {
+    Some(VectorExpr::from_data(data!(VectorExpr {
         items: array
             .elems
             .iter()
@@ -5144,7 +5142,7 @@ fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
             .map(ParserExpr::Rust)
             .map(VectorItem::One)
             .collect(),
-    })
+    })))
 }
 
 #[requires(true)]
@@ -5334,8 +5332,8 @@ fn path_expr_last_segment(expr: &Expr) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
-#[requires(true)]
-#[ensures(true)]
+#[requires(!message.is_empty())]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|segment| !segment.is_empty()))]
 fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result<String> {
     path_expr_last_segment(expr).ok_or_else(|| syn::Error::new_spanned(expr, message))
 }

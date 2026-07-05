@@ -472,13 +472,13 @@ const WRAPPER_TYPES: &[&str] = &[
 ];
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.is_none_or(|_| !type_arguments(arguments).is_empty()))]
 fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
     type_arguments(arguments).into_iter().next()
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.is_none_or(|_| index < type_arguments(arguments).len()))]
 fn nth_type_argument(arguments: &PathArguments, index: usize) -> Option<&Type> {
     type_arguments(arguments).into_iter().nth(index)
 }
@@ -2289,7 +2289,7 @@ fn node_ref_struct_variant(item: &ItemStruct) -> proc_macro2::TokenStream {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_variants(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2310,7 +2310,7 @@ fn node_ref_struct_constructor_arm(item: &ItemStruct) -> proc_macro2::TokenStrea
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_constructor_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2331,7 +2331,7 @@ fn node_ref_struct_is_variant_arm(item: &ItemStruct) -> proc_macro2::TokenStream
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.len() == item.variants.len())]
 fn node_ref_enum_is_variant_arms(item: &ItemEnum) -> Vec<proc_macro2::TokenStream> {
     let enum_ident = &item.ident;
     item.variants
@@ -2492,7 +2492,7 @@ fn node_ref_variant_idents(items: &[Item]) -> Vec<Ident> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret.to_string().is_empty())]
 fn node_ref_variant_ident(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
     format_ident!("{enum_ident}{variant_ident}")
 }
@@ -2547,7 +2547,7 @@ fn atom_trait_impls(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenSt
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret.to_string().is_empty())]
 fn atom_variant_ident(ty: &Type) -> Ident {
     let mut text = String::new();
     for ch in quote!(#ty).to_string().chars() {
