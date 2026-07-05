@@ -4,9 +4,6 @@
 
 use bityzba::*;
 
-#[cfg(feature = "mirai_assertions")]
-mod mirai_assertion_mocks;
-
 #[test]
 fn test_ret_implication() {
     #[ensures(do_thing -> ret.is_some(), "do_thing should cause a Some(_)")]
@@ -71,4 +68,38 @@ fn test_nested_implication() {
     test(true, false);
     test(false, true);
     test(true, true);
+}
+
+#[test]
+fn implication_allows_rust_closure_return_arrows() {
+    #[requires((|candidate: i32| -> bool { candidate > 0 })(value))]
+    #[ensures(ret)]
+    fn accepts_positive(value: i32) -> bool {
+        value > 0
+    }
+
+    assert!(accepts_positive(1));
+}
+
+#[test]
+fn implication_allows_rust_function_pointer_return_arrows() {
+    #[requires(::std::mem::size_of::<fn(i32) -> bool>() > 0)]
+    #[ensures(ret)]
+    fn has_function_pointer_type() -> bool {
+        true
+    }
+
+    assert!(has_function_pointer_type());
+}
+
+#[test]
+fn top_level_commas_separate_implication_predicates() {
+    #[requires(flag -> value > 0, !flag -> value <= 0)]
+    #[ensures(ret)]
+    fn valid_flag_value(flag: bool, value: i32) -> bool {
+        (flag && value > 0) || (!flag && value <= 0)
+    }
+
+    assert!(valid_flag_value(true, 1));
+    assert!(valid_flag_value(false, 0));
 }

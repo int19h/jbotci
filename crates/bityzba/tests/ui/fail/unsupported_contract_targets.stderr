@@ -1,0 +1,23 @@
+error: #[requires] can only be applied to functions
+ --> tests/ui/fail/unsupported_contract_targets.rs:2:1
+  |
+2 | struct RequiresTarget;
+  | ^^^^^^^^^^^^^^^^^^^^^^
+
+error: #[ensures] can only be applied to functions
+ --> tests/ui/fail/unsupported_contract_targets.rs:5:1
+  |
+5 | struct EnsuresTarget;
+  | ^^^^^^^^^^^^^^^^^^^^^
+
+error: #[invariant] can only be applied to functions, impl blocks, structs, and enums
+ --> tests/ui/fail/unsupported_contract_targets.rs:8:1
+  |
+8 | const INVARIANT_TARGET: usize = 0;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: #[contract_trait] can only be applied to trait definitions and trait impl blocks
+  --> tests/ui/fail/unsupported_contract_targets.rs:11:1
+   |
+11 | struct ContractTraitTarget;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -120,58 +120,14 @@ fn get_assert_macro(
     ctype: ContractType, // only Pre/Post allowed.
     mode: ContractMode,
     span: Span,
-) -> Option<Ident> {
-    if cfg!(feature = "mirai_assertions") {
-        match (ctype, mode) {
-            (ContractType::Requires, ContractMode::Always) => {
-                Some(Ident::new("checked_precondition", span))
-            }
-            (ContractType::Requires, ContractMode::Debug) => {
-                Some(Ident::new("debug_checked_precondition", span))
-            }
-            (ContractType::Requires, ContractMode::Expensive) => {
-                Some(Ident::new("checked_precondition", span))
-            }
-            (ContractType::Requires, ContractMode::Test) => {
-                Some(Ident::new("debug_checked_precondition", span))
-            }
-            (ContractType::Requires, ContractMode::Disabled) => {
-                Some(Ident::new("precondition", span))
-            }
-            (ContractType::Requires, ContractMode::LogOnly) => {
-                Some(Ident::new("precondition", span))
-            }
-            (ContractType::Ensures, ContractMode::Always) => {
-                Some(Ident::new("checked_postcondition", span))
-            }
-            (ContractType::Ensures, ContractMode::Debug) => {
-                Some(Ident::new("debug_checked_postcondition", span))
-            }
-            (ContractType::Ensures, ContractMode::Expensive) => {
-                Some(Ident::new("checked_postcondition", span))
-            }
-            (ContractType::Ensures, ContractMode::Test) => {
-                Some(Ident::new("debug_checked_postcondition", span))
-            }
-            (ContractType::Ensures, ContractMode::Disabled) => {
-                Some(Ident::new("postcondition", span))
-            }
-            (ContractType::Ensures, ContractMode::LogOnly) => {
-                Some(Ident::new("postcondition", span))
-            }
-            (ContractType::Invariant, _) => {
-                panic!("expected Invariant to be narrowed down to Pre/Post")
-            }
-        }
-    } else {
-        match mode {
-            ContractMode::Always => Some(Ident::new("assert", span)),
-            ContractMode::Debug => Some(Ident::new("debug_assert", span)),
-            ContractMode::Expensive => Some(Ident::new("assert", span)),
-            ContractMode::Test => Some(Ident::new("debug_assert", span)),
-            ContractMode::Disabled => None,
-            ContractMode::LogOnly => None,
-        }
+) -> Ident {
+    assert!(
+        ctype != ContractType::Invariant,
+        "expected Invariant to be narrowed down to Pre/Post"
+    );
+    match mode {
+        ContractMode::Always | ContractMode::Expensive => Ident::new("assert", span),
+        ContractMode::Test => Ident::new("debug_assert", span),
     }
 }
 
@@ -293,24 +249,12 @@ pub(crate) fn generate(mut func: FuncWithContracts, docs: Vec<Attribute>) -> Tok
             concat!(concat!(#desc, ": "), stringify!(#display))
         };
 
-        if mode == ContractMode::LogOnly {
-            result.extend(quote::quote_spanned! { span=>
-                #[allow(clippy::assertions_on_constants, clippy::nonminimal_bool)]
-                {
-                    if !(#exec_expr) {
-                        log::error!("{}", #format_args);
-                    }
-                }
-            });
-        }
-
-        if let Some(assert_macro) = get_assert_macro(ctype, mode, span) {
-            result.extend(quote::quote_spanned! { span=>
-                #[allow(clippy::assertions_on_constants, clippy::nonminimal_bool)] {
-                    #assert_macro!(#exec_expr, "{}", #format_args);
-                }
-            });
-        }
+        let assert_macro = get_assert_macro(ctype, mode, span);
+        result.extend(quote::quote_spanned! { span=>
+            #[allow(clippy::assertions_on_constants, clippy::nonminimal_bool)] {
+                #assert_macro!(#exec_expr, "{}", #format_args);
+            }
+        });
 
         if mode == ContractMode::Test {
             quote::quote_spanned! { span=>

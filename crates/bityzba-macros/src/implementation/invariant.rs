@@ -9,19 +9,23 @@ use syn::{FnArg, ImplItem, ImplItemFn, Item, ItemFn, ItemImpl};
 use crate::implementation::{ContractMode, ContractType, FuncWithContracts};
 
 pub(crate) fn invariant(mode: ContractMode, attr: TokenStream, toks: TokenStream) -> TokenStream {
-    let item: Item = syn::parse_quote!(#toks);
+    let item = match syn::parse2::<Item>(toks.clone()) {
+        Ok(item) => item,
+        Err(error) => return error.to_compile_error(),
+    };
 
-    let name = mode.name().unwrap().to_string() + "invariant";
+    let name = mode.name().to_string() + "invariant";
 
     match item {
         Item::Fn(fn_) => invariant_fn(mode, attr, fn_),
         Item::Impl(impl_) => invariant_impl(mode, attr, impl_),
         Item::Struct(struct_) => crate::implementation::invariant_struct(mode, attr, struct_),
         Item::Enum(enum_) => crate::implementation::invariant_enum(mode, attr, enum_),
-        _ => unimplemented!(
-            "The #[{}] attribute only works on functions and impl-blocks.",
-            name
-        ),
+        other => syn::Error::new_spanned(
+            other,
+            format!("#[{name}] can only be applied to functions, impl blocks, structs, and enums"),
+        )
+        .to_compile_error(),
     }
 }
 
@@ -46,12 +50,7 @@ fn invariant_impl(
 
     // The mode received is unreduced, so it can't be "Disabled" or "LogOnly"
     // but it can't hurt to deal with it anyway.
-    let name = match mode.name() {
-        Some(n) => n.to_string() + "invariant",
-        None => {
-            return quote::quote!( #impl_def );
-        }
-    };
+    let name = mode.name().to_string() + "invariant";
 
     let invariant_ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
 

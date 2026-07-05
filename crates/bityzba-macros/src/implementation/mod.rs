@@ -15,7 +15,7 @@ pub(crate) mod type_invariant;
 pub(crate) use data::{data, new_value, try_new_value};
 pub(crate) use ensures::ensures;
 pub(crate) use invariant::invariant;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 pub(crate) use requires::requires;
 use syn::{Expr, ItemFn};
@@ -27,15 +27,8 @@ pub(crate) use type_invariant::{invariant_enum, invariant_struct};
 pub(crate) enum ContractMode {
     /// Always check contract
     Always,
-    /// Never check contract
-    Disabled,
-    /// Check contract only in debug builds
-    Debug,
     /// Check contract only in `#[cfg(test)]` configurations
     Test,
-    /// Check the contract and print information upon violation, but don't abort
-    /// the program.
-    LogOnly,
     /// Check the contract only when the consuming crate enables its
     /// `expensive_contracts` feature.
     Expensive,
@@ -43,43 +36,17 @@ pub(crate) enum ContractMode {
 
 impl ContractMode {
     /// Return the prefix of attributes of `self` mode.
-    pub(crate) fn name(self) -> Option<&'static str> {
+    pub(crate) fn name(self) -> &'static str {
         match self {
-            ContractMode::Always => Some(""),
-            ContractMode::Disabled => None,
-            ContractMode::Debug => Some("debug_"),
-            ContractMode::Test => Some("test_"),
-            ContractMode::Expensive => Some("expensive_"),
-            ContractMode::LogOnly => None,
+            ContractMode::Always => "",
+            ContractMode::Test => "test_",
+            ContractMode::Expensive => "expensive_",
         }
     }
 
-    /// Computes the contract type based on feature flags.
+    /// Computes the runtime mode used for generated checks.
     pub(crate) fn final_mode(self) -> Self {
-        // disabled ones can't be "forced", test ones should stay test, no
-        // matter what.
-        if self == ContractMode::Disabled || self == ContractMode::Test {
-            return self;
-        }
-
-        if self == ContractMode::Expensive {
-            return self;
-        }
-
-        if cfg!(feature = "disable_contracts") {
-            ContractMode::Disabled
-        } else if cfg!(feature = "override_debug") {
-            // log is "weaker" than debug, so keep log
-            if self == ContractMode::LogOnly {
-                self
-            } else {
-                ContractMode::Debug
-            }
-        } else if cfg!(feature = "override_log") {
-            ContractMode::LogOnly
-        } else {
-            self
-        }
+        self
     }
 }
 
@@ -108,9 +75,6 @@ impl ContractType {
             "requires" => Some((ContractType::Requires, ContractMode::Always)),
             "ensures" => Some((ContractType::Ensures, ContractMode::Always)),
             "invariant" => Some((ContractType::Invariant, ContractMode::Always)),
-            "debug_requires" => Some((ContractType::Requires, ContractMode::Debug)),
-            "debug_ensures" => Some((ContractType::Ensures, ContractMode::Debug)),
-            "debug_invariant" => Some((ContractType::Invariant, ContractMode::Debug)),
             "test_requires" => Some((ContractType::Requires, ContractMode::Test)),
             "test_ensures" => Some((ContractType::Ensures, ContractMode::Test)),
             "test_invariant" => Some((ContractType::Invariant, ContractMode::Test)),
@@ -125,7 +89,6 @@ impl ContractType {
 /// Representation of a contract
 #[derive(Debug)]
 pub(crate) struct Contract {
-    pub(crate) _span: Span,
     pub(crate) ty: ContractType,
     pub(crate) mode: ContractMode,
     pub(crate) assertions: Vec<Expr>,
@@ -139,10 +102,7 @@ impl Contract {
         let (assertions, streams, desc) = parse::parse_attributes(toks);
         let old_assertions = (0..assertions.len()).map(|_| Vec::new()).collect();
 
-        let span = Span::call_site();
-
         Self {
-            _span: span,
             ty,
             mode,
             assertions,

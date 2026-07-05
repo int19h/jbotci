@@ -98,6 +98,13 @@ fn generate_struct(
         .iter()
         .map(|field| field.ident.clone().expect("named field"))
         .collect::<Vec<_>>();
+    let field_name_errors = generated_builder_field_name_errors(&field_idents);
+    if !field_name_errors.is_empty() {
+        return quote! {
+            #(#option_errors)*
+            #(#field_name_errors)*
+        };
+    }
     let field_types = fields
         .named
         .iter()
@@ -660,6 +667,20 @@ fn collect_type_option_errors(attrs: &mut Vec<Attribute>) -> Vec<TokenStream> {
 
     *attrs = retained;
     errors
+}
+
+fn generated_builder_field_name_errors(field_idents: &[Ident]) -> Vec<TokenStream> {
+    field_idents
+        .iter()
+        .filter(|ident| matches!(ident.to_string().as_str(), "build" | "from_data" | "new"))
+        .map(|ident| {
+            syn::Error::new_spanned(
+                ident,
+                format!("field `{ident}` conflicts with a generated bityzba builder method name"),
+            )
+            .to_compile_error()
+        })
+        .collect()
 }
 
 fn collect_type_invariants(
@@ -1312,14 +1333,14 @@ impl TypeShape {
         generics
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Serialize));
+            .push(syn::parse_quote!(#data_ident #ty_generics: ::serde::Serialize));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
         quote! {
-            impl #impl_generics serde::Serialize for #wrapper_ident #ty_generics #where_clause
+            impl #impl_generics ::serde::Serialize for #wrapper_ident #ty_generics #where_clause
             {
                 fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
                 where
-                    S: serde::Serializer,
+                    S: ::serde::Serializer,
                 {
                     self.as_data().serialize(serializer)
                 }
@@ -1341,17 +1362,17 @@ impl TypeShape {
         impl_generics_source
             .make_where_clause()
             .predicates
-            .push(syn::parse_quote!(#data_ident #ty_generics: serde::Deserialize<'de>));
+            .push(syn::parse_quote!(#data_ident #ty_generics: ::serde::Deserialize<'de>));
         let (impl_generics, _, where_clause) = impl_generics_source.split_for_impl();
         quote! {
-            impl #impl_generics serde::Deserialize<'de> for #wrapper_ident #ty_generics #where_clause
+            impl #impl_generics ::serde::Deserialize<'de> for #wrapper_ident #ty_generics #where_clause
             {
                 fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
                 where
-                    D: serde::Deserializer<'de>,
+                    D: ::serde::Deserializer<'de>,
                 {
                     let data = #data_ident::deserialize(deserializer)?;
-                    Self::try_from_data(data).map_err(serde::de::Error::custom)
+                    Self::try_from_data(data).map_err(::serde::de::Error::custom)
                 }
             }
         }

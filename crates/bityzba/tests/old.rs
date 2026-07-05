@@ -4,9 +4,6 @@
 
 use bityzba::*;
 
-#[cfg(feature = "mirai_assertions")]
-mod mirai_assertion_mocks;
-
 #[test]
 fn test_old_simple() {
     #[ensures(*x == old(*x) + 1, "x increments")]

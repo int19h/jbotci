@@ -23,7 +23,7 @@ fn gl_issue_11() {
 fn gl_issue_16() {
     use std::fmt::Debug;
 
-    use bityzba::debug_ensures;
+    use bityzba::ensures;
 
     trait Sortable<T: Ord + Debug> {
         fn insertion_sort(&mut self);
@@ -35,7 +35,7 @@ fn gl_issue_16() {
     }
 
     impl<T: Ord + Debug> Sortable<T> for Vec<T> {
-        #[debug_ensures(is_sorted(self))]
+        #[ensures(is_sorted(self))]
         fn insertion_sort(&mut self) {
             assert!(self[0] < self[1]);
         }
