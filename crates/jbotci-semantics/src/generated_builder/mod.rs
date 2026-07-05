@@ -2202,6 +2202,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.source_for_node(branch.abstraction, construct)
     }
 
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_abstraction_branch_tokens(
+        &self,
+        branch: GeneratedAbstractionBranch<'_>,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        let mut spans = Vec::new();
+        collect_generated_node_spans(branch.nu, &mut spans);
+        if let Some(nai) = branch.nai {
+            collect_generated_node_spans(nai, &mut spans);
+        }
+        collect_generated_node_spans(branch.subbridi, &mut spans);
+        if let Some(kei) = branch.kei {
+            collect_generated_node_spans(kei, &mut spans);
+        }
+        self.source_for_generated_spans(&spans, construct)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn exact_source_for_node<N: TreeNode>(
@@ -7477,5 +7496,48 @@ mod tests {
                 .any(|diagnostic| diagnostic.message == UNKNOWN_PLACE_STRUCTURE_WARNING),
             "ZEI compound should not inherit the one-place nu abstraction structure",
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_abstraction_implicit_property_slot_uses_branch_source() {
+        const SOURCE: &str = "lo nu je ka broda cu brode";
+
+        let words = jbotci_morphology::segment_words_with_modifiers_with_options(
+            SOURCE,
+            &jbotci_morphology::MorphologyOptions::default(),
+        )
+        .expect("source should segment");
+        let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            SOURCE,
+            &jbotci_syntax::ParseOptions::default(),
+        )
+        .expect("source should parse");
+        let graph = build_generated_semantic_graph_with_dictionary(
+            &syntax,
+            Some(SOURCE),
+            jbotci_dictionary_data::english(),
+        )
+        .expect("source should build semantics");
+
+        let parameter = graph
+            .objects
+            .values()
+            .find(|object| {
+                object.object_type == crate::model::SemanticObjectKind::Parameter
+                    && object.role == Some(ParameterRole::PropertySlot)
+                    && object.introduced_by.as_deref() == Some("implicit ce'u")
+            })
+            .expect("connected ka branch should synthesize an implicit property slot");
+        let source = parameter
+            .source
+            .as_ref()
+            .expect("implicit property slot should have source");
+        assert_eq!(source.text.as_deref(), Some("ka broda"));
+        assert_eq!(source.span.byte_start, 9);
+        assert_eq!(source.span.byte_end, 17);
+        assert_eq!(source.construct.as_deref(), Some("implicit-property-slot"));
     }
 }

@@ -8768,7 +8768,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.insert_implicit_generated_property_slot_parameter(
                 body,
                 &mut parameters,
-                self.source_for_abstraction_branch(branch, "implicit-property-slot"),
+                self.source_for_abstraction_branch_tokens(branch, "implicit-property-slot"),
                 main_generated_selbri_for_subbridi(branch.subbridi),
             )?;
         }
