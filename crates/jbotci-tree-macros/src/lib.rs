@@ -3,6 +3,7 @@
 extern crate proc_macro;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -202,6 +203,10 @@ fn recovered_module(
         pub mod recovered {
             use super::*;
 
+            // The recovery module is intentionally tied to the jbotci syntax
+            // model conventions: callers provide a `RecoveryTreeItem` item
+            // type in the same tree model, and generated recovered values use
+            // that type for every recovery wrapper.
             pub type Recovered<T> = ::jbotci_tree::Recovered<T, super::RecoveryTreeItem>;
             pub type RecoveryError = ::jbotci_tree::RecoveryError<super::RecoveryTreeItem>;
 
@@ -348,7 +353,7 @@ fn collect_atoms_from_fields(
         if flags.skip {
             continue;
         }
-        collect_atom_type(&field.ty, node_names, aliases, atoms);
+        collect_atom_type(&field.ty, node_names, aliases, atoms)?;
     }
     Ok(())
 }
@@ -360,7 +365,8 @@ fn collect_atom_type(
     node_names: &BTreeSet<String>,
     aliases: &BTreeMap<String, Type>,
     atoms: &mut BTreeMap<String, Type>,
-) {
+) -> syn::Result<()> {
+    reject_reference_tree_type(ty, aliases)?;
     match unwrap_tree_type(ty, node_names, aliases) {
         UnwrappedTreeType::Node => {}
         UnwrappedTreeType::Atom(atom) => {
@@ -369,10 +375,11 @@ fn collect_atom_type(
         }
         UnwrappedTreeType::Children(children) => {
             for child in children {
-                collect_atom_type(child, node_names, aliases, atoms);
+                collect_atom_type(child, node_names, aliases, atoms)?;
             }
         }
     }
+    Ok(())
 }
 
 #[invariant(true)]
@@ -474,6 +481,61 @@ fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
 #[ensures(true)]
 fn nth_type_argument(arguments: &PathArguments, index: usize) -> Option<&Type> {
     type_arguments(arguments).into_iter().nth(index)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reject_reference_tree_type(ty: &Type, aliases: &BTreeMap<String, Type>) -> syn::Result<()> {
+    reject_reference_tree_type_with_seen(ty, aliases, &mut BTreeSet::new())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reject_reference_tree_type_with_seen(
+    ty: &Type,
+    aliases: &BTreeMap<String, Type>,
+    seen_aliases: &mut BTreeSet<String>,
+) -> syn::Result<()> {
+    match ty {
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
+        Type::Path(path) if path.qself.is_none() => {
+            if path.path.segments.len() == 1
+                && let Some(segment) = path.path.segments.last()
+                && let Some(alias) = aliases.get(&segment.ident.to_string())
+                && seen_aliases.insert(segment.ident.to_string())
+            {
+                return reject_reference_tree_type_with_seen(alias, aliases, seen_aliases);
+            }
+            for argument in path
+                .path
+                .segments
+                .iter()
+                .flat_map(|segment| type_arguments(&segment.arguments))
+            {
+                reject_reference_tree_type_with_seen(argument, aliases, seen_aliases)?;
+            }
+            Ok(())
+        }
+        Type::Array(array) => {
+            reject_reference_tree_type_with_seen(&array.elem, aliases, seen_aliases)
+        }
+        Type::Tuple(tuple) => {
+            for elem in &tuple.elems {
+                reject_reference_tree_type_with_seen(elem, aliases, seen_aliases)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn reference_tree_type_error(reference: &syn::TypeReference) -> syn::Error {
+    syn::Error::new_spanned(
+        reference,
+        "tree_model! tree fields cannot use reference types; use an owned field type",
+    )
 }
 
 #[requires(true)]
@@ -590,6 +652,7 @@ fn transform_fields_for_recovery(
     aliases: &BTreeMap<String, Type>,
 ) -> syn::Result<()> {
     for field in fields {
+        reject_reference_tree_type(&field.ty, aliases)?;
         field.ty = transform_type_for_recovery(&field.ty, node_names, aliases)?;
     }
     Ok(())
@@ -615,9 +678,7 @@ fn transform_type_for_recovery(
             }
             Ok(wrap_recovered(ty.clone()))
         }
-        Type::Reference(reference) => {
-            transform_type_for_recovery(&reference.elem, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             let mut array = array.clone();
             array.elem = Box::new(transform_type_for_recovery(
@@ -682,6 +743,8 @@ fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
         return quote!();
     }
     quote! {
+        // `WithFreeModifiers` and `FreeModifierSyntax` are jbotci syntax-model
+        // conventions used by generated recovered syntax trees.
         #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
         pub struct WithFreeModifiers<T> {
             pub value: T,
@@ -711,7 +774,7 @@ fn recovered_field_state_impls(
         .collect::<syn::Result<Vec<_>>>()?;
     let atom_impls = atom_types
         .values()
-        .filter(|ty| !atom_has_builtin_recovered_field_state(ty))
+        .filter(|ty| atom_needs_generated_recovered_field_state_impl(ty))
         .map(|ty| {
             quote! {
                 #[::bityzba::contract_trait]
@@ -721,6 +784,23 @@ fn recovered_field_state_impls(
                     fn recovery_error_slots(&self) -> usize {
                         0
                     }
+                }
+            }
+        });
+    let external_atom_checks = atom_types
+        .values()
+        .enumerate()
+        .filter(|(_index, ty)| atom_requires_external_recovered_field_state(ty))
+        .map(|(index, ty)| {
+            let assert_fn = format_ident!("__jbotci_tree_assert_recovered_field_state_{index}");
+            let check_fn = format_ident!("__jbotci_tree_check_recovered_field_state_{index}");
+            quote! {
+                #[allow(dead_code)]
+                fn #assert_fn<T: ::jbotci_tree::RecoveredFieldState>() {}
+
+                #[allow(dead_code)]
+                fn #check_fn() {
+                    #assert_fn::<#ty>();
                 }
             }
         });
@@ -750,6 +830,7 @@ fn recovered_field_state_impls(
     Ok(quote! {
         #(#node_impls)*
         #(#atom_impls)*
+        #(#external_atom_checks)*
         #with_free_modifiers_impl
     })
 }
@@ -798,22 +879,34 @@ fn valid_field_state_impls(items: &[Item]) -> syn::Result<proc_macro2::TokenStre
 
 #[requires(true)]
 #[ensures(true)]
-fn atom_has_builtin_recovered_field_state(ty: &Type) -> bool {
+fn atom_needs_generated_recovered_field_state_impl(ty: &Type) -> bool {
     let Type::Path(path) = ty else {
-        return false;
+        return true;
     };
     if path.qself.is_some() {
-        return false;
-    }
-    if path.path.segments.len() > 1 {
         return true;
     }
-    path.path.segments.last().is_some_and(|segment| {
+    if path.path.segments.len() > 1 {
+        return false;
+    }
+    !path.path.segments.last().is_some_and(|segment| {
+        // `Word` is a jbotci syntax-model convention: generated syntax models
+        // provide the corresponding RecoveredFieldState implementation outside
+        // this generic tree macro.
         matches!(
             segment.ident.to_string().as_str(),
             "String" | "SourceSpan" | "Word"
         )
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn atom_requires_external_recovered_field_state(ty: &Type) -> bool {
+    matches!(
+        ty,
+        Type::Path(path) if path.qself.is_none() && path.path.segments.len() > 1
+    )
 }
 
 #[requires(true)]
@@ -1592,9 +1685,7 @@ fn convert_value_for_type(
                 Ok(convert_recovered_atom(expr))
             }
         }
-        Type::Reference(reference) => {
-            convert_value_for_type(&reference.elem, expr, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             convert_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
@@ -1830,9 +1921,7 @@ fn convert_valid_value_for_type(
                 Ok(convert_valid_atom(expr))
             }
         }
-        Type::Reference(reference) => {
-            convert_valid_value_for_type(&reference.elem, expr, node_names, aliases)
-        }
+        Type::Reference(reference) => Err(reference_tree_type_error(reference)),
         Type::Array(array) => {
             convert_valid_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
@@ -2460,11 +2549,14 @@ fn atom_trait_impls(atom_types: &BTreeMap<String, Type>) -> proc_macro2::TokenSt
 #[requires(true)]
 #[ensures(true)]
 fn atom_variant_ident(ty: &Type) -> Ident {
-    let mut text = quote!(#ty)
-        .to_string()
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .collect::<String>();
+    let mut text = String::new();
+    for ch in quote!(#ty).to_string().chars() {
+        if ch.is_ascii_alphanumeric() {
+            text.push(ch);
+        } else {
+            write!(&mut text, "_x{:X}_", ch as u32).expect("writing to String should not fail");
+        }
+    }
     if text.is_empty() {
         text = "Atom".to_owned();
     }
@@ -3428,6 +3520,8 @@ fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
         primary: false,
         skip: false,
     };
+    let mut primary_attr = None::<&Attribute>;
+    let mut skip_attr = None::<&Attribute>;
     for attr in attrs
         .iter()
         .filter(|attr| attr.path().is_ident("tree_child"))
@@ -3437,11 +3531,13 @@ fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
             .is_ok_and(|lit| !lit.value)
         {
             flags.skip = true;
+            skip_attr = Some(attr);
             continue;
         }
         let ident = attr.parse_args::<Ident>()?;
         if ident == "primary" {
             flags.primary = true;
+            primary_attr = Some(attr);
         } else {
             return Err(syn::Error::new_spanned(
                 attr,
@@ -3450,8 +3546,11 @@ fn tree_child_flags(attrs: &[Attribute]) -> syn::Result<TreeChildFlags> {
         }
     }
     if flags.primary && flags.skip {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
+        let attr = skip_attr
+            .or(primary_attr)
+            .expect("conflicting flags came from attributes");
+        return Err(syn::Error::new_spanned(
+            attr,
             "`tree_child(primary)` cannot be combined with `tree_child(false)`",
         ));
     }
