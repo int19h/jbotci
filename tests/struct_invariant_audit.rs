@@ -1312,28 +1312,32 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:BlockReferenceFitMetrics",
+        "crates/jbotci-ui/src/layout.rs:BlockReferenceFitMetrics",
         "block reference fit metrics are measured renderer geometry consumed by fitting effects",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:BlockReferenceFitUpdate",
+        "crates/jbotci-ui/src/layout.rs:BlockReferenceFitUpdate",
         "block reference fit updates are transient DOM measurement results applied immediately",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightLayoutMetrics",
+        "crates/jbotci-ui/src/layout.rs:BlockReferenceHeightLayoutMetrics",
         "block reference height layout metrics are measured renderer geometry consumed by sizing effects",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightMetrics",
+        "crates/jbotci-ui/src/layout.rs:BlockReferenceHeightMetrics",
         "block reference height metrics are measured renderer geometry consumed by sizing effects",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:BlockReferenceHeightUpdates",
+        "crates/jbotci-ui/src/layout.rs:BlockReferenceHeightUpdates",
         "block reference height updates are transient DOM measurement results applied immediately",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:CuktaAsyncPageState",
         "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
+    ),
+    (
+        "crates/jbotci-ui/src/cukta.rs:CuktaPageSnapshot",
+        "cukta page snapshots group memoized render inputs whose validity is enforced by source state and clamped width helpers",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:CuktaPendingScroll",
@@ -1348,35 +1352,35 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "cukta TOC interaction state is transient UI state normalized by event handlers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeAnchorMetrics",
+        "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeAnchorMetrics",
         "desktop tree anchor metrics are direct layout measurements used to derive overlay geometry",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeLayout",
+        "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeLayout",
         "desktop tree layout is a transient overlay geometry result derived from measured rows",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopGentufaTreeMetrics",
+        "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeMetrics",
         "desktop tree metrics are direct layout measurements used to derive overlay geometry",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopReferenceMarkerMetrics",
+        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceMarkerMetrics",
         "desktop reference marker metrics are direct layout measurements used by overlay placement",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopReferenceOverlayMetrics",
+        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceOverlayMetrics",
         "desktop reference overlay metrics are direct layout measurements used by overlay placement",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopTooltipMeasure",
+        "crates/jbotci-ui/src/layout.rs:DesktopTooltipMeasure",
         "desktop tooltip measurement is direct platform geometry consumed by placement code",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DesktopTooltipPlacement",
+        "crates/jbotci-ui/src/layout.rs:DesktopTooltipPlacement",
         "desktop tooltip placement is derived transient UI geometry used immediately for rendering",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:DiagnosticOverlayMark",
+        "crates/jbotci-ui/src/diagnostics.rs:DiagnosticOverlayMark",
         "diagnostic overlay marks are transient render annotations whose index is validated against the paired diagnostics slice at render time",
     ),
     (
@@ -1408,8 +1412,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa layout inputs are a Dioxus reactive dependency bundle of render state and measured lengths",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:GentufaTreeLineAnchor",
+        "crates/jbotci-ui/src/gentufa.rs:GentufaPageSnapshot",
+        "gentufa page snapshots group memoized diagnostic render inputs whose source state owns validity",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:GentufaTreeLineAnchor",
         "tree line anchors are derived from rendered row positions and are validated by layout tests",
+    ),
+    (
+        "crates/jbotci-ui/src/gimfihi.rs:GimfihiPageSnapshot",
+        "gimfihi page snapshots group memoized source-word render inputs with no invalid field combinations",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:GimfihiAsyncResultState",
@@ -1420,7 +1432,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:JvozbaPaneMetrics",
+        "crates/jbotci-ui/src/layout.rs:JvozbaPaneMetrics",
         "jvozba pane metrics are direct layout measurements used to derive pane placement",
     ),
     (
@@ -1428,15 +1440,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "latest-task state couples Dioxus task handles with activity ids returned by the activity state",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchWorkerHandle",
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchWorkerHandle",
         "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:PendingLocalRouteWrites",
+        "crates/jbotci-ui/src/routing.rs:PendingLocalRouteWrites",
         "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:ReferenceBottoms",
+        "crates/jbotci-ui/src/layout.rs:ReferenceBottoms",
         "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
     ),
     (
@@ -1444,11 +1456,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "browser hover state is transient UI state derived from reference label DOM nodes",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:RouteLocationSyncAction",
+        "crates/jbotci-ui/src/routing.rs:RouteLocationSyncAction",
         "route sync action pairs parsed route state with a hydration flag derived by browser navigation handlers",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:TopbarLayoutMetrics",
+        "crates/jbotci-ui/src/settings.rs:SettingsPageSnapshot",
+        "settings page snapshots group memoized render inputs whose source settings states own validity",
+    ),
+    (
+        "crates/jbotci-ui/src/vlacku.rs:VlackuPageSnapshot",
+        "vlacku page snapshots group memoized dictionary render inputs whose source states own validity",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:TopbarLayoutMetrics",
         "topbar metrics are direct layout measurements used by platform layout commands",
     ),
     (

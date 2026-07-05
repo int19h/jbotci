@@ -207,22 +207,6 @@ pub(super) fn abstraction_kind_for_nu(abstraction: &AbstractionTanruUnitSyntax) 
 }
 
 #[requires(true)]
-#[ensures(ret.abstractor_connections.is_empty())]
-pub(super) fn abstraction_branch_with_marker(
-    abstraction: &AbstractionTanruUnitSyntax,
-    nu: WithFreeModifiers<Token, FreeModifierSyntax>,
-    nai: Option<WithFreeModifiers<Token, FreeModifierSyntax>>,
-) -> AbstractionTanruUnitSyntax {
-    AbstractionTanruUnitSyntax {
-        nu,
-        nai,
-        abstractor_connections: Vec::new(),
-        subbridi: abstraction.subbridi.clone(),
-        kei: abstraction.kei.clone(),
-    }
-}
-
-#[requires(true)]
 #[ensures(true)]
 pub(super) fn statement_connective_from_standard(
     connective: &StandardStatementConnectiveSyntax,

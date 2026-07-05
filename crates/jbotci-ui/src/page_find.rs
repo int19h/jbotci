@@ -172,7 +172,6 @@ struct PageFindIndex {
     query: String,
     matches: Vec<PageFindMatch>,
     matches_by_key: BTreeMap<PageFindTextKey, Vec<PageFindMatch>>,
-    entry_keys: Vec<PageFindTextKey>,
     signature: u64,
 }
 
@@ -183,8 +182,7 @@ struct PageFindContext {
     active_index: Option<usize>,
     match_count: usize,
     matches_by_key: Rc<BTreeMap<PageFindTextKey, Vec<PageFindMatch>>>,
-    entry_keys: Rc<Vec<PageFindTextKey>>,
-    next_entry_key_index: Rc<Cell<usize>>,
+    next_occurrence_by_hash: Rc<RefCell<BTreeMap<u64, usize>>>,
 }
 
 impl PartialEq for PageFindContext {
@@ -237,23 +235,24 @@ impl PageFindContext {
             active_index,
             match_count: index.matches.len(),
             matches_by_key: Rc::new(index.matches_by_key.clone()),
-            entry_keys: Rc::new(index.entry_keys.clone()),
-            next_entry_key_index: Rc::new(Cell::new(0)),
+            next_occurrence_by_hash: Rc::new(RefCell::new(BTreeMap::new())),
         })
     }
 
-    #[requires(true)]
+    #[requires(!text.is_empty())]
     #[ensures(true)]
-    fn next_text_key(&self) -> PageFindTextKey {
-        let index = self.next_entry_key_index.get();
-        self.next_entry_key_index.set(index.saturating_add(1));
-        self.entry_keys
-            .get(index)
+    fn text_key(&self, text: &str) -> PageFindTextKey {
+        let content_hash = page_find_text_content_hash(text);
+        let mut next_occurrence_by_hash = self.next_occurrence_by_hash.borrow_mut();
+        let occurrence = next_occurrence_by_hash
+            .get(&content_hash)
             .copied()
-            .unwrap_or(PageFindTextKey {
-                content_hash: 0,
-                occurrence: usize::MAX,
-            })
+            .unwrap_or(0);
+        next_occurrence_by_hash.insert(content_hash, occurrence.saturating_add(1));
+        PageFindTextKey {
+            content_hash,
+            occurrence,
+        }
     }
 
     #[requires(true)]
@@ -272,13 +271,11 @@ fn build_page_find_index(query: &str, entries: &[PageFindTextEntry]) -> PageFind
     let signature = page_find_result_signature(query, entries);
     let mut matches = Vec::<PageFindMatch>::new();
     let mut matches_by_key = BTreeMap::<PageFindTextKey, Vec<PageFindMatch>>::new();
-    let entry_keys = entries.iter().map(|entry| entry.key).collect::<Vec<_>>();
     if query.is_empty() {
         return new!(PageFindIndex {
             query: query.to_owned(),
             matches,
             matches_by_key,
-            entry_keys,
             signature,
         });
     }
@@ -300,7 +297,6 @@ fn build_page_find_index(query: &str, entries: &[PageFindTextEntry]) -> PageFind
         query: query.to_owned(),
         matches,
         matches_by_key,
-        entry_keys,
         signature,
     })
 }
@@ -437,9 +433,7 @@ fn push_page_find_entry(entries: &mut Vec<PageFindTextEntry>, text: impl Into<St
 #[requires(!text.is_empty())]
 #[ensures(true)]
 fn page_find_text_key(entries: &[PageFindTextEntry], text: &str) -> PageFindTextKey {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    text.hash(&mut hasher);
-    let content_hash = hasher.finish();
+    let content_hash = page_find_text_content_hash(text);
     let occurrence = entries
         .iter()
         .filter(|entry| entry.key.content_hash == content_hash)
@@ -448,6 +442,14 @@ fn page_find_text_key(entries: &[PageFindTextEntry], text: &str) -> PageFindText
         content_hash,
         occurrence,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn page_find_text_content_hash(text: &str) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 #[requires(true)]
@@ -493,7 +495,7 @@ fn render_page_find_text(page_find: &PageFindContext, text: &str) -> Element {
     if text.is_empty() {
         return rsx! {};
     }
-    let key = page_find.next_text_key();
+    let key = page_find.text_key(text);
     let matches = page_find.matches_for_key(key);
     if matches.is_empty() {
         return rsx! { "{text}" };
@@ -1382,4 +1384,3 @@ fn semantic_search_message_visible_text(message: &str) -> String {
         message.to_owned()
     }
 }
-

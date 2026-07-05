@@ -1316,6 +1316,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomBaseView::Cei",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomBaseView::Normal",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomView::Cei",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomView::Normal",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTermFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1608,11 +1624,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "activity task kind is a unit discriminant with no payload to constrain",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Clear",
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchCommand::Clear",
         "native embedding clear command carries only a typed response channel",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:NativeEmbeddingSearchCommand::Search",
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchCommand::Search",
         "native embedding search command validity is enforced by worker-handle preconditions before sending",
     ),
     (

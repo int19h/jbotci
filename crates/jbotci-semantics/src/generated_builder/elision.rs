@@ -1,6 +1,6 @@
 use super::*;
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
     #[ensures(true)]
@@ -65,7 +65,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         formula: SemanticObjectId,
         parameter: SemanticObjectId,
-        preferred_selbri: Option<&SelbriSyntax>,
+        preferred_selbri: Option<&'tree SelbriSyntax>,
     ) -> Result<bool, SemanticsError> {
         let Some(object) = self.objects.get(&formula).cloned() else {
             return Ok(false);
@@ -116,7 +116,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         predication: SemanticObjectId,
         parameter: SemanticObjectId,
-        preferred_selbri: Option<&SelbriSyntax>,
+        preferred_selbri: Option<&'tree SelbriSyntax>,
     ) -> Result<bool, SemanticsError> {
         let object = self.objects.get(&predication).ok_or_else(|| {
             invalid_graph(format!(
