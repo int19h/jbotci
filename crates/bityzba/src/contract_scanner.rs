@@ -47,13 +47,16 @@ impl ContractScanner {
     }
 
     fn scan_inner(&self, emit_rerun_if_changed: bool) -> Result<(), ContractScanError> {
+        if emit_rerun_if_changed {
+            for path in self.rerun_if_changed_paths() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+
         let files = self.rust_files()?;
         let mut diagnostics = Vec::new();
 
         for path in files {
-            if emit_rerun_if_changed {
-                println!("cargo:rerun-if-changed={}", path.display());
-            }
             let contents = fs::read_to_string(&path).map_err(|error| {
                 ContractScanError::setup(format!("failed to read {}: {error}", path.display()))
             })?;
@@ -108,6 +111,13 @@ impl ContractScanner {
         files.sort();
         files.dedup();
         Ok(files)
+    }
+
+    fn rerun_if_changed_paths(&self) -> Vec<PathBuf> {
+        ["src", "tests", "benches", "examples", "build.rs"]
+            .into_iter()
+            .map(|path| self.manifest_dir.join(path))
+            .collect()
     }
 }
 
@@ -669,4 +679,33 @@ fn top_level_fat_arrow_index(tokens: &[TokenTree]) -> Option<usize> {
 fn display_path(manifest_dir: &Path, path: &Path) -> String {
     let path = path.strip_prefix(manifest_dir).unwrap_or(path);
     path.to_string_lossy().replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::ContractScanner;
+
+    #[test]
+    fn rerun_paths_track_source_roots_and_build_script() {
+        let scanner = ContractScanner::new(PathBuf::from("/workspace/package"));
+
+        let paths = scanner
+            .rerun_if_changed_paths()
+            .into_iter()
+            .map(|path| path.strip_prefix("/workspace/package").unwrap().to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            paths,
+            vec![
+                PathBuf::from("src"),
+                PathBuf::from("tests"),
+                PathBuf::from("benches"),
+                PathBuf::from("examples"),
+                PathBuf::from("build.rs"),
+            ]
+        );
+    }
 }
