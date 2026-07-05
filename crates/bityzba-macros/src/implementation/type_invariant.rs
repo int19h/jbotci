@@ -8,7 +8,7 @@ use proc_macro2::{Spacing, TokenStream, TokenTree};
 use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Expr, ExprLit, Fields, FieldsNamed, FieldsUnnamed, GenericParam, Generics, Ident,
-    ItemEnum, ItemStruct, Lit, Type, TypePath, Variant, Visibility, parse::Parser, visit,
+    ItemEnum, ItemStruct, Lit, Path, Type, TypePath, Variant, Visibility, parse::Parser, visit,
     visit::Visit,
 };
 
@@ -1123,7 +1123,7 @@ struct TypeShape {
     wrapper_vis: Visibility,
     data_vis: Visibility,
     generics: Generics,
-    derive_traits: Vec<Ident>,
+    derive_traits: Vec<Path>,
     derives_debug: bool,
     derives_serialize: bool,
     derives_deserialize: bool,
@@ -1148,13 +1148,13 @@ impl TypeShape {
                 continue;
             }
             let _ = attr.parse_nested_meta(|meta| {
-                if let Some(ident) = meta.path.get_ident() {
-                    match ident.to_string().as_str() {
+                if let Some(segment) = meta.path.segments.last() {
+                    match segment.ident.to_string().as_str() {
                         "Debug" => derives_debug = true,
                         "Serialize" => derives_serialize = true,
                         "Deserialize" => derives_deserialize = true,
                         "Default" => derives_default = true,
-                        _ => derive_traits.push(ident.clone()),
+                        _ => derive_traits.push(meta.path.clone()),
                     }
                 }
                 Ok(())
