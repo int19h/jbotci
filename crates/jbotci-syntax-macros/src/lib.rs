@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+#[allow(unused_imports)]
+use bityzba::{ensures, invariant, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -12,6 +14,8 @@ use syn::{
     parse_macro_input, parse_quote,
 };
 
+#[requires(true)]
+#[ensures(true)]
 #[proc_macro]
 pub fn syntax_grammar(input: TokenStream) -> TokenStream {
     let grammar = parse_macro_input!(input as SyntaxGrammar);
@@ -39,6 +43,7 @@ mod kw {
     syn::custom_keyword!(zero_or_more);
 }
 
+#[invariant(true)]
 struct SyntaxGrammar {
     tree_model: Option<syn::File>,
     generate_model: bool,
@@ -53,6 +58,8 @@ struct SyntaxGrammar {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let type_env = GrammarTypeEnv::new(&self.recursive, &self.rules);
         let model_outputs = self.resolved_model_outputs();
@@ -340,6 +347,8 @@ impl Parse for SyntaxGrammar {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
     let mut names = BTreeSet::new();
     for rule in rules {
@@ -353,6 +362,8 @@ fn validate_unique_recursive_rules(rules: &[RecursiveRule]) -> Result<()> {
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
     let mut names = BTreeSet::new();
     for rule in rules {
@@ -367,6 +378,8 @@ fn validate_unique_rules(rules: &[Rule]) -> Result<()> {
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
     input.parse::<kw::tree_model>()?;
     let content;
@@ -383,6 +396,8 @@ fn parse_tree_model_block(input: ParseStream<'_>) -> Result<syn::File> {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>> {
     let content;
     braced!(content in input);
@@ -402,6 +417,8 @@ fn parse_model_output_filter(input: ParseStream<'_>) -> Result<BTreeSet<String>>
     Ok(outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
     let attrs = &file.attrs;
     let items = &file.items;
@@ -414,6 +431,8 @@ fn expand_tree_model_block(file: &syn::File) -> TokenStream2 {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn resolved_model_outputs(&self) -> Option<BTreeSet<String>> {
         if !self.generate_model {
             return None;
@@ -434,10 +453,14 @@ impl SyntaxGrammar {
         Some(outputs)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generates_model_output(&self, output: &Type) -> bool {
         output_is_generated_model(self.generate_model, &self.resolved_model_outputs(), output)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generates_model_output_name(&self, output: &str) -> bool {
         self.generate_model
             && self
@@ -446,10 +469,14 @@ impl SyntaxGrammar {
                 .is_none_or(|outputs| outputs.contains(output))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_has_local_parser(&self, output: &Type) -> bool {
         !self.generate_model || self.model_outputs.is_none() || self.generates_model_output(output)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn parser_type_tokens(&self, output: &Type) -> TokenStream2 {
         parser_type_tokens(
             output,
@@ -459,6 +486,8 @@ impl SyntaxGrammar {
         )
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_generated_tree_model(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let attrs = self
             .tree_model
@@ -483,6 +512,8 @@ impl SyntaxGrammar {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_tree_model_items(&self, type_env: &GrammarTypeEnv) -> Result<GeneratedTreeModel> {
         let mut structs = BTreeMap::<String, GeneratedStructModel>::new();
         let mut enums = BTreeMap::<String, Vec<GeneratedVariantModel>>::new();
@@ -702,6 +733,8 @@ impl SyntaxGrammar {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_context_label(&self, name: &Ident) -> Option<String> {
         let name = name.to_string();
         self.rules
@@ -711,11 +744,14 @@ impl SyntaxGrammar {
     }
 }
 
+#[invariant(true)]
 struct GeneratedTreeModel {
     tree_items: Vec<TokenStream2>,
     support_items: Vec<TokenStream2>,
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_rule(
     rule: &Rule,
     type_env: &GrammarTypeEnv,
@@ -746,6 +782,8 @@ fn collect_chain_link_element_fields_for_rule(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_parser_expr(
     expr: &ParserExpr,
     type_env: &GrammarTypeEnv,
@@ -824,6 +862,8 @@ fn collect_chain_link_element_fields_for_parser_expr(
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn collect_chain_link_element_fields_for_vector_item(
     item: &VectorItem,
     type_env: &GrammarTypeEnv,
@@ -842,6 +882,8 @@ fn collect_chain_link_element_fields_for_vector_item(
     collect_chain_link_element_fields_for_parser_expr(parser, type_env, argument_types, fields)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn push_generated_variant(
     enums: &mut BTreeMap<String, Vec<GeneratedVariantModel>>,
     output: String,
@@ -864,10 +906,14 @@ fn push_generated_variant(
     Ok(())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     left.to_string() == right.to_string()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
     if token_streams_match(left, right) {
         return true;
@@ -882,6 +928,8 @@ fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
         .is_some_and(|left| canonical_type_key(&right).is_some_and(|right| left == right))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn canonical_type_key(ty: &Type) -> Option<String> {
     match ty {
         Type::Path(path) if path.qself.is_none() => {
@@ -929,6 +977,8 @@ fn canonical_type_key(ty: &Type) -> Option<String> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn pascal_case_ident(name: &str) -> Ident {
     let mut out = String::new();
     let mut uppercase_next = true;
@@ -950,6 +1000,8 @@ fn pascal_case_ident(name: &str) -> Ident {
     format_ident!("{out}")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn snake_case(name: &str) -> String {
     let mut out = String::new();
     let mut previous_was_separator = false;
@@ -981,16 +1033,22 @@ fn snake_case(name: &str) -> String {
     out
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn syntax_type_ident_for_rule(name: &Ident) -> Ident {
     let base = pascal_case_ident(&name.to_string());
     format_ident!("{base}Syntax")
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn syntax_type_for_rule(name: &Ident) -> Type {
     let ident = syntax_type_ident_for_rule(name);
     parse_quote!(#ident)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn generated_constructor_name(output: &Ident) -> String {
     let output = output.to_string();
     output
@@ -999,6 +1057,8 @@ fn generated_constructor_name(output: &Ident) -> String {
         .to_owned()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
     let Some(output) = simple_type_ident(output) else {
         return pascal_case_ident(&fallback.to_string());
@@ -1008,6 +1068,7 @@ fn enum_variant_ident_for_output(output: &Type, fallback: &Ident) -> Ident {
     format_ident!("{variant}")
 }
 
+#[invariant(true)]
 struct GeneratedStructModel {
     visibility: TokenStream2,
     ident: Ident,
@@ -1016,6 +1077,8 @@ struct GeneratedStructModel {
 }
 
 impl GeneratedStructModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let visibility = &self.visibility;
         let ident = &self.ident;
@@ -1044,6 +1107,7 @@ impl GeneratedStructModel {
     }
 }
 
+#[invariant(true)]
 struct GeneratedVariantModel {
     variant: Ident,
     rule_name: Ident,
@@ -1052,6 +1116,8 @@ struct GeneratedVariantModel {
 }
 
 impl GeneratedVariantModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn invariant_attr(&self) -> TokenStream2 {
         let variant = &self.variant;
         if self.tuple {
@@ -1082,6 +1148,7 @@ impl ToTokens for GeneratedVariantModel {
     }
 }
 
+#[invariant(true)]
 struct GeneratedFieldModel {
     attrs: Vec<Attribute>,
     name: Ident,
@@ -1089,6 +1156,8 @@ struct GeneratedFieldModel {
 }
 
 impl GeneratedFieldModel {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_named_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;
@@ -1096,6 +1165,8 @@ impl GeneratedFieldModel {
         quote!(#(#attrs)* pub #name: #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_variant_named(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let name = &self.name;
@@ -1103,12 +1174,16 @@ impl GeneratedFieldModel {
         quote!(#(#attrs)* #name: #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_tuple_struct(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let ty = &self.ty;
         quote!(#(#attrs)* pub #ty)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_tuple_variant(&self) -> TokenStream2 {
         let attrs = &self.attrs;
         let ty = &self.ty;
@@ -1117,6 +1192,8 @@ impl GeneratedFieldModel {
 }
 
 impl SyntaxGrammar {
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_module_tokens(&self) -> TokenStream2 {
         self.recovered_module.as_ref().map_or_else(
             || quote!(crate::tree::recovered),
@@ -1124,6 +1201,8 @@ impl SyntaxGrammar {
         )
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_recursive_family(&self) -> Result<Option<TokenStream2>> {
         if self.recursive.is_empty() {
             return Ok(None);
@@ -1238,6 +1317,8 @@ impl SyntaxGrammar {
         }))
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_recursive_roots(
         &self,
         recovered_module: &TokenStream2,
@@ -1267,6 +1348,8 @@ impl SyntaxGrammar {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_recursive_block(input: ParseStream<'_>) -> Result<Vec<RecursiveRule>> {
     input.parse::<kw::recursive>()?;
     let content;
@@ -1278,12 +1361,15 @@ fn parse_recursive_block(input: ParseStream<'_>) -> Result<Vec<RecursiveRule>> {
     Ok(rules)
 }
 
+#[invariant(true)]
 struct RecursiveRule {
     name: Ident,
     output: Type,
 }
 
 impl RecursiveRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let name = self.name.to_string();
         let output = compact_tokens(&self.output);
@@ -1306,6 +1392,11 @@ impl Parse for RecursiveRule {
     }
 }
 
+#[invariant(true)]
+#[invariant(::Chain(_) => true)]
+#[invariant(::Postfix => true)]
+#[invariant(::Rust(_) => true)]
+#[invariant(::Vector(_) => true)]
 enum ParserExpr {
     Rust(Expr),
     Vector(VectorExpr),
@@ -1318,6 +1409,8 @@ enum ParserExpr {
 }
 
 impl ParserExpr {
+    #[requires(true)]
+    #[ensures(true)]
     fn compact_tokens(&self) -> String {
         match self {
             Self::Rust(expr) => compact_tokens(expr),
@@ -1327,6 +1420,8 @@ impl ParserExpr {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn to_token_stream(&self) -> TokenStream2 {
         match self {
             Self::Rust(expr) => quote!(#expr),
@@ -1343,10 +1438,14 @@ impl ParserExpr {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rust_tokens(&self) -> TokenStream2 {
         self.to_token_stream()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn postfix(self, method: &str, args: Vec<Expr>) -> Self {
         Self::Postfix {
             receiver: Box::new(self),
@@ -1395,6 +1494,7 @@ impl Parse for ParserExpr {
     }
 }
 
+#[invariant(true)]
 struct ChainExpr {
     first: Box<ParserExpr>,
     links: Box<ParserExpr>,
@@ -1478,10 +1578,19 @@ impl ToTokens for ChainExpr {
     }
 }
 
+#[invariant(true)]
 struct VectorExpr {
     items: Vec<VectorItem>,
 }
 
+#[invariant(true)]
+#[invariant(::Assert => true)]
+#[invariant(::One(_) => true)]
+#[invariant(::OneOrMore(_) => true)]
+#[invariant(::OneOrMoreSpread(_) => true)]
+#[invariant(::Spread(_) => true)]
+#[invariant(::ZeroOrMore(_) => true)]
+#[invariant(::ZeroOrMoreSpread(_) => true)]
 enum VectorItem {
     One(ParserExpr),
     Spread(ParserExpr),
@@ -1552,6 +1661,8 @@ impl ToTokens for VectorExpr {
 }
 
 impl VectorItem {
+    #[requires(true)]
+    #[ensures(true)]
     fn to_token_stream(&self) -> TokenStream2 {
         match self {
             Self::One(expr) => {
@@ -1590,6 +1701,10 @@ impl VectorItem {
     }
 }
 
+#[invariant(true)]
+#[invariant(::Alias(_) => true)]
+#[invariant(::Enum(_) => true)]
+#[invariant(::Struct(_) => true)]
 enum Rule {
     Alias(AliasRule),
     Struct(NodeRule),
@@ -1597,6 +1712,8 @@ enum Rule {
 }
 
 impl Rule {
+    #[requires(true)]
+    #[ensures(true)]
     fn name(&self) -> &Ident {
         match self {
             Rule::Alias(rule) => &rule.name,
@@ -1605,10 +1722,14 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn output<'a>(&'a self, type_env: &'a GrammarTypeEnv) -> Option<&'a Type> {
         type_env.rules.get(&self.name().to_string())
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn declared_output(&self) -> Option<&Type> {
         match self {
             Rule::Alias(_) => None,
@@ -1617,6 +1738,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn context_label(&self) -> Option<String> {
         match self {
             Rule::Alias(rule) => rule.context.as_ref().map(LitStr::value),
@@ -1625,6 +1748,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_metadata(type_env),
@@ -1633,6 +1758,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn arguments(&self) -> &[Ident] {
         match self {
             Rule::Alias(rule) => &rule.arguments,
@@ -1641,6 +1768,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         match self {
             Rule::Alias(rule) => rule.argument_types(type_env),
@@ -1649,6 +1778,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1685,6 +1816,8 @@ impl Rule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1698,6 +1831,7 @@ impl Rule {
     }
 }
 
+#[invariant(true)]
 struct AliasRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -1706,6 +1840,8 @@ struct AliasRule {
 }
 
 impl AliasRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -1753,6 +1889,8 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1817,6 +1955,8 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -1867,6 +2007,8 @@ impl AliasRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -1876,6 +2018,8 @@ impl AliasRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -1910,6 +2054,7 @@ impl Parse for AliasRule {
     }
 }
 
+#[invariant(true)]
 struct EnumRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -1918,6 +2063,7 @@ struct EnumRule {
     branches: Vec<EnumBranch>,
 }
 
+#[invariant(true)]
 struct EnumBranch {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -1925,6 +2071,8 @@ struct EnumBranch {
 }
 
 impl EnumRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -1960,6 +2108,8 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2083,6 +2233,8 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2127,6 +2279,8 @@ impl EnumRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -2136,6 +2290,8 @@ impl EnumRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -2144,6 +2300,7 @@ impl EnumRule {
     }
 }
 
+#[invariant(true)]
 struct NodeRule {
     name: Ident,
     arguments: Vec<Ident>,
@@ -2153,6 +2310,8 @@ struct NodeRule {
 }
 
 impl NodeRule {
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_model_fields(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2173,6 +2332,8 @@ impl NodeRule {
             .collect()
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(&self, kind: &'static str) -> TokenStream2 {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
@@ -2205,6 +2366,8 @@ impl NodeRule {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2351,6 +2514,8 @@ impl NodeRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2401,6 +2566,8 @@ impl NodeRule {
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_types(&self, type_env: &GrammarTypeEnv) -> Option<BTreeMap<String, Type>> {
         let mut arguments = BTreeMap::new();
         for argument in &self.arguments {
@@ -2410,6 +2577,8 @@ impl NodeRule {
         Some(arguments)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn argument_name_set(&self) -> BTreeSet<String> {
         self.arguments
             .iter()
@@ -2418,6 +2587,7 @@ impl NodeRule {
     }
 }
 
+#[invariant(true)]
 struct GrammarTypeEnv {
     recursive: BTreeMap<String, Type>,
     rules: BTreeMap<String, Type>,
@@ -2431,6 +2601,7 @@ enum StrictParserCallMode {
     External,
 }
 
+#[invariant(true)]
 struct StrictParserGeneration<'a> {
     type_env: &'a GrammarTypeEnv,
     generate_model: bool,
@@ -2439,30 +2610,42 @@ struct StrictParserGeneration<'a> {
 }
 
 impl StrictParserGeneration<'_> {
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_has_local_parser(&self, name: &str) -> bool {
         self.model_all_rules_local || self.rule_is_generated_model(name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_is_generated_model(&self, name: &str) -> bool {
         self.type_env.rules.get(name).is_some_and(|output| {
             output_is_generated_model(self.generate_model, self.model_outputs, output)
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn recursive_has_local_parser(&self, name: &str) -> bool {
         self.model_all_rules_local || self.recursive_is_generated_model(name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn recursive_is_generated_model(&self, name: &str) -> bool {
         self.type_env.recursive.get(name).is_some_and(|output| {
             output_is_generated_model(self.generate_model, self.model_outputs, output)
         })
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
         quote!(super::strict_generated_parser_family().#name)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn external_free_modifier_parser(&self) -> TokenStream2 {
         let name = format_ident!("free_modifier");
         if self.recursive_has_local_parser("free_modifier") {
@@ -2474,6 +2657,8 @@ impl StrictParserGeneration<'_> {
 }
 
 impl GrammarTypeEnv {
+    #[requires(true)]
+    #[ensures(true)]
     fn new(recursive: &[RecursiveRule], rules: &[Rule]) -> Self {
         let mut type_env = Self {
             recursive: recursive
@@ -2556,10 +2741,14 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
+    #[requires(true)]
+    #[ensures(true)]
     fn rule_arguments_for_call(&self, rule: &str) -> Option<&[String]> {
         self.rule_arguments.get(rule).map(Vec::as_slice)
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_struct_field_type(
         &self,
         struct_ty: &TokenStream2,
@@ -2574,6 +2763,8 @@ impl GrammarTypeEnv {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn field_type_for_chain_metadata(
     field: &FieldItem,
     type_env: &GrammarTypeEnv,
@@ -2587,10 +2778,14 @@ fn field_type_for_chain_metadata(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_free_modifier_param_tokens() -> TokenStream2 {
     quote!(__generated_free_modifier: BoxedParser<'tokens, FreeModifierSyntax>,)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_sequence_parser_tokens(
     fields: &[&FieldItem],
     arguments: &BTreeSet<String>,
@@ -2624,6 +2819,8 @@ fn strict_sequence_parser_tokens(
     Ok((parser, pattern))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
     match field.kind {
         FieldKind::Field => field
@@ -2638,6 +2835,8 @@ fn sequence_item_pattern(field: &FieldItem) -> TokenStream2 {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_parser_expr_tokens(
     expr: &ParserExpr,
     arguments: &BTreeSet<String>,
@@ -2675,6 +2874,8 @@ fn strict_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_chain_parser_expr_tokens(
     expr: &ChainExpr,
     arguments: &BTreeSet<String>,
@@ -2714,6 +2915,8 @@ fn strict_chain_parser_expr_tokens(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_postfix_parser_expr_tokens(
     receiver: &ParserExpr,
     method: &Ident,
@@ -2760,6 +2963,8 @@ fn strict_postfix_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_vector_parser_expr_tokens(
     expr: &VectorExpr,
     arguments: &BTreeSet<String>,
@@ -2903,6 +3108,8 @@ fn strict_vector_parser_expr_tokens(
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn nested_sequence_pattern(mut bindings: Vec<TokenStream2>) -> TokenStream2 {
     if bindings.is_empty() {
         return quote!(());
@@ -2914,6 +3121,8 @@ fn nested_sequence_pattern(mut bindings: Vec<TokenStream2>) -> TokenStream2 {
     pattern
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rust_parser_expr_tokens(
     expr: &Expr,
     arguments: &BTreeSet<String>,
@@ -2961,6 +3170,8 @@ fn strict_rust_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_method_parser_expr_tokens(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
@@ -3197,6 +3408,8 @@ fn strict_method_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_call_parser_expr_tokens(
     call: &ExprCall,
     arguments: &BTreeSet<String>,
@@ -3409,6 +3622,8 @@ fn strict_call_parser_expr_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_path_parser_expr_tokens(
     path: &ExprPath,
     arguments: &BTreeSet<String>,
@@ -3441,6 +3656,8 @@ fn strict_path_parser_expr_tokens(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_tuple_parser_expr_tokens(
     tuple: &ExprTuple,
     arguments: &BTreeSet<String>,
@@ -3458,6 +3675,8 @@ fn strict_tuple_parser_expr_tokens(
     strict_sequence_expr_chain(parts)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rule_call_parser_tokens<'a>(
     function: &str,
     argument_exprs: impl Iterator<Item = &'a Expr>,
@@ -3499,6 +3718,8 @@ fn strict_rule_call_parser_tokens<'a>(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rule_call_by_argument_names(
     function: &Ident,
     argument_names: &[String],
@@ -3536,6 +3757,8 @@ fn strict_rule_call_by_argument_names(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_rule_call_tokens(
     function: &str,
     parser_arguments: Vec<TokenStream2>,
@@ -3557,6 +3780,8 @@ fn strict_rule_call_tokens(
     ))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_argument_parser_tokens(
     argument: &str,
     arguments: &BTreeSet<String>,
@@ -3579,6 +3804,8 @@ fn strict_argument_parser_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_free_modifier_argument_tokens(
     generation: &StrictParserGeneration<'_>,
     free_modifier_parser: &Ident,
@@ -3591,6 +3818,8 @@ fn strict_free_modifier_argument_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Result<TokenStream2> {
     if parts.is_empty() {
         return Ok(quote!(generated_runtime::empty()));
@@ -3602,6 +3831,8 @@ fn strict_sequence_expr_chain(mut parts: Vec<TokenStream2>) -> Result<TokenStrea
     Ok(parser)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_alternative_exprs(expr: &Expr) -> Vec<&Expr> {
     if let Expr::Tuple(ExprTuple { elems, .. }) = expr {
         elems.iter().collect()
@@ -3610,6 +3841,8 @@ fn choice_alternative_exprs(expr: &Expr) -> Vec<&Expr> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_choice_alternative_parser_tokens(
     exprs: Vec<&Expr>,
     arguments: &BTreeSet<String>,
@@ -3664,6 +3897,8 @@ fn strict_choice_alternative_parser_tokens(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn strict_choice_chain(
     mut alternatives: Vec<TokenStream2>,
     span: impl ToTokens,
@@ -3687,6 +3922,8 @@ fn strict_choice_chain(
     )))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parser_output_type(
     expr: &ParserExpr,
     type_env: &GrammarTypeEnv,
@@ -3704,6 +3941,8 @@ fn parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn chain_parser_output_type(
     expr: &ChainExpr,
     type_env: &GrammarTypeEnv,
@@ -3722,6 +3961,8 @@ fn chain_parser_output_type(
     Some(quote!(::jbotci_tree::Chain<#first, #links>))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn postfix_parser_output_type(
     receiver: &ParserExpr,
     method: &Ident,
@@ -3743,6 +3984,8 @@ fn postfix_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_parser_output_type(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3756,6 +3999,8 @@ fn vector_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_output_is_vec1(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3765,6 +4010,8 @@ fn vector_output_is_vec1(
     Some(vector_min_cardinality(expr, type_env, &arguments)? > 0)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn argument_type_map(
     argument_names: &BTreeSet<String>,
     type_env: &GrammarTypeEnv,
@@ -3775,6 +4022,8 @@ fn argument_type_map(
         .collect()
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_element_type(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3811,6 +4060,8 @@ fn vector_element_type(
     element
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_min_cardinality(
     expr: &VectorExpr,
     type_env: &GrammarTypeEnv,
@@ -3840,6 +4091,8 @@ fn vector_min_cardinality(
     Some(min)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_collection_element_type(output: &TokenStream2) -> Option<TokenStream2> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
     match ty {
@@ -3860,6 +4113,8 @@ fn vector_collection_element_type(output: &TokenStream2) -> Option<TokenStream2>
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn vector_collection_is_vec1(output: &TokenStream2) -> Option<bool> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
     match ty {
@@ -3877,6 +4132,8 @@ fn vector_collection_is_vec1(output: &TokenStream2) -> Option<bool> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn rust_parser_output_type(
     expr: &Expr,
     type_env: &GrammarTypeEnv,
@@ -3894,6 +4151,8 @@ fn rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn method_rust_parser_output_type(
     method: &ExprMethodCall,
     type_env: &GrammarTypeEnv,
@@ -3927,6 +4186,8 @@ fn method_rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn call_rust_parser_output_type(
     call: &ExprCall,
     type_env: &GrammarTypeEnv,
@@ -3988,6 +4249,8 @@ fn call_rust_parser_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_output_type(
     expr: &Expr,
     type_env: &GrammarTypeEnv,
@@ -4000,6 +4263,8 @@ fn choice_output_type(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn choice_outputs_same<'a>(
     exprs: impl Iterator<Item = &'a Expr>,
     type_env: &GrammarTypeEnv,
@@ -4011,6 +4276,8 @@ fn choice_outputs_same<'a>(
     common_choice_output_type(&outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn common_choice_output_type(outputs: &[TokenStream2]) -> Option<TokenStream2> {
     let first = outputs.first()?;
     if outputs
@@ -4044,6 +4311,8 @@ fn common_choice_output_type(outputs: &[TokenStream2]) -> Option<TokenStream2> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn coerce_choice_parser_output(
     parser: TokenStream2,
     source: &TokenStream2,
@@ -4067,6 +4336,8 @@ fn coerce_choice_parser_output(
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn sequence_output_type<'a>(
     exprs: impl Iterator<Item = &'a Expr>,
     type_env: &GrammarTypeEnv,
@@ -4085,6 +4356,8 @@ fn sequence_output_type<'a>(
     Some(output)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn tuple_rust_parser_output_type(
     tuple: &ExprTuple,
     type_env: &GrammarTypeEnv,
@@ -4093,6 +4366,8 @@ fn tuple_rust_parser_output_type(
     sequence_output_type(tuple.elems.iter(), type_env, arguments)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn path_rust_parser_output_type(
     path: &ExprPath,
     type_env: &GrammarTypeEnv,
@@ -4110,6 +4385,8 @@ fn path_rust_parser_output_type(
     None
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn simple_type_ident(output: &Type) -> Option<&Ident> {
     let Type::Path(path) = output else {
         return None;
@@ -4124,6 +4401,8 @@ fn simple_type_ident(output: &Type) -> Option<&Ident> {
     Some(&segment.ident)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parser_type_tokens(
     output: &Type,
     generate_model: bool,
@@ -4142,6 +4421,8 @@ fn parser_type_tokens(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn output_is_generated_model(
     generate_model: bool,
     model_outputs: &Option<BTreeSet<String>>,
@@ -4153,6 +4434,8 @@ fn output_is_generated_model(
     type_mentions_generated_model(output, model_outputs)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn type_mentions_generated_model(ty: &Type, model_outputs: &Option<BTreeSet<String>>) -> bool {
     match ty {
         Type::Path(path) => {
@@ -4188,14 +4471,20 @@ fn type_mentions_generated_model(ty: &Type, model_outputs: &Option<BTreeSet<Stri
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn is_path_type(output: &Type) -> bool {
     matches!(output, Type::Path(_))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn is_unit_type(output: &Type) -> bool {
     matches!(output, Type::Tuple(tuple) if tuple.elems.is_empty())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
     input.parse::<kw::rule>()?;
     let context: LitStr = input.parse()?;
@@ -4254,6 +4543,8 @@ fn parse_explicit_rule(input: ParseStream<'_>) -> Result<Rule> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_struct_fields(input: ParseStream<'_>) -> Result<Vec<FieldItem>> {
     let mut fields = Vec::new();
     while !input.is_empty() {
@@ -4262,6 +4553,8 @@ fn parse_explicit_struct_fields(input: ParseStream<'_>) -> Result<Vec<FieldItem>
     Ok(fields)
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
     let attrs = input.call(Attribute::parse_outer)?;
     let mut conditions = Vec::new();
@@ -4350,6 +4643,8 @@ fn parse_explicit_struct_field(input: ParseStream<'_>) -> Result<FieldItem> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
     if !input.peek(syn::token::Paren) {
         return Ok(Vec::new());
@@ -4366,6 +4661,7 @@ fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
     Ok(arguments)
 }
 
+#[invariant(true)]
 struct FieldItem {
     attrs: Vec<Attribute>,
     conditions: Vec<Condition>,
@@ -4376,6 +4672,8 @@ struct FieldItem {
 }
 
 impl FieldItem {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self, arguments: &BTreeSet<String>) -> TokenStream2 {
         let kind = self.kind.as_str();
         let name = self
@@ -4396,6 +4694,8 @@ impl FieldItem {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn generated_model_field(
         &self,
         type_env: &GrammarTypeEnv,
@@ -4448,6 +4748,8 @@ enum FieldKind {
 }
 
 impl FieldKind {
+    #[requires(true)]
+    #[ensures(true)]
     fn as_str(&self) -> &'static str {
         match self {
             FieldKind::Field => "field",
@@ -4458,12 +4760,15 @@ impl FieldKind {
     }
 }
 
+#[invariant(true)]
 struct Condition {
     kind: ConditionKind,
     name: Ident,
 }
 
 impl Condition {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(&self) -> TokenStream2 {
         let kind = match self.kind {
             ConditionKind::Feature => quote!(SyntaxGrammarConditionKind::Feature),
@@ -4478,6 +4783,8 @@ impl Condition {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_strict_gate(&self, parser: TokenStream2) -> TokenStream2 {
         let name = &self.name;
         match self.kind {
@@ -4527,6 +4834,27 @@ enum ConditionKind {
     Policy,
 }
 
+#[invariant(true)]
+#[invariant(::Arc(_) => true)]
+#[invariant(::Boxed(_) => true)]
+#[invariant(::Choice(_) => true)]
+#[invariant(::Cmavo(_) => true)]
+#[invariant(::Ignored(_) => true)]
+#[invariant(::Lookahead(_) => true)]
+#[invariant(::Many(_) => true)]
+#[invariant(::Many1(_) => true)]
+#[invariant(::Not(_) => true)]
+#[invariant(::NotNextRule(_) => true)]
+#[invariant(::NotNextSelmaho(_) => true)]
+#[invariant(::NotNextToken(_) => true)]
+#[invariant(::Opaque(_) => true)]
+#[invariant(::Opt(_) => true)]
+#[invariant(::PayloadStart(_) => true)]
+#[invariant(::Rule(_) => true)]
+#[invariant(::Selmaho(_) => true)]
+#[invariant(::Sequence(_) => true)]
+#[invariant(::WithFreeModifiers(_) => true)]
+#[invariant(::WordCategory(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RecoveryExpr {
     Cmavo(String),
@@ -4555,6 +4883,8 @@ enum RecoveryExpr {
 }
 
 impl RecoveryExpr {
+    #[requires(true)]
+    #[ensures(true)]
     fn expand(self) -> TokenStream2 {
         match self {
             RecoveryExpr::Cmavo(cmavo) => {
@@ -4637,6 +4967,8 @@ impl RecoveryExpr {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> RecoveryExpr {
     match expr {
         ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments),
@@ -4683,6 +5015,8 @@ fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> Reco
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_postfix_recovery_expr(
     receiver: &ParserExpr,
     method: &Ident,
@@ -4706,6 +5040,8 @@ fn classify_postfix_recovery_expr(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_recovery_expr(expr: &Expr, arguments: &BTreeSet<String>) -> RecoveryExpr {
     match expr {
         Expr::Call(call) => classify_call_recovery_expr(call, arguments),
@@ -4725,6 +5061,8 @@ fn classify_recovery_expr(expr: &Expr, arguments: &BTreeSet<String>) -> Recovery
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
     if array.elems.is_empty() {
         return None;
@@ -4740,6 +5078,8 @@ fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
     })
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_method_recovery_expr(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
@@ -4777,6 +5117,8 @@ fn classify_method_recovery_expr(
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) -> RecoveryExpr {
     let Some(name) = call_name(call) else {
         return RecoveryExpr::Opaque(compact_tokens(call));
@@ -4836,6 +5178,8 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn classify_path_recovery_expr(path: &ExprPath, arguments: &BTreeSet<String>) -> RecoveryExpr {
     let text = compact_tokens(path);
     if arguments.contains(&text) || (path.qself.is_none() && path.path.segments.len() == 1) {
@@ -4845,6 +5189,8 @@ fn classify_path_recovery_expr(path: &ExprPath, arguments: &BTreeSet<String>) ->
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn call_name(call: &ExprCall) -> Option<String> {
     let Expr::Path(path) = call.func.as_ref() else {
         return None;
@@ -4855,6 +5201,8 @@ fn call_name(call: &ExprCall) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn path_expr_last_segment(expr: &Expr) -> Option<String> {
     let Expr::Path(path) = expr else {
         return None;
@@ -4865,10 +5213,14 @@ fn path_expr_last_segment(expr: &Expr) -> Option<String> {
         .map(|segment| segment.ident.to_string())
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result<String> {
     path_expr_last_segment(expr).ok_or_else(|| syn::Error::new_spanned(expr, message))
 }
 
+#[requires(true)]
+#[ensures(true)]
 fn compact_tokens(tokens: impl ToTokens) -> String {
     tokens
         .to_token_stream()
@@ -4883,6 +5235,8 @@ mod tests {
     use super::*;
     use quote::quote;
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4904,6 +5258,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_does_not_support_recovered_build_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4919,6 +5275,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_node_and_product_rules() {
         let node_result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4950,6 +5308,8 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_struct_body_forms() {
         let old_fields = syn::parse2::<SyntaxGrammar>(quote! {
@@ -4990,6 +5350,8 @@ mod tests {
         }
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_old_typed_alias_rules() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5010,6 +5372,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_alias_bodies() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5029,6 +5393,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_recursive_blocks() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5051,6 +5417,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_recursive_names() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5072,6 +5440,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_rule_names() {
         let result = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5094,6 +5464,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_accepts_vector_parser_method_suffixes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5112,6 +5484,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn generated_chain_requires_link_element_field() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5141,6 +5515,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn enum_branch_prefers_same_named_parser_argument_over_rule() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5174,6 +5550,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn generated_single_field_structs_are_newtypes() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5199,6 +5577,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn grammar_rejects_duplicate_generated_enum_variants() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5224,6 +5604,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn strict_parser_unknown_call_reports_compile_error() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5244,6 +5626,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn strict_parser_unknown_method_reports_compile_error() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5264,6 +5648,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn strict_recursive_root_without_rule_reports_compile_error() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {
@@ -5288,6 +5674,8 @@ mod tests {
         );
     }
 
+    #[requires(true)]
+    #[ensures(true)]
     #[test]
     fn partial_valid_alias_requires_simple_output_type() {
         let grammar = syn::parse2::<SyntaxGrammar>(quote! {

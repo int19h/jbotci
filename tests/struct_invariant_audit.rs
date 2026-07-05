@@ -1112,6 +1112,70 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "span and value each own their validity",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:AliasRule",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:ChainExpr",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:Condition",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumBranch",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:EnumRule",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:FieldItem",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedFieldModel",
+        "syntax macro generated model state is assembled from typed grammar metadata",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedStructModel",
+        "syntax macro generated model state is assembled from typed grammar metadata",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedTreeModel",
+        "syntax macro generated model state is assembled from typed grammar metadata",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:GeneratedVariantModel",
+        "syntax macro generated model state is assembled from typed grammar metadata",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:GrammarTypeEnv",
+        "syntax macro generation environment is assembled from typed grammar metadata",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:NodeRule",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecursiveRule",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:StrictParserGeneration",
+        "strict parser generation state is built by fallible grammar analysis before code emission",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:SyntaxGrammar",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:VectorExpr",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),
@@ -1170,6 +1234,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/tree.rs:WithFreeModifiers",
         "generic wrapper delegates validity to its payload and FreeModifierSyntax",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/lib.rs:TreeChildFlags",
+        "tree macro child flags are independent switches parsed from field attributes",
+    ),
+    (
+        "crates/jbotci-tree-macros/src/lib.rs:TreeModelOptions",
+        "tree macro options are independent switches parsed from macro attributes",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:Chain",
