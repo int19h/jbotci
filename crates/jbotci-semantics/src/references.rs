@@ -488,12 +488,6 @@ impl<'tree> GeneratedReferenceAnalysis<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub fn v0_compatibility_projection(&self) -> V0CompatibilityProjection {
-        V0CompatibilityProjection::from_generated_analysis(self)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub fn fixture_projection(&self) -> ReferenceFixtureProjection {
         ReferenceFixtureProjection::from_generated_analysis(self)
     }
@@ -637,10 +631,6 @@ impl PlaceAnalysis {
 #[invariant(true)]
 pub struct DiscourseReferences {
     edges: Vec<ReferenceEdge>,
-    edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
-    edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
-    #[serde(skip)]
-    koha_bindings: HashMap<Cmavo, SumtiNodeId>,
 }
 
 #[invariant(byte_start <= byte_end)]
@@ -652,50 +642,6 @@ pub struct SyntaxSpanKey {
     pub byte_end: usize,
     pub char_start: usize,
     pub char_end: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct V0CompatibilityProjection {
-    pub sumti_assignments: Vec<V0SumtiAssignment>,
-    pub selbri_places: Vec<V0SelbriPlace>,
-    pub reference_edges: Vec<V0ReferenceEdge>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct V0SumtiAssignment {
-    pub sumti: SyntaxSpanKey,
-    pub selbri: SyntaxSpanKey,
-    pub slot: V0PlaceSlot,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "value", rename_all = "kebab-case")]
-#[invariant(true)]
-#[invariant(::Numbered(_) => true)]
-#[invariant(::Modal(_) => true)]
-pub enum V0PlaceSlot {
-    Numbered(NonZeroU8),
-    Modal(Option<SyntaxSpanKey>),
-    PlaceQuestion,
-    Fai,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct V0SelbriPlace {
-    pub selbri: SyntaxSpanKey,
-    pub place: NonZeroU8,
-    pub sumti: SyntaxSpanKey,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct V0ReferenceEdge {
-    pub source: SyntaxSpanKey,
-    pub target: Option<SyntaxSpanKey>,
-    pub kind: ReferenceKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1032,97 +978,6 @@ fn generated_fixture_place_slot(
     }
 }
 
-impl V0CompatibilityProjection {
-    #[requires(true)]
-    #[ensures(true)]
-    fn from_generated_analysis(analysis: &GeneratedReferenceAnalysis<'_>) -> Self {
-        let mut sumti_assignments = Vec::new();
-        let mut selbri_places = Vec::new();
-        for assignment in analysis.place_analysis.assignments() {
-            let Some(frame) = analysis.place_analysis.frame(assignment.frame) else {
-                continue;
-            };
-            let Some(relation_key) = frame
-                .selbri
-                .map(|selbri| selbri.0)
-                .or_else(|| frame.tanru_unit.map(|tanru_unit| tanru_unit.0))
-                .or(Some(frame.node))
-                .and_then(|node| span_key_for_generated_node(&analysis.syntax_index, node))
-            else {
-                continue;
-            };
-            let Some(argument_key) =
-                span_key_for_generated_node(&analysis.syntax_index, assignment.sumti.0)
-            else {
-                continue;
-            };
-            sumti_assignments.push(V0SumtiAssignment {
-                sumti: argument_key.clone(),
-                selbri: relation_key.clone(),
-                slot: generated_v0_place_slot(&analysis.syntax_index, assignment.slot),
-            });
-            if let PlaceSlot::Numbered(place) = assignment.slot {
-                selbri_places.push(V0SelbriPlace {
-                    selbri: relation_key,
-                    place,
-                    sumti: argument_key,
-                });
-            }
-        }
-
-        let reference_edges = analysis
-            .discourse_references
-            .edges()
-            .iter()
-            .filter_map(|edge| {
-                let source = span_key_for_generated_node(&analysis.syntax_index, edge.source)?;
-                let target = match &edge.target {
-                    ReferenceTarget::ResolvedNode(node) => {
-                        span_key_for_generated_node(&analysis.syntax_index, *node)
-                    }
-                    _ => None,
-                };
-                Some(V0ReferenceEdge {
-                    source,
-                    target,
-                    kind: edge.kind,
-                })
-            })
-            .collect();
-
-        canonical_v0_projection(V0CompatibilityProjection {
-            sumti_assignments,
-            selbri_places,
-            reference_edges,
-        })
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn canonical_v0_projection(mut projection: V0CompatibilityProjection) -> V0CompatibilityProjection {
-    projection.sumti_assignments.sort();
-    projection.sumti_assignments.dedup();
-    projection.selbri_places.sort();
-    projection.selbri_places.dedup();
-    projection.reference_edges.sort();
-    projection.reference_edges.dedup();
-    projection
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_v0_place_slot(index: &GeneratedSyntaxIndex<'_>, slot: PlaceSlot) -> V0PlaceSlot {
-    match slot {
-        PlaceSlot::Numbered(place) => V0PlaceSlot::Numbered(place),
-        PlaceSlot::Modal(tag) => {
-            V0PlaceSlot::Modal(tag.and_then(|node| span_key_for_generated_node(index, node)))
-        }
-        PlaceSlot::PlaceQuestion => V0PlaceSlot::PlaceQuestion,
-        PlaceSlot::Fai => V0PlaceSlot::Fai,
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn span_key_for_generated_node(
@@ -1184,36 +1039,6 @@ impl DiscourseReferences {
     #[ensures(true)]
     pub fn edges(&self) -> &[ReferenceEdge] {
         &self.edges
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn edge(&self, id: ReferenceEdgeId) -> Option<&ReferenceEdge> {
-        self.edges.get(id.0)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn references_from_node(&self, node: RawSyntaxNodeId) -> &[ReferenceEdgeId] {
-        self.edge_ids_by_source
-            .get(&node)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn references_to_node(&self, node: RawSyntaxNodeId) -> &[ReferenceEdgeId] {
-        self.edge_ids_by_target_node
-            .get(&node)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn koha_binding(&self, cmavo: Cmavo) -> Option<SumtiNodeId> {
-        self.koha_bindings.get(&cmavo).copied()
     }
 }
 
@@ -4536,12 +4361,6 @@ struct PlaceCursor {
 }
 
 impl PlaceCursor {
-    #[requires(true)]
-    #[ensures(ret.next_place == 1)]
-    fn new(frame: SelbriPlaceFrameId) -> Self {
-        Self::new_at(frame, 1)
-    }
-
     #[requires(start > 0)]
     #[ensures(ret.next_place == start)]
     fn new_at(frame: SelbriPlaceFrameId, start: u8) -> Self {
@@ -4601,18 +4420,6 @@ impl PlaceCursor {
     #[ensures(self.next_place >= minimum)]
     fn ensure_next_place_at_least(&mut self, minimum: u8) {
         self.next_place = self.next_place.max(minimum);
-    }
-
-    #[requires(self.frame == branch.frame)]
-    #[ensures(self.frame == old(self.frame))]
-    #[ensures(self.next_place >= old(self.next_place))]
-    fn merge_from_branch(&mut self, branch: &PlaceCursor) {
-        self.next_place = self.next_place.max(branch.next_place);
-        self.filled_numbered
-            .extend(branch.filled_numbered.iter().copied());
-        while self.filled_numbered.contains(&self.next_place) {
-            self.next_place = self.next_place.saturating_add(1);
-        }
     }
 }
 
@@ -5080,8 +4887,6 @@ struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     index: &'index GeneratedSyntaxIndex<'tree>,
     places: &'index PlaceAnalysis,
     edges: Vec<ReferenceEdge>,
-    edge_ids_by_source: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
-    edge_ids_by_target_node: HashMap<RawSyntaxNodeId, Vec<ReferenceEdgeId>>,
     koha_bindings: HashMap<Cmavo, SumtiNodeId>,
     cei_bridi_bindings: HashMap<CeiLabel, BridiNodeId>,
     selbri_variable_bindings: HashMap<Cmavo, SelbriNodeId>,
@@ -5116,8 +4921,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             index,
             places,
             edges: Vec::new(),
-            edge_ids_by_source: HashMap::new(),
-            edge_ids_by_target_node: HashMap::new(),
             koha_bindings: HashMap::new(),
             cei_bridi_bindings: HashMap::new(),
             selbri_variable_bindings: HashMap::new(),
@@ -5149,12 +4952,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn finish(mut self) -> DiscourseReferences {
         self.flush_unresolved_pending_next_utterance_sources();
-        DiscourseReferences {
-            edges: self.edges,
-            edge_ids_by_source: self.edge_ids_by_source,
-            edge_ids_by_target_node: self.edge_ids_by_target_node,
-            koha_bindings: self.koha_bindings,
-        }
+        DiscourseReferences { edges: self.edges }
     }
 
     #[requires(true)]
@@ -7393,12 +7191,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(self.sumti_mentions.len() == old(self.sumti_mentions.len()) + 1)]
-    fn note_self_sumti_mention(&mut self, source: SumtiNodeId) {
-        self.note_self_sumti_mention_with_availability(source, true);
-    }
-
-    #[requires(true)]
-    #[ensures(self.sumti_mentions.len() == old(self.sumti_mentions.len()) + 1)]
     fn note_self_sumti_mention_with_availability(
         &mut self,
         source: SumtiNodeId,
@@ -7453,19 +7245,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             .get(base_letter)
             .and_then(|mentions| mentions.last())
             .map(|mention| mention.target)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn record_wrapped_koha_reference(
-        &mut self,
-        source: SumtiNodeId,
-        base_sumti: &'tree generated::SumtiSyntax,
-    ) {
-        self.record_wrapped_koha_reference_from_parts(
-            source,
-            generated_argument_koha_cmavo_with_subscript(base_sumti),
-        );
     }
 
     #[requires(true)]
@@ -7651,16 +7430,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 );
                 None
             }
-            Cmavo::Dei | Cmavo::Dihu | Cmavo::Dihe => {
-                if cmavo == Cmavo::Dihe {
-                    self.pending_next_utterance_sources.push(source.0);
-                    return None;
-                }
+            Cmavo::Dihe => {
+                self.pending_next_utterance_sources.push(source.0);
+                None
+            }
+            Cmavo::Dei | Cmavo::Dihu => {
                 let target_node = match cmavo {
                     Cmavo::Dei => self.current_utterance,
                     Cmavo::Dihu => self.utterance_history.last().copied(),
-                    Cmavo::Dihe => None,
-                    _ => None,
+                    _ => unreachable!("utterance arm only handles dei and di'u"),
                 };
                 let target = target_node.map(target_resolved_node).unwrap_or_else(|| {
                     target_unresolved("utterance reference has no determinate target")
@@ -7843,13 +7621,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         rule: ReferenceRule,
     ) {
         let id = ReferenceEdgeId(self.edges.len());
-        if let ReferenceTarget::ResolvedNode(target_node) = target {
-            self.edge_ids_by_target_node
-                .entry(target_node)
-                .or_default()
-                .push(id);
-        }
-        self.edge_ids_by_source.entry(source).or_default().push(id);
         self.edges.push(ReferenceEdge {
             id,
             kind,
@@ -8042,17 +7813,6 @@ fn advance_cursor_for_generated_simple_term_shape(
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_cursor_for_generated_terms_shape(
-    cursor: &mut PlaceCursor,
-    terms: &[generated::TermSyntax],
-) {
-    for term in terms {
-        advance_cursor_for_generated_term_shape(cursor, term);
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn advance_cursor_for_generated_boxed_terms_shape<'term, I, T>(cursor: &mut PlaceCursor, terms: I)
 where
     I: IntoIterator<Item = &'term T>,
@@ -8157,21 +7917,6 @@ fn generated_argument_koha_cmavo_with_subscript(
         return None;
     }
     generated_sumti_afterthought_koha_cmavo_with_subscript(&sumti.base_sumti.leading_sumti)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_pro_sumti_from_sumti(
-    sumti: &generated::SumtiSyntax,
-) -> Option<&generated::ProSumtiSyntax> {
-    let simple = generated_simple_sumti_from_sumti(sumti)?;
-    let generated::SumtiAtomSyntax::SumtiBase(base) = simple.base_sumti.as_ref() else {
-        return None;
-    };
-    let generated::SumtiBaseSyntax::ProSumti(pro_sumti) = base else {
-        return None;
-    };
-    Some(pro_sumti)
 }
 
 #[requires(true)]
@@ -8337,25 +8082,6 @@ fn generated_simple_mekso_operand_to_usize(
             generated_math_expression_to_usize(&operand.inner_expression)
         }
         _ => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_quantifier_to_usize(quantifier: &generated::QuantifierSyntax) -> Option<usize> {
-    match quantifier {
-        generated::QuantifierSyntax::PaRunQuantifier(quantifier) => {
-            generated_number_words_to_usize(&quantifier.number.value)
-        }
-        generated::QuantifierSyntax::MeksoQuantifier(quantifier) => {
-            generated_math_expression_to_usize(&quantifier.mekso)
-        }
-        generated::QuantifierSyntax::ZantufaRawMeksoQuantifier(quantifier) => {
-            generated_math_expression_to_usize(&quantifier.0)
-        }
-        generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
-            generated_math_expression_to_usize(&quantifier.0)
-        }
     }
 }
 
@@ -9021,12 +8747,6 @@ mod tests {
                 assignment.sumti == span_key(9, 2)
                     && matches!(assignment.slot, FixturePlaceSlot::Numbered { place: 2 })
             }));
-            assert!(
-                !analysis
-                    .v0_compatibility_projection()
-                    .selbri_places
-                    .is_empty()
-            );
         });
     }
 

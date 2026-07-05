@@ -969,7 +969,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:DiscourseReferences",
-        "reference edge index consistency is produced by the builder and checked through edge lookup APIs",
+        "reference facts are produced by the discourse traversal and exposed as an ordered edge slice",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFrame",
@@ -1061,7 +1061,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
-        "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
+        "reference edge ids are assigned by the builder and carried by ReferenceEdge facts",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
@@ -1106,22 +1106,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:TextNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0CompatibilityProjection",
-        "v0 compatibility projection is a derived serialization aggregate",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0ReferenceEdge",
-        "v0 compatibility reference edge is a lossy projection whose source facts remain in DiscourseReferences",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0SelbriPlace",
-        "v0 compatibility relation-place entry is derived from typed place assignments",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0SumtiAssignment",
-        "v0 compatibility assignment is a lossy projection whose source facts remain in PlaceAnalysis",
     ),
     (
         "crates/jbotci-source/src/lib.rs:SourceId",
