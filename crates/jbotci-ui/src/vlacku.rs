@@ -1052,6 +1052,38 @@ pub(super) fn render_copy_icon() -> Element {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(inline_js = r#"
+export function jbotciCopyTextToClipboard(text) {
+  const value = String(text ?? "");
+  const fallback = () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-10000px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      textarea.remove();
+    }
+  };
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(value).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+"#)]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciCopyTextToClipboard)]
+    fn js_copy_text_to_clipboard(text: &str);
+}
+
+#[cfg(target_arch = "wasm32")]
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn copy_text_to_clipboard(text: &str) {
