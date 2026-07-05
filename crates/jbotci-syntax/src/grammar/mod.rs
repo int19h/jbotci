@@ -23,9 +23,9 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_tree::TreeVisitor;
 
 use crate::{
-    ExperimentalConstruct, GeneratedSyntaxParse, GeneratedSyntaxParseAttempt, ParseOptions,
-    SyntaxError, SyntaxWarning, Token, WithIndicators, WithIndicatorsData,
-    syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxParse, SyntaxParseAttempt,
+    SyntaxWarning, Token, WithIndicators, WithIndicatorsData, syntax_construct_is_descendant_of,
+    syntax_immediate_child_under,
 };
 
 mod generated;
@@ -614,12 +614,11 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             return;
         }
         let span = token
-            .core_word()
             .source_spans()
             .into_iter()
             .next()
             .map(|span| span.byte_start..span.byte_end)
-            .unwrap_or(0..0);
+            .expect("syntax tokens have source byte ranges");
         self.trace_event(
             TraceLevel::Primitives,
             TraceEventKind::Token,
@@ -713,7 +712,7 @@ fn syntax_location_byte_offsets(words: &[Token]) -> Vec<usize> {
 pub(crate) fn parse_syntax_tree(
     words: &[WordLike],
     options: &ParseOptions,
-) -> Result<GeneratedSyntaxParse, SyntaxError> {
+) -> Result<SyntaxParse, SyntaxError> {
     parse_generated_model_syntax_tree_with_source_attempt(words, None, options).result
 }
 
@@ -735,18 +734,18 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     words: &[WordLike],
     _source: Option<&str>,
     options: &ParseOptions,
-) -> GeneratedSyntaxParseAttempt {
+) -> SyntaxParseAttempt {
     let tokens = syntax_tokens(words, options);
     let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
         add_generated_construct_warnings(&parsed.text, &tokens, &mut warnings);
-        new!(GeneratedSyntaxParse {
+        new!(SyntaxParse {
             parse_tree: Box::new(parsed.text),
             warnings,
         })
     });
-    GeneratedSyntaxParseAttempt {
+    SyntaxParseAttempt {
         result,
         trace: parsed.trace,
     }
@@ -2261,7 +2260,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn has_warning_kind(parsed: &GeneratedSyntaxParse, expected: ExperimentalConstruct) -> bool {
+    fn has_warning_kind(parsed: &SyntaxParse, expected: ExperimentalConstruct) -> bool {
         parsed
             .warnings
             .iter()
@@ -2276,7 +2275,7 @@ mod tests {
 
     #[requires(!source.is_empty())]
     #[ensures(true)]
-    fn parse_source(source: &str, options: &ParseOptions) -> GeneratedSyntaxParse {
+    fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
     }

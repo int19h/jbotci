@@ -7452,9 +7452,10 @@ mod tests {
         const SOURCE: &str = "lo nu zei broda cu brode";
         const UNKNOWN_PLACE_STRUCTURE_WARNING: &str = "relation place structure is unavailable; only places required by explicit assignments are represented";
 
-        let words = jbotci_morphology::segment_words_with_modifiers_with_options(
+        let words = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
             SOURCE,
             &jbotci_morphology::MorphologyOptions::default(),
+            None,
         )
         .expect("source should segment");
         let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
@@ -7504,9 +7505,10 @@ mod tests {
     fn connected_abstraction_implicit_property_slot_uses_branch_source() {
         const SOURCE: &str = "lo nu je ka broda cu brode";
 
-        let words = jbotci_morphology::segment_words_with_modifiers_with_options(
+        let words = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
             SOURCE,
             &jbotci_morphology::MorphologyOptions::default(),
+            None,
         )
         .expect("source should segment");
         let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(

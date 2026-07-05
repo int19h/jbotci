@@ -170,7 +170,6 @@ impl SyntaxGrammar {
                 Cmavo(Cmavo),
                 Selmaho(Selmaho),
                 WordCategory(crate::SyntaxWordCategory),
-                ExactWordCategory(crate::SyntaxWordCategory),
                 Opt(&'static SyntaxGrammarRecoveryExpr),
                 Many(&'static SyntaxGrammarRecoveryExpr),
                 Many1(&'static SyntaxGrammarRecoveryExpr),
@@ -3083,11 +3082,6 @@ fn strict_call_parser_expr_tokens(
             let category = format_ident!("{category}");
             Some(quote!(generated_runtime::word_category(SyntaxWordCategory::#category)))
         }
-        ("exact_word_category", 1) => {
-            let category = call.args.first().and_then(path_expr_last_segment)?;
-            let category = format_ident!("{category}");
-            Some(quote!(generated_runtime::exact_word_category(SyntaxWordCategory::#category)))
-        }
         ("quote_marker", 1) => {
             let cmavo = call.args.first().and_then(path_expr_last_segment)?;
             let cmavo = format_ident!("{cmavo}");
@@ -3717,15 +3711,7 @@ fn call_rust_parser_output_type(
         return Some(quote!(#ty));
     }
     match (function.as_str(), call.args.len()) {
-        (
-            "cmavo"
-            | "selmaho"
-            | "word_category"
-            | "exact_word_category"
-            | "quote_marker"
-            | "delimited_quote_marker",
-            1,
-        )
+        ("cmavo" | "selmaho" | "word_category" | "quote_marker" | "delimited_quote_marker", 1)
         | (
             "relation_word"
             | "tanru_unit_relation_word"
@@ -4320,7 +4306,6 @@ enum RecoveryExpr {
     Cmavo(String),
     Selmaho(String),
     WordCategory(String),
-    ExactWordCategory(String),
     Opt(Box<RecoveryExpr>),
     Many(Box<RecoveryExpr>),
     Many1(Box<RecoveryExpr>),
@@ -4357,10 +4342,6 @@ impl RecoveryExpr {
             RecoveryExpr::WordCategory(category) => {
                 let category = syn::Ident::new(&category, proc_macro2::Span::call_site());
                 quote!(SyntaxGrammarRecoveryExpr::WordCategory(crate::SyntaxWordCategory::#category))
-            }
-            RecoveryExpr::ExactWordCategory(category) => {
-                let category = syn::Ident::new(&category, proc_macro2::Span::call_site());
-                quote!(SyntaxGrammarRecoveryExpr::ExactWordCategory(crate::SyntaxWordCategory::#category))
             }
             RecoveryExpr::Opt(inner) => {
                 let inner = inner.expand();
@@ -4592,12 +4573,6 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             .first()
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::WordCategory)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
-        ("exact_word_category", 1) => call
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::ExactWordCategory)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
         ("quote_marker" | "delimited_quote_marker", 1) => call
             .args

@@ -172,17 +172,13 @@ pub(crate) async fn mcp_post(
 
 #[requires(true)]
 #[ensures(true)]
-fn notification_response(method: &str) -> Response<Body> {
-    match method {
-        "notifications/initialized" | "notifications/cancelled" => Response::builder()
-            .status(StatusCode::ACCEPTED)
-            .body(Body::empty())
-            .expect("MCP notification response builder is valid"),
-        _ => Response::builder()
-            .status(StatusCode::ACCEPTED)
-            .body(Body::empty())
-            .expect("MCP ignored notification response builder is valid"),
-    }
+fn notification_response(_method: &str) -> Response<Body> {
+    // JSON-RPC notifications have no response body; acknowledge supported and
+    // ignored notifications alike.
+    Response::builder()
+        .status(StatusCode::ACCEPTED)
+        .body(Body::empty())
+        .expect("MCP notification response builder is valid")
 }
 
 #[requires(true)]

@@ -548,10 +548,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference markers are renderer annotations derived from semantic reference analysis",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:TransformInfo",
-        "transform metadata is a display annotation for deterministic orthography conversion",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:EmbeddedGentufaFonts",
         "embedded font provider is a zero-sized access point for compile-time font bytes",
     ),
@@ -969,7 +965,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:DiscourseReferences",
-        "reference edge index consistency is produced by the builder and checked through edge lookup APIs",
+        "reference facts are produced by the discourse traversal and exposed as an ordered edge slice",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFrame",
@@ -1061,7 +1057,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
-        "reference edge ids are opaque DiscourseReferences keys whose bounds are checked by edge lookup",
+        "reference edge ids are assigned by the builder and carried by ReferenceEdge facts",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
@@ -1106,22 +1102,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/references.rs:TextNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0CompatibilityProjection",
-        "v0 compatibility projection is a derived serialization aggregate",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0ReferenceEdge",
-        "v0 compatibility reference edge is a lossy projection whose source facts remain in DiscourseReferences",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0SelbriPlace",
-        "v0 compatibility relation-place entry is derived from typed place assignments",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0SumtiAssignment",
-        "v0 compatibility assignment is a lossy projection whose source facts remain in PlaceAnalysis",
     ),
     (
         "crates/jbotci-source/src/lib.rs:SourceId",
@@ -1174,10 +1154,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/lib.rs:GeneratedModelSourceSpanVisitor",
         "generated source-span visitor validity is enforced by Rust references and lifetimes",
-    ),
-    (
-        "crates/jbotci-syntax/src/lib.rs:GeneratedSyntaxParseAttempt",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:ParseOptions",

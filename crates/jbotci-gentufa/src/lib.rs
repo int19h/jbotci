@@ -165,25 +165,12 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub row: usize,
     pub row_span: usize,
     pub color: String,
-    pub parent_color: Option<String>,
     pub raw_text: String,
     pub display_text: String,
-    pub transform: Option<TransformInfo>,
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub computed_gloss: Option<String>,
     pub tooltip: Option<Tooltip>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-#[invariant(true)]
-pub struct TransformInfo {
-    pub source_text: String,
-    pub target_text: String,
-    pub group_key: Option<String>,
-    pub output_index: usize,
-    pub output_count: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1501,10 +1488,8 @@ fn synthetic_leaf_block<Tooltip>(
         row,
         row_span,
         color: String::new(),
-        parent_color: None,
         raw_text: part.raw_text.clone(),
         display_text: part.display_text.clone(),
-        transform: None,
         glosses: Vec::new(),
         definition: None,
         computed_gloss: None,
@@ -1606,10 +1591,8 @@ fn block_from_tree_node<Tooltip>(
         row,
         row_span,
         color: String::new(),
-        parent_color: None,
         raw_text: node.raw_text.clone(),
         display_text,
-        transform: None,
         glosses: Vec::new(),
         definition: None,
         computed_gloss: node.computed_gloss.clone(),
@@ -2069,12 +2052,6 @@ fn needs_leading_pause(word: &Word) -> bool {
             .chars()
             .next()
             .is_some_and(is_latin_vowel_surface_char)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_loose_latin_surface(text: String, options: &GentufaBlockOptions) -> String {
-    render_loose_latin_text_for_script(options.script, &text)
 }
 
 #[requires(true)]

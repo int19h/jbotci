@@ -1524,14 +1524,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "vagueness kind owns the payload validity",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:V0PlaceSlot::Modal",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
-        "crates/jbotci-semantics/src/references.rs:V0PlaceSlot::Numbered",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-source/src/lib.rs:SourceLocationError::ByteRangeInverted",
         "diagnostic enum records rejected constructor inputs",
     ),

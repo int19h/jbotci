@@ -437,10 +437,7 @@ fn source_range_from_normalized_range(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
-pub(crate) fn classify_word_with_options(
-    normalized_word: &str,
-    options: &MorphologyOptions,
-) -> Option<(WordKind, String)> {
+pub(crate) fn classify_word(normalized_word: &str) -> Option<(WordKind, String)> {
     let stripped = normalized_word.replace(',', "");
     if stripped.is_empty() {
         return None;
@@ -474,7 +471,7 @@ pub(crate) fn classify_word_with_options(
         ));
     }
 
-    if is_cmevla_with_options(normalized_word, options) {
+    if is_cmevla_text(normalized_word) {
         return Some((
             WordKind::Cmevla,
             mark_predictable_stress(&canonicalize_word_phonemes(normalized_word)),
@@ -595,15 +592,6 @@ fn acute_vowel(ch: char) -> char {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
-pub(crate) fn parse_lujvo_parts(word: &str) -> Option<Vec1<LujvoPart>> {
-    match analyze_lujvo_parts(word) {
-        Ok(parts) => Some(parts),
-        Err(_) => None,
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
 pub(crate) fn parse_lujvo_parts_with_canonical_phonemes(
     shape_word: &str,
     canonical_word: &str,
@@ -709,13 +697,6 @@ impl LujvoPartRange {
 enum LujvoPartRangeKind {
     Rafsi,
     Hyphen,
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|parts| !parts.is_empty()) || ret.is_err())]
-fn analyze_lujvo_parts(word: &str) -> Result<Vec1<LujvoPart>, LujvoParseFailure> {
-    let chars = text_chars(word);
-    analyze_lujvo_parts_chars(&chars)
 }
 
 #[requires(true)]
@@ -2113,7 +2094,7 @@ fn starts_with_cluster(chars: &[char], start: usize) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn is_cmevla_with_options(normalized: &str, _options: &MorphologyOptions) -> bool {
+pub(crate) fn is_cmevla_text(normalized: &str) -> bool {
     let chars = text_chars(normalized);
     chars.last().is_some_and(|last| is_consonant(*last))
         && chars.first().is_some_and(|first| *first != '\'')
@@ -2540,27 +2521,12 @@ fn is_gismu(word: &str) -> bool {
     }
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn is_lujvo(word: &str) -> bool {
-    let chars = text_chars(word);
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    is_lujvo_chars_with_cache(&chars, &mut cache)
-}
-
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn is_lujvo_chars_with_cache(chars: &[char], cache: &mut LujvoRecognitionCache) -> bool {
     !cmavo_word_slice_with_cache(chars, 0, chars.len(), cache)
         && !is_fuhivla_shape_slice_with_cache(chars, 0, chars.len(), cache)
         && analyze_lujvo_part_ranges_chars_with_cache(chars, cache).is_ok()
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn lujvo_from(chars: &[char], index: usize, has_initial_rafsi: bool) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    lujvo_from_until_with_cache(chars, index, chars.len(), has_initial_rafsi, &mut cache)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2595,26 +2561,6 @@ fn lujvo_from_until_with_cache(
     };
     cache.record_lujvo_from(index, end, has_initial_rafsi, result);
     result
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= chars.len())))]
-fn lujvo_part_ranges_from(
-    chars: &[char],
-    index: usize,
-    has_initial_rafsi: bool,
-    failure: &mut Option<LujvoParseFailure>,
-) -> Option<Vec<LujvoPartRange>> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    lujvo_part_ranges_from_with_cache(
-        chars,
-        index,
-        chars.len(),
-        has_initial_rafsi,
-        failure,
-        &mut cache,
-    )
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2752,21 +2698,6 @@ fn starts_with_cvcy_lujvo_chars_with_cache(
     after_hyphen <= end && lujvo_from_until_with_cache(chars, after_hyphen, end, true, cache)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn is_lujvo_core(chars: &[char], index: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    lujvo_core_part_ranges_until(chars, index, chars.len(), &mut cache).is_some()
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
-#[ensures(ret.as_ref().is_none_or(|ranges| ranges.iter().all(|range| range.start < range.end && range.end <= chars.len())))]
-fn lujvo_core_part_ranges(chars: &[char], index: usize) -> Option<Vec<LujvoPartRange>> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    lujvo_core_part_ranges_until(chars, index, chars.len(), &mut cache)
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
@@ -2790,23 +2721,10 @@ fn lujvo_core_part_ranges_until(
     Some(ranges)
 }
 
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn is_lujvo_final_rafsi_alone(chars: &[char], index: usize) -> bool {
-    is_lujvo_final_rafsi_alone_until(chars, index, chars.len())
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_lujvo_final_rafsi_alone_until(chars: &[char], index: usize, end: usize) -> bool {
     is_cvv_final_rafsi_slice(chars, index, end)
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn initial_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    initial_rafsi_ends_until_with_cache(chars, index, chars.len(), &mut cache)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2841,13 +2759,6 @@ fn initial_rafsi_ends_until_with_cache(
     preferred_ends
 }
 
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn any_extended_rafsi_starts(chars: &[char], index: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    any_extended_rafsi_starts_until_with_cache(chars, index, chars.len(), &mut cache)
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
@@ -2863,13 +2774,6 @@ fn any_extended_rafsi_starts_until_with_cache(
             || !stressed_extended_rafsi_ends_until_with_cache(chars, index, end, cache).is_empty())
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn stressed_extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_extended_rafsi_ends_until_with_cache(chars, index, chars.len(), &mut cache)
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(ret.iter().all(|next| *next > index && *next <= end))]
@@ -2882,13 +2786,6 @@ fn stressed_extended_rafsi_ends_until_with_cache(
     ((index + 1)..=end)
         .filter(|next| stressed_extended_rafsi_slice_with_cache(chars, index, *next, cache))
         .collect()
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
-fn extended_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    extended_rafsi_ends_until_with_cache(chars, index, chars.len(), &mut cache)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -2922,17 +2819,6 @@ fn extended_rafsi_ends_until_with_cache(
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(ret.is_none_or(|split| split > start && split < end))]
-fn stressed_initial_rafsi_short_final_split(
-    chars: &[char],
-    start: usize,
-    end: usize,
-) -> Option<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_initial_rafsi_short_final_split_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(ret.is_none_or(|split| split > start && split < end))]
 fn stressed_initial_rafsi_short_final_split_with_cache(
@@ -2948,13 +2834,6 @@ fn stressed_initial_rafsi_short_final_split_with_cache(
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn stressed_initial_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_initial_rafsi_slice_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_initial_rafsi_slice_with_cache(
@@ -2966,13 +2845,6 @@ fn stressed_initial_rafsi_slice_with_cache(
     stressed_extended_rafsi_slice_with_cache(chars, start, end, cache)
         || stressed_y_rafsi_slice(chars, start, end)
         || stressed_y_less_rafsi_slice(chars, start, end)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn stressed_extended_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_extended_rafsi_slice_with_cache(chars, start, end, &mut cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -3003,13 +2875,6 @@ fn stressed_y_less_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn stressed_brivla_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_brivla_rafsi_slice_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn stressed_brivla_rafsi_slice_with_cache(
@@ -3033,13 +2898,6 @@ fn stressed_brivla_rafsi_slice_with_cache(
                 .into_iter()
                 .any(|syllable_end| syllable_end == stress_end)
         })
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn stressed_fuhivla_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    stressed_fuhivla_rafsi_slice_with_cache(chars, start, end, &mut cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -3071,16 +2929,9 @@ fn consonantal_chain_then_onset(chars: &[char], index: usize, end: usize) -> boo
     if chars.get(index) != Some(&'\'') && has_parse_onset_end(chars, index, end) {
         return true;
     }
-    consonantal_syllable_ends(chars, index, end, SyllablePolicy::Brivla)
+    consonantal_syllable_ends(chars, index, end)
         .into_iter()
         .any(|next| next > index && consonantal_chain_then_onset(chars, next, end))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end > index && *end < chars.len()))]
-fn fuhivla_rafsi_base_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    fuhivla_rafsi_base_ends_until_with_cache(chars, index, chars.len(), &mut cache)
 }
 
 #[requires(index <= lookahead_end && lookahead_end <= chars.len())]
@@ -3101,18 +2952,6 @@ fn fuhivla_rafsi_base_ends_until_with_cache(
         }
     }
     ends
-}
-
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn fuhivla_rafsi_base_slice(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    lookahead_end: usize,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    fuhivla_rafsi_base_slice_with_cache(chars, start, end, lookahead_end, &mut cache)
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
@@ -3139,20 +2978,6 @@ fn fuhivla_rafsi_base_slice_with_cache(
         })
 }
 
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|end| *end >= index && *end <= chars.len()))]
-fn brivla_head_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    brivla_head_ends_until_with_cache(chars, index, chars.len(), &mut cache)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
-fn brivla_head_ends_until(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    brivla_head_ends_until_with_cache(chars, index, end, &mut cache)
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
@@ -3172,13 +2997,6 @@ fn brivla_head_ends_until_with_cache(
     }
 
     brivla_head_ends_without_lookahead(chars, index, end)
-}
-
-#[requires(index <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= index && *head_end <= end))]
-fn fuhivla_head_ends_until(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    fuhivla_head_ends_until_with_cache(chars, index, end, &mut cache)
 }
 
 #[requires(index <= end && end <= chars.len())]
@@ -3265,18 +3083,6 @@ fn rafsi_string_slice(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn rafsi_string_slice_for_lookahead(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    lookahead_end: usize,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    rafsi_string_slice_for_lookahead_with_cache(chars, start, end, lookahead_end, &mut cache)
-}
-
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn rafsi_string_slice_for_lookahead_with_cache(
@@ -3287,13 +3093,6 @@ fn rafsi_string_slice_for_lookahead_with_cache(
     cache: &mut LujvoRecognitionCache,
 ) -> bool {
     rafsi_string_from_with_cache(chars, start, end, lookahead_end, cache)
-}
-
-#[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
-#[ensures(true)]
-fn rafsi_string_from(chars: &[char], start: usize, end: usize, lookahead_end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    rafsi_string_from_with_cache(chars, start, end, lookahead_end, &mut cache)
 }
 
 #[requires(start <= end && end <= lookahead_end && lookahead_end <= chars.len())]
@@ -3434,7 +3233,7 @@ fn stress_tail_reaches_boundary(chars: &[char], index: usize, context_end: usize
             after_y.push(cursor + 1);
         }
         after_y.into_iter().any(|syllable_start| {
-            syllable_ends(chars, syllable_start, context_end, SyllablePolicy::Brivla)
+            syllable_ends(chars, syllable_start, context_end)
                 .into_iter()
                 .any(|syllable_end| syllable_end == context_end)
         })
@@ -3875,14 +3674,6 @@ fn is_cvv_final_rafsi_slice(chars: &[char], start: usize, end: usize) -> bool {
         .any(|vowel_end| vowel_end == end)
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn is_fuhivla_shape(word: &str) -> bool {
-    let chars = text_chars(word);
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    is_fuhivla_shape_slice_with_cache(&chars, 0, chars.len(), &mut cache)
-}
-
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_fuhivla_shape_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -3924,18 +3715,6 @@ fn fuhivla_shape_slice_rejected_by_y_with_cache(
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn is_fuhivla_shape_slice_with_y_policy(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    allows_y: bool,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    is_fuhivla_shape_slice_with_y_policy_with_cache(chars, start, end, allows_y, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn is_fuhivla_shape_slice_with_y_policy_with_cache(
@@ -3973,13 +3752,6 @@ fn is_fuhivla_shape_slice_with_y_policy_with_cache(
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn has_blocking_cmavo_prefix_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    has_blocking_cmavo_prefix_slice_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn has_blocking_cmavo_prefix_slice_with_cache(
@@ -3992,18 +3764,6 @@ fn has_blocking_cmavo_prefix_slice_with_cache(
         return false;
     }
     cmavo_word_slice_with_cache(chars, start, end, cache)
-}
-
-#[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
-#[ensures(true)]
-fn cmavo_post_word_slice(
-    chars: &[char],
-    prefix_start: usize,
-    prefix_end: usize,
-    end: usize,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    cmavo_post_word_slice_with_cache(chars, prefix_start, prefix_end, end, &mut cache)
 }
 
 #[requires(prefix_start <= prefix_end && prefix_end <= end && end <= chars.len())]
@@ -4038,26 +3798,6 @@ fn cmavo_post_word_slice_with_cache(
 }
 
 #[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= chars.len())]
-#[ensures(true)]
-fn indicator_cmavo_boundary_slice(
-    chars: &[char],
-    prefix_start: usize,
-    prefix_end: usize,
-    index: usize,
-    end: usize,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    indicator_cmavo_boundary_slice_with_cache(
-        chars,
-        prefix_start,
-        prefix_end,
-        index,
-        end,
-        &mut cache,
-    )
-}
-
-#[requires(prefix_start <= prefix_end && prefix_end <= index && index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn indicator_cmavo_boundary_slice_with_cache(
@@ -4071,13 +3811,6 @@ fn indicator_cmavo_boundary_slice_with_cache(
     is_indicator_cmavo_slice(chars, prefix_start, prefix_end)
         && !starts_with_nucleus(chars, index)
         && indicator_cmavo_starts_slice_with_cache(chars, index, end, cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn indicator_cmavo_starts_slice(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    indicator_cmavo_starts_slice_with_cache(chars, start, end, &mut cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -4109,6 +3842,7 @@ fn is_indicator_cmavo_slice(chars: &[char], start: usize, end: usize) -> bool {
         .is_some_and(|cmavo| cmavo.is_selmaho(Selmaho::Ui) || cmavo.is_selmaho(Selmaho::Cai))
 }
 
+#[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn lojban_word_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -4133,6 +3867,7 @@ fn lojban_word_slice_with_cache(
         || brivla_word_slice_with_cache(chars, start, end, cache)
 }
 
+#[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn cmavo_word_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -4161,6 +3896,7 @@ fn cmavo_word_slice_with_cache(
     })
 }
 
+#[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn brivla_word_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -4183,6 +3919,7 @@ fn brivla_word_slice_with_cache(
             || is_fuhivla_shape_slice_with_cache(chars, start, end, cache))
 }
 
+#[cfg(test)]
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_lujvo_slice(chars: &[char], start: usize, end: usize) -> bool {
@@ -4341,13 +4078,6 @@ fn starts_cgv_sequence(chars: &[char], index: usize, end: usize) -> bool {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn invalid_vowel_initial_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    invalid_vowel_initial_fuhivla_shape_with_cache(chars, start, end, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn invalid_vowel_initial_fuhivla_shape_with_cache(
@@ -4360,13 +4090,6 @@ fn invalid_vowel_initial_fuhivla_shape_with_cache(
         .get(start)
         .is_some_and(|value| is_vowel(*value) || matches!(value, 'ĭ' | 'ŭ'))
         && !parse_fuhivla_shape_with_cache(chars, start, end, cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn parse_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    parse_fuhivla_shape_with_cache(chars, start, end, &mut cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -4385,13 +4108,6 @@ fn parse_fuhivla_shape_with_cache(
         FuhivlaHeadPolicy::Standard,
         cache,
     ) || parse_experimental_cgv_fuhivla_shape_with_cache(chars, start, end, cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn parse_experimental_cgv_fuhivla_shape(chars: &[char], start: usize, end: usize) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    parse_experimental_cgv_fuhivla_shape_with_cache(chars, start, end, &mut cache)
 }
 
 #[requires(start <= end && end <= chars.len())]
@@ -4420,18 +4136,6 @@ fn has_cgv_sequence_slice(chars: &[char], start: usize, end: usize) -> bool {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(true)]
-fn parse_fuhivla_shape_with_head_policy(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    head_policy: FuhivlaHeadPolicy,
-) -> bool {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    parse_fuhivla_shape_with_head_policy_with_cache(chars, start, end, head_policy, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
 fn parse_fuhivla_shape_with_head_policy_with_cache(
@@ -4457,18 +4161,6 @@ enum FuhivlaHeadPolicy {
 }
 
 #[requires(start <= end && end <= chars.len())]
-#[ensures(ret.iter().all(|head_end| *head_end >= start && *head_end <= end))]
-fn fuhivla_head_ends_for_fuhivla(
-    chars: &[char],
-    start: usize,
-    end: usize,
-    head_policy: FuhivlaHeadPolicy,
-) -> Vec<usize> {
-    let mut cache = LujvoRecognitionCache::new(chars.len());
-    fuhivla_head_ends_for_fuhivla_with_cache(chars, start, end, head_policy, &mut cache)
-}
-
-#[requires(start <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(ret.iter().all(|head_end| *head_end >= start && *head_end <= end))]
 fn fuhivla_head_ends_for_fuhivla_with_cache(
@@ -4489,19 +4181,14 @@ fn fuhivla_head_ends_for_fuhivla_with_cache(
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
 fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    let mut ends: Vec<usize> = syllable_ends(chars, index, end, SyllablePolicy::Brivla)
+    let mut ends: Vec<usize> = syllable_ends(chars, index, end)
         .into_iter()
         .filter(|syllable_end| {
             !syllable_has_explicit_stress(chars, index, *syllable_end)
                 && !stressed_syllable_has_implicit_stress(chars, index, *syllable_end, end)
         })
         .collect();
-    ends.extend(consonantal_syllable_ends(
-        chars,
-        index,
-        end,
-        SyllablePolicy::Brivla,
-    ));
+    ends.extend(consonantal_syllable_ends(chars, index, end));
     ends.sort_unstable();
     ends.dedup();
     ends
@@ -4510,7 +4197,7 @@ fn unstressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
 fn stressed_syllable_ends_for_fuhivla(chars: &[char], index: usize, end: usize) -> Vec<usize> {
-    syllable_ends(chars, index, end, SyllablePolicy::Brivla)
+    syllable_ends(chars, index, end)
         .into_iter()
         .filter(|syllable_end| {
             syllable_has_explicit_stress(chars, index, *syllable_end)
@@ -4531,7 +4218,7 @@ fn stressed_syllable_has_implicit_stress(
         return true;
     }
     syllable_can_end_without_coda(chars, start, syllable_end)
-        && consonantal_syllable_ends(chars, syllable_end, end, SyllablePolicy::Brivla)
+        && consonantal_syllable_ends(chars, syllable_end, end)
             .into_iter()
             .any(|next| next > syllable_end && consonantal_chain_then_final(chars, next, end))
 }
@@ -4548,7 +4235,7 @@ fn consonantal_chain_then_final(chars: &[char], index: usize, end: usize) -> boo
     if final_syllable_slice(chars, index, end) {
         return true;
     }
-    consonantal_syllable_ends(chars, index, end, SyllablePolicy::Brivla)
+    consonantal_syllable_ends(chars, index, end)
         .into_iter()
         .any(|next| next > index && consonantal_chain_then_final(chars, next, end))
 }
@@ -4560,14 +4247,9 @@ fn final_syllable_slice(chars: &[char], start: usize, end: usize) -> bool {
         && brivla_onset_has_nucleus_end(chars, start, end, true)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SyllablePolicy {
-    Brivla,
-}
-
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> Vec<usize> {
+fn syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
     let mut ends = Vec::new();
     let mut onset_ends = Vec::with_capacity(6);
     let mut nucleus_ends = Vec::with_capacity(2);
@@ -4581,7 +4263,7 @@ fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolic
         for nucleus_end in nucleus_ends.iter().copied() {
             if nucleus_end <= end {
                 ends.push(nucleus_end);
-                ends.extend(coda_ends(chars, nucleus_end, end, policy));
+                ends.extend(coda_ends(chars, nucleus_end, end));
             }
         }
     }
@@ -4592,12 +4274,7 @@ fn syllable_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolic
 
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|syllable_end| *syllable_end > index && *syllable_end <= end))]
-fn consonantal_syllable_ends(
-    chars: &[char],
-    index: usize,
-    end: usize,
-    policy: SyllablePolicy,
-) -> Vec<usize> {
+fn consonantal_syllable_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
     if index >= end
         || !is_consonant(chars[index])
         || !chars
@@ -4606,7 +4283,7 @@ fn consonantal_syllable_ends(
     {
         return Vec::new();
     }
-    coda_ends(chars, index + 1, end, policy)
+    coda_ends(chars, index + 1, end)
         .into_iter()
         .filter(|coda_end| *coda_end > index + 1)
         .collect()
@@ -4614,13 +4291,13 @@ fn consonantal_syllable_ends(
 
 #[requires(index <= end && end <= chars.len())]
 #[ensures(ret.iter().all(|coda_end| *coda_end >= index && *coda_end <= end))]
-fn coda_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> Vec<usize> {
+fn coda_ends(chars: &[char], index: usize, end: usize) -> Vec<usize> {
     let mut ends = Vec::with_capacity(2);
     ends.push(index);
     if index < end
         && is_consonant(chars[index])
-        && !starts_any_syllable(chars, index, end, policy)
-        && starts_any_syllable(chars, index + 1, end, policy)
+        && !starts_any_syllable(chars, index, end)
+        && starts_any_syllable(chars, index + 1, end)
     {
         ends.push(index + 1);
     }
@@ -4629,24 +4306,14 @@ fn coda_ends(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -
 
 #[requires(index <= end && end <= chars.len())]
 #[ensures(true)]
-fn starts_any_syllable(chars: &[char], index: usize, end: usize, policy: SyllablePolicy) -> bool {
+fn starts_any_syllable(chars: &[char], index: usize, end: usize) -> bool {
     if index >= end {
         return false;
     }
-    if !consonantal_syllable_ends(chars, index, end, policy).is_empty() {
+    if !consonantal_syllable_ends(chars, index, end).is_empty() {
         return true;
     }
     brivla_onset_has_nucleus_end_at_or_before(chars, index, end)
-}
-
-#[requires(index <= chars.len())]
-#[ensures(ret.iter().all(|onset_end| *onset_end >= index && *onset_end <= chars.len()))]
-fn brivla_onset_ends(chars: &[char], index: usize) -> Vec<usize> {
-    let mut ends = Vec::with_capacity(6);
-    append_brivla_onset_ends_unsorted(chars, index, &mut ends);
-    ends.sort_unstable_by(|left, right| right.cmp(left));
-    ends.dedup();
-    ends
 }
 
 #[requires(index <= chars.len())]

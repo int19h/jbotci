@@ -849,7 +849,7 @@ fn cards_for_valsi(
     }
 
     if let Some(entries) = resolve_segmented_lookup(dictionary, query) {
-        let cards = filter_and_limit(
+        let cards = filter_vlacku_cards(
             entries
                 .into_iter()
                 .filter(|entry| {
@@ -883,7 +883,7 @@ fn cards_for_rafsi(
         return invalid_lojban_word_output(query);
     };
     let query = query.as_str();
-    let cards = filter_and_limit(
+    let cards = filter_vlacku_cards(
         dictionary
             .lookup_rafsi(query)
             .filter(|matched| {
@@ -963,11 +963,9 @@ fn cards_for_lujvo(
         );
     }
 
-    let cards = filter_and_limit(cards, options, false);
+    let cards = filter_vlacku_cards(cards, options, false);
     let outcome = if exact_found {
         VlackuOutcome::Found
-    } else if cards.is_empty() {
-        VlackuOutcome::ValidMissing
     } else {
         VlackuOutcome::ValidMissing
     };
@@ -1210,7 +1208,7 @@ fn cards_with_optional_lujvo_sources(
             );
         }
     }
-    filter_and_limit(cards, options, false)
+    filter_vlacku_cards(cards, options, false)
 }
 
 #[requires(true)]
@@ -1549,42 +1547,6 @@ fn dictionary_lujvo_decomposition_for_entry<'dictionary>(
 
 #[requires(true)]
 #[ensures(true)]
-fn entry_card_with_decomposition(
-    entry: &DictionaryEntry<'_>,
-    similarity: Option<f32>,
-    decomposition: Option<&LujvoDecomposition<'_>>,
-) -> VlackuCard {
-    new!(VlackuCard {
-        word: entry.word.to_owned(),
-        word_type: entry.word_type.as_str().to_owned(),
-        selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
-        author: Some(new!(VlackuAuthor {
-            username: entry.user.username.to_owned(),
-            realname: entry
-                .user
-                .realname
-                .filter(|realname| !realname.trim().is_empty())
-                .map(str::to_owned),
-        })),
-        is_official: entry.user.username == OFFICIAL_AUTHOR_USERNAME,
-        similarity,
-        votes: Some(entry_vote_count(entry)),
-        rafsi: entry.rafsi.iter().map(|rafsi| rafsi.0.to_owned()).collect(),
-        glosses: entry.gloss_keywords.iter().map(format_keyword).collect(),
-        definition: entry.definition.to_owned(),
-        notes: entry.notes.to_owned(),
-        etymology: entry
-            .etymology
-            .filter(|etymology| !etymology.trim().is_empty())
-            .map(str::to_owned),
-        decomposition: decomposition
-            .map(composition_from_decomposition)
-            .unwrap_or_default(),
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn entry_card_with_dictionary_decomposition(
     entry: &DictionaryEntry<'_>,
     similarity: Option<f32>,
@@ -1711,16 +1673,6 @@ pub fn filter_vlacku_cards(
         .filter(|card| passes_filters(card, options, similarity_mode))
         .take(options.count)
         .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn filter_and_limit(
-    cards: Vec<VlackuCard>,
-    options: &VlackuSearchOptions,
-    similarity_mode: bool,
-) -> Vec<VlackuCard> {
-    filter_vlacku_cards(cards, options, similarity_mode)
 }
 
 #[requires(true)]

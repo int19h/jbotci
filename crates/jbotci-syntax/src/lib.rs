@@ -2,8 +2,7 @@
 
 pub mod tree;
 pub use tree::{
-    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field,
-    elidable_terminator_for_absent_field_ref,
+    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
 };
 
 mod grammar;
@@ -163,13 +162,6 @@ impl Default for ParseOptions {
 #[invariant(true)]
 pub struct SyntaxParseAttempt {
     pub result: Result<SyntaxParse, SyntaxError>,
-    pub trace: Option<TraceReport>,
-}
-
-#[derive(Debug, Clone)]
-#[invariant(true)]
-pub struct GeneratedSyntaxParseAttempt {
-    pub result: Result<GeneratedSyntaxParse, SyntaxError>,
     pub trace: Option<TraceReport>,
 }
 
@@ -344,7 +336,6 @@ pub enum SyntaxWordCategory {
     SelbriWord,
     ProSumti,
     LetterWord,
-    ReplacementWord,
     Quote,
 }
 
@@ -358,7 +349,6 @@ impl SyntaxWordCategory {
             Self::SelbriWord => "SELBRI WORD",
             Self::ProSumti => "PRO-SUMTI",
             Self::LetterWord => "LERFU",
-            Self::ReplacementWord => "REPLACEMENT WORD",
             Self::Quote => "QUOTE",
         }
     }
@@ -1132,28 +1122,6 @@ fn push_prose_list_separator_text(text: &mut String, index: usize, len: usize) {
     }
 }
 
-#[requires(!expectations.is_empty())]
-#[ensures(!ret.is_empty())]
-fn syntax_summary_segments_from_expectations(
-    expectations: &[SyntaxExpectation],
-) -> Vec<DiagnosticTextSegment> {
-    let mut tokens = Vec::<SyntaxExpectedToken>::new();
-    for expectation in expectations {
-        for token in &expectation.tokens {
-            if !tokens.contains(token) {
-                tokens.push(token.clone());
-            }
-        }
-    }
-    sort_syntax_tokens(&mut tokens);
-    let mut segments = vec![
-        keyword_segment("expected one of"),
-        punctuation_segment(": "),
-    ];
-    push_token_list(&mut segments, &tokens);
-    segments
-}
-
 #[requires(!expected.is_empty())]
 #[ensures(!ret.is_empty())]
 fn syntax_summary_segments_from_strings(expected: &[String]) -> Vec<DiagnosticTextSegment> {
@@ -1565,29 +1533,6 @@ pub fn syntax_grammar_svg(options: &ParseOptions) -> String {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SyntaxParse {
     pub parse_tree: Box<TextSyntax>,
-    #[serde(default)]
-    pub warnings: Vec<SyntaxWarning>,
-}
-
-#[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
-#[expensive_invariant({
-    let mut last_end = None;
-    let mut ordered = true;
-    parse_tree.visit_source_spans(&mut |span| {
-        if !ordered {
-            return;
-        }
-        if last_end.is_some_and(|end| end > span.byte_start) {
-            ordered = false;
-            return;
-        }
-        last_end = Some(span.byte_end);
-    });
-    ordered
-})]
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct GeneratedSyntaxParse {
-    pub parse_tree: Box<generated_model::TextSyntax>,
     #[serde(default)]
     pub warnings: Vec<SyntaxWarning>,
 }
@@ -2216,19 +2161,7 @@ fn parse_syntax_tree_with_source_and_options_attempt_inner(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> SyntaxParseAttempt {
-    let parsed =
-        grammar::parse_generated_model_syntax_tree_with_source_attempt(words, source, options);
-    let result = parsed.result.map(|parsed| {
-        let parsed = parsed.into_data();
-        new!(SyntaxParse {
-            parse_tree: parsed.parse_tree,
-            warnings: parsed.warnings,
-        })
-    });
-    SyntaxParseAttempt {
-        result,
-        trace: parsed.trace,
-    }
+    grammar::parse_generated_model_syntax_tree_with_source_attempt(words, source, options)
 }
 
 #[doc(hidden)]
@@ -2252,17 +2185,8 @@ pub fn parse_syntax_tree_generated_model_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,
     options: &ParseOptions,
-) -> GeneratedSyntaxParseAttempt {
+) -> SyntaxParseAttempt {
     grammar::parse_generated_model_syntax_tree_with_source_attempt(words, Some(source), options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-#[expensive_ensures(ret.as_ref().map_or(true, |tree| syntax_tree_eq_ignoring_spans(parse_tree, tree)))]
-pub fn syntax_tree_partial_valid_round_trip(
-    parse_tree: &TextSyntax,
-) -> Result<Box<TextSyntax>, jbotci_tree::RecoveryError<tree::RecoveryTreeItem>> {
-    Ok(Box::new(parse_tree.clone()))
 }
 
 #[requires(true)]
@@ -2441,28 +2365,6 @@ mod tests {
         assert!(text.contains("- BIhI or SE [continues sumti]"));
         assert!(!text.contains("[continues selbri]"));
         assert!(!text.contains("[continues statement]"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn summary_tokens_are_sorted() {
-        let expectations = vec![SyntaxExpectation::new(
-            vec![
-                new!(SyntaxExpectedToken::Cmavo(Cmavo::Lo)),
-                new!(SyntaxExpectedToken::WordCategory(
-                    SyntaxWordCategory::Brivla
-                )),
-                new!(SyntaxExpectedToken::Selmaho(Selmaho::Gaho)),
-            ],
-            new!(SyntaxExpectationReason::StartNested {
-                construct: "sumti".to_owned(),
-            }),
-        )];
-
-        let text = segment_text(&syntax_summary_segments_from_expectations(&expectations));
-
-        assert_eq!(text, "expected one of: BRIVLA, GAhO, or lo");
     }
 
     #[test]

@@ -482,7 +482,7 @@ impl<'a> Segmenter<'a> {
             ));
         }
         let error = self.invalid_word_error(start, error_end);
-        self.trace_failure("word", start, error_end, || Some(error_message(&error)));
+        self.trace_failure("word", start, error_end, || Some(error.to_string()));
         Err(error)
     }
 
@@ -510,8 +510,7 @@ impl<'a> Segmenter<'a> {
                 return None;
             }
             let normalized = self.checked_normalized_slice(start, end)?;
-            let (kind, phonemes) =
-                crate::segment::classify_word_with_options(&normalized, self.options)?;
+            let (kind, phonemes) = crate::segment::classify_word(&normalized)?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
                 return None;
             }
@@ -567,7 +566,7 @@ impl<'a> Segmenter<'a> {
                 return None;
             }
             let normalized = self.checked_normalized_slice(start, end)?;
-            if !crate::segment::is_cmevla_with_options(&normalized, self.options) {
+            if !crate::segment::is_cmevla_text(&normalized) {
                 return None;
             }
             Some(new!(StreamingWordCandidate {
@@ -586,12 +585,11 @@ impl<'a> Segmenter<'a> {
         candidate_end: usize,
     ) -> Option<StreamingWordCandidate> {
         let full_candidate = self.checked_normalized_slice(start, candidate_end)?;
-        if crate::segment::is_cmevla_with_options(&full_candidate, self.options)
+        if crate::segment::is_cmevla_text(&full_candidate)
             || crate::segment::starts_with_cvcy_lujvo(&full_candidate)
-            || crate::segment::classify_word_with_options(&full_candidate, self.options)
-                .is_some_and(|(kind, _)| {
-                    matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
-                })
+            || crate::segment::classify_word(&full_candidate).is_some_and(|(kind, _)| {
+                matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
+            })
         {
             return None;
         }
@@ -666,7 +664,7 @@ impl<'a> Segmenter<'a> {
                 })),
             )
         })?;
-        Ok(vec![base_word_like(WordLike::zo_quote(zo, word))])
+        Ok(vec![WordLike::zo_quote(zo, word)])
     }
 
     #[requires(true)]
@@ -696,7 +694,7 @@ impl<'a> Segmenter<'a> {
             }
             Err(error) => return Err(error_with_fallback_context(error, quote_context)),
         };
-        if bare_word_ref(&zoi_word_with_modifiers).is_none() {
+        if zoi_word_with_modifiers.bare_word().is_none() {
             return Err(self.invalid_span(
                 MorphologyErrorKind::InvalidQuoteMarker,
                 after_marker,
@@ -754,12 +752,12 @@ impl<'a> Segmenter<'a> {
         let zoi =
             into_bare_word(zoi_word_with_modifiers).expect("ZOI marker was checked as a bare word");
         let closing_delimiter = into_bare_word(closing).unwrap_or(closing_delimiter);
-        Ok(vec![base_word_like(WordLike::zoi_quote(
+        Ok(vec![WordLike::zoi_quote(
             zoi,
             opening_delimiter,
             self.verbatim(quoted_start, quoted_end)?,
             closing_delimiter,
-        ))])
+        )])
     }
 
     #[requires(true)]
@@ -795,10 +793,10 @@ impl<'a> Segmenter<'a> {
                 marker_context,
             )
         })?;
-        Ok(vec![base_word_like(WordLike::single_word_quote(
+        Ok(vec![WordLike::single_word_quote(
             marker,
             self.verbatim(start, end)?,
-        ))])
+        )])
     }
 
     #[requires(true)]
@@ -823,12 +821,8 @@ impl<'a> Segmenter<'a> {
         loop {
             self.skip_separators();
             if self.index == self.chars.len() {
-                let mut words = vec![base_word_like(WordLike::bare(lohu))];
-                words.extend(
-                    quoted_words
-                        .into_iter()
-                        .map(|word| base_word_like(WordLike::bare(word))),
-                );
+                let mut words = vec![WordLike::bare(lohu)];
+                words.extend(quoted_words.into_iter().map(WordLike::bare));
                 return Ok(words);
             }
             let word = self.next_plain_word()?;
@@ -842,11 +836,7 @@ impl<'a> Segmenter<'a> {
                         lehu_context,
                     )
                 })?;
-                return Ok(vec![base_word_like(WordLike::lohu_quote(
-                    lohu,
-                    quoted_words,
-                    lehu,
-                ))]);
+                return Ok(vec![WordLike::lohu_quote(lohu, quoted_words, lehu)]);
             }
             if let Some(inner) = into_bare_word(word) {
                 quoted_words.push(inner);
@@ -883,7 +873,7 @@ impl<'a> Segmenter<'a> {
                 bu_context,
             )
         })?;
-        acc.push(base_word_like(WordLike::letter(prev, bu)));
+        acc.push(WordLike::letter(prev, bu));
         Ok(())
     }
 
@@ -1005,7 +995,7 @@ impl<'a> Segmenter<'a> {
                 let prev = acc
                     .pop()
                     .expect("previous word index was checked as present");
-                acc.push(base_word_like(WordLike::zei_lujvo(prev, zei, right)));
+                acc.push(WordLike::zei_lujvo(prev, zei, right));
             }
             (Some(_), Err(error)) if !is_expected_word_error(&error) => {
                 return Err(error_with_fallback_context(
@@ -1097,7 +1087,7 @@ impl<'a> Segmenter<'a> {
         self.warnings.truncate(warning_count);
         self.index = saved;
         if let Ok(word_with_modifiers) = maybe_word
-            && let Some(closing_word) = extract_word(&word_with_modifiers)
+            && let Some(closing_word) = word_with_modifiers.bare_word().cloned()
             && canonical_text_eq(
                 closing_word.phonemes().as_str(),
                 opening_delimiter_canonical,
@@ -1398,7 +1388,7 @@ impl<'a> Segmenter<'a> {
             Word::from_kind(kind, phonemes, span)
         };
         self.warn_word_morphology(start, end, kind, &normalized);
-        Ok(base_word_like(WordLike::bare(word)))
+        Ok(WordLike::bare(word))
     }
 
     #[requires(start <= end && end <= self.chars.len())]
@@ -1709,12 +1699,6 @@ fn word_kind_trace_label(kind: WordKind) -> &'static str {
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
-fn error_message(error: &MorphologyError) -> String {
-    error.to_string()
-}
-
-#[requires(true)]
 #[ensures(true)]
 fn is_expected_word_error(error: &MorphologyError) -> bool {
     matches!(
@@ -1829,24 +1813,6 @@ enum SAMatchTag {
 
 #[requires(true)]
 #[ensures(true)]
-fn base_word_like(word_like: WordLike) -> WordLike {
-    word_like
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn extract_word(word: &WordLike) -> Option<Word> {
-    bare_word_ref(word).cloned()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn bare_word_ref(word: &WordLike) -> Option<&Word> {
-    word.bare_word()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn into_bare_word(word: WordLike) -> Option<Word> {
     match word.into_data() {
         data!(WordLike::PlainWord(word)) => Some(word),
@@ -1881,7 +1847,7 @@ fn is_single_word_quote_marker_text(word: &WordLike) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_y_word(word: &WordLike) -> bool {
-    bare_word_ref(word).is_some_and(|word| {
+    word.bare_word().is_some_and(|word| {
         word.kind() == WordKind::Cmavo && is_y_word_text(word.phonemes().as_str())
     })
 }
@@ -2220,10 +2186,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn mz_relaxation_does_not_make_mz_an_initial_pair() {
-        assert!(
-            crate::segment::classify_word_with_options("mzai", &MorphologyOptions::default())
-                .is_none()
-        );
+        assert!(crate::segment::classify_word("mzai").is_none());
     }
 
     #[test]

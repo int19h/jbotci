@@ -1,4 +1,8 @@
 //! QR encoding and logo rendering for jo'au dialect payloads.
+//!
+//! This module intentionally implements only ISO/IEC 18004 Model 2 QR codes in
+//! alphanumeric mode with level-H error correction, which is the only shape used
+//! for jo'au dialect payloads in the UI.
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -56,12 +60,12 @@ struct QrBlock {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
-pub struct QrLogoLayer {
-    pub color: &'static str,
-    pub path_data: &'static str,
-    pub translate_x: f64,
-    pub translate_y: f64,
-    pub scale: f64,
+struct QrLogoLayer {
+    color: &'static str,
+    path_data: &'static str,
+    translate_x: f64,
+    translate_y: f64,
+    scale: f64,
 }
 
 #[invariant(*left >= 0, "QR logo placement left edge must be inside the matrix")]
@@ -71,18 +75,17 @@ pub struct QrLogoLayer {
     "QR logo placement side length must satisfy the minimum logo size"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct QrLogoPlacement {
-    pub left: i32,
-    pub top: i32,
-    pub side: i32,
+struct QrLogoPlacement {
+    left: i32,
+    top: i32,
+    side: i32,
 }
 
-pub const QR_LOGO_TEXT: &str = "\u{ed96}\u{eda3}\u{ed8a}\u{eda9}";
-pub const QR_LOGO_BADGE_BACKGROUND: &str = "#cbd4ff";
-pub const QR_LOGO_BADGE_SIZE: f64 = 7.0;
-pub const QR_LOGO_BORDER_WIDTH: f64 = 0.25;
-pub const QR_LOGO_INSET: f64 = 1.0;
-pub const QR_LOGO_BASE_CONTENT_SIZE: f64 = QR_LOGO_BADGE_SIZE - QR_LOGO_INSET * 2.0;
+const QR_LOGO_BADGE_BACKGROUND: &str = "#cbd4ff";
+const QR_LOGO_BADGE_SIZE: f64 = 7.0;
+const QR_LOGO_BORDER_WIDTH: f64 = 0.25;
+const QR_LOGO_INSET: f64 = 1.0;
+const QR_LOGO_BASE_CONTENT_SIZE: f64 = QR_LOGO_BADGE_SIZE - QR_LOGO_INSET * 2.0;
 
 const QR_LOGO_MINIMUM_SIDE: i32 = 7;
 const QR_LOGO_FUNCTION_CLEARANCE: i32 = 1;
@@ -91,11 +94,13 @@ const QR_LOGO_RED: &str = "#f45f86";
 const QR_LOGO_BLUE: &str = "#466cff";
 const ALPHANUMERIC_CHARACTERS: &str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 
+// ISO/IEC 18004:2015, Annex E, error correction characteristics for level H.
 const HIGH_ECC_CODEWORDS_PER_BLOCK: [i32; 41] = [
     0, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24, 24, 30, 28, 28, 26, 28, 28, 28, 28,
     30, 30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
 ];
 
+// ISO/IEC 18004:2015, Annex E, number of error correction blocks for level H.
 const HIGH_ERROR_CORRECTION_BLOCK_COUNT: [i32; 41] = [
     0, 1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35,
     37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81,
@@ -103,7 +108,7 @@ const HIGH_ERROR_CORRECTION_BLOCK_COUNT: [i32; 41] = [
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn qr_logo_layers() -> Vec<QrLogoLayer> {
+fn qr_logo_layers() -> Vec<QrLogoLayer> {
     vec![
         QrLogoLayer {
             color: QR_LOGO_RED,
@@ -201,7 +206,7 @@ pub fn qr_code_svg(qr_code: &QrCode) -> String {
 
 #[requires(quiet_zone >= 0)]
 #[ensures(true)]
-pub fn qr_code_dark_module_path(quiet_zone: i32, qr_code: &QrCode) -> String {
+fn qr_code_dark_module_path(quiet_zone: i32, qr_code: &QrCode) -> String {
     let mut path = String::new();
     for coord in &qr_code.dark_modules {
         let _ = write!(
@@ -276,7 +281,7 @@ fn logo_path_layer(placement: QrLogoPlacement, layer: QrLogoLayer) -> String {
 
 #[requires(true)]
 #[ensures(ret.is_none_or(|placement| placement.side >= QR_LOGO_MINIMUM_SIDE))]
-pub fn qr_logo_placement(qr_code: &QrCode) -> Option<QrLogoPlacement> {
+fn qr_logo_placement(qr_code: &QrCode) -> Option<QrLogoPlacement> {
     qr_logo_placement_for_version(qr_code.version)
 }
 
@@ -576,6 +581,8 @@ fn raw_codewords_for_version(version: i32) -> i32 {
 #[requires(version >= 1 && version <= 40)]
 #[ensures(ret > 0)]
 fn num_raw_data_modules(version: i32) -> i32 {
+    // ISO/IEC 18004:2015 gives this closed form after subtracting finder,
+    // timing, alignment, format, version, and fixed dark modules.
     let base = (16 * version + 128) * version + 64;
     if version < 2 {
         base
@@ -591,6 +598,7 @@ fn num_raw_data_modules(version: i32) -> i32 {
 }
 
 #[requires(version >= 1 && version <= 40)]
+#[requires(codewords.len() == data_codewords_for_version(version) as usize)]
 #[ensures(true)]
 fn add_error_correction_and_interleave(version: i32, codewords: &[i32]) -> Vec<i32> {
     let ecc_length = ecc_codewords_per_block(version) as usize;
@@ -604,10 +612,7 @@ fn add_error_correction_and_interleave(version: i32, codewords: &[i32]) -> Vec<i
     let mut offset = 0usize;
     for block_index in 0..block_count {
         let data_length = short_data_length + usize::from(block_index >= short_block_count);
-        let block_data = codewords
-            .get(offset..offset + data_length)
-            .unwrap_or_default()
-            .to_vec();
+        let block_data = codewords[offset..offset + data_length].to_vec();
         offset += data_length;
         let error_codewords = reed_solomon_remainder(&divisor, &block_data);
         blocks.push(new!(QrBlock {
@@ -696,6 +701,7 @@ fn gf_multiply_x_power(value: i32, power: i32) -> i32 {
     (0..power).fold(value, |current, _| {
         let shifted = current << 1;
         if shifted & 0x100 != 0 {
+            // ISO/IEC 18004:2015 Annex B uses GF(256) with primitive polynomial 0x11D.
             (shifted ^ 0x11D) & 0xFF
         } else {
             shifted & 0xFF
@@ -896,6 +902,7 @@ fn draw_version_bits(version: i32, mut dark_modules: BTreeSet<QrCoord>) -> BTree
 #[requires(data_value >= 0)]
 #[ensures(ret >= 0)]
 fn format_bits(data_value: i32) -> i32 {
+    // ISO/IEC 18004:2015 Annex C uses BCH generator 0x537 and mask 0x5412.
     let remainder = (1..=10).fold(data_value, |acc, _| {
         let shifted = acc << 1;
         if shifted >> 10 != 0 {
@@ -910,6 +917,7 @@ fn format_bits(data_value: i32) -> i32 {
 #[requires(version >= 1 && version <= 40)]
 #[ensures(ret >= 0)]
 fn version_bits(version: i32) -> i32 {
+    // ISO/IEC 18004:2015 Annex D uses BCH version generator 0x1F25.
     let remainder = (1..=12).fold(version, |acc, _| {
         let shifted = acc << 1;
         if shifted >> 12 != 0 {
@@ -1217,6 +1225,8 @@ fn bits_to_codewords(bits: &[bool]) -> Vec<i32> {
 }
 
 #[requires(width >= 0)]
+#[requires(width < 63)]
+#[requires(value >= 0 && i64::from(value) < (1_i64 << width))]
 #[ensures(ret.len() == width as usize)]
 fn int_bits(width: i32, value: i32) -> Vec<bool> {
     (0..width)

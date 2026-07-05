@@ -1,7 +1,9 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_dialect::parse_dialect_definition;
-use jbotci_morphology::{MorphologyOptions, WordLike, segment_words_with_modifiers_with_options};
+use jbotci_morphology::{
+    MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{
     ParseOptions, generated_model_text_syntax_leaf_spans_match_words,
@@ -165,8 +167,12 @@ fn assert_generated_model_source_assignment(source: &str) {
 #[requires(!source.is_empty())]
 #[ensures(!ret.is_empty())]
 fn segment_words_with_options(source: &str) -> Vec<WordLike> {
-    segment_words_with_modifiers_with_options(source, &MorphologyOptions::default())
-        .expect("source should segment")
+    segment_words_with_modifiers_with_options_and_source_id(
+        source,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .expect("source should segment")
 }
 
 #[requires(true)]

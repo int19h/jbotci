@@ -1,9 +1,11 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 use jbotci_dialect::parse_dialect_definition;
-use jbotci_morphology::{MorphologyOptions, WordLike, segment_words_with_modifiers_with_options};
+use jbotci_morphology::{
+    MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
+};
 use jbotci_syntax::{
-    GeneratedSyntaxParse, ParseOptions, SyntaxError,
+    ParseOptions, SyntaxError, SyntaxParse,
     parse_syntax_tree_generated_model_with_source_and_options_attempt,
 };
 use serde_json::Value;
@@ -84,10 +86,7 @@ fn captured_zantufa_cases_match_parser_policy_on_large_stack() {
 
 #[requires(!source.is_empty())]
 #[ensures(true)]
-fn parse_generated(
-    source: &str,
-    options: &ParseOptions,
-) -> Result<GeneratedSyntaxParse, SyntaxError> {
+fn parse_generated(source: &str, options: &ParseOptions) -> Result<SyntaxParse, SyntaxError> {
     let words = segment_words(source);
     parse_syntax_tree_generated_model_with_source_and_options_attempt(&words, source, options)
         .result
@@ -96,8 +95,12 @@ fn parse_generated(
 #[requires(!source.is_empty())]
 #[ensures(!ret.is_empty())]
 fn segment_words(source: &str) -> Vec<WordLike> {
-    segment_words_with_modifiers_with_options(source, &MorphologyOptions::default())
-        .expect("fixture source should segment")
+    segment_words_with_modifiers_with_options_and_source_id(
+        source,
+        &MorphologyOptions::default(),
+        None,
+    )
+    .expect("fixture source should segment")
 }
 
 #[requires(true)]
@@ -113,7 +116,7 @@ fn zantufa_options() -> ParseOptions {
 fn assert_acceptance(
     id: &str,
     dialect_name: &str,
-    parse: &Result<GeneratedSyntaxParse, SyntaxError>,
+    parse: &Result<SyntaxParse, SyntaxError>,
     expected: bool,
 ) {
     assert_eq!(
@@ -129,7 +132,7 @@ fn assert_acceptance(
 fn assert_expected_warnings(
     id: &str,
     dialect_name: &str,
-    parse: &GeneratedSyntaxParse,
+    parse: &SyntaxParse,
     expected_warnings: &Value,
 ) {
     let actual = parse
@@ -147,7 +150,7 @@ fn assert_expected_warnings(
 
 #[requires(true)]
 #[ensures(true)]
-fn assert_shape_markers(id: &str, parse: &GeneratedSyntaxParse, expected_markers: &Value) {
+fn assert_shape_markers(id: &str, parse: &SyntaxParse, expected_markers: &Value) {
     let tree_json = serde_json::to_string(&parse.parse_tree).expect("parse tree serializes");
     for marker in expected_warning_names(expected_markers) {
         assert!(
