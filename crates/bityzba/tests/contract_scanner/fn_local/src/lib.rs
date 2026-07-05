@@ -30,8 +30,10 @@ fn outer() {
 
     impl Provides for Provider {
         fn provided(&self) {
-            struct InsideTraitImpl;
-            let _ = InsideTraitImpl;
+            struct InsideTraitImpl {
+                value: usize,
+            }
+            let _ = InsideTraitImpl { value: 0 };
         }
     }
 }

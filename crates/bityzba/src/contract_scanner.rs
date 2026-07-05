@@ -12,7 +12,7 @@ use proc_macro2::{Span, TokenStream, TokenTree};
 use syn::visit::{self, Visit};
 use syn::{
     Attribute, Block, Fields, File, ImplItem, Item, ItemEnum, ItemFn, ItemImpl, ItemMod,
-    ItemStruct, ItemTrait, ReturnType, TraitItem, TraitItemFn, Type,
+    ItemStruct, ItemTrait, Path as SynPath, ReturnType, TraitItem, TraitItemFn, Type,
 };
 use walkdir::WalkDir;
 
@@ -265,7 +265,7 @@ impl FileScanner {
             &item.ident.to_string(),
             item.ident.span(),
         );
-        if !has_type_invariant(&item.attrs) {
+        if matches!(item.fields, Fields::Named(_)) && !has_type_invariant(&item.attrs) {
             self.diagnostics.push(Diagnostic::new(
                 self.path.clone(),
                 item.ident.span().start().line,
@@ -477,8 +477,7 @@ impl<'ast> Visit<'ast> for FunctionBodyScanner<'_> {
 }
 
 fn contract_attr_rank(attr: &Attribute) -> Option<(u8, &'static str)> {
-    let name = attr.path().segments.last()?.ident.to_string();
-    match name.as_str() {
+    match contract_attr_name(attr)? {
         "requires" | "expensive_requires" => Some((0, "requires")),
         "ensures" | "expensive_ensures" => Some((1, "ensures")),
         "invariant" | "expensive_invariant" => Some((2, "invariant")),
@@ -499,16 +498,44 @@ fn has_type_invariant(attrs: &[Attribute]) -> bool {
 }
 
 fn has_any_attr_named(attrs: &[Attribute], names: &[&str]) -> bool {
-    attrs.iter().any(|attr| {
-        attr.path()
-            .segments
-            .last()
-            .is_some_and(|segment| names.iter().any(|name| segment.ident == *name))
-    })
+    attrs
+        .iter()
+        .any(|attr| contract_attr_name(attr).is_some_and(|name| names.contains(&name)))
 }
 
 fn has_attr_named(attrs: &[Attribute], name: &str) -> bool {
     has_any_attr_named(attrs, &[name])
+}
+
+fn contract_attr_name(attr: &Attribute) -> Option<&'static str> {
+    const NAMES: &[&str] = &[
+        "contract_trait",
+        "requires",
+        "expensive_requires",
+        "ensures",
+        "expensive_ensures",
+        "invariant",
+        "expensive_invariant",
+    ];
+
+    bityzba_attr_name(attr.path(), NAMES)
+}
+
+fn bityzba_attr_name(path: &SynPath, names: &[&'static str]) -> Option<&'static str> {
+    let mut segments = path.segments.iter();
+    let first = segments.next()?;
+    let second = segments.next();
+    if segments.next().is_some() {
+        return None;
+    }
+
+    match second {
+        None => names.iter().copied().find(|name| first.ident == *name),
+        Some(second) if first.ident == "bityzba" => {
+            names.iter().copied().find(|name| second.ident == *name)
+        }
+        Some(_) => None,
+    }
 }
 
 fn is_result_return_type(output: &ReturnType) -> bool {
