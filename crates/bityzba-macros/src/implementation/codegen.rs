@@ -5,7 +5,7 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 use syn::{
-    Attribute, Expr, ExprCall, ExprClosure, ReturnType, TypeImplTrait,
+    Attribute, Expr, ExprAsync, ExprCall, ExprClosure, Item, ReturnType, TypeImplTrait,
     spanned::Spanned,
     visit::{Visit, visit_return_type},
     visit_mut::{self as visitor, VisitMut, visit_block_mut, visit_expr_mut},
@@ -516,6 +516,14 @@ impl VisitMut for ReturnReplacer {
 
     fn visit_expr_closure_mut(&mut self, _node: &mut ExprClosure) {
         // Do not replace return statements inside closures.  Skip calling the base visitor.
+    }
+
+    fn visit_expr_async_mut(&mut self, _node: &mut ExprAsync) {
+        // Async blocks have their own return scope.
+    }
+
+    fn visit_item_mut(&mut self, _node: &mut Item) {
+        // Function-local items have their own return scopes.
     }
 }
 
