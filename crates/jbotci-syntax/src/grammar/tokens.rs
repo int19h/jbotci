@@ -3,14 +3,12 @@ use std::ops::Range;
 use crate::{ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData};
 use bityzba::{data, invariant, new, requires};
 use chumsky::error::RichReason;
-use chumsky::input::MapExtra;
 use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceContext, TraceEventKind, TraceFailureBranch, TraceFailureSummary, TraceLevel,
 };
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordKind, WordLike, WordLikeData};
-use jbotci_source::SourceSpan;
 
 use super::{
     BoxedParser, ParseExtra, ParserInput, ParserState, SpannedToken, SyntaxFound, SyntaxFoundData,
@@ -46,67 +44,10 @@ pub(super) fn selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, Token> 
     )
 }
 
-#[requires(!label.is_empty())]
-#[requires(!cmavo.is_empty())]
-#[ensures(true)]
-pub(super) fn cmavo_one_of<'tokens>(
-    label: &'static str,
-    cmavo: &'static [Cmavo],
-) -> BoxedParser<'tokens, Token> {
-    token_matching(
-        label,
-        label,
-        cmavo
-            .iter()
-            .copied()
-            .map(|cmavo| new!(SyntaxExpectedToken::Cmavo(cmavo)))
-            .collect(),
-        move |word, state| parser_word_is_one_of_cmavo(state, word, cmavo),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn le_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
-    selmaho(Selmaho::Le)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn la_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
-    selmaho(Selmaho::La)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn lahe_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
-    selmaho(Selmaho::Lahe)
-}
-
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn pa_word<'tokens>() -> BoxedParser<'tokens, Token> {
     selmaho(Selmaho::Pa)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn na_cmavo<'tokens>() -> BoxedParser<'tokens, Token> {
-    selmaho(Selmaho::Na)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn koha_argument<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching_with_experimental_context(
-        "KOhA sumti",
-        "KOhA sumti",
-        vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::ProSumti,
-        ))],
-        ExperimentalCmavoContext::Selmaho(Selmaho::Koha),
-        |word, state| parser_word_is_selmaho(state, word, Selmaho::Koha),
-    )
 }
 
 #[requires(true)]
@@ -124,40 +65,6 @@ pub(super) fn relation_word<'tokens>() -> BoxedParser<'tokens, Token> {
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn brivla_relation_word<'tokens>(cbm_enabled: bool) -> BoxedParser<'tokens, Token> {
-    let brivla = token_matching(
-        "BRIVLA",
-        "BRIVLA",
-        vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::Brivla
-        ))],
-        |word, state| is_relation_word(word) && !parser_word_is_selmaho(state, word, Selmaho::Goha),
-    );
-    if cbm_enabled {
-        brivla
-            .or(cmevla_word().map_with(
-                |word,
-                 extra: &mut MapExtra<
-                    'tokens,
-                    '_,
-                    super::ParserInput<'tokens>,
-                    super::ParseExtra<'tokens>,
-                >| {
-                    extra.state().warn(
-                        ExperimentalConstruct::ExperimentalCbmCmevlaSelbriWord,
-                        &word,
-                    );
-                    word
-                },
-            ))
-            .boxed()
-    } else {
-        brivla
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
     token_matching(
         "CMEVLA",
@@ -166,20 +73,6 @@ pub(super) fn cmevla_word<'tokens>() -> BoxedParser<'tokens, Token> {
             SyntaxWordCategory::Cmevla
         ))],
         |word, _state| is_cmevla_word(word),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn letter_word<'tokens>() -> BoxedParser<'tokens, Token> {
-    token_matching_with_experimental_context(
-        "lerfu",
-        "LERFU",
-        vec![new!(SyntaxExpectedToken::WordCategory(
-            SyntaxWordCategory::LetterWord,
-        ))],
-        ExperimentalCmavoContext::Selmaho(Selmaho::By),
-        |word, _state| is_letter_word(word),
     )
 }
 
@@ -223,7 +116,10 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
                     bridi(&word, state)
                 } =>
             {
-                let span = word.core_word().byte_range().unwrap_or(0..0);
+                let span = word
+                    .core_word()
+                    .byte_range()
+                    .expect("syntax tokens have source byte ranges");
                 let state: &mut ParserState = input.state();
                 warn_experimental_cmavo(state, experimental_context, &word);
                 state.trace_event(
@@ -456,12 +352,6 @@ fn parser_word_cmavo(state: &mut ParserState, word: &Token) -> Option<Cmavo> {
 #[ensures(true)]
 fn parser_word_is_cmavo(state: &mut ParserState, word: &Token, cmavo: Cmavo) -> bool {
     parser_word_cmavo(state, word) == Some(cmavo)
-}
-
-#[requires(!cmavo.is_empty())]
-#[ensures(true)]
-fn parser_word_is_one_of_cmavo(state: &mut ParserState, word: &Token, cmavo: &[Cmavo]) -> bool {
-    parser_word_cmavo(state, word).is_some_and(|actual| cmavo.contains(&actual))
 }
 
 #[requires(true)]
@@ -1077,40 +967,13 @@ pub(crate) fn word_like_kind(word_like: &WordLike) -> Option<WordKind> {
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub(super) fn bare_word_kind_and_phonemes(word: &Token) -> Option<(WordKind, String)> {
-    let data!(WithIndicators::Plain(word_like)) = word.as_indicators().as_data() else {
-        return None;
-    };
-    let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
-        return None;
-    };
-    Some((word.kind(), word.phonemes().into_string()))
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn base_word_from_record(word: Word) -> Token {
-    Token::bare(WordLike::bare(word))
-}
-
-#[requires(span.byte_start <= span.byte_end)]
-#[ensures(source.is_some_and(|source| span.byte_end <= source.len()) -> ret.len() == span.byte_end - span.byte_start)]
-pub(super) fn source_text(source: Option<&str>, span: &SourceSpan) -> String {
-    source
-        .and_then(|source| source.get(span.byte_start..span.byte_end))
-        .unwrap_or_default()
-        .to_owned()
-}
-
-#[requires(true)]
 #[ensures(ret.iter().all(|token| token.span.start <= token.span.end))]
 pub(super) fn spanned_tokens(words: &[Token]) -> Vec<SpannedToken> {
     words
         .iter()
         .cloned()
         .map(|word| {
-            let range = word_byte_range(&word).unwrap_or(0..0);
+            let range = word_byte_range(&word).expect("syntax tokens have source byte ranges");
             Spanned {
                 inner: word,
                 span: SimpleSpan::from(range),

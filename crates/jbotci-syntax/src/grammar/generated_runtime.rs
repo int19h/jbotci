@@ -979,14 +979,6 @@ fn word_category_experimental_context(category: SyntaxWordCategory) -> Experimen
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn exact_word_category<'tokens>(
-    category: SyntaxWordCategory,
-) -> BoxedParser<'tokens, Token> {
-    word_category(category)
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub(crate) fn quote_marker<'tokens>(marker: Cmavo) -> BoxedParser<'tokens, Token> {
     token_matching(
         "quote marker",
@@ -1124,7 +1116,6 @@ fn token_matches_word_category(token: &Token, category: SyntaxWordCategory) -> b
         SyntaxWordCategory::SelbriWord => is_relation_word(token),
         SyntaxWordCategory::ProSumti => is_koha_argument(token),
         SyntaxWordCategory::LetterWord => is_letter_word(token),
-        SyntaxWordCategory::ReplacementWord => false,
         SyntaxWordCategory::Quote => token_is_compound_quote(token),
     }
 }

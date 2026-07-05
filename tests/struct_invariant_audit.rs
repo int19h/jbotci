@@ -1176,10 +1176,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated source-span visitor validity is enforced by Rust references and lifetimes",
     ),
     (
-        "crates/jbotci-syntax/src/lib.rs:GeneratedSyntaxParseAttempt",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-syntax/src/lib.rs:ParseOptions",
         "parse options are independent caller-selected controls",
     ),
