@@ -55,22 +55,46 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
     /// includes contracts.
     ///
     /// This new function forwards the call to the actual implementation.
-    fn create_method_wrapper(method: &TraitItemFn) -> TraitItemFn {
+    fn create_method_wrapper(method: &TraitItemFn) -> syn::Result<TraitItemFn> {
         struct ArgInfo {
             call_toks: proc_macro2::TokenStream,
         }
 
         // Calculate name and pattern tokens
-        fn arg_pat_info(pat: &Pat) -> ArgInfo {
+        fn arg_pat_info(pat: &mut Pat, next_synthetic: &mut usize) -> syn::Result<ArgInfo> {
             match pat {
                 Pat::Ident(ident) => {
+                    if ident.subpat.is_some() {
+                        return Err(syn::Error::new_spanned(
+                            pat,
+                            "#[contract_trait] does not support `@` parameter patterns",
+                        ));
+                    }
+                    let ident = ident.ident.clone();
+                    *pat = syn::parse_quote!(#ident);
                     let toks = quote::quote! {
                         #ident
                     };
-                    ArgInfo { call_toks: toks }
+                    Ok(ArgInfo { call_toks: toks })
+                }
+                Pat::Wild(wild) => {
+                    let index = *next_synthetic;
+                    *next_synthetic += 1;
+                    let ident = syn::Ident::new(
+                        &format!("__bityzba_contract_arg_{index}"),
+                        wild.underscore_token.span,
+                    );
+                    *pat = syn::parse_quote!(#ident);
+                    Ok(ArgInfo {
+                        call_toks: quote::quote!(#ident),
+                    })
                 }
                 Pat::Tuple(tup) => {
-                    let infos = tup.elems.iter().map(arg_pat_info);
+                    let infos = tup
+                        .elems
+                        .iter_mut()
+                        .map(|elem| arg_pat_info(elem, next_synthetic))
+                        .collect::<syn::Result<Vec<_>>>()?;
 
                     let toks = {
                         let mut toks = proc_macro2::TokenStream::new();
@@ -83,31 +107,31 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
                         toks
                     };
 
-                    ArgInfo {
+                    Ok(ArgInfo {
                         call_toks: quote::quote!((#toks)),
-                    }
+                    })
                 }
-                Pat::TupleStruct(_tup) => unimplemented!(),
-                p => panic!("Unsupported pattern type: {:?}", p),
+                _ => Err(syn::Error::new_spanned(
+                    pat,
+                    "#[contract_trait] supports identifier, wildcard, and tuple parameter patterns",
+                )),
             }
         }
 
         let mut m = method.clone();
+        let mut next_synthetic = 0usize;
 
         let argument_data = m
             .sig
             .inputs
-            .clone()
-            .into_iter()
-            .map(|t: FnArg| match &t {
-                FnArg::Receiver(_) => quote::quote!(self),
+            .iter_mut()
+            .map(|t: &mut FnArg| match t {
+                FnArg::Receiver(_) => Ok(quote::quote!(self)),
                 FnArg::Typed(p) => {
-                    let info = arg_pat_info(&p.pat);
-
-                    info.call_toks
+                    arg_pat_info(&mut p.pat, &mut next_synthetic).map(|info| info.call_toks)
                 }
             })
-            .collect::<Vec<_>>();
+            .collect::<syn::Result<Vec<_>>>()?;
 
         let arguments = {
             let mut toks = proc_macro2::TokenStream::new();
@@ -160,25 +184,30 @@ pub(crate) fn contract_trait_item_trait(_attrs: TokenStream, mut trait_: ItemTra
             m.semi_token = None;
         }
 
-        m
+        Ok(m)
     }
 
     // create method wrappers and renamed items
-    let funcs = trait_
+    let funcs = match trait_
         .items
         .iter()
         .filter_map(|item| {
             if let TraitItem::Fn(m) = item {
-                let rename = create_method_rename(m);
-                let wrapper = create_method_wrapper(m);
-
-                Some(vec![TraitItem::Fn(rename), TraitItem::Fn(wrapper)])
+                Some(create_method_wrapper(m).map(|wrapper| {
+                    vec![
+                        TraitItem::Fn(create_method_rename(m)),
+                        TraitItem::Fn(wrapper),
+                    ]
+                }))
             } else {
                 None
             }
         })
-        .flatten()
-        .collect::<Vec<_>>();
+        .collect::<syn::Result<Vec<_>>>()
+    {
+        Ok(funcs) => funcs.into_iter().flatten().collect::<Vec<_>>(),
+        Err(error) => return error.to_compile_error(),
+    };
 
     // remove all previous methods
     trait_
