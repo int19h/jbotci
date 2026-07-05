@@ -12,6 +12,7 @@ use syn::{
     Ident, LitStr, Path, PathArguments, Result, Token, Type, braced, bracketed, parenthesized,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
+    punctuated::Punctuated,
 };
 
 #[requires(true)]
@@ -932,33 +933,7 @@ fn type_token_streams_match(left: &TokenStream2, right: &TokenStream2) -> bool {
 #[ensures(true)]
 fn canonical_type_key(ty: &Type) -> Option<String> {
     match ty {
-        Type::Path(path) if path.qself.is_none() => {
-            let segment = path.path.segments.last()?;
-            let type_name = if segment.ident == "Vec" {
-                "Vec".to_owned()
-            } else if segment.ident == "Vec1" {
-                "Vec1".to_owned()
-            } else {
-                path.path.to_token_stream().to_string()
-            };
-            let args = match &segment.arguments {
-                PathArguments::None => String::new(),
-                PathArguments::AngleBracketed(args) => {
-                    let args = args
-                        .args
-                        .iter()
-                        .map(|arg| match arg {
-                            GenericArgument::Type(ty) => canonical_type_key(ty),
-                            _ => Some(arg.to_token_stream().to_string()),
-                        })
-                        .collect::<Option<Vec<_>>>()?
-                        .join(",");
-                    format!("<{args}>")
-                }
-                PathArguments::Parenthesized(args) => args.to_token_stream().to_string(),
-            };
-            Some(format!("{type_name}{args}"))
-        }
+        Type::Path(path) if path.qself.is_none() => canonical_path_key(&path.path),
         Type::Tuple(tuple) => {
             let elems = tuple
                 .elems
@@ -971,9 +946,65 @@ fn canonical_type_key(ty: &Type) -> Option<String> {
         Type::Paren(paren) => canonical_type_key(&paren.elem),
         Type::Group(group) => canonical_type_key(&group.elem),
         Type::Reference(reference) => {
-            canonical_type_key(&reference.elem).map(|inner| format!("&{inner}"))
+            let inner = canonical_type_key(&reference.elem)?;
+            let mut prefix = String::from("&");
+            if let Some(lifetime) = &reference.lifetime {
+                prefix.push_str(&lifetime.to_token_stream().to_string());
+                prefix.push(' ');
+            }
+            if reference.mutability.is_some() {
+                prefix.push_str("mut ");
+            }
+            Some(format!("{prefix}{inner}"))
         }
         _ => Some(ty.to_token_stream().to_string()),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn canonical_path_key(path: &Path) -> Option<String> {
+    let last_segment = path.segments.last()?;
+    let is_vector_collection = last_segment.ident == "Vec" || last_segment.ident == "Vec1";
+    if is_vector_collection {
+        return canonical_path_arguments(&last_segment.arguments)
+            .map(|args| format!("{}{}", last_segment.ident, args));
+    }
+
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| {
+            canonical_path_arguments(&segment.arguments)
+                .map(|args| format!("{}{}", segment.ident, args))
+        })
+        .collect::<Option<Vec<_>>>()?
+        .join("::");
+    if path.leading_colon.is_some() {
+        Some(format!("::{segments}"))
+    } else {
+        Some(segments)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn canonical_path_arguments(arguments: &PathArguments) -> Option<String> {
+    match arguments {
+        PathArguments::None => Some(String::new()),
+        PathArguments::AngleBracketed(arguments) => {
+            let arguments = arguments
+                .args
+                .iter()
+                .map(|argument| match argument {
+                    GenericArgument::Type(ty) => canonical_type_key(ty),
+                    _ => Some(argument.to_token_stream().to_string()),
+                })
+                .collect::<Option<Vec<_>>>()?
+                .join(",");
+            Some(format!("<{arguments}>"))
+        }
+        PathArguments::Parenthesized(arguments) => Some(arguments.to_token_stream().to_string()),
     }
 }
 
@@ -1753,7 +1784,7 @@ impl Rule {
     fn expand_metadata(&self, type_env: &GrammarTypeEnv) -> Result<TokenStream2> {
         match self {
             Rule::Alias(rule) => rule.expand_metadata(type_env),
-            Rule::Struct(rule) => Ok(rule.expand_metadata("struct")),
+            Rule::Struct(rule) => rule.expand_metadata("struct", type_env),
             Rule::Enum(rule) => rule.expand_metadata(type_env),
         }
     }
@@ -1868,7 +1899,7 @@ impl AliasRule {
             .map(Ident::to_string)
             .collect::<BTreeSet<_>>();
         let parser = self.parser.compact_tokens();
-        let recovery = classify_parser_expr(&self.parser, &argument_names).expand();
+        let recovery = classify_parser_expr(&self.parser, &argument_names, type_env)?.expand();
         Ok(quote! {
             SyntaxGrammarRule {
                 kind: "alias",
@@ -2083,10 +2114,18 @@ impl EnumRule {
                 .ok_or_else(|| syn::Error::new_spanned(&self.name, "missing enum output type"))?,
         );
         let context = self.context.value();
-        let fields = self.branches.iter().map(|branch| {
+        let argument_names = self.argument_name_set();
+        let mut fields = Vec::new();
+        for branch in &self.branches {
             let branch_name = branch.name.to_string();
+            if !type_env.rule_known_for_recovery(&branch_name, &argument_names) {
+                return Err(syn::Error::new_spanned(
+                    &branch.name,
+                    "enum branches must reference a known grammar rule or recursive parser argument",
+                ));
+            }
             let conditions = branch.conditions.iter().map(Condition::expand);
-            quote! {
+            fields.push(quote! {
                 SyntaxGrammarField {
                     kind: "variant",
                     name: #branch_name,
@@ -2094,8 +2133,8 @@ impl EnumRule {
                     recovery: SyntaxGrammarRecoveryExpr::Rule(#branch_name),
                     conditions: &[#(#conditions),*],
                 }
-            }
-        });
+            });
+        }
         Ok(quote! {
             SyntaxGrammarRule {
                 kind: "enum",
@@ -2334,7 +2373,11 @@ impl NodeRule {
 
     #[requires(true)]
     #[ensures(true)]
-    fn expand_metadata(&self, kind: &'static str) -> TokenStream2 {
+    fn expand_metadata(
+        &self,
+        kind: &'static str,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<TokenStream2> {
         let name = self.name.to_string();
         let arguments = self.arguments.iter().map(Ident::to_string);
         let output = compact_tokens(&self.output);
@@ -2353,8 +2396,9 @@ impl NodeRule {
         let fields = self
             .fields
             .iter()
-            .map(|field| field.expand(&argument_names));
-        quote! {
+            .map(|field| field.expand(&argument_names, type_env))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(quote! {
             SyntaxGrammarRule {
                 kind: #kind,
                 name: #name,
@@ -2363,7 +2407,7 @@ impl NodeRule {
                 context: #context,
                 fields: &[#(#fields),*],
             }
-        }
+        })
     }
 
     #[requires(true)]
@@ -2741,6 +2785,12 @@ impl GrammarTypeEnv {
 }
 
 impl GrammarTypeEnv {
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_known_for_recovery(&self, name: &str, arguments: &BTreeSet<String>) -> bool {
+        arguments.contains(name) || self.rules.contains_key(name)
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn rule_arguments_for_call(&self, rule: &str) -> Option<&[String]> {
@@ -4095,41 +4145,38 @@ fn vector_min_cardinality(
 #[ensures(true)]
 fn vector_collection_element_type(output: &TokenStream2) -> Option<TokenStream2> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
-    match ty {
-        Type::Path(path) => {
-            let segment = path.path.segments.last()?;
-            if segment.ident != "Vec" && segment.ident != "Vec1" {
-                return None;
-            }
-            let PathArguments::AngleBracketed(args) = &segment.arguments else {
-                return None;
-            };
-            args.args.iter().find_map(|arg| match arg {
-                GenericArgument::Type(ty) => Some(quote!(#ty)),
-                _ => None,
-            })
-        }
-        _ => None,
-    }
+    vector_collection_type_parts(&ty).map(|(_, element)| quote!(#element))
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn vector_collection_is_vec1(output: &TokenStream2) -> Option<bool> {
     let ty = syn::parse2::<Type>(output.clone()).ok()?;
-    match ty {
-        Type::Path(path) => {
-            let segment = path.path.segments.last()?;
-            if segment.ident == "Vec1" {
-                Some(true)
-            } else if segment.ident == "Vec" {
-                Some(false)
-            } else {
-                None
-            }
-        }
+    vector_collection_type_parts(&ty).map(|(is_vec1, _)| is_vec1)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vector_collection_type_parts(ty: &Type) -> Option<(bool, &Type)> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+    let segment = path.path.segments.last()?;
+    let is_vec1 = if segment.ident == "Vec1" {
+        true
+    } else if segment.ident == "Vec" {
+        false
+    } else {
+        return None;
+    };
+    let PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return None;
+    };
+    let element = args.args.iter().find_map(|arg| match arg {
+        GenericArgument::Type(ty) => Some(ty),
         _ => None,
-    }
+    })?;
+    Some((is_vec1, element))
 }
 
 #[requires(true)]
@@ -4651,14 +4698,9 @@ fn parse_optional_arguments(input: ParseStream<'_>) -> Result<Vec<Ident>> {
     }
     let content;
     parenthesized!(content in input);
-    let mut arguments = Vec::new();
-    while !content.is_empty() {
-        arguments.push(content.parse()?);
-        if content.peek(Token![,]) {
-            content.parse::<Token![,]>()?;
-        }
-    }
-    Ok(arguments)
+    Ok(Punctuated::<Ident, Token![,]>::parse_terminated(&content)?
+        .into_iter()
+        .collect())
 }
 
 #[invariant(true)]
@@ -4674,16 +4716,20 @@ struct FieldItem {
 impl FieldItem {
     #[requires(true)]
     #[ensures(true)]
-    fn expand(&self, arguments: &BTreeSet<String>) -> TokenStream2 {
+    fn expand(
+        &self,
+        arguments: &BTreeSet<String>,
+        type_env: &GrammarTypeEnv,
+    ) -> Result<TokenStream2> {
         let kind = self.kind.as_str();
         let name = self
             .name
             .as_ref()
             .map_or_else(String::new, Ident::to_string);
         let parser = self.parser.compact_tokens();
-        let recovery = classify_parser_expr(&self.parser, arguments).expand();
+        let recovery = classify_parser_expr(&self.parser, arguments, type_env)?.expand();
         let conditions = self.conditions.iter().map(Condition::expand);
-        quote! {
+        Ok(quote! {
             SyntaxGrammarField {
                 kind: #kind,
                 name: #name,
@@ -4691,7 +4737,7 @@ impl FieldItem {
                 recovery: #recovery,
                 conditions: &[#(#conditions),*],
             }
-        }
+        })
     }
 
     #[requires(true)]
@@ -4969,49 +5015,61 @@ impl RecoveryExpr {
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_parser_expr(expr: &ParserExpr, arguments: &BTreeSet<String>) -> RecoveryExpr {
+fn classify_parser_expr(
+    expr: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     match expr {
-        ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments),
-        ParserExpr::Vector(expr) => RecoveryExpr::Sequence(
+        ParserExpr::Rust(expr) => classify_recovery_expr(expr, arguments, type_env),
+        ParserExpr::Vector(expr) => Ok(RecoveryExpr::Sequence(
             expr.items
                 .iter()
                 .map(|item| match item {
                     VectorItem::One(expr) | VectorItem::Spread(expr) => {
-                        classify_parser_expr(expr, arguments)
+                        classify_parser_expr(expr, arguments, type_env)
                     }
                     VectorItem::ZeroOrMore(expr) | VectorItem::ZeroOrMoreSpread(expr) => {
-                        RecoveryExpr::Many(Box::new(classify_parser_expr(expr, arguments)))
+                        classify_parser_expr(expr, arguments, type_env)
+                            .map(Box::new)
+                            .map(RecoveryExpr::Many)
                     }
                     VectorItem::OneOrMore(expr) | VectorItem::OneOrMoreSpread(expr) => {
-                        RecoveryExpr::Many1(Box::new(classify_parser_expr(expr, arguments)))
+                        classify_parser_expr(expr, arguments, type_env)
+                            .map(Box::new)
+                            .map(RecoveryExpr::Many1)
                     }
                     VectorItem::Assert { negated, parser } => {
-                        let inner = classify_parser_expr(parser, arguments);
+                        let inner = classify_parser_expr(parser, arguments, type_env)?;
                         if *negated {
-                            RecoveryExpr::Not(Box::new(inner))
+                            Ok(RecoveryExpr::Not(Box::new(inner)))
                         } else {
-                            RecoveryExpr::Lookahead(Box::new(inner))
+                            Ok(RecoveryExpr::Lookahead(Box::new(inner)))
                         }
                     }
                 })
-                .collect(),
-        ),
+                .collect::<Result<Vec<_>>>()?,
+        )),
         ParserExpr::Chain(expr) => {
-            let links = match expr.links_kind {
-                ChainLinksKind::ZeroOrMore => {
-                    RecoveryExpr::Many(Box::new(classify_parser_expr(&expr.links, arguments)))
-                }
-                ChainLinksKind::OneOrMore => {
-                    RecoveryExpr::Many1(Box::new(classify_parser_expr(&expr.links, arguments)))
-                }
-            };
-            RecoveryExpr::Sequence(vec![classify_parser_expr(&expr.first, arguments), links])
+            let links =
+                match expr.links_kind {
+                    ChainLinksKind::ZeroOrMore => RecoveryExpr::Many(Box::new(
+                        classify_parser_expr(&expr.links, arguments, type_env)?,
+                    )),
+                    ChainLinksKind::OneOrMore => RecoveryExpr::Many1(Box::new(
+                        classify_parser_expr(&expr.links, arguments, type_env)?,
+                    )),
+                };
+            Ok(RecoveryExpr::Sequence(vec![
+                classify_parser_expr(&expr.first, arguments, type_env)?,
+                links,
+            ]))
         }
         ParserExpr::Postfix {
             receiver,
             method,
             args,
-        } => classify_postfix_recovery_expr(receiver, method, args, arguments),
+        } => classify_postfix_recovery_expr(receiver, method, args, arguments, type_env),
     }
 }
 
@@ -5022,42 +5080,53 @@ fn classify_postfix_recovery_expr(
     method: &Ident,
     args: &[Expr],
     arguments: &BTreeSet<String>,
-) -> RecoveryExpr {
-    let inner = || Box::new(classify_parser_expr(receiver, arguments));
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
-        ("ignored", 0) => RecoveryExpr::Ignored(inner()),
-        ("not", 0) => RecoveryExpr::Not(inner()),
-        ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
-        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
-            classify_parser_expr(receiver, arguments),
-            classify_recovery_expr(args.first().expect("length checked"), arguments),
-        ]),
+        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
+        ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
+        ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
+        ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
+            classify_parser_expr(receiver, arguments, type_env)?,
+            classify_recovery_expr(args.first().expect("length checked"), arguments, type_env)?,
+        ])),
         _ => {
             let receiver = receiver.to_token_stream();
-            RecoveryExpr::Opaque(compact_tokens(quote!(#receiver.#method(#(#args),*))))
+            Ok(RecoveryExpr::Opaque(compact_tokens(
+                quote!(#receiver.#method(#(#args),*)),
+            )))
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_recovery_expr(expr: &Expr, arguments: &BTreeSet<String>) -> RecoveryExpr {
+fn classify_recovery_expr(
+    expr: &Expr,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     match expr {
-        Expr::Call(call) => classify_call_recovery_expr(call, arguments),
-        Expr::MethodCall(method) => classify_method_recovery_expr(method, arguments),
-        Expr::Path(path) => classify_path_recovery_expr(path, arguments),
-        Expr::Tuple(tuple) => RecoveryExpr::Sequence(
+        Expr::Call(call) => classify_call_recovery_expr(call, arguments, type_env),
+        Expr::MethodCall(method) => classify_method_recovery_expr(method, arguments, type_env),
+        Expr::Path(path) => classify_path_recovery_expr(path, arguments, type_env),
+        Expr::Tuple(tuple) => Ok(RecoveryExpr::Sequence(
             tuple
                 .elems
                 .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
-        ),
-        Expr::Array(array) => array_vector_expr(array)
-            .map(|expr| classify_parser_expr(&ParserExpr::Vector(expr), arguments))
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(expr))),
-        _ => RecoveryExpr::Opaque(compact_tokens(expr)),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
+        )),
+        Expr::Array(array) => {
+            if let Some(expr) = array_vector_expr(array) {
+                classify_parser_expr(&ParserExpr::Vector(expr), arguments, type_env)
+            } else {
+                Ok(RecoveryExpr::Opaque(compact_tokens(expr)))
+            }
+        }
+        _ => Ok(RecoveryExpr::Opaque(compact_tokens(expr))),
     }
 }
 
@@ -5083,47 +5152,74 @@ fn array_vector_expr(array: &ExprArray) -> Option<VectorExpr> {
 fn classify_method_recovery_expr(
     method: &ExprMethodCall,
     arguments: &BTreeSet<String>,
-) -> RecoveryExpr {
-    let inner = || Box::new(classify_recovery_expr(&method.receiver, arguments));
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) => RecoveryExpr::WithFreeModifiers(inner()),
-        ("payload_start", 0) => RecoveryExpr::PayloadStart(inner()),
-        ("ignored", 0) => RecoveryExpr::Ignored(inner()),
-        ("ignore_then", 1) => RecoveryExpr::Sequence(vec![
-            classify_recovery_expr(&method.receiver, arguments),
-            classify_recovery_expr(method.args.first().expect("length checked"), arguments),
-        ]),
-        ("not_next_selmaho", 1) => method
+        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
+        ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
+        ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
+            classify_recovery_expr(&method.receiver, arguments, type_env)?,
+            classify_recovery_expr(
+                method.args.first().expect("length checked"),
+                arguments,
+                type_env,
+            )?,
+        ])),
+        ("not_next_selmaho", 1) => Ok(method
             .args
             .first()
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextSelmaho)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("not_next_token", 1) => method
+            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+        ("not_next_token", 1) => Ok(method
             .args
             .first()
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::NotNextToken)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("not_next_rule", 1) => method
-            .args
-            .first()
-            .and_then(path_expr_last_segment)
-            .map(RecoveryExpr::NotNextRule)
-            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method))),
-        ("lookahead", 0) => RecoveryExpr::Lookahead(inner()),
-        ("not", 0) => RecoveryExpr::Not(inner()),
-        _ => RecoveryExpr::Opaque(compact_tokens(method)),
+            .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(method)))),
+        ("not_next_rule", 1) => classify_not_next_rule_recovery_expr(method, arguments, type_env),
+        ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
+        ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
+        _ => Ok(RecoveryExpr::Opaque(compact_tokens(method))),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) -> RecoveryExpr {
-    let Some(name) = call_name(call) else {
-        return RecoveryExpr::Opaque(compact_tokens(call));
+fn classify_not_next_rule_recovery_expr(
+    method: &ExprMethodCall,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let Some(argument) = method.args.first() else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
     };
-    match (name.as_str(), call.args.len()) {
+    let Some(rule) = path_expr_last_segment(argument) else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(method)));
+    };
+    if type_env.rule_known_for_recovery(&rule, arguments) {
+        Ok(RecoveryExpr::NotNextRule(rule))
+    } else {
+        Err(syn::Error::new_spanned(
+            argument,
+            format!("unknown grammar rule `{rule}` in recovery metadata"),
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn classify_call_recovery_expr(
+    call: &ExprCall,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
+    let Some(name) = call_name(call) else {
+        return Ok(RecoveryExpr::Opaque(compact_tokens(call)));
+    };
+    Ok(match (name.as_str(), call.args.len()) {
         ("cmavo", 1) => call
             .args
             .first()
@@ -5148,44 +5244,69 @@ fn classify_call_recovery_expr(call: &ExprCall, arguments: &BTreeSet<String>) ->
             .and_then(path_expr_last_segment)
             .map(RecoveryExpr::Cmavo)
             .unwrap_or_else(|| RecoveryExpr::Opaque(compact_tokens(call))),
-        ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+        ("opt", 1) => RecoveryExpr::Opt(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
         ("feature" | "policy", 1) => RecoveryExpr::Opaque(compact_tokens(call)),
-        ("boxed", 1) => {
-            RecoveryExpr::Boxed(Box::new(classify_recovery_expr(&call.args[0], arguments)))
-        }
-        ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(&call.args[0], arguments))),
+        ("boxed", 1) => RecoveryExpr::Boxed(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
+        ("arc", 1) => RecoveryExpr::Arc(Box::new(classify_recovery_expr(
+            &call.args[0],
+            arguments,
+            type_env,
+        )?)),
         ("choice", 1) => RecoveryExpr::Choice(
             call.args
                 .first()
                 .map(choice_alternative_exprs)
                 .unwrap_or_default()
                 .into_iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
         ),
         ("choice", _) => RecoveryExpr::Choice(
             call.args
                 .iter()
-                .map(|expr| classify_recovery_expr(expr, arguments))
-                .collect(),
+                .map(|expr| classify_recovery_expr(expr, arguments, type_env))
+                .collect::<Result<Vec<_>>>()?,
         ),
+        ("pa_word", 0) => RecoveryExpr::Selmaho("Pa".to_owned()),
+        ("cmevla_word" | "text_leading_cmevla_word", 0) => {
+            RecoveryExpr::WordCategory("Cmevla".to_owned())
+        }
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
         ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
         ("eof", 0) => RecoveryExpr::Eof,
-        _ if call.args.is_empty() && arguments.contains(&name) => RecoveryExpr::Rule(name),
-        _ if call.args.is_empty() => RecoveryExpr::Rule(name),
+        _ if call.args.is_empty() && type_env.rule_known_for_recovery(&name, arguments) => {
+            RecoveryExpr::Rule(name)
+        }
+        _ if call.args.is_empty() => RecoveryExpr::Opaque(compact_tokens(call)),
         _ => RecoveryExpr::Opaque(compact_tokens(call)),
-    }
+    })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn classify_path_recovery_expr(path: &ExprPath, arguments: &BTreeSet<String>) -> RecoveryExpr {
+fn classify_path_recovery_expr(
+    path: &ExprPath,
+    arguments: &BTreeSet<String>,
+    type_env: &GrammarTypeEnv,
+) -> Result<RecoveryExpr> {
     let text = compact_tokens(path);
-    if arguments.contains(&text) || (path.qself.is_none() && path.path.segments.len() == 1) {
-        RecoveryExpr::Rule(text)
+    if type_env.rule_known_for_recovery(&text, arguments) {
+        Ok(RecoveryExpr::Rule(text))
+    } else if path.qself.is_none() && path.path.segments.len() == 1 {
+        Err(syn::Error::new_spanned(
+            path,
+            format!("unknown grammar rule `{text}` in recovery metadata"),
+        ))
     } else {
-        RecoveryExpr::Opaque(text)
+        Ok(RecoveryExpr::Opaque(text))
     }
 }
 
@@ -5234,6 +5355,24 @@ fn compact_tokens(tokens: impl ToTokens) -> String {
 mod tests {
     use super::*;
     use quote::quote;
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn type_token_comparison_normalizes_paths_without_erasing_reference_mutability() {
+        assert!(type_token_streams_match(
+            &quote!(std::vec::Vec<Option<Token>>),
+            &quote!(Vec<Option<Token>>),
+        ));
+        assert!(type_token_streams_match(
+            &quote!(Option<std::vec::Vec<Token>>),
+            &quote!(Option<Vec<Token>>),
+        ));
+        assert!(!type_token_streams_match(
+            &quote!(&Token),
+            &quote!(&mut Token),
+        ));
+    }
 
     #[requires(true)]
     #[ensures(true)]

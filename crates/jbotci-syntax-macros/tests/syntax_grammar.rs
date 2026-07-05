@@ -25,12 +25,15 @@ enum Cmavo {
 #[allow(dead_code)]
 enum Selmaho {
     Fa,
+    Pa,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 enum SyntaxWordCategory {
+    Cmevla,
     Quote,
+    SelbriWord,
 }
 
 jbotci_syntax_macros::syntax_grammar! {
@@ -163,6 +166,13 @@ fn grammar_macro_exports_declaration_metadata() {
     );
 
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].kind, "struct");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[2].fields[0].recovery,
+        SyntaxGrammarRecoveryExpr::Choice(&[
+            SyntaxGrammarRecoveryExpr::Opaque("joik()"),
+            SyntaxGrammarRecoveryExpr::Opaque("jek()"),
+        ])
+    );
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[1].name, "bo");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[2].fields[1].recovery,
@@ -173,6 +183,55 @@ fn grammar_macro_exports_declaration_metadata() {
         SYNTAX_GRAMMAR_RULES[2].fields[2].recovery,
         SyntaxGrammarRecoveryExpr::Opt(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
     );
+}
+
+mod recovery_classification {
+    use crate::{Cmavo, Selmaho, SyntaxWordCategory};
+
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct Token;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        env SyntaxGrammarEnv;
+
+        rule "token helpers" token_helpers -> struct {
+            field pa <- pa_word();
+            field cmevla <- cmevla_word();
+            field leading_cmevla <- text_leading_cmevla_word();
+            field relation <- relation_word();
+            field external <- external_helper();
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_macro_classifies_builtin_and_external_recovery_calls() {
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Selmaho(Selmaho::Pa)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[1].recovery,
+            SyntaxGrammarRecoveryExpr::WordCategory(SyntaxWordCategory::Cmevla)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[2].recovery,
+            SyntaxGrammarRecoveryExpr::WordCategory(SyntaxWordCategory::Cmevla)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[3].recovery,
+            SyntaxGrammarRecoveryExpr::RelationWord
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[4].recovery,
+            SyntaxGrammarRecoveryExpr::Opaque("external_helper()")
+        );
+    }
 }
 
 #[bityzba::requires(true)]
