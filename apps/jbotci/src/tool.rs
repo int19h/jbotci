@@ -701,8 +701,8 @@ impl ToolVlackuMode {
                 query_text: Vec::new(),
             }),
             Self::Meaning => new!(ToolVlackuCommandQuery {
-                requests: Vec::new(),
-                query_text: vec![query],
+                requests: vec![VlackuRequest::meaning(query)],
+                query_text: Vec::new(),
             }),
         }
     }

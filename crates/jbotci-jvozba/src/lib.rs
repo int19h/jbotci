@@ -4,31 +4,13 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind, WordLike,
-    bond_rafsis, canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
+    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind, bond_rafsis,
+    canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
     ensure_cmevla_word, is_bonding_hyphen, parse_lujvo_word_parts, segment_words_with_modifiers,
     syllables_pattern,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-#[invariant(!sources.is_empty())]
-#[invariant(!parts.is_empty())]
-#[invariant(!output.is_empty())]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LujvoPlan {
-    pub sources: Vec<LujvoSource>,
-    pub parts: Vec<LujvoPart>,
-    pub output: String,
-}
-
-#[invariant(!word.is_empty())]
-#[invariant(fixed_rafsi.as_ref().is_none_or(|rafsi| !rafsi.is_empty()))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LujvoSource {
-    pub word: String,
-    pub fixed_rafsi: Option<String>,
-}
 
 #[invariant(true)]
 #[invariant(::Lujvo => true)]
@@ -118,39 +100,6 @@ pub enum JvozbaError {
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub fn compose_lujvo(
-    dictionary: &Dictionary<'_>,
-    sources: &[LujvoSource],
-) -> Result<LujvoPlan, JvozbaError> {
-    let inputs = sources
-        .iter()
-        .map(|source| match &source.fixed_rafsi {
-            Some(fixed_rafsi) => JvozbaInput::FixedRafsi(canonicalize_text(fixed_rafsi)),
-            None => JvozbaInput::Word(canonicalize_text(&source.word)),
-        })
-        .collect::<Vec<_>>();
-    let result = build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &inputs)?;
-    Ok(new!(LujvoPlan {
-        sources: sources.to_vec(),
-        parts: jvopau_segments(&result.segments),
-        output: result.word.clone(),
-    }))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|word| !word.is_empty()) || ret.is_err())]
-pub fn build_best_jvozba(
-    mode: JvozbaMode,
-    dictionary: &Dictionary<'_>,
-    raw_inputs: &[JvozbaInput],
-) -> Result<String, String> {
-    build_best_jvozba_detailed(mode, dictionary, raw_inputs)
-        .map(|result| result.word.clone())
-        .map_err(|error| render_jvozba_error(&error))
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|result| !result.word.is_empty()) || ret.is_err())]
 pub fn build_best_jvozba_detailed(
     mode: JvozbaMode,
@@ -177,12 +126,6 @@ pub fn build_best_jvozba_detailed(
         candidate.word.clone(),
         candidate.parts.clone(),
     ))
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn render_jvozba_error(error: &JvozbaError) -> String {
-    error.to_string()
 }
 
 #[requires(true)]
@@ -500,21 +443,6 @@ fn jvozba_segments_from_parts(parts: &[String]) -> Vec<JvozbaSegment> {
                     JvozbaSegmentKind::Rafsi
                 },
                 text: part.clone(),
-            })
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn jvopau_segments(segments: &[JvozbaSegment]) -> Vec<LujvoPart> {
-    segments
-        .iter()
-        .filter_map(|segment| {
-            let phonemes = Phonemes::from_canonical(segment.text.clone()).ok()?;
-            Some(match segment.kind {
-                JvozbaSegmentKind::Rafsi => LujvoPart::rafsi(phonemes),
-                JvozbaSegmentKind::Hyphen => LujvoPart::hyphen(phonemes),
             })
         })
         .collect()
@@ -902,19 +830,6 @@ fn has_vowel_pair_after_initial(text: &str) -> bool {
         .is_some_and(|pair| matches!(pair.as_str(), "ai" | "ei" | "oi" | "au"))
 }
 
-#[requires(true)]
-#[ensures(true)]
-pub fn word_like_type_key(word_like: &WordLike) -> Option<&'static str> {
-    let word = word_like.bare_word()?;
-    Some(match word.kind() {
-        jbotci_morphology::WordKind::Cmavo => "cmavo",
-        jbotci_morphology::WordKind::Gismu => "gismu",
-        jbotci_morphology::WordKind::Lujvo => "lujvo",
-        jbotci_morphology::WordKind::Fuhivla => "fu'ivla",
-        jbotci_morphology::WordKind::Cmevla => "cmevla",
-    })
-}
-
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
@@ -1091,10 +1006,7 @@ mod tests {
             ],
         )
         .expect_err("missing entry");
-        assert_eq!(
-            render_jvozba_error(&error),
-            "No dictionary entry for `notlojban`."
-        );
+        assert_eq!(error.to_string(), "No dictionary entry for `notlojban`.");
     }
 
     #[test]

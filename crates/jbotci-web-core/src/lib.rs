@@ -24,7 +24,7 @@ use jbotci_embedding_inputs::embedding_input_corpus_json;
 pub use jbotci_gentufa::{
     DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript,
     ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource, ReferenceMarkerSourceData,
-    ReferenceSlotLabel, TransformInfo, WebSourceRange, reference_slot_display_text,
+    ReferenceSlotLabel, WebSourceRange, reference_slot_display_text,
 };
 use jbotci_gentufa::{
     generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
@@ -76,11 +76,8 @@ pub type ReferenceMarker = jbotci_gentufa::ReferenceMarker<ReferenceTooltip>;
 pub type GentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard, ReferenceTooltip>;
 pub type GentufaBlocksLayout =
     jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard, ReferenceTooltip>;
-#[allow(dead_code)]
 type BareReferenceMarker = jbotci_gentufa::ReferenceMarker<()>;
-#[allow(dead_code)]
 type BareGentufaBlock = jbotci_gentufa::GentufaBlock<DictionaryTooltipCard, ()>;
-#[allow(dead_code)]
 type BareGentufaBlocksLayout = jbotci_gentufa::GentufaBlocksLayout<DictionaryTooltipCard, ()>;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -378,7 +375,6 @@ pub struct GentufaCell {
     pub quoted: bool,
     pub tooltip: Option<String>,
     pub is_elided: bool,
-    pub transform: Option<TransformInfo>,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -602,7 +598,6 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
                 quoted: false,
                 tooltip: None,
                 is_elided: block.is_elided,
-                transform: block.transform.clone(),
             }],
             computed_gloss: block.computed_gloss.clone(),
             ref_markers: block.ref_markers.clone(),
@@ -723,10 +718,8 @@ fn attach_generated_reference_tooltips_to_block(
         row: block.row,
         row_span: block.row_span,
         color: block.color,
-        parent_color: block.parent_color,
         raw_text: block.raw_text,
         display_text: block.display_text,
-        transform: block.transform,
         glosses: merge_block_glosses(block.glosses, dictionary_annotation),
         definition: block
             .definition
@@ -3158,17 +3151,6 @@ fn gimfihi_metadata_description(candidate: &str, sources: &[ResolvedSource]) -> 
     format!("{candidate} = {sources}")
 }
 
-#[requires(!value.is_empty())]
-#[ensures(!ret.is_empty())]
-fn trim_web_float(value: &str) -> String {
-    let trimmed = value.trim_end_matches('0').trim_end_matches('.');
-    if trimmed.is_empty() {
-        "0".to_owned()
-    } else {
-        trimmed.to_owned()
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn vlacku_exact_metadata_description(state: &VlackuWebState) -> Option<String> {
@@ -3384,13 +3366,8 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn parse_gentufa_web_route(path: &str, query: &str) -> GentufaWebState {
-    let logical = path.trim_start_matches('/').trim_end_matches('/');
-    let mut state = if logical == "gentufa" || logical.is_empty() {
-        GentufaWebState::default()
-    } else {
-        GentufaWebState::default()
-    };
+pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
+    let mut state = GentufaWebState::default();
     for (key, value) in parse_query_pairs(query) {
         match key.as_str() {
             "text" => state.text = value,

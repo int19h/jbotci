@@ -13,8 +13,8 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
 ) -> Result<CliStatus> {
     validate_vlacku_input(&input)?;
     let options = vlacku_search_options(&input)?;
-    let output = if input.requests.is_empty() {
-        match run_semantic_vlacku(&input, &options, tool_context) {
+    let output = if let Some(query) = semantic_vlacku_query(&input) {
+        match run_semantic_vlacku(&query, &options, tool_context) {
             Ok(output) => output,
             Err(error) => {
                 writeln!(stderr, "vlacku: {error}")?;
@@ -49,11 +49,11 @@ pub(crate) fn run_vlacku<WOut: Write, WErr: Write>(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_semantic_vlacku(
-    input: &VlackuInput,
+    query: &str,
     options: &VlackuSearchOptions,
     tool_context: Option<&mut ToolExecutionContext<'_>>,
 ) -> Result<VlackuSearchOutput> {
-    let query = joined_query_text(&input.query).trim().to_owned();
+    let query = query.trim().to_owned();
     if query.is_empty() {
         bail!("vlacku query text must be non-empty.");
     }
@@ -106,6 +106,22 @@ fn semantic_vlacku_hits_with_new_backend(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|query| !query.is_empty()))]
+fn semantic_vlacku_query(input: &VlackuInput) -> Option<String> {
+    if input.requests.is_empty() {
+        let query = joined_query_text(&input.query);
+        return (!query.is_empty()).then_some(query);
+    }
+    match input.requests.as_slice() {
+        [request] => match request.as_data() {
+            data!(VlackuRequest::Meaning(query)) => Some(query.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     if input.count == Some(0) {
@@ -137,7 +153,24 @@ fn validate_vlacku_input(input: &VlackuInput) -> Result<()> {
     if sound_count == 1 && input.requests.len() > 1 {
         bail!("`--sound` cannot be combined with --valsi, --rafsi, or --lujvo");
     }
-    if input.min_similarity.is_some() && sound_count != 1 && !input.requests.is_empty() {
+    let meaning_count = input
+        .requests
+        .iter()
+        .filter(|request| matches!(request.as_data(), data!(VlackuRequest::Meaning(_))))
+        .count();
+    if meaning_count > 1 {
+        bail!("semantic vlacku query may be specified only once");
+    }
+    if meaning_count == 1 && input.requests.len() > 1 {
+        bail!(
+            "semantic vlacku query cannot be combined with --valsi, --rafsi, --lujvo, or --sound"
+        );
+    }
+    if input.min_similarity.is_some()
+        && sound_count != 1
+        && meaning_count != 1
+        && !input.requests.is_empty()
+    {
         bail!("`--min-similarity` is only valid with `--sound` or semantic search");
     }
     for request in &input.requests {

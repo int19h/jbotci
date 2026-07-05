@@ -1153,16 +1153,6 @@ fn has_valid_two_letter_match(candidate: &str, source: &str) -> bool {
     false
 }
 
-#[requires(true)]
-#[ensures(true)]
-fn find_collision(
-    dictionary: &Dictionary<'_>,
-    scope: CollisionScope,
-    candidate: &str,
-) -> Option<GismuCollision> {
-    CollisionIndex::from_dictionary(dictionary, scope).find(candidate)
-}
-
 #[invariant(
     collisions
         .iter()
@@ -1290,28 +1280,6 @@ fn collision_beats(kind: CollisionKind, existing_word: &str, current: &GismuColl
         .cmp(&collision_kind_order(current.kind))
         .then_with(|| existing_word.cmp(&current.existing_word))
         .is_lt()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn find_collision_by_scan(
-    dictionary: &Dictionary<'_>,
-    scope: CollisionScope,
-    candidate: &str,
-) -> Option<GismuCollision> {
-    if scope == CollisionScope::None {
-        return None;
-    }
-    dictionary
-        .entries()
-        .iter()
-        .filter(|entry| collision_scope_includes(scope, entry.word_type))
-        .filter_map(|entry| collision_with_entry(candidate, entry.word, entry.word_type))
-        .min_by(|left, right| {
-            collision_kind_order(left.kind)
-                .cmp(&collision_kind_order(right.kind))
-                .then_with(|| left.existing_word.cmp(&right.existing_word))
-        })
 }
 
 #[requires(true)]
@@ -1626,6 +1594,38 @@ fn normalize_gismu(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn find_collision(
+        dictionary: &Dictionary<'_>,
+        scope: CollisionScope,
+        candidate: &str,
+    ) -> Option<GismuCollision> {
+        CollisionIndex::from_dictionary(dictionary, scope).find(candidate)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn find_collision_by_scan(
+        dictionary: &Dictionary<'_>,
+        scope: CollisionScope,
+        candidate: &str,
+    ) -> Option<GismuCollision> {
+        if scope == CollisionScope::None {
+            return None;
+        }
+        dictionary
+            .entries()
+            .iter()
+            .filter(|entry| collision_scope_includes(scope, entry.word_type))
+            .filter_map(|entry| collision_with_entry(candidate, entry.word, entry.word_type))
+            .min_by(|left, right| {
+                collision_kind_order(left.kind)
+                    .cmp(&collision_kind_order(right.kind))
+                    .then_with(|| left.existing_word.cmp(&right.existing_word))
+            })
+    }
 
     #[test]
     #[requires(true)]

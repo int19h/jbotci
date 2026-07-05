@@ -548,10 +548,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "reference markers are renderer annotations derived from semantic reference analysis",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:TransformInfo",
-        "transform metadata is a display annotation for deterministic orthography conversion",
-    ),
-    (
         "crates/jbotci-gentufa/src/render.rs:EmbeddedGentufaFonts",
         "embedded font provider is a zero-sized access point for compile-time font bytes",
     ),

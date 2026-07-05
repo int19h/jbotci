@@ -1093,6 +1093,16 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
         &mut ordered_requests,
     );
     ordered_requests.sort_by_key(|(index, _)| *index);
+    let query = matches
+        .get_many::<String>("query")
+        .map(|values| values.cloned().collect::<Vec<_>>())
+        .unwrap_or_default();
+    let positional_meaning_request = ordered_requests
+        .is_empty()
+        .then(|| joined_query_text(&query))
+        .filter(|query| !query.is_empty())
+        .map(VlackuRequest::meaning);
+    let has_positional_meaning_request = positional_meaning_request.is_some();
 
     VlackuInput {
         count: matches.get_one::<usize>("count").copied(),
@@ -1109,14 +1119,15 @@ fn parse_vlacku_matches(matches: &ArgMatches) -> VlackuInput {
             .unwrap_or(CliSumtiPlaces::Index),
         decompose_lujvo: matches.get_flag("decompose_lujvo"),
         show_etymology: matches.get_flag("show_etymology"),
-        requests: ordered_requests
+        requests: positional_meaning_request
             .into_iter()
-            .map(|(_, request)| request)
+            .chain(ordered_requests.into_iter().map(|(_, request)| request))
             .collect(),
-        query: matches
-            .get_many::<String>("query")
-            .map(|values| values.cloned().collect())
-            .unwrap_or_default(),
+        query: if has_positional_meaning_request {
+            Vec::new()
+        } else {
+            query
+        },
     }
 }
 
