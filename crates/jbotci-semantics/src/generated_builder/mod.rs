@@ -10,7 +10,7 @@ use jbotci_morphology::{
 };
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
-    AbstractionTanruUnitSyntax, AfterthoughtBridiTailSyntax,
+    AbstractionTanruUnitSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
     AfterthoughtBridiTailWithoutTailTermsSyntax, AfterthoughtMeksoOperatorSyntax,
     ArgumentConnectiveSyntax, ArrayMeksoOperandSyntax, AssignedProBridiTanruUnitSyntax,
     AtomRef as GeneratedAtomRef, BareCuBridiSyntax, BareCuTermsBridiSyntax,
@@ -162,7 +162,7 @@ pub fn build_generated_semantic_graph_with_dictionary_and_options<'a>(
 }
 
 #[invariant(true)]
-struct GeneratedGraphBuilder<'a, 'dict> {
+struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     options: SemanticBuildOptions<'a>,
     dictionary: &'dict Dictionary<'dict>,
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
@@ -202,17 +202,17 @@ struct GeneratedGraphBuilder<'a, 'dict> {
     abstraction_parameter_stack: Vec<Vec<SemanticObjectId>>,
     indirect_question_stack: Vec<Vec<GeneratedIndirectQuestionFocus>>,
     temporal_context_stack: Vec<SemanticObjectId>,
-    pro_bridi_scope_stack: Vec<BridiSyntax>,
-    completed_pro_bridi_frames: Vec<GeneratedProBridiFrame>,
+    pro_bridi_scope_stack: Vec<&'syntax BridiSyntax>,
+    completed_pro_bridi_frames: Vec<GeneratedProBridiFrame<'syntax>>,
     current_quote_depth: usize,
     sumti_referents: BTreeMap<(usize, usize), SemanticObjectId>,
     sumti_referent_cache_bypass_depth: usize,
     letter_sumti_referents: BTreeMap<String, Vec<GeneratedLetterSumtiReferent>>,
-    pending_sumti_candidates: Vec<GeneratedPendingSumtiCandidate>,
+    pending_sumti_candidates: Vec<GeneratedPendingSumtiCandidate<'syntax>>,
     recent_sumti_referents: Vec<GeneratedRecentSumtiReferent>,
     assigned_referents: BTreeMap<String, SemanticObjectId>,
     math_variable_referents: BTreeMap<String, SemanticObjectId>,
-    assigned_pro_bridi_bindings: BTreeMap<String, GeneratedAssignedProBridiBinding>,
+    assigned_pro_bridi_bindings: BTreeMap<String, GeneratedAssignedProBridiBinding<'syntax>>,
     pending_asides: Vec<SemanticObjectId>,
     defer_active_prenex_implicit_existentials: usize,
     deferred_active_prenex_implicit_existentials: Vec<GeneratedImplicitExistential>,
@@ -256,9 +256,9 @@ struct GeneratedIndirectQuestionFocus {
 
 #[invariant(source_key.0 <= source_key.1)]
 #[derive(Debug, Clone)]
-struct GeneratedPendingSumtiCandidate {
+struct GeneratedPendingSumtiCandidate<'syntax> {
     source_key: (usize, usize),
-    sumti: SumtiSyntax,
+    sumti: &'syntax SumtiSyntax,
 }
 
 #[invariant(!key.is_empty())]
@@ -354,9 +354,9 @@ struct GeneratedTanruFormulaForArgument {
 #[invariant(relation.as_ref().is_some_and(|relation| relation.is_displayable()) != tanru.is_some(), "assigned pro-bridi binding must have exactly one target")]
 #[invariant(visible_arguments.keys().all(|place| *place > 0), "visible places are 1-based")]
 #[derive(Debug, Clone)]
-struct GeneratedAssignedProBridiBinding {
+struct GeneratedAssignedProBridiBinding<'syntax> {
     relation: Option<RelationLabel>,
-    tanru: Option<Box<TanruSelbriSyntax>>,
+    tanru: Option<&'syntax TanruSelbriSyntax>,
     source: Option<crate::model::SemanticSource>,
     visible_arguments: BTreeMap<usize, ArgumentValue>,
 }
@@ -364,13 +364,13 @@ struct GeneratedAssignedProBridiBinding {
 #[invariant(relation.is_displayable())]
 #[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[derive(Debug, Clone)]
-struct GeneratedProBridiFrame {
+struct GeneratedProBridiFrame<'syntax> {
     relation: RelationLabel,
     arguments: BTreeMap<PlaceIndex, ArgumentValue>,
     place_count: Option<usize>,
-    event_tense: Option<TenseModalSyntax>,
+    event_tense: Option<&'syntax TenseModalSyntax>,
     quote_depth: usize,
-    replay: Option<GeneratedProBridiReplaySource>,
+    replay: Option<GeneratedProBridiReplaySource<'syntax>>,
     predication_source: Option<crate::model::SemanticSource>,
     formula_source: Option<crate::model::SemanticSource>,
     diagnostics: Vec<crate::model::SemanticDiagnostic>,
@@ -378,9 +378,9 @@ struct GeneratedProBridiFrame {
 
 #[invariant(*first_visible_place > 0)]
 #[derive(Debug, Clone)]
-struct GeneratedProBridiReplaySource {
-    selbri: SelbriSyntax,
-    terms: Vec<TermSyntax>,
+struct GeneratedProBridiReplaySource<'syntax> {
+    selbri: &'syntax SelbriSyntax,
+    terms: Vec<&'syntax TermSyntax>,
     first_visible_place: usize,
 }
 
@@ -578,6 +578,117 @@ struct GeneratedDescriptionAbstraction<'syntax> {
     abstraction: &'syntax AbstractionTanruUnitSyntax,
     output_sort: SemanticSort,
     link_relation: &'static str,
+}
+
+#[invariant(nu.is_selmaho(Selmaho::Nu))]
+#[invariant(nai.is_none_or(|nai| nai.is_cmavo(Cmavo::Nai)))]
+#[invariant(kei.is_none_or(|kei| kei.is_cmavo(Cmavo::Kei)))]
+#[derive(Debug, Clone, Copy)]
+struct GeneratedAbstractionBranch<'syntax> {
+    abstraction: &'syntax AbstractionTanruUnitSyntax,
+    nu: &'syntax WithFreeModifiers<Token, FreeModifierSyntax>,
+    nai: Option<&'syntax WithFreeModifiers<Token, FreeModifierSyntax>>,
+    subbridi: &'syntax SubbridiSyntax,
+    kei: Option<&'syntax WithFreeModifiers<Token, FreeModifierSyntax>>,
+}
+
+impl<'syntax> GeneratedAbstractionBranch<'syntax> {
+    #[requires(true)]
+    #[ensures(ret.nai.is_some() == abstraction.nai.is_some())]
+    fn primary(abstraction: &'syntax AbstractionTanruUnitSyntax) -> Self {
+        Self::from_data(data!(GeneratedAbstractionBranch {
+            abstraction,
+            nu: &abstraction.nu,
+            nai: abstraction.nai.as_ref(),
+            subbridi: abstraction.subbridi.as_ref(),
+            kei: abstraction.kei.as_ref(),
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.nai.is_some() == connection.nai.is_some())]
+    fn connected(
+        abstraction: &'syntax AbstractionTanruUnitSyntax,
+        connection: &'syntax AbstractorConnectionSyntax,
+    ) -> Self {
+        Self::from_data(data!(GeneratedAbstractionBranch {
+            abstraction,
+            nu: &connection.nu,
+            nai: connection.nai.as_ref(),
+            subbridi: abstraction.subbridi.as_ref(),
+            kei: abstraction.kei.as_ref(),
+        }))
+    }
+}
+
+#[invariant(::Normal(_) => true)]
+#[invariant(::Cei(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedTanruAtomView<'syntax> {
+    Normal(&'syntax TanruUnitAtomSyntax),
+    Cei(&'syntax TanruUnitAtomForCeiSyntax),
+}
+
+impl<'syntax> GeneratedTanruAtomView<'syntax> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn normal(atom: &'syntax TanruUnitAtomSyntax) -> Self {
+        Self::Normal(atom)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn cei(atom: &'syntax TanruUnitAtomForCeiSyntax) -> Self {
+        Self::Cei(atom)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn conversions(self) -> &'syntax [WithFreeModifiers<Token, FreeModifierSyntax>] {
+        match self {
+            Self::Normal(atom) => &atom.conversions,
+            Self::Cei(atom) => &atom.conversions,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn base(self) -> GeneratedTanruAtomBaseView<'syntax> {
+        match self {
+            Self::Normal(atom) => GeneratedTanruAtomBaseView::Normal(atom.base.as_ref()),
+            Self::Cei(atom) => GeneratedTanruAtomBaseView::Cei(atom.base.as_ref()),
+        }
+    }
+}
+
+#[invariant(::Normal(_) => true)]
+#[invariant(::Cei(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedTanruAtomBaseView<'syntax> {
+    Normal(&'syntax TanruUnitAtomBaseSyntax),
+    Cei(&'syntax TanruUnitAtomBaseForCeiSyntax),
+}
+
+impl<'syntax> GeneratedTanruAtomBaseView<'syntax> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn scalar_negated_base(self) -> Option<&'syntax ScalarNegatedTanruUnitSyntax> {
+        match self {
+            Self::Normal(TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit))
+            | Self::Cei(TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit)) => Some(unit),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn grouped_base(self) -> Option<&'syntax GroupedTanruUnitSyntax> {
+        match self {
+            Self::Normal(TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped))
+            | Self::Cei(TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(grouped)) => Some(grouped),
+            _ => None,
+        }
+    }
 }
 
 #[invariant(!relation.is_empty(), "aggregate relation must be named")]
@@ -1077,7 +1188,7 @@ impl GeneratedPropertyTanruContext {
     #[ensures(true)]
     fn tertau_source(
         self,
-        builder: &GeneratedGraphBuilder<'_, '_>,
+        builder: &GeneratedGraphBuilder<'_, '_, '_>,
         tanru: &TanruSelbriSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Option<crate::model::SemanticSource> {
@@ -1114,7 +1225,7 @@ impl GeneratedPredicationEventuality {
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
     fn resolve(
         self,
-        builder: &mut GeneratedGraphBuilder<'_, '_>,
+        builder: &mut GeneratedGraphBuilder<'_, '_, '_>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match self.as_data() {
@@ -1127,7 +1238,7 @@ impl GeneratedPredicationEventuality {
     }
 }
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
     #[ensures(ret.next_index == 5)]
     fn new(options: SemanticBuildOptions<'a>, dictionary: &'dict Dictionary<'dict>) -> Self {
@@ -1392,10 +1503,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(child.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    fn build_generated_tense_scope_formula(
+    fn build_generated_tense_scope_formula<'syntax: 'tree>(
         &mut self,
         child: SemanticObjectId,
-        tense_modal: &TenseModalSyntax,
+        tense_modal: &'syntax TenseModalSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let eventuality = self.build_generated_tense_eventuality(tense_modal, source.clone())?;
@@ -1414,9 +1525,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.as_ref().is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality())))) || ret.is_err())]
-    fn build_generated_tense_eventuality(
+    fn build_generated_tense_eventuality<'syntax: 'tree>(
         &mut self,
-        tense_modal: &TenseModalSyntax,
+        tense_modal: &'syntax TenseModalSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         if !generated_tense_modal_has_event_modifier(tense_modal) {
@@ -2079,6 +2190,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Option<crate::model::SemanticSource> {
         let spans = source_spans_with_following_cmevla_period(spans, self.options.source_text);
         source_from_spans(&spans, self.options.source_text, Some(construct))
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    fn source_for_abstraction_branch(
+        &self,
+        branch: GeneratedAbstractionBranch<'_>,
+        construct: &str,
+    ) -> Option<crate::model::SemanticSource> {
+        self.source_for_node(branch.abstraction, construct)
     }
 
     #[requires(true)]

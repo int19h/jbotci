@@ -47,9 +47,9 @@ pub(super) fn generated_pro_bridi_target_relation_label(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|source| source.as_ref().is_none_or(|source| source.first_visible_place > 0)) || ret.is_err())]
-pub(super) fn generated_pro_bridi_replay_source_from_bridi(
-    bridi: &BridiSyntax,
-) -> Result<Option<GeneratedProBridiReplaySource>, SemanticsError> {
+pub(super) fn generated_pro_bridi_replay_source_from_bridi<'syntax>(
+    bridi: &'syntax BridiSyntax,
+) -> Result<Option<GeneratedProBridiReplaySource<'syntax>>, SemanticsError> {
     match bridi {
         BridiSyntax::BridiWithLeadingTerms(bridi) => {
             let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
@@ -57,10 +57,9 @@ pub(super) fn generated_pro_bridi_replay_source_from_bridi(
                 .leading_terms
                 .iter()
                 .chain(simple_tail.terms.iter())
-                .cloned()
                 .collect::<Vec<_>>();
             Ok(Some(new!(GeneratedProBridiReplaySource {
-                selbri: simple_tail.selbri.as_ref().clone(),
+                selbri: simple_tail.selbri.as_ref(),
                 terms,
                 first_visible_place: 1,
             })))
@@ -68,7 +67,7 @@ pub(super) fn generated_pro_bridi_replay_source_from_bridi(
         BridiSyntax::RelationOnlyBridi(RelationOnlyBridiSyntax(bridi_tail)) => {
             let simple_tail = simple_tail_from_bridi_tail(bridi_tail)?;
             Ok(Some(new!(GeneratedProBridiReplaySource {
-                selbri: simple_tail.selbri.as_ref().clone(),
+                selbri: simple_tail.selbri.as_ref(),
                 terms: Vec::new(),
                 first_visible_place: 2,
             })))
@@ -81,12 +80,12 @@ pub(super) fn generated_pro_bridi_replay_source_from_bridi(
 #[ensures(true)]
 pub(super) fn generated_pro_bridi_event_tense_from_selbri(
     selbri: &SelbriSyntax,
-) -> Option<TenseModalSyntax> {
+) -> Option<&TenseModalSyntax> {
     let SelbriSyntax::TaggedSelbri(tagged) = selbri else {
         return None;
     };
     generated_tense_modal_has_event_modifier(tagged.tense_modal.as_ref())
-        .then(|| tagged.tense_modal.as_ref().clone())
+        .then_some(tagged.tense_modal.as_ref())
 }
 
 #[requires(true)]
@@ -994,7 +993,7 @@ pub(super) fn replace_generated_argument_value_object(
 #[requires(visible_arguments.keys().all(|place| *place > 0))]
 #[ensures(true)]
 pub(super) fn apply_generated_bare_jai_visible_argument(
-    builder: &mut GeneratedGraphBuilder<'_, '_>,
+    builder: &mut GeneratedGraphBuilder<'_, '_, '_>,
     visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
     unit: Option<&JaiModalTanruUnitSyntax>,
 ) -> Result<(), SemanticsError> {
@@ -1005,7 +1004,7 @@ pub(super) fn apply_generated_bare_jai_visible_argument(
 #[requires(visible_arguments.keys().all(|place| *place > 0))]
 #[ensures(true)]
 pub(super) fn apply_generated_bare_jai_visible_argument_with_source(
-    builder: &mut GeneratedGraphBuilder<'_, '_>,
+    builder: &mut GeneratedGraphBuilder<'_, '_, '_>,
     visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
     unit: Option<&JaiModalTanruUnitSyntax>,
     source: Option<crate::model::SemanticSource>,
@@ -1109,6 +1108,25 @@ pub(super) fn bare_generated_jai_modal_tanru_unit(
 
 #[requires(true)]
 #[ensures(ret.is_none_or(|unit| unit.tense_modal.is_none()))]
+pub(super) fn bare_generated_jai_modal_tanru_atom_base_view(
+    base: GeneratedTanruAtomBaseView<'_>,
+) -> Option<&JaiModalTanruUnitSyntax> {
+    match base {
+        GeneratedTanruAtomBaseView::Normal(base) => bare_generated_jai_modal_tanru_unit(base),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit))
+            if unit.tense_modal.is_none() =>
+        {
+            Some(unit)
+        }
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(
+            unit,
+        )) => bare_generated_jai_from_scalar_negated_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|unit| unit.tense_modal.is_none()))]
 pub(super) fn bare_generated_jai_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<&JaiModalTanruUnitSyntax> {
@@ -1131,6 +1149,25 @@ pub(super) fn generated_jai_modal_tanru_unit_with_tense(
             generated_jai_modal_tanru_unit_with_tense_from_scalar_negated_tanru_unit(unit)
         }
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|unit| unit.tense_modal.is_some()))]
+pub(super) fn generated_jai_modal_tanru_atom_base_view_with_tense(
+    base: GeneratedTanruAtomBaseView<'_>,
+) -> Option<&JaiModalTanruUnitSyntax> {
+    match base {
+        GeneratedTanruAtomBaseView::Normal(base) => generated_jai_modal_tanru_unit_with_tense(base),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit))
+            if unit.tense_modal.is_some() =>
+        {
+            Some(unit)
+        }
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(
+            unit,
+        )) => generated_jai_modal_tanru_unit_with_tense_from_scalar_negated_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(_) => None,
     }
 }
 
@@ -1223,6 +1260,56 @@ pub(super) fn relation_label_from_tanru_unit_atom_base(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
+pub(super) fn relation_label_from_tanru_atom_base_view(
+    base: GeneratedTanruAtomBaseView<'_>,
+) -> Result<RelationLabel, SemanticsError> {
+    match base {
+        GeneratedTanruAtomBaseView::Normal(base) => relation_label_from_tanru_unit_atom_base(base),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(
+            ordinal,
+        )) => relation_label_from_ordinal_tanru_unit(ordinal),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(
+            WordTanruUnitSyntax(word),
+        )) => Ok(relation_label_from_token(&word.value)),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(
+            GohaWordTanruUnitSyntax(word),
+        )) => Ok(relation_label_from_token(&word.value)),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(
+            pro_bridi,
+        )) => Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi)),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(
+            unit,
+        )) => relation_label_from_scalar_negated_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(
+            grouped,
+        )) => relation_label_from_grouped_tanru_unit(grouped),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(
+            abstraction,
+        )) => abstraction_relation_label_from_generated(abstraction),
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(abstraction),
+        ) => abstraction_relation_label_from_zantufa_statement(abstraction),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ZantufaMeTanruUnit(
+            unit,
+        )) => relation_label_from_zantufa_me_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ZantufaMexMoiTanruUnit(
+            unit,
+        )) => relation_label_from_zantufa_mex_moi_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::SumtiSelbriTanruUnit(_)) => {
+            Ok(RelationLabel::constructed("referentOf".to_owned()))
+        }
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::OperatorSelbriTanruUnit(operator),
+        ) => relation_label_from_operator_selbri_tanru_unit(operator),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::JaiModalTanruUnit(unit)) => {
+            relation_label_from_jai_inner_tanru_unit(&unit.inner_unit)
+        }
+        GeneratedTanruAtomBaseView::Cei(_) => Err(unsupported("non-word tanru unit")),
+    }
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(
     base: &TanruUnitAtomBaseSyntax,
@@ -1235,6 +1322,25 @@ pub(super) fn generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(
             generated_lujvo_rafsi_parts_for_scalar_negated_tanru_unit(unit)
         }
         _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_lujvo_rafsi_parts_for_tanru_atom_base_view(
+    base: GeneratedTanruAtomBaseView<'_>,
+) -> Option<Vec<String>> {
+    match base {
+        GeneratedTanruAtomBaseView::Normal(base) => {
+            generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(base)
+        }
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(
+            WordTanruUnitSyntax(word),
+        )) => generated_lujvo_rafsi_parts_for_token(&word.value),
+        GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(
+            unit,
+        )) => generated_lujvo_rafsi_parts_for_scalar_negated_tanru_unit(unit),
+        GeneratedTanruAtomBaseView::Cei(_) => None,
     }
 }
 
@@ -1365,16 +1471,32 @@ pub(super) fn scalar_negation_for_generated_scalar_tanru_unit_atom(
     linkargs: Option<&LinkargsSyntax>,
     scope: GeneratedScalarNegationScope,
 ) -> Result<ScalarNegation, SemanticsError> {
+    scalar_negation_for_generated_scalar_tanru_atom_view(
+        GeneratedTanruAtomView::normal(atom),
+        unit,
+        linkargs,
+        scope,
+    )
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|negation| negation.argument_scope.iter().all(|place| place.get() > 0)) || ret.is_err())]
+pub(super) fn scalar_negation_for_generated_scalar_tanru_atom_view(
+    atom: GeneratedTanruAtomView<'_>,
+    unit: &ScalarNegatedTanruUnitSyntax,
+    linkargs: Option<&LinkargsSyntax>,
+    scope: GeneratedScalarNegationScope,
+) -> Result<ScalarNegation, SemanticsError> {
     if scope == GeneratedScalarNegationScope::MarkerOnly {
         return Ok(scalar_negation_for_marker(&unit.nahe));
     }
     let mut places = BTreeSet::new();
-    places.insert(mapped_visible_place_for_generated_scalar_tanru_unit_atom(
+    places.insert(mapped_visible_place_for_generated_scalar_tanru_atom_view(
         atom, unit, 1,
     )?);
     if let Some(linkargs) = linkargs {
         for place in generated_linkargs_visible_places(linkargs, 2)? {
-            places.insert(mapped_visible_place_for_generated_scalar_tanru_unit_atom(
+            places.insert(mapped_visible_place_for_generated_scalar_tanru_atom_view(
                 atom, unit, place,
             )?);
         }
@@ -1387,7 +1509,7 @@ pub(super) fn scalar_negation_for_generated_scalar_tanru_unit_atom(
             2,
         )?;
         for place in grouped_places {
-            places.insert(mapped_visible_place_for_generated_scalar_tanru_unit_atom(
+            places.insert(mapped_visible_place_for_generated_scalar_tanru_atom_view(
                 atom, unit, place,
             )?);
         }
@@ -1403,7 +1525,21 @@ pub(super) fn mapped_visible_place_for_generated_scalar_tanru_unit_atom(
     unit: &ScalarNegatedTanruUnitSyntax,
     place: usize,
 ) -> Result<usize, SemanticsError> {
-    let place = mapped_place_for_generated_conversions(place, &atom.conversions)?;
+    mapped_visible_place_for_generated_scalar_tanru_atom_view(
+        GeneratedTanruAtomView::normal(atom),
+        unit,
+        place,
+    )
+}
+
+#[requires(place > 0)]
+#[ensures(ret.as_ref().is_ok_and(|place| *place > 0) || ret.is_err())]
+pub(super) fn mapped_visible_place_for_generated_scalar_tanru_atom_view(
+    atom: GeneratedTanruAtomView<'_>,
+    unit: &ScalarNegatedTanruUnitSyntax,
+    place: usize,
+) -> Result<usize, SemanticsError> {
+    let place = mapped_place_for_generated_conversions(place, atom.conversions())?;
     match scalar_negated_tanru_unit_inner_atom(unit) {
         Some(inner_atom) => mapped_place_for_generated_conversions(place, &inner_atom.conversions),
         None => Ok(place),

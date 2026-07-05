@@ -1,11 +1,11 @@
 use super::*;
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(true)]
     pub(super) fn record_generated_assigned_pro_bridi_bindings_for_tanru_unit(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         visible_arguments: &BTreeMap<usize, ArgumentValue>,
     ) -> Result<(), SemanticsError> {
         if !unit.0.links.is_empty() {
@@ -43,7 +43,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn record_generated_assigned_pro_bridi_bindings_for_tanru_selbri(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'tree TanruSelbriSyntax,
         visible_arguments: &BTreeMap<usize, ArgumentValue>,
     ) -> Result<(), SemanticsError> {
         let source = self.source_for_node(tanru, "restrictive-tanru-formula");
@@ -67,7 +67,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     GeneratedAssignedProBridiBinding::from_data(data!(
                         GeneratedAssignedProBridiBinding {
                             relation: None,
-                            tanru: Some(Box::new(tanru.clone())),
+                            tanru: Some(tanru),
                             source: source.clone(),
                             visible_arguments: visible_arguments.clone(),
                         }
@@ -83,10 +83,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_assigned_pro_bridi_reference_formula(
         &mut self,
-        binding: &GeneratedAssignedProBridiBinding,
+        binding: &GeneratedAssignedProBridiBinding<'tree>,
         current_visible_arguments: BTreeMap<usize, ArgumentValue>,
         place_question_assignments: &[GeneratedPlaceQuestionAssignment],
-        modal_terms: &[&TaggedSumtiTermSyntax],
+        modal_terms: &[&'tree TaggedSumtiTermSyntax],
         eventuality: SemanticObjectId,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -99,7 +99,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         for (place, argument) in current_visible_arguments {
             insert_visible_argument(&mut visible_arguments, place, argument)?;
         }
-        if let Some(tanru) = binding.tanru.as_deref() {
+        if let Some(tanru) = binding.tanru {
             let result = if tanru.additional_units.is_empty() {
                 self.build_tanru_unit_formula_for_visible_arguments(
                     &tanru.first_unit,
@@ -184,11 +184,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_assigned_pro_bridi_binding(
         &mut self,
-        binding: &GeneratedAssignedProBridiBinding,
+        binding: &GeneratedAssignedProBridiBinding<'tree>,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if let Some(tanru) = binding.tanru.as_deref() {
+        if let Some(tanru) = binding.tanru {
             let source = binding.source.clone().or_else(|| source.clone());
             if tanru.additional_units.is_empty() {
                 return self.build_description_property_formula_for_tanru_unit(
@@ -221,37 +221,41 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_assigned_pro_bridi_tanru_unit_formula_for_visible_arguments(
+    pub(super) fn build_assigned_pro_bridi_tanru_unit_formula_for_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &AssignedProBridiTanruUnitSyntax,
+        unit: &'syntax AssignedProBridiTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-        self.build_tanru_head_relation_formula_for_linked_tanru_unit(
-            &base,
+        self.build_tanru_head_relation_formula_from_parts(
+            GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+            unit.base.linkargs.as_ref(),
             visible_arguments,
             eventuality,
             source,
+            &[],
         )
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_assigned_pro_bridi_tanru_unit_head_relation_formula_with_modal_terms(
+    pub(super) fn build_assigned_pro_bridi_tanru_unit_head_relation_formula_with_modal_terms<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &AssignedProBridiTanruUnitSyntax,
+        unit: &'syntax AssignedProBridiTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&TaggedSumtiTermSyntax],
+        modal_terms: &[&'tree TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        let base = linked_tanru_unit_from_cei(unit.base.as_ref());
         self.build_tanru_head_relation_formula_from_parts(
-            &base.base,
-            base.linkargs.as_ref(),
+            GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+            unit.base.linkargs.as_ref(),
             visible_arguments,
             eventuality,
             source,
@@ -333,7 +337,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn record_completed_generated_pro_bridi_frame_from_bridi(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         formula: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(), SemanticsError> {
@@ -349,10 +353,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     pub(super) fn generated_completed_pro_bridi_frame_from_formula(
         &self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         formula: SemanticObjectId,
         _source: Option<crate::model::SemanticSource>,
-    ) -> Result<Option<GeneratedProBridiFrame>, SemanticsError> {
+    ) -> Result<Option<GeneratedProBridiFrame<'tree>>, SemanticsError> {
         let Some(selbri) = main_generated_selbri_for_bridi(bridi) else {
             return Ok(None);
         };
@@ -387,7 +391,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_resolved_generated_pro_bridi_formula_for_terms(
         &mut self,
         cmavo: Cmavo,
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -488,7 +492,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         cmavo: Cmavo,
         source: Option<crate::model::SemanticSource>,
-    ) -> Result<Option<GeneratedProBridiFrame>, SemanticsError> {
+    ) -> Result<Option<GeneratedProBridiFrame<'tree>>, SemanticsError> {
         match cmavo {
             Cmavo::Gohi => Ok(self
                 .completed_pro_bridi_frames
@@ -504,17 +508,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 .nth(1)
                 .cloned()),
             Cmavo::Nei => {
-                let bridi = self.pro_bridi_scope_stack.first().cloned();
+                let bridi = self.pro_bridi_scope_stack.first().copied();
                 bridi
-                    .as_ref()
                     .map(|bridi| self.generated_pro_bridi_frame_from_bridi(bridi, source))
                     .transpose()
                     .map(Option::flatten)
             }
             Cmavo::Noha => {
-                let bridi = self.pro_bridi_scope_stack.iter().rev().nth(1).cloned();
+                let bridi = self.pro_bridi_scope_stack.iter().rev().nth(1).copied();
                 bridi
-                    .as_ref()
                     .map(|bridi| self.generated_pro_bridi_frame_from_bridi(bridi, source))
                     .transpose()
                     .map(Option::flatten)
@@ -527,7 +529,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))) || ret.is_err())]
     pub(super) fn build_generated_pro_bridi_eventuality_from_frame(
         &mut self,
-        frame: &GeneratedProBridiFrame,
+        frame: &GeneratedProBridiFrame<'tree>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(tense_modal) = &frame.event_tense
@@ -543,9 +545,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     pub(super) fn generated_pro_bridi_frame_from_bridi(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         source: Option<crate::model::SemanticSource>,
-    ) -> Result<Option<GeneratedProBridiFrame>, SemanticsError> {
+    ) -> Result<Option<GeneratedProBridiFrame<'tree>>, SemanticsError> {
         match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
                 let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
@@ -594,7 +596,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|arguments| arguments.keys().all(|place| place.get() > 0)) || ret.is_err())]
     pub(super) fn generated_pro_bridi_replayed_arguments(
         &mut self,
-        frame: &GeneratedProBridiFrame,
+        frame: &GeneratedProBridiFrame<'tree>,
         excluded_source: Option<&SourceByteSpan>,
     ) -> Result<BTreeMap<PlaceIndex, ArgumentValue>, SemanticsError> {
         if self.current_quote_depth == 0 {
@@ -603,7 +605,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let Some(replay) = &frame.replay else {
             return Ok(frame.arguments.clone());
         };
-        let terms = replay.terms.iter().collect::<Vec<_>>();
+        let terms = replay.terms.clone();
         let (assignments, _) = self.with_sumti_referent_cache_bypassed(|builder| {
             builder.build_term_assignments_for_terms_excluding_source(
                 terms,
@@ -623,11 +625,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|frame| frame.as_ref().is_none_or(|frame| frame.relation.is_displayable())) || ret.is_err())]
     pub(super) fn generated_pro_bridi_frame_from_selbri_and_terms(
         &mut self,
-        selbri: &SelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        selbri: &'tree SelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
-    ) -> Result<Option<GeneratedProBridiFrame>, SemanticsError> {
+    ) -> Result<Option<GeneratedProBridiFrame<'tree>>, SemanticsError> {
         let Some(relation) = generated_pro_bridi_target_relation_label(selbri)? else {
             return Ok(None);
         };

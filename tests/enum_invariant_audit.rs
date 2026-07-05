@@ -1316,6 +1316,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomBaseView::Cei",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomBaseView::Normal",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomView::Cei",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTanruAtomView::Normal",
+        "borrowed generated-syntax view delegates validity to the referenced syntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTermFormulaScope::Negation",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),

@@ -1,12 +1,12 @@
 use super::*;
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_generated_tanru_unit_terms(
         &mut self,
-        unit: &TanruUnitSyntax,
-        terms: Vec<&TermSyntax>,
+        unit: &'tree TanruUnitSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -533,8 +533,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_no_gadri_quantified_argument_formula(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        description: &DescriptorWithoutGadriSumtiSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        description: &'tree DescriptorWithoutGadriSumtiSyntax,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -576,8 +576,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_afterthought_sumti_argument_formula(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        sumti: &SumtiAfterthoughtSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        sumti: &'tree SumtiAfterthoughtSyntax,
         distributed_predication_source: Option<crate::model::SemanticSource>,
         distributed_formula_source: Option<crate::model::SemanticSource>,
         source: Option<crate::model::SemanticSource>,
@@ -797,7 +797,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn wrap_formula_with_no_gadri_quantifier(
         &mut self,
-        description: &DescriptorWithoutGadriSumtiSyntax,
+        description: &'tree DescriptorWithoutGadriSumtiSyntax,
         variable: SemanticObjectId,
         body: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -821,7 +821,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn wrap_formula_with_generated_assignment_scopes<'syntax>(
+    pub(super) fn wrap_formula_with_generated_assignment_scopes<'syntax: 'tree>(
         &mut self,
         formula: SemanticObjectId,
         argument_scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
@@ -1024,7 +1024,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn wrap_formula_with_generated_argument_scopes<'syntax>(
+    pub(super) fn wrap_formula_with_generated_argument_scopes<'syntax: 'tree>(
         &mut self,
         formula: SemanticObjectId,
         scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
@@ -1452,7 +1452,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn generated_argument_restrictions_for_scope_source_in_formula_context(
         &mut self,
         formula: SemanticObjectId,
-        source: GeneratedArgumentQuantifierSource<'_>,
+        source: GeneratedArgumentQuantifierSource<'tree>,
         variable: SemanticObjectId,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         let Some(eventuality) = self.primary_eventuality_for_generated_formula(formula) else {
@@ -1467,7 +1467,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn generated_argument_restrictions_for_scope_source(
         &mut self,
-        source: GeneratedArgumentQuantifierSource<'_>,
+        source: GeneratedArgumentQuantifierSource<'tree>,
         variable: SemanticObjectId,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         match source {
@@ -1489,7 +1489,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn generated_argument_restrictions_for_quantified_sumti(
         &mut self,
-        quantified: &QuantifiedSumtiSyntax,
+        quantified: &'tree QuantifiedSumtiSyntax,
         variable: SemanticObjectId,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         if generated_sumti_base_spine_cmavo(&quantified.inner_sumti)
@@ -1565,7 +1565,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_no_gadri_restriction_formula(
         &mut self,
-        description: &DescriptorWithoutGadriSumtiSyntax,
+        description: &'tree DescriptorWithoutGadriSumtiSyntax,
         variable: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_restrictive_formula(&description.selbri, variable)
@@ -1575,8 +1575,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_terms(
         &mut self,
-        tanru: &TanruSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        tanru: &'tree TanruSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1593,8 +1593,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_terms_with_head_eventuality_order(
         &mut self,
-        tanru: &TanruSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        tanru: &'tree TanruSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         head_eventuality_before_terms: bool,
         source: Option<crate::model::SemanticSource>,
@@ -1616,8 +1616,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_terms_with_head_eventuality_order_and_mode(
         &mut self,
-        tanru: &TanruSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        tanru: &'tree TanruSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         head_eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1661,7 +1661,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_visible_arguments(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'tree TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1678,7 +1678,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_visible_arguments_with_head_eventuality(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'tree TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -1695,9 +1695,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!tanru.additional_units.is_empty())]
     #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_formula_result_for_visible_arguments_with_head_eventuality(
+    pub(super) fn build_tanru_formula_result_for_visible_arguments_with_head_eventuality<
+        'syntax: 'tree,
+    >(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'syntax TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -1714,13 +1716,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!tanru.additional_units.is_empty())]
     #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
+    pub(super) fn build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms<
+        'syntax: 'tree,
+    >(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'syntax TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&TaggedSumtiTermSyntax],
+        modal_terms: &[&'syntax TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some((trailing_unit, modifier_units)) = tanru.additional_units.split_last() else {
             return Err(unsupported("empty tanru continuation"));
@@ -1779,7 +1783,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_formula_for_connected_selbri_with_visible_arguments(
         &mut self,
-        selbri: &ConnectedSelbriSyntax,
+        selbri: &'tree ConnectedSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1793,9 +1797,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_selbri_tanru_formula_for_visible_arguments(
+    pub(super) fn build_connected_selbri_tanru_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        selbri: &ConnectedSelbriSyntax,
+        selbri: &'syntax ConnectedSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
@@ -1810,9 +1814,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
+    pub(super) fn build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality<
+        'syntax: 'tree,
+    >(
         &mut self,
-        selbri: &ConnectedSelbriSyntax,
+        selbri: &'syntax ConnectedSelbriSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         leading_eventuality: Option<SemanticObjectId>,
@@ -1865,9 +1871,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_selbri_formula_for_visible_arguments(
+    pub(super) fn build_tanru_selbri_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'syntax TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
@@ -1882,9 +1888,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[requires(head_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality(
+    pub(super) fn build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality<
+        'syntax: 'tree,
+    >(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'syntax TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         head_eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -1909,9 +1917,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_selbri_formula_for_visible_arguments(
+    pub(super) fn build_selbri_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        selbri: &SelbriSyntax,
+        selbri: &'syntax SelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -1919,15 +1927,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match selbri {
             SelbriSyntax::TaggedSelbri(tagged) => {
-                let inner = SelbriSyntax::UntaggedSelbri(tagged.inner_selbri.as_ref().clone());
                 if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
                     if leading_eventuality.is_some() {
                         return Err(unsupported(
                             "eventuality on scoped tagged visible-argument selbri",
                         ));
                     }
-                    let result = self.build_selbri_formula_for_visible_arguments(
-                        &inner,
+                    let result = self.build_untagged_selbri_formula_for_visible_arguments(
+                        tagged.inner_selbri.as_ref(),
                         visible_arguments,
                         source.clone(),
                         connector_locus,
@@ -1963,8 +1970,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                             source.clone(),
                         )?,
                     };
-                    self.build_selbri_formula_for_visible_arguments(
-                        &inner,
+                    self.build_untagged_selbri_formula_for_visible_arguments(
+                        tagged.inner_selbri.as_ref(),
                         visible_arguments,
                         source,
                         connector_locus,
@@ -1972,14 +1979,37 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     )
                 }
             }
-            SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) => self
+            SelbriSyntax::UntaggedSelbri(untagged) => self
+                .build_untagged_selbri_formula_for_visible_arguments(
+                    untagged,
+                    visible_arguments,
+                    source,
+                    connector_locus,
+                    leading_eventuality,
+                ),
+        }
+    }
+
+    #[requires(visible_arguments.keys().all(|place| *place > 0))]
+    #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+    #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_untagged_selbri_formula_for_visible_arguments<'syntax: 'tree>(
+        &mut self,
+        selbri: &'syntax UntaggedSelbriSyntax,
+        visible_arguments: BTreeMap<usize, ArgumentValue>,
+        source: Option<crate::model::SemanticSource>,
+        connector_locus: &str,
+        leading_eventuality: Option<SemanticObjectId>,
+    ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
+        match selbri {
+            UntaggedSelbriSyntax::CoSelbri(co_selbri) => self
                 .build_co_selbri_inversion_formula_for_visible_arguments(
                     co_selbri,
                     visible_arguments,
                     source,
                     leading_eventuality,
                 ),
-            SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::NegatedSelbri(negated)) => {
+            UntaggedSelbriSyntax::NegatedSelbri(negated) => {
                 let result = self.build_selbri_formula_for_visible_arguments(
                     negated.inner_selbri.as_ref(),
                     visible_arguments,
@@ -2000,24 +2030,25 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     }
                 )))
             }
-            SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::ForethoughtSelbriConnection(
-                connection,
-            )) => self.build_forethought_selbri_connection_formula_for_visible_arguments(
-                connection,
-                visible_arguments,
-                source,
-                connector_locus,
-                leading_eventuality,
-            ),
+            UntaggedSelbriSyntax::ForethoughtSelbriConnection(connection) => self
+                .build_forethought_selbri_connection_formula_for_visible_arguments(
+                    connection,
+                    visible_arguments,
+                    source,
+                    connector_locus,
+                    leading_eventuality,
+                ),
         }
     }
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_forethought_selbri_connection_formula_for_visible_arguments(
+    pub(super) fn build_forethought_selbri_connection_formula_for_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        connection: &ForethoughtSelbriConnectionSyntax,
+        connection: &'syntax ForethoughtSelbriConnectionSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -2082,9 +2113,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_forethought_selbri_group_tanru_unit_formula_for_visible_arguments(
+    pub(super) fn build_forethought_selbri_group_tanru_unit_formula_for_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &ForethoughtSelbriGroupTanruUnitSyntax,
+        unit: &'syntax ForethoughtSelbriGroupTanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -2148,9 +2181,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_unit_formula_for_visible_arguments(
+    pub(super) fn build_tanru_unit_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -2201,9 +2234,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_bound_tanru_unit_formula_for_visible_arguments(
+    pub(super) fn build_bound_tanru_unit_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        unit: &BoundTanruUnitSyntax,
+        unit: &'syntax BoundTanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -2322,7 +2355,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tanru_head_relation_formula(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -2339,13 +2372,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_head_relation_formula_with_modal_terms(
+    pub(super) fn build_tanru_head_relation_formula_with_modal_terms<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&TaggedSumtiTermSyntax],
+        modal_terms: &[&'tree TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !unit.0.links.is_empty() {
             if eventuality.is_some() {
@@ -2367,7 +2400,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         match unit.0.first.as_ref() {
             BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => self
                 .build_tanru_head_relation_formula_from_parts(
-                    &unit.base,
+                    GeneratedTanruAtomView::normal(&unit.base),
                     unit.linkargs.as_ref(),
                     visible_arguments,
                     eventuality,
@@ -2407,9 +2440,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(!unit.0.links.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_tanru_unit_head_formula(
+    pub(super) fn build_connected_tanru_unit_head_formula<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         connector_locus: &str,
@@ -2458,9 +2491,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit(
+    pub(super) fn build_tanru_head_relation_formula_for_bo_or_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'syntax BoOrLinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
@@ -2502,15 +2535,15 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_head_relation_formula_for_linked_tanru_unit(
+    pub(super) fn build_tanru_head_relation_formula_for_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         self.build_tanru_head_relation_formula_from_parts(
-            &unit.base,
+            GeneratedTanruAtomView::normal(&unit.base),
             unit.linkargs.as_ref(),
             visible_arguments,
             eventuality,
@@ -2522,16 +2555,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_tanru_head_relation_formula_from_parts(
+    pub(super) fn build_tanru_head_relation_formula_from_parts<'syntax: 'tree>(
         &mut self,
-        atom: &TanruUnitAtomSyntax,
-        linkargs: Option<&LinkargsSyntax>,
+        atom: GeneratedTanruAtomView<'syntax>,
+        linkargs: Option<&'syntax LinkargsSyntax>,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        modal_terms: &[&TaggedSumtiTermSyntax],
+        modal_terms: &[&'tree TaggedSumtiTermSyntax],
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
-        let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
+        let scalar_unit = atom.base().scalar_negated_base();
         if let Some(scalar_unit) = scalar_unit
             && let Some((grouped, inner_conversions)) =
                 scalar_negated_tanru_unit_inner_grouped(scalar_unit)
@@ -2544,7 +2577,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
-                &atom.conversions,
+                atom.conversions(),
             )?;
             visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
@@ -2559,7 +2592,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             )?;
             self.apply_scalar_negation_to_tanru_links(
                 result.formula,
-                scalar_negation_for_generated_scalar_tanru_unit_atom(
+                scalar_negation_for_generated_scalar_tanru_atom_view(
                     atom,
                     scalar_unit,
                     None,
@@ -2576,7 +2609,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 }
             )));
         }
-        if let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() {
+        if let Some(grouped) = atom.base().grouped_base() {
             if !modal_terms.is_empty() {
                 return Err(unsupported("modal terms on grouped tanru head"));
             }
@@ -2585,7 +2618,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
             let visible_arguments = map_visible_arguments_for_generated_conversions(
                 visible_arguments,
-                &atom.conversions,
+                atom.conversions(),
             )?;
             return self.build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
                 &grouped.selbri,
@@ -2594,9 +2627,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality,
             );
         }
-        let relation = semantic_relation_label(relation_label_from_tanru_unit_atom_base(
-            atom.base.as_ref(),
-        )?);
+        let relation =
+            semantic_relation_label(relation_label_from_tanru_atom_base_view(atom.base())?);
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let linkarg_visible_places = match linkargs {
@@ -2629,7 +2661,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         apply_generated_bare_jai_visible_argument(
             self,
             &mut visible_arguments,
-            bare_generated_jai_modal_tanru_unit(atom.base.as_ref()),
+            bare_generated_jai_modal_tanru_atom_base_view(atom.base()),
         )?;
         let visible_x1_argument = visible_arguments.get(&1).cloned();
         let mut linkarg_modal_arguments = Vec::new();
@@ -2646,7 +2678,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_arguments = adjusted.visible_arguments;
             linkarg_modal_arguments = adjusted.modal_arguments;
         }
-        if let Some(unit) = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()) {
+        if let Some(unit) = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base()) {
             linkarg_modal_arguments.push(self.build_generated_jai_modal_argument(
                 unit,
                 &visible_arguments,
@@ -2655,7 +2687,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
             let key = argument_key(place);
             if arguments.insert(key.clone(), argument).is_some() {
                 return Err(invalid_graph(format!(
@@ -2698,8 +2730,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             .or_else(|| arguments.get(&argument_key(1)).cloned())
             .ok_or_else(|| unsupported("tanru without visible x1"))?;
         let relation_text = relation.display_text();
-        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
-            atom.base.as_ref(),
+        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
+            atom.base(),
             &relation_text,
             source.clone(),
         )?;
@@ -2722,7 +2754,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 } else {
                     GeneratedScalarNegationScope::VisibleArgumentsAndLinkargs
                 };
-            let scalar_negation = scalar_negation_for_generated_scalar_tanru_unit_atom(
+            let scalar_negation = scalar_negation_for_generated_scalar_tanru_atom_view(
                 atom,
                 scalar_unit,
                 linkargs,
@@ -2746,7 +2778,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_term_assignments_for_terms<'syntax>(
+    pub(super) fn build_term_assignments_for_terms<'syntax: 'tree>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
@@ -2760,7 +2792,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_term_assignments_for_terms_with_shared_tail_source<'syntax>(
+    pub(super) fn build_term_assignments_for_terms_with_shared_tail_source<'syntax: 'tree>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
@@ -2781,7 +2813,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_term_assignments_for_terms_without_shared_tail_source<'syntax>(
+    pub(super) fn build_term_assignments_for_terms_without_shared_tail_source<'syntax: 'tree>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
@@ -2792,7 +2824,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_term_assignments_for_terms_with_shared_tail_source_core<'syntax>(
+    pub(super) fn build_term_assignments_for_terms_with_shared_tail_source_core<'syntax: 'tree>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
@@ -2843,7 +2875,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|(assignments, _)| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_term_assignments_for_terms_excluding_source<'syntax>(
+    pub(super) fn build_term_assignments_for_terms_excluding_source<'syntax: 'tree>(
         &mut self,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
@@ -2917,8 +2949,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_sumti_selbri_formula_for_terms(
         &mut self,
-        sumti_selbri: &SumtiSelbriTanruUnitSyntax,
-        terms: Vec<&TermSyntax>,
+        sumti_selbri: &'tree SumtiSelbriTanruUnitSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -2966,9 +2998,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_sumti_selbri_formula_for_argument(
+    pub(super) fn build_sumti_selbri_formula_for_argument<'syntax: 'tree>(
         &mut self,
-        sumti_selbri: &SumtiSelbriTanruUnitSyntax,
+        sumti_selbri: &'syntax SumtiSelbriTanruUnitSyntax,
         argument: ArgumentValue,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -3005,7 +3037,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_sumti_selbri_source_operand(
         &mut self,
-        sumti: &SumtiSelbriSumtiSyntax,
+        sumti: &'tree SumtiSelbriSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match sumti {
             SumtiSelbriSumtiSyntax::Sumti(sumti) => {
@@ -3023,7 +3055,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_property_abstraction_for_tanru_unit(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_property_abstraction_for_tanru_run(unit, &[], source)
@@ -3031,10 +3063,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
-    pub(super) fn build_property_abstraction_for_tanru_run(
+    pub(super) fn build_property_abstraction_for_tanru_run<'syntax: 'tree>(
         &mut self,
-        first_unit: &TanruUnitSyntax,
-        additional_units: &[TanruUnitSyntax],
+        first_unit: &'syntax TanruUnitSyntax,
+        additional_units: &'syntax [TanruUnitSyntax],
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if additional_units.is_empty() {
@@ -3062,9 +3094,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
-    pub(super) fn build_property_abstraction_for_single_tanru_unit(
+    pub(super) fn build_property_abstraction_for_single_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(composition) =
@@ -3072,9 +3104,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         {
             return Ok(composition);
         }
-        let abstraction = abstraction_from_generated_tanru_unit(unit)?.cloned();
+        let abstraction = abstraction_from_generated_tanru_unit(unit)?;
         if let Some(abstraction) = abstraction {
-            let kind = abstraction_kind_for_nu(&abstraction);
+            let kind = abstraction_kind_for_nu(abstraction);
             let parameter = self.next_parameter_id();
             self.insert(
                 parameter,
@@ -3086,7 +3118,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 ),
             )?;
             let body = self.build_abstraction_link_formula_for_visible_argument(
-                &abstraction,
+                abstraction,
                 Some(ArgumentValue::filled(parameter, None)),
                 source.clone(),
                 PredicationMode::Restrictive,
@@ -3134,7 +3166,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_property_abstraction_for_co_selbri(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'tree CoSelbriSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let parameter = self.next_parameter_id();
@@ -3160,7 +3192,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Relation)) || ret.is_err())]
     pub(super) fn build_property_abstraction_for_co_selbri_with_visible_arguments(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'tree CoSelbriSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3187,9 +3219,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_co_selbri(
+    pub(super) fn build_property_formula_for_co_selbri<'syntax: 'tree>(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'syntax CoSelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3245,7 +3277,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_co_selbri_with_visible_arguments(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'tree CoSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3305,9 +3337,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_selbri(
+    pub(super) fn build_property_formula_for_selbri<'syntax: 'tree>(
         &mut self,
-        selbri: &SelbriSyntax,
+        selbri: &'syntax SelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3321,9 +3353,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_selbri_with_context(
+    pub(super) fn build_property_formula_for_selbri_with_context<'syntax: 'tree>(
         &mut self,
-        selbri: &SelbriSyntax,
+        selbri: &'syntax SelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3350,9 +3382,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_tanru_selbri(
+    pub(super) fn build_property_formula_for_tanru_selbri<'syntax: 'tree>(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'syntax TanruSelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3370,7 +3402,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_connected_selbri(
         &mut self,
-        selbri: &ConnectedSelbriSyntax,
+        selbri: &'tree ConnectedSelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3403,7 +3435,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_connected_selbri_with_visible_arguments(
         &mut self,
-        selbri: &ConnectedSelbriSyntax,
+        selbri: &'tree ConnectedSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3439,7 +3471,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_tanru_selbri_with_visible_arguments(
         &mut self,
-        tanru: &TanruSelbriSyntax,
+        tanru: &'tree TanruSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3505,7 +3537,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_tanru_unit_with_visible_arguments(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         eventuality: GeneratedPredicationEventuality,
@@ -3527,18 +3559,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     source,
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-                self.build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
-                    &base.base,
-                    base.linkargs.as_ref(),
+            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => self
+                .build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+                    GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+                    unit.base.linkargs.as_ref(),
                     visible_arguments,
                     PredicationMode::Restrictive,
                     self.source_for_node(unit, "restrictive-predication"),
                     self.source_for_node(unit, "restrictive-formula"),
                     eventuality,
-                )
-            }
+                ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
             | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
                 Err(unsupported("non-atomic tanru unit property arguments"))
@@ -3551,7 +3581,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_connected_property_formula_for_tanru_unit_chain_with_visible_arguments(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         eventuality: GeneratedPredicationEventuality,
@@ -3584,14 +3614,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_connected_branch_property_formula_for_bo_or_linked_tanru_unit(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'tree BoOrLinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: GeneratedPredicationEventuality,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match unit {
             BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => self
                 .build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
-                    &unit.base,
+                    GeneratedTanruAtomView::normal(&unit.base),
                     unit.linkargs.as_ref(),
                     visible_arguments,
                     PredicationMode::Restrictive,
@@ -3599,18 +3629,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     self.source_for_node(unit, "restrictive-formula"),
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-                self.build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
-                    &base.base,
-                    base.linkargs.as_ref(),
+            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => self
+                .build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+                    GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+                    unit.base.linkargs.as_ref(),
                     visible_arguments,
                     PredicationMode::Restrictive,
                     self.source_for_node(unit, "restrictive-predication"),
                     self.source_for_node(unit, "restrictive-formula"),
                     eventuality,
-                )
-            }
+                ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
             | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
                 Err(unsupported("non-atomic tanru unit property arguments"))
@@ -3622,7 +3650,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_property_formula_for_bo_or_linked_tanru_unit_with_visible_arguments(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'tree BoOrLinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         eventuality: GeneratedPredicationEventuality,
@@ -3635,15 +3663,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     source,
                     eventuality,
                 ),
-            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-                self.build_property_formula_for_linked_tanru_unit_with_visible_arguments(
-                    &base,
+            BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => self
+                .build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+                    GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+                    unit.base.linkargs.as_ref(),
                     visible_arguments,
+                    PredicationMode::Restrictive,
+                    source.clone(),
                     source,
                     eventuality,
-                )
-            }
+                ),
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
             | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => {
                 Err(unsupported("non-atomic tanru unit property arguments"))
@@ -3653,10 +3682,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_tanru_run(
+    pub(super) fn build_property_formula_for_tanru_run<'syntax: 'tree>(
         &mut self,
-        first_unit: &TanruUnitSyntax,
-        additional_units: &[TanruUnitSyntax],
+        first_unit: &'syntax TanruUnitSyntax,
+        additional_units: &'syntax [TanruUnitSyntax],
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         context: GeneratedPropertyTanruContext,
@@ -3729,9 +3758,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_tanru_unit(
+    pub(super) fn build_property_formula_for_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3765,9 +3794,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_description_property_formula_for_tanru_unit(
+    pub(super) fn build_description_property_formula_for_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3809,9 +3838,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_description_property_formula_for_bo_or_linked_tanru_unit(
+    pub(super) fn build_description_property_formula_for_bo_or_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'syntax BoOrLinkedTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3826,9 +3855,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     unit, parameter, source,
                 ),
             BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-                self.build_description_property_formula_for_linked_tanru_unit(
-                    &base, parameter, source,
+                let mut visible_arguments = BTreeMap::new();
+                insert_visible_argument(
+                    &mut visible_arguments,
+                    1,
+                    ArgumentValue::filled(parameter, None),
+                )?;
+                self.build_description_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+                    GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+                    unit.base.linkargs.as_ref(),
+                    visible_arguments,
+                    source.clone(),
+                    source,
                 )
             }
         }
@@ -3838,7 +3876,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_description_property_formula_for_linked_tanru_unit(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'tree LinkedTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3881,7 +3919,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             ArgumentValue::filled(parameter, None),
         )?;
         self.build_description_relation_formula_for_tanru_unit_atom_with_visible_arguments(
-            &unit.base,
+            GeneratedTanruAtomView::normal(&unit.base),
             unit.linkargs.as_ref(),
             visible_arguments,
             source.clone(),
@@ -3892,9 +3930,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!unit.0.links.is_empty())]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_property_formula_for_tanru_unit_chain(
+    pub(super) fn build_connected_property_formula_for_tanru_unit_chain<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3910,9 +3948,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_property_formula_for_tanru_unit_chain_with_locus(
+    pub(super) fn build_connected_property_formula_for_tanru_unit_chain_with_locus<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
         locus: &str,
@@ -3941,9 +3981,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
-    pub(super) fn build_property_composition_for_generated_tanru_unit(
+    pub(super) fn build_property_composition_for_generated_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'syntax TanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         if unit.0.links.is_empty()
@@ -3976,9 +4016,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
-    pub(super) fn build_property_abstraction_for_bo_or_linked_tanru_unit(
+    pub(super) fn build_property_abstraction_for_bo_or_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'syntax BoOrLinkedTanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let parameter = self.next_parameter_id();
@@ -4005,7 +4045,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_property_composition_from_generated_connective(
         &mut self,
         left: SemanticObjectId,
-        connective: &RelationAfterthoughtConnectiveSyntax,
+        connective: &'tree RelationAfterthoughtConnectiveSyntax,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4042,9 +4082,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_bo_or_linked_tanru_unit(
+    pub(super) fn build_property_formula_for_bo_or_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &BoOrLinkedTanruUnitSyntax,
+        unit: &'syntax BoOrLinkedTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4060,17 +4100,32 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                     unit, parameter, source,
                 ),
             BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-                self.build_property_formula_for_linked_tanru_unit(&base, parameter, source)
+                let mut visible_arguments = BTreeMap::new();
+                insert_visible_argument(
+                    &mut visible_arguments,
+                    1,
+                    ArgumentValue::filled(parameter, None),
+                )?;
+                self.build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+                    GeneratedTanruAtomView::cei(unit.base.base.as_ref()),
+                    unit.base.linkargs.as_ref(),
+                    visible_arguments,
+                    PredicationMode::Restrictive,
+                    source.clone(),
+                    source,
+                    GeneratedPredicationEventuality::from_data(data!(
+                        GeneratedPredicationEventuality::Fresh
+                    )),
+                )
             }
         }
     }
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_forethought_selbri_group_tanru_unit(
+    pub(super) fn build_property_formula_for_forethought_selbri_group_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &ForethoughtSelbriGroupTanruUnitSyntax,
+        unit: &'syntax ForethoughtSelbriGroupTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4112,9 +4167,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_forethought_tanru_branch_selbri(
+    pub(super) fn build_property_formula_for_forethought_tanru_branch_selbri<'syntax: 'tree>(
         &mut self,
-        selbri: &SelbriSyntax,
+        selbri: &'syntax SelbriSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4131,9 +4186,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_bound_tanru_unit(
+    pub(super) fn build_property_formula_for_bound_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &BoundTanruUnitSyntax,
+        unit: &'syntax BoundTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4193,9 +4248,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_linked_tanru_unit(
+    pub(super) fn build_property_formula_for_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4242,9 +4297,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Relation)) || ret.is_err())]
-    pub(super) fn build_property_abstraction_for_linked_tanru_unit(
+    pub(super) fn build_property_abstraction_for_linked_tanru_unit<'syntax: 'tree>(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let parameter = self.next_parameter_id();
@@ -4264,9 +4319,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Relation)) || ret.is_err())]
-    pub(super) fn build_property_abstraction_for_linked_tanru_unit_with_visible_arguments(
+    pub(super) fn build_property_abstraction_for_linked_tanru_unit_with_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4294,15 +4351,17 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_linked_tanru_unit_with_visible_arguments(
+    pub(super) fn build_property_formula_for_linked_tanru_unit_with_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         eventuality: GeneratedPredicationEventuality,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
-            &unit.base,
+            GeneratedTanruAtomView::normal(&unit.base),
             unit.linkargs.as_ref(),
             visible_arguments,
             PredicationMode::Restrictive,
@@ -4314,10 +4373,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+    pub(super) fn build_relation_formula_for_tanru_unit_atom_with_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        atom: &TanruUnitAtomSyntax,
-        linkargs: Option<&LinkargsSyntax>,
+        atom: GeneratedTanruAtomView<'syntax>,
+        linkargs: Option<&'syntax LinkargsSyntax>,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -4328,7 +4389,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         apply_generated_bare_jai_visible_argument(
             self,
             &mut visible_arguments,
-            bare_generated_jai_modal_tanru_unit(atom.base.as_ref()),
+            bare_generated_jai_modal_tanru_atom_base_view(atom.base()),
         )?;
         if let Some(linkargs) = linkargs {
             let adjusted =
@@ -4336,11 +4397,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
         }
-        let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
-        let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
+        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
+        let scalar_unit = atom.base().scalar_negated_base();
         let relation = semantic_relation_label(match scalar_unit {
             Some(unit) => relation_label_from_scalar_negated_tanru_unit(unit)?,
-            None => relation_label_from_tanru_unit_atom_base(atom.base.as_ref())?,
+            None => relation_label_from_tanru_atom_base_view(atom.base())?,
         });
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
@@ -4359,7 +4420,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         }
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
             let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
                 Some(inner_atom) => {
                     mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
@@ -4393,8 +4454,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         }
         let relation_text = relation.display_text();
-        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
-            atom.base.as_ref(),
+        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
+            atom.base(),
             &relation_text,
             predication_source.clone(),
         )?;
@@ -4412,7 +4473,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_unit
             .map(|unit| {
-                scalar_negation_for_generated_scalar_tanru_unit_atom(
+                scalar_negation_for_generated_scalar_tanru_atom_view(
                     atom,
                     unit,
                     linkargs,
@@ -4433,10 +4494,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_description_relation_formula_for_tanru_unit_atom_with_visible_arguments(
+    pub(super) fn build_description_relation_formula_for_tanru_unit_atom_with_visible_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        atom: &TanruUnitAtomSyntax,
-        linkargs: Option<&LinkargsSyntax>,
+        atom: GeneratedTanruAtomView<'syntax>,
+        linkargs: Option<&'syntax LinkargsSyntax>,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
@@ -4448,7 +4511,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             visible_arguments = adjusted.visible_arguments;
             modal_arguments = adjusted.modal_arguments;
         }
-        let jai_modal = generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref());
+        let jai_modal = generated_jai_modal_tanru_atom_base_view_with_tense(atom.base());
         let predication_eventuality = if jai_modal.is_some() {
             Some(self.build_eventuality(predication_source.clone())?)
         } else {
@@ -4461,16 +4524,16 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
                 eventuality,
             )?);
         }
-        let scalar_unit = scalar_negated_tanru_atom_base(atom.base.as_ref());
+        let scalar_unit = atom.base().scalar_negated_base();
         let relation = semantic_relation_label(match scalar_unit {
             Some(unit) => relation_label_from_scalar_negated_tanru_unit(unit)?,
-            None => relation_label_from_tanru_unit_atom_base(atom.base.as_ref())?,
+            None => relation_label_from_tanru_atom_base_view(atom.base())?,
         });
         let place_count = relation_place_count(self.dictionary, &relation);
         let mut diagnostics = Vec::new();
         let mut arguments = BTreeMap::new();
         for (visible_place, argument) in visible_arguments {
-            let place = mapped_place_for_generated_conversions(visible_place, &atom.conversions)?;
+            let place = mapped_place_for_generated_conversions(visible_place, atom.conversions())?;
             let place = match scalar_unit.and_then(scalar_negated_tanru_unit_inner_atom) {
                 Some(inner_atom) => {
                     mapped_place_for_generated_conversions(place, &inner_atom.conversions)?
@@ -4504,8 +4567,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             }
         }
         let relation_text = relation.display_text();
-        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base(
-            atom.base.as_ref(),
+        let relation_metadata = self.build_generated_relation_metadata_for_tanru_atom_base_view(
+            atom.base(),
             &relation_text,
             predication_source.clone(),
         )?;
@@ -4523,7 +4586,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_unit
             .map(|unit| {
-                scalar_negation_for_generated_scalar_tanru_unit_atom(
+                scalar_negation_for_generated_scalar_tanru_atom_view(
                     atom,
                     unit,
                     linkargs,
@@ -4544,9 +4607,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_property_formula_for_grouped_tanru_unit(
+    pub(super) fn build_property_formula_for_grouped_tanru_unit<'syntax: 'tree>(
         &mut self,
-        grouped: &GroupedTanruUnitSyntax,
+        grouped: &'syntax GroupedTanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4562,7 +4625,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_generated_tanru_unit_argument(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         argument: ArgumentValue,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -4583,7 +4646,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_eventful_relation_formula_for_generated_tanru_unit_argument(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         argument: ArgumentValue,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -4604,9 +4667,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_eventful_relation_formula_for_linked_tanru_unit_argument(
+    pub(super) fn build_eventful_relation_formula_for_linked_tanru_unit_argument<'syntax: 'tree>(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         argument: ArgumentValue,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
@@ -4628,9 +4691,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(argument.value.is_some_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent || id.object_kind() == crate::model::SemanticObjectKind::Parameter))]
     #[requires(eventuality.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_relation_formula_for_linked_tanru_unit_argument_with_eventuality(
+    pub(super) fn build_relation_formula_for_linked_tanru_unit_argument_with_eventuality<
+        'syntax: 'tree,
+    >(
         &mut self,
-        unit: &LinkedTanruUnitSyntax,
+        unit: &'syntax LinkedTanruUnitSyntax,
         argument: ArgumentValue,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4752,7 +4817,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_relation_formula_for_generated_tanru_unit_argument_with_eventuality(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         argument: ArgumentValue,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4872,9 +4937,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tagged_relation_formula_for_generated_tanru_unit_argument(
         &mut self,
-        unit: &TanruUnitSyntax,
+        unit: &'tree TanruUnitSyntax,
         argument: ArgumentValue,
-        tense_modal: &TenseModalSyntax,
+        tense_modal: &'tree TenseModalSyntax,
         mode: PredicationMode,
         predication_source: Option<crate::model::SemanticSource>,
         formula_source: Option<crate::model::SemanticSource>,
@@ -4988,9 +5053,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_linkargs_assignments(
+    pub(super) fn build_linkargs_assignments<'syntax: 'tree>(
         &mut self,
-        linkargs: &LinkargsSyntax,
+        linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<GeneratedLinkargsAssignments, SemanticsError> {
         let mut assignments = GeneratedLinkargsAssignments {
@@ -5011,7 +5076,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn extend_visible_arguments_with_linkargs(
         &mut self,
         arguments: &mut BTreeMap<usize, ArgumentValue>,
-        linkargs: &LinkargsSyntax,
+        linkargs: &'tree LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<Vec<ModalArgument>, SemanticsError> {
         let linkargs_assignments =
@@ -5025,10 +5090,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.next_visible_place >= first_visible_place && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn visible_arguments_adjusted_for_linkargs(
+    pub(super) fn visible_arguments_adjusted_for_linkargs<'syntax: 'tree>(
         &mut self,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
-        linkargs: &LinkargsSyntax,
+        linkargs: &'syntax LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<GeneratedLinkargsAssignments, SemanticsError> {
         let linkarg_assignments = self.build_linkargs_assignments(linkargs, first_visible_place)?;
@@ -5089,7 +5154,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn visible_arguments_shifted_after_linkargs(
         &self,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
-        linkargs: &LinkargsSyntax,
+        linkargs: &'tree LinkargsSyntax,
         first_visible_place: usize,
     ) -> Result<(usize, BTreeMap<usize, ArgumentValue>), SemanticsError> {
         let mut next_tail_place = next_visible_place_after_linkargs(linkargs, first_visible_place)?;
@@ -5112,10 +5177,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(assignments.next_visible_place > 0)]
     #[ensures(true)]
-    pub(super) fn add_linked_sumti_assignment(
+    pub(super) fn add_linked_sumti_assignment<'syntax: 'tree>(
         &mut self,
         assignments: &mut GeneratedLinkargsAssignments,
-        link: &LinkedSumtiSyntax,
+        link: &'syntax LinkedSumtiSyntax,
     ) -> Result<(), SemanticsError> {
         match link {
             LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
@@ -5150,10 +5215,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn build_modal_argument_for_generated_tense_tagged_linked_sumti(
+    pub(super) fn build_modal_argument_for_generated_tense_tagged_linked_sumti<'syntax: 'tree>(
         &mut self,
-        tense_modal: &TenseModalSyntax,
-        sumti: &TaggedOrElidedSumtiSyntax,
+        tense_modal: &'syntax TenseModalSyntax,
+        sumti: &'syntax TaggedOrElidedSumtiSyntax,
     ) -> Result<ModalArgument, SemanticsError> {
         let Some((introduced_by, relation, visible_place)) =
             generated_modal_relation_spec_for_tense_modal(tense_modal)
@@ -5179,18 +5244,18 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
-    pub(super) fn build_tagged_or_elided_sumti_argument(
+    pub(super) fn build_tagged_or_elided_sumti_argument<'syntax: 'tree>(
         &mut self,
-        sumti: &TaggedOrElidedSumtiSyntax,
+        sumti: &'syntax TaggedOrElidedSumtiSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
         self.build_tagged_or_elided_sumti_argument_with_visible_arguments(sumti, None)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
-    pub(super) fn build_tagged_or_elided_sumti_argument_with_visible_arguments(
+    pub(super) fn build_tagged_or_elided_sumti_argument_with_visible_arguments<'syntax: 'tree>(
         &mut self,
-        sumti: &TaggedOrElidedSumtiSyntax,
+        sumti: &'syntax TaggedOrElidedSumtiSyntax,
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
     ) -> Result<ArgumentValue, SemanticsError> {
         match sumti {
@@ -5218,9 +5283,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
-    pub(super) fn build_tagged_or_elided_sumti_argument_with_predication_arguments(
+    pub(super) fn build_tagged_or_elided_sumti_argument_with_predication_arguments<
+        'syntax: 'tree,
+    >(
         &mut self,
-        sumti: &TaggedOrElidedSumtiSyntax,
+        sumti: &'syntax TaggedOrElidedSumtiSyntax,
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<ArgumentValue, SemanticsError> {
         match sumti {
@@ -5464,9 +5531,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_binary_formula_for_relation_afterthought_connective(
+    pub(super) fn build_binary_formula_for_relation_afterthought_connective<'syntax>(
         &mut self,
-        connective: &RelationAfterthoughtConnectiveSyntax,
+        connective: &'syntax RelationAfterthoughtConnectiveSyntax,
         locus: &str,
         left: SemanticObjectId,
         right: SemanticObjectId,
@@ -5516,10 +5583,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_binary_formula_for_generated_forethought_selbri_connective(
+    pub(super) fn build_binary_formula_for_generated_forethought_selbri_connective<'syntax>(
         &mut self,
-        guhek: &GuhekConnectiveSyntax,
-        gik: &GikConnectiveSyntax,
+        guhek: &'syntax GuhekConnectiveSyntax,
+        gik: &'syntax GikConnectiveSyntax,
         locus: &str,
         left: SemanticObjectId,
         right: SemanticObjectId,
@@ -5542,10 +5609,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_binary_formula_for_generated_extra_forethought_selbri_connective(
+    pub(super) fn build_binary_formula_for_generated_extra_forethought_selbri_connective<
+        'syntax,
+    >(
         &mut self,
-        guhek: &GuhekConnectiveSyntax,
-        gik: &ZantufaExtraGikConnectiveSyntax,
+        guhek: &'syntax GuhekConnectiveSyntax,
+        gik: &'syntax ZantufaExtraGikConnectiveSyntax,
         locus: &str,
         left: SemanticObjectId,
         right: SemanticObjectId,
@@ -5574,9 +5643,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_formula_for_generated_forethought_selbri_connective_core(
+    pub(super) fn build_formula_for_generated_forethought_selbri_connective_core<'syntax>(
         &mut self,
-        guhek: &GuhekConnectiveSyntax,
+        guhek: &'syntax GuhekConnectiveSyntax,
         left_negated: bool,
         right_negated: bool,
         connector_source: String,
@@ -5669,9 +5738,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(true)]
-    pub(super) fn mark_generated_whether_or_not_inert_operand(
+    pub(super) fn mark_generated_whether_or_not_inert_operand<'syntax>(
         &mut self,
-        connective: &RelationAfterthoughtConnectiveSyntax,
+        connective: &'syntax RelationAfterthoughtConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
     ) {
@@ -5735,9 +5804,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(true)]
-    pub(super) fn mark_generated_forethought_whether_or_not_inert_operand(
+    pub(super) fn mark_generated_forethought_whether_or_not_inert_operand<'syntax>(
         &mut self,
-        guhek: &GuhekConnectiveSyntax,
+        guhek: &'syntax GuhekConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
     ) {

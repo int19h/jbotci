@@ -1,11 +1,11 @@
 use super::*;
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn build_bridi_formula(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_bridi_formula_with_options(bridi, None, PredicationMode::Asserted)
     }
@@ -15,10 +15,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_bridi_formula_with_suffix_terms<N: TreeNode>(
         &mut self,
         source_node: &N,
-        bridi: &BridiSyntax,
-        suffix_terms: &[&TermSyntax],
+        bridi: &'tree BridiSyntax,
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.pro_bridi_scope_stack.push(bridi.clone());
+        self.pro_bridi_scope_stack.push(bridi);
         let result = match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => self
                 .build_bridi_with_leading_terms_formula_with_suffix_terms(
@@ -50,7 +50,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|scopes| scopes.iter().all(|scope| matches!(scope, GeneratedTermFormulaScope::Negation { .. }))) || ret.is_err())]
     pub(super) fn generated_bridi_term_formula_scopes(
         &self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
     ) -> Result<Vec<GeneratedTermFormulaScope>, SemanticsError> {
         let mut scopes = Vec::new();
         self.collect_generated_bridi_term_formula_scopes(bridi, &mut scopes)?;
@@ -61,7 +61,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|_| scopes.iter().all(|scope| matches!(scope, GeneratedTermFormulaScope::Negation { .. }))) || ret.is_err())]
     pub(super) fn collect_generated_bridi_term_formula_scopes(
         &self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match bridi {
@@ -83,7 +83,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|_| scopes.iter().all(|scope| matches!(scope, GeneratedTermFormulaScope::Negation { .. }))) || ret.is_err())]
     pub(super) fn collect_generated_bridi_tail_term_formula_scopes(
         &self,
-        tail: &BridiTailSyntax,
+        tail: &'tree BridiTailSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         if let Some(connection) = forethought_connection_from_bridi_tail(tail)? {
@@ -102,7 +102,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|_| scopes.iter().all(|scope| matches!(scope, GeneratedTermFormulaScope::Negation { .. }))) || ret.is_err())]
     pub(super) fn collect_generated_forethought_bridi_connection_term_formula_scopes(
         &self,
-        connection: &ForethoughtBridiConnectionSyntax,
+        connection: &'tree ForethoughtBridiConnectionSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match connection {
@@ -137,7 +137,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|_| scopes.iter().all(|scope| matches!(scope, GeneratedTermFormulaScope::Negation { .. }))) || ret.is_err())]
     pub(super) fn collect_generated_subbridi_term_formula_scopes(
         &self,
-        subbridi: &SubbridiSyntax,
+        subbridi: &'tree SubbridiSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match subbridi {
@@ -154,7 +154,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn collect_generated_term_formula_scopes_for_term(
         &self,
-        term: &TermSyntax,
+        term: &'tree TermSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match term {
@@ -194,7 +194,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_term_formula_scopes_for_simple_term<N: TreeNode>(
         &self,
         node: &N,
-        simple: &SimpleTermSyntax,
+        simple: &'tree SimpleTermSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match simple {
@@ -222,11 +222,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_bridi_formula_with_options(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        self.pro_bridi_scope_stack.push(bridi.clone());
+        self.pro_bridi_scope_stack.push(bridi);
         let result = match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
                 self.build_bridi_with_leading_terms_formula_with_options(bridi, eventuality, mode)
@@ -244,7 +244,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_subbridi_formula_with_eventuality(
         &mut self,
-        subbridi: &SubbridiSyntax,
+        subbridi: &'tree SubbridiSyntax,
         eventuality: SemanticObjectId,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -255,7 +255,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_subbridi_formula_with_options(
         &mut self,
-        subbridi: &SubbridiSyntax,
+        subbridi: &'tree SubbridiSyntax,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -273,7 +273,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_prenex_subbridi_formula_with_options(
         &mut self,
-        prenex: &PrenexSubbridiSyntax,
+        prenex: &'tree PrenexSubbridiSyntax,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -340,8 +340,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_selbri(
-        selbri: &SelbriSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        selbri: &'tree SelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match selbri {
             SelbriSyntax::TaggedSelbri(tagged) => {
                 Self::generated_description_abstraction_for_untagged_selbri(&tagged.inner_selbri)
@@ -355,8 +355,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_untagged_selbri(
-        selbri: &UntaggedSelbriSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        selbri: &'tree UntaggedSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match selbri {
             UntaggedSelbriSyntax::CoSelbri(co_selbri) if co_selbri.co_tail.is_none() => {
                 Self::generated_description_abstraction_for_connected_selbri(
@@ -372,8 +372,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_connected_selbri(
-        selbri: &ConnectedSelbriSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        selbri: &'tree ConnectedSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         if !selbri.continuations.is_empty() {
             return Ok(None);
         }
@@ -383,8 +383,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_tanru_selbri(
-        selbri: &TanruSelbriSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        selbri: &'tree TanruSelbriSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         if !selbri.additional_units.is_empty() {
             return Ok(None);
         }
@@ -394,8 +394,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_tanru_unit(
-        unit: &TanruUnitSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        unit: &'tree TanruUnitSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         if !unit.0.links.is_empty() {
             return Ok(None);
         }
@@ -405,8 +405,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_bo_or_linked_tanru_unit(
-        unit: &BoOrLinkedTanruUnitSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        unit: &'tree BoOrLinkedTanruUnitSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match unit {
             BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
                 Self::generated_description_abstraction_for_tanru_atom(&unit.base)
@@ -420,8 +420,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
     pub(super) fn generated_description_abstraction_for_tanru_atom(
-        atom: &TanruUnitAtomSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'_>>, SemanticsError> {
+        atom: &'tree TanruUnitAtomSyntax,
+    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match atom.base.as_ref() {
             TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
                 Self::generated_description_abstraction_for_nu_with_conversions(
@@ -438,7 +438,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
-    pub(super) fn generated_description_abstraction_for_nu_with_conversions<'syntax, F>(
+    pub(super) fn generated_description_abstraction_for_nu_with_conversions<'syntax: 'tree, F>(
         abstraction: &'syntax AbstractionTanruUnitSyntax,
         conversions: &[WithFreeModifiers<Token, F>],
     ) -> Result<Option<GeneratedDescriptionAbstraction<'syntax>>, SemanticsError> {
@@ -475,7 +475,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_relation_only_bridi_formula_with_options(
         &mut self,
-        bridi: &RelationOnlyBridiSyntax,
+        bridi: &'tree RelationOnlyBridiSyntax,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -503,7 +503,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             );
         }
         let simple_tail = simple_tail_from_bridi_tail(&bridi.0)?;
-        let terms: Vec<&TermSyntax> = simple_tail.terms.iter().collect();
+        let terms: Vec<&'tree TermSyntax> = simple_tail.terms.iter().collect();
         if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
             bridi,
             simple_tail,
@@ -530,8 +530,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_relation_only_bridi_formula_with_suffix_terms<N: TreeNode>(
         &mut self,
         source_node: &N,
-        tail: &BridiTailSyntax,
-        suffix_terms: &[&TermSyntax],
+        tail: &'tree BridiTailSyntax,
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         if generated_bridi_tail_is_connected(tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
@@ -590,7 +590,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_bridi_with_leading_terms_formula(
         &mut self,
-        bridi: &BridiWithLeadingTermsSyntax,
+        bridi: &'tree BridiWithLeadingTermsSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_bridi_with_leading_terms_formula_with_options(
             bridi,
@@ -603,11 +603,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_bridi_with_leading_terms_formula_with_options(
         &mut self,
-        bridi: &BridiWithLeadingTermsSyntax,
+        bridi: &'tree BridiWithLeadingTermsSyntax,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let leading_terms: Vec<&TermSyntax> = bridi.leading_terms.iter().collect();
+        let leading_terms: Vec<&'tree TermSyntax> = bridi.leading_terms.iter().collect();
         if generated_bridi_tail_is_connected(&bridi.bridi_tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
                 bridi,
@@ -632,7 +632,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
             );
         }
         let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
-        let terms: Vec<&TermSyntax> = leading_terms
+        let terms: Vec<&'tree TermSyntax> = leading_terms
             .iter()
             .copied()
             .chain(simple_tail.terms.iter())
@@ -674,10 +674,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_bridi_with_leading_terms_formula_with_suffix_terms<N: TreeNode>(
         &mut self,
         source_node: &N,
-        bridi: &BridiWithLeadingTermsSyntax,
-        suffix_terms: &[&TermSyntax],
+        bridi: &'tree BridiWithLeadingTermsSyntax,
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let leading_terms: Vec<&TermSyntax> = bridi.leading_terms.iter().collect();
+        let leading_terms: Vec<&'tree TermSyntax> = bridi.leading_terms.iter().collect();
         if generated_bridi_tail_is_connected(&bridi.bridi_tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
                 source_node,
@@ -748,10 +748,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
-    pub(super) fn build_generated_forethought_termset_connection_formula<'syntax, N: TreeNode>(
+    pub(super) fn build_generated_forethought_termset_connection_formula<
+        'syntax: 'tree,
+        N: TreeNode,
+    >(
         &mut self,
         _source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -948,9 +951,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
-    pub(super) fn build_generated_pehe_termset_connection_formula<'syntax>(
+    pub(super) fn build_generated_pehe_termset_connection_formula<'syntax: 'tree>(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -1090,11 +1093,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(mode == PredicationMode::Asserted)]
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_generated_fahu_forethought_termset_distribution_formula_from_terms<
-        'syntax,
+        'syntax: 'tree,
     >(
         &mut self,
-        termset: &ForethoughtTermsetSyntax,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        termset: &'tree ForethoughtTermsetSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         leading_terms: &[&'syntax TermSyntax],
         trailing_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
@@ -1216,7 +1219,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_generated_fahu_termset_branch_formula_from_assignments(
         &mut self,
         relation: &str,
-        assignments: &GeneratedTermAssignments<'_>,
+        assignments: &GeneratedTermAssignments<'tree>,
         replacements: &BTreeMap<SemanticObjectId, SemanticObjectId>,
         place_limit: usize,
         mode: PredicationMode,
@@ -1277,7 +1280,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn generated_term_assignments_are_unscoped(
-        assignments: &GeneratedTermAssignments<'_>,
+        assignments: &GeneratedTermAssignments<'tree>,
     ) -> bool {
         assignments.formula_scopes.is_empty()
             && assignments.coequal_scope_groups.is_empty()
@@ -1289,7 +1292,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_none_or(|(_composite, members)| !members.is_empty()))]
     pub(super) fn generated_first_respectively_composite_argument_in_assignments(
         &self,
-        assignments: &GeneratedTermAssignments<'_>,
+        assignments: &GeneratedTermAssignments<'tree>,
     ) -> Option<(SemanticObjectId, Vec<SemanticObjectId>)> {
         assignments.visible_arguments.values().find_map(|argument| {
             let value = argument.value?;
@@ -1304,7 +1307,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_generated_fahu_forethought_termset_distribution_formula(
         &mut self,
         connective: &jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
-        gik: &GikConnectiveSyntax,
+        gik: &'tree GikConnectiveSyntax,
         leading: SemanticObjectId,
         trailing: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -1430,9 +1433,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(mode == PredicationMode::Asserted)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_pehe_termset_branch_formula<'syntax>(
+    pub(super) fn build_generated_pehe_termset_branch_formula<'syntax: 'tree>(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         prefix_assignments: &GeneratedTermAssignments<'syntax>,
         operand: &'syntax PeheTermsetOperandSyntax,
         suffix_assignments: &GeneratedTermAssignments<'syntax>,
@@ -1458,8 +1461,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_termset_branch_formula_from_assignments(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        assignments: GeneratedTermAssignments<'_>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        assignments: GeneratedTermAssignments<'tree>,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1530,7 +1533,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_generated_pehe_termset_branch_assignments<'syntax>(
+    pub(super) fn build_generated_pehe_termset_branch_assignments<'syntax: 'tree>(
         &mut self,
         prefix_assignments: &GeneratedTermAssignments<'syntax>,
         operand: &'syntax PeheTermsetOperandSyntax,
@@ -1565,7 +1568,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(*next_visible_place > 0)]
     #[ensures(true)]
-    pub(super) fn insert_generated_pehe_termset_operand_assignment<'syntax>(
+    pub(super) fn insert_generated_pehe_termset_operand_assignment<'syntax: 'tree>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
@@ -1611,10 +1614,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(mode == PredicationMode::Asserted)]
     #[requires(!generated_statement_connective_is_logical(&continuation.connective))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_nonlogical_pehe_termset_connection_formula<'syntax>(
+    pub(super) fn build_generated_nonlogical_pehe_termset_connection_formula<'syntax: 'tree>(
         &mut self,
         connection: &'syntax PeheTermsetConnectionSyntax,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         prefix_assignments: &GeneratedTermAssignments<'syntax>,
         continuation: &'syntax jbotci_syntax::generated_model::PeheTermsetConnectionContinuationSyntax,
         suffix_assignments: &GeneratedTermAssignments<'syntax>,
@@ -1771,10 +1774,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_nonlogical_forethought_termset_connection_formula(
         &mut self,
-        termset: &ForethoughtTermsetSyntax,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        leading_terms: Vec<&TermSyntax>,
-        trailing_terms: Vec<&TermSyntax>,
+        termset: &'tree ForethoughtTermsetSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        leading_terms: Vec<&'tree TermSyntax>,
+        trailing_terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -1920,8 +1923,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_termset_branch_formula(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -2006,8 +2009,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_selbri_simple_bridi_tail_formula_from_terms<N: TreeNode>(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2034,8 +2037,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     >(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2059,10 +2062,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!formula_construct.is_empty())]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|scoped| scoped.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_selbri_simple_bridi_tail_scoped_formula_from_terms<'syntax, N: TreeNode>(
+    pub(super) fn build_selbri_simple_bridi_tail_scoped_formula_from_terms<
+        'syntax: 'tree,
+        N: TreeNode,
+    >(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         terms: Vec<&'syntax TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -2103,10 +2109,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(!formula_construct.is_empty())]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|scoped| scoped.as_ref().is_none_or(|scoped| scoped.formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
-    pub(super) fn build_direct_relation_scoped_formula_from_terms<'syntax, N: TreeNode>(
+    pub(super) fn build_direct_relation_scoped_formula_from_terms<'syntax: 'tree, N: TreeNode>(
         &mut self,
         source_node: &N,
-        selbri: &SelbriSyntax,
+        selbri: &'tree SelbriSyntax,
         prefix_terms: &[&'syntax TermSyntax],
         annotate_shared_head_source: bool,
         terms: Vec<&'syntax TermSyntax>,
@@ -2290,7 +2296,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(place_limit > 0)]
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
-    pub(super) fn build_generated_logical_modal_connection_formula_for_terms<'syntax, F>(
+    pub(super) fn build_generated_logical_modal_connection_formula_for_terms<'syntax: 'tree, F>(
         &mut self,
         branch_formula_source: Option<crate::model::SemanticSource>,
         connection_formula_source: Option<crate::model::SemanticSource>,
@@ -2381,7 +2387,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(place_limit > 0)]
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_logical_modal_connection_branch_formula<'syntax, F>(
+    pub(super) fn build_generated_logical_modal_connection_branch_formula<'syntax: 'tree, F>(
         &mut self,
         branch_formula_source: Option<crate::model::SemanticSource>,
         relation: &str,
@@ -2513,8 +2519,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     >(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2526,13 +2532,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         let formula_source = self.source_for_node(source_node, formula_construct);
         let abstraction = if terms.is_empty() && eventuality.is_none() {
             self.single_abstraction_from_selbri(&simple_tail.selbri)?
-                .cloned()
         } else {
             None
         };
         if let Some(abstraction) = abstraction {
             return self.build_abstraction_link_formula_for_visible_argument(
-                &abstraction,
+                abstraction,
                 None,
                 formula_source,
                 mode,
@@ -2632,8 +2637,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_generated_connected_mekso_identity_formula(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri) else {
@@ -2794,11 +2799,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_connected_mekso_identity_branch_formula(
         &mut self,
-        assignments: &[(usize, &SumtiSyntax)],
+        assignments: &[(usize, &'tree SumtiSyntax)],
         connected_index: usize,
         connected_place: usize,
-        expression: &MeksoOperandSyntax,
-        number: &NumberSumtiSyntax,
+        expression: &'tree MeksoOperandSyntax,
+        number: &'tree NumberSumtiSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
@@ -2836,12 +2841,12 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_connected_mekso_operator_identity_branch_formula(
         &mut self,
-        assignments: &[(usize, &SumtiSyntax)],
+        assignments: &[(usize, &'tree SumtiSyntax)],
         connected_index: usize,
         connected_place: usize,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         replacement_operator: &MeksoOperatorSyntax,
-        number: &NumberSumtiSyntax,
+        number: &'tree NumberSumtiSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut arguments = BTreeMap::new();
@@ -2881,9 +2886,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
     pub(super) fn build_number_referent_for_generated_connected_operator_branch(
         &mut self,
-        expression: &MeksoSyntax,
+        expression: &'tree MeksoSyntax,
         replacement_operator: &MeksoOperatorSyntax,
-        number: &NumberSumtiSyntax,
+        number: &'tree NumberSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let (math, replaced) = self
             .build_generated_math_expression_with_connected_operator_replacement(
@@ -2927,8 +2932,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
     pub(super) fn build_number_referent_for_generated_mekso_operand(
         &mut self,
-        expression: &MeksoOperandSyntax,
-        number: &NumberSumtiSyntax,
+        expression: &'tree MeksoOperandSyntax,
+        number: &'tree NumberSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_mekso_operand_surface_text(expression)?;
         let quantity = self.build_quantity_for_generated_mekso_operand(
@@ -2947,7 +2952,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
     pub(super) fn build_quantity_for_generated_mekso_operand(
         &mut self,
-        expression: &MeksoOperandSyntax,
+        expression: &'tree MeksoOperandSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_mekso_operand_surface_text(expression)?;
@@ -2984,10 +2989,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_selbri_simple_bridi_tail_formula_with_preassigned_arguments<N: TreeNode>(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -3018,10 +3023,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     >(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'tree TermSyntax>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -3138,14 +3143,14 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|(id, context)| id.object_kind() == crate::model::SemanticObjectKind::Formula && context.assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_selbri_simple_bridi_tail_formula_with_deferred_prefix_assignments<
-        'syntax,
+        'syntax: 'tree,
         N: TreeNode,
     >(
         &mut self,
         source_node: &N,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         prefix_terms: &[&'syntax TermSyntax],
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'tree TermSyntax>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -3311,9 +3316,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_forethought_bridi_connection_formula_with_shared_terms(
         &mut self,
-        connection: &ForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&TermSyntax],
-        suffix_terms: &[&TermSyntax],
+        connection: &'tree ForethoughtBridiConnectionSyntax,
+        prefix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -3346,9 +3351,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_direct_forethought_bridi_connection_formula(
         &mut self,
-        connection: &DirectForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&TermSyntax],
-        suffix_terms: &[&TermSyntax],
+        connection: &'tree DirectForethoughtBridiConnectionSyntax,
+        prefix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let modal_connection_spec =
             generated_modal_statement_connection_spec_for_tense_modal(&connection.gek);
@@ -3582,9 +3587,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_grouped_forethought_bridi_connection_formula(
         &mut self,
-        connection: &GroupedForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&TermSyntax],
-        suffix_terms: &[&TermSyntax],
+        connection: &'tree GroupedForethoughtBridiConnectionSyntax,
+        prefix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.build_forethought_bridi_connection_formula_with_shared_terms(
             &connection.inner,
@@ -3599,9 +3604,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_negated_forethought_bridi_connection_formula(
         &mut self,
-        connection: &NegatedForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&TermSyntax],
-        suffix_terms: &[&TermSyntax],
+        connection: &'tree NegatedForethoughtBridiConnectionSyntax,
+        prefix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let child = self.build_forethought_bridi_connection_formula_with_shared_terms(
             &connection.inner,
@@ -3616,7 +3621,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_connected_bridi_tail_formula_with_shared_terms<'syntax, N: TreeNode>(
+    pub(super) fn build_connected_bridi_tail_formula_with_shared_terms<
+        'syntax: 'tree,
+        N: TreeNode,
+    >(
         &mut self,
         source_node: &N,
         tail: &'syntax BridiTailSyntax,
@@ -3717,7 +3725,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_generated_shared_head_assignments<'syntax>(
+    pub(super) fn build_generated_shared_head_assignments<'syntax: 'tree>(
         &mut self,
         terms: &[&'syntax TermSyntax],
         annotate_shared_head_source: bool,
@@ -3777,7 +3785,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn wrap_generated_scoped_formula(
         &mut self,
-        scoped: GeneratedScopedFormula<'_>,
+        scoped: GeneratedScopedFormula<'tree>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.wrap_formula_with_generated_assignment_scopes(
             scoped.formula,
@@ -3857,7 +3865,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|scoped| scoped.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_bo_grouped_bridi_tail_formula_with_shared_terms<'syntax>(
+    pub(super) fn build_bo_grouped_bridi_tail_formula_with_shared_terms<'syntax: 'tree>(
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
         prefix_terms: &[&'syntax TermSyntax],
@@ -3892,7 +3900,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|scoped| scoped.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_bo_grouped_bridi_tail_formula_core_with_shared_terms<'syntax>(
+    pub(super) fn build_bo_grouped_bridi_tail_formula_core_with_shared_terms<'syntax: 'tree>(
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
         prefix_terms: &[&'syntax TermSyntax],
@@ -3986,7 +3994,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|scoped| scoped.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_bound_bo_grouped_bridi_tail_formula_with_shared_terms<'syntax>(
+    pub(super) fn build_bound_bo_grouped_bridi_tail_formula_with_shared_terms<'syntax: 'tree>(
         &mut self,
         leading_tail: &'syntax BoGroupedBridiTailSyntax,
         continuation: &'syntax jbotci_syntax::generated_model::BridiTailBoContinuationSyntax,
@@ -4123,9 +4131,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|(id, context)| id.object_kind() == crate::model::SemanticObjectKind::Formula && context.assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_forethought_subbridi_branch_formula_with_deferred_prefix<'syntax>(
+    pub(super) fn build_forethought_subbridi_branch_formula_with_deferred_prefix<'syntax: 'tree>(
         &mut self,
-        subbridi: &SubbridiSyntax,
+        subbridi: &'tree SubbridiSyntax,
         prefix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         suffix_terms: &[&'syntax TermSyntax],
@@ -4179,9 +4187,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(first_visible_place > 0)]
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|(id, context)| id.object_kind() == crate::model::SemanticObjectKind::Formula && context.assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
-    pub(super) fn build_forethought_bridi_branch_formula_with_deferred_prefix<'syntax>(
+    pub(super) fn build_forethought_bridi_branch_formula_with_deferred_prefix<'syntax: 'tree>(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         prefix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         suffix_terms: &[&'syntax TermSyntax],
@@ -4232,13 +4240,13 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|(id, context)| id.object_kind() == crate::model::SemanticObjectKind::Formula && context.assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_forethought_bridi_branch_tail_formula_with_deferred_prefix<
-        'syntax,
+        'syntax: 'tree,
         N: TreeNode,
     >(
         &mut self,
         source_node: &N,
-        branch_leading_terms: &[TermSyntax],
-        tail: &BridiTailSyntax,
+        branch_leading_terms: &'tree [TermSyntax],
+        tail: &'tree BridiTailSyntax,
         prefix_terms: &[&'syntax TermSyntax],
         first_visible_place: usize,
         suffix_terms: &[&'syntax TermSyntax],
@@ -4312,10 +4320,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_forethought_subbridi_branch_formula(
         &mut self,
-        subbridi: &SubbridiSyntax,
+        subbridi: &'tree SubbridiSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
         eventuality: Option<SemanticObjectId>,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4350,10 +4358,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_forethought_bridi_branch_formula(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
         eventuality: Option<SemanticObjectId>,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4404,11 +4412,11 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_forethought_bridi_branch_tail_formula<N: TreeNode>(
         &mut self,
         source_node: &N,
-        branch_leading_terms: &[TermSyntax],
-        tail: &BridiTailSyntax,
+        branch_leading_terms: &'tree [TermSyntax],
+        tail: &'tree BridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
         eventuality: Option<SemanticObjectId>,
         allow_single_argument_distribution: bool,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
@@ -4485,8 +4493,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_simple_tail_formula_with_options(
         &mut self,
-        simple_tail: &SelbriSimpleBridiTailSyntax,
-        terms: Vec<&TermSyntax>,
+        simple_tail: &'tree SelbriSimpleBridiTailSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4509,8 +4517,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_selbri_formula_with_options(
         &mut self,
-        selbri: &SelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        selbri: &'tree SelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4549,9 +4557,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_connected_event_tense_formula_for_tagged_selbri(
         &mut self,
-        tagged: &jbotci_syntax::generated_model::TaggedSelbriSyntax,
+        tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
         spec: GeneratedConnectedEventTenseSpec,
-        terms: Vec<&TermSyntax>,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4719,8 +4727,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_tagged_selbri_formula_with_options(
         &mut self,
-        tagged: &jbotci_syntax::generated_model::TaggedSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4874,8 +4882,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_untagged_selbri_formula_with_options(
         &mut self,
-        selbri: &UntaggedSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        selbri: &'tree UntaggedSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4977,8 +4985,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_co_selbri_formula_with_options(
         &mut self,
-        selbri: &CoSelbriSyntax,
-        terms: Vec<&TermSyntax>,
+        selbri: &'tree CoSelbriSyntax,
+        terms: Vec<&'tree TermSyntax>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -5278,9 +5286,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(leading_eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     #[ensures(ret.as_ref().is_ok_and(|result| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_co_selbri_inversion_formula_for_visible_arguments(
+    pub(super) fn build_co_selbri_inversion_formula_for_visible_arguments<'syntax: 'tree>(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'syntax CoSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
         leading_eventuality: Option<SemanticObjectId>,
@@ -5343,10 +5351,10 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[requires(modifier_first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|(result, assignments)| result.formula.object_kind() == crate::model::SemanticObjectKind::Formula && assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_co_selbri_inversion_formula_for_visible_arguments_with_modifier_terms<
-        'syntax,
+        'syntax: 'tree,
     >(
         &mut self,
-        selbri: &CoSelbriSyntax,
+        selbri: &'tree CoSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         modifier_terms: Vec<&'syntax TermSyntax>,
         modifier_first_visible_place: usize,

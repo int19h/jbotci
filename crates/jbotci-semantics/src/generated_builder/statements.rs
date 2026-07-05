@@ -1,11 +1,11 @@
 use super::*;
 
-impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
+impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn build_text(
         mut self,
-        syntax: &TextSyntax,
+        syntax: &'tree TextSyntax,
     ) -> Result<SemanticGraph, SemanticsError> {
         let plan = generated_text_plan_from_text(syntax)?;
         let items = self.build_generated_text_plan_items(plan)?;
@@ -47,7 +47,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn build_generated_text_plan_items(
         &mut self,
-        plan: GeneratedTextPlan<'_>,
+        plan: GeneratedTextPlan<'tree>,
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         let mut items = Vec::new();
         let mut leading_asides =
@@ -219,7 +219,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_utterance_for_generated_text_root(
         &mut self,
         utterance_id: SemanticObjectId,
-        root: GeneratedTextRoot<'_>,
+        root: GeneratedTextRoot<'tree>,
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match root {
@@ -323,7 +323,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_discourse_item_for_generated_text_root(
         &mut self,
-        root: GeneratedTextRoot<'_>,
+        root: GeneratedTextRoot<'tree>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match root {
             GeneratedTextRoot::Bridi(bridi) => {
@@ -435,7 +435,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
     pub(super) fn build_zantufa_mekso_fragment_referent(
         &mut self,
-        fragment: &ZantufaMeksoFragmentSyntax,
+        fragment: &'tree ZantufaMeksoFragmentSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let text = generated_number_descriptor_mekso_surface_text(fragment.0.as_ref())?;
         let quantity = self.build_quantity_for_generated_mekso(
@@ -475,7 +475,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_utterance_for_generated_zantufa_statement_terms(
         &mut self,
         utterance_id: SemanticObjectId,
-        statement: &ZantufaStatementTermsStatementSyntax,
+        statement: &'tree ZantufaStatementTermsStatementSyntax,
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let root = semantic_root_from_statement(&statement.statement)?;
@@ -508,7 +508,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_discourse_item_for_generated_zantufa_statement_terms(
         &mut self,
-        statement: &ZantufaStatementTermsStatementSyntax,
+        statement: &'tree ZantufaStatementTermsStatementSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let root = semantic_root_from_statement(&statement.statement)?;
         let suffix_terms = zantufa_statement_terms_tail_terms(&statement.tail);
@@ -538,7 +538,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_utterance_for_generated_prenex_statement(
         &mut self,
         utterance_id: SemanticObjectId,
-        statement: &PrenexStatementSyntax,
+        statement: &'tree PrenexStatementSyntax,
         truth_question: bool,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let bindings = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
@@ -565,7 +565,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance || id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_discourse_item_for_generated_prenex_statement(
         &mut self,
-        statement: &PrenexStatementSyntax,
+        statement: &'tree PrenexStatementSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let bindings = self.push_generated_prenex_term_bindings(&statement.prenex_terms)?;
         let root = match semantic_root_from_statement(&statement.inner_statement) {
@@ -682,7 +682,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|ids| ids.iter().all(|id| matches!(id.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::DisplayedContent))) || ret.is_err())]
     pub(super) fn build_generated_vocative_asides_from_refs(
         &mut self,
-        free_modifiers: &[&FreeModifierSyntax],
+        free_modifiers: &[&'tree FreeModifierSyntax],
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         let mut asides = Vec::new();
         for free_modifier in free_modifiers {
@@ -697,7 +697,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|ids| ids.iter().all(|id| matches!(id.object_kind(), crate::model::SemanticObjectKind::Utterance | crate::model::SemanticObjectKind::DisplayedContent))) || ret.is_err())]
     pub(super) fn build_generated_vocative_asides_from_slice(
         &mut self,
-        free_modifiers: &[FreeModifierSyntax],
+        free_modifiers: &'tree [FreeModifierSyntax],
     ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
         let mut asides = Vec::new();
         for free_modifier in free_modifiers {
@@ -712,7 +712,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn queue_generated_vocative_asides(
         &mut self,
-        free_modifiers: &[FreeModifierSyntax],
+        free_modifiers: &'tree [FreeModifierSyntax],
     ) -> Result<(), SemanticsError> {
         let asides = self.build_generated_vocative_asides_from_slice(free_modifiers)?;
         self.pending_asides.extend(asides);
@@ -724,7 +724,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn attach_generated_statement_reciprocity_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
-        free_modifiers: &[&FreeModifierSyntax],
+        free_modifiers: &[&'tree FreeModifierSyntax],
     ) -> Result<(), SemanticsError> {
         if !free_modifier_refs_have_generated_reciprocity(free_modifiers) {
             return Ok(());
@@ -754,7 +754,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn attach_generated_reciprocity_to_predication_for_terms(
         &mut self,
         predication: SemanticObjectId,
-        terms: &[&TermSyntax],
+        terms: &[&'tree TermSyntax],
     ) -> Result<(), SemanticsError> {
         let mut exchanges = Vec::new();
         for term in terms {
@@ -781,8 +781,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn attach_generated_reciprocity_from_free_modifier_refs(
         &mut self,
         predication: SemanticObjectId,
-        free_modifiers: &[&FreeModifierSyntax],
-        host_sumti: Option<&SumtiSyntax>,
+        free_modifiers: &[&'tree FreeModifierSyntax],
+        host_sumti: Option<&'tree SumtiSyntax>,
     ) -> Result<(), SemanticsError> {
         let mut exchanges = Vec::new();
         self.collect_generated_reciprocal_exchanges_from_free_modifier_refs(
@@ -808,7 +808,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_term(
         &mut self,
         predication: SemanticObjectId,
-        term: &TermSyntax,
+        term: &'tree TermSyntax,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         match term {
@@ -847,7 +847,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_simple_term(
         &mut self,
         predication: SemanticObjectId,
-        simple: &SimpleTermSyntax,
+        simple: &'tree SimpleTermSyntax,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         match simple {
@@ -895,7 +895,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_sumti(
         &mut self,
         predication: SemanticObjectId,
-        sumti: &SumtiSyntax,
+        sumti: &'tree SumtiSyntax,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         let Some(free_modifiers) = generated_sumti_spine_free_modifiers(sumti) else {
@@ -914,8 +914,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_free_modifier_refs(
         &mut self,
         predication: SemanticObjectId,
-        free_modifiers: &[&FreeModifierSyntax],
-        host_sumti: Option<&SumtiSyntax>,
+        free_modifiers: &[&'tree FreeModifierSyntax],
+        host_sumti: Option<&'tree SumtiSyntax>,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         for free_modifier in free_modifiers {
@@ -936,8 +936,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_free_modifiers(
         &mut self,
         predication: SemanticObjectId,
-        free_modifiers: &[FreeModifierSyntax],
-        host_sumti: Option<&SumtiSyntax>,
+        free_modifiers: &'tree [FreeModifierSyntax],
+        host_sumti: Option<&'tree SumtiSyntax>,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         for free_modifier in free_modifiers {
@@ -958,8 +958,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn collect_generated_reciprocal_exchange_from_soi(
         &mut self,
         predication: SemanticObjectId,
-        soi: &SoiFreeModifierSyntax,
-        host_sumti: Option<&SumtiSyntax>,
+        soi: &'tree SoiFreeModifierSyntax,
+        host_sumti: Option<&'tree SumtiSyntax>,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         let left = self.build_generated_reciprocal_argument_for_sumti(
@@ -998,7 +998,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_generated_reciprocal_argument_for_sumti(
         &mut self,
         predication: SemanticObjectId,
-        sumti: &SumtiSyntax,
+        sumti: &'tree SumtiSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
         if let Some(place) = generated_voha_place_for_sumti(sumti) {
             return self.generated_predication_argument(predication, place);
@@ -1150,7 +1150,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         item: SemanticObjectId,
         i: &Token,
-        connective: Option<&StatementConnectiveSyntax>,
+        connective: Option<&'tree StatementConnectiveSyntax>,
         force_assertion_effect_none: bool,
     ) -> Result<(), SemanticsError> {
         self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
@@ -1169,7 +1169,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         item: SemanticObjectId,
         i: &Token,
-        connective: Option<&StatementConnectiveSyntax>,
+        connective: Option<&'tree StatementConnectiveSyntax>,
         force_assertion_effect_none: bool,
         target_override: Option<SemanticObjectId>,
     ) -> Result<(), SemanticsError> {
@@ -1602,7 +1602,22 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         relation: &str,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(rafsis) = generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(base) else {
+        self.build_generated_relation_metadata_for_tanru_atom_base_view(
+            GeneratedTanruAtomBaseView::Normal(base),
+            relation,
+            source,
+        )
+    }
+
+    #[requires(!relation.is_empty())]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::RelationMetadata)) || ret.is_err())]
+    pub(super) fn build_generated_relation_metadata_for_tanru_atom_base_view(
+        &mut self,
+        base: GeneratedTanruAtomBaseView<'_>,
+        relation: &str,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        let Some(rafsis) = generated_lujvo_rafsi_parts_for_tanru_atom_base_view(base) else {
             return Ok(None);
         };
         let mut source_words = Vec::new();
@@ -1784,7 +1799,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance)) || ret.is_err())]
     pub(super) fn build_generated_vocative_aside(
         &mut self,
-        free_modifier: &FreeModifierSyntax,
+        free_modifier: &'tree FreeModifierSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let FreeModifierSyntax::VocativeFreeModifier(vocative) = free_modifier else {
             return Ok(None);
@@ -1797,7 +1812,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Utterance) || ret.is_err())]
     pub(super) fn build_generated_vocative_free_modifier_aside(
         &mut self,
-        vocative: &VocativeFreeModifierSyntax,
+        vocative: &'tree VocativeFreeModifierSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let vocative_kind = generated_vocative_kind_for_markers(&vocative.vocative_markers);
         let argument_question_start = self.argument_question_parameters.len();
@@ -1897,7 +1912,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| matches!(id.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
     pub(super) fn build_generated_vocative_target(
         &mut self,
-        target: &VocativeSumtiSyntax,
+        target: &'tree VocativeSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match target {
             VocativeSumtiSyntax::Sumti(sumti) => {
@@ -1920,7 +1935,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_generated_cmevla_vocative_referent(
         &mut self,
-        sumti: &CmevlaVocativeSumtiSyntax,
+        sumti: &'tree CmevlaVocativeSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.queue_generated_vocative_asides(&sumti.names.free_modifiers)?;
         let id = self.next_referent_id();
@@ -1963,7 +1978,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_generated_selbri_vocative_referent(
         &mut self,
-        sumti: &SelbriVocativeSumtiSyntax,
+        sumti: &'tree SelbriVocativeSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let id = self.next_referent_id();
         let body = self.build_restrictive_formula(&sumti.selbri, id)?;
@@ -2067,7 +2082,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_bridi_utterance_with_force(
         &mut self,
         utterance_id: SemanticObjectId,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
         self.build_bridi_utterance_with_force_and_suffix_terms(
@@ -2084,9 +2099,9 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn build_bridi_utterance_with_force_and_suffix_terms<N: TreeNode>(
         &mut self,
         utterance_id: SemanticObjectId,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         force: UtteranceForce,
-        suffix_terms: &[&TermSyntax],
+        suffix_terms: &[&'tree TermSyntax],
         source_node: &N,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
         let question_start = self.argument_question_parameters.len();
@@ -2343,7 +2358,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn wrap_generated_bridi_formula_with_contradictory_event_tense_negation(
         &mut self,
-        bridi: &BridiSyntax,
+        bridi: &'tree BridiSyntax,
         formula: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let Some(tense_modal) = first_generated_contradictory_event_tense_modal_for_bridi(bridi)
@@ -2555,7 +2570,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn apply_generated_prenex_terms_to_discourse_item(
         &mut self,
         item: SemanticObjectId,
-        terms: &[TermSyntax],
+        terms: &'tree [TermSyntax],
     ) -> Result<(), SemanticsError> {
         let scopes = self.generated_prenex_formula_scopes_for_terms(terms)?;
         self.apply_generated_prenex_scopes_to_discourse_item(item, scopes)
@@ -2927,7 +2942,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     pub(super) fn wrap_formula_with_generated_prenex_terms(
         &mut self,
         formula: SemanticObjectId,
-        terms: &[TermSyntax],
+        terms: &'tree [TermSyntax],
     ) -> Result<SemanticObjectId, SemanticsError> {
         let scopes = self.generated_prenex_formula_scopes_for_terms(terms)?;
         let variables = generated_prenex_formula_scope_variables(&scopes);
@@ -2938,7 +2953,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn generated_prenex_formula_scopes_for_terms<'syntax>(
+    pub(super) fn generated_prenex_formula_scopes_for_terms<'syntax: 'tree>(
         &mut self,
         terms: &'syntax [TermSyntax],
     ) -> Result<Vec<GeneratedPrenexFormulaScope>, SemanticsError> {
@@ -2955,7 +2970,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn push_generated_prenex_term_bindings(
         &mut self,
-        terms: &[TermSyntax],
+        terms: &'tree [TermSyntax],
     ) -> Result<Vec<GeneratedPrenexPushedBinding>, SemanticsError> {
         let mut pushed = Vec::new();
         for term in terms {
@@ -3005,7 +3020,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(true)]
     pub(super) fn apply_generated_prenex_goi_assignments_for_sumti(
         &mut self,
-        sumti: &SumtiSyntax,
+        sumti: &'tree SumtiSyntax,
     ) -> Result<(), SemanticsError> {
         let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) else {
             return Ok(());
@@ -3047,7 +3062,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn generated_prenex_formula_scope_for_term<'syntax>(
+    pub(super) fn generated_prenex_formula_scope_for_term<'syntax: 'tree>(
         &mut self,
         term: &'syntax TermSyntax,
     ) -> Result<Option<GeneratedPrenexFormulaScope>, SemanticsError> {
@@ -3079,7 +3094,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn generated_prenex_formula_scope_for_sumti<'syntax>(
+    pub(super) fn generated_prenex_formula_scope_for_sumti<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax SumtiSyntax,
     ) -> Result<Option<GeneratedPrenexFormulaScope>, SemanticsError> {
@@ -3094,7 +3109,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|scope| scope.as_ref().is_none_or(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Parameter && scope.quantity.is_some_and(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))) || ret.is_err())]
     pub(super) fn build_generated_prenex_relation_variable_scope_for_sumti(
         &mut self,
-        sumti: &SumtiSyntax,
+        sumti: &'tree SumtiSyntax,
     ) -> Result<Option<GeneratedPrenexQuantifierScope>, SemanticsError> {
         let Some(description) = no_gadri_description_from_sumti(sumti)? else {
             return Ok(None);
@@ -3123,7 +3138,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|scope| scope.as_ref().is_none_or(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Referent && scope.quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))) || ret.is_err())]
-    pub(super) fn build_generated_prenex_quantifier_scope_for_sumti<'syntax>(
+    pub(super) fn build_generated_prenex_quantifier_scope_for_sumti<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax SumtiSyntax,
     ) -> Result<Option<GeneratedPrenexQuantifierScope>, SemanticsError> {
@@ -3176,8 +3191,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_scoped_prenex_da_series_variable_for_generated_sumti(
         &mut self,
-        sumti: &SumtiSyntax,
-        pro_sumti: &ProSumtiSyntax,
+        sumti: &'tree SumtiSyntax,
+        pro_sumti: &'tree ProSumtiSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(key) = self.source_key_for_node(sumti)
             && let Some(id) = self.scoped_argument_variables.get(&key)
@@ -3318,7 +3333,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_i_statement_connection_sequence(
         &mut self,
-        connection: &IStatementConnectionSyntax,
+        connection: &'tree IStatementConnectionSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut leading_spans = Vec::new();
         collect_generated_node_spans(&connection.leading_statement, &mut leading_spans);
@@ -3363,7 +3378,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|(_, index)| *index <= connection.continuations.len()) || ret.is_err())]
     pub(super) fn build_generated_statement_bo_connection_group(
         &mut self,
-        connection: &IStatementConnectionSyntax,
+        connection: &'tree IStatementConnectionSyntax,
         left: GeneratedStatementConnectionOperand,
         start: usize,
     ) -> Result<(GeneratedStatementConnectionOperand, usize), SemanticsError> {
@@ -3395,7 +3410,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
 
     #[requires(previous_discourse_item.object_kind() == crate::model::SemanticObjectKind::Utterance || previous_discourse_item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
     #[ensures(ret.as_ref().is_ok_and(|tail| tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Utterance || tail.operand.item.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
-    pub(super) fn build_generated_statement_connection_tail_operand<'syntax>(
+    pub(super) fn build_generated_statement_connection_tail_operand<'syntax: 'tree>(
         &mut self,
         continuation: &'syntax IStatementConnectionTailSyntax,
         previous_discourse_item: SemanticObjectId,
@@ -3433,8 +3448,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
         &mut self,
         left: GeneratedStatementConnectionOperand,
         _i: &Token,
-        connective: &IStatementConnectiveSyntax,
-        trailing_statement: &StatementAfterIConnectiveSyntax,
+        connective: &'tree IStatementConnectiveSyntax,
+        trailing_statement: &'tree StatementAfterIConnectiveSyntax,
         tail_spans: Vec<SourceSpan>,
         right: GeneratedStatementConnectionOperand,
     ) -> Result<GeneratedStatementConnectionOperand, SemanticsError> {
@@ -3524,7 +3539,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_forethought_statement_connection_sequence(
         &mut self,
-        connection: &ForethoughtStatementSyntax,
+        connection: &'tree ForethoughtStatementSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let (item, _formula) =
             self.build_forethought_statement_connection_item(connection, UtteranceForce::Assert)?;
@@ -3541,7 +3556,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_forethought_statement_connection_item(
         &mut self,
-        connection: &ForethoughtStatementSyntax,
+        connection: &'tree ForethoughtStatementSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
         let source = self.source_for_node(connection, "forethought-statement-connection");
@@ -3661,7 +3676,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_generated_statement_connection_item(
         &mut self,
-        statement: &StatementSyntax,
+        statement: &'tree StatementSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
         match statement {
@@ -3686,8 +3701,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_forethought_statement_connective(
         &mut self,
-        connective: &ModalForethoughtConnectiveSyntax,
-        gik: &GikConnectiveSyntax,
+        connective: &'tree ModalForethoughtConnectiveSyntax,
+        gik: &'tree GikConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -3709,8 +3724,8 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_extra_forethought_statement_connective(
         &mut self,
-        connective: &ModalForethoughtConnectiveSyntax,
-        gik: &ZantufaExtraGikConnectiveSyntax,
+        connective: &'tree ModalForethoughtConnectiveSyntax,
+        gik: &'tree ZantufaExtraGikConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -3738,7 +3753,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_forethought_statement_connective_core(
         &mut self,
-        connective: &ModalForethoughtConnectiveSyntax,
+        connective: &'tree ModalForethoughtConnectiveSyntax,
         left_negated: bool,
         right_negated: bool,
         connector_source: String,
@@ -3801,7 +3816,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_generated_statement_base_connection_item(
         &mut self,
-        statement: &StatementBaseSyntax,
+        statement: &'tree StatementBaseSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
         match statement {
@@ -3835,7 +3850,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|(item, formula)| (item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence) && formula.is_none_or(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn build_generated_statement_after_i_connection_item(
         &mut self,
-        statement: &StatementAfterIConnectiveSyntax,
+        statement: &'tree StatementAfterIConnectiveSyntax,
         force: UtteranceForce,
     ) -> Result<(SemanticObjectId, Option<SemanticObjectId>), SemanticsError> {
         match statement {
@@ -3944,7 +3959,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_statement_connective(
         &mut self,
-        connective: &IStatementConnectiveSyntax,
+        connective: &'tree IStatementConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -3967,7 +3982,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_statement_connective_core(
         &mut self,
-        connective: &StatementConnectiveSyntax,
+        connective: &'tree StatementConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -3988,7 +4003,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_statement_connective_core_with_connector_source(
         &mut self,
-        connective: &StatementConnectiveSyntax,
+        connective: &'tree StatementConnectiveSyntax,
         connector_source: String,
         left: SemanticObjectId,
         right: SemanticObjectId,
@@ -4039,7 +4054,7 @@ impl<'a, 'dict> GeneratedGraphBuilder<'a, 'dict> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Sequence) || ret.is_err())]
     pub(super) fn build_preposed_i_statement_connection_sequence(
         &mut self,
-        connection: &PreposedIStatementConnectionSyntax,
+        connection: &'tree PreposedIStatementConnectionSyntax,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let leading_bridi = bridi_from_statement_base(&connection.leading_statement)?;
         let trailing_bridi =

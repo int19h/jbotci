@@ -1578,7 +1578,7 @@ pub(super) fn generated_statement_connective_is_logical(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
 pub(super) fn build_generated_connective_question_parameter_for_statement_connective(
-    builder: &mut GeneratedGraphBuilder<'_, '_>,
+    builder: &mut GeneratedGraphBuilder<'_, '_, '_>,
     connective: &StatementConnectiveSyntax,
 ) -> Result<Option<SemanticObjectId>, SemanticsError> {
     let Some(token) = generated_statement_connective_question_token(connective) else {
