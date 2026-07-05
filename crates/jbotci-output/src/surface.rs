@@ -1,7 +1,7 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
     GlideMark, MorphologyError, MorphologyOptions, PhonemeRenderOptions, Phonemes, Word, WordKind,
-    WordLike, WordLikeData, segment_words_for_display_with_options,
+    WordLike, WordLikeData, segment_words_for_display_with_options_and_source_id,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
 use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
@@ -88,7 +88,8 @@ pub fn render_lojban_text_for_script_with_options(
     if script == LojbanScript::Latin {
         return Ok(text.to_owned());
     }
-    let words = segment_words_for_display_with_options(text, morphology_options)?;
+    let words =
+        segment_words_for_display_with_options_and_source_id(text, morphology_options, None)?;
     Ok(render_display_words_for_script(
         text,
         script,

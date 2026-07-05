@@ -2026,28 +2026,6 @@ fn valsi_lujvo_part(part: &LujvoPart) -> ValsiLujvoPart {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn segment_words_with_modifiers_with_options(
-    input: &str,
-    options: &MorphologyOptions,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_with_options_and_source_id(input, options, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_with_source_id(
-    input: &str,
-    source_id: SourceId,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        Some(source_id),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn segment_words_with_modifiers_with_options_and_source_id(
     input: &str,
     options: &MorphologyOptions,
@@ -2126,28 +2104,6 @@ pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
 #[ensures(true)]
 pub fn segment_words_for_display(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_for_display_with_options_and_source_id(input, &MorphologyOptions::default(), None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_for_display_with_source_id(
-    input: &str,
-    source_id: SourceId,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_for_display_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        Some(source_id),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_for_display_with_options(
-    input: &str,
-    options: &MorphologyOptions,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_for_display_with_options_and_source_id(input, options, None)
 }
 
 #[requires(true)]
@@ -2507,8 +2463,7 @@ pub fn canonicalize_text(text: &str) -> String {
 pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
     let normalized = canonicalize_text(word);
     let shape = normalized.replace(',', "");
-    let (kind, phonemes) =
-        segment::classify_word_with_options(&normalized, &MorphologyOptions::default())?;
+    let (kind, phonemes) = segment::classify_word(&normalized)?;
     if kind != WordKind::Lujvo {
         return None;
     }
@@ -3536,8 +3491,12 @@ mod tests {
     fn applies_cbm_dialect_to_morphology_options() {
         let dialect = jbotci_dialect::parse_dialect_definition("(cbm)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-        let words = segment_words_with_modifiers_with_options("mi .alis. do sa broda", &options)
-            .expect("valid morphology");
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            "mi .alis. do sa broda",
+            &options,
+            None,
+        )
+        .expect("valid morphology");
         let phonemes: Vec<_> = words
             .iter()
             .map(|word| base_word(word).expect("base word").phonemes().into_string())
@@ -3552,8 +3511,9 @@ mod tests {
         let dialect =
             jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-        let words = segment_words_with_modifiers_with_options("NALSELTRO", &options)
-            .expect("valid morphology");
+        let words =
+            segment_words_with_modifiers_with_options_and_source_id("NALSELTRO", &options, None)
+                .expect("valid morphology");
         assert_eq!(base_phonemes(&words[0]).as_deref(), Some("nalséltro"));
     }
 
@@ -3564,8 +3524,9 @@ mod tests {
         let dialect =
             jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-        let words = segment_words_with_modifiers_with_options("la ITALIAS.", &options)
-            .expect("valid morphology");
+        let words =
+            segment_words_with_modifiers_with_options_and_source_id("la ITALIAS.", &options, None)
+                .expect("valid morphology");
         assert_eq!(base_phonemes(&words[1]).as_deref(), Some("italĭas"));
     }
 
@@ -3577,8 +3538,8 @@ mod tests {
             .expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
-        let words =
-            segment_words_with_modifiers_with_options("ce", &options).expect("valid morphology");
+        let words = segment_words_with_modifiers_with_options_and_source_id("ce", &options, None)
+            .expect("valid morphology");
 
         assert_eq!(base_phoneme_texts(&words), vec!["ki"]);
     }
@@ -3591,8 +3552,8 @@ mod tests {
             jbotci_dialect::parse_dialect_definition("((la'u -> la'e di'u))").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
-        let words =
-            segment_words_with_modifiers_with_options("la'u", &options).expect("valid morphology");
+        let words = segment_words_with_modifiers_with_options_and_source_id("la'u", &options, None)
+            .expect("valid morphology");
 
         assert_eq!(base_phoneme_texts(&words), vec!["la'e", "di'u"]);
     }
@@ -3605,8 +3566,12 @@ mod tests {
             jbotci_dialect::parse_dialect_definition("(jboponei ce-ki-tau)").expect("dialect");
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
-        let words = segment_words_with_modifiers_with_options("po nei ce ki tau su'o", &options)
-            .expect("valid morphology");
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            "po nei ce ki tau su'o",
+            &options,
+            None,
+        )
+        .expect("valid morphology");
 
         assert_eq!(
             base_phoneme_texts(&words),

@@ -340,9 +340,10 @@ fn morphology_raw_matches_simple_cll_fixture() {
         .raw
         .expect("morphology raw")
         .text;
-    let actual = jbotci_morphology::segment_words_with_modifiers_with_source_id(
+    let actual = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
         &test_case.lojban,
-        SourceId("<fixture>".to_owned()),
+        &jbotci_morphology::MorphologyOptions::default(),
+        Some(SourceId("<fixture>".to_owned())),
     )
     .expect("simple fixture should segment");
     assert_eq!(format!("{actual:?}"), expected);
