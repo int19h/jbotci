@@ -247,11 +247,9 @@ fn construct_unit_variant(expression: ExprPath, mode: ConstructionMode) -> Token
 }
 
 fn rewrite_path_to_data_type(path: &mut Path) {
-    if path.segments.is_empty() {
+    let Some(data_segment_index) = data_type_segment_index(path) else {
         return;
-    }
-
-    let data_segment_index = data_type_segment_index(path);
+    };
 
     let segment = path
         .segments
@@ -261,26 +259,46 @@ fn rewrite_path_to_data_type(path: &mut Path) {
     segment.ident = Ident::new(&format!("{}Data", segment.ident), segment.ident.span());
 }
 
-fn data_type_segment_index(path: &Path) -> usize {
-    if path.segments.len() >= 2
-        && path
+fn data_type_segment_index(path: &Path) -> Option<usize> {
+    if path.segments.is_empty() {
+        return None;
+    }
+
+    if path
+        .segments
+        .first()
+        .is_some_and(|segment| segment.ident == "Self")
+    {
+        return None;
+    }
+
+    if path.segments.len() >= 2 {
+        let candidate = path.segments.len() - 2;
+        let segment = path
             .segments
             .iter()
-            .nth(path.segments.len() - 2)
-            .is_some_and(|segment| starts_with_uppercase(&segment.ident))
-    {
-        path.segments.len() - 2
-    } else {
-        path.segments.len().saturating_sub(1)
+            .nth(candidate)
+            .expect("path segment index is in bounds");
+        if starts_with_uppercase(&segment.ident) && !is_keyword_path_segment(&segment.ident) {
+            return Some(candidate);
+        }
     }
+
+    let index = path.segments.len() - 1;
+    let segment = path
+        .segments
+        .iter()
+        .nth(index)
+        .expect("path segment index is in bounds");
+    (!is_keyword_path_segment(&segment.ident)).then_some(index)
 }
 
 fn path_has_variant_segment(path: &Path) -> bool {
-    data_type_segment_index(path) + 1 < path.segments.len()
+    data_type_segment_index(path).is_some_and(|index| index + 1 < path.segments.len())
 }
 
 fn wrapper_path_for_variant(path: &Path) -> Option<Path> {
-    let type_segment_index = data_type_segment_index(path);
+    let type_segment_index = data_type_segment_index(path)?;
     if type_segment_index + 1 >= path.segments.len() {
         return None;
     }
@@ -293,6 +311,13 @@ fn wrapper_path_for_variant(path: &Path) -> Option<Path> {
         leading_colon: path.leading_colon,
         segments,
     })
+}
+
+fn is_keyword_path_segment(ident: &Ident) -> bool {
+    matches!(
+        ident.to_string().as_str(),
+        "Self" | "self" | "crate" | "super"
+    )
 }
 
 fn assignments_for_field_values(
