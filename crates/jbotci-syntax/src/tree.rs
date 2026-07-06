@@ -601,33 +601,9 @@ impl<T: fmt::Display> fmt::Display for WithIndicators<T> {
 #[requires(true)]
 #[ensures(true)]
 pub fn elidable_terminator_for_absent_field_ref(field: FieldRef) -> Option<Cmavo> {
-    match field.name {
-        Some("beho") => Some(Cmavo::Beho),
-        Some("boi") => Some(Cmavo::Boi),
-        Some("dohu") => Some(Cmavo::Dohu),
-        Some("fehu") => Some(Cmavo::Fehu),
-        Some("fihau") => Some(Cmavo::Fihau),
-        Some("gehu") => Some(Cmavo::Gehu),
-        Some("gihi") => Some(Cmavo::Gihi),
-        Some("gik_nuhu") | Some("nuhu") => Some(Cmavo::Nuhu),
-        Some("kehe") => Some(Cmavo::Kehe),
-        Some("kei") => Some(Cmavo::Kei),
-        Some("ku") | Some("maybe_ku") => Some(Cmavo::Ku),
-        Some("kuhau") => Some(Cmavo::Kuhau),
-        Some("kuhe") => Some(Cmavo::Kuhe),
-        Some("kuho") => Some(Cmavo::Kuho),
-        Some("kuhoi") => Some(Cmavo::Kuhoi),
-        Some("liau") => Some(Cmavo::Lihau),
-        Some("lihu") => Some(Cmavo::Lihu),
-        Some("loho") => Some(Cmavo::Loho),
-        Some("luhu") => Some(Cmavo::Luhu),
-        Some("mehu") => Some(Cmavo::Mehu),
-        Some("sehu") => Some(Cmavo::Sehu),
-        Some("tehu") => Some(Cmavo::Tehu),
-        Some("toi") => Some(Cmavo::Toi),
-        Some("tuhu") => Some(Cmavo::Tuhu),
-        Some("vau") => Some(Cmavo::Vau),
-        Some("veho") => Some(Cmavo::Veho),
-        _ => None,
-    }
+    let name = field.name?;
+    crate::generated_model::GENERATED_MODEL_ELIDABLE_TERMINATORS
+        .iter()
+        .find(|terminator| terminator.field == name)
+        .map(|terminator| terminator.cmavo)
 }
