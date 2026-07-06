@@ -446,25 +446,46 @@ pub(crate) fn classify_word(normalized_word: &str) -> Option<(WordKind, String)>
     let normalized_chars = text_chars(normalized_word);
     let stripped_chars = text_chars(&stripped);
     let mut cache = LujvoRecognitionCache::new(stripped_chars.len());
-    let blocks_brivla = blocks_word_shape(&normalized_chars);
+    classify_word_with_cache(
+        normalized_word,
+        &normalized_chars,
+        &stripped_chars,
+        stripped_chars.len(),
+        &mut cache,
+    )
+}
 
-    if !blocks_brivla && is_gismu(&stripped) {
+#[requires(stripped_end <= stripped_chars.len())]
+#[requires(cache.char_count == stripped_chars.len())]
+#[ensures(ret.as_ref().is_none_or(|(_, phonemes)| !phonemes.is_empty()))]
+pub(crate) fn classify_word_with_cache(
+    normalized_word: &str,
+    normalized_chars: &[char],
+    stripped_chars: &[char],
+    stripped_end: usize,
+    cache: &mut LujvoRecognitionCache,
+) -> Option<(WordKind, String)> {
+    let stripped_prefix = &stripped_chars[..stripped_end];
+    if stripped_prefix.is_empty() {
+        return None;
+    }
+    let blocks_brivla = blocks_word_shape(normalized_chars);
+
+    if !blocks_brivla && is_gismu_chars(stripped_prefix) {
         return Some((
             WordKind::Gismu,
             canonicalize_brivla_phonemes(normalized_word),
         ));
     }
 
-    if !blocks_brivla && is_lujvo_chars_with_cache(&stripped_chars, &mut cache) {
+    if !blocks_brivla && is_lujvo_slice_with_cache(stripped_chars, 0, stripped_end, cache) {
         return Some((
             WordKind::Lujvo,
             canonicalize_brivla_phonemes(normalized_word),
         ));
     }
 
-    if !blocks_brivla
-        && is_fuhivla_shape_slice_with_cache(&stripped_chars, 0, stripped_chars.len(), &mut cache)
-    {
+    if !blocks_brivla && is_fuhivla_shape_slice_with_cache(stripped_chars, 0, stripped_end, cache) {
         return Some((
             WordKind::Fuhivla,
             canonicalize_brivla_phonemes(normalized_word),
@@ -763,7 +784,7 @@ fn record_lujvo_failure(
 #[invariant(lujvo_from_by_end.len() == char_count + 1)]
 #[invariant(lujvo_from_by_end.iter().all(|states| states.len() == char_count + 1))]
 #[derive(Debug)]
-struct LujvoRecognitionCache {
+pub(crate) struct LujvoRecognitionCache {
     char_count: usize,
     lujvo_from_by_end: Vec<Vec<[Cell<Option<bool>>; 2]>>,
 }
@@ -773,7 +794,7 @@ impl LujvoRecognitionCache {
     #[ensures(ret.char_count == char_count)]
     #[ensures(ret.lujvo_from_by_end.len() == char_count + 1)]
     #[ensures(ret.lujvo_from_by_end.iter().all(|states| states.len() == char_count + 1))]
-    fn new(char_count: usize) -> Self {
+    pub(crate) fn new(char_count: usize) -> Self {
         Self::from_data(data!(LujvoRecognitionCache {
             char_count,
             lujvo_from_by_end: (0..=char_count)
@@ -2053,22 +2074,6 @@ fn parse_explicit_stress_single_vowel_end(chars: &[char], start: usize) -> Optio
 }
 
 #[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let value = *chars.get(start)?;
-    let glide = match value {
-        'i' | 'í' | 'ĭ' => 'ĭ',
-        'u' | 'ú' | 'ŭ' => 'ŭ',
-        _ => return None,
-    };
-    if starts_with_nucleus(chars, start + 1) {
-        Some((glide.to_string(), start + 1))
-    } else {
-        None
-    }
-}
-
-#[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
 fn parse_glide_end(chars: &[char], start: usize) -> Option<usize> {
     starts_glide(chars, start).then_some(start + 1)
@@ -2505,9 +2510,8 @@ fn glide_end_for_span(chars: &[char], start: usize) -> usize {
 
 #[requires(true)]
 #[ensures(true)]
-fn is_gismu(word: &str) -> bool {
-    let chars = text_chars(word);
-    match &chars[..] {
+fn is_gismu_chars(chars: &[char]) -> bool {
+    match chars {
         [a, b, c, d, e] => {
             (is_consonant(*a)
                 && is_vowel(*b)
@@ -2679,7 +2683,7 @@ fn starts_with_cvcy_lujvo_chars(chars: &[char], index: usize) -> bool {
 #[requires(index <= end && end <= chars.len())]
 #[requires(cache.char_count == chars.len())]
 #[ensures(true)]
-fn starts_with_cvcy_lujvo_chars_with_cache(
+pub(crate) fn starts_with_cvcy_lujvo_chars_with_cache(
     chars: &[char],
     index: usize,
     end: usize,
@@ -3208,7 +3212,7 @@ fn nucleus_has_implicit_stress(chars: &[char], index: usize, context_end: usize)
         if cursor < context_end && is_consonant(chars[cursor]) {
             stack.push(cursor + 1);
         }
-        if let Some((_, glide_end)) = parse_glide(chars, cursor)
+        if let Some(glide_end) = parse_glide_end(chars, cursor)
             && glide_end <= context_end
         {
             stack.push(glide_end);
@@ -3635,7 +3639,7 @@ fn vowel_pair_ends(chars: &[char], index: usize) -> Vec<usize> {
 #[requires(start <= end && end <= chars.len())]
 #[ensures(true)]
 fn is_gismu_slice(chars: &[char], start: usize, end: usize) -> bool {
-    end > start && is_gismu(&chars[start..end].iter().collect::<String>())
+    end > start && is_gismu_chars(&chars[start..end])
 }
 
 #[requires(start <= end && end <= chars.len())]

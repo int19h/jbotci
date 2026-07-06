@@ -3,7 +3,7 @@ use bityzba::requires;
 #[allow(unused_imports)]
 use bityzba::{ensures, expensive_ensures};
 
-use crate::{Verbatim, Word, WordLike, WordLikeData};
+use crate::{Verbatim, Word, WordLike, WordLikeData, strip_diacritics_eq};
 
 #[requires(true)]
 #[ensures(true)]
@@ -113,8 +113,13 @@ fn verbatim_syntax_eq(left: &Verbatim, right: &Verbatim) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
-    left.kind() == right.kind()
-        && strip_diacritics(left.phonemes().as_str()) == strip_diacritics(right.phonemes().as_str())
+    if left.kind() != right.kind() {
+        return false;
+    }
+    match (left.phonemes_ref(), right.phonemes_ref()) {
+        (Some(left), Some(right)) => strip_diacritics_eq(left.as_str(), right.as_str()),
+        _ => strip_diacritics_eq(left.phonemes().as_str(), right.phonemes().as_str()),
+    }
 }
 
 #[requires(true)]

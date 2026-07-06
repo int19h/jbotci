@@ -722,7 +722,13 @@ impl Word {
     #[ensures(ret.is_some() -> self.kind() == WordKind::Cmavo)]
     pub fn cmavo(&self) -> Option<Cmavo> {
         if self.is_cmavo_word() {
-            Cmavo::from_text(self.phonemes().as_str())
+            // Lujvo can never be cmavo; once the kind check passes, the
+            // phoneme storage is borrowed directly instead of rebuilding text.
+            Cmavo::from_text(
+                self.phonemes_ref()
+                    .expect("cmavo words have direct phoneme storage")
+                    .as_str(),
+            )
         } else {
             None
         }
@@ -756,7 +762,10 @@ impl Word {
     #[requires(!text.is_empty())]
     #[ensures(true)]
     pub fn is_cmavo_text(&self, text: &str) -> bool {
-        self.is_cmavo_word() && canonical_text_eq(self.phonemes().as_str(), text)
+        self.is_cmavo_word()
+            && self
+                .phonemes_ref()
+                .is_some_and(|phonemes| canonical_text_eq(phonemes.as_str(), text))
     }
 
     #[requires(true)]
