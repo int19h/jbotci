@@ -2048,6 +2048,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture error wrapper carries xfail diagnostics",
     ),
     (
+        "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidLojbanSource",
+        "fixture error wrapper carries fixture source declaration diagnostics",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:FixtureError::LegacyExpectationFormat",
         "fixture error wrapper carries legacy-format diagnostics",
     ),

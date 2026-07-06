@@ -70,6 +70,75 @@ fn load_fixture_normalizes_crlf_storage_newlines() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn load_fixture_reads_external_lojban_filename() {
+    let temp_root = temp_root("jbotci-fixture-external-source-test");
+    let text_dir = temp_root.join("texts");
+    fs::create_dir_all(&text_dir).expect("text dir");
+    fs::write(text_dir.join("source.txt"), "coi\r\n.i do klama\r\n").expect("write source");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        "id = \"adhoc.external-source\"\nlojban-filename = \"texts/source.txt\"\n",
+    )
+    .expect("write fixture");
+
+    let test_case = load_fixture_file(&fixture_path).expect("fixture should load");
+
+    assert_eq!(test_case.id, "adhoc.external-source");
+    assert_eq!(test_case.lojban, "coi\n.i do klama\n");
+    assert_eq!(
+        test_case.lojban_filename.as_deref(),
+        Some(Path::new("texts/source.txt"))
+    );
+
+    write_fixture_file(&fixture_path, &test_case).expect("rewrite fixture");
+    let rewritten = fs::read_to_string(&fixture_path).expect("read rewritten fixture");
+    assert!(rewritten.contains("lojban-filename = \"texts/source.txt\""));
+    assert!(!rewritten.contains("lojban = "));
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn load_fixture_rejects_ambiguous_lojban_sources() {
+    let temp_root = temp_root("jbotci-fixture-ambiguous-source-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        "id = \"adhoc.ambiguous-source\"\nlojban = \"coi\"\nlojban-filename = \"coi.txt\"\n",
+    )
+    .expect("write fixture");
+
+    let error = load_fixture_file(&fixture_path).expect_err("fixture should fail");
+
+    assert!(matches!(error, FixtureError::InvalidLojbanSource { .. }));
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn load_fixture_rejects_unsafe_lojban_filename() {
+    let temp_root = temp_root("jbotci-fixture-unsafe-source-test");
+    fs::create_dir_all(&temp_root).expect("temp root");
+    let fixture_path = temp_root.join("fixture.toml");
+    fs::write(
+        &fixture_path,
+        "id = \"adhoc.unsafe-source\"\nlojban-filename = \"../outside.txt\"\n",
+    )
+    .expect("write fixture");
+
+    let error = load_fixture_file(&fixture_path).expect_err("fixture should fail");
+
+    assert!(matches!(error, FixtureError::InvalidLojbanSource { .. }));
+    let _ = fs::remove_dir_all(temp_root);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn profile_filters_cll_chapter_and_muplis_form() {
     let root = Path::new("tests/fixtures");
     let cll = loaded_case(
@@ -77,6 +146,7 @@ fn profile_filters_cll_chapter_and_muplis_form() {
         TestCase {
             id: "cll.18.3.c18e3d1".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -97,6 +167,7 @@ fn profile_filters_cll_chapter_and_muplis_form() {
         TestCase {
             id: "muplis.18.1.front".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -222,6 +293,7 @@ fn fake_runner_counts_failures() {
         TestCase {
             id: "adhoc.smoke.coi".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -259,6 +331,7 @@ fn fake_runner_counts_xfails() {
         TestCase {
             id: "adhoc.xfail".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -297,6 +370,7 @@ fn parallel_runner_matches_serial_summary() {
         TestCase {
             id: "adhoc.first".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -310,6 +384,7 @@ fn parallel_runner_matches_serial_summary() {
         TestCase {
             id: "adhoc.second".into(),
             lojban: "co'o".into(),
+            lojban_filename: None,
             dialect: None,
             translation_en: None,
             gloss_en: None,
@@ -394,6 +469,7 @@ fn import_writes_toml_fixture() {
         cases: vec![TestCase {
             id: "adhoc.import".into(),
             lojban: "coi".into(),
+            lojban_filename: None,
             dialect: Some("(case-insensitive)".into()),
             translation_en: None,
             gloss_en: None,
@@ -461,6 +537,7 @@ fn writer_keeps_tree_and_output_values() {
     let test_case = TestCase {
         id: "adhoc.syntax".into(),
         lojban: "coi".into(),
+        lojban_filename: None,
         dialect: Some("(case-insensitive)".into()),
         translation_en: None,
         gloss_en: None,
@@ -566,6 +643,7 @@ fn writer_round_trips_script_brackets_and_show_elided_profile() {
     let test_case = TestCase {
         id: "adhoc.script-output".into(),
         lojban: "mi klama".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -627,6 +705,7 @@ fn writer_round_trips_jvozba_expectation() {
     let test_case = TestCase {
         id: "adhoc.jvozba.writer".into(),
         lojban: "fulta ismu".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -685,6 +764,7 @@ fn available_facets_include_tree_expectations() {
     let case = TestCase {
         id: "adhoc.tree".into(),
         lojban: "coi".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -760,6 +840,7 @@ fn available_facets_include_script_bracket_expectations() {
     let case = TestCase {
         id: "adhoc.script-brackets".into(),
         lojban: "mi klama".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -809,6 +890,7 @@ fn available_facets_include_gentufa_show_elided_expectations() {
     let case = TestCase {
         id: "adhoc.show-elided".into(),
         lojban: "mi klama".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -850,6 +932,7 @@ fn available_facets_include_semantics_refs_expectations() {
     let case = TestCase {
         id: "adhoc.refs".into(),
         lojban: "mi klama do".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -880,6 +963,7 @@ fn available_facets_include_jvozba_expectations() {
     let case = TestCase {
         id: "adhoc.jvozba".into(),
         lojban: "fulta ismu".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,
@@ -923,6 +1007,7 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
     let test_case = TestCase {
         id: String::new(),
         lojban: "coi".into(),
+        lojban_filename: None,
         dialect: None,
         translation_en: None,
         gloss_en: None,

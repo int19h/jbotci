@@ -8,12 +8,29 @@ use super::{BracketExpectations, CommandOutputExpectation, Expectations, Provena
 pub(super) fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Error> {
     let mut output = String::new();
     push_field(&mut output, "id", &test_case.id)?;
-    push_field(&mut output, "lojban", &test_case.lojban)?;
+    if let Some(filename) = &test_case.lojban_filename {
+        push_field(
+            &mut output,
+            "lojban-filename",
+            &filename.to_string_lossy().replace('\\', "/"),
+        )?;
+    } else {
+        push_field(&mut output, "lojban", &test_case.lojban)?;
+    }
     push_optional_field(&mut output, "dialect", &test_case.dialect)?;
     push_optional_field(&mut output, "translation-en", &test_case.translation_en)?;
     push_optional_field(&mut output, "gloss-en", &test_case.gloss_en)?;
     if !test_case.tags.is_empty() {
         push_field(&mut output, "tags", &test_case.tags)?;
+    }
+    if test_case
+        .tags
+        .iter()
+        .any(|tag| tag == "regression-baseline")
+    {
+        output.push_str(
+            "# Initial expectations are parser-output regression baselines, not semantically verified truth.\n",
+        );
     }
     for provenance in &test_case.provenance {
         push_provenance_toml(&mut output, provenance)?;

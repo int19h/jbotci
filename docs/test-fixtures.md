@@ -53,6 +53,19 @@ status = "success"
 parse-tree = {}
 ```
 
+Large fixtures may keep the source text in a sibling file instead of embedding
+it directly in TOML:
+
+```toml
+id = "cll.chrestomathy.north-wind"
+lojban-filename = "texts/north-wind.lojban"
+tags = ["long-text", "regression-baseline"]
+```
+
+`lojban-filename` is relative to the fixture TOML file. It is mutually
+exclusive with inline `lojban`; the loader resolves it into `TestCase.lojban`
+before any runner sees the fixture.
+
 Every facet is optional so exporters can land expectations incrementally. The
 long-term goal is one uniform fixture format for CLL, muplis, camxes corpus,
 and ad hoc regression cases. Test runners should allow selection by both
@@ -68,3 +81,21 @@ same selectors accepted by `cargo xtask fixture-list` and `cargo xtask
 fixture-test`. The `cargo` profile intentionally selects no facets so ordinary
 `cargo test` can validate loading and filtering without running unported parser
 facets.
+
+## Long-Text Benchmarks
+
+The `long-texts` profile selects whole-text CLL chrestomathy fixtures. Use it as
+the common corpus for parser hot-path measurements:
+
+```sh
+cargo run -r -p xtask-full -- fixture-test --profile long-texts
+cargo run -r -p xtask-full -- syntax-parser-benchmark --profile long-texts --iterations 5
+target/release/jbotci --benchmark 5 vlasei --file tests/fixtures/cll/chrestomathy/texts/north-wind.lojban --turtai json --indent 0
+target/release/jbotci --benchmark 5 gentufa --file tests/fixtures/cll/chrestomathy/texts/north-wind.lojban --turtai json --indent 0
+```
+
+For aggregate before/after evidence, also record the wall time for:
+
+```sh
+/usr/bin/time -f 'elapsed=%E user=%U sys=%S maxrss_kb=%M' cargo run -r -p xtask-full -- fixture-test --profile all
+```

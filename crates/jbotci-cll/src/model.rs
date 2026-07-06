@@ -325,6 +325,20 @@ pub(crate) struct CllChrestomathyGroupText {
     pub(crate) text: String,
 }
 
+#[invariant(!section_id.is_empty())]
+#[invariant(!section_number.is_empty())]
+#[invariant(!section_title.is_empty())]
+#[invariant(!source_path.is_empty())]
+#[invariant(!text.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CllChrestomathySectionText {
+    pub section_id: String,
+    pub section_number: String,
+    pub section_title: String,
+    pub source_path: String,
+    pub text: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) enum CllTableRowArea {

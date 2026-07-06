@@ -1780,6 +1780,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture summary is derived reporting data",
     ),
     (
+        "xtask-common/src/fixtures/mod.rs:FixtureLojbanSourceShape",
+        "fixture source shape records raw TOML key presence so invalid combinations can be diagnosed",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:GentufaOutputExpectation",
         "fixture expectation aggregate permits absent gentufa output formats",
     ),
@@ -1838,6 +1842,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask-common/src/fixtures/mod.rs:TestCase",
         "fixture loading validates ids, facets, and expectation shape",
+    ),
+    (
+        "xtask-common/src/fixtures/mod.rs:TestCaseWire",
+        "fixture wire shape preserves raw optional source fields before loader-level validation",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:TextExpectation",

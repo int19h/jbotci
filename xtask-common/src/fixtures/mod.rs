@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use bityzba::{invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
@@ -25,12 +25,19 @@ pub use runner::{
     run_fixture_facets_parallel,
 };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
 pub struct TestCase {
     pub id: String,
     pub lojban: String,
+    #[serde(
+        default,
+        rename = "lojban-filename",
+        alias = "lojban_filename",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub lojban_filename: Option<PathBuf>,
     #[serde(default)]
     pub dialect: Option<String>,
     #[serde(default, rename = "translation-en")]
@@ -43,6 +50,51 @@ pub struct TestCase {
     pub provenance: Vec<Provenance>,
     #[serde(default)]
     pub expectations: Expectations,
+}
+
+impl<'de> Deserialize<'de> for TestCase {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        #[invariant(true)]
+        struct TestCaseWire {
+            id: String,
+            #[serde(default)]
+            lojban: Option<String>,
+            #[serde(default, rename = "lojban-filename", alias = "lojban_filename")]
+            lojban_filename: Option<PathBuf>,
+            #[serde(default)]
+            dialect: Option<String>,
+            #[serde(default, rename = "translation-en")]
+            translation_en: Option<String>,
+            #[serde(default, rename = "gloss-en")]
+            gloss_en: Option<String>,
+            #[serde(default)]
+            tags: Vec<String>,
+            #[serde(default)]
+            provenance: Vec<Provenance>,
+            #[serde(default)]
+            expectations: Expectations,
+        }
+
+        let wire = TestCaseWire::deserialize(deserializer)?;
+        Ok(Self {
+            id: wire.id,
+            lojban: wire.lojban.unwrap_or_default(),
+            lojban_filename: wire.lojban_filename,
+            dialect: wire.dialect,
+            translation_en: wire.translation_en,
+            gloss_en: wire.gloss_en,
+            tags: wire.tags,
+            provenance: wire.provenance,
+            expectations: wire.expectations,
+        })
+    }
 }
 
 impl TestCase {
@@ -959,6 +1011,7 @@ pub struct LoadedTestCase {
 #[invariant(::UnknownFacet => true)]
 #[invariant(::InvalidDialect => true)]
 #[invariant(::InvalidXfail => true)]
+#[invariant(::InvalidLojbanSource => true)]
 #[invariant(::LegacyExpectationFormat => true)]
 pub enum FixtureError {
     #[error("failed to read `{path}`: {source}")]
@@ -1007,6 +1060,8 @@ pub enum FixtureError {
     },
     #[error("fixture `{id}` has invalid syntax xfail metadata: {message}")]
     InvalidXfail { id: String, message: String },
+    #[error("fixture `{path}` has invalid Lojban source declaration: {message}")]
+    InvalidLojbanSource { path: PathBuf, message: String },
     #[error("fixture `{path}` uses legacy expectation format: {message}")]
     LegacyExpectationFormat { path: PathBuf, message: String },
 }
@@ -1032,10 +1087,96 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<TestCase, FixtureErro
     let path = path.as_ref();
     let text = read_text(path)?;
     reject_legacy_expectation_format(path, &text)?;
-    toml::from_str(&text).map_err(|source| FixtureError::ParseToml {
-        path: path.to_path_buf(),
-        source,
+    let mut test_case: TestCase =
+        toml::from_str(&text).map_err(|source| FixtureError::ParseToml {
+            path: path.to_path_buf(),
+            source,
+        })?;
+    resolve_fixture_lojban_source(path, &text, &mut test_case)?;
+    Ok(test_case)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() -> !test_case.lojban.is_empty() || test_case.lojban_filename.is_none())]
+fn resolve_fixture_lojban_source(
+    fixture_path: &Path,
+    fixture_text: &str,
+    test_case: &mut TestCase,
+) -> Result<(), FixtureError> {
+    let shape = fixture_lojban_source_shape(fixture_path, fixture_text)?;
+    match (shape.inline, shape.filename) {
+        (true, false) => {
+            test_case.lojban_filename = None;
+            Ok(())
+        }
+        (false, true) => {
+            let Some(relative) = test_case.lojban_filename.as_ref() else {
+                return Err(FixtureError::InvalidLojbanSource {
+                    path: fixture_path.to_path_buf(),
+                    message: "`lojban-filename` must be a string path".to_owned(),
+                });
+            };
+            if !is_safe_fixture_source_path(relative) {
+                return Err(FixtureError::InvalidLojbanSource {
+                    path: fixture_path.to_path_buf(),
+                    message: format!(
+                        "`lojban-filename` must be a relative child path, got `{}`",
+                        relative.display()
+                    ),
+                });
+            }
+            let parent = fixture_path.parent().unwrap_or_else(|| Path::new("."));
+            test_case.lojban = read_text(&parent.join(relative))?;
+            Ok(())
+        }
+        (true, true) => Err(FixtureError::InvalidLojbanSource {
+            path: fixture_path.to_path_buf(),
+            message: "`lojban` and `lojban-filename` are mutually exclusive".to_owned(),
+        }),
+        (false, false) => Err(FixtureError::InvalidLojbanSource {
+            path: fixture_path.to_path_buf(),
+            message: "fixture must declare either `lojban` or `lojban-filename`".to_owned(),
+        }),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+struct FixtureLojbanSourceShape {
+    inline: bool,
+    filename: bool,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn fixture_lojban_source_shape(
+    fixture_path: &Path,
+    fixture_text: &str,
+) -> Result<FixtureLojbanSourceShape, FixtureError> {
+    let value =
+        toml::from_str::<toml::Value>(fixture_text).map_err(|source| FixtureError::ParseToml {
+            path: fixture_path.to_path_buf(),
+            source,
+        })?;
+    let Some(table) = value.as_table() else {
+        return Ok(FixtureLojbanSourceShape {
+            inline: false,
+            filename: false,
+        });
+    };
+    Ok(FixtureLojbanSourceShape {
+        inline: table.contains_key("lojban"),
+        filename: table.contains_key("lojban-filename") || table.contains_key("lojban_filename"),
     })
+}
+
+#[requires(true)]
+#[ensures(ret -> !path.is_absolute())]
+fn is_safe_fixture_source_path(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 #[requires(true)]

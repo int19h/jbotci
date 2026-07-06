@@ -13,7 +13,9 @@ use anyhow::{Context, Result, bail};
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
-use jbotci_cll::{CllExample, CllExampleLineKind, CllSite, embedded_cll_site};
+use jbotci_cll::{
+    CllExample, CllExampleLineKind, CllSite, chrestomathy_section_texts, embedded_cll_site,
+};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
@@ -45,10 +47,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 use xtask_common::fixtures::{
-    self, ExpectationStatus, Facet, FacetResult, FixtureBackend, FixtureProfile, FixtureSelector,
-    LoadedTestCase, MuplisForm, Provenance, RunSummary, fixture_matches_selector, fixture_paths,
-    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
-    write_fixture_file,
+    self, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureProfile,
+    FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm, Provenance, RunSummary,
+    SyntaxExpectation, TestCase, fixture_matches_selector, fixture_paths, import_export_file,
+    load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree, write_fixture_file,
 };
 use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
@@ -174,6 +176,7 @@ struct Cli {
 #[invariant(::FixtureList(..) => true)]
 #[invariant(::CllFixtureMetadataAudit(..) => true)]
 #[invariant(::FixtureRewrite(..) => true)]
+#[invariant(::ExportLongTextFixtures(..) => true)]
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
@@ -202,6 +205,8 @@ enum Command {
     #[command(name = "cll-fixture-metadata-audit")]
     CllFixtureMetadataAudit(CllFixtureMetadataAuditArgs),
     FixtureRewrite(FixtureRewriteArgs),
+    #[command(name = "export-long-text-fixtures")]
+    ExportLongTextFixtures(ExportLongTextFixturesArgs),
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
@@ -360,6 +365,13 @@ struct FixtureRewriteArgs {
     chunk_worker: bool,
     #[arg(long = "path", hide = true)]
     paths: Vec<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct ExportLongTextFixturesArgs {
+    #[arg(long, default_value = "tests/fixtures")]
+    root: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -1032,6 +1044,7 @@ fn main() -> Result<()> {
         Command::FixtureList(args) => fixture_list(args),
         Command::CllFixtureMetadataAudit(args) => cll_fixture_metadata_audit(args),
         Command::FixtureRewrite(args) => fixture_rewrite(args),
+        Command::ExportLongTextFixtures(args) => export_long_text_fixtures(args),
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
@@ -5458,6 +5471,70 @@ fn fixture_list(args: FixtureRunArgs) -> Result<()> {
     })
     .with_context(|| format!("loading fixtures under `{}`", args.root.display()))?;
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
+    let site = embedded_cll_site().context("loading embedded CLL site")?;
+    let fixture_dir = args.root.join("cll/chrestomathy");
+    let text_dir = fixture_dir.join("texts");
+    fs::create_dir_all(&text_dir).with_context(|| format!("creating `{}`", text_dir.display()))?;
+    for section in chrestomathy_section_texts(site) {
+        let section = section.into_data();
+        let slug = long_text_section_slug(&section.section_id);
+        let source_filename = PathBuf::from("texts").join(format!("{slug}.lojban"));
+        let source_path = fixture_dir.join(&source_filename);
+        fs::write(&source_path, &section.text)
+            .with_context(|| format!("writing `{}`", source_path.display()))?;
+        let fixture = TestCase {
+            id: format!("cll.chrestomathy.{slug}"),
+            lojban: section.text,
+            lojban_filename: Some(source_filename),
+            dialect: None,
+            translation_en: None,
+            gloss_en: None,
+            tags: vec!["long-text".to_owned(), "regression-baseline".to_owned()],
+            provenance: vec![Provenance::Cll {
+                chapter: 22,
+                section_number: section.section_number,
+                section_id: section.section_id,
+                example_number: None,
+                example_id: None,
+                source_path: Some(format!("vendor/cll/chapters/{}", section.source_path)),
+            }],
+            expectations: Expectations {
+                morphology: Some(MorphologyExpectation {
+                    status: ExpectationStatus::Success,
+                    raw: None,
+                    diagnostics: vec![],
+                }),
+                syntax: Some(SyntaxExpectation {
+                    status: ExpectationStatus::Success,
+                    raw: None,
+                    diagnostics: vec![],
+                    xfail: None,
+                }),
+                ..Expectations::default()
+            },
+        };
+        let fixture_path = fixture_dir.join(format!("{slug}.toml"));
+        write_fixture_file(&fixture_path, &fixture)
+            .with_context(|| format!("writing `{}`", fixture_path.display()))?;
+    }
+    Ok(())
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(!ret.is_empty())]
+fn long_text_section_slug(section_id: &str) -> String {
+    section_id
+        .strip_prefix("section-")
+        .unwrap_or(section_id)
+        .replace(
+            |character: char| !character.is_ascii_alphanumeric() && character != '-',
+            "-",
+        )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
