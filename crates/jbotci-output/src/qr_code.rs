@@ -157,6 +157,15 @@ fn qr_logo_layers() -> Vec<QrLogoLayer> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
 pub fn encode_qr_alphanumeric_h(source_text: &str) -> Result<QrCode, String> {
+    Ok(minimum_by_penalty(&qr_mask_candidates_alphanumeric_h(
+        source_text,
+    )?))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.is_empty()))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|codes| codes.len() == 8))]
+fn qr_mask_candidates_alphanumeric_h(source_text: &str) -> Result<Vec<QrCode>, String> {
     validate_alphanumeric_payload(source_text)?;
     let version = select_version(source_text)?;
     let data_codewords = make_data_codewords(version, source_text)?;
@@ -186,7 +195,7 @@ pub fn encode_qr_alphanumeric_h(source_text: &str) -> Result<QrCode, String> {
             })
         })
         .collect::<Vec<_>>();
-    Ok(minimum_by_penalty(&candidates))
+    Ok(candidates)
 }
 
 #[requires(true)]
@@ -1325,15 +1334,510 @@ fn decimal(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeSet;
+
     #[allow(unused_imports)]
     use bityzba::ensures;
     use bityzba::requires;
+
+    const SMALL_JOHAU_QR_PAYLOAD: &str = "WEB+JOHAU:-C.LAHU*LAHE+DIHU";
+
+    // Independent reference generated with Segno 1.6.6:
+    // UV_CACHE_DIR=/tmp/jbotci-uv-cache uv run --with segno==1.6.6 python - <<'PY'
+    // import segno
+    // payload = 'WEB+JOHAU:-C.LAHU*LAHE+DIHU'
+    // qr = segno.make(payload, error='h', mode='alphanumeric', mask=5, micro=False, boost_error=False)
+    // Segno defaults to mask 7 for this payload; mask 5 is forced here to
+    // compare the matrix for the mask selected by this encoder.
+    // for y, row in enumerate(qr.matrix):
+    //     for x, value in enumerate(row):
+    //         if value:
+    //             print(f'({x}, {y})')
+    // PY
+    const SMALL_JOHAU_QR_SEGNO_DARK_MODULES: &[(i32, i32)] = &[
+        (0, 0),
+        (1, 0),
+        (2, 0),
+        (3, 0),
+        (4, 0),
+        (5, 0),
+        (6, 0),
+        (8, 0),
+        (10, 0),
+        (11, 0),
+        (12, 0),
+        (19, 0),
+        (20, 0),
+        (22, 0),
+        (23, 0),
+        (24, 0),
+        (25, 0),
+        (26, 0),
+        (27, 0),
+        (28, 0),
+        (0, 1),
+        (6, 1),
+        (12, 1),
+        (13, 1),
+        (14, 1),
+        (18, 1),
+        (20, 1),
+        (22, 1),
+        (28, 1),
+        (0, 2),
+        (2, 2),
+        (3, 2),
+        (4, 2),
+        (6, 2),
+        (8, 2),
+        (9, 2),
+        (10, 2),
+        (11, 2),
+        (12, 2),
+        (13, 2),
+        (14, 2),
+        (16, 2),
+        (17, 2),
+        (22, 2),
+        (24, 2),
+        (25, 2),
+        (26, 2),
+        (28, 2),
+        (0, 3),
+        (2, 3),
+        (3, 3),
+        (4, 3),
+        (6, 3),
+        (9, 3),
+        (11, 3),
+        (12, 3),
+        (14, 3),
+        (15, 3),
+        (20, 3),
+        (22, 3),
+        (24, 3),
+        (25, 3),
+        (26, 3),
+        (28, 3),
+        (0, 4),
+        (2, 4),
+        (3, 4),
+        (4, 4),
+        (6, 4),
+        (8, 4),
+        (10, 4),
+        (12, 4),
+        (16, 4),
+        (17, 4),
+        (19, 4),
+        (20, 4),
+        (22, 4),
+        (24, 4),
+        (25, 4),
+        (26, 4),
+        (28, 4),
+        (0, 5),
+        (6, 5),
+        (9, 5),
+        (10, 5),
+        (13, 5),
+        (15, 5),
+        (17, 5),
+        (19, 5),
+        (22, 5),
+        (28, 5),
+        (0, 6),
+        (1, 6),
+        (2, 6),
+        (3, 6),
+        (4, 6),
+        (5, 6),
+        (6, 6),
+        (8, 6),
+        (10, 6),
+        (12, 6),
+        (14, 6),
+        (16, 6),
+        (18, 6),
+        (20, 6),
+        (22, 6),
+        (23, 6),
+        (24, 6),
+        (25, 6),
+        (26, 6),
+        (27, 6),
+        (28, 6),
+        (8, 7),
+        (9, 7),
+        (11, 7),
+        (12, 7),
+        (16, 7),
+        (17, 7),
+        (18, 7),
+        (20, 7),
+        (5, 8),
+        (6, 8),
+        (12, 8),
+        (14, 8),
+        (15, 8),
+        (16, 8),
+        (19, 8),
+        (22, 8),
+        (24, 8),
+        (26, 8),
+        (28, 8),
+        (0, 9),
+        (1, 9),
+        (4, 9),
+        (5, 9),
+        (7, 9),
+        (12, 9),
+        (13, 9),
+        (14, 9),
+        (18, 9),
+        (21, 9),
+        (23, 9),
+        (24, 9),
+        (25, 9),
+        (26, 9),
+        (0, 10),
+        (1, 10),
+        (3, 10),
+        (5, 10),
+        (6, 10),
+        (8, 10),
+        (12, 10),
+        (13, 10),
+        (15, 10),
+        (16, 10),
+        (17, 10),
+        (18, 10),
+        (19, 10),
+        (22, 10),
+        (23, 10),
+        (26, 10),
+        (28, 10),
+        (3, 11),
+        (4, 11),
+        (7, 11),
+        (9, 11),
+        (10, 11),
+        (11, 11),
+        (12, 11),
+        (13, 11),
+        (15, 11),
+        (16, 11),
+        (17, 11),
+        (19, 11),
+        (20, 11),
+        (21, 11),
+        (25, 11),
+        (26, 11),
+        (28, 11),
+        (1, 12),
+        (6, 12),
+        (7, 12),
+        (9, 12),
+        (13, 12),
+        (22, 12),
+        (25, 12),
+        (26, 12),
+        (27, 12),
+        (0, 13),
+        (3, 13),
+        (5, 13),
+        (8, 13),
+        (15, 13),
+        (16, 13),
+        (17, 13),
+        (18, 13),
+        (20, 13),
+        (21, 13),
+        (22, 13),
+        (24, 13),
+        (25, 13),
+        (27, 13),
+        (28, 13),
+        (0, 14),
+        (1, 14),
+        (2, 14),
+        (3, 14),
+        (5, 14),
+        (6, 14),
+        (8, 14),
+        (9, 14),
+        (10, 14),
+        (12, 14),
+        (15, 14),
+        (17, 14),
+        (18, 14),
+        (19, 14),
+        (20, 14),
+        (21, 14),
+        (22, 14),
+        (24, 14),
+        (1, 15),
+        (2, 15),
+        (9, 15),
+        (10, 15),
+        (12, 15),
+        (14, 15),
+        (17, 15),
+        (18, 15),
+        (22, 15),
+        (26, 15),
+        (27, 15),
+        (0, 16),
+        (2, 16),
+        (6, 16),
+        (9, 16),
+        (10, 16),
+        (13, 16),
+        (19, 16),
+        (20, 16),
+        (21, 16),
+        (23, 16),
+        (26, 16),
+        (0, 17),
+        (7, 17),
+        (8, 17),
+        (9, 17),
+        (11, 17),
+        (12, 17),
+        (15, 17),
+        (24, 17),
+        (27, 17),
+        (0, 18),
+        (1, 18),
+        (3, 18),
+        (4, 18),
+        (5, 18),
+        (6, 18),
+        (7, 18),
+        (8, 18),
+        (10, 18),
+        (12, 18),
+        (13, 18),
+        (15, 18),
+        (17, 18),
+        (18, 18),
+        (19, 18),
+        (21, 18),
+        (22, 18),
+        (25, 18),
+        (0, 19),
+        (2, 19),
+        (3, 19),
+        (4, 19),
+        (5, 19),
+        (8, 19),
+        (12, 19),
+        (13, 19),
+        (15, 19),
+        (17, 19),
+        (22, 19),
+        (25, 19),
+        (26, 19),
+        (27, 19),
+        (0, 20),
+        (4, 20),
+        (6, 20),
+        (7, 20),
+        (14, 20),
+        (15, 20),
+        (17, 20),
+        (18, 20),
+        (20, 20),
+        (21, 20),
+        (22, 20),
+        (23, 20),
+        (24, 20),
+        (25, 20),
+        (26, 20),
+        (28, 20),
+        (8, 21),
+        (9, 21),
+        (10, 21),
+        (14, 21),
+        (15, 21),
+        (19, 21),
+        (20, 21),
+        (24, 21),
+        (25, 21),
+        (27, 21),
+        (28, 21),
+        (0, 22),
+        (1, 22),
+        (2, 22),
+        (3, 22),
+        (4, 22),
+        (5, 22),
+        (6, 22),
+        (11, 22),
+        (12, 22),
+        (13, 22),
+        (15, 22),
+        (19, 22),
+        (20, 22),
+        (22, 22),
+        (24, 22),
+        (26, 22),
+        (28, 22),
+        (0, 23),
+        (6, 23),
+        (8, 23),
+        (9, 23),
+        (10, 23),
+        (18, 23),
+        (20, 23),
+        (24, 23),
+        (25, 23),
+        (26, 23),
+        (28, 23),
+        (0, 24),
+        (2, 24),
+        (3, 24),
+        (4, 24),
+        (6, 24),
+        (12, 24),
+        (13, 24),
+        (15, 24),
+        (18, 24),
+        (19, 24),
+        (20, 24),
+        (21, 24),
+        (22, 24),
+        (23, 24),
+        (24, 24),
+        (26, 24),
+        (28, 24),
+        (0, 25),
+        (2, 25),
+        (3, 25),
+        (4, 25),
+        (6, 25),
+        (9, 25),
+        (14, 25),
+        (15, 25),
+        (21, 25),
+        (22, 25),
+        (23, 25),
+        (24, 25),
+        (26, 25),
+        (0, 26),
+        (2, 26),
+        (3, 26),
+        (4, 26),
+        (6, 26),
+        (9, 26),
+        (12, 26),
+        (17, 26),
+        (18, 26),
+        (20, 26),
+        (21, 26),
+        (22, 26),
+        (23, 26),
+        (27, 26),
+        (0, 27),
+        (6, 27),
+        (10, 27),
+        (15, 27),
+        (18, 27),
+        (20, 27),
+        (21, 27),
+        (23, 27),
+        (0, 28),
+        (1, 28),
+        (2, 28),
+        (3, 28),
+        (4, 28),
+        (5, 28),
+        (6, 28),
+        (10, 28),
+        (15, 28),
+        (16, 28),
+        (19, 28),
+        (20, 28),
+        (21, 28),
+        (22, 28),
+        (26, 28),
+        (27, 28),
+    ];
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn dark_modules_from_coords(coords: &[(i32, i32)]) -> BTreeSet<QrCoord> {
+        coords
+            .iter()
+            .map(|(x, y)| QrCoord { x: *x, y: *y })
+            .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn small_johau_qr_matches_independent_segno_matrix() {
+        let qr = encode_qr_alphanumeric_h(SMALL_JOHAU_QR_PAYLOAD).expect("QR code");
+
+        assert_eq!(qr.version, 3);
+        assert_eq!(qr.size, 29);
+        assert_eq!(qr.mask, 5);
+        assert_eq!(
+            qr.dark_modules,
+            dark_modules_from_coords(SMALL_JOHAU_QR_SEGNO_DARK_MODULES)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn selected_qr_mask_has_minimum_penalty() {
+        let candidates =
+            qr_mask_candidates_alphanumeric_h(SMALL_JOHAU_QR_PAYLOAD).expect("QR candidates");
+        let qr = encode_qr_alphanumeric_h(SMALL_JOHAU_QR_PAYLOAD).expect("QR code");
+        let selected_penalty = qr_penalty(&qr);
+        let minimum_penalty = candidates
+            .iter()
+            .map(qr_penalty)
+            .min()
+            .expect("candidate set is non-empty");
+
+        assert_eq!(candidates.len(), 8);
+        assert_eq!(selected_penalty, minimum_penalty);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn format_bits_match_published_vectors() {
+        assert_eq!(format_bits(0b00000), 0b101010000010010);
+        assert_eq!(format_bits(0b01100), 0b110011000101111);
+        assert_eq!(format_bits(0b10000), 0b001011010001001);
+        assert_eq!(format_bits(0b10111), 0b000100000111011);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn version_bits_match_published_version_7_vector() {
+        assert_eq!(version_bits(7), 0x07C94);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reed_solomon_remainder_matches_published_vector() {
+        let divisor = reed_solomon_divisor(10);
+        let remainder = reed_solomon_remainder(&divisor, &[32, 91, 11, 98, 56]);
+
+        assert_eq!(remainder, vec![107, 33, 43, 244, 102, 30, 52, 87, 107, 207]);
+    }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn encodes_small_johau_qr_with_expected_logo_placement() {
-        let qr = encode_qr_alphanumeric_h("WEB+JOHAU:-C.LAHU*LAHE+DIHU").expect("QR code");
+        let qr = encode_qr_alphanumeric_h(SMALL_JOHAU_QR_PAYLOAD).expect("QR code");
         assert_eq!(qr.version, 3);
         assert_eq!(qr.size, 29);
         assert_eq!(
