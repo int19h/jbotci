@@ -115,10 +115,23 @@ impl ContractScanner {
     }
 
     fn rerun_if_changed_paths(&self) -> Vec<PathBuf> {
-        ["src", "tests", "benches", "examples", "build.rs"]
-            .into_iter()
-            .map(|path| self.manifest_dir.join(path))
-            .collect()
+        let mut paths = Vec::new();
+
+        for root in ["src", "tests", "benches", "examples"] {
+            let path = self.manifest_dir.join(root);
+            // Cargo treats a watched path that does not exist as stale on every
+            // invocation, so only emit paths that the scanner can actually read.
+            if path.is_dir() {
+                paths.push(path);
+            }
+        }
+
+        let build_script = self.manifest_dir.join("build.rs");
+        if build_script.is_file() {
+            paths.push(build_script);
+        }
+
+        paths
     }
 }
 
@@ -688,29 +701,35 @@ fn display_path(manifest_dir: &Path, path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::ContractScanner;
 
     #[test]
-    fn rerun_paths_track_source_roots_and_build_script() {
-        let scanner = ContractScanner::new(PathBuf::from("/workspace/package"));
+    fn rerun_paths_track_existing_source_roots_and_build_script() {
+        let package = temp_package_dir("bityzba-rerun-paths");
+        fs::create_dir_all(package.join("src")).unwrap();
+        fs::write(package.join("build.rs"), "fn main() {}\n").unwrap();
+        let scanner = ContractScanner::new(&package);
 
         let paths = scanner
             .rerun_if_changed_paths()
             .into_iter()
-            .map(|path| path.strip_prefix("/workspace/package").unwrap().to_owned())
+            .map(|path| path.strip_prefix(&package).unwrap().to_owned())
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            paths,
-            vec![
-                PathBuf::from("src"),
-                PathBuf::from("tests"),
-                PathBuf::from("benches"),
-                PathBuf::from("examples"),
-                PathBuf::from("build.rs"),
-            ]
-        );
+        assert_eq!(paths, vec![PathBuf::from("src"), PathBuf::from("build.rs")]);
+
+        fs::remove_dir_all(package).unwrap();
+    }
+
+    fn temp_package_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("{prefix}-{unique}"))
     }
 }
