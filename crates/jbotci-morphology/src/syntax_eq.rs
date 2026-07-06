@@ -126,7 +126,15 @@ pub fn word_syntax_eq(left: &Word, right: &Word) -> bool {
 #[ensures(true)]
 #[expensive_ensures(ret.chars().all(|value| strip_diacritic(value) == Some(value)))]
 pub fn strip_diacritics(text: &str) -> String {
-    text.chars().filter_map(strip_diacritic).collect()
+    let mut stripped = String::with_capacity(text.len());
+    push_stripped_diacritics_to(text, &mut stripped);
+    stripped
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+pub fn push_stripped_diacritics_to(text: &str, output: &mut String) {
+    output.extend(text.chars().filter_map(strip_diacritic));
 }
 
 #[requires(true)]

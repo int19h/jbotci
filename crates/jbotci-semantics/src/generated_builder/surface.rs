@@ -5,7 +5,9 @@ use super::*;
 pub(super) fn generated_quantifier_formula_operator(
     quantifier: &QuantifierSyntax,
 ) -> FormulaOperator {
-    match token_list_text(quantifier_tokens(quantifier).iter()).as_str() {
+    let mut visitor = GeneratedSpanCollector::default();
+    quantifier.visit_in_order(&mut visitor);
+    match token_list_text(visitor.tokens.iter().copied()).as_str() {
         "ro" => FormulaOperator::Forall,
         "no" => FormulaOperator::None,
         _ => FormulaOperator::Cardinality,
@@ -17,7 +19,7 @@ pub(super) fn generated_quantifier_formula_operator(
 pub(super) fn quantifier_tokens(quantifier: &QuantifierSyntax) -> Vec<Token> {
     let mut visitor = GeneratedSpanCollector::default();
     quantifier.visit_in_order(&mut visitor);
-    visitor.tokens
+    visitor.tokens.into_iter().cloned().collect()
 }
 
 #[requires(true)]
@@ -66,7 +68,26 @@ pub(super) fn is_lojban_period(value: char) -> bool {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn token_list_text<'a>(tokens: impl Iterator<Item = &'a Token>) -> String {
-    tokens.map(token_text).collect::<Vec<_>>().join(" ")
+    let mut text = String::new();
+    push_token_list_text(&mut text, tokens);
+    text
+}
+
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+pub(super) fn push_token_list_text<'a>(
+    output: &mut String,
+    tokens: impl Iterator<Item = &'a Token>,
+) {
+    let mut first = true;
+    for token in tokens {
+        if first {
+            first = false;
+        } else {
+            output.push(' ');
+        }
+        push_token_text(output, token);
+    }
 }
 
 #[requires(true)]
@@ -85,7 +106,7 @@ pub(super) fn generated_selbri_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     selbri.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter()).map_or_else(
+    non_empty_token_list_text(visitor.tokens.iter().copied()).map_or_else(
         || relation_label_from_selbri(selbri).map(|label| label.display_text()),
         Ok,
     )
@@ -362,30 +383,54 @@ pub(super) fn argument_key(place: usize) -> PlaceIndex {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn token_text(token: &Token) -> String {
-    token
-        .core_word()
-        .bare_word()
-        .map(word_text)
-        .unwrap_or_else(|| token.to_string())
+    let mut text = String::new();
+    push_token_text(&mut text, token);
+    text
+}
+
+#[requires(true)]
+#[ensures(output.len() > old(output.len()))]
+pub(super) fn push_token_text(output: &mut String, token: &Token) {
+    if let Some(word) = token.core_word().bare_word() {
+        push_word_text(output, word);
+    } else {
+        output.push_str(&token.to_string());
+    }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn quote_delimiter_text(token: &Token) -> String {
+    let mut text = String::new();
+    push_quote_delimiter_text(&mut text, token);
+    text
+}
+
+#[requires(true)]
+#[ensures(output.len() > old(output.len()))]
+pub(super) fn push_quote_delimiter_text(output: &mut String, token: &Token) {
     match token.core_word().as_data() {
         data!(WordLike::DelimitedNonLojbanQuote {
             opening_delimiter,
             ..
-        }) => word_text(opening_delimiter),
-        data!(WordLike::DelimitedWordQuote { marker, .. }) => word_text(marker),
-        _ => token_text(token),
+        }) => push_word_text(output, opening_delimiter),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => push_word_text(output, marker),
+        _ => push_token_text(output, token),
     }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn word_text(word: &Word) -> String {
-    strip_diacritics(word.phonemes().as_str())
+    let mut text = String::new();
+    push_word_text(&mut text, word);
+    text
+}
+
+#[requires(true)]
+#[ensures(output.len() > old(output.len()))]
+pub(super) fn push_word_text(output: &mut String, word: &Word) {
+    push_stripped_diacritics_to(word.phonemes().as_str(), output);
 }
 
 #[requires(!what.is_empty())]

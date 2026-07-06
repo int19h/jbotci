@@ -2072,7 +2072,7 @@ pub(super) fn relation_label_from_ordinal_tanru_unit(
             .last()
             .expect("checked above that ordinal has tokens"),
     );
-    let expression = token_list_text(visitor.tokens[..visitor.tokens.len() - 1].iter());
+    let expression = token_list_text(visitor.tokens[..visitor.tokens.len() - 1].iter().copied());
     Ok(RelationLabel::mekso_moi(expression, moi))
 }
 

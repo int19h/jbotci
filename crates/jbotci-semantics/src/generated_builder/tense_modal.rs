@@ -66,6 +66,7 @@ pub(super) fn generated_tense_question_token_for_tense_modal<N: TreeNode>(
         .tokens
         .into_iter()
         .find(|token| token.is_cmavo(Cmavo::Cuhe))
+        .cloned()
 }
 
 #[requires(true)]
@@ -160,7 +161,7 @@ pub(super) fn generated_logical_modal_connection_spec_for_tense_modal(
     tense_modal.visit_in_order(&mut collector);
     Ok(Some(new!(GeneratedLogicalModalConnectionSpec {
         operator,
-        source: token_list_text(collector.tokens.iter()),
+        source: token_list_text(collector.tokens.iter().copied()),
         truth_table: generated_truth_table_for_formula_operator(operator),
         terms,
     })))
@@ -249,7 +250,7 @@ pub(super) fn generated_connected_event_tense_spec_for_tense_modal(
     Some(GeneratedConnectedEventTenseSpec::from_data(data!(
         GeneratedConnectedEventTenseSpec {
             operator,
-            source: token_list_text(collector.tokens.iter()),
+            source: token_list_text(collector.tokens.iter().copied()),
             truth_table,
             connector_question,
             branches,
@@ -282,6 +283,7 @@ pub(super) fn generated_connected_event_tense_connective_question_token<N: TreeN
         .tokens
         .into_iter()
         .find(|token| token.is_cmavo(Cmavo::Jehi))
+        .cloned()
 }
 
 #[requires(true)]
@@ -754,6 +756,7 @@ pub(super) fn generated_actuality_for_tense_modal<N: TreeNode>(
     collector
         .tokens
         .iter()
+        .copied()
         .find_map(generated_actuality_for_caha_token)
 }
 
@@ -781,6 +784,7 @@ pub(super) fn generated_time_interval_for_tense_modal<N: TreeNode>(
     collector
         .tokens
         .iter()
+        .copied()
         .find_map(time_interval_extent_for_zeha_token)
         .map(|extent| TimeInterval::new(extent, anchor))
 }
@@ -793,7 +797,7 @@ pub(super) fn generated_space_interval_for_tense_modal<N: TreeNode>(
 ) -> Option<SpaceInterval> {
     let mut collector = GeneratedSpanCollector::default();
     tense_modal.visit_in_order(&mut collector);
-    space_interval_for_generated_tokens(collector.tokens.iter(), anchor)
+    space_interval_for_generated_tokens(collector.tokens.iter().copied(), anchor)
 }
 
 #[requires(true)]
@@ -878,6 +882,7 @@ pub(super) fn generated_modal_relation_spec_for_tense_modal<N: TreeNode>(
         let conversion = index
             .checked_sub(1)
             .and_then(|previous| collector.tokens.get(previous))
+            .copied()
             .filter(|previous| previous.is_selmaho(Selmaho::Se));
         let visible_place = conversion
             .and_then(generated_se_token_conversion_place)
@@ -907,7 +912,7 @@ pub(super) fn generated_tense_relation_spec_for_tense_modal<N: TreeNode>(
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|(introduced_by, relation, visible_place)| !introduced_by.is_empty() && !relation.is_empty() && *visible_place > 0))]
 pub(super) fn generated_tense_relation_spec_for_tokens(
-    tokens: &[Token],
+    tokens: &[&Token],
 ) -> Option<(String, String, usize)> {
     for token in tokens {
         if let Some(relation) = time_relation_for_pu_token(token)

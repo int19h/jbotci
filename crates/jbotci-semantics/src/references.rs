@@ -1054,6 +1054,7 @@ struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     assignment_ids_by_frame: HashMap<SelbriPlaceFrameId, Vec<SumtiPlaceAssignmentId>>,
     assignment_ids_by_frame_slot:
         HashMap<(SelbriPlaceFrameId, PlaceSlot), Vec<SumtiPlaceAssignmentId>>,
+    max_numbered_place_by_frame: HashMap<SelbriPlaceFrameId, u8>,
     next_place_after_linked_arguments_by_frame: HashMap<SelbriPlaceFrameId, u8>,
     cursor_blocking_assignments: HashSet<SumtiPlaceAssignmentId>,
 }
@@ -1071,6 +1072,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             assignment_ids_by_term: HashMap::new(),
             assignment_ids_by_frame: HashMap::new(),
             assignment_ids_by_frame_slot: HashMap::new(),
+            max_numbered_place_by_frame: HashMap::new(),
             next_place_after_linked_arguments_by_frame: HashMap::new(),
             cursor_blocking_assignments: HashSet::new(),
         }
@@ -4002,6 +4004,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             .entry((frame, slot))
             .or_default()
             .push(id);
+        if let Some(place) = slot.numbered_index() {
+            self.max_numbered_place_by_frame
+                .entry(frame)
+                .and_modify(|max_place| *max_place = (*max_place).max(place))
+                .or_insert(place);
+        }
         self.propagate_assignment(frame, slot, sumti, term, source, blocks_cursor, visited);
     }
 
@@ -4116,7 +4124,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         start: u8,
     ) -> PlaceCursor {
         let mut cursor = PlaceCursor::new_at(frame, start);
-        for place in 1..=self.max_existing_numbered_place() {
+        for place in 1..=self.max_existing_numbered_place_for_frame(frame) {
             let slot = numbered_slot(NonZeroU8::new(place).expect("range starts at one"));
             if self.frame_slot_has_existing_assignment(frame, slot) {
                 cursor.mark_filled_slot(slot);
@@ -4196,12 +4204,64 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn max_existing_numbered_place(&self) -> u8 {
-        self.assignments
-            .iter()
-            .filter_map(|assignment| assignment.slot.numbered_index())
-            .max()
-            .unwrap_or(0)
+    fn max_existing_numbered_place_for_frame(&self, frame: SelbriPlaceFrameId) -> u8 {
+        let mut visited = HashSet::new();
+        self.max_existing_numbered_place_for_frame_recursive(frame, &mut visited)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn max_existing_numbered_place_for_frame_recursive(
+        &self,
+        frame: SelbriPlaceFrameId,
+        visited: &mut HashSet<SelbriPlaceFrameId>,
+    ) -> u8 {
+        let mut max_place = self
+            .max_numbered_place_by_frame
+            .get(&frame)
+            .copied()
+            .unwrap_or(0);
+        if !visited.insert(frame) {
+            return max_place;
+        }
+        let Some(frame_data) = self.frames.get(frame.0) else {
+            return max_place;
+        };
+        match &frame_data.propagation {
+            PlaceFramePropagation::None => max_place,
+            PlaceFramePropagation::Forward { inner }
+            | PlaceFramePropagation::Compound { head: inner, .. }
+            | PlaceFramePropagation::Co { leading: inner, .. } => {
+                max_place.max(self.max_existing_numbered_place_for_frame_recursive(*inner, visited))
+            }
+            PlaceFramePropagation::Conversion {
+                inner,
+                converted_place,
+            } => {
+                let inner_max =
+                    self.max_existing_numbered_place_for_frame_recursive(*inner, visited);
+                max_place = max_place.max(inner_max);
+                if inner_max > 0 {
+                    max_place = max_place.max(converted_place.get());
+                }
+                max_place
+            }
+            PlaceFramePropagation::Jai { inner } => {
+                let inner_max =
+                    self.max_existing_numbered_place_for_frame_recursive(*inner, visited);
+                if inner_max > 1 {
+                    max_place.max(inner_max)
+                } else {
+                    max_place
+                }
+            }
+            PlaceFramePropagation::ConnectiveBranches { branches } => {
+                branches.iter().fold(max_place, |max_place, branch| {
+                    max_place
+                        .max(self.max_existing_numbered_place_for_frame_recursive(*branch, visited))
+                })
+            }
+        }
     }
 
     #[requires(true)]
@@ -4610,6 +4670,48 @@ struct NodeMention {
     source: RawSyntaxNodeId,
     target: RawSyntaxNodeId,
     position: usize,
+}
+
+#[requires(true)]
+#[ensures(ret.0 == mention.position)]
+fn sumti_mention_sort_key(mention: &SumtiMention) -> (usize, usize) {
+    (mention.position, mention.source.0.0)
+}
+
+#[requires(true)]
+#[ensures(ret.0 == mention.position)]
+fn node_mention_sort_key(mention: &NodeMention) -> (usize, usize) {
+    (mention.position, mention.source.0)
+}
+
+#[requires(true)]
+#[ensures(mentions.len() == old(mentions.len()) + 1)]
+fn insert_sumti_mention_sorted(mentions: &mut Vec<SumtiMention>, mention: SumtiMention) {
+    let key = sumti_mention_sort_key(&mention);
+    if mentions
+        .last()
+        .is_none_or(|existing| sumti_mention_sort_key(existing) <= key)
+    {
+        mentions.push(mention);
+        return;
+    }
+    let index = mentions.partition_point(|existing| sumti_mention_sort_key(existing) <= key);
+    mentions.insert(index, mention);
+}
+
+#[requires(true)]
+#[ensures(mentions.len() == old(mentions.len()) + 1)]
+fn insert_node_mention_sorted(mentions: &mut Vec<NodeMention>, mention: NodeMention) {
+    let key = node_mention_sort_key(&mention);
+    if mentions
+        .last()
+        .is_none_or(|existing| node_mention_sort_key(existing) <= key)
+    {
+        mentions.push(mention);
+        return;
+    }
+    let index = mentions.partition_point(|existing| node_mention_sort_key(existing) <= key);
+    mentions.insert(index, mention);
 }
 
 #[invariant(true)]
@@ -7182,11 +7284,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     .or(Some(metadata.preorder))
             })
             .unwrap_or(source.0);
-        self.predicate_mentions.push(NodeMention {
-            source,
-            target: source,
-            position,
-        });
+        insert_node_mention_sorted(
+            &mut self.predicate_mentions,
+            NodeMention {
+                source,
+                target: source,
+                position,
+            },
+        );
     }
 
     #[requires(true)]
@@ -7208,12 +7313,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         available_to_ri: bool,
     ) {
         let position = self.sumti_mention_position(source);
-        self.sumti_mentions.push(SumtiMention {
-            source,
-            target,
-            position,
-            available_to_ri,
-        });
+        insert_sumti_mention_sorted(
+            &mut self.sumti_mentions,
+            SumtiMention {
+                source,
+                target,
+                position,
+                available_to_ri,
+            },
+        );
     }
 
     #[requires(true)]
@@ -7304,10 +7412,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(recency_index > 0)]
     #[ensures(true)]
     fn predicate_mention_target_by_recency(&self, recency_index: usize) -> Option<RawSyntaxNodeId> {
-        let mut candidates: Vec<_> = self.predicate_mentions.iter().collect();
-        candidates.sort_by_key(|mention| (mention.position, mention.source.0));
-        candidates
-            .into_iter()
+        self.predicate_mentions
+            .iter()
             .rev()
             .nth(recency_index - 1)
             .map(|mention| mention.target)
@@ -7343,14 +7449,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             return None;
         }
         let source_position = self.sumti_mention_position(source);
-        let mut candidates: Vec<_> = self
-            .sumti_mentions
+        self.sumti_mentions
             .iter()
             .filter(|mention| mention.available_to_ri && mention.position < source_position)
-            .collect();
-        candidates.sort_by_key(|mention| (mention.position, mention.source.0.0));
-        candidates
-            .into_iter()
             .rev()
             .nth(recency_index - 1)
             .map(|mention| mention.target)

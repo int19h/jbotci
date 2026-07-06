@@ -355,6 +355,24 @@ pub fn range_from_span(span: &SourceSpan) -> WebSourceRange {
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end && range.char_start <= range.char_end))]
+fn merge_source_ranges(
+    first: Option<WebSourceRange>,
+    second: Option<WebSourceRange>,
+) -> Option<WebSourceRange> {
+    match (first, second) {
+        (None, None) => None,
+        (Some(range), None) | (None, Some(range)) => Some(range),
+        (Some(first), Some(second)) => Some(new!(WebSourceRange {
+            byte_start: first.byte_start.min(second.byte_start),
+            byte_end: first.byte_end.max(second.byte_end),
+            char_start: first.char_start.min(second.char_start),
+            char_end: first.char_end.max(second.char_end),
+        })),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.chars().count() >= stem.chars().count())]
 pub fn math_alphanumeric_stem(stem: &str) -> String {
     let mut output = String::new();
@@ -390,28 +408,28 @@ pub fn reference_label_plain_text(text: &str) -> String {
 struct GeneratedBlockPayload {
     children: Vec<BlockTreeNode>,
     leaf_parts: Vec<BlockLeafPart>,
-    source_spans: Vec<SourceSpan>,
+    source_range: Option<WebSourceRange>,
 }
 
 impl GeneratedBlockPayload {
     #[requires(true)]
     #[ensures(true)]
     fn push_node(&mut self, node: BlockTreeNode) {
-        self.source_spans.extend(node.source_spans.clone());
+        self.source_range = merge_source_ranges(self.source_range, node.span);
         self.children.push(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
-        self.source_spans.extend(source_spans);
+    fn push_leaf_part(&mut self, part: BlockLeafPart) {
+        self.source_range = merge_source_ranges(self.source_range, Some(part.range));
         self.leaf_parts.push(part);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn extend(&mut self, payload: GeneratedBlockPayload) {
-        self.source_spans.extend(payload.source_spans);
+        self.source_range = merge_source_ranges(self.source_range, payload.source_range);
         self.leaf_parts.extend(payload.leaf_parts);
         self.children.extend(payload.children);
     }
@@ -547,9 +565,9 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
+    fn push_leaf_part(&mut self, part: BlockLeafPart) {
         if let Some(frame) = self.stack.last_mut() {
-            frame.payload_mut().push_leaf_part(part, source_spans);
+            frame.payload_mut().push_leaf_part(part);
         }
     }
 
@@ -605,39 +623,32 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             return;
         };
         self.last_token_end_range = span_refs.iter().copied().last().map(end_range_from_span);
-        let source_spans = span_refs.into_iter().cloned().collect::<Vec<_>>();
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: false,
-                token_kind: word_like.bare_word().map(Word::kind),
-                raw_text: source_text_for_range(self.source, Some(range)),
-                display_text: render_word_like(word_like, self.source, self.options),
-            }),
-            source_spans,
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: false,
+            token_kind: word_like.bare_word().map(Word::kind),
+            raw_text: source_text_for_range(self.source, Some(range)),
+            display_text: render_word_like(word_like, self.source, self.options),
+        }));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn push_word(&mut self, word: &Word) {
-        let span = word.span().clone();
-        let range = range_from_span(&span);
-        self.last_token_end_range = Some(end_range_from_span(&span));
+        let span = word.span();
+        let range = range_from_span(span);
+        self.last_token_end_range = Some(end_range_from_span(span));
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: false,
-                token_kind: Some(word.kind()),
-                raw_text: source_text_for_range(self.source, Some(range)),
-                display_text: render_word(word, self.options),
-            }),
-            vec![span],
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: false,
+            token_kind: Some(word.kind()),
+            raw_text: source_text_for_range(self.source, Some(range)),
+            display_text: render_word(word, self.options),
+        }));
     }
 
     #[requires(true)]
@@ -653,17 +664,14 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             return;
         };
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: true,
-                token_kind: Some(WordKind::Cmavo),
-                raw_text: String::new(),
-                display_text: render_elided_cmavo(cmavo, self.options),
-            }),
-            vec![source_span_from_range(range)],
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: true,
+            token_kind: Some(WordKind::Cmavo),
+            raw_text: String::new(),
+            display_text: render_elided_cmavo(cmavo, self.options),
+        }));
     }
 }
 
@@ -756,7 +764,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
         };
         payload.children =
             flatten_generated_chain_block_nodes(payload.children, self.source, &mut self.next_id);
-        payload.source_spans = generated_block_source_spans(&payload.children, &payload.leaf_parts);
+        payload.source_range = generated_block_source_range(&payload.children, &payload.leaf_parts);
         self.push_payload(payload);
     }
 
@@ -820,8 +828,7 @@ fn generated_block_tree_node_from_parts(
     computed_gloss: Option<String>,
 ) -> Option<BlockTreeNode> {
     leaf_parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
-    let source_spans = generated_block_source_spans(&children, &leaf_parts);
-    let span = range_from_spans(source_spans.iter());
+    let span = generated_block_source_range(&children, &leaf_parts);
     if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
         return None;
     }
@@ -850,7 +857,6 @@ fn generated_block_tree_node_from_parts(
         token_kind: leaf_token_kind.or(token_kind),
         ref_markers,
         span,
-        source_spans,
         leaf_parts,
         node_types,
         ancestors: Vec::new(),
@@ -864,34 +870,18 @@ fn generated_block_tree_node_from_parts(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_block_source_spans(
+fn generated_block_source_range(
     children: &[BlockTreeNode],
     leaf_parts: &[BlockLeafPart],
-) -> Vec<SourceSpan> {
-    let mut spans = Vec::new();
+) -> Option<WebSourceRange> {
+    let mut range = None;
     for child in children {
-        spans.extend(child.source_spans.clone());
+        range = merge_source_ranges(range, child.span);
     }
-    spans.extend(
-        leaf_parts
-            .iter()
-            .map(|part| source_span_from_range(part.range)),
-    );
-    spans
-}
-
-#[requires(range.byte_start <= range.byte_end)]
-#[requires(range.char_start <= range.char_end)]
-#[ensures(ret.byte_start == range.byte_start)]
-fn source_span_from_range(range: WebSourceRange) -> SourceSpan {
-    SourceSpan::new(
-        None,
-        range.byte_start,
-        range.byte_end,
-        range.char_start,
-        range.char_end,
-    )
-    .expect("block ranges are ordered")
+    for part in leaf_parts {
+        range = merge_source_ranges(range, Some(part.range));
+    }
+    range
 }
 
 #[requires(span.byte_start <= span.byte_end)]
@@ -927,7 +917,6 @@ fn split_generated_chain_link_block_node(
     source: &str,
     next_id: &mut usize,
 ) -> Vec<BlockTreeNode> {
-    let original = node.clone();
     let Some(element_label) = generated_chain_link_element_field(&node.label) else {
         return vec![node];
     };
@@ -942,6 +931,17 @@ fn split_generated_chain_link_block_node(
         return vec![node];
     };
     let node_data = node.into_data();
+    let original = new!(GeneratedChainLinkFragmentSource {
+        id: node_data.id,
+        field_label: node_data.field_label,
+        node_ids: node_data.node_ids,
+        label: node_data.label,
+        is_elided: node_data.is_elided,
+        token_kind: node_data.token_kind,
+        ref_markers: node_data.ref_markers,
+        node_types: node_data.node_types,
+        computed_gloss: node_data.computed_gloss,
+    });
 
     let mut prefix_children = Vec::new();
     let mut suffix_children = Vec::new();
@@ -995,10 +995,24 @@ fn split_generated_chain_link_block_node(
     fragments
 }
 
+#[invariant(!label.is_empty(), "chain link source label must not be empty")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeneratedChainLinkFragmentSource {
+    id: RawSyntaxNodeId,
+    field_label: Option<&'static str>,
+    node_ids: Vec<RawSyntaxNodeId>,
+    label: String,
+    is_elided: bool,
+    token_kind: Option<WordKind>,
+    ref_markers: Vec<ReferenceMarker>,
+    node_types: Vec<String>,
+    computed_gloss: Option<String>,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn generated_chain_link_fragment_node(
-    original: &BlockTreeNode,
+    original: &GeneratedChainLinkFragmentSource,
     next_id: &mut usize,
     original_identity_available: &mut bool,
     children: Vec<BlockTreeNode>,
@@ -1070,7 +1084,6 @@ struct BlockTreeNode {
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
-    source_spans: Vec<SourceSpan>,
     leaf_parts: Vec<BlockLeafPart>,
     node_types: Vec<String>,
     ancestors: Vec<String>,
@@ -1172,11 +1185,6 @@ fn merge_parent_into_child(parent: BlockTreeNode, child: BlockTreeNode) -> Block
     child.node_types = node_types;
     child.ref_markers = ref_markers;
     child.span = child.span.or(parent.span);
-    child.source_spans = if child.source_spans.is_empty() {
-        parent.source_spans
-    } else {
-        child.source_spans
-    };
     child.leaf_parts = if child.leaf_parts.is_empty() {
         parent.leaf_parts
     } else {
@@ -2257,7 +2265,6 @@ mod tests {
             token_kind: None,
             ref_markers: Vec::new(),
             span: Some(test_range(0, 3)),
-            source_spans: vec![source_span_from_range(test_range(0, 3))],
             leaf_parts: vec![
                 test_leaf_part(2, "gi'e", test_range(0, 1)),
                 test_leaf_part(3, "do", test_range(2, 3)),
@@ -2300,7 +2307,6 @@ mod tests {
             token_kind: None,
             ref_markers: Vec::new(),
             span: None,
-            source_spans: Vec::new(),
             leaf_parts: test_leaf_parts(leaf_part_count),
             node_types: vec![format!("Node{depth}")],
             ancestors: Vec::new(),
@@ -2408,7 +2414,6 @@ mod tests {
             token_kind: token_kind_for_text(display_text),
             ref_markers: Vec::new(),
             span: Some(range),
-            source_spans: vec![source_span_from_range(range)],
             leaf_parts: vec![test_leaf_part(id + 100, display_text, range)],
             node_types: vec![label.to_owned()],
             ancestors: Vec::new(),
