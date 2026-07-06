@@ -81,6 +81,19 @@ struct QrLogoPlacement {
     side: i32,
 }
 
+#[invariant(*version >= 1 && *version <= 40, "QR logo layout version must be valid")]
+#[invariant(*size_value == qr_size(*version), "QR logo layout size must match version")]
+#[invariant(*correction_budget >= 0, "QR logo correction budget must not be negative")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct QrLogoLayout {
+    version: i32,
+    size_value: i32,
+    function_modules: BTreeSet<QrCoord>,
+    data_placements: Vec<QrCoord>,
+    codeword_blocks: Vec<usize>,
+    correction_budget: i32,
+}
+
 const QR_LOGO_BADGE_BACKGROUND: &str = "#cbd4ff";
 const QR_LOGO_BADGE_SIZE: f64 = 7.0;
 const QR_LOGO_BORDER_WIDTH: f64 = 0.25;
@@ -294,33 +307,51 @@ fn qr_logo_content_scale(placement: QrLogoPlacement) -> f64 {
 #[requires(version >= 1 && version <= 40)]
 #[ensures(ret.is_none_or(|placement| placement.side >= QR_LOGO_MINIMUM_SIDE))]
 fn qr_logo_placement_for_version(version: i32) -> Option<QrLogoPlacement> {
-    let size_value = qr_size(version);
-    let mut candidate_sides = (QR_LOGO_MINIMUM_SIDE..=size_value)
+    let layout = qr_logo_layout_for_version(version);
+    let mut candidate_sides = (QR_LOGO_MINIMUM_SIDE..=layout.size_value)
         .step_by(2)
         .filter(|side| {
-            placement_fits_with_clearance(size_value, centered_placement(size_value, *side))
+            placement_fits_with_clearance(
+                layout.size_value,
+                centered_placement(layout.size_value, *side),
+            )
         })
         .collect::<Vec<_>>();
     candidate_sides.reverse();
 
     candidate_sides
         .iter()
-        .map(|side| centered_placement(size_value, *side))
-        .find(|placement| logo_placement_is_safe(version, *placement))
+        .map(|side| centered_placement(layout.size_value, *side))
+        .find(|placement| logo_placement_is_safe(&layout, *placement))
         .or_else(|| {
             candidate_sides
                 .iter()
-                .flat_map(|side| top_slot_placements(size_value, *side))
-                .find(|placement| logo_placement_is_safe(version, *placement))
+                .flat_map(|side| top_slot_placements(layout.size_value, *side))
+                .find(|placement| logo_placement_is_safe(&layout, *placement))
         })
 }
 
 #[requires(version >= 1 && version <= 40)]
+#[ensures(ret.version == version)]
+fn qr_logo_layout_for_version(version: i32) -> QrLogoLayout {
+    let build = draw_function_patterns(version, empty_build());
+    let data_placement_coords = data_placements(version, &build);
+    new!(QrLogoLayout {
+        version,
+        size_value: qr_size(version),
+        function_modules: build.function_modules,
+        data_placements: data_placement_coords,
+        codeword_blocks: interleaved_codeword_blocks(version),
+        correction_budget: ecc_codewords_per_block(version) / 2 - QR_LOGO_ERROR_CORRECTION_MARGIN,
+    })
+}
+
+#[requires(true)]
 #[ensures(true)]
-fn logo_placement_is_safe(version: i32, placement: QrLogoPlacement) -> bool {
-    placement_fits_with_clearance(qr_size(version), placement)
-        && placement_has_function_clearance(version, placement)
-        && placement_fits_error_correction_budget(version, placement)
+fn logo_placement_is_safe(layout: &QrLogoLayout, placement: QrLogoPlacement) -> bool {
+    placement_fits_with_clearance(layout.size_value, placement)
+        && placement_has_function_clearance(&layout.function_modules, placement)
+        && placement_fits_error_correction_budget(layout, placement)
 }
 
 #[requires(size_value > 0 && side >= QR_LOGO_MINIMUM_SIDE && side <= size_value)]
@@ -357,40 +388,45 @@ fn placement_fits_with_clearance(size_value: i32, placement: QrLogoPlacement) ->
         && placement.top + placement.side + QR_LOGO_FUNCTION_CLEARANCE <= size_value
 }
 
-#[requires(version >= 1 && version <= 40)]
+#[requires(true)]
 #[ensures(true)]
-fn placement_has_function_clearance(version: i32, placement: QrLogoPlacement) -> bool {
-    let build = draw_function_patterns(version, empty_build());
+fn placement_has_function_clearance(
+    function_modules: &BTreeSet<QrCoord>,
+    placement: QrLogoPlacement,
+) -> bool {
     let clearance = QR_LOGO_FUNCTION_CLEARANCE;
     (placement.top - clearance..placement.top + placement.side + clearance).all(|y| {
         (placement.left - clearance..placement.left + placement.side + clearance)
-            .all(|x| !build.function_modules.contains(&QrCoord { x, y }))
+            .all(|x| !function_modules.contains(&QrCoord { x, y }))
     })
 }
 
-#[requires(version >= 1 && version <= 40)]
+#[requires(true)]
 #[ensures(true)]
-fn placement_fits_error_correction_budget(version: i32, placement: QrLogoPlacement) -> bool {
-    let correction_budget = ecc_codewords_per_block(version) / 2 - QR_LOGO_ERROR_CORRECTION_MARGIN;
-    damaged_codewords_per_block(version, placement)
+fn placement_fits_error_correction_budget(
+    layout: &QrLogoLayout,
+    placement: QrLogoPlacement,
+) -> bool {
+    damaged_codewords_per_block(layout, placement)
         .into_iter()
         .max()
         .unwrap_or(0)
-        <= correction_budget
+        <= layout.correction_budget
 }
 
-#[requires(version >= 1 && version <= 40)]
+#[requires(true)]
 #[ensures(ret.iter().all(|count| *count >= 0))]
-fn damaged_codewords_per_block(version: i32, placement: QrLogoPlacement) -> Vec<i32> {
-    let build = draw_function_patterns(version, empty_build());
-    let codeword_blocks = interleaved_codeword_blocks(version);
-    let damaged_codewords = data_placements(version, &build)
-        .into_iter()
+fn damaged_codewords_per_block(layout: &QrLogoLayout, placement: QrLogoPlacement) -> Vec<i32> {
+    let damaged_codewords = layout
+        .data_placements
+        .iter()
+        .copied()
         .enumerate()
         .filter_map(|(bit_index, coord)| {
             if coord_inside_placement(placement, coord) {
                 let codeword_index = bit_index / 8;
-                codeword_blocks
+                layout
+                    .codeword_blocks
                     .get(codeword_index)
                     .copied()
                     .map(|block_index| (block_index, codeword_index))
@@ -399,7 +435,7 @@ fn damaged_codewords_per_block(version: i32, placement: QrLogoPlacement) -> Vec<
             }
         })
         .collect::<BTreeSet<_>>();
-    (0..error_correction_block_count(version))
+    (0..error_correction_block_count(layout.version))
         .map(|block_index| {
             damaged_codewords
                 .iter()
@@ -1007,17 +1043,20 @@ fn mask_bit(mask_value: i32, coord: QrCoord) -> bool {
 #[requires(!codes.is_empty())]
 #[ensures(true)]
 fn minimum_by_penalty(codes: &[QrCode]) -> QrCode {
-    codes
-        .iter()
-        .cloned()
-        .reduce(|best, candidate| {
-            if qr_penalty(&candidate) < qr_penalty(&best) {
-                candidate
-            } else {
-                best
-            }
-        })
-        .expect("requires non-empty QR code candidates")
+    let mut candidates = codes.iter();
+    let first = candidates
+        .next()
+        .expect("requires non-empty QR code candidates");
+    let mut best = first;
+    let mut best_penalty = qr_penalty(first);
+    for candidate in candidates {
+        let penalty = qr_penalty(candidate);
+        if penalty < best_penalty {
+            best = candidate;
+            best_penalty = penalty;
+        }
+    }
+    best.clone()
 }
 
 #[requires(qr_code.size > 0)]
@@ -1106,19 +1145,42 @@ fn finder_penalty(lines: &[Vec<bool>]) -> i32 {
     ];
     lines
         .iter()
-        .map(|line| {
-            if line.len() < 11 {
-                return 0;
-            }
-            (0..=line.len() - 11)
-                .filter(|index| {
-                    let slice = &line[*index..*index + 11];
-                    slice == PATTERN_A || slice == PATTERN_B
-                })
-                .count() as i32
-                * 40
-        })
+        .map(|line| finder_line_penalty(line, &PATTERN_A, &PATTERN_B))
         .sum()
+}
+
+#[requires(pattern_a.len() == 11)]
+#[requires(pattern_b.len() == 11)]
+#[ensures(ret >= 0)]
+fn finder_line_penalty(line: &[bool], pattern_a: &[bool], pattern_b: &[bool]) -> i32 {
+    let size = line.len() as i32;
+    (-4..=size - 7)
+        .filter(|window_start| {
+            finder_window_matches(line, *window_start, pattern_a)
+                || finder_window_matches(line, *window_start, pattern_b)
+        })
+        .count() as i32
+        * 40
+}
+
+#[requires(pattern.len() == 11)]
+#[ensures(true)]
+fn finder_window_matches(line: &[bool], window_start: i32, pattern: &[bool]) -> bool {
+    // ISO/IEC 18004:2015(E) 7.8.3.1 Table 11 N3 counts finder-like
+    // 1:1:3:1:1 runs preceded or followed by four light modules. A run at
+    // a symbol edge can use the outside-of-symbol area as that light run.
+    pattern.iter().enumerate().all(|(offset, expected)| {
+        module_dark_or_light_padding(line, window_start + offset as i32) == *expected
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn module_dark_or_light_padding(line: &[bool], index: i32) -> bool {
+    if index < 0 {
+        return false;
+    }
+    line.get(index as usize).copied().unwrap_or(false)
 }
 
 #[requires(qr_code.size > 0)]
@@ -1315,5 +1377,25 @@ mod tests {
         let error = encode_qr_alphanumeric_h("WEB+JOHAU:-na").expect_err("lowercase is invalid");
 
         assert_eq!(error, "Character is not valid in QR alphanumeric mode: n");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn n3_penalty_treats_outside_symbol_as_light_before_edge_pattern() {
+        let line = vec![true, false, true, true, true, false, true, true];
+
+        assert_eq!(finder_penalty(&[line]), 40);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn n3_penalty_treats_outside_symbol_as_light_after_edge_pattern() {
+        let line = vec![
+            true, true, true, true, true, false, true, true, true, false, true,
+        ];
+
+        assert_eq!(finder_penalty(&[line]), 40);
     }
 }
