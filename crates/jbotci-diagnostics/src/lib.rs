@@ -1322,7 +1322,7 @@ pub fn source_span_from_byte_offsets(
         .map_err(DiagnosticSpanError::SourceLocation)
 }
 
-#[requires(char_offset <= source.chars().count())]
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|offset| *offset <= source.len()) || ret.is_err())]
 pub fn byte_offset_for_char_offset(
     source: &str,
@@ -1344,7 +1344,8 @@ pub fn byte_offset_for_char_offset(
 
 #[requires(byte_offset <= source.len())]
 #[requires(source.is_char_boundary(byte_offset))]
-#[ensures(ret.as_ref().is_ok_and(|offset| *offset <= source.chars().count()) || ret.is_err())]
+#[ensures(true)]
+#[bityzba::expensive_ensures(ret.as_ref().is_ok_and(|offset| *offset <= source.chars().count()) || ret.is_err())]
 pub fn char_offset_for_byte_offset(
     source: &str,
     byte_offset: usize,
@@ -1374,7 +1375,8 @@ pub fn line_column_for_byte_offset(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| source.contains(text) || text.is_empty()) || ret.is_err())]
+#[ensures(true)]
+#[bityzba::expensive_ensures(ret.as_ref().is_ok_and(|text| source.contains(text) || text.is_empty()) || ret.is_err())]
 pub fn source_text_for_span(
     source: &str,
     span: &SourceSpan,

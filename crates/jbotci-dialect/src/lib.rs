@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::sync::LazyLock;
 
 use bityzba::{data, invariant, new, requires};
 use serde::{Deserialize, Serialize};
@@ -215,35 +216,23 @@ pub fn parse_dialect_definition(source: &str) -> Result<DialectDefinition, Diale
 
 #[requires(true)]
 #[ensures(true)]
-pub fn builtin_dialects() -> Vec<BuiltinDialect> {
-    builtin_dialect_sources()
-        .into_iter()
-        .map(|(name, definition)| {
-            let dialect = parse_builtin_dialect(name, definition);
-            BuiltinDialect {
-                name,
-                definition,
-                dialect,
-            }
-        })
-        .collect()
+pub fn builtin_dialects() -> &'static [BuiltinDialect] {
+    &BUILTIN_DIALECTS
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn builtin_dialect_names() -> Vec<&'static str> {
-    builtin_dialect_sources()
-        .into_iter()
-        .map(|(name, _)| name)
+    builtin_dialects()
+        .iter()
+        .map(|dialect| dialect.name)
         .collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub fn find_builtin_dialect(requested_name: &str) -> Option<BuiltinDialect> {
-    builtin_dialects()
-        .into_iter()
-        .find(|dialect| dialect.name == requested_name)
+pub fn find_builtin_dialect(requested_name: &str) -> Option<&'static BuiltinDialect> {
+    BUILTIN_DIALECT_BY_NAME.get(requested_name).copied()
 }
 
 #[requires(true)]
@@ -345,7 +334,9 @@ pub fn remove_dialect_formula_reference(dialect_name: &str, formula_text: &str) 
     let clean_name = dialect_name.trim();
     let components = dialect_formula_components(formula_text)
         .into_iter()
-        .filter(|component| component != &DialectFormulaComponent::Atom(clean_name.to_owned()))
+        .filter(|component| {
+            !matches!(component, DialectFormulaComponent::Atom(atom) if atom == clean_name)
+        })
         .collect::<Vec<_>>();
     render_dialect_formula_components(&components)
 }
@@ -479,7 +470,7 @@ fn lookup_custom_or_builtin_dialect_reference(
     stack: &[String],
 ) -> Result<DialectDefinition, DialectError> {
     if let Some(dialect) = find_builtin_dialect(reference_name) {
-        return Ok(dialect.dialect);
+        return Ok(dialect.dialect.clone());
     }
 
     if stack.iter().any(|name| name == reference_name) {
@@ -1362,7 +1353,9 @@ fn definition_from_entries(entries: Vec<DialectDefinitionEntry>) -> DialectDefin
 fn lookup_builtin_dialect_reference(
     reference_name: &str,
 ) -> Result<DialectDefinition, DialectError> {
-    lookup_builtin_dialect_reference_in_stack(reference_name, &[])
+    find_builtin_dialect(reference_name)
+        .map(|builtin| builtin.dialect.clone())
+        .ok_or_else(|| DialectError::new(format!("Unknown dialect reference: {reference_name}")))
 }
 
 #[requires(true)]
@@ -1391,6 +1384,25 @@ fn lookup_builtin_dialect_reference_in_stack(
         lookup_builtin_dialect_reference_in_stack(reference, &next_stack)
     })
 }
+
+static BUILTIN_DIALECTS: LazyLock<Vec<BuiltinDialect>> = LazyLock::new(|| {
+    builtin_dialect_sources()
+        .into_iter()
+        .map(|(name, definition)| BuiltinDialect {
+            name,
+            definition,
+            dialect: parse_builtin_dialect(name, definition),
+        })
+        .collect()
+});
+
+static BUILTIN_DIALECT_BY_NAME: LazyLock<BTreeMap<&'static str, &'static BuiltinDialect>> =
+    LazyLock::new(|| {
+        BUILTIN_DIALECTS
+            .iter()
+            .map(|dialect| (dialect.name, dialect))
+            .collect()
+    });
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
@@ -2007,6 +2019,21 @@ mod tests {
         assert!(parse_dialect_definition("(zantufa/connectives)").is_err());
         assert!(parse_dialect_definition("(zantufa-connectives)").is_err());
         assert!(parse_dialect_definition("(zantufa-cmavo)").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn builtin_dialect_table_initializes_all_definitions() {
+        let dialects = builtin_dialects();
+        assert_eq!(dialects.len(), builtin_dialect_sources().len());
+        assert_eq!(BUILTIN_DIALECT_BY_NAME.len(), dialects.len());
+        for dialect in dialects {
+            assert_eq!(
+                find_builtin_dialect(dialect.name).map(|found| found.name),
+                Some(dialect.name)
+            );
+        }
     }
 
     #[test]
