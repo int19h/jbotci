@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::Range;
 
 use annotate_snippets::{
@@ -261,11 +262,18 @@ fn push_soft_run(
     color: bool,
     wrap_width: usize,
 ) {
-    let run_width = rendered_segment_width(role, text, color);
+    let visible_text = visible_segment_text(role, text, color);
+    let run_width = UnicodeWidthStr::width(visible_text.as_ref());
     if text.chars().all(char::is_whitespace) {
         if *line_width == 0 || *line_width + run_width <= wrap_width {
             push_visible_run(
-                rendered, line_width, line_text, role, text, color, run_width,
+                rendered,
+                line_width,
+                line_text,
+                role,
+                visible_text.as_ref(),
+                color,
+                run_width,
             );
         } else {
             push_auto_break(rendered, line_width, line_text);
@@ -280,7 +288,13 @@ fn push_soft_run(
         push_auto_break(rendered, line_width, line_text);
     }
     push_visible_run(
-        rendered, line_width, line_text, role, text, color, run_width,
+        rendered,
+        line_width,
+        line_text,
+        role,
+        visible_text.as_ref(),
+        color,
+        run_width,
     );
 }
 
@@ -293,20 +307,20 @@ fn can_trail_previous_run(role: DiagnosticTextRole, text: &str) -> bool {
             .all(|character| matches!(character, ',' | ';' | ':' | ')' | ']' | '}'))
 }
 
-#[requires(!text.is_empty())]
+#[requires(!visible_text.is_empty())]
 #[ensures(true)]
 fn push_visible_run(
     rendered: &mut String,
     line_width: &mut usize,
     line_text: &mut String,
     role: DiagnosticTextRole,
-    text: &str,
+    visible_text: &str,
     color: bool,
     width: usize,
 ) {
-    rendered.push_str(&render_styled_segment(role, text, color));
+    rendered.push_str(&render_styled_visible_segment(role, visible_text, color));
     *line_width += width;
-    line_text.push_str(&visible_segment_text(role, text, color));
+    line_text.push_str(visible_text);
 }
 
 #[requires(true)]
@@ -333,8 +347,18 @@ fn push_auto_break(rendered: &mut String, line_width: &mut usize, line_text: &mu
 #[ensures(!ret.is_empty())]
 fn render_styled_segment(role: DiagnosticTextRole, text: &str, color: bool) -> String {
     let visible_text = visible_segment_text(role, text, color);
+    render_styled_visible_segment(role, visible_text.as_ref(), color)
+}
+
+#[requires(!visible_text.is_empty())]
+#[ensures(!ret.is_empty())]
+fn render_styled_visible_segment(
+    role: DiagnosticTextRole,
+    visible_text: &str,
+    color: bool,
+) -> String {
     if !color {
-        return visible_text;
+        return visible_text.to_owned();
     }
     match role {
         DiagnosticTextRole::Construct => visible_text.bright_white().to_string(),
@@ -343,23 +367,21 @@ fn render_styled_segment(role: DiagnosticTextRole, text: &str, color: bool) -> S
         DiagnosticTextRole::WordCategory => visible_text.bright_green().to_string(),
         DiagnosticTextRole::Keyword => visible_text.truecolor(170, 170, 170).to_string(),
         DiagnosticTextRole::Punctuation => visible_text.bright_black().to_string(),
-        DiagnosticTextRole::Plain => visible_text,
+        DiagnosticTextRole::Plain => visible_text.to_owned(),
     }
 }
 
 #[requires(!text.is_empty())]
-#[ensures(true)]
-fn rendered_segment_width(role: DiagnosticTextRole, text: &str, color: bool) -> usize {
-    UnicodeWidthStr::width(visible_segment_text(role, text, color).as_str())
-}
-
-#[requires(!text.is_empty())]
-#[ensures(!ret.is_empty())]
-fn visible_segment_text(role: DiagnosticTextRole, text: &str, color: bool) -> String {
+#[ensures(!ret.as_ref().is_empty())]
+fn visible_segment_text<'text>(
+    role: DiagnosticTextRole,
+    text: &'text str,
+    color: bool,
+) -> Cow<'text, str> {
     match (color, role) {
-        (false, DiagnosticTextRole::SpecificWord) => format!("{{{text}}}"),
-        (true, DiagnosticTextRole::WordCategory) => text.to_lowercase(),
-        _ => text.to_owned(),
+        (false, DiagnosticTextRole::SpecificWord) => Cow::Owned(format!("{{{text}}}")),
+        (true, DiagnosticTextRole::WordCategory) => Cow::Owned(text.to_lowercase()),
+        _ => Cow::Borrowed(text),
     }
 }
 

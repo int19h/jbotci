@@ -809,11 +809,23 @@ fn ebnf_token_plain_text(token: &CllEbnfToken) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn escape_html(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+    let mut output = String::with_capacity(input.len());
+    escape_html_into(&mut output, input);
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_into(output: &mut String, input: &str) {
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            _ => output.push(ch),
+        }
+    }
 }
 
 #[cfg(test)]

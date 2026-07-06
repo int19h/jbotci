@@ -267,11 +267,11 @@ fn node_value(constructor: &'static str, variant: bool, entries: Vec<JsonEntry>)
 
 #[requires(true)]
 #[ensures(true)]
-fn variant_payload(constructor: &'static str, entries: Vec<JsonEntry>) -> Value {
+fn variant_payload(constructor: &'static str, mut entries: Vec<JsonEntry>) -> Value {
     if entries.is_empty() {
         return Value::Object(Map::new());
     }
-    if let Some(value) = compact_single_payload(constructor, &entries) {
+    if let Some(value) = compact_single_payload(constructor, &mut entries) {
         return value;
     }
     if entries.len() == 1 && entries[0].label.is_none() {
@@ -285,10 +285,10 @@ fn variant_payload(constructor: &'static str, entries: Vec<JsonEntry>) -> Value 
 
 #[requires(true)]
 #[ensures(true)]
-fn compact_single_payload(constructor: &str, entries: &[JsonEntry]) -> Option<Value> {
+fn compact_single_payload(constructor: &str, entries: &mut Vec<JsonEntry>) -> Option<Value> {
     let field = constructor_single_payload_field(constructor)?;
     if entries.len() == 1 && entries[0].label == Some(field) {
-        return Some(entries[0].value.clone());
+        return Some(entries.pop().expect("length checked").value);
     }
     None
 }
@@ -502,9 +502,9 @@ pub(crate) fn render_phoneme_fields_in_json_value(
             for (key, value) in object {
                 if key == "phonemes"
                     && let Value::String(text) = value
-                    && let Ok(parsed) = Phonemes::from_canonical(text.clone())
+                    && let Ok(rendered) = Phonemes::render_canonical(text, phonemes)
                 {
-                    *text = parsed.render(phonemes);
+                    *text = rendered;
                 } else {
                     render_phoneme_fields_in_json_value(value, phonemes);
                 }

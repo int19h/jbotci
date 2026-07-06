@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
-use jbotci_morphology::canonicalize_text;
+use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData, canonicalize_text};
 use jbotci_semantics::references::{
     DiscourseReferences, GeneratedReferenceAnalysis, GeneratedSyntaxIndex, PlaceAnalysis,
     PlaceFrameKind, PlaceSlot, RawSyntaxNodeId, ReferenceEdgeId, ReferenceKind, ReferenceTarget,
@@ -19,7 +19,7 @@ use jbotci_syntax::tree::Token;
 use jbotci_tree::TreeVisitor;
 
 use crate::TreeRenderOptions;
-use crate::tree::{TreeValue, morphology_tree_value};
+use crate::tree::TreeValue;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[invariant(true)]
@@ -524,8 +524,7 @@ fn translate_rich_reference_map(
         for target_id in translated_ids(*source_id, id_map) {
             let translated_annotations = annotations
                 .iter()
-                .cloned()
-                .map(|annotation| translate_rich_reference_annotation(annotation, id_map));
+                .map(|annotation| translate_rich_reference_annotation(annotation.clone(), id_map));
             let entry = translated.entry(target_id).or_default();
             extend_unique_rich_annotations(entry, translated_annotations);
         }
@@ -551,17 +550,18 @@ fn translate_rich_reference_annotation(
     annotation: RichReferenceAnnotation,
     id_map: &HashMap<RawSyntaxNodeId, Vec<RawSyntaxNodeId>>,
 ) -> RichReferenceAnnotation {
-    let source = match annotation.source.as_data() {
+    let annotation = annotation.into_data();
+    let source = match annotation.source.into_data() {
         data!(ReferenceAnnotationSource::PlaceFrame {
             frame,
             source_node,
             display_word,
             lookup_word,
         }) => new!(ReferenceAnnotationSource::PlaceFrame {
-            frame: *frame,
-            source_node: first_translated_id(*source_node, id_map),
-            display_word: display_word.clone(),
-            lookup_word: lookup_word.clone(),
+            frame,
+            source_node: first_translated_id(source_node, id_map),
+            display_word,
+            lookup_word,
         }),
         data!(ReferenceAnnotationSource::PlaceAssignment {
             frame,
@@ -571,12 +571,12 @@ fn translate_rich_reference_annotation(
             display_word,
             lookup_word,
         }) => new!(ReferenceAnnotationSource::PlaceAssignment {
-            frame: *frame,
-            assignment: *assignment,
-            source_node: first_translated_id(*source_node, id_map),
-            target_node: first_translated_id(*target_node, id_map),
-            display_word: display_word.clone(),
-            lookup_word: lookup_word.clone(),
+            frame,
+            assignment,
+            source_node: first_translated_id(source_node, id_map),
+            target_node: first_translated_id(target_node, id_map),
+            display_word,
+            lookup_word,
         }),
         data!(ReferenceAnnotationSource::DiscourseEdge {
             edge,
@@ -586,16 +586,16 @@ fn translate_rich_reference_annotation(
             display_word,
             lookup_word,
         }) => new!(ReferenceAnnotationSource::DiscourseEdge {
-            edge: *edge,
-            kind: kind.clone(),
-            source_node: first_translated_id(*source_node, id_map),
-            target_node: first_translated_id(*target_node, id_map),
-            display_word: display_word.clone(),
-            lookup_word: lookup_word.clone(),
+            edge,
+            kind,
+            source_node: first_translated_id(source_node, id_map),
+            target_node: first_translated_id(target_node, id_map),
+            display_word,
+            lookup_word,
         }),
     };
     new!(RichReferenceAnnotation {
-        name: annotation.name.clone(),
+        name: annotation.name,
         source,
     })
 }
@@ -1098,7 +1098,8 @@ fn generated_words_for_relation(
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<String> {
-    let mut collector = GeneratedSyntaxWordCollector::new(source, options);
+    let _ = source;
+    let mut collector = GeneratedSyntaxWordCollector::new(options);
     selbri.visit_in_order(&mut collector);
     collector.words
 }
@@ -1110,7 +1111,8 @@ fn generated_words_for_node(
     source: &str,
     options: TreeRenderOptions,
 ) -> Vec<String> {
-    let mut collector = GeneratedSyntaxWordCollector::new(source, options);
+    let _ = source;
+    let mut collector = GeneratedSyntaxWordCollector::new(options);
     match node {
         GeneratedSyntaxNodeRef::TenseModalSyntax(value) => value.visit_in_order(&mut collector),
         GeneratedSyntaxNodeRef::TenseModalBodySyntaxConnectedTenseModal(value)
@@ -1182,25 +1184,23 @@ fn generated_words_for_node(
 
 #[derive(Debug)]
 #[invariant(true)]
-struct GeneratedSyntaxWordCollector<'source> {
-    source: &'source str,
+struct GeneratedSyntaxWordCollector {
     options: TreeRenderOptions,
     words: Vec<String>,
 }
 
-impl<'source> GeneratedSyntaxWordCollector<'source> {
+impl GeneratedSyntaxWordCollector {
     #[requires(true)]
-    #[ensures(ret.source == source)]
-    fn new(source: &'source str, options: TreeRenderOptions) -> Self {
+    #[ensures(ret.options == options)]
+    fn new(options: TreeRenderOptions) -> Self {
         Self {
-            source,
             options,
             words: Vec::new(),
         }
     }
 }
 
-impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxWordCollector<'_> {
+impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxWordCollector {
     type Node = GeneratedSyntaxNodeRef<'tree>;
     type Atom = GeneratedSyntaxAtomRef<'tree>;
 
@@ -1208,17 +1208,78 @@ impl<'tree> TreeVisitor<'tree> for GeneratedSyntaxWordCollector<'_> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         let GeneratedSyntaxAtomRef::Token(token) = atom;
-        self.words
-            .push(token_word_text(token, self.source, self.options));
+        self.words.push(token_word_text(token, self.options));
     }
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn token_word_text(token: &Token, source: &str, options: TreeRenderOptions) -> String {
-    first_word_label(&morphology_tree_value(token.core_word(), source, options))
-        .map(|word| word.text.clone())
+fn token_word_text(token: &Token, options: TreeRenderOptions) -> String {
+    first_word_label_for_word_like(token.core_word(), options)
+        .map(|word| word.text)
         .unwrap_or_else(|| token.core_word().to_string())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|word| !word.text.is_empty()))]
+fn first_word_label_for_word_like(
+    word_like: &WordLike,
+    options: TreeRenderOptions,
+) -> Option<TreeWordLabel> {
+    Some(match word_like.as_data() {
+        data!(WordLike::PlainWord(word)) => word_label_for_word(word, options),
+        data!(WordLike::QuotedWord { zo, .. }) => word_label_for_word(zo, options),
+        data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => word_label_for_word(zoi, options),
+        data!(WordLike::QuotedWords { lohu, .. }) => word_label_for_word(lohu, options),
+        data!(WordLike::DelimitedWordQuote { marker, .. }) => word_label_for_word(marker, options),
+        data!(WordLike::LerfuWord { base, .. }) => {
+            return first_word_label_for_word_like(base, options);
+        }
+        data!(WordLike::ZeiCompound { left, .. }) => {
+            return first_word_label_for_word_like(left, options);
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(!ret.text.is_empty())]
+fn word_label_for_word(word: &Word, options: TreeRenderOptions) -> TreeWordLabel {
+    let kind = word.kind();
+    let text = if let Some(parts) = word.lujvo_parts() {
+        if options.decompose_lujvo {
+            parts
+                .iter()
+                .map(|part| part.phonemes().render(options.phonemes))
+                .collect::<Vec<_>>()
+                .join(options.glyphs.lujvo_separator())
+        } else {
+            let mut text = String::new();
+            for part in parts {
+                text.push_str(&part.phonemes().render(options.phonemes));
+            }
+            text
+        }
+    } else {
+        word.phonemes_ref()
+            .expect("non-lujvo words expose borrowed phonemes")
+            .render(options.phonemes)
+    };
+    TreeWordLabel {
+        constructor: word_constructor_name(kind),
+        text,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn word_constructor_name(kind: WordKind) -> &'static str {
+    match kind {
+        WordKind::Cmavo => "Cmavo",
+        WordKind::Gismu => "Gismu",
+        WordKind::Lujvo => "Lujvo",
+        WordKind::Fuhivla => "Fuhivla",
+        WordKind::Cmevla => "Cmevla",
+    }
 }
 
 #[requires(true)]
