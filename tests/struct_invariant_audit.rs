@@ -584,7 +584,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "typed SVG element validity is constrained by the closed SvgTag enum and serializer tests",
     ),
     (
-        "crates/jbotci-gentufa/src/render.rs:TextMeasureKey",
+        "crates/jbotci-gentufa/src/render.rs:TextMeasureStyleKey",
         "text measurement cache keys are direct value tuples over closed role/script selectors",
     ),
     (

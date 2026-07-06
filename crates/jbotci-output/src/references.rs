@@ -1,6 +1,7 @@
 //! Display model for semantic reference edges.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::num::NonZeroUsize;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
@@ -25,7 +26,7 @@ use crate::tree::TreeValue;
 #[invariant(true)]
 pub struct ReferenceName {
     pub stem: String,
-    pub occurrence: Option<usize>,
+    pub occurrence: Option<NonZeroUsize>,
     pub slot: Option<ReferenceSlotName>,
 }
 
@@ -736,7 +737,8 @@ fn source_names(
                 new!(ReferenceSourceName {
                     name: ReferenceName {
                         stem: stem.clone(),
-                        occurrence: needs_occurrence.then_some(index + 1),
+                        occurrence: needs_occurrence
+                            .then(|| NonZeroUsize::new(index + 1).expect("index is one-based")),
                         slot: None,
                     },
                     display_word: source.word.text.clone(),
@@ -1411,8 +1413,8 @@ mod tests {
         ];
         let names = source_names(&sources, &HashSet::new());
         assert_eq!(names[&RawSyntaxNodeId(10)].name.stem, "k");
-        assert_eq!(names[&RawSyntaxNodeId(10)].name.occurrence, Some(1));
-        assert_eq!(names[&RawSyntaxNodeId(11)].name.occurrence, Some(2));
+        assert_eq!(names[&RawSyntaxNodeId(10)].name.occurrence, occurrence(1));
+        assert_eq!(names[&RawSyntaxNodeId(11)].name.occurrence, occurrence(2));
     }
 
     #[test]
@@ -1423,7 +1425,13 @@ mod tests {
         let visible_words = HashSet::from(["ri".to_owned()]);
         let names = source_names(&sources, &visible_words);
         assert_eq!(names[&RawSyntaxNodeId(1)].name.stem, "ri");
-        assert_eq!(names[&RawSyntaxNodeId(1)].name.occurrence, Some(1));
+        assert_eq!(names[&RawSyntaxNodeId(1)].name.occurrence, occurrence(1));
+    }
+
+    #[requires(value > 0)]
+    #[ensures(ret.is_some())]
+    fn occurrence(value: usize) -> Option<NonZeroUsize> {
+        NonZeroUsize::new(value)
     }
 
     #[requires(!word.is_empty())]

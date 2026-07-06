@@ -4,6 +4,7 @@ mod render;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -53,14 +54,18 @@ pub struct WebSourceRange {
 #[serde(rename_all = "kebab-case")]
 pub struct ReferenceLabel {
     pub stem: String,
-    pub occurrence: Option<usize>,
+    pub occurrence: Option<NonZeroUsize>,
     pub slot: Option<ReferenceSlotLabel>,
 }
 
 impl ReferenceLabel {
     #[requires(true)]
     #[ensures(ret.stem == stem)]
-    pub fn new(stem: &str, occurrence: Option<usize>, slot: Option<ReferenceSlotLabel>) -> Self {
+    pub fn new(
+        stem: &str,
+        occurrence: Option<NonZeroUsize>,
+        slot: Option<ReferenceSlotLabel>,
+    ) -> Self {
         new!(ReferenceLabel {
             stem: stem.to_owned(),
             occurrence,
@@ -71,6 +76,8 @@ impl ReferenceLabel {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub fn base_key(&self) -> String {
+        // Reference stems are digit-free normalized word stems, so appending a
+        // decimal one-based occurrence preserves generated-label injectivity.
         let mut key = self.stem.clone();
         if let Some(occurrence) = self.occurrence {
             key.push_str(&occurrence.to_string());
@@ -88,6 +95,12 @@ impl ReferenceLabel {
             key.push('>');
         }
         key
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.stem == other.stem && self.occurrence == other.occurrence))]
+    pub fn same_base(&self, other: &Self) -> bool {
+        self.stem == other.stem && self.occurrence == other.occurrence
     }
 }
 
@@ -548,9 +561,44 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             frame.payload_mut().extend(payload);
             return;
         }
-        if self.root.is_none() && payload.children.len() == 1 && payload.leaf_parts.is_empty() {
-            self.root = payload.children.into_iter().next();
+        if self.root.is_some() {
+            assert!(
+                payload.children.is_empty() && payload.leaf_parts.is_empty(),
+                "generated block collector received more than one top-level payload"
+            );
+            return;
         }
+        if payload.children.len() == 1 && payload.leaf_parts.is_empty() {
+            self.root = payload.children.into_iter().next();
+            return;
+        }
+        self.root = self.synthetic_root_from_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn synthetic_root_from_payload(
+        &mut self,
+        payload: GeneratedBlockPayload,
+    ) -> Option<BlockTreeNode> {
+        if payload.children.is_empty() && payload.leaf_parts.is_empty() {
+            return None;
+        }
+        let id = self.allocate_id();
+        generated_block_tree_node_from_parts(
+            id,
+            None,
+            vec![id],
+            "GeneratedSyntaxRoot".to_owned(),
+            false,
+            None,
+            Vec::new(),
+            vec!["GeneratedSyntaxRoot".to_owned()],
+            payload.children,
+            payload.leaf_parts,
+            self.source,
+            None,
+        )
     }
 
     #[requires(true)]
@@ -959,9 +1007,7 @@ fn split_generated_chain_link_block_node(
     let mut prefix_leaf_parts = Vec::new();
     let mut suffix_leaf_parts = Vec::new();
     for part in node_data.leaf_parts {
-        if part.range.byte_end <= element_span.byte_start
-            || part.range.byte_start < element_span.byte_start
-        {
+        if leaf_part_precedes_chain_element(&part, element_span) {
             prefix_leaf_parts.push(part);
         } else {
             suffix_leaf_parts.push(part);
@@ -993,6 +1039,17 @@ fn split_generated_chain_link_block_node(
         fragments.push(suffix);
     }
     fragments
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leaf_part_precedes_chain_element(part: &BlockLeafPart, element_span: WebSourceRange) -> bool {
+    // #197 restored zero-width elided leaves. Non-empty leaves are classified
+    // by start offset; an elided zero-width leaf exactly at the element start
+    // remains attached to the prefix fragment to preserve existing output.
+    part.range.byte_start < element_span.byte_start
+        || (part.range.byte_start == element_span.byte_start
+            && part.range.byte_end == element_span.byte_start)
 }
 
 #[invariant(!label.is_empty(), "chain link source label must not be empty")]
@@ -1390,13 +1447,7 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
     children.extend(
         node.leaf_parts
             .iter()
-            .filter(|part| {
-                part.is_elided
-                    || !node
-                        .children
-                        .iter()
-                        .any(|child| child_covers_part(child, part))
-            })
+            .filter(|part| leaf_part_is_uncovered_by_children(&node.children, part))
             .map(BlockLayoutChild::Leaf),
     );
     children.sort_by_key(layout_child_sort_key);
@@ -1406,13 +1457,15 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
 #[requires(true)]
 #[ensures(true)]
 fn has_uncovered_leaf_parts(node: &BlockTreeNode) -> bool {
-    node.leaf_parts.iter().any(|part| {
-        part.is_elided
-            || !node
-                .children
-                .iter()
-                .any(|child| child_covers_part(child, part))
-    })
+    node.leaf_parts
+        .iter()
+        .any(|part| leaf_part_is_uncovered_by_children(&node.children, part))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leaf_part_is_uncovered_by_children(children: &[BlockTreeNode], part: &BlockLeafPart) -> bool {
+    part.is_elided || !children.iter().any(|child| child_covers_part(child, part))
 }
 
 #[requires(true)]
@@ -2293,6 +2346,36 @@ mod tests {
         assert_eq!(parts[1].label, "SelbriSimpleBridiTail");
         assert_eq!(parts[2].label, "BridiTailContinuation");
         assert_eq!(parts[2].leaf_parts[0].display_text, "do");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn top_level_payload_synthesizes_root_for_multiple_children() {
+        let options = GentufaBlockOptions::default();
+        let mut collector = GeneratedBlockCollector::new("mi do", &options, None, None);
+        let mut payload = GeneratedBlockPayload::default();
+        payload.push_node(test_generated_block_node(
+            1,
+            "First",
+            None,
+            test_range(0, 2),
+            "mi",
+        ));
+        payload.push_node(test_generated_block_node(
+            2,
+            "Second",
+            None,
+            test_range(3, 5),
+            "do",
+        ));
+
+        collector.push_payload(payload);
+        let root = collector.finish().expect("synthetic root");
+
+        assert_eq!(root.label, "GeneratedSyntaxRoot");
+        assert_eq!(root.children.len(), 2);
+        assert!(root.leaf_parts.is_empty());
     }
 
     #[requires(true)]

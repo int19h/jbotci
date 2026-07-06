@@ -1,4 +1,5 @@
 use super::*;
+use std::num::NonZeroUsize;
 
 #[test]
 #[requires(true)]
@@ -962,7 +963,7 @@ fn reference_hover_pointer_moves_do_not_request_async_measurement() {
 fn reference_hover_keeps_overlay_during_same_target_async_measurement() {
     let hovered = HoveredReference {
         role: ReferenceMarkerRole::Reference,
-        label: ReferenceLabel::new("b", Some(1), None),
+        label: ReferenceLabel::new("b", occurrence(1), None),
     };
     let overlay = new!(ArrowOverlay {
         width: 100.0,
@@ -2358,7 +2359,7 @@ fn reference_tooltip_row_view_model_separates_slot_and_target_text() {
     assert_eq!(view.target_text, "lo mlatu be mi");
 
     let discourse_row = new!(ReferenceTooltipRow {
-        label: ReferenceLabel::new("ko'a", Some(1), None),
+        label: ReferenceLabel::new("ko'a", occurrence(1), None),
         target_text: "mi".to_owned(),
     });
     let discourse_view = reference_tooltip_row_view_model(&discourse_row);
@@ -3019,10 +3020,16 @@ fn test_reference_marker(role: ReferenceMarkerRole, index: usize) -> ReferenceMa
     ReferenceMarker {
         role,
         kind: ReferenceMarkerKind::Reference,
-        label: ReferenceLabel::new("b", Some(index + 1), None),
+        label: ReferenceLabel::new("b", occurrence(index + 1), None),
         source: None,
         tooltip: None,
     }
+}
+
+#[requires(value > 0)]
+#[ensures(ret.is_some())]
+fn occurrence(value: usize) -> Option<NonZeroUsize> {
+    NonZeroUsize::new(value)
 }
 
 #[requires(true)]

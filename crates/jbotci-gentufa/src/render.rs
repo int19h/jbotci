@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use base64::Engine;
 #[allow(unused_imports)]
@@ -135,9 +137,21 @@ impl Default for GentufaPngOptions {
 pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
     layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
     options: &GentufaSvgOptions,
-    fonts: GentufaFontData<'_>,
+    fonts: GentufaFontData<'static>,
 ) -> Result<String, GentufaExportError> {
-    let mut measurer = TextMeasurer::new(fonts);
+    let usvg_options = usvg_options(fonts);
+    render_gentufa_blocks_svg_with_options(layout, options, fonts, &usvg_options)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|svg| svg.contains("<svg")) || ret.is_err())]
+fn render_gentufa_blocks_svg_with_options<Tooltip, ReferenceTooltip>(
+    layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
+    options: &GentufaSvgOptions,
+    fonts: GentufaFontData<'static>,
+    usvg_options: &usvg::Options<'static>,
+) -> Result<String, GentufaExportError> {
+    let mut measurer = TextMeasurer::new(usvg_options);
     let positioned = PositionedBlocks::new(layout, options, &mut measurer)?;
     let document = svg_document(layout, options, fonts, &positioned, &mut measurer)?;
     Ok(document.to_xml())
@@ -148,12 +162,12 @@ pub fn render_gentufa_blocks_svg<Tooltip, ReferenceTooltip>(
 pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
     layout: &GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
     options: &GentufaPngOptions,
-    fonts: GentufaFontData<'_>,
+    fonts: GentufaFontData<'static>,
 ) -> Result<Vec<u8>, GentufaExportError> {
-    let svg = render_gentufa_blocks_svg(layout, &options.svg, fonts)?;
+    let usvg_options = usvg_options(fonts);
+    let svg = render_gentufa_blocks_svg_with_options(layout, &options.svg, fonts, &usvg_options)?;
     let xml = roxmltree::Document::parse(&svg)
         .map_err(|error| GentufaExportError::Xml(error.to_string()))?;
-    let usvg_options = usvg_options(fonts);
     let tree = usvg::Tree::from_xmltree(&xml, &usvg_options)
         .map_err(|error| GentufaExportError::Svg(error.to_string()))?;
     let size = tree.size();
@@ -171,7 +185,7 @@ pub fn render_gentufa_blocks_png<Tooltip, ReferenceTooltip>(
         .map_err(|error| GentufaExportError::Png(error.to_string()))
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[invariant(true)]
 struct TextSize {
     width: f32,
@@ -236,27 +250,26 @@ impl TextRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[invariant(true)]
-struct TextMeasureKey {
-    text: String,
+struct TextMeasureStyleKey {
     role: TextRole,
     script: GentufaScript,
 }
 
 #[derive(Debug)]
 #[invariant(true)]
-struct TextMeasurer {
-    options: usvg::Options<'static>,
-    cache: HashMap<TextMeasureKey, TextSize>,
+struct TextMeasurer<'options> {
+    options: &'options usvg::Options<'static>,
+    cache: HashMap<TextMeasureStyleKey, HashMap<String, TextSize>>,
 }
 
-impl TextMeasurer {
+impl<'options> TextMeasurer<'options> {
     #[requires(true)]
     #[ensures(true)]
-    fn new(fonts: GentufaFontData<'_>) -> Self {
+    fn new(options: &'options usvg::Options<'static>) -> Self {
         Self {
-            options: usvg_options(fonts),
+            options,
             cache: HashMap::new(),
         }
     }
@@ -269,16 +282,19 @@ impl TextMeasurer {
         role: TextRole,
         script: GentufaScript,
     ) -> Result<TextSize, GentufaExportError> {
-        let key = TextMeasureKey {
-            text: text.to_owned(),
-            role,
-            script,
-        };
-        if let Some(size) = self.cache.get(&key) {
-            return Ok(size.clone());
+        let style_key = TextMeasureStyleKey { role, script };
+        if let Some(size) = self
+            .cache
+            .get(&style_key)
+            .and_then(|text_sizes| text_sizes.get(text))
+        {
+            return Ok(*size);
         }
-        let size = measure_text_with_usvg(text, role, script, &self.options)?;
-        self.cache.insert(key, size.clone());
+        let size = measure_text_with_usvg(text, role, script, self.options)?;
+        self.cache
+            .entry(style_key)
+            .or_default()
+            .insert(text.to_owned(), size);
         Ok(size)
     }
 }
@@ -412,18 +428,14 @@ impl PositionedBlocks {
     #[requires(col_span > 0)]
     #[ensures(ret > 0.0)]
     fn span_width(&self, col: usize, col_span: usize) -> f32 {
-        let end = (col + col_span).min(self.column_widths.len());
-        self.column_widths[col..end].iter().sum::<f32>()
-            + BLOCK_GAP * end.saturating_sub(col + 1) as f32
+        block_span_width(&self.column_widths, col, col_span)
     }
 
     #[requires(row < self.row_heights.len())]
     #[requires(row_span > 0)]
     #[ensures(ret > 0.0)]
     fn span_height(&self, row: usize, row_span: usize) -> f32 {
-        let end = (row + row_span).min(self.row_heights.len());
-        self.row_heights[row..end].iter().sum::<f32>()
-            + BLOCK_GAP * end.saturating_sub(row + 1) as f32
+        block_span_height(&self.row_heights, row, row_span)
     }
 
     #[requires(true)]
@@ -583,21 +595,25 @@ fn block_label_baseline_y(is_leaf: bool, span_height: f32) -> f32 {
 #[requires(col_span > 0)]
 #[ensures(ret >= 0.0)]
 fn block_span_width(column_widths: &[f32], col: usize, col_span: usize) -> f32 {
-    if col >= column_widths.len() {
-        return 0.0;
-    }
-    let end = (col + col_span).min(column_widths.len());
-    column_widths[col..end].iter().sum::<f32>() + BLOCK_GAP * end.saturating_sub(col + 1) as f32
+    block_span_extent(column_widths, col, col_span)
 }
 
 #[requires(row_span > 0)]
 #[ensures(ret >= 0.0)]
 fn block_span_height(row_heights: &[f32], row: usize, row_span: usize) -> f32 {
-    if row >= row_heights.len() {
+    block_span_extent(row_heights, row, row_span)
+}
+
+// Sizing passes tolerate stale/out-of-grid blocks by returning zero extent,
+// while PositionedBlocks methods keep stricter caller preconditions.
+#[requires(span > 0)]
+#[ensures(ret >= 0.0)]
+fn block_span_extent(extents: &[f32], start: usize, span: usize) -> f32 {
+    if start >= extents.len() {
         return 0.0;
     }
-    let end = (row + row_span).min(row_heights.len());
-    row_heights[row..end].iter().sum::<f32>() + BLOCK_GAP * end.saturating_sub(row + 1) as f32
+    let end = start.saturating_add(span).min(extents.len());
+    extents[start..end].iter().sum::<f32>() + BLOCK_GAP * end.saturating_sub(start + 1) as f32
 }
 
 #[requires(true)]
@@ -833,10 +849,15 @@ fn reference_label_text(label: &ReferenceLabel) -> String {
     output
 }
 
-#[requires(value > 0)]
+#[requires(true)]
 #[ensures(!ret.is_empty())]
-fn subscript_number(value: usize) -> String {
-    value.to_string().chars().map(subscript_digit).collect()
+fn subscript_number(value: NonZeroUsize) -> String {
+    value
+        .get()
+        .to_string()
+        .chars()
+        .map(subscript_digit)
+        .collect()
 }
 
 #[requires(character.is_ascii_digit())]
@@ -1164,25 +1185,27 @@ fn crisa_font_face(font: Option<&[u8]>) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn usvg_options(fonts: GentufaFontData<'_>) -> usvg::Options<'static> {
+fn usvg_options(fonts: GentufaFontData<'static>) -> usvg::Options<'static> {
     let mut options = usvg::Options::default();
     options
         .fontdb_mut()
-        .load_font_data(fonts.noto_sans.to_vec());
+        .load_font_source(fontdb::Source::Binary(Arc::new(fonts.noto_sans)));
     options
         .fontdb_mut()
-        .load_font_data(fonts.noto_sans_italic.to_vec());
+        .load_font_source(fontdb::Source::Binary(Arc::new(fonts.noto_sans_italic)));
     options
         .fontdb_mut()
-        .load_font_data(fonts.stix_two_math.to_vec());
+        .load_font_source(fontdb::Source::Binary(Arc::new(fonts.stix_two_math)));
     options
         .fontdb_mut()
-        .load_font_data(fonts.stix_two_text.to_vec());
+        .load_font_source(fontdb::Source::Binary(Arc::new(fonts.stix_two_text)));
     options
         .fontdb_mut()
-        .load_font_data(fonts.stix_two_text_bold.to_vec());
+        .load_font_source(fontdb::Source::Binary(Arc::new(fonts.stix_two_text_bold)));
     if let Some(crisa) = fonts.crisa {
-        options.fontdb_mut().load_font_data(crisa.to_vec());
+        options
+            .fontdb_mut()
+            .load_font_source(fontdb::Source::Binary(Arc::new(crisa)));
     }
     options.fontdb_mut().set_sans_serif_family("Noto Sans");
     options.font_family = "Noto Sans".to_owned();
@@ -1401,7 +1424,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn text_measurement_returns_nonzero_size() {
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let size = measurer
             .measure("mi klama", TextRole::LeafLabel, GentufaScript::Latin)
             .expect("measurement");
@@ -1424,7 +1448,7 @@ mod tests {
             kind: ReferenceMarkerKind::Sumti,
             label: ReferenceLabel::new(
                 "b",
-                Some(2),
+                occurrence(2),
                 Some(ReferenceSlotLabel::Modal(vec![
                     "mléca".to_owned(),
                     "be\u{301}rvi".to_owned(),
@@ -1467,7 +1491,7 @@ mod tests {
             ref_markers: vec![ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: ReferenceMarkerKind::Sumti,
-            label: ReferenceLabel::new("b", Some(2), Some(ReferenceSlotLabel::Numbered(1))),
+            label: ReferenceLabel::new("b", occurrence(2), Some(ReferenceSlotLabel::Numbered(1))),
             source: None,
             tooltip: None,
             }],
@@ -1494,7 +1518,8 @@ mod tests {
     #[ensures(true)]
     fn leaf_label_height_reserves_top_padding_without_references() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let blocks = vec![test_gentufa_block(0, 1, 0)];
 
@@ -1513,7 +1538,8 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn outgoing_reference_baseline_keeps_ink_inside_bottom_padding() {
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let text_size = measurer
             .measure("→ 𝑏₃", TextRole::Reference, GentufaScript::Latin)
             .expect("reference measurement");
@@ -1529,7 +1555,8 @@ mod tests {
     #[ensures(true)]
     fn single_incoming_reference_grows_single_row_leaf() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let column_widths = vec![MIN_COLUMN_WIDTH];
         let block = test_gentufa_block(0, 1, 0).with_data(data! {
@@ -1538,7 +1565,7 @@ mod tests {
             kind: ReferenceMarkerKind::Reference,
             label: ReferenceLabel::new(
                 "b",
-                Some(1),
+                occurrence(1),
                 Some(ReferenceSlotLabel::Modal(vec![
                     "mleca".to_owned(),
                     "bervi".to_owned(),
@@ -1567,7 +1594,8 @@ mod tests {
     #[ensures(true)]
     fn single_incoming_reference_does_not_grow_spanning_leaf() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT; 3];
         let column_widths = vec![MIN_COLUMN_WIDTH];
         let blocks = vec![test_gentufa_block(0, 3, 1)];
@@ -1589,7 +1617,8 @@ mod tests {
     #[ensures(true)]
     fn horizontally_separate_incoming_references_do_not_grow_nonleaf_row() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let column_widths = vec![MIN_COLUMN_WIDTH; 3];
         let blocks = vec![test_wide_nonleaf_block(0, 1, 3, 2)];
@@ -1611,7 +1640,8 @@ mod tests {
     #[ensures(true)]
     fn horizontally_separate_incoming_references_grow_to_stay_inside_nonleaf_block() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT];
         let column_widths = vec![MIN_COLUMN_WIDTH; 3];
         let blocks = vec![test_wide_nonleaf_block(0, 1, 3, 3)];
@@ -1633,7 +1663,8 @@ mod tests {
     #[ensures(true)]
     fn many_incoming_references_grow_only_spanning_leaf_bottom_row() {
         let options = GentufaSvgOptions::default();
-        let mut measurer = TextMeasurer::new(EmbeddedGentufaFonts::get());
+        let usvg_options = usvg_options(EmbeddedGentufaFonts::get());
+        let mut measurer = TextMeasurer::new(&usvg_options);
         let mut row_heights = vec![ROW_COMPACT_HEIGHT; 3];
         let column_widths = vec![MIN_COLUMN_WIDTH];
         let blocks = vec![test_gentufa_block(0, 3, 12)];
@@ -1778,9 +1809,15 @@ mod tests {
         ReferenceMarker {
             role: ReferenceMarkerRole::Referent,
             kind: ReferenceMarkerKind::Reference,
-            label: ReferenceLabel::new("b", Some(index + 1), None),
+            label: ReferenceLabel::new("b", occurrence(index + 1), None),
             source: None,
             tooltip: None,
         }
+    }
+
+    #[requires(value > 0)]
+    #[ensures(ret.is_some())]
+    fn occurrence(value: usize) -> Option<NonZeroUsize> {
+        NonZeroUsize::new(value)
     }
 }

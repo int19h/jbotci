@@ -3136,9 +3136,10 @@ impl TreeRenderer<'_> {
         let mut output = String::new();
         output.push_str(&self.color_token(&name.stem, role.stem_color()));
         if let Some(index) = name.occurrence {
-            output.push_str(
-                &self.color_token(&self.glyphs.numeric_suffix(index), role.suffix_color()),
-            );
+            output.push_str(&self.color_token(
+                &self.glyphs.numeric_suffix(index.get()),
+                role.suffix_color(),
+            ));
         }
         if let Some(slot) = &name.slot {
             output.push_str(&self.punctuation_token(self.glyphs.slot_open()));
