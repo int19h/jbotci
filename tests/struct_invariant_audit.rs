@@ -332,6 +332,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed lujvo index segments are static generated data validated as part of the dictionary-wide lujvo index",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryPatternEntry",
+        "borrowed pattern index entries are static generated data validated against dictionary entries and normalized key generation",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionarySoundEntry",
         "borrowed sound index entries are static generated data validated against dictionary entries and token tables",
     ),
@@ -350,6 +354,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:OwnedDictionaryIndexes",
         "owned index aggregate is produced by build_owned_indexes",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:OwnedPatternIndexEntry",
+        "owned pattern index entries are produced by build_owned_indexes",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:OwnedRafsiIndexEntry",

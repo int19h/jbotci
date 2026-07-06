@@ -13,10 +13,10 @@ use jbotci_dictionary::import::{
 };
 use jbotci_dictionary::{
     Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegment,
-    DictionaryLujvoSegmentKind, DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword,
-    OwnedDictionaryIndexes, OwnedRafsiIndexEntry, OwnedSelmahoIndexEntry, OwnedWordIndexEntry,
-    Rafsi, RafsiIndexEntry, RafsiIndexTarget, RafsiSource, RawSelmaho, SelmahoIndexEntry,
-    WordIndexEntry, WordType, build_owned_indexes,
+    DictionaryLujvoSegmentKind, DictionaryPatternEntry, DictionarySoundEntry, DictionaryUser,
+    EntryIndex, Keyword, OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry,
+    OwnedSelmahoIndexEntry, OwnedWordIndexEntry, Rafsi, RafsiIndexEntry, RafsiIndexTarget,
+    RafsiSource, RawSelmaho, SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes,
 };
 use jbotci_jvozba::decompose_lujvo_like;
 use jbotci_morphology::LujvoPart;
@@ -114,12 +114,16 @@ fn run() -> Result<(), Box<dyn Error>> {
     let selmaho_index = timed_stage("leak selmaho index", || {
         leak_selmaho_index(&indexes.selmaho_index)
     });
+    let pattern_index = timed_stage("leak pattern index", || {
+        leak_pattern_index(&indexes.pattern_index)
+    });
     let sound_index = timed_stage("leak sound index", || leak_sound_index(&sound_entries));
     let generation_dictionary = Dictionary::from_static_slices(
         leaked_entries,
         word_index,
         rafsi_index,
         selmaho_index,
+        pattern_index,
         sound_index,
         &[],
     );
@@ -132,6 +136,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         word_index,
         rafsi_index,
         selmaho_index,
+        pattern_index,
         sound_index,
         lujvo_index,
     );
@@ -270,6 +275,27 @@ fn leak_selmaho_index(index: &[OwnedSelmahoIndexEntry]) -> &'static [SelmahoInde
         .map(|entry| SelmahoIndexEntry {
             key: leak_str(&entry.key),
             targets: entry.targets.clone().leak(),
+        })
+        .collect::<Vec<_>>()
+        .leak()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leak_pattern_index(
+    index: &[OwnedPatternIndexEntry],
+) -> &'static [DictionaryPatternEntry<'static>] {
+    index
+        .iter()
+        .map(|entry| DictionaryPatternEntry {
+            entry_index: entry.entry_index,
+            word_key: leak_str(&entry.word_key),
+            rafsi_keys: entry
+                .rafsi_keys
+                .iter()
+                .map(|key| leak_str(key))
+                .collect::<Vec<_>>()
+                .leak(),
         })
         .collect::<Vec<_>>()
         .leak()
@@ -455,6 +481,7 @@ fn render_dictionary(
     let word_index = indexes.word_index.iter().map(render_word_index_entry);
     let rafsi_index = indexes.rafsi_index.iter().map(render_rafsi_index_entry);
     let selmaho_index = indexes.selmaho_index.iter().map(render_selmaho_index_entry);
+    let pattern_index = indexes.pattern_index.iter().map(render_pattern_index_entry);
     let sound_index = sound_index.iter().map(render_sound_index_entry);
     let lujvo_index = lujvo_index.iter().map(render_lujvo_index_entry);
     let rendered_metadata = render_metadata(metadata);
@@ -476,6 +503,10 @@ fn render_dictionary(
             #(#selmaho_index,)*
         ];
 
+        static PATTERN_INDEX: &[jbotci_dictionary::DictionaryPatternEntry<'static>] = &[
+            #(#pattern_index,)*
+        ];
+
         static SOUND_INDEX: &[jbotci_dictionary::DictionarySoundEntry<'static>] = &[
             #(#sound_index,)*
         ];
@@ -490,6 +521,7 @@ fn render_dictionary(
                 WORD_INDEX,
                 RAFSI_INDEX,
                 SELMAHO_INDEX,
+                PATTERN_INDEX,
                 SOUND_INDEX,
                 LUJVO_INDEX,
             );
@@ -629,6 +661,21 @@ fn render_selmaho_index_entry(entry: &OwnedSelmahoIndexEntry) -> TokenStream {
         jbotci_dictionary::SelmahoIndexEntry {
             key: #key,
             targets: &[#(#targets,)*],
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_pattern_index_entry(entry: &OwnedPatternIndexEntry) -> TokenStream {
+    let entry_index = render_entry_index(&entry.entry_index);
+    let word_key = string_literal(&entry.word_key);
+    let rafsi_keys = entry.rafsi_keys.iter().map(|key| string_literal(key));
+    quote! {
+        jbotci_dictionary::DictionaryPatternEntry {
+            entry_index: #entry_index,
+            word_key: #word_key,
+            rafsi_keys: &[#(#rafsi_keys,)*],
         }
     }
 }
