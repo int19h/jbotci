@@ -33,30 +33,10 @@ pub(crate) fn segment_words_with_modifiers_attempt(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> MorphologySegmentAttempt {
-    segment_words_with_modifiers_raw_attempt(input, options, source_id)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn segment_words_with_modifiers_raw(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_attempt(input, options, source_id)
-        .into_data()
-        .result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn segment_words_with_modifiers_raw_attempt(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> MorphologySegmentAttempt {
+    // v1 deliberately dropped v0's raw/--no-postproc boundary; this is the
+    // single non-display segmentation entry point.
     let segmenter = Segmenter::new(input, options, source_id);
-    segmenter.segment_raw_attempt()
+    segmenter.segment_attempt()
 }
 
 #[requires(true)]
@@ -101,11 +81,11 @@ struct Segmenter<'a> {
     trace: TraceRecorder,
 }
 
-#[invariant(::Raw => true)]
+#[invariant(::Morphology => true)]
 #[invariant(::Display => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SegmentMode {
-    Raw,
+    Morphology,
     Display,
 }
 
@@ -114,15 +94,15 @@ impl SegmentMode {
     #[ensures(!ret.is_empty())]
     fn trace_label(self) -> &'static str {
         match self {
-            Self::Raw => "segment",
+            Self::Morphology => "segment",
             Self::Display => "display segment",
         }
     }
 
     #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Raw))]
+    #[ensures(ret == matches!(self, Self::Morphology))]
     fn consumes_faho(self) -> bool {
-        matches!(self, Self::Raw)
+        matches!(self, Self::Morphology)
     }
 }
 
@@ -147,9 +127,9 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw_attempt(mut self) -> MorphologySegmentAttempt {
+    fn segment_attempt(mut self) -> MorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
-        let result = self.segment_raw();
+        let result = self.segment_words();
         let trace = self.trace.finish();
         new!(MorphologySegmentAttempt {
             result,
@@ -173,13 +153,13 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    fn segment_words(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
             if self.index == self.chars.len() {
                 break;
             }
-            let segment = self.next_segment(SegmentMode::Raw)?;
+            let segment = self.next_segment(SegmentMode::Morphology)?;
             self.process_segment(&mut acc, segment)?;
         }
         Ok(acc)

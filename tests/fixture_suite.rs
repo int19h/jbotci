@@ -404,7 +404,7 @@ fn parallel_runner_matches_serial_summary() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn morphology_raw_matches_simple_cll_fixture() {
+fn morphology_matches_simple_cll_fixture_expectation() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/cll/chapter-05/section-5.1/c5e1d1.toml");
     let test_case = load_fixture_file(fixture_path).expect("fixture should load");

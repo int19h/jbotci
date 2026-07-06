@@ -2057,51 +2057,6 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
 
 #[requires(true)]
 #[ensures(true)]
-pub fn segment_words_with_modifiers_raw(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        None,
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_source_id(
-    input: &str,
-    source_id: SourceId,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        Some(source_id),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_options(
-    input: &str,
-    options: &MorphologyOptions,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_with_modifiers_raw_attempt(input, options, source_id)
-        .into_data()
-        .result
-        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
-}
-
-#[requires(true)]
-#[ensures(true)]
 pub fn segment_words_for_display(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
     segment_words_for_display_with_options_and_source_id(input, &MorphologyOptions::default(), None)
 }
@@ -3455,7 +3410,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn marks_cmavo_glides() {
-        let words = segment_words_with_modifiers_raw("coi .ui").expect("valid morphology");
+        let words = segment_words_with_modifiers("coi .ui").expect("valid morphology");
         let phonemes: Vec<_> = words
             .iter()
             .map(|word| base_word(word).expect("base word").phonemes().into_string())

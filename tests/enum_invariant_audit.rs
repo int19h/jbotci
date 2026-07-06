@@ -840,7 +840,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
-        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Raw",
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Morphology",
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
