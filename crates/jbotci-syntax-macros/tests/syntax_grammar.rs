@@ -244,6 +244,8 @@ fn grammar_macro_exports_rule_lookup() {
 }
 
 mod generated_model {
+    use crate::Cmavo;
+
     #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;
@@ -315,6 +317,8 @@ mod generated_model {
 }
 
 mod generated_model_filter {
+    use crate::Cmavo;
+
     #[bityzba::invariant(true)]
     #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
     pub struct Token;

@@ -1825,6 +1825,28 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zantufa_raw_mekso_quantifier_does_not_shadow_lerfu_sumti_sentence() {
+        run_on_normal_stack(|| {
+            let dialect =
+                parse_dialect_definition("(case-insensitive zantufa)").expect("valid dialect");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let words =
+                segment_words_with_modifiers("lo cukta poi my tcidu").expect("valid morphology");
+
+            let parsed = parse_syntax_tree(&words, &options).expect("valid Zantufa syntax");
+            let tree = format!("{:#?}", parsed.parse_tree);
+
+            assert!(tree.contains("LerfuStringSumti"), "{tree}");
+            assert!(
+                !tree.contains("ZantufaPriorityRawMeksoQuantifier"),
+                "{tree}"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn gates_zantufa_initial_gi_gek() {
         run_on_normal_stack(|| {
             let words = segment_words_with_modifiers("gi je mi klama gi do klama")

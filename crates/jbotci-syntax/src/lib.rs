@@ -819,11 +819,9 @@ pub(crate) fn syntax_construct_parent(construct: &str) -> Option<&'static str> {
 }
 
 #[requires(!construct.is_empty())]
+#[requires(syntax_construct_is_known(construct))]
 #[ensures(ret < SYNTAX_CONSTRUCT_METADATA.len())]
 pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
-    if !syntax_construct_is_known(construct) {
-        panic!("missing syntax diagnostic construct metadata for {construct:?}");
-    }
     let mut depth = 0;
     let mut current = construct;
     while let Some(parent) = syntax_construct_parent(current) {
@@ -840,11 +838,9 @@ pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
 }
 
 #[requires(!construct.is_empty())]
+#[requires(syntax_construct_is_known(construct))]
 #[ensures(ret == matches!(construct, "text" | "parse_text"))]
 pub(crate) fn syntax_construct_is_root(construct: &str) -> bool {
-    if !syntax_construct_is_known(construct) {
-        panic!("missing syntax diagnostic construct metadata for {construct:?}");
-    }
     matches!(construct, "text" | "parse_text")
 }
 
@@ -2224,10 +2220,101 @@ fn remove_source_span_fields(value: &mut Value) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     #[allow(unused_imports)]
     use bityzba::{data, ensures, new, requires};
 
     use super::*;
+
+    // Frozen diagnostics debt tracked by #282. These labels are live generated
+    // parser contexts, but their canonical parent-tree entries require separate
+    // diagnostics review. The completeness test below fails on new drift and on
+    // stale entries, so this list can only shrink.
+    const KNOWN_MISSING_CONSTRUCT_METADATA: &[&str] = &[
+        "BO-grouped tanru unit",
+        "FIhOI adverbial",
+        "NA term",
+        "NOIhA adverbial",
+        "SOI adverbial",
+        "abstractor connection",
+        "bridi continuation",
+        "bridi tail",
+        "bridi tail connective",
+        "connected tag continuation",
+        "connective operator",
+        "converted term",
+        "descriptor connective",
+        "ek",
+        "elided sumti",
+        "forethought bridi branch",
+        "forethought connective",
+        "forethought selbri connective",
+        "gihek",
+        "grouped mex",
+        "grouped operator",
+        "interval",
+        "interval property",
+        "jek",
+        "joik",
+        "leading indicator",
+        "lerfu string continuation",
+        "lerfu word",
+        "mex continuation",
+        "mex precedence tail",
+        "mex selbri",
+        "non-logical connective",
+        "number continuation",
+        "number mex",
+        "number or lerfu string",
+        "operand connective",
+        "operand continuation",
+        "operator continuation",
+        "paragraph",
+        "paragraph statement",
+        "paragraph statement sequence",
+        "paragraphs",
+        "pro-bridi",
+        "pro-bridi assignment",
+        "quantified sumti",
+        "quoted bridi selbri",
+        "quoted text selbri",
+        "relative clause connective",
+        "reverse Polish mex tail",
+        "scalar-negated operand",
+        "scalar-negated sumti",
+        "scalar-negated tanru unit",
+        "scalar-negated term",
+        "selbri connection",
+        "selbri connection continuation",
+        "selbri connective",
+        "space interval",
+        "space interval property",
+        "statement branch",
+        "statement connection",
+        "statement connective",
+        "sumti connection",
+        "sumti connective",
+        "sumti relative phrase",
+        "sumti selbri",
+        "sumti-to-operator",
+        "tag connective",
+        "tag selbri",
+        "tagged selbri",
+        "tagged sumti",
+        "tanru unit continuation",
+        "term connection",
+        "term connection continuation",
+        "term connective",
+        "termset connection",
+        "termset connection continuation",
+        "termset connective",
+        "termset continuation",
+        "text connective",
+        "text selbri",
+        "time interval",
+        "vocative marker",
+    ];
 
     #[test]
     #[requires(true)]
@@ -2574,6 +2661,81 @@ mod tests {
                 metadata.name,
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_parser_contexts_all_have_diagnostic_metadata_or_frozen_debt() {
+        let generated_contexts = generated_model::GENERATED_MODEL_CONSTRUCTOR_LABELS
+            .iter()
+            .map(|(_, construct)| *construct)
+            .collect::<BTreeSet<_>>();
+        let known_missing = KNOWN_MISSING_CONSTRUCT_METADATA
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+
+        for construct in &known_missing {
+            assert!(
+                generated_contexts.contains(construct),
+                "known-missing construct metadata entry {construct:?} is no longer generated",
+            );
+            assert!(
+                !syntax_construct_is_known(construct),
+                "known-missing construct metadata entry {construct:?} now has metadata and should be removed from the allowlist",
+            );
+        }
+
+        let missing = generated_contexts
+            .iter()
+            .copied()
+            .filter(|construct| !syntax_construct_is_known(construct))
+            .filter(|construct| !known_missing.contains(construct))
+            .collect::<Vec<_>>();
+        assert!(
+            missing.is_empty(),
+            "generated parser contexts missing syntax construct metadata and not frozen by #282: {missing:?}",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_elidable_terminators_drive_absent_field_lookup() {
+        let mut seen = BTreeSet::new();
+        for terminator in generated_model::GENERATED_MODEL_ELIDABLE_TERMINATORS {
+            assert!(
+                seen.insert(terminator.field),
+                "duplicate elidable terminator field {:?}",
+                terminator.field
+            );
+            assert_eq!(
+                elidable_terminator_for_absent_field_ref(jbotci_tree::FieldRef::new(
+                    Some(terminator.field),
+                    0,
+                    false,
+                )),
+                Some(terminator.cmavo)
+            );
+        }
+
+        assert_eq!(
+            elidable_terminator_for_absent_field_ref(jbotci_tree::FieldRef::new(
+                Some("lihau"),
+                0,
+                false,
+            )),
+            Some(Cmavo::Lihau)
+        );
+        assert_eq!(
+            elidable_terminator_for_absent_field_ref(jbotci_tree::FieldRef::new(
+                Some("liau"),
+                0,
+                false,
+            )),
+            None
+        );
     }
 
     #[test]

@@ -2012,6 +2012,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture bracket expectation wrapper delegates per-script optionality to ScriptBracketExpectations",
     ),
     (
+        "xtask-common/src/fixtures/mod.rs:TextExpectationWire::Table",
+        "fixture text expectation wire table is validated after deserialization so serde can report field-level parse errors",
+    ),
+    (
+        "xtask-common/src/fixtures/mod.rs:TextExpectationWire::Text",
+        "fixture text expectation wire format accepts any legacy inline string; payload validity is checked after deserialization",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:FixtureError::DuplicateId",
         "fixture error wrapper carries duplicate-id diagnostics",
     ),

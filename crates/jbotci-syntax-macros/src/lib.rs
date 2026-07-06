@@ -523,6 +523,7 @@ impl SyntaxGrammar {
         let mut chain_link_element_fields = BTreeSet::<(String, String)>::new();
         let mut variant_struct_outputs = BTreeSet::<(String, String)>::new();
         let mut constructor_labels = BTreeMap::<String, String>::new();
+        let mut elidable_terminator_fields = BTreeMap::<String, String>::new();
         for rule in &self.rules {
             collect_chain_link_element_fields_for_rule(
                 rule,
@@ -604,6 +605,19 @@ impl SyntaxGrammar {
                 continue;
             }
             let key = output.to_string();
+            for (field, cmavo) in rule.generated_elidable_terminator_fields()? {
+                if let Some(existing) =
+                    elidable_terminator_fields.insert(field.clone(), cmavo.clone())
+                    && existing != cmavo
+                {
+                    return Err(syn::Error::new_spanned(
+                        &rule.name,
+                        format!(
+                            "field `{field}` is annotated with both `{existing}` and `{cmavo}` elidable terminators",
+                        ),
+                    ));
+                }
+            }
             let fields = rule.generated_model_fields(type_env)?;
             if fields.len() == 1 {
                 let constructor = generated_constructor_name(&output);
@@ -669,6 +683,13 @@ impl SyntaxGrammar {
         let constructor_label_items = constructor_labels
             .iter()
             .map(|(constructor, label)| quote!((#constructor, #label)));
+        let elidable_terminator_items = elidable_terminator_fields.iter().map(|(field, cmavo)| {
+            let cmavo = format_ident!("{cmavo}");
+            quote!(GeneratedModelElidableTerminator {
+                field: #field,
+                cmavo: Cmavo::#cmavo,
+            })
+        });
         let struct_field_order_items =
             structs
                 .values()
@@ -703,6 +724,12 @@ impl SyntaxGrammar {
                 pub fields: &'static [&'static str],
             }
 
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub struct GeneratedModelElidableTerminator {
+                pub field: &'static str,
+                pub cmavo: Cmavo,
+            }
+
             #[doc(hidden)]
             pub const GENERATED_MODEL_TRANSPARENT_TREE_CONSTRUCTORS: &[&str] = &[
                 #(#transparent_constructors,)*
@@ -721,6 +748,11 @@ impl SyntaxGrammar {
             #[doc(hidden)]
             pub const GENERATED_MODEL_CONSTRUCTOR_LABELS: &[(&str, &str)] = &[
                 #(#constructor_label_items,)*
+            ];
+
+            #[doc(hidden)]
+            pub const GENERATED_MODEL_ELIDABLE_TERMINATORS: &[GeneratedModelElidableTerminator] = &[
+                #(#elidable_terminator_items,)*
             ];
 
             #[doc(hidden)]
@@ -2370,6 +2402,30 @@ impl NodeRule {
 
     #[requires(true)]
     #[ensures(true)]
+    fn generated_elidable_terminator_fields(&self) -> Result<Vec<(String, String)>> {
+        self.fields
+            .iter()
+            .filter_map(|field| match field.elidable_terminator_cmavo() {
+                Ok(Some(cmavo)) => Some(
+                    field
+                        .name
+                        .as_ref()
+                        .map(|name| Ok((name.to_string(), cmavo)))
+                        .unwrap_or_else(|| {
+                            Err(syn::Error::new_spanned(
+                                field.parser.to_token_stream(),
+                                "elidable terminator annotations require a named parser field",
+                            ))
+                        }),
+                ),
+                Ok(None) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_metadata(
         &self,
         kind: &'static str,
@@ -2976,6 +3032,7 @@ fn strict_postfix_parser_expr_tokens(
     let inner =
         strict_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
     match (method.to_string().as_str(), args.len()) {
+        ("elidable_terminator", 1) => Ok(inner),
         ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
@@ -3226,7 +3283,15 @@ fn strict_method_parser_expr_tokens(
     free_modifier_parser: &Ident,
     mode: StrictParserCallMode,
 ) -> Result<TokenStream2> {
-    if method.method == "warn" && method.args.len() == 1 {
+    if method.method == "elidable_terminator" && method.args.len() == 1 {
+        strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )
+    } else if method.method == "warn" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -4018,6 +4083,7 @@ fn postfix_parser_output_type(
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
+        ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
         ("not" | "ignored", 0) => Some(quote!(())),
         ("ignore_then", 1) => {
@@ -4203,6 +4269,7 @@ fn method_rust_parser_output_type(
     arguments: &BTreeMap<String, Type>,
 ) -> Option<TokenStream2> {
     if method.method == "warn"
+        || method.method == "elidable_terminator"
         || method.method == "not_next_selmaho"
         || method.method == "not_next_token"
         || method.method == "not_next_rule"
@@ -4782,6 +4849,175 @@ impl FieldItem {
             ty,
         })))
     }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|cmavo| cmavo.as_ref().is_none_or(|cmavo| !cmavo.is_empty())))]
+    fn elidable_terminator_cmavo(&self) -> Result<Option<String>> {
+        match &self.parser {
+            ParserExpr::Rust(Expr::MethodCall(method))
+                if method.method == "elidable_terminator" =>
+            {
+                self.elidable_terminator_cmavo_from_rust_method(method)
+            }
+            ParserExpr::Postfix {
+                receiver,
+                method,
+                args,
+            } if method == "elidable_terminator" => {
+                self.elidable_terminator_cmavo_from_parser_postfix(receiver, args)
+            }
+            ParserExpr::Rust(_)
+            | ParserExpr::Vector(_)
+            | ParserExpr::Chain(_)
+            | ParserExpr::Postfix { .. } => Ok(None),
+        }
+    }
+
+    #[requires(method.method == "elidable_terminator")]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|cmavo| cmavo.as_ref().is_some_and(|cmavo| !cmavo.is_empty())))]
+    fn elidable_terminator_cmavo_from_rust_method(
+        &self,
+        method: &ExprMethodCall,
+    ) -> Result<Option<String>> {
+        self.validate_elidable_terminator_field()?;
+        let cmavo = elidable_terminator_marker_arg(
+            method.args.len(),
+            method.args.first(),
+            self.parser.to_token_stream(),
+        )?;
+        let parsed = optional_elidable_terminator_cmavo_expr(&method.receiver).ok_or_else(|| {
+            syn::Error::new_spanned(
+                method.receiver.to_token_stream(),
+                "elidable_terminator() must annotate an optional cmavo or selma'o terminator parser",
+            )
+        })?;
+        validate_elidable_terminator_match(&method.receiver, &cmavo, &parsed)?;
+        Ok(Some(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|cmavo| cmavo.as_ref().is_some_and(|cmavo| !cmavo.is_empty())))]
+    fn elidable_terminator_cmavo_from_parser_postfix(
+        &self,
+        receiver: &ParserExpr,
+        args: &[Expr],
+    ) -> Result<Option<String>> {
+        self.validate_elidable_terminator_field()?;
+        let cmavo = elidable_terminator_marker_arg(
+            args.len(),
+            args.first(),
+            self.parser.to_token_stream(),
+        )?;
+        let parsed = optional_elidable_terminator_cmavo(receiver).ok_or_else(|| {
+            syn::Error::new_spanned(
+                receiver.to_token_stream(),
+                "elidable_terminator() must annotate an optional cmavo or selma'o terminator parser",
+            )
+        })?;
+        validate_elidable_terminator_match(receiver.to_token_stream(), &cmavo, &parsed)?;
+        Ok(Some(cmavo))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() -> matches!(self.kind, FieldKind::Field))]
+    fn validate_elidable_terminator_field(&self) -> Result<()> {
+        if matches!(self.kind, FieldKind::Field) {
+            Ok(())
+        } else {
+            Err(syn::Error::new_spanned(
+                self.parser.to_token_stream(),
+                "elidable terminator annotations are only valid on parser fields",
+            ))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|cmavo| !cmavo.is_empty()))]
+fn elidable_terminator_marker_arg(
+    args_len: usize,
+    first_arg: Option<&Expr>,
+    span: impl ToTokens,
+) -> Result<String> {
+    if args_len != 1 {
+        return Err(syn::Error::new_spanned(
+            span,
+            "elidable_terminator() requires one cmavo path",
+        ));
+    }
+    required_path_expr_last_segment(
+        first_arg.expect("length checked"),
+        "elidable_terminator() requires a cmavo path",
+    )
+}
+
+#[requires(!cmavo.is_empty())]
+#[requires(!parsed.is_empty())]
+#[ensures(ret.is_ok() -> cmavo == parsed)]
+fn validate_elidable_terminator_match(
+    span: impl ToTokens,
+    cmavo: &str,
+    parsed: &str,
+) -> Result<()> {
+    if parsed == cmavo {
+        Ok(())
+    } else {
+        Err(syn::Error::new_spanned(
+            span,
+            format!(
+                "elidable_terminator({cmavo}) does not match optional terminator parser `{parsed}`",
+            ),
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|cmavo| !cmavo.is_empty()))]
+fn optional_elidable_terminator_cmavo(expr: &ParserExpr) -> Option<String> {
+    match expr {
+        ParserExpr::Rust(expr) => optional_elidable_terminator_cmavo_expr(expr),
+        ParserExpr::Vector(_) | ParserExpr::Chain(_) | ParserExpr::Postfix { .. } => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|cmavo| !cmavo.is_empty()))]
+fn optional_elidable_terminator_cmavo_expr(expr: &Expr) -> Option<String> {
+    let Expr::Call(call) = expr else {
+        return None;
+    };
+    if call_name(call)? != "opt" || call.args.len() != 1 {
+        return None;
+    }
+    elidable_terminator_terminal_cmavo(call.args.first().expect("length checked"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|cmavo| !cmavo.is_empty()))]
+fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Call(call) => {
+            let name = call_name(call)?;
+            match (name.as_str(), call.args.len()) {
+                ("cmavo" | "selmaho", 1) => call.args.first().and_then(path_expr_last_segment),
+                ("arc" | "boxed", 1) => {
+                    elidable_terminator_terminal_cmavo(call.args.first().expect("length checked"))
+                }
+                ("feature" | "policy", 2) => elidable_terminator_terminal_cmavo(
+                    call.args.iter().nth(1).expect("length checked"),
+                ),
+                _ => None,
+            }
+        }
+        Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
+            ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
+            | ("warn", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
+            _ => None,
+        },
+        Expr::Group(group) => elidable_terminator_terminal_cmavo(&group.expr),
+        Expr::Paren(paren) => elidable_terminator_terminal_cmavo(&paren.expr),
+        _ => None,
+    }
 }
 
 enum FieldKind {
@@ -5154,6 +5390,7 @@ fn classify_method_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
+        ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
         ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),

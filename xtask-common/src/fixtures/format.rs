@@ -136,6 +136,7 @@ fn push_expectations_toml(
         output.push_str("\n[expectations.semantics.refs]\n");
         push_field(output, "status", &refs.status)?;
         push_optional_field(output, "raw", &refs.raw)?;
+        push_optional_field(output, "error", &refs.error)?;
     }
     if let Some(output_expectation) = &expectations.output {
         if let Some(vlasei) = &output_expectation.vlasei {
@@ -181,13 +182,17 @@ fn push_expectations_toml(
             }
         }
         if let Some(tersmu) = &output_expectation.tersmu
-            && tersmu.json.is_some()
+            && (tersmu.json.is_some() || tersmu.error.is_some())
         {
             output.push_str("\n[expectations.output.tersmu]\n");
+            if tersmu.status != super::ExpectationStatus::Success {
+                push_field(output, "status", &tersmu.status)?;
+            }
             if tersmu.story_time {
                 output.push_str("story-time = true\n");
             }
             push_optional_field(output, "json", &tersmu.json)?;
+            push_optional_field(output, "error", &tersmu.error)?;
         }
     }
     Ok(())

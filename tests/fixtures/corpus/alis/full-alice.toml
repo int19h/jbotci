@@ -1,0 +1,31 @@
+id = "corpus.alis.full-alice"
+lojban-filename = "texts/full-alice.lojban"
+dialect = "(case-insensitive zantufa)"
+tags = ["long-text", "regression-baseline"]
+# Initial expectations are parser-output regression baselines, not semantically verified truth.
+
+[[provenance]]
+kind = "corpus"
+corpus = "alis.lojban.org"
+entry-id = "alis-visible-diagnostic-repaired31"
+
+[expectations.morphology]
+status = "success"
+# The inline morphology debug tree is large; keep this full-text fixture reviewable.
+raw = { sha256 = "098a7a26d0727f1bf9d696d67e271262bc37f80067f1c575bc1717d3cd1c6acb" }
+diagnostics = []
+
+[expectations.syntax]
+status = "success"
+# The inline syntax debug tree is large; keep this full-text fixture reviewable.
+raw = { sha256 = "9bdd53949858de9719408ac81aeb45571ee42c435f8812a28c455cafe66abac7" }
+diagnostics = []
+
+[expectations.semantics.refs]
+status = "success"
+# The inline semantic reference projection is about 28 MiB; keep this full-text fixture reviewable.
+raw = { sha256 = "67c410800fa3115939676635c2ea4f49910e71cf5a89ae6c640097bf10bcd43a" }
+
+[expectations.output.tersmu]
+status = "failure"
+error = "tersmu JSON build error: generated semantic builder does not yet support tanru"

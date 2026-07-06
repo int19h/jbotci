@@ -3839,6 +3839,34 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn every_cmavo_round_trips_through_canonical_text() {
+        assert_eq!(Cmavo::ALL.len(), Cmavo::Zy as usize + 1);
+        for (expected_index, cmavo) in Cmavo::ALL.iter().copied().enumerate() {
+            assert_eq!(cmavo as usize, expected_index);
+            assert_eq!(
+                Cmavo::from_text(cmavo.canonical_text()),
+                Some(cmavo),
+                "{cmavo:?} canonical text does not map back to the same variant"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_selmaho_round_trips_through_name() {
+        for selmaho in Selmaho::ALL.iter().copied() {
+            assert_eq!(
+                Selmaho::from_name(selmaho.name()),
+                Some(selmaho),
+                "{selmaho:?} name does not map back to the same variant"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn selmaho_all_is_complete_and_ordered_for_primary_precedence() {
         assert_eq!(Selmaho::ALL.len(), Selmaho::Zoi as usize + 1);
         for (expected_index, selmaho) in Selmaho::ALL.iter().copied().enumerate() {

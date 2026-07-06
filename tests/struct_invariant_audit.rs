@@ -1868,6 +1868,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture expectation payload is checked by fixture runner comparisons",
     ),
     (
+        "xtask-common/src/fixtures/mod.rs:TextExpectationTable",
+        "fixture text expectation wire table is validated immediately after deserialization",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:VlaseiOutputExpectation",
         "fixture expectation aggregate permits absent vlasei output formats",
     ),
