@@ -32,15 +32,6 @@ pub struct GeneratedReferenceDisplay<'tree> {
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Primary(..) => true)]
-#[invariant(::Labelled(..) => true)]
-pub(crate) enum RenderEntry {
-    Primary(TreeValue),
-    Labelled(&'static str, TreeValue),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub(crate) struct TreeEntry {
     pub(crate) label: Option<&'static str>,
     pub(crate) value: TreeValue,
@@ -2999,11 +2990,10 @@ impl TreeRenderer<'_> {
             self.output.push_str(&self.punctuation_token("}"));
             return;
         }
-        let entries = node.entries.iter().map(render_entry).collect::<Vec<_>>();
         if self.indent_step == 0 {
-            self.render_inline_entries(&entries);
+            self.render_inline_entries(&node.entries);
         } else {
-            self.render_entries(&entries, indent);
+            self.render_entries(&node.entries, indent);
             self.output.push('\n');
             self.push_indent(indent);
         }
@@ -3012,19 +3002,19 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_entries(&mut self, entries: &[RenderEntry], indent: usize) {
+    fn render_entries(&mut self, entries: &[TreeEntry], indent: usize) {
         let child_indent = indent + self.indent_step;
         for entry in entries {
             self.output.push('\n');
             self.push_indent(child_indent);
-            match entry {
-                RenderEntry::Primary(value) => self.render_value(value, child_indent),
-                RenderEntry::Labelled(label, value) => {
+            match entry.label {
+                Some(label) => {
                     self.output.push_str(&self.field_token(label));
                     self.output.push_str(&self.punctuation_token(":"));
                     self.output.push(' ');
-                    self.render_value(value, child_indent);
+                    self.render_value(&entry.value, child_indent);
                 }
+                None => self.render_value(&entry.value, child_indent),
             }
             self.output.push_str(&self.punctuation_token(","));
         }
@@ -3032,18 +3022,18 @@ impl TreeRenderer<'_> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn render_inline_entries(&mut self, entries: &[RenderEntry]) {
+    fn render_inline_entries(&mut self, entries: &[TreeEntry]) {
         for (index, entry) in entries.iter().enumerate() {
             if index > 0 {
                 self.output.push_str(&self.punctuation_token(","));
             }
-            match entry {
-                RenderEntry::Primary(value) => self.render_value(value, 0),
-                RenderEntry::Labelled(label, value) => {
+            match entry.label {
+                Some(label) => {
                     self.output.push_str(&self.field_token(label));
                     self.output.push_str(&self.punctuation_token(":"));
-                    self.render_value(value, 0);
+                    self.render_value(&entry.value, 0);
                 }
+                None => self.render_value(&entry.value, 0),
             }
         }
     }
@@ -3146,9 +3136,10 @@ impl TreeRenderer<'_> {
         let mut output = String::new();
         output.push_str(&self.color_token(&name.stem, role.stem_color()));
         if let Some(index) = name.occurrence {
-            output.push_str(
-                &self.color_token(&self.glyphs.numeric_suffix(index), role.suffix_color()),
-            );
+            output.push_str(&self.color_token(
+                &self.glyphs.numeric_suffix(index.get()),
+                role.suffix_color(),
+            ));
         }
         if let Some(slot) = &name.slot {
             output.push_str(&self.punctuation_token(self.glyphs.slot_open()));
@@ -3231,15 +3222,6 @@ impl ReferenceRenderRole {
             Self::Reference => ColorRole::ReferenceSuffix,
             Self::Referent => ColorRole::ReferentSuffix,
         }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_entry(entry: &TreeEntry) -> RenderEntry {
-    match entry.label {
-        Some(label) => RenderEntry::Labelled(label, entry.value.clone()),
-        None => RenderEntry::Primary(entry.value.clone()),
     }
 }
 

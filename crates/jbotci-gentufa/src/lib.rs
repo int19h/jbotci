@@ -4,6 +4,7 @@ mod render;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::num::NonZeroUsize;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -53,14 +54,18 @@ pub struct WebSourceRange {
 #[serde(rename_all = "kebab-case")]
 pub struct ReferenceLabel {
     pub stem: String,
-    pub occurrence: Option<usize>,
+    pub occurrence: Option<NonZeroUsize>,
     pub slot: Option<ReferenceSlotLabel>,
 }
 
 impl ReferenceLabel {
     #[requires(true)]
     #[ensures(ret.stem == stem)]
-    pub fn new(stem: &str, occurrence: Option<usize>, slot: Option<ReferenceSlotLabel>) -> Self {
+    pub fn new(
+        stem: &str,
+        occurrence: Option<NonZeroUsize>,
+        slot: Option<ReferenceSlotLabel>,
+    ) -> Self {
         new!(ReferenceLabel {
             stem: stem.to_owned(),
             occurrence,
@@ -71,6 +76,8 @@ impl ReferenceLabel {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub fn base_key(&self) -> String {
+        // Reference stems are digit-free normalized word stems, so appending a
+        // decimal one-based occurrence preserves generated-label injectivity.
         let mut key = self.stem.clone();
         if let Some(occurrence) = self.occurrence {
             key.push_str(&occurrence.to_string());
@@ -88,6 +95,12 @@ impl ReferenceLabel {
             key.push('>');
         }
         key
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.stem == other.stem && self.occurrence == other.occurrence))]
+    pub fn same_base(&self, other: &Self) -> bool {
+        self.stem == other.stem && self.occurrence == other.occurrence
     }
 }
 
@@ -355,6 +368,24 @@ pub fn range_from_span(span: &SourceSpan) -> WebSourceRange {
 }
 
 #[requires(true)]
+#[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end && range.char_start <= range.char_end))]
+fn merge_source_ranges(
+    first: Option<WebSourceRange>,
+    second: Option<WebSourceRange>,
+) -> Option<WebSourceRange> {
+    match (first, second) {
+        (None, None) => None,
+        (Some(range), None) | (None, Some(range)) => Some(range),
+        (Some(first), Some(second)) => Some(new!(WebSourceRange {
+            byte_start: first.byte_start.min(second.byte_start),
+            byte_end: first.byte_end.max(second.byte_end),
+            char_start: first.char_start.min(second.char_start),
+            char_end: first.char_end.max(second.char_end),
+        })),
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.chars().count() >= stem.chars().count())]
 pub fn math_alphanumeric_stem(stem: &str) -> String {
     let mut output = String::new();
@@ -390,28 +421,28 @@ pub fn reference_label_plain_text(text: &str) -> String {
 struct GeneratedBlockPayload {
     children: Vec<BlockTreeNode>,
     leaf_parts: Vec<BlockLeafPart>,
-    source_spans: Vec<SourceSpan>,
+    source_range: Option<WebSourceRange>,
 }
 
 impl GeneratedBlockPayload {
     #[requires(true)]
     #[ensures(true)]
     fn push_node(&mut self, node: BlockTreeNode) {
-        self.source_spans.extend(node.source_spans.clone());
+        self.source_range = merge_source_ranges(self.source_range, node.span);
         self.children.push(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
-        self.source_spans.extend(source_spans);
+    fn push_leaf_part(&mut self, part: BlockLeafPart) {
+        self.source_range = merge_source_ranges(self.source_range, Some(part.range));
         self.leaf_parts.push(part);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn extend(&mut self, payload: GeneratedBlockPayload) {
-        self.source_spans.extend(payload.source_spans);
+        self.source_range = merge_source_ranges(self.source_range, payload.source_range);
         self.leaf_parts.extend(payload.leaf_parts);
         self.children.extend(payload.children);
     }
@@ -530,9 +561,44 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             frame.payload_mut().extend(payload);
             return;
         }
-        if self.root.is_none() && payload.children.len() == 1 && payload.leaf_parts.is_empty() {
-            self.root = payload.children.into_iter().next();
+        if self.root.is_some() {
+            assert!(
+                payload.children.is_empty() && payload.leaf_parts.is_empty(),
+                "generated block collector received more than one top-level payload"
+            );
+            return;
         }
+        if payload.children.len() == 1 && payload.leaf_parts.is_empty() {
+            self.root = payload.children.into_iter().next();
+            return;
+        }
+        self.root = self.synthetic_root_from_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn synthetic_root_from_payload(
+        &mut self,
+        payload: GeneratedBlockPayload,
+    ) -> Option<BlockTreeNode> {
+        if payload.children.is_empty() && payload.leaf_parts.is_empty() {
+            return None;
+        }
+        let id = self.allocate_id();
+        generated_block_tree_node_from_parts(
+            id,
+            None,
+            vec![id],
+            "GeneratedSyntaxRoot".to_owned(),
+            false,
+            None,
+            Vec::new(),
+            vec!["GeneratedSyntaxRoot".to_owned()],
+            payload.children,
+            payload.leaf_parts,
+            self.source,
+            None,
+        )
     }
 
     #[requires(true)]
@@ -547,9 +613,9 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_leaf_part(&mut self, part: BlockLeafPart, source_spans: Vec<SourceSpan>) {
+    fn push_leaf_part(&mut self, part: BlockLeafPart) {
         if let Some(frame) = self.stack.last_mut() {
-            frame.payload_mut().push_leaf_part(part, source_spans);
+            frame.payload_mut().push_leaf_part(part);
         }
     }
 
@@ -605,39 +671,32 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             return;
         };
         self.last_token_end_range = span_refs.iter().copied().last().map(end_range_from_span);
-        let source_spans = span_refs.into_iter().cloned().collect::<Vec<_>>();
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: false,
-                token_kind: word_like.bare_word().map(Word::kind),
-                raw_text: source_text_for_range(self.source, Some(range)),
-                display_text: render_word_like(word_like, self.source, self.options),
-            }),
-            source_spans,
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: false,
+            token_kind: word_like.bare_word().map(Word::kind),
+            raw_text: source_text_for_range(self.source, Some(range)),
+            display_text: render_word_like(word_like, self.source, self.options),
+        }));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn push_word(&mut self, word: &Word) {
-        let span = word.span().clone();
-        let range = range_from_span(&span);
-        self.last_token_end_range = Some(end_range_from_span(&span));
+        let span = word.span();
+        let range = range_from_span(span);
+        self.last_token_end_range = Some(end_range_from_span(span));
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: false,
-                token_kind: Some(word.kind()),
-                raw_text: source_text_for_range(self.source, Some(range)),
-                display_text: render_word(word, self.options),
-            }),
-            vec![span],
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: false,
+            token_kind: Some(word.kind()),
+            raw_text: source_text_for_range(self.source, Some(range)),
+            display_text: render_word(word, self.options),
+        }));
     }
 
     #[requires(true)]
@@ -653,17 +712,14 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             return;
         };
         let id = self.allocate_id();
-        self.push_leaf_part(
-            new!(BlockLeafPart {
-                id,
-                range,
-                is_elided: true,
-                token_kind: Some(WordKind::Cmavo),
-                raw_text: String::new(),
-                display_text: render_elided_cmavo(cmavo, self.options),
-            }),
-            vec![source_span_from_range(range)],
-        );
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            is_elided: true,
+            token_kind: Some(WordKind::Cmavo),
+            raw_text: String::new(),
+            display_text: render_elided_cmavo(cmavo, self.options),
+        }));
     }
 }
 
@@ -756,7 +812,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
         };
         payload.children =
             flatten_generated_chain_block_nodes(payload.children, self.source, &mut self.next_id);
-        payload.source_spans = generated_block_source_spans(&payload.children, &payload.leaf_parts);
+        payload.source_range = generated_block_source_range(&payload.children, &payload.leaf_parts);
         self.push_payload(payload);
     }
 
@@ -820,8 +876,7 @@ fn generated_block_tree_node_from_parts(
     computed_gloss: Option<String>,
 ) -> Option<BlockTreeNode> {
     leaf_parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
-    let source_spans = generated_block_source_spans(&children, &leaf_parts);
-    let span = range_from_spans(source_spans.iter());
+    let span = generated_block_source_range(&children, &leaf_parts);
     if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
         return None;
     }
@@ -850,7 +905,6 @@ fn generated_block_tree_node_from_parts(
         token_kind: leaf_token_kind.or(token_kind),
         ref_markers,
         span,
-        source_spans,
         leaf_parts,
         node_types,
         ancestors: Vec::new(),
@@ -864,34 +918,18 @@ fn generated_block_tree_node_from_parts(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_block_source_spans(
+fn generated_block_source_range(
     children: &[BlockTreeNode],
     leaf_parts: &[BlockLeafPart],
-) -> Vec<SourceSpan> {
-    let mut spans = Vec::new();
+) -> Option<WebSourceRange> {
+    let mut range = None;
     for child in children {
-        spans.extend(child.source_spans.clone());
+        range = merge_source_ranges(range, child.span);
     }
-    spans.extend(
-        leaf_parts
-            .iter()
-            .map(|part| source_span_from_range(part.range)),
-    );
-    spans
-}
-
-#[requires(range.byte_start <= range.byte_end)]
-#[requires(range.char_start <= range.char_end)]
-#[ensures(ret.byte_start == range.byte_start)]
-fn source_span_from_range(range: WebSourceRange) -> SourceSpan {
-    SourceSpan::new(
-        None,
-        range.byte_start,
-        range.byte_end,
-        range.char_start,
-        range.char_end,
-    )
-    .expect("block ranges are ordered")
+    for part in leaf_parts {
+        range = merge_source_ranges(range, Some(part.range));
+    }
+    range
 }
 
 #[requires(span.byte_start <= span.byte_end)]
@@ -927,7 +965,6 @@ fn split_generated_chain_link_block_node(
     source: &str,
     next_id: &mut usize,
 ) -> Vec<BlockTreeNode> {
-    let original = node.clone();
     let Some(element_label) = generated_chain_link_element_field(&node.label) else {
         return vec![node];
     };
@@ -942,6 +979,17 @@ fn split_generated_chain_link_block_node(
         return vec![node];
     };
     let node_data = node.into_data();
+    let original = new!(GeneratedChainLinkFragmentSource {
+        id: node_data.id,
+        field_label: node_data.field_label,
+        node_ids: node_data.node_ids,
+        label: node_data.label,
+        is_elided: node_data.is_elided,
+        token_kind: node_data.token_kind,
+        ref_markers: node_data.ref_markers,
+        node_types: node_data.node_types,
+        computed_gloss: node_data.computed_gloss,
+    });
 
     let mut prefix_children = Vec::new();
     let mut suffix_children = Vec::new();
@@ -959,9 +1007,7 @@ fn split_generated_chain_link_block_node(
     let mut prefix_leaf_parts = Vec::new();
     let mut suffix_leaf_parts = Vec::new();
     for part in node_data.leaf_parts {
-        if part.range.byte_end <= element_span.byte_start
-            || part.range.byte_start < element_span.byte_start
-        {
+        if leaf_part_precedes_chain_element(&part, element_span) {
             prefix_leaf_parts.push(part);
         } else {
             suffix_leaf_parts.push(part);
@@ -997,8 +1043,33 @@ fn split_generated_chain_link_block_node(
 
 #[requires(true)]
 #[ensures(true)]
+fn leaf_part_precedes_chain_element(part: &BlockLeafPart, element_span: WebSourceRange) -> bool {
+    // #197 restored zero-width elided leaves. Non-empty leaves are classified
+    // by start offset; an elided zero-width leaf exactly at the element start
+    // remains attached to the prefix fragment to preserve existing output.
+    part.range.byte_start < element_span.byte_start
+        || (part.range.byte_start == element_span.byte_start
+            && part.range.byte_end == element_span.byte_start)
+}
+
+#[invariant(!label.is_empty(), "chain link source label must not be empty")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GeneratedChainLinkFragmentSource {
+    id: RawSyntaxNodeId,
+    field_label: Option<&'static str>,
+    node_ids: Vec<RawSyntaxNodeId>,
+    label: String,
+    is_elided: bool,
+    token_kind: Option<WordKind>,
+    ref_markers: Vec<ReferenceMarker>,
+    node_types: Vec<String>,
+    computed_gloss: Option<String>,
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn generated_chain_link_fragment_node(
-    original: &BlockTreeNode,
+    original: &GeneratedChainLinkFragmentSource,
     next_id: &mut usize,
     original_identity_available: &mut bool,
     children: Vec<BlockTreeNode>,
@@ -1070,7 +1141,6 @@ struct BlockTreeNode {
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
-    source_spans: Vec<SourceSpan>,
     leaf_parts: Vec<BlockLeafPart>,
     node_types: Vec<String>,
     ancestors: Vec<String>,
@@ -1172,11 +1242,6 @@ fn merge_parent_into_child(parent: BlockTreeNode, child: BlockTreeNode) -> Block
     child.node_types = node_types;
     child.ref_markers = ref_markers;
     child.span = child.span.or(parent.span);
-    child.source_spans = if child.source_spans.is_empty() {
-        parent.source_spans
-    } else {
-        child.source_spans
-    };
     child.leaf_parts = if child.leaf_parts.is_empty() {
         parent.leaf_parts
     } else {
@@ -1382,13 +1447,7 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
     children.extend(
         node.leaf_parts
             .iter()
-            .filter(|part| {
-                part.is_elided
-                    || !node
-                        .children
-                        .iter()
-                        .any(|child| child_covers_part(child, part))
-            })
+            .filter(|part| leaf_part_is_uncovered_by_children(&node.children, part))
             .map(BlockLayoutChild::Leaf),
     );
     children.sort_by_key(layout_child_sort_key);
@@ -1398,13 +1457,15 @@ fn layout_children(node: &BlockTreeNode) -> Vec<BlockLayoutChild<'_>> {
 #[requires(true)]
 #[ensures(true)]
 fn has_uncovered_leaf_parts(node: &BlockTreeNode) -> bool {
-    node.leaf_parts.iter().any(|part| {
-        part.is_elided
-            || !node
-                .children
-                .iter()
-                .any(|child| child_covers_part(child, part))
-    })
+    node.leaf_parts
+        .iter()
+        .any(|part| leaf_part_is_uncovered_by_children(&node.children, part))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn leaf_part_is_uncovered_by_children(children: &[BlockTreeNode], part: &BlockLeafPart) -> bool {
+    part.is_elided || !children.iter().any(|child| child_covers_part(child, part))
 }
 
 #[requires(true)]
@@ -2257,7 +2318,6 @@ mod tests {
             token_kind: None,
             ref_markers: Vec::new(),
             span: Some(test_range(0, 3)),
-            source_spans: vec![source_span_from_range(test_range(0, 3))],
             leaf_parts: vec![
                 test_leaf_part(2, "gi'e", test_range(0, 1)),
                 test_leaf_part(3, "do", test_range(2, 3)),
@@ -2288,6 +2348,36 @@ mod tests {
         assert_eq!(parts[2].leaf_parts[0].display_text, "do");
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn top_level_payload_synthesizes_root_for_multiple_children() {
+        let options = GentufaBlockOptions::default();
+        let mut collector = GeneratedBlockCollector::new("mi do", &options, None, None);
+        let mut payload = GeneratedBlockPayload::default();
+        payload.push_node(test_generated_block_node(
+            1,
+            "First",
+            None,
+            test_range(0, 2),
+            "mi",
+        ));
+        payload.push_node(test_generated_block_node(
+            2,
+            "Second",
+            None,
+            test_range(3, 5),
+            "do",
+        ));
+
+        collector.push_payload(payload);
+        let root = collector.finish().expect("synthetic root");
+
+        assert_eq!(root.label, "GeneratedSyntaxRoot");
+        assert_eq!(root.children.len(), 2);
+        assert!(root.leaf_parts.is_empty());
+    }
+
     #[requires(true)]
     #[ensures(ret.depth == depth)]
     fn test_block_tree_node(depth: usize, leaf_part_count: usize) -> BlockTreeNode {
@@ -2300,7 +2390,6 @@ mod tests {
             token_kind: None,
             ref_markers: Vec::new(),
             span: None,
-            source_spans: Vec::new(),
             leaf_parts: test_leaf_parts(leaf_part_count),
             node_types: vec![format!("Node{depth}")],
             ancestors: Vec::new(),
@@ -2408,7 +2497,6 @@ mod tests {
             token_kind: token_kind_for_text(display_text),
             ref_markers: Vec::new(),
             span: Some(range),
-            source_spans: vec![source_span_from_range(range)],
             leaf_parts: vec![test_leaf_part(id + 100, display_text, range)],
             node_types: vec![label.to_owned()],
             ancestors: Vec::new(),

@@ -14,8 +14,8 @@ const PARAGRAPH_SEARCH_MIN_CHARS: usize = 200;
 mod import;
 #[cfg(test)]
 use import::{
-    BlockParseState, chrestomathy_area_no_parse_rows, chrestomathy_metadata,
-    normalize_valsis_query, parse_block, parse_paragraph_blocks,
+    BlockParseState, chrestomathy_area_no_parse_rows, normalize_valsis_query, parse_block,
+    parse_paragraph_blocks,
 };
 pub(crate) use import::{
     PendingIndexEntry, SectionParseContext, block_anchor_id_for, child_element, raw_text,
@@ -23,7 +23,8 @@ pub(crate) use import::{
 };
 use import::{
     chrestomathy_area_groups, chrestomathy_area_label, chrestomathy_group_id,
-    chrestomathy_section_metadata, cll_import_metadata, normalized_plain_text,
+    chrestomathy_metadata, chrestomathy_section_metadata, cll_import_metadata,
+    normalized_plain_text,
 };
 pub use import::{embedded_cll_site, load_embedded_cll_site};
 
@@ -83,6 +84,32 @@ pub fn cll_index_entries(site: &CllSite) -> &[CllIndexEntry] {
 #[ensures(true)]
 pub fn cll_lookup_section<'a>(site: &'a CllSite, section_id: &str) -> Option<&'a CllSection> {
     site.sections_by_id.get(section_id)
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|section| !section.text.trim().is_empty()))]
+pub fn chrestomathy_section_texts(site: &CllSite) -> Vec<CllChrestomathySectionText> {
+    chrestomathy_metadata()
+        .section
+        .iter()
+        .filter_map(|metadata| {
+            let section = cll_lookup_section(site, &metadata.id)?;
+            let text = chrestomathy_section_group_texts(site, section)
+                .into_iter()
+                .map(|group| group.into_data().text)
+                .collect::<Vec<_>>()
+                .join("\n");
+            (!text.trim().is_empty()).then(|| {
+                new!(CllChrestomathySectionText {
+                    section_id: section.section_id.clone(),
+                    section_number: section.number.clone(),
+                    section_title: section.title.clone(),
+                    source_path: section.source_path.clone(),
+                    text,
+                })
+            })
+        })
+        .collect()
 }
 
 #[requires(true)]
@@ -782,11 +809,23 @@ fn ebnf_token_plain_text(token: &CllEbnfToken) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn escape_html(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+    let mut output = String::with_capacity(input.len());
+    escape_html_into(&mut output, input);
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn escape_html_into(output: &mut String, input: &str) {
+    for ch in input.chars() {
+        match ch {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            _ => output.push(ch),
+        }
+    }
 }
 
 #[cfg(test)]

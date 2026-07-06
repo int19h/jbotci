@@ -19,8 +19,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
-struct BracketContext<'source> {
-    source: &'source str,
+struct BracketContext {
     options: BracketRenderOptions,
 }
 
@@ -31,7 +30,8 @@ pub(crate) fn pretty_morphology_brackets_with_options(
     source: &str,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
-    let context = BracketContext { source, options };
+    let _ = source;
+    let context = BracketContext { options };
     let sexpr = sexpr::node(
         words
             .iter()
@@ -79,7 +79,8 @@ fn generated_model_bracket_sexpr(
     source: &str,
     options: BracketRenderOptions,
 ) -> sexpr::SExpr {
-    let context = BracketContext { source, options };
+    let _ = source;
+    let context = BracketContext { options };
     let mut visitor = GeneratedBracketVisitor::new(&context);
     tree.visit_in_order(&mut visitor);
     visitor.finish()
@@ -94,7 +95,7 @@ struct GeneratedBracketFrame {
 #[derive(Debug)]
 #[invariant(true)]
 struct GeneratedBracketVisitor<'source> {
-    source: &'source BracketContext<'source>,
+    source: &'source BracketContext,
     stack: Vec<GeneratedBracketFrame>,
     root: Option<sexpr::SExpr>,
 }
@@ -102,7 +103,7 @@ struct GeneratedBracketVisitor<'source> {
 impl<'source> GeneratedBracketVisitor<'source> {
     #[requires(true)]
     #[ensures(ret.stack.is_empty())]
-    fn new(source: &'source BracketContext<'source>) -> Self {
+    fn new(source: &'source BracketContext) -> Self {
         Self {
             source,
             stack: Vec::new(),
@@ -214,7 +215,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
+fn word(word: &Token, source: &BracketContext) -> sexpr::SExpr {
     with_indicators_brackets(word.as_indicators(), source)
 }
 
@@ -222,7 +223,7 @@ fn word(word: &Token, source: &BracketContext<'_>) -> sexpr::SExpr {
 #[ensures(true)]
 fn with_indicators_brackets(
     word: &WithIndicators<WordLike>,
-    source: &BracketContext<'_>,
+    source: &BracketContext,
 ) -> sexpr::SExpr {
     match word.as_data() {
         data!(WithIndicators::Plain(word_like)) => word_like_brackets(word_like, source),
@@ -257,7 +258,7 @@ fn with_indicators_brackets(
 
 #[requires(true)]
 #[ensures(true)]
-fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexpr::SExpr {
+fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::SExpr {
     match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word_leaf(word, source),
         data!(WordLike::QuotedWord { zo, word }) => {
@@ -305,7 +306,7 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext<'_>) -> sexp
 
 #[requires(true)]
 #[ensures(true)]
-fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
+fn word_leaf(word: &Word, source: &BracketContext) -> sexpr::SExpr {
     let latin = if source.options.decompose_lujvo
         && let Some(parts) = word.lujvo_parts()
     {
@@ -315,11 +316,7 @@ fn word_leaf(word: &Word, source: &BracketContext<'_>) -> sexpr::SExpr {
             .collect::<Vec<_>>()
             .join(source.options.glyphs.lujvo_separator())
     } else {
-        surface::format_with_indicators_with_options(
-            &Token::bare(WordLike::bare(word.clone())),
-            source.source,
-            source.options.phonemes,
-        )
+        surface::format_word_with_options(word, source.options.phonemes)
     };
     sexpr::leaf_with_range(
         render_latin_word_surface_for_script(source.options.script, word.kind(), &latin),
@@ -353,7 +350,7 @@ fn word_bracket_source_range(word: &Word) -> BracketSourceRange {
 fn elided_terminator_leaf(
     cmavo: Cmavo,
     previous_siblings: &[sexpr::SExpr],
-    source: &BracketContext<'_>,
+    source: &BracketContext,
 ) -> sexpr::SExpr {
     sexpr::elided_leaf_with_range(
         render_latin_word_surface_for_script(

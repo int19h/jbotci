@@ -246,7 +246,7 @@ pub(super) fn generated_simple_mekso_operator_surface_label(
             Ok(format!(
                 "{} {}",
                 token_text(&operator.maho.value),
-                token_list_text(visitor.tokens.iter())
+                token_list_text(visitor.tokens.iter().copied())
             ))
         }
         SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
@@ -1672,7 +1672,7 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
             Ok(format!(
                 "{} {}",
                 token_text(&operand.mohe.value),
-                token_list_text(visitor.tokens.iter())
+                token_list_text(visitor.tokens.iter().copied())
             ))
         }
         SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => Ok(format!(
@@ -1707,7 +1707,7 @@ pub(super) fn generated_reverse_polish_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter())
+    non_empty_token_list_text(visitor.tokens.iter().copied())
         .ok_or_else(|| unsupported("empty reverse Polish mekso"))
 }
 
@@ -1718,7 +1718,7 @@ pub(super) fn generated_zantufa_reverse_polish_surface_text(
 ) -> Result<String, SemanticsError> {
     let mut visitor = GeneratedSpanCollector::default();
     reverse_polish.visit_in_order(&mut visitor);
-    non_empty_token_list_text(visitor.tokens.iter())
+    non_empty_token_list_text(visitor.tokens.iter().copied())
         .ok_or_else(|| unsupported("empty Zantufa reverse Polish mex"))
 }
 

@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::{ExperimentalConstruct, Token, WithIndicators, WithIndicatorsData};
 use bityzba::{data, invariant, new, requires};
@@ -106,6 +108,7 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
     experimental_context: ExperimentalCmavoContext,
     bridi: impl Fn(&Token, &mut ParserState) -> bool + Clone + 'tokens,
 ) -> BoxedParser<'tokens, Token> {
+    let expected: Arc<[SyntaxExpectedToken]> = Arc::from(expected);
     custom::<_, ParserInput<'tokens>, Token, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let cursor = input.cursor();
@@ -145,9 +148,9 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
                     byte_end,
                     || Some(expected_token_detail(&expected)),
                 );
-                Err(SyntaxParseError::expected_found(
+                Err(SyntaxParseError::expected_found_shared(
                     span,
-                    expected.clone(),
+                    Arc::clone(&expected),
                     new!(SyntaxFound::Token(word)),
                 ))
             }
@@ -164,9 +167,9 @@ pub(super) fn token_matching_with_experimental_context<'tokens>(
                     byte_end,
                     || Some(expected_token_detail(&expected)),
                 );
-                Err(SyntaxParseError::expected_found(
+                Err(SyntaxParseError::expected_found_shared(
                     span,
-                    expected.clone(),
+                    Arc::clone(&expected),
                     new!(SyntaxFound::EndOfInput),
                 ))
             }
@@ -1503,7 +1506,7 @@ pub(super) fn syntax_trace_failure_summary(
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn syntax_error_reason(
-    reason: &RichReason<'_, Token>,
+    reason: &RichReason<'_, Token, Cow<'static, str>>,
     expected: &[String],
     expectations: &[crate::SyntaxExpectation],
     summary_scope: Option<&str>,

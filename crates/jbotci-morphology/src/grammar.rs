@@ -3,8 +3,9 @@ use jbotci_diagnostics::{TraceEventKind, TraceLevel, TracePhase, TraceRecorder};
 use jbotci_source::{SourceId, SourceSpan};
 
 use crate::segment::{
-    base_vowel, matches_diphthong_semivowel, next_non_comma_index,
-    parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus, text_chars,
+    LujvoRecognitionCache, NormalizedSourceChar, base_vowel, matches_diphthong_semivowel,
+    next_non_comma_index, parse_explicit_stress_nucleus_end, starts_with_pause_required_nucleus,
+    text_chars,
 };
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
@@ -33,30 +34,10 @@ pub(crate) fn segment_words_with_modifiers_attempt(
     options: &MorphologyOptions,
     source_id: Option<SourceId>,
 ) -> MorphologySegmentAttempt {
-    segment_words_with_modifiers_raw_attempt(input, options, source_id)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn segment_words_with_modifiers_raw(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_attempt(input, options, source_id)
-        .into_data()
-        .result
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn segment_words_with_modifiers_raw_attempt(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> MorphologySegmentAttempt {
+    // v1 deliberately dropped v0's raw/--no-postproc boundary; this is the
+    // single non-display segmentation entry point.
     let segmenter = Segmenter::new(input, options, source_id);
-    segmenter.segment_raw_attempt()
+    segmenter.segment_attempt()
 }
 
 #[requires(true)]
@@ -101,11 +82,11 @@ struct Segmenter<'a> {
     trace: TraceRecorder,
 }
 
-#[invariant(::Raw => true)]
+#[invariant(::Morphology => true)]
 #[invariant(::Display => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SegmentMode {
-    Raw,
+    Morphology,
     Display,
 }
 
@@ -114,15 +95,15 @@ impl SegmentMode {
     #[ensures(!ret.is_empty())]
     fn trace_label(self) -> &'static str {
         match self {
-            Self::Raw => "segment",
+            Self::Morphology => "segment",
             Self::Display => "display segment",
         }
     }
 
     #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Raw))]
+    #[ensures(ret == matches!(self, Self::Morphology))]
     fn consumes_faho(self) -> bool {
-        matches!(self, Self::Raw)
+        matches!(self, Self::Morphology)
     }
 }
 
@@ -147,9 +128,9 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw_attempt(mut self) -> MorphologySegmentAttempt {
+    fn segment_attempt(mut self) -> MorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology", 0, 0, || None);
-        let result = self.segment_raw();
+        let result = self.segment_words();
         let trace = self.trace.finish();
         new!(MorphologySegmentAttempt {
             result,
@@ -173,13 +154,13 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn segment_raw(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
+    fn segment_words(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         while self.skip_magic_noise(true)? {
             if self.index == self.chars.len() {
                 break;
             }
-            let segment = self.next_segment(SegmentMode::Raw)?;
+            let segment = self.next_segment(SegmentMode::Morphology)?;
             self.process_segment(&mut acc, segment)?;
         }
         Ok(acc)
@@ -291,7 +272,8 @@ impl<'a> Segmenter<'a> {
         }
         let start = self.index;
         let word = self.next_plain_word()?;
-        if is_simple_cmavo_text(&word, "lo'u") {
+        let word_cmavo = word.cmavo();
+        if word_cmavo == Some(Cmavo::Lohu) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "LOhU quote",
@@ -301,16 +283,13 @@ impl<'a> Segmenter<'a> {
             );
             return self.lohu_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zoi")
-            || is_simple_cmavo_text(&word, "la'o")
-            || is_simple_cmavo_text(&word, "mu'oi")
-        {
+        if matches!(word_cmavo, Some(Cmavo::Zoi | Cmavo::Laho | Cmavo::Muhoi)) {
             self.trace_step(TraceLevel::Detailed, "ZOI quote", start, self.index, || {
                 None
             });
             return self.zoi_quote(word);
         }
-        if is_single_word_quote_marker_text(&word) {
+        if is_single_word_quote_marker_cmavo(word_cmavo) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "single-word quote",
@@ -320,11 +299,11 @@ impl<'a> Segmenter<'a> {
             );
             return self.single_word_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
+        if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
             self.trace_step(TraceLevel::Detailed, "ZO quote", start, self.index, || None);
             return self.zo_quote(word);
         }
-        if mode.consumes_faho() && is_simple_cmavo_text(&word, "fa'o") {
+        if mode.consumes_faho() && word_cmavo == Some(Cmavo::Faho) {
             self.trace_step(TraceLevel::Detailed, "FAhO", start, self.index, || None);
             self.index = self.chars.len();
             return Ok(vec![word]);
@@ -364,7 +343,8 @@ impl<'a> Segmenter<'a> {
         acc: &mut Vec<WordLike>,
         token: WordLike,
     ) -> Result<(), MorphologyError> {
-        if is_simple_cmavo_text(&token, "bu") {
+        let token_cmavo = token.cmavo();
+        if token_cmavo == Some(Cmavo::Bu) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "BU attachment",
@@ -374,7 +354,7 @@ impl<'a> Segmenter<'a> {
             );
             return self.handle_bu(acc, token);
         }
-        if is_simple_cmavo_text(&token, "si") {
+        if token_cmavo == Some(Cmavo::Si) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "SI erasure",
@@ -385,10 +365,10 @@ impl<'a> Segmenter<'a> {
             self.handle_si(acc);
             return Ok(());
         }
-        if is_simple_cmavo_text(&token, "fa'o") {
+        if token_cmavo == Some(Cmavo::Faho) {
             return Ok(());
         }
-        if is_simple_cmavo_text(&token, "sa") {
+        if token_cmavo == Some(Cmavo::Sa) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "SA erasure",
@@ -398,7 +378,7 @@ impl<'a> Segmenter<'a> {
             );
             return self.handle_sa(acc);
         }
-        if is_simple_cmavo_text(&token, "su") {
+        if token_cmavo == Some(Cmavo::Su) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "SU erasure",
@@ -409,7 +389,7 @@ impl<'a> Segmenter<'a> {
             self.handle_su(acc);
             return Ok(());
         }
-        if is_simple_cmavo_text(&token, "zei") {
+        if token_cmavo == Some(Cmavo::Zei) {
             self.trace_step(
                 TraceLevel::Detailed,
                 "ZEI lujvo",
@@ -432,7 +412,11 @@ impl<'a> Segmenter<'a> {
         if start == candidate_end {
             return Err(self.invalid_span(MorphologyErrorKind::ExpectedWord, start, start, None));
         }
-        if let Some(candidate) = self.streaming_word_candidate(start, candidate_end) {
+        let normalized_candidate = self.checked_normalized_candidate(start, candidate_end);
+        if let Some(normalized_candidate) = &normalized_candidate
+            && let Some(candidate) =
+                self.streaming_word_candidate(start, candidate_end, normalized_candidate)
+        {
             let data!(StreamingWordCandidate {
                 end,
                 kind,
@@ -492,10 +476,18 @@ impl<'a> Segmenter<'a> {
         &self,
         start: usize,
         candidate_end: usize,
+        normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
-        self.streaming_cmevla_candidate(start, candidate_end)
-            .or_else(|| self.streaming_cmavo_candidate(start, candidate_end))
-            .or_else(|| self.streaming_brivla_candidate(start, candidate_end))
+        let mut cache = LujvoRecognitionCache::new(normalized.stripped_chars.len());
+        if let Some(candidate) = self.streaming_cmevla_candidate(start, candidate_end, normalized) {
+            return Some(candidate);
+        }
+        if let Some(candidate) =
+            self.streaming_cmavo_candidate(start, candidate_end, normalized, &mut cache)
+        {
+            return Some(candidate);
+        }
+        self.streaming_brivla_candidate(start, candidate_end, normalized, &mut cache)
     }
 
     #[requires(start < candidate_end && candidate_end <= self.chars.len())]
@@ -504,13 +496,29 @@ impl<'a> Segmenter<'a> {
         &self,
         start: usize,
         candidate_end: usize,
+        normalized: &NormalizedCandidate,
+        cache: &mut LujvoRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
-            if !self.post_word_ok_for_brivla(start, end, candidate_end) {
+            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            if !self.post_word_ok_for_brivla(
+                start,
+                end,
+                candidate_end,
+                normalized_prefix,
+                normalized,
+            ) {
                 return None;
             }
-            let normalized = self.checked_normalized_slice(start, end)?;
-            let (kind, phonemes) = crate::segment::classify_word(&normalized)?;
+            let stripped_end = normalized.stripped_end_to_source_end(end - start)?;
+            let normalized_prefix_chars = normalized.normalized_chars_to_source_end(end - start)?;
+            let (kind, phonemes) = crate::segment::classify_word_with_cache(
+                normalized_prefix,
+                normalized_prefix_chars,
+                &normalized.stripped_chars,
+                stripped_end,
+                cache,
+            )?;
             if !matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla) {
                 return None;
             }
@@ -524,13 +532,17 @@ impl<'a> Segmenter<'a> {
 
     #[requires(start < end && end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn post_word_ok_for_brivla(&self, start: usize, end: usize, candidate_end: usize) -> bool {
-        let Some(normalized) = self.checked_normalized_slice(start, end) else {
-            return false;
-        };
-        if has_explicit_brivla_stress(&normalized) {
-            explicit_brivla_stress_is_valid(&normalized)
-                && self.brivla_boundary_ok(start, end, candidate_end)
+    fn post_word_ok_for_brivla(
+        &self,
+        start: usize,
+        end: usize,
+        candidate_end: usize,
+        normalized_prefix: &str,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
+        if has_explicit_brivla_stress(normalized_prefix) {
+            explicit_brivla_stress_is_valid(normalized_prefix)
+                && self.brivla_boundary_ok(start, end, candidate_end, normalized_prefix, normalized)
         } else {
             self.pause_at(end)
         }
@@ -538,17 +550,22 @@ impl<'a> Segmenter<'a> {
 
     #[requires(start <= end && end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn brivla_boundary_ok(&self, start: usize, end: usize, candidate_end: usize) -> bool {
+    fn brivla_boundary_ok(
+        &self,
+        start: usize,
+        end: usize,
+        candidate_end: usize,
+        prefix: &str,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
         if self.pause_at(end) {
             return true;
         }
-        let Some(prefix) = self.checked_normalized_slice(start, end) else {
+        let Some(remainder) = normalized.slice_source_range(end - start, candidate_end - start)
+        else {
             return false;
         };
-        let Some(remainder) = self.checked_normalized_slice(end, candidate_end) else {
-            return false;
-        };
-        if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
+        if boundary_repeats_diphthong_semivowel(prefix, remainder) {
             return false;
         }
         self.post_word_at(end)
@@ -560,19 +577,20 @@ impl<'a> Segmenter<'a> {
         &self,
         start: usize,
         candidate_end: usize,
+        normalized: &NormalizedCandidate,
     ) -> Option<StreamingWordCandidate> {
         ((start + 1)..=candidate_end).find_map(|end| {
             if !self.pause_at(end) {
                 return None;
             }
-            let normalized = self.checked_normalized_slice(start, end)?;
-            if !crate::segment::is_cmevla_text(&normalized) {
+            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            if !crate::segment::is_cmevla_text(normalized_prefix) {
                 return None;
             }
             Some(new!(StreamingWordCandidate {
                 end: end,
                 kind: WordKind::Cmevla,
-                phonemes: crate::segment::canonicalize_word_phonemes(&normalized),
+                phonemes: crate::segment::canonicalize_word_phonemes(normalized_prefix),
             }))
         })
     }
@@ -583,11 +601,28 @@ impl<'a> Segmenter<'a> {
         &self,
         start: usize,
         candidate_end: usize,
+        normalized: &NormalizedCandidate,
+        cache: &mut LujvoRecognitionCache,
     ) -> Option<StreamingWordCandidate> {
-        let full_candidate = self.checked_normalized_slice(start, candidate_end)?;
+        let full_candidate = normalized.slice_to_source_end(candidate_end - start)?;
+        let stripped_end = normalized.stripped_end_to_source_end(candidate_end - start)?;
+        let full_candidate_chars =
+            normalized.normalized_chars_to_source_end(candidate_end - start)?;
         if crate::segment::is_cmevla_text(&full_candidate)
-            || crate::segment::starts_with_cvcy_lujvo(&full_candidate)
-            || crate::segment::classify_word(&full_candidate).is_some_and(|(kind, _)| {
+            || crate::segment::starts_with_cvcy_lujvo_chars_with_cache(
+                &normalized.stripped_chars,
+                0,
+                stripped_end,
+                cache,
+            )
+            || crate::segment::classify_word_with_cache(
+                full_candidate,
+                full_candidate_chars,
+                &normalized.stripped_chars,
+                stripped_end,
+                cache,
+            )
+            .is_some_and(|(kind, _)| {
                 matches!(kind, WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla)
             })
         {
@@ -606,9 +641,9 @@ impl<'a> Segmenter<'a> {
         }
 
         ((start + 1)..=candidate_end).find_map(|end| {
-            let phonemes =
-                crate::segment::parse_cmavo_form(&self.checked_normalized_slice(start, end)?)?;
-            if !self.cmavo_boundary_ok(start, end, candidate_end) {
+            let normalized_prefix = normalized.slice_to_source_end(end - start)?;
+            let phonemes = crate::segment::parse_cmavo_form(normalized_prefix)?;
+            if !self.cmavo_boundary_ok(start, end, candidate_end, normalized_prefix, normalized) {
                 return None;
             }
             Some(new!(StreamingWordCandidate {
@@ -826,7 +861,7 @@ impl<'a> Segmenter<'a> {
                 return Ok(words);
             }
             let word = self.next_plain_word()?;
-            if is_simple_cmavo_text(&word, "le'u") {
+            if word.cmavo() == Some(Cmavo::Lehu) {
                 let lehu_context = word_like_context(&word, MorphologyContextKind::QuotedWords);
                 let lehu = into_bare_word(word).ok_or_else(|| {
                     self.invalid_span(
@@ -904,7 +939,7 @@ impl<'a> Segmenter<'a> {
                 return Ok(());
             }
             let replacement = replacement.into_iter().next().expect("length checked");
-            if is_simple_cmavo_text(&replacement, "sa") {
+            if replacement.cmavo() == Some(Cmavo::Sa) {
                 sa_count += 1;
                 continue;
             }
@@ -928,22 +963,20 @@ impl<'a> Segmenter<'a> {
             }
         }
         let word = self.next_plain_word()?;
-        if is_simple_cmavo_text(&word, "lo'u") {
+        let word_cmavo = word.cmavo();
+        if word_cmavo == Some(Cmavo::Lohu) {
             return self.lohu_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zoi")
-            || is_simple_cmavo_text(&word, "la'o")
-            || is_simple_cmavo_text(&word, "mu'oi")
-        {
+        if matches!(word_cmavo, Some(Cmavo::Zoi | Cmavo::Laho | Cmavo::Muhoi)) {
             return self.zoi_quote(word);
         }
-        if is_single_word_quote_marker_text(&word) {
+        if is_single_word_quote_marker_cmavo(word_cmavo) {
             return self.single_word_quote(word);
         }
-        if is_simple_cmavo_text(&word, "zo") || is_simple_cmavo_text(&word, "ma'oi") {
+        if matches!(word_cmavo, Some(Cmavo::Zo | Cmavo::Mahoi)) {
             return self.zo_quote(word);
         }
-        if is_simple_cmavo_text(&word, "fa'o") {
+        if word_cmavo == Some(Cmavo::Faho) {
             self.index = self.chars.len();
         }
         Ok(vec![word])
@@ -1143,7 +1176,7 @@ impl<'a> Segmenter<'a> {
                     let followed_by_bu = self
                         .next_plain_word()
                         .ok()
-                        .is_some_and(|next| is_simple_cmavo_text(&next, "bu"));
+                        .is_some_and(|next| next.cmavo() == Some(Cmavo::Bu));
                     self.warnings.truncate(bu_warning_count);
                     self.index = if keep_y_before_bu && followed_by_bu {
                         saved
@@ -1208,6 +1241,24 @@ impl<'a> Segmenter<'a> {
         crate::segment::normalize_word_checked_with_options(self.slice(start, end), self.options)
     }
 
+    #[requires(start <= candidate_end && candidate_end <= self.chars.len())]
+    #[ensures(ret.as_ref().is_none_or(|candidate| candidate.source_char_count == candidate_end - start))]
+    fn checked_normalized_candidate(
+        &self,
+        start: usize,
+        candidate_end: usize,
+    ) -> Option<NormalizedCandidate> {
+        let normalized = crate::segment::normalize_source_chars_checked(
+            self.slice(start, candidate_end).chars().enumerate(),
+            self.options,
+        )
+        .ok()?;
+        Some(NormalizedCandidate::from_normalized_source_chars(
+            candidate_end - start,
+            normalized,
+        ))
+    }
+
     #[requires(prefix_start <= prefix_end && prefix_end <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
     fn cmavo_boundary_ok(
@@ -1215,22 +1266,29 @@ impl<'a> Segmenter<'a> {
         prefix_start: usize,
         prefix_end: usize,
         candidate_end: usize,
+        prefix: &str,
+        normalized: &NormalizedCandidate,
     ) -> bool {
         if self.pause_at(prefix_end) {
             return true;
         }
-        let Some(prefix) = self.checked_normalized_slice(prefix_start, prefix_end) else {
+        let Some(remainder) =
+            normalized.slice_source_range(prefix_end - prefix_start, candidate_end - prefix_start)
+        else {
             return false;
         };
-        let Some(remainder) = self.checked_normalized_slice(prefix_end, candidate_end) else {
-            return false;
-        };
-        if boundary_repeats_diphthong_semivowel(&prefix, &remainder) {
+        if boundary_repeats_diphthong_semivowel(prefix, remainder) {
             return false;
         }
         let pause_required = self.starts_with_pause_required_nucleus_at(prefix_end);
         if pause_required
-            && !self.indicator_cmavo_boundary_ok(prefix.as_str(), prefix_end, candidate_end)
+            && !self.indicator_cmavo_boundary_ok(
+                prefix,
+                prefix_start,
+                prefix_end,
+                candidate_end,
+                normalized,
+            )
         {
             return false;
         }
@@ -1242,41 +1300,62 @@ impl<'a> Segmenter<'a> {
     fn indicator_cmavo_boundary_ok(
         &self,
         prefix: &str,
+        prefix_start: usize,
         prefix_end: usize,
         candidate_end: usize,
+        normalized: &NormalizedCandidate,
     ) -> bool {
         is_indicator_cmavo_text(prefix)
-            && self.camxes_non_nucleus_word_start_at(prefix_end, candidate_end)
-            && self.indicator_cmavo_starts_at(prefix_end, candidate_end)
+            && self.camxes_non_nucleus_word_start_at(
+                prefix_start,
+                prefix_end,
+                candidate_end,
+                normalized,
+            )
+            && self.indicator_cmavo_starts_at(prefix_start, prefix_end, candidate_end, normalized)
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn camxes_non_nucleus_word_start_at(&self, index: usize, candidate_end: usize) -> bool {
+    fn camxes_non_nucleus_word_start_at(
+        &self,
+        prefix_start: usize,
+        index: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
         let index = self.skip_commas_index(index);
         if index >= candidate_end || self.is_word_separator_at(index) {
             return false;
         }
-        self.checked_normalized_slice(index, candidate_end)
-            .is_some_and(|normalized| {
-                !starts_with_pause_required_nucleus(&text_chars(&normalized), 0)
-            })
+        normalized
+            .normalized_chars_source_range(index - prefix_start, candidate_end - prefix_start)
+            .is_some_and(|normalized| !starts_with_pause_required_nucleus(normalized, 0))
     }
 
     #[requires(index <= candidate_end && candidate_end <= self.chars.len())]
     #[ensures(true)]
-    fn indicator_cmavo_starts_at(&self, index: usize, candidate_end: usize) -> bool {
+    fn indicator_cmavo_starts_at(
+        &self,
+        prefix_start: usize,
+        index: usize,
+        candidate_end: usize,
+        normalized: &NormalizedCandidate,
+    ) -> bool {
         if index >= candidate_end {
             return false;
         }
         ((index + 1)..=candidate_end).any(|end| {
-            let Some(normalized) = self.checked_normalized_slice(index, end) else {
+            let Some(normalized_prefix) =
+                normalized.slice_source_range(index - prefix_start, end - prefix_start)
+            else {
                 return false;
             };
-            let Some(phonemes) = crate::segment::parse_cmavo_form(&normalized) else {
+            let Some(phonemes) = crate::segment::parse_cmavo_form(normalized_prefix) else {
                 return false;
             };
-            is_indicator_cmavo_text(&phonemes) && self.cmavo_boundary_ok(index, end, candidate_end)
+            is_indicator_cmavo_text(&phonemes)
+                && self.cmavo_boundary_ok(index, end, candidate_end, normalized_prefix, normalized)
         })
     }
 
@@ -1316,7 +1395,10 @@ impl<'a> Segmenter<'a> {
         if index >= self.chars.len() || self.is_word_separator_at(index) {
             return false;
         }
-        self.streaming_word_candidate(index, self.candidate_end(index))
+        let candidate_end = self.candidate_end(index);
+        self.checked_normalized_candidate(index, candidate_end)
+            .as_ref()
+            .and_then(|normalized| self.streaming_word_candidate(index, candidate_end, normalized))
             .is_some()
     }
 
@@ -1800,6 +1882,127 @@ struct StreamingWordCandidate {
     phonemes: String,
 }
 
+#[invariant(source_text_byte_ends.len() == source_char_count + 1)]
+#[invariant(source_normalized_char_ends.len() == source_char_count + 1)]
+#[invariant(source_stripped_char_ends.len() == source_char_count + 1)]
+#[invariant(source_text_byte_ends.iter().all(|end| *end <= text.len()))]
+#[invariant(source_normalized_char_ends.iter().all(|end| *end <= normalized_chars.len()))]
+#[invariant(source_stripped_char_ends.iter().all(|end| *end <= stripped_chars.len()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NormalizedCandidate {
+    source_char_count: usize,
+    text: String,
+    normalized_chars: Vec<char>,
+    stripped_chars: Vec<char>,
+    source_text_byte_ends: Vec<usize>,
+    source_normalized_char_ends: Vec<usize>,
+    source_stripped_char_ends: Vec<usize>,
+}
+
+impl NormalizedCandidate {
+    #[requires(source_char_count > 0)]
+    #[ensures(ret.source_char_count == source_char_count)]
+    fn from_normalized_source_chars(
+        source_char_count: usize,
+        chars: Vec<NormalizedSourceChar>,
+    ) -> Self {
+        let mut text = String::new();
+        let mut normalized_chars = Vec::with_capacity(chars.len());
+        let mut stripped_chars = Vec::with_capacity(chars.len());
+        let mut source_text_byte_ends = vec![None; source_char_count + 1];
+        let mut source_normalized_char_ends = vec![None; source_char_count + 1];
+        let mut source_stripped_char_ends = vec![None; source_char_count + 1];
+        source_text_byte_ends[0] = Some(0);
+        source_normalized_char_ends[0] = Some(0);
+        source_stripped_char_ends[0] = Some(0);
+
+        for source_char in chars {
+            let required_prefix = if source_char.source_start == source_char.source_end {
+                source_char.source_start + 1
+            } else {
+                source_char.source_end
+            };
+            text.push(source_char.value);
+            normalized_chars.push(source_char.value);
+            if source_char.value != ',' {
+                stripped_chars.push(source_char.value);
+            }
+            if required_prefix <= source_char_count {
+                source_text_byte_ends[required_prefix] = Some(text.len());
+                source_normalized_char_ends[required_prefix] = Some(normalized_chars.len());
+                source_stripped_char_ends[required_prefix] = Some(stripped_chars.len());
+            }
+        }
+
+        let source_text_byte_ends = fill_source_prefix_ends(source_text_byte_ends);
+        let source_normalized_char_ends = fill_source_prefix_ends(source_normalized_char_ends);
+        let source_stripped_char_ends = fill_source_prefix_ends(source_stripped_char_ends);
+        new!(NormalizedCandidate {
+            source_char_count: source_char_count,
+            text: text,
+            normalized_chars: normalized_chars,
+            stripped_chars: stripped_chars,
+            source_text_byte_ends: source_text_byte_ends,
+            source_normalized_char_ends: source_normalized_char_ends,
+            source_stripped_char_ends: source_stripped_char_ends,
+        })
+    }
+
+    #[requires(relative_end <= self.source_char_count)]
+    #[ensures(true)]
+    fn slice_to_source_end(&self, relative_end: usize) -> Option<&str> {
+        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
+        self.text.get(..byte_end)
+    }
+
+    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
+    #[ensures(true)]
+    fn slice_source_range(&self, relative_start: usize, relative_end: usize) -> Option<&str> {
+        let byte_start = *self.source_text_byte_ends.get(relative_start)?;
+        let byte_end = *self.source_text_byte_ends.get(relative_end)?;
+        self.text.get(byte_start..byte_end)
+    }
+
+    #[requires(relative_end <= self.source_char_count)]
+    #[ensures(true)]
+    fn normalized_chars_to_source_end(&self, relative_end: usize) -> Option<&[char]> {
+        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
+        self.normalized_chars.get(..char_end)
+    }
+
+    #[requires(relative_start <= relative_end && relative_end <= self.source_char_count)]
+    #[ensures(true)]
+    fn normalized_chars_source_range(
+        &self,
+        relative_start: usize,
+        relative_end: usize,
+    ) -> Option<&[char]> {
+        let char_start = *self.source_normalized_char_ends.get(relative_start)?;
+        let char_end = *self.source_normalized_char_ends.get(relative_end)?;
+        self.normalized_chars.get(char_start..char_end)
+    }
+
+    #[requires(relative_end <= self.source_char_count)]
+    #[ensures(ret.is_none_or(|end| end <= self.stripped_chars.len()))]
+    fn stripped_end_to_source_end(&self, relative_end: usize) -> Option<usize> {
+        self.source_stripped_char_ends.get(relative_end).copied()
+    }
+}
+
+#[requires(!ends.is_empty())]
+#[ensures(!ret.is_empty())]
+fn fill_source_prefix_ends(ends: Vec<Option<usize>>) -> Vec<usize> {
+    let mut current = 0;
+    ends.into_iter()
+        .map(|end| {
+            if let Some(end) = end {
+                current = end;
+            }
+            current
+        })
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Selmaho(_) => true)]
@@ -1820,16 +2023,10 @@ fn into_bare_word(word: WordLike) -> Option<Word> {
     }
 }
 
-#[requires(!text.is_empty())]
-#[ensures(true)]
-fn is_simple_cmavo_text(word: &WordLike, text: &str) -> bool {
-    Cmavo::from_text(text).is_some_and(|cmavo| word.is_cmavo(cmavo))
-}
-
 #[requires(true)]
 #[ensures(true)]
-fn is_single_word_quote_marker_text(word: &WordLike) -> bool {
-    word.cmavo().is_some_and(|cmavo| {
+fn is_single_word_quote_marker_cmavo(cmavo: Option<Cmavo>) -> bool {
+    cmavo.is_some_and(|cmavo| {
         matches!(
             cmavo,
             Cmavo::Zohoi

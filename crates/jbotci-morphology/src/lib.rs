@@ -32,7 +32,9 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, syllables_pattern,
 };
-pub use syntax_eq::{strip_diacritics, word_like_syntax_eq, word_syntax_eq};
+pub use syntax_eq::{
+    push_stripped_diacritics_to, strip_diacritics, word_like_syntax_eq, word_syntax_eq,
+};
 pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
     WordLikeData,
@@ -500,6 +502,21 @@ impl Phonemes {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.is_empty()) || ret.is_err())]
+    pub fn render_canonical(text: &str, options: PhonemeRenderOptions) -> Result<String, String> {
+        if text.is_empty() {
+            return Err("phoneme text must not be empty".to_owned());
+        }
+        if !text.chars().all(is_valid_phoneme) {
+            return Err("phonemes must use canonical Lojban phoneme characters".to_owned());
+        }
+        Ok(text
+            .chars()
+            .map(|ch| render_phoneme_char(ch, options))
+            .collect())
+    }
+
+    #[requires(true)]
     #[ensures(!ret.is_empty())]
     pub fn as_str(&self) -> &str {
         &self.text
@@ -722,7 +739,13 @@ impl Word {
     #[ensures(ret.is_some() -> self.kind() == WordKind::Cmavo)]
     pub fn cmavo(&self) -> Option<Cmavo> {
         if self.is_cmavo_word() {
-            Cmavo::from_text(self.phonemes().as_str())
+            // Lujvo can never be cmavo; once the kind check passes, the
+            // phoneme storage is borrowed directly instead of rebuilding text.
+            Cmavo::from_text(
+                self.phonemes_ref()
+                    .expect("cmavo words have direct phoneme storage")
+                    .as_str(),
+            )
         } else {
             None
         }
@@ -756,7 +779,10 @@ impl Word {
     #[requires(!text.is_empty())]
     #[ensures(true)]
     pub fn is_cmavo_text(&self, text: &str) -> bool {
-        self.is_cmavo_word() && canonical_text_eq(self.phonemes().as_str(), text)
+        self.is_cmavo_word()
+            && self
+                .phonemes_ref()
+                .is_some_and(|phonemes| canonical_text_eq(phonemes.as_str(), text))
     }
 
     #[requires(true)]
@@ -2053,51 +2079,6 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
         warnings: data.warnings,
         trace: data.trace,
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw(input: &str) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        None,
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_source_id(
-    input: &str,
-    source_id: SourceId,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(
-        input,
-        &MorphologyOptions::default(),
-        Some(source_id),
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_options(
-    input: &str,
-    options: &MorphologyOptions,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    segment_words_with_modifiers_raw_with_options_and_source_id(input, options, None)
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub fn segment_words_with_modifiers_raw_with_options_and_source_id(
-    input: &str,
-    options: &MorphologyOptions,
-    source_id: Option<SourceId>,
-) -> Result<Vec<WordLike>, MorphologyError> {
-    grammar::segment_words_with_modifiers_raw_attempt(input, options, source_id)
-        .into_data()
-        .result
-        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
 }
 
 #[requires(true)]
@@ -3455,7 +3436,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn marks_cmavo_glides() {
-        let words = segment_words_with_modifiers_raw("coi .ui").expect("valid morphology");
+        let words = segment_words_with_modifiers("coi .ui").expect("valid morphology");
         let phonemes: Vec<_> = words
             .iter()
             .map(|word| base_word(word).expect("base word").phonemes().into_string())

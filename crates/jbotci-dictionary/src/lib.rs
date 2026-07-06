@@ -21,6 +21,7 @@ pub struct Dictionary<'a> {
     word_index: &'a [WordIndexEntry<'a>],
     rafsi_index: &'a [RafsiIndexEntry<'a>],
     selmaho_index: &'a [SelmahoIndexEntry<'a>],
+    pattern_index: &'a [DictionaryPatternEntry<'a>],
     sound_index: &'a [DictionarySoundEntry<'a>],
     lujvo_index: &'a [DictionaryLujvoEntry<'a>],
 }
@@ -38,6 +39,7 @@ impl<'a> Dictionary<'a> {
         word_index: &'a [WordIndexEntry<'a>],
         rafsi_index: &'a [RafsiIndexEntry<'a>],
         selmaho_index: &'a [SelmahoIndexEntry<'a>],
+        pattern_index: &'a [DictionaryPatternEntry<'a>],
         sound_index: &'a [DictionarySoundEntry<'a>],
         lujvo_index: &'a [DictionaryLujvoEntry<'a>],
     ) -> Self {
@@ -46,6 +48,7 @@ impl<'a> Dictionary<'a> {
             word_index,
             rafsi_index,
             selmaho_index,
+            pattern_index,
             sound_index,
             lujvo_index,
         }
@@ -68,6 +71,9 @@ impl<'a> Dictionary<'a> {
         }
         if !selmaho_index_matches(self.selmaho_index, &expected.selmaho_index) {
             return Err(DictionaryValidationError::SelmahoIndexMismatch);
+        }
+        if !pattern_index_matches(self.pattern_index, &expected.pattern_index) {
+            return Err(DictionaryValidationError::PatternIndexMismatch);
         }
         validate_sound_index(self.entries, self.sound_index)?;
         validate_lujvo_index(self.entries, self.lujvo_index)?;
@@ -102,6 +108,20 @@ impl<'a> Dictionary<'a> {
     #[ensures(true)]
     pub fn lujvo_index(&self) -> &'a [DictionaryLujvoEntry<'a>] {
         self.lujvo_index
+    }
+
+    /// Return generated pattern-search keys in dictionary entry order.
+    #[requires(true)]
+    #[ensures(ret.len() == self.entries.len())]
+    pub fn pattern_index(&self) -> &'a [DictionaryPatternEntry<'a>] {
+        self.pattern_index
+    }
+
+    /// Return a dictionary entry by generated entry index.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|entry| self.entry_index_for_entry(entry) == Some(index)))]
+    pub fn entry_for_index(&self, index: EntryIndex) -> Option<&'a DictionaryEntry<'a>> {
+        self.entries.get(index.0)
     }
 
     /// Return generated lujvo decomposition data for an entry index.
@@ -439,6 +459,18 @@ pub struct SelmahoIndexEntry<'a> {
     pub targets: &'a [EntryIndex],
 }
 
+/// Precomputed pattern-search keys for one dictionary entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(
+    true,
+    "borrowed pattern index entries are static generated data validated against dictionary entries and normalized key generation"
+)]
+pub struct DictionaryPatternEntry<'a> {
+    pub entry_index: EntryIndex,
+    pub word_key: &'a str,
+    pub rafsi_keys: &'a [&'a str],
+}
+
 /// Rafsi target plus provenance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[invariant(true)]
@@ -470,6 +502,7 @@ pub struct OwnedDictionaryIndexes {
     pub word_index: Vec<OwnedWordIndexEntry>,
     pub rafsi_index: Vec<OwnedRafsiIndexEntry>,
     pub selmaho_index: Vec<OwnedSelmahoIndexEntry>,
+    pub pattern_index: Vec<OwnedPatternIndexEntry>,
 }
 
 /// Owned word index entry.
@@ -496,6 +529,18 @@ pub struct OwnedSelmahoIndexEntry {
     pub targets: Vec<EntryIndex>,
 }
 
+/// Owned pattern index entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[invariant(
+    true,
+    "owned pattern index entries are produced by build_owned_indexes"
+)]
+pub struct OwnedPatternIndexEntry {
+    pub entry_index: EntryIndex,
+    pub word_key: String,
+    pub rafsi_keys: Vec<String>,
+}
+
 /// Validation error for generated dictionary tables.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -511,6 +556,8 @@ pub enum DictionaryValidationError {
     RafsiIndexMismatch,
     #[error("selma'o index does not match dictionary entries")]
     SelmahoIndexMismatch,
+    #[error("pattern index does not match dictionary entries")]
+    PatternIndexMismatch,
     #[error("invalid dictionary sound index entry at index {index}: {reason}")]
     InvalidSoundIndexEntry { index: usize, reason: &'static str },
     #[error("invalid dictionary lujvo index entry at index {index}: {reason}")]
@@ -524,6 +571,7 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
     let mut word_map: BTreeMap<String, Vec<EntryIndex>> = BTreeMap::new();
     let mut rafsi_map: BTreeMap<String, Vec<RafsiIndexTarget>> = BTreeMap::new();
     let mut selmaho_map: BTreeMap<String, Vec<EntryIndex>> = BTreeMap::new();
+    let mut pattern_index = Vec::with_capacity(entries.len());
 
     for (index, entry) in entries.iter().enumerate() {
         let entry_index = EntryIndex(index);
@@ -532,6 +580,7 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
             .or_default()
             .push(entry_index);
 
+        let mut pattern_rafsi_keys = Vec::new();
         for rafsi in entry.rafsi {
             rafsi_map
                 .entry(normalize_lookup_query(rafsi.0))
@@ -540,10 +589,12 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
                     entry_index,
                     source: RafsiSource::Listed,
                 });
+            pattern_rafsi_keys.push(normalize_pattern_lookup_key(rafsi.0));
         }
 
         if entry.word_type.is_gismu_like() {
             for (rafsi, source) in universal_gismu_rafsi_forms(entry.word) {
+                pattern_rafsi_keys.push(normalize_pattern_lookup_key(&rafsi));
                 rafsi_map.entry(rafsi).or_default().push(RafsiIndexTarget {
                     entry_index,
                     source,
@@ -557,6 +608,12 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
                 .or_default()
                 .push(entry_index);
         }
+
+        pattern_index.push(OwnedPatternIndexEntry {
+            entry_index,
+            word_key: normalize_pattern_lookup_key(entry.word),
+            rafsi_keys: pattern_rafsi_keys,
+        });
     }
 
     OwnedDictionaryIndexes {
@@ -572,6 +629,7 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
             .into_iter()
             .map(|(key, targets)| OwnedSelmahoIndexEntry { key, targets })
             .collect(),
+        pattern_index,
     }
 }
 
@@ -584,6 +642,16 @@ pub fn normalize_lookup_query(raw: &str) -> String {
         .filter(|token| !token.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Return normalized text for dictionary pattern matching.
+#[requires(true)]
+#[ensures(true)]
+pub fn normalize_pattern_lookup_key(raw: &str) -> String {
+    normalize_lookup_query(raw)
+        .chars()
+        .map(|value| if value == 'h' { '\'' } else { value })
+        .collect()
 }
 
 /// Return v0-compatible universal rafsi forms for a gismu-like word.
@@ -757,6 +825,23 @@ fn selmaho_index_matches(
 
 #[requires(true)]
 #[ensures(true)]
+fn pattern_index_matches(
+    actual: &[DictionaryPatternEntry<'_>],
+    expected: &[OwnedPatternIndexEntry],
+) -> bool {
+    actual.len() == expected.len()
+        && actual
+            .iter()
+            .zip(expected.iter())
+            .all(|(actual, expected)| {
+                actual.entry_index == expected.entry_index
+                    && actual.word_key == expected.word_key
+                    && actual.rafsi_keys == expected.rafsi_keys
+            })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn validate_sound_index(
     entries: &[DictionaryEntry<'_>],
     sound_index: &[DictionarySoundEntry<'_>],
@@ -904,6 +989,14 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn pattern_lookup_key_uses_apostrophe_spelling() {
+        assert_eq!(normalize_pattern_lookup_key("daʼoi"), "da'oi");
+        assert_eq!(normalize_pattern_lookup_key("dahoi"), "da'oi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn builds_universal_gismu_rafsi_forms_like_v0() {
         assert_eq!(
             universal_gismu_rafsi_forms("banli"),
@@ -935,6 +1028,7 @@ mod tests {
             word_index,
             rafsi_index,
             selmaho_index,
+            leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
         );
@@ -968,6 +1062,7 @@ mod tests {
             word_index,
             rafsi_index,
             selmaho_index,
+            leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
         );
@@ -1045,6 +1140,27 @@ mod tests {
             .map(|entry| SelmahoIndexEntry {
                 key: Box::leak(entry.key.clone().into_boxed_str()),
                 targets: Box::leak(entry.targets.clone().into_boxed_slice()),
+            })
+            .collect::<Vec<_>>()
+            .leak()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn leak_pattern_index(
+        index: &[OwnedPatternIndexEntry],
+    ) -> &'static [DictionaryPatternEntry<'static>] {
+        index
+            .iter()
+            .map(|entry| DictionaryPatternEntry {
+                entry_index: entry.entry_index,
+                word_key: Box::leak(entry.word_key.clone().into_boxed_str()),
+                rafsi_keys: entry
+                    .rafsi_keys
+                    .iter()
+                    .map(|key| &*Box::leak(key.clone().into_boxed_str()))
+                    .collect::<Vec<_>>()
+                    .leak(),
             })
             .collect::<Vec<_>>()
             .leak()

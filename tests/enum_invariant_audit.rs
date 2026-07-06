@@ -840,7 +840,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
-        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Raw",
+        "crates/jbotci-morphology/src/grammar.rs:SegmentMode::Morphology",
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
@@ -1088,32 +1088,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "verbatim display spans are private renderer ranges produced from validated quote spans before source-bound clipping",
     ),
     (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedText",
-        "quoted text chunks preserve source text without an enum-level rule",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::QuotedWords",
-        "quoted word chunks may be empty for source-derived quote bodies",
-    ),
-    (
-        "crates/jbotci-output/src/surface.rs:SurfaceChunk::Word",
-        "surface chunks are intermediate render fragments filtered before output",
-    ),
-    (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Field",
         "field frame permits empty values while traversal is in progress",
     ),
     (
         "crates/jbotci-output/src/tree.rs:MorphologyFrame::Node",
         "builder stack frame validity is governed by enter/exit sequencing",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:RenderEntry::Labelled",
-        "labels are static visitor metadata and TreeValue owns payload validity",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:RenderEntry::Primary",
-        "render entry delegates all validity to TreeValue",
     ),
     (
         "crates/jbotci-output/src/tree.rs:SyntaxFrame::Chain",
@@ -2046,6 +2026,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidXfail",
         "fixture error wrapper carries xfail diagnostics",
+    ),
+    (
+        "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidLojbanSource",
+        "fixture error wrapper carries fixture source declaration diagnostics",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:FixtureError::LegacyExpectationFormat",

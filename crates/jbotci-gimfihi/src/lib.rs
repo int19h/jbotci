@@ -489,6 +489,37 @@ pub struct GimfihiOutput {
     pub candidates: Vec<GimfihiCandidate>,
 }
 
+#[invariant(!word.is_empty())]
+#[derive(Debug, Clone, PartialEq)]
+struct ScoredGimfihiCandidate {
+    word: String,
+    score: f64,
+    collision: Option<GismuCollision>,
+    rafsi: Option<Vec<RafsiCandidate>>,
+}
+
+#[invariant(!source.word.is_empty())]
+#[invariant(!chars.is_empty())]
+#[derive(Debug)]
+struct PreparedSource<'source> {
+    source: &'source ResolvedSource,
+    chars: Vec<char>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct GismuScoreScratch {
+    candidate_chars: Vec<char>,
+    lcs: LcsScratch,
+}
+
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct LcsScratch {
+    previous: Vec<usize>,
+    current: Vec<usize>,
+}
+
 #[invariant(true)]
 #[invariant(::UnknownPreset { .. } => true)]
 #[invariant(::UnknownShape { .. } => true)]
@@ -684,26 +715,29 @@ pub fn compose_gismu(
         return Err(GimfihiError::NoShapes);
     }
     let shapes = unique_shapes(&request.shapes);
+    let prepared_sources = prepare_scoring_sources(&resolved_sources);
     let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
+    let mut scratch = GismuScoreScratch::default();
     let candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
         .into_iter()
         .filter(|word| valid_gismu_candidate(word))
         .map(|word| {
-            score_candidate(
+            score_candidate_for_ranking_with_scratch(
                 dictionary,
                 &collision_index,
-                &resolved_sources,
+                &prepared_sources,
                 word,
                 request.require_free_short_rafsi,
+                &mut scratch,
             )
         })
         .collect::<Vec<_>>();
     let candidate_count = candidates.len();
     let mut filtered = candidates
         .into_iter()
-        .filter(|candidate| candidate_passes_filters(candidate, request))
+        .filter(|candidate| scored_candidate_passes_filters(candidate, request))
         .collect::<Vec<_>>();
-    filtered.sort_by(compare_candidates);
+    filtered.sort_by(compare_scored_candidates);
     let filtered_count = filtered.len();
     // The winner is the best *usable* candidate: skip any that collide with an
     // existing gismu, even when `show_collisions` keeps them in the list.
@@ -736,14 +770,19 @@ pub fn compose_gismu(
     {
         displayed.push(candidate.clone());
     }
-    for candidate in &mut displayed {
-        candidate.highlighted = highlighted_word
-            .as_ref()
-            .is_some_and(|highlighted| highlighted == &candidate.word);
-        if candidate.rafsi.is_none() {
-            candidate.rafsi = Some(possible_short_rafsis(dictionary, &candidate.word));
-        }
-    }
+    let mut detail_scratch = GismuScoreScratch::default();
+    let displayed = displayed
+        .into_iter()
+        .map(|candidate| {
+            materialize_candidate_details(
+                dictionary,
+                &prepared_sources,
+                candidate,
+                highlighted_word.as_deref(),
+                &mut detail_scratch,
+            )
+        })
+        .collect::<Vec<_>>();
     Ok(GimfihiOutput {
         resolved_sources,
         candidate_count,
@@ -1041,47 +1080,104 @@ fn rendered_phonemes_without_marks(word: &jbotci_morphology::Word) -> String {
     })
 }
 
+#[requires(!sources.is_empty())]
+#[ensures(ret.len() == sources.len())]
+fn prepare_scoring_sources(sources: &[ResolvedSource]) -> Vec<PreparedSource<'_>> {
+    sources
+        .iter()
+        .map(|source| {
+            let chars = source.word.chars().collect::<Vec<_>>();
+            new!(PreparedSource { source, chars })
+        })
+        .collect()
+}
+
 #[requires(!word.is_empty())]
 #[requires(!sources.is_empty())]
 #[ensures(!ret.word.is_empty())]
-fn score_candidate(
+fn score_candidate_for_ranking_with_scratch(
     dictionary: &Dictionary<'_>,
     collision_index: &CollisionIndex,
-    sources: &[ResolvedSource],
+    sources: &[PreparedSource<'_>],
     word: String,
     include_rafsi: bool,
-) -> GimfihiCandidate {
-    let source_scores = sources
+    scratch: &mut GismuScoreScratch,
+) -> ScoredGimfihiCandidate {
+    scratch.candidate_chars.clear();
+    scratch.candidate_chars.extend(word.chars());
+    let score = sources
         .iter()
-        .map(|source| score_source(word.as_str(), source))
-        .collect::<Vec<_>>();
-    let score = source_scores
-        .iter()
-        .map(|source_score| source_score.weighted_score)
+        .map(|source| score_source_value(&scratch.candidate_chars, source, &mut scratch.lcs))
         .sum::<f64>();
     let collision = collision_index.find(&word);
     let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
-    GimfihiCandidate {
+    new!(ScoredGimfihiCandidate {
         word,
         score,
-        source_scores,
         collision,
         rafsi,
-        highlighted: false,
+    })
+}
+
+#[requires(!candidate.word.is_empty())]
+#[requires(!sources.is_empty())]
+#[ensures(!ret.word.is_empty())]
+fn materialize_candidate_details(
+    dictionary: &Dictionary<'_>,
+    sources: &[PreparedSource<'_>],
+    candidate: ScoredGimfihiCandidate,
+    highlighted_word: Option<&str>,
+    scratch: &mut GismuScoreScratch,
+) -> GimfihiCandidate {
+    scratch.candidate_chars.clear();
+    scratch.candidate_chars.extend(candidate.word.chars());
+    let source_scores = sources
+        .iter()
+        .map(|source| materialize_source_score(&scratch.candidate_chars, source, &mut scratch.lcs))
+        .collect::<Vec<_>>();
+    let candidate = candidate.into_data();
+    let word = candidate.word;
+    let rafsi = candidate
+        .rafsi
+        .unwrap_or_else(|| possible_short_rafsis(dictionary, &word));
+    GimfihiCandidate {
+        highlighted: highlighted_word.is_some_and(|highlighted| highlighted == word.as_str()),
+        word,
+        score: candidate.score,
+        source_scores,
+        collision: candidate.collision,
+        rafsi: Some(rafsi),
     }
 }
 
-#[requires(!candidate.is_empty())]
-#[requires(!source.word.is_empty())]
-#[ensures(ret.weight == source.weight)]
-fn score_source(candidate: &str, source: &ResolvedSource) -> SourceScore {
-    let raw_score = gismu_match_score(candidate, &source.word);
-    let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
-    let weighted_score = raw_score as f64 / source.word.chars().count() as f64 * scaled_weight;
+#[requires(!candidate_chars.is_empty())]
+#[requires(!source.source.word.is_empty())]
+#[ensures(true)]
+fn score_source_value(
+    candidate_chars: &[char],
+    source: &PreparedSource<'_>,
+    scratch: &mut LcsScratch,
+) -> f64 {
+    let raw_score = gismu_match_score_chars(candidate_chars, &source.chars, scratch);
+    let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
+    raw_score as f64 / source.chars.len() as f64 * scaled_weight
+}
+
+#[requires(!candidate_chars.is_empty())]
+#[requires(!source.source.word.is_empty())]
+#[ensures(ret.weight == source.source.weight)]
+fn materialize_source_score(
+    candidate_chars: &[char],
+    source: &PreparedSource<'_>,
+    scratch: &mut LcsScratch,
+) -> SourceScore {
+    let raw_score = gismu_match_score_chars(candidate_chars, &source.chars, scratch);
+    let scaled_weight = f64::from(source.source.weight) / GIMFIHI_WEIGHT_SCALE;
+    let weighted_score = raw_score as f64 / source.chars.len() as f64 * scaled_weight;
     SourceScore {
-        language: source.language.clone(),
-        word: source.word.clone(),
-        weight: source.weight,
+        language: source.source.language.clone(),
+        word: source.source.word.clone(),
+        weight: source.source.weight,
         raw_score,
         weighted_score,
     }
@@ -1091,14 +1187,28 @@ fn score_source(candidate: &str, source: &ResolvedSource) -> SourceScore {
 #[requires(!source.is_empty())]
 #[ensures(ret <= candidate.chars().count())]
 pub fn gismu_match_score(candidate: &str, source: &str) -> usize {
-    let lcs = longest_common_subsequence_len(candidate, source);
+    let candidate_chars = candidate.chars().collect::<Vec<_>>();
+    let source_chars = source.chars().collect::<Vec<_>>();
+    let mut scratch = LcsScratch::default();
+    gismu_match_score_chars(&candidate_chars, &source_chars, &mut scratch)
+}
+
+#[requires(!candidate_chars.is_empty())]
+#[requires(!source_chars.is_empty())]
+#[ensures(ret <= candidate_chars.len())]
+fn gismu_match_score_chars(
+    candidate_chars: &[char],
+    source_chars: &[char],
+    scratch: &mut LcsScratch,
+) -> usize {
+    let lcs = longest_common_subsequence_len_chars(candidate_chars, source_chars, scratch);
     if lcs >= 3 {
         return lcs;
     }
     if lcs != 2 {
         return 0;
     }
-    if has_valid_two_letter_match(candidate, source) {
+    if has_valid_two_letter_match_chars(candidate_chars, source_chars) {
         2
     } else {
         0
@@ -1110,20 +1220,33 @@ pub fn gismu_match_score(candidate: &str, source: &str) -> usize {
 fn longest_common_subsequence_len(left: &str, right: &str) -> usize {
     let left_chars = left.chars().collect::<Vec<_>>();
     let right_chars = right.chars().collect::<Vec<_>>();
-    let mut previous = vec![0usize; right_chars.len() + 1];
-    let mut current = vec![0usize; right_chars.len() + 1];
-    for left_ch in left_chars {
-        for (right_index, right_ch) in right_chars.iter().enumerate() {
-            current[right_index + 1] = if left_ch == *right_ch {
-                previous[right_index] + 1
+    let mut scratch = LcsScratch::default();
+    longest_common_subsequence_len_chars(&left_chars, &right_chars, &mut scratch)
+}
+
+#[requires(true)]
+#[ensures(ret <= left.len().min(right.len()))]
+fn longest_common_subsequence_len_chars(
+    left: &[char],
+    right: &[char],
+    scratch: &mut LcsScratch,
+) -> usize {
+    scratch.previous.clear();
+    scratch.current.clear();
+    scratch.previous.resize(right.len() + 1, 0);
+    scratch.current.resize(right.len() + 1, 0);
+    for left_ch in left {
+        for (right_index, right_ch) in right.iter().enumerate() {
+            scratch.current[right_index + 1] = if *left_ch == *right_ch {
+                scratch.previous[right_index] + 1
             } else {
-                previous[right_index + 1].max(current[right_index])
+                scratch.previous[right_index + 1].max(scratch.current[right_index])
             };
         }
-        std::mem::swap(&mut previous, &mut current);
-        current.fill(0);
+        std::mem::swap(&mut scratch.previous, &mut scratch.current);
+        scratch.current.fill(0);
     }
-    previous[right_chars.len()]
+    scratch.previous[right.len()]
 }
 
 #[requires(true)]
@@ -1131,6 +1254,12 @@ fn longest_common_subsequence_len(left: &str, right: &str) -> usize {
 fn has_valid_two_letter_match(candidate: &str, source: &str) -> bool {
     let candidate_chars = candidate.chars().collect::<Vec<_>>();
     let source_chars = source.chars().collect::<Vec<_>>();
+    has_valid_two_letter_match_chars(&candidate_chars, &source_chars)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn has_valid_two_letter_match_chars(candidate_chars: &[char], source_chars: &[char]) -> bool {
     for left_candidate in 0..candidate_chars.len() {
         for right_candidate in left_candidate + 1..candidate_chars.len() {
             let candidate_gap = right_candidate - left_candidate;
@@ -1539,6 +1668,23 @@ fn rafsi_availability(
 
 #[requires(true)]
 #[ensures(true)]
+fn scored_candidate_passes_filters(
+    candidate: &ScoredGimfihiCandidate,
+    request: &GimfihiRequest,
+) -> bool {
+    (request.show_collisions || candidate.collision.is_none())
+        && (!request.require_free_short_rafsi
+            || candidate
+                .rafsi
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .any(|rafsi| rafsi.availability == RafsiAvailability::Free))
+}
+
+#[cfg(test)]
+#[requires(true)]
+#[ensures(true)]
 fn candidate_passes_filters(candidate: &GimfihiCandidate, request: &GimfihiRequest) -> bool {
     (request.show_collisions || candidate.collision.is_none())
         && (!request.require_free_short_rafsi
@@ -1548,9 +1694,22 @@ fn candidate_passes_filters(candidate: &GimfihiCandidate, request: &GimfihiReque
                 .any(|rafsi| rafsi.availability == RafsiAvailability::Free))
 }
 
+#[cfg(test)]
 #[requires(true)]
 #[ensures(true)]
 fn compare_candidates(left: &GimfihiCandidate, right: &GimfihiCandidate) -> std::cmp::Ordering {
+    right
+        .score
+        .total_cmp(&left.score)
+        .then_with(|| left.word.cmp(&right.word))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compare_scored_candidates(
+    left: &ScoredGimfihiCandidate,
+    right: &ScoredGimfihiCandidate,
+) -> std::cmp::Ordering {
     right
         .score
         .total_cmp(&left.score)
@@ -1594,6 +1753,131 @@ fn normalize_gismu(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn compose_gismu_eager_for_test(
+        dictionary: &Dictionary<'_>,
+        request: &GimfihiRequest,
+    ) -> Result<GimfihiOutput, GimfihiError> {
+        let resolved_sources = resolve_sources(request.preset, &request.sources)?;
+        if request.shapes.is_empty() {
+            return Err(GimfihiError::NoShapes);
+        }
+        let shapes = unique_shapes(&request.shapes);
+        let collision_index = CollisionIndex::from_dictionary(dictionary, request.check_collisions);
+        let candidates = generate_candidates(&resolved_sources, &shapes, request.all_letters)
+            .into_iter()
+            .filter(|word| valid_gismu_candidate(word))
+            .map(|word| {
+                score_candidate_eager_for_test(
+                    dictionary,
+                    &collision_index,
+                    &resolved_sources,
+                    word,
+                    request.require_free_short_rafsi,
+                )
+            })
+            .collect::<Vec<_>>();
+        let candidate_count = candidates.len();
+        let mut filtered = candidates
+            .into_iter()
+            .filter(|candidate| candidate_passes_filters(candidate, request))
+            .collect::<Vec<_>>();
+        filtered.sort_by(compare_candidates);
+        let filtered_count = filtered.len();
+        let winner = filtered
+            .iter()
+            .find(|candidate| candidate.collision.is_none())
+            .map(|candidate| candidate.word.clone());
+        let requested_highlight = request
+            .highlight
+            .as_ref()
+            .map(|value| normalize_gismu(value))
+            .filter(|value| !value.is_empty());
+        let highlighted_word = requested_highlight
+            .as_ref()
+            .filter(|word| filtered.iter().any(|candidate| &candidate.word == *word))
+            .cloned()
+            .or_else(|| winner.clone());
+        let mut displayed = filtered
+            .iter()
+            .take(request.count.min(GIMFIHI_MAX_COUNT))
+            .cloned()
+            .collect::<Vec<_>>();
+        if let Some(highlighted_word) = &highlighted_word
+            && !displayed
+                .iter()
+                .any(|candidate| &candidate.word == highlighted_word)
+            && let Some(candidate) = filtered
+                .iter()
+                .find(|candidate| &candidate.word == highlighted_word)
+        {
+            displayed.push(candidate.clone());
+        }
+        for candidate in &mut displayed {
+            candidate.highlighted = highlighted_word
+                .as_ref()
+                .is_some_and(|highlighted| highlighted == &candidate.word);
+            if candidate.rafsi.is_none() {
+                candidate.rafsi = Some(possible_short_rafsis(dictionary, &candidate.word));
+            }
+        }
+        Ok(GimfihiOutput {
+            resolved_sources,
+            candidate_count,
+            filtered_count,
+            winner,
+            highlighted_word,
+            candidates: displayed,
+        })
+    }
+
+    #[requires(!word.is_empty())]
+    #[requires(!sources.is_empty())]
+    #[ensures(!ret.word.is_empty())]
+    fn score_candidate_eager_for_test(
+        dictionary: &Dictionary<'_>,
+        collision_index: &CollisionIndex,
+        sources: &[ResolvedSource],
+        word: String,
+        include_rafsi: bool,
+    ) -> GimfihiCandidate {
+        let source_scores = sources
+            .iter()
+            .map(|source| score_source_eager_for_test(word.as_str(), source))
+            .collect::<Vec<_>>();
+        let score = source_scores
+            .iter()
+            .map(|source_score| source_score.weighted_score)
+            .sum::<f64>();
+        let collision = collision_index.find(&word);
+        let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
+        GimfihiCandidate {
+            word,
+            score,
+            source_scores,
+            collision,
+            rafsi,
+            highlighted: false,
+        }
+    }
+
+    #[requires(!candidate.is_empty())]
+    #[requires(!source.word.is_empty())]
+    #[ensures(ret.weight == source.weight)]
+    fn score_source_eager_for_test(candidate: &str, source: &ResolvedSource) -> SourceScore {
+        let raw_score = gismu_match_score(candidate, &source.word);
+        let scaled_weight = f64::from(source.weight) / GIMFIHI_WEIGHT_SCALE;
+        let weighted_score = raw_score as f64 / source.word.chars().count() as f64 * scaled_weight;
+        SourceScore {
+            language: source.language.clone(),
+            word: source.word.clone(),
+            weight: source.weight,
+            raw_score,
+            weighted_score,
+        }
+    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -1863,6 +2147,66 @@ mod tests {
                 .candidates
                 .iter()
                 .any(|candidate| candidate.collision.is_some())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compose_lazy_details_match_eager_materialization() {
+        let dictionary = jbotci_dictionary_data::english();
+        let highlighted_sources = [parse_source_spec("eng:100:plini").expect("source")];
+        let highlighted_request = GimfihiRequest {
+            preset: None,
+            sources: highlighted_sources.to_vec(),
+            shapes: vec![GismuShape::Ccvcv],
+            all_letters: false,
+            check_collisions: CollisionScope::None,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            count: 0,
+            highlight: Some("plini".to_owned()),
+        };
+        let lazy_highlighted =
+            compose_gismu(dictionary, &highlighted_request).expect("lazy highlighted output");
+        assert_eq!(lazy_highlighted.highlighted_word.as_deref(), Some("plini"));
+        assert!(lazy_highlighted.candidates.len() > highlighted_request.count);
+        assert_eq!(
+            lazy_highlighted,
+            compose_gismu_eager_for_test(dictionary, &highlighted_request)
+                .expect("eager highlighted output")
+        );
+
+        let compact_collision_sources = [parse_source_spec("eng:100:klama").expect("source")];
+        let compact_collision_request = GimfihiRequest {
+            preset: None,
+            sources: compact_collision_sources.to_vec(),
+            shapes: vec![GismuShape::Ccvcv],
+            all_letters: false,
+            check_collisions: CollisionScope::All,
+            show_collisions: true,
+            require_free_short_rafsi: false,
+            count: 3,
+            highlight: Some("klama".to_owned()),
+        };
+        let lazy_compact_collision = compose_gismu(dictionary, &compact_collision_request)
+            .expect("lazy compact collision output");
+        assert!(
+            lazy_compact_collision
+                .candidates
+                .iter()
+                .any(|candidate| candidate.collision.is_some())
+        );
+        assert!(
+            lazy_compact_collision
+                .candidates
+                .iter()
+                .any(|candidate| candidate.rafsi.is_some())
+        );
+        assert_eq!(
+            lazy_compact_collision,
+            compose_gismu_eager_for_test(dictionary, &compact_collision_request)
+                .expect("eager compact collision output")
         );
     }
 }

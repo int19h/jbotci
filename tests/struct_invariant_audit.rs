@@ -332,6 +332,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed lujvo index segments are static generated data validated as part of the dictionary-wide lujvo index",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:DictionaryPatternEntry",
+        "borrowed pattern index entries are static generated data validated against dictionary entries and normalized key generation",
+    ),
+    (
         "crates/jbotci-dictionary/src/lib.rs:DictionarySoundEntry",
         "borrowed sound index entries are static generated data validated against dictionary entries and token tables",
     ),
@@ -350,6 +354,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:OwnedDictionaryIndexes",
         "owned index aggregate is produced by build_owned_indexes",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:OwnedPatternIndexEntry",
+        "owned pattern index entries are produced by build_owned_indexes",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:OwnedRafsiIndexEntry",
@@ -576,7 +584,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "typed SVG element validity is constrained by the closed SvgTag enum and serializer tests",
     ),
     (
-        "crates/jbotci-gentufa/src/render.rs:TextMeasureKey",
+        "crates/jbotci-gentufa/src/render.rs:TextMeasureStyleKey",
         "text measurement cache keys are direct value tuples over closed role/script selectors",
     ),
     (
@@ -606,6 +614,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-gimfihi/src/lib.rs:GismuCollision",
         "collision payloads are produced by dictionary-backed collision checks",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:GismuScoreScratch",
+        "gimfihi scoring scratch is mutable work storage rebuilt by each scoring helper before use",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:LcsScratch",
+        "LCS scratch rows are mutable work storage whose temporary lengths are controlled by longest_common_subsequence_len_chars",
     ),
     (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
@@ -1780,6 +1796,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture summary is derived reporting data",
     ),
     (
+        "xtask-common/src/fixtures/mod.rs:FixtureLojbanSourceShape",
+        "fixture source shape records raw TOML key presence so invalid combinations can be diagnosed",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:GentufaOutputExpectation",
         "fixture expectation aggregate permits absent gentufa output formats",
     ),
@@ -1838,6 +1858,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask-common/src/fixtures/mod.rs:TestCase",
         "fixture loading validates ids, facets, and expectation shape",
+    ),
+    (
+        "xtask-common/src/fixtures/mod.rs:TestCaseWire",
+        "fixture wire shape preserves raw optional source fields before loader-level validation",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:TextExpectation",

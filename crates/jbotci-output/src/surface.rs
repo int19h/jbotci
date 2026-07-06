@@ -4,18 +4,6 @@ use jbotci_morphology::{
     WordLike, WordLikeData, segment_words_for_display_with_options_and_source_id,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
-use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
-#[invariant(::Word(..) => true)]
-#[invariant(::QuotedWords(..) => true)]
-#[invariant(::QuotedText(..) => true)]
-enum SurfaceChunk {
-    Word(String),
-    QuotedWords(Vec<String>),
-    QuotedText(String),
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
@@ -100,45 +88,8 @@ pub fn render_lojban_text_for_script_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-pub(crate) fn format_with_indicators_with_options(
-    word: &Token,
-    source: &str,
-    options: PhonemeRenderOptions,
-) -> String {
-    render_surface_chunks(flatten_with_indicators_surface(
-        word.as_indicators(),
-        source,
-        options,
-    ))
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn format_word_like_with_options(
-    word_like: &WordLike,
-    source: &str,
-    options: PhonemeRenderOptions,
-) -> String {
-    render_surface_chunks(flatten_word_like_surface(word_like, source, options))
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(crate) fn is_compound_with_indicators(word: &Token) -> bool {
-    match word.as_indicators().as_data() {
-        data!(WithIndicators::Emphasized { .. }) | data!(WithIndicators::WithIndicator { .. }) => {
-            true
-        }
-        data!(WithIndicators::Plain(word_like)) => match word_like.as_data() {
-            data!(WordLike::PlainWord(..)) => false,
-            data!(WordLike::QuotedWord { .. })
-            | data!(WordLike::DelimitedNonLojbanQuote { .. })
-            | data!(WordLike::QuotedWords { .. })
-            | data!(WordLike::DelimitedWordQuote { .. })
-            | data!(WordLike::LerfuWord { .. })
-            | data!(WordLike::ZeiCompound { .. }) => true,
-        },
-    }
+pub(crate) fn format_word_with_options(word: &Word, options: PhonemeRenderOptions) -> String {
+    render_word(word, options)
 }
 
 #[requires(true)]
@@ -276,177 +227,8 @@ fn render_display_gap_for_script(script: LojbanScript, gap: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn flatten_with_indicators_surface(
-    word: &WithIndicators<WordLike>,
-    source: &str,
-    options: PhonemeRenderOptions,
-) -> Vec<SurfaceChunk> {
-    match word.as_data() {
-        data!(WithIndicators::Plain(word_like)) => {
-            flatten_word_like_surface(word_like, source, options)
-        }
-        data!(WithIndicators::Emphasized {
-            bahe,
-            extra_bahe,
-            word_like,
-        }) => {
-            let mut chunks = vec![SurfaceChunk::Word(render_word(bahe, options))];
-            chunks.extend(
-                extra_bahe
-                    .iter()
-                    .map(|bahe| SurfaceChunk::Word(render_word(bahe, options))),
-            );
-            chunks.extend(flatten_word_like_surface(word_like, source, options));
-            chunks
-        }
-        data!(WithIndicators::WithIndicator {
-            base,
-            indicator_bahe,
-            indicator,
-            nai_bahe,
-            nai,
-        }) => {
-            let mut chunks = flatten_with_indicators_surface(base, source, options);
-            for bahe in indicator_bahe {
-                chunks.push(SurfaceChunk::Word(render_word(bahe, options)));
-            }
-            chunks.push(SurfaceChunk::Word(render_word(indicator, options)));
-            if let Some(nai) = nai {
-                for bahe in nai_bahe {
-                    chunks.push(SurfaceChunk::Word(render_word(bahe, options)));
-                }
-                chunks.push(SurfaceChunk::Word(render_word(nai, options)));
-            }
-            chunks
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn flatten_word_like_surface(
-    word_like: &WordLike,
-    source: &str,
-    options: PhonemeRenderOptions,
-) -> Vec<SurfaceChunk> {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => vec![SurfaceChunk::Word(render_word(word, options))],
-        data!(WordLike::QuotedWord { zo, word }) => vec![
-            SurfaceChunk::Word(render_word(zo, options)),
-            SurfaceChunk::QuotedWords(vec![render_word(word, options)]),
-        ],
-        data!(WordLike::DelimitedNonLojbanQuote {
-            zoi,
-            opening_delimiter,
-            quoted_text,
-            closing_delimiter,
-        }) => vec![
-            SurfaceChunk::Word(render_word(zoi, options)),
-            SurfaceChunk::Word(render_word_without_pause(opening_delimiter, options)),
-            SurfaceChunk::QuotedText(drop_leading_zoi_separator(quoted_text.text.clone())),
-            SurfaceChunk::Word(render_word_without_pause(closing_delimiter, options)),
-        ],
-        data!(WordLike::QuotedWords {
-            lohu,
-            quoted_words,
-            lehu,
-        }) => vec![
-            SurfaceChunk::Word(render_word(lohu, options)),
-            SurfaceChunk::QuotedWords(
-                quoted_words
-                    .iter()
-                    .map(|word| render_word(word, options))
-                    .collect(),
-            ),
-            SurfaceChunk::Word(render_word(lehu, options)),
-        ],
-        data!(WordLike::DelimitedWordQuote {
-            marker,
-            quoted_text,
-        }) => vec![
-            SurfaceChunk::Word(render_word(marker, options)),
-            SurfaceChunk::QuotedText(quoted_text.text.clone()),
-        ],
-        data!(WordLike::LerfuWord { base, bu }) => {
-            let mut chunks = flatten_word_like_surface(base, source, options);
-            chunks.push(SurfaceChunk::Word(render_word(bu, options)));
-            chunks
-        }
-        data!(WordLike::ZeiCompound { left, zei, right }) => {
-            let mut chunks = flatten_word_like_surface(left, source, options);
-            chunks.push(SurfaceChunk::Word(render_word(zei, options)));
-            chunks.push(SurfaceChunk::Word(render_word(right, options)));
-            chunks
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.starts_with(char::is_whitespace))]
-fn drop_leading_zoi_separator(text: String) -> String {
-    text.strip_prefix(char::is_whitespace)
-        .unwrap_or(&text)
-        .to_owned()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_surface_chunks(chunks: Vec<SurfaceChunk>) -> String {
-    let rendered = chunks
-        .into_iter()
-        .map(render_surface_chunk)
-        .filter(|chunk| !chunk.is_empty())
-        .collect::<Vec<_>>();
-    let Some((first, rest)) = rendered.split_first() else {
-        return String::new();
-    };
-    rest.iter().fold(first.clone(), |mut acc, next| {
-        if !ends_with_visible_pause_dot(&acc) && !starts_with_visible_pause_dot(next) {
-            acc.push('-');
-        }
-        acc.push_str(next);
-        acc
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_surface_chunk(chunk: SurfaceChunk) -> String {
-    match chunk {
-        SurfaceChunk::Word(word) => word,
-        SurfaceChunk::QuotedWords(words) => format!("«{}»", words.join(" ")),
-        SurfaceChunk::QuotedText(text) => format!("«{text}»"),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_visible_pause_dot(text: &str) -> bool {
-    text.chars().next().is_some_and(is_visible_pause_dot)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn ends_with_visible_pause_dot(text: &str) -> bool {
-    text.chars().next_back().is_some_and(is_visible_pause_dot)
-}
-
-#[requires(true)]
-#[ensures(ret == (ch == '.'))]
-fn is_visible_pause_dot(ch: char) -> bool {
-    ch == '.'
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn render_word(word: &Word, options: PhonemeRenderOptions) -> String {
     render_visible_word_surface(word, options)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn render_word_without_pause(word: &Word, options: PhonemeRenderOptions) -> String {
-    render_word_phonemes_without_pause_with_options(word.kind(), &word.phonemes(), options)
 }
 
 #[requires(!phonemes.as_str().is_empty())]

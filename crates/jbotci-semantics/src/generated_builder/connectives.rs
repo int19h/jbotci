@@ -152,7 +152,7 @@ pub(super) fn generated_argument_connective_tokens(
 ) -> Vec<Token> {
     let mut collector = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut collector);
-    collector.tokens
+    collector.tokens.into_iter().cloned().collect()
 }
 
 #[requires(true)]
@@ -494,6 +494,7 @@ pub(super) fn indicator_parts_for_generated_node<N: TreeNode>(node: &N) -> Vec<I
     collector
         .tokens
         .iter()
+        .copied()
         .flat_map(indicator_parts_for_token)
         .collect()
 }
@@ -1435,7 +1436,7 @@ pub(super) fn generated_i_statement_connective_token_source(
 ) -> String {
     let mut collector = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut collector);
-    token_list_text(collector.tokens.iter())
+    token_list_text(collector.tokens.iter().copied())
 }
 
 #[requires(true)]
@@ -1598,6 +1599,7 @@ pub(super) fn generated_statement_connective_question_token(
         .tokens
         .into_iter()
         .find(|token| matches!(token.cmavo(), Some(Cmavo::Ji | Cmavo::Jehi)))
+        .cloned()
 }
 
 #[requires(true)]
@@ -1769,12 +1771,16 @@ pub(super) fn generated_bridi_tail_connective_question_token(
 ) -> Option<Token> {
     let mut collector = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut collector);
-    collector.tokens.into_iter().find(|token| {
-        matches!(
-            token.cmavo(),
-            Some(Cmavo::Ji | Cmavo::Gehi | Cmavo::Gihi | Cmavo::Guhi | Cmavo::Jehi)
-        )
-    })
+    collector
+        .tokens
+        .into_iter()
+        .find(|token| {
+            matches!(
+                token.cmavo(),
+                Some(Cmavo::Ji | Cmavo::Gehi | Cmavo::Gihi | Cmavo::Guhi | Cmavo::Jehi)
+            )
+        })
+        .cloned()
 }
 
 #[requires(true)]

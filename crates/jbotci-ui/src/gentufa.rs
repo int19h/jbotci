@@ -1798,14 +1798,14 @@ pub(super) fn reference_matches_hover(
     let Some(hovered) = state.hovered.as_ref() else {
         return false;
     };
-    if marker.label.base_key() != hovered.label.base_key() {
+    if !marker.label.same_base(&hovered.label) {
         return false;
     }
     match hovered.role {
         ReferenceMarkerRole::Reference => true,
         ReferenceMarkerRole::Referent => match marker.role {
             ReferenceMarkerRole::Reference => true,
-            ReferenceMarkerRole::Referent => marker.label.full_key() == hovered.label.full_key(),
+            ReferenceMarkerRole::Referent => marker.label == hovered.label,
         },
     }
 }

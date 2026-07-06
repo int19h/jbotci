@@ -3,6 +3,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use chumsky::error::{Error, LabelError, Rich, RichPattern, RichReason};
 use chumsky::input::Input;
 use chumsky::util::MaybeRef;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use super::{Span, SyntaxContextFrame, Token};
@@ -13,11 +14,13 @@ use crate::{
     syntax_construct_is_root, syntax_construct_parent, syntax_immediate_child_under,
 };
 
+type SyntaxRich<'tokens> = Rich<'tokens, Token, Span, Cow<'static, str>>;
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
     span: Span,
-    inner: Rich<'tokens, Token, Span>,
+    inner: SyntaxRich<'tokens>,
     expected_groups: Vec<ExpectedTokenGroup>,
     context_paths: Vec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
@@ -44,14 +47,14 @@ pub(super) enum SyntaxParseCustomKind {
 #[invariant(!tokens.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ExpectedTokenGroup {
-    tokens: Vec<SyntaxExpectedToken>,
+    tokens: Arc<[SyntaxExpectedToken]>,
     reason: Option<SyntaxExpectationReason>,
 }
 
 impl ExpectedTokenGroup {
     #[requires(!tokens.is_empty())]
     #[ensures(!ret.tokens.is_empty())]
-    fn new(tokens: Vec<SyntaxExpectedToken>) -> Self {
+    fn new(tokens: Arc<[SyntaxExpectedToken]>) -> Self {
         new!(ExpectedTokenGroup {
             tokens,
             reason: None,
@@ -60,12 +63,24 @@ impl ExpectedTokenGroup {
 
     #[requires(!tokens.is_empty())]
     #[ensures(!ret.tokens.is_empty())]
+    fn from_vec(tokens: Vec<SyntaxExpectedToken>) -> Self {
+        Self::new(Arc::from(tokens))
+    }
+
+    #[requires(!tokens.is_empty())]
+    #[ensures(!ret.tokens.is_empty())]
     fn with_optional_reason(
-        tokens: Vec<SyntaxExpectedToken>,
+        tokens: Arc<[SyntaxExpectedToken]>,
         reason: Option<SyntaxExpectationReason>,
     ) -> Self {
         new!(ExpectedTokenGroup { tokens, reason })
     }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret.reason(), RichReason::Custom(message) if message == "unexpected input"))]
+fn unexpected_input_error<'tokens>(span: Span) -> SyntaxRich<'tokens> {
+    Rich::custom(span, Cow::Borrowed("unexpected input"))
 }
 
 impl<'tokens> SyntaxParseError<'tokens> {
@@ -74,7 +89,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     pub(super) fn custom(span: Span, message: String) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, message),
+            inner: Rich::custom(span, Cow::Owned(message)),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
             found: None,
@@ -94,7 +109,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
     ) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, message),
+            inner: Rich::custom(span, Cow::Owned(message)),
             expected_groups: Vec::new(),
             context_paths: empty_context_paths(),
             found: None,
@@ -108,9 +123,15 @@ impl<'tokens> SyntaxParseError<'tokens> {
     #[requires(!tokens.is_empty())]
     #[ensures(ret.expected_groups.len() == 1)]
     pub(super) fn expected(span: Span, tokens: Vec<SyntaxExpectedToken>) -> Self {
+        Self::expected_shared(span, Arc::from(tokens))
+    }
+
+    #[requires(!tokens.is_empty())]
+    #[ensures(ret.expected_groups.len() == 1)]
+    pub(super) fn expected_shared(span: Span, tokens: Arc<[SyntaxExpectedToken]>) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, "unexpected input".to_owned()),
+            inner: unexpected_input_error(span),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
             found: None,
@@ -128,9 +149,19 @@ impl<'tokens> SyntaxParseError<'tokens> {
         tokens: Vec<SyntaxExpectedToken>,
         found: SyntaxFound,
     ) -> Self {
+        Self::expected_found_shared(span, Arc::from(tokens), found)
+    }
+
+    #[requires(!tokens.is_empty())]
+    #[ensures(ret.expected_groups.len() == 1)]
+    pub(super) fn expected_found_shared(
+        span: Span,
+        tokens: Arc<[SyntaxExpectedToken]>,
+        found: SyntaxFound,
+    ) -> Self {
         Self {
             span,
-            inner: Rich::custom(span, "unexpected input".to_owned()),
+            inner: unexpected_input_error(span),
             expected_groups: vec![ExpectedTokenGroup::new(tokens)],
             context_paths: empty_context_paths(),
             found: Some(found),
@@ -149,7 +180,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn reason(&self) -> &RichReason<'tokens, Token> {
+    pub(super) fn reason(&self) -> &RichReason<'tokens, Token, Cow<'static, str>> {
         self.inner.reason()
     }
 
@@ -174,7 +205,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
                     .clone()
                     .unwrap_or_else(|| expectation_reason(&group.tokens, &contexts));
                 let reason = normalize_expectation_reason(reason, &self.context_paths);
-                expectations.push(SyntaxExpectation::new(group.tokens.clone(), reason));
+                expectations.push(SyntaxExpectation::new(group.tokens.to_vec(), reason));
             }
         }
         if expectations.is_empty() {
@@ -354,7 +385,7 @@ where
     ) -> Self {
         let expected = expected.into_iter().collect::<Vec<_>>();
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::expected_found(
+        let inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::expected_found(
             expected.clone(),
             found,
             span,
@@ -393,14 +424,10 @@ where
             expected_token_groups_from_labels(expected.clone()),
         );
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = std::mem::replace(
-            &mut self.inner,
-            Rich::custom(span, "unexpected input".to_owned()),
+        let inner = std::mem::replace(&mut self.inner, unexpected_input_error(span));
+        self.inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::merge_expected_found(
+            inner, expected, found, span,
         );
-        self.inner =
-            <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::merge_expected_found(
-                inner, expected, found, span,
-            );
         self.span = *self.inner.span();
         self.found = merge_optional_equal(self.found, Some(syntax_found));
         self.custom_kind = None;
@@ -421,14 +448,10 @@ where
         let expected = expected.into_iter().collect::<Vec<_>>();
         self.expected_groups = expected_token_groups_from_labels(expected.clone());
         let syntax_found = syntax_found_from_maybe(found.clone());
-        let inner = std::mem::replace(
-            &mut self.inner,
-            Rich::custom(span, "unexpected input".to_owned()),
+        let inner = std::mem::replace(&mut self.inner, unexpected_input_error(span));
+        self.inner = <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::replace_expected_found(
+            inner, expected, found, span,
         );
-        self.inner =
-            <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::replace_expected_found(
-                inner, expected, found, span,
-            );
         self.span = *self.inner.span();
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
@@ -450,7 +473,7 @@ where
             }
             return;
         }
-        <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::label_with(
+        <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::label_with(
             &mut self.inner,
             label.clone(),
         );
@@ -472,7 +495,7 @@ where
                 .map(|construct| start_nested_reason(&construct));
             self.expected_groups
                 .push(ExpectedTokenGroup::with_optional_reason(
-                    vec![token],
+                    Arc::from(vec![token]),
                     reason,
                 ));
         }
@@ -505,7 +528,7 @@ where
                     span.start.max(span.end),
                 )
             });
-        <Rich<'tokens, Token, Span> as LabelError<'tokens, I, L>>::in_context(
+        <SyntaxRich<'tokens> as LabelError<'tokens, I, L>>::in_context(
             &mut self.inner,
             label.clone(),
             span,
@@ -532,7 +555,7 @@ where
                 .try_into()
                 .ok()
                 .and_then(|pattern| syntax_expected_token_from_rich_pattern(&pattern))
-                .map(|token| ExpectedTokenGroup::new(vec![token]))
+                .map(|token| ExpectedTokenGroup::from_vec(vec![token]))
         })
         .collect()
 }
@@ -754,9 +777,9 @@ fn immediate_child_from_context_paths(
 }
 
 #[requires(true)]
-#[ensures(!ret.is_empty())]
+#[ensures(ret.is_empty())]
 fn empty_context_paths() -> Vec<Vec<SyntaxConstructContext>> {
-    vec![Vec::new()]
+    Vec::new()
 }
 
 #[requires(true)]
@@ -939,6 +962,15 @@ fn append_unique_context_paths(
     target: &mut Vec<Vec<SyntaxConstructContext>>,
     source: Vec<Vec<SyntaxConstructContext>>,
 ) {
+    if source.is_empty() {
+        if !target.is_empty() && !target.iter().any(Vec::is_empty) {
+            target.push(Vec::new());
+        }
+        return;
+    }
+    if target.is_empty() {
+        target.push(Vec::new());
+    }
     for path in source {
         if !target.contains(&path) {
             target.push(path);

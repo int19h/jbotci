@@ -6,7 +6,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use jbotci_dictionary::Dictionary;
 use jbotci_morphology::{
-    Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, strip_diacritics,
+    Cmavo, LujvoPart, Selmaho, Word, WordData, WordLike, WordLikeData, push_stripped_diacritics_to,
+    strip_diacritics,
 };
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
@@ -2147,7 +2148,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     fn tokens_for_node<N: TreeNode>(&self, node: &N) -> Vec<Token> {
         let mut visitor = GeneratedSpanCollector::default();
         node.visit_in_order(&mut visitor);
-        visitor.tokens
+        visitor.tokens.into_iter().cloned().collect()
     }
 
     #[requires(true)]
@@ -2441,7 +2442,7 @@ fn generated_operand_connective_tokens(
 ) -> Vec<Token> {
     let mut collector = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut collector);
-    collector.tokens
+    collector.tokens.into_iter().cloned().collect()
 }
 
 #[requires(true)]
@@ -3245,7 +3246,7 @@ fn generated_modal_forethought_connective_tokens(
 ) -> Vec<Token> {
     let mut visitor = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut visitor);
-    visitor.tokens
+    visitor.tokens.into_iter().cloned().collect()
 }
 
 #[requires(true)]
@@ -6782,7 +6783,7 @@ fn generated_anchor_relations_with_introducers_for_tense_modal<N: TreeNode>(
 #[requires(true)]
 #[ensures(ret.iter().all(|(_domain, relation, introduced_by)| !relation.relation.is_empty() && !introduced_by.is_empty()))]
 fn generated_anchor_relations_with_introducers_for_tokens(
-    tokens: Vec<Token>,
+    tokens: Vec<&Token>,
 ) -> Vec<(GeneratedAnchorDomain, AnchorRelation, String)> {
     let mut relations = Vec::new();
     let mut previous_relation_accepts_distance = None::<GeneratedAnchorDomain>;
@@ -6793,32 +6794,32 @@ fn generated_anchor_relations_with_introducers_for_tokens(
         if token.cmavo() == Some(Cmavo::Mohi) {
             previous_relation_accepts_distance = None;
             interval_accepts_direction = false;
-            pending_motion = Some(token_text(&token));
+            pending_motion = Some(token_text(token));
             continue;
         }
         if matches!(
             token.cmavo(),
             Some(Cmavo::Nahe | Cmavo::Tohe | Cmavo::Nohe | Cmavo::Jeha)
         ) {
-            pending_scalar_negation = Some(scalar_negation_for_token(&token));
+            pending_scalar_negation = Some(scalar_negation_for_token(token));
             previous_relation_accepts_distance = None;
             pending_motion = None;
             continue;
         }
-        if space_interval_part_accepts_direction(&token) {
+        if space_interval_part_accepts_direction(token) {
             interval_accepts_direction = true;
             previous_relation_accepts_distance = None;
             pending_motion = None;
             continue;
         }
-        if interval_accepts_direction && space_interval_direction_for_faha_token(&token).is_some() {
+        if interval_accepts_direction && space_interval_direction_for_faha_token(token).is_some() {
             interval_accepts_direction = false;
             previous_relation_accepts_distance = None;
             pending_motion = None;
             continue;
         }
         interval_accepts_direction = false;
-        if let Some(relation) = time_relation_for_pu_token(&token) {
+        if let Some(relation) = time_relation_for_pu_token(token) {
             relations.push((
                 GeneratedAnchorDomain::Time,
                 new!(AnchorRelation {
@@ -6831,13 +6832,13 @@ fn generated_anchor_relations_with_introducers_for_tokens(
                     scalar_negation: pending_scalar_negation.take(),
                     motion: None,
                 }),
-                token_text(&token),
+                token_text(token),
             ));
             previous_relation_accepts_distance = Some(GeneratedAnchorDomain::Time);
             pending_motion = None;
             continue;
         }
-        if let Some(distance) = time_distance_for_zi_token(&token) {
+        if let Some(distance) = time_distance_for_zi_token(token) {
             if previous_relation_accepts_distance == Some(GeneratedAnchorDomain::Time)
                 && let Some((GeneratedAnchorDomain::Time, relation, _introduced_by)) =
                     relations.last_mut()
@@ -6849,7 +6850,7 @@ fn generated_anchor_relations_with_introducers_for_tokens(
                 previous_relation_accepts_distance = None;
                 continue;
             }
-            if let Some(relation) = time_relation_for_time_distance_token(&token) {
+            if let Some(relation) = time_relation_for_time_distance_token(token) {
                 relations.push((
                     GeneratedAnchorDomain::Time,
                     new!(AnchorRelation {
@@ -6862,14 +6863,14 @@ fn generated_anchor_relations_with_introducers_for_tokens(
                         scalar_negation: pending_scalar_negation.take(),
                         motion: None,
                     }),
-                    token_text(&token),
+                    token_text(token),
                 ));
             }
             previous_relation_accepts_distance = None;
             pending_motion = None;
             continue;
         }
-        if let Some(relation) = space_relation_for_faha_token(&token) {
+        if let Some(relation) = space_relation_for_faha_token(token) {
             let motion = pending_motion
                 .take()
                 .map(|introduced_by| SpatialMotion::new(SpatialMotionKind::Toward, introduced_by));
@@ -6885,12 +6886,12 @@ fn generated_anchor_relations_with_introducers_for_tokens(
                     scalar_negation: pending_scalar_negation.take(),
                     motion,
                 }),
-                token_text(&token),
+                token_text(token),
             ));
             previous_relation_accepts_distance = Some(GeneratedAnchorDomain::Space);
             continue;
         }
-        if let Some(distance) = space_distance_for_va_token(&token) {
+        if let Some(distance) = space_distance_for_va_token(token) {
             if previous_relation_accepts_distance == Some(GeneratedAnchorDomain::Space)
                 && let Some((GeneratedAnchorDomain::Space, relation, _introduced_by)) =
                     relations.last_mut()
@@ -6914,7 +6915,7 @@ fn generated_anchor_relations_with_introducers_for_tokens(
                     scalar_negation: pending_scalar_negation.take(),
                     motion: None,
                 }),
-                token_text(&token),
+                token_text(token),
             ));
             previous_relation_accepts_distance = None;
             pending_motion = None;
@@ -6956,7 +6957,7 @@ fn generated_time_span_for_tense_modal<N: TreeNode>(
 #[requires(anchor.is_none_or(|anchor| crate::model::argument_object_kind_can_fill(anchor.object_kind())))]
 #[ensures(ret.as_ref().is_none_or(|endpoint| !endpoint.relation.is_empty()))]
 fn generated_time_span_endpoint_from_tokens(
-    tokens: Vec<Token>,
+    tokens: Vec<&Token>,
     anchor: Option<SemanticObjectId>,
 ) -> Option<TimeSpanEndpoint> {
     let mut relations = generated_anchor_relations_with_introducers_for_tokens(tokens)

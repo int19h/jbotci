@@ -105,14 +105,14 @@ pub fn choose_best_lujvo_candidate_from_parts(
 
 #[requires(true)]
 #[ensures(true)]
-fn choose_best_candidate_from_parts(
+fn choose_best_candidate_from_parts<'a>(
     mode: LujvoBuildMode,
-    choices: &[Vec<LujvoBuildPart>],
-    selected: &mut Vec<LujvoBuildPart>,
+    choices: &'a [Vec<LujvoBuildPart>],
+    selected: &mut Vec<&'a LujvoBuildPart>,
     best: Option<LujvoCandidate>,
 ) -> Option<LujvoCandidate> {
     let Some((next_choices, rest)) = choices.split_first() else {
-        let bonded = bond_lujvo_build_parts(selected)?;
+        let bonded = bond_lujvo_build_part_refs(selected)?;
         let word = bonded.concat();
         let candidate = new!(LujvoCandidate {
             score: lujvo_score(&bonded),
@@ -127,7 +127,7 @@ fn choose_best_candidate_from_parts(
 
     let mut current_best = best;
     for choice in next_choices {
-        selected.push(choice.clone());
+        selected.push(choice);
         current_best = choose_best_candidate_from_parts(mode, rest, selected, current_best);
         selected.pop();
     }
@@ -166,14 +166,22 @@ pub fn bond_rafsis(rafsis: &[String]) -> Option<Vec<String>> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|parts| parts.len() >= 2))]
 fn bond_lujvo_build_parts(parts: &[LujvoBuildPart]) -> Option<Vec<String>> {
+    let part_refs = parts.iter().collect::<Vec<_>>();
+    bond_lujvo_build_part_refs(&part_refs)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| parts.len() >= 2))]
+fn bond_lujvo_build_part_refs(parts: &[&LujvoBuildPart]) -> Option<Vec<String>> {
     if parts.len() < 2 {
         return None;
     }
-    let first_part = parts.first()?;
-    let first = first_part.as_text().to_owned();
+    let first_part = *parts.first()?;
+    let first = first_part.as_text();
     let second = parts.get(1)?.as_text();
-    let mut bonded = vec![first.clone()];
-    if !first_part.is_brivla_core() && should_insert_cvv_hyphen(&first, second, parts.len()) {
+    let mut bonded = Vec::with_capacity(parts.len() * 2);
+    bonded.push(first.to_owned());
+    if !first_part.is_brivla_core() && should_insert_cvv_hyphen(first, second, parts.len()) {
         bonded.push(if second.starts_with('r') {
             "n".to_owned()
         } else {
@@ -181,8 +189,8 @@ fn bond_lujvo_build_parts(parts: &[LujvoBuildPart]) -> Option<Vec<String>> {
         });
     }
     for pair in parts.windows(2) {
-        let previous = &pair[0];
-        let next = &pair[1];
+        let previous = pair[0];
+        let next = pair[1];
         if let Some(hyphen) = hyphen_for_build_part_pair(previous, next) {
             bonded.push(hyphen.to_owned());
         }

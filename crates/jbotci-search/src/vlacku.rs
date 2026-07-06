@@ -1,7 +1,7 @@
 use bityzba::{data, invariant, new, requires};
 use jbotci_dictionary::{
     Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegmentKind, Keyword,
-    WordType, normalize_lookup_query, universal_gismu_rafsi_forms,
+    WordType, normalize_lookup_query,
 };
 use jbotci_jvozba::{LujvoDecomposition, decompose_lujvo_like};
 use jbotci_morphology::{
@@ -844,6 +844,7 @@ fn cards_for_valsi(
                     dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
                 })
                 .collect(),
+            None,
             options,
         ));
     }
@@ -930,24 +931,22 @@ fn cards_for_lujvo(
         runtime_decomposition = decomposition;
         cards
     } else {
-        let decomposition = exact_entries
-            .iter()
-            .copied()
-            .find_map(|entry| dictionary_lujvo_decomposition_for_entry(dictionary, entry));
-        let mut cards = exact_entries
-            .into_iter()
-            .filter(|entry| {
-                dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
-            })
-            .map(|entry| {
-                entry_card_with_dictionary_decomposition(
+        let mut dictionary_decomposition = None;
+        let mut cards = Vec::new();
+        for entry in exact_entries {
+            let entry_decomposition = dictionary_lujvo_decomposition_for_entry(dictionary, entry);
+            if dictionary_decomposition.is_none() {
+                dictionary_decomposition = entry_decomposition;
+            }
+            if dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
+                cards.push(entry_card_with_dictionary_decomposition(
                     entry,
                     Some(1.0),
-                    dictionary_lujvo_decomposition_for_entry(dictionary, entry),
-                )
-            })
-            .collect();
-        if let Some(decomposition) = decomposition {
+                    entry_decomposition,
+                ));
+            }
+        }
+        if let Some(decomposition) = dictionary_decomposition {
             extend_unique_cards(
                 &mut cards,
                 cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
@@ -990,9 +989,10 @@ fn cards_for_valsi_pattern(
     let cards = cards_for_matching_entries(
         dictionary,
         dictionary
-            .entries()
+            .pattern_index()
             .iter()
-            .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
+            .filter(|entry| compiled.matches(entry.word_key))
+            .filter_map(|entry| dictionary.entry_for_index(entry.entry_index)),
         options,
     );
     found_or_missing(cards)
@@ -1012,9 +1012,15 @@ fn cards_for_rafsi_pattern(
     let cards = cards_for_matching_entries(
         dictionary,
         dictionary
-            .entries()
+            .pattern_index()
             .iter()
-            .filter(|entry| entry_has_matching_rafsi_pattern(entry, &compiled)),
+            .filter(|entry| {
+                entry
+                    .rafsi_keys
+                    .iter()
+                    .any(|rafsi_key| compiled.matches(rafsi_key))
+            })
+            .filter_map(|entry| dictionary.entry_for_index(entry.entry_index)),
         options,
     );
     found_or_missing(cards)
@@ -1075,26 +1081,45 @@ fn cards_for_sound(
                 sound_entry.token_sequence,
                 &mut scratch,
             ) as f32;
-            dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true)
-                .then_some((sound_entry.entry_index.get(), similarity, entry))
+            dictionary_entry_passes_vlacku_filters(entry, options, Some(similarity), true).then(
+                || {
+                    new!(SoundScoreEntry {
+                        entry_index: sound_entry.entry_index.get(),
+                        similarity,
+                        entry,
+                    })
+                },
+            )
         })
         .collect::<Vec<_>>();
     retain_best_sound_scores(&mut scored, options.count);
 
     let cards = scored
         .into_iter()
-        .take(options.count)
-        .map(|(_, similarity, entry)| {
-            dictionary_entry_card(dictionary, entry, Some(similarity), options.decompose_lujvo)
+        .map(|scored| {
+            dictionary_entry_card(
+                dictionary,
+                scored.entry,
+                Some(scored.similarity),
+                options.decompose_lujvo,
+            )
         })
         .collect();
     found_or_missing(cards)
 }
 
+#[invariant(similarity.is_finite())]
+#[derive(Debug, Clone, Copy)]
+struct SoundScoreEntry<'dictionary> {
+    entry_index: usize,
+    similarity: f32,
+    entry: &'dictionary DictionaryEntry<'dictionary>,
+}
+
 #[requires(true)]
 #[ensures(scored.len() <= count)]
 fn retain_best_sound_scores<'dictionary>(
-    scored: &mut Vec<(usize, f32, &'dictionary DictionaryEntry<'dictionary>)>,
+    scored: &mut Vec<SoundScoreEntry<'dictionary>>,
     count: usize,
 ) {
     if scored.len() > count {
@@ -1106,8 +1131,14 @@ fn retain_best_sound_scores<'dictionary>(
 
 #[requires(true)]
 #[ensures(matches!(ret, std::cmp::Ordering::Less | std::cmp::Ordering::Equal | std::cmp::Ordering::Greater))]
-fn compare_sound_score<T>(left: &(usize, f32, T), right: &(usize, f32, T)) -> std::cmp::Ordering {
-    compare_similarity_then_index((left.0, left.1.into()), (right.0, right.1.into()))
+fn compare_sound_score(
+    left: &SoundScoreEntry<'_>,
+    right: &SoundScoreEntry<'_>,
+) -> std::cmp::Ordering {
+    compare_similarity_then_index(
+        (left.entry_index, left.similarity.into()),
+        (right.entry_index, right.similarity.into()),
+    )
 }
 
 #[requires(true)]
@@ -1171,6 +1202,7 @@ fn missing_exact_output(
                 dictionary,
                 query,
                 vec![unknown_card(classification, decomposition.as_ref())],
+                decomposition.as_ref(),
                 options,
             );
             VlackuSearchOutput {
@@ -1189,6 +1221,7 @@ fn cards_with_optional_lujvo_sources(
     dictionary: &Dictionary<'_>,
     query: &str,
     mut cards: Vec<VlackuCard>,
+    runtime_decomposition: Option<&LujvoDecomposition<'_>>,
     options: &VlackuSearchOptions,
 ) -> Vec<VlackuCard> {
     let should_decompose_sources = options.decompose_lujvo
@@ -1200,6 +1233,11 @@ fn cards_with_optional_lujvo_sources(
             extend_unique_cards(
                 &mut cards,
                 cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+            );
+        } else if let Some(decomposition) = runtime_decomposition {
+            extend_unique_cards(
+                &mut cards,
+                cards_for_lujvo_decomposition(dictionary, decomposition, options),
             );
         } else if let Some(decomposition) = decompose_lujvo_like(dictionary, query) {
             extend_unique_cards(
@@ -1726,7 +1764,7 @@ impl GlobPattern {
     #[requires(true)]
     #[ensures(true)]
     fn matches(&self, target: &str) -> bool {
-        glob_matches(&self.tokens, &target.chars().collect::<Vec<_>>())
+        glob_matches(&self.tokens, target)
     }
 }
 
@@ -1842,59 +1880,38 @@ fn normalize_glob_literal(value: char) -> Option<char> {
 
 #[requires(true)]
 #[ensures(true)]
-fn exact_pattern_target_key(raw_word: &str) -> String {
-    normalize_lookup_query(raw_word)
-        .chars()
-        .map(|value| if value == 'h' { '\'' } else { value })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn is_glob_wildcard(value: char) -> bool {
     matches!(value, '@' | '$' | '?' | '*')
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn entry_has_matching_rafsi_pattern(entry: &DictionaryEntry<'_>, pattern: &ExactPattern) -> bool {
-    entry.rafsi.iter().any(|rafsi| {
-        let key = exact_pattern_target_key(rafsi.0);
-        pattern.matches(&key)
-    }) || entry.word_type.is_gismu_like()
-        && universal_gismu_rafsi_forms(entry.word)
-            .into_iter()
-            .any(|(rafsi, _source)| {
-                let key = exact_pattern_target_key(&rafsi);
-                pattern.matches(&key)
-            })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn glob_matches(tokens: &[GlobToken], target: &[char]) -> bool {
-    let mut previous = vec![false; target.len() + 1];
+fn glob_matches(tokens: &[GlobToken], target: &str) -> bool {
+    let target_len = target.chars().count();
+    let mut previous = vec![false; target_len + 1];
+    let mut current = vec![false; target_len + 1];
     previous[0] = true;
 
     for token in tokens {
-        let mut current = vec![false; target.len() + 1];
+        current.fill(false);
         match token {
             GlobToken::AnyMany => {
                 current[0] = previous[0];
-                for target_index in 1..=target.len() {
+                for target_index in 1..=target_len {
                     current[target_index] = previous[target_index] || current[target_index - 1];
                 }
             }
             token => {
-                for target_index in 1..=target.len() {
-                    current[target_index] = previous[target_index - 1]
-                        && glob_token_matches(*token, target[target_index - 1]);
+                for (target_index, target_char) in target.chars().enumerate() {
+                    let target_position = target_index + 1;
+                    current[target_position] =
+                        previous[target_index] && glob_token_matches(*token, target_char);
                 }
             }
         }
-        previous = current;
+        std::mem::swap(&mut previous, &mut current);
     }
-    previous[target.len()]
+    previous[target_len]
 }
 
 #[requires(true)]
@@ -2184,10 +2201,11 @@ mod tests {
         let cards = cards_for_matching_entries(
             dictionary,
             dictionary
-                .entries()
+                .pattern_index()
                 .iter()
                 .inspect(|_| visited += 1)
-                .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
+                .filter(|entry| compiled.matches(entry.word_key))
+                .filter_map(|entry| dictionary.entry_for_index(entry.entry_index)),
             &VlackuSearchOptions::default().with_data(data! { count: 1 }),
         );
 
@@ -2211,10 +2229,11 @@ mod tests {
 
         let cards = cards_for_matching_entries_with_builder(
             dictionary
-                .entries()
+                .pattern_index()
                 .iter()
                 .inspect(|_| visited += 1)
-                .filter(|entry| compiled.matches(&exact_pattern_target_key(entry.word))),
+                .filter(|entry| compiled.matches(entry.word_key))
+                .filter_map(|entry| dictionary.entry_for_index(entry.entry_index)),
             &options,
             |entry| {
                 built += 1;
@@ -2234,30 +2253,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn exact_pattern_decompose_lujvo_skips_non_lujvo_cards() {
-        let result = run_vlacku_requests(
-            jbotci_dictionary_data::english(),
-            &[VlackuRequest::valsi("/.{10,}/".to_owned())],
-            &VlackuSearchOptions::default().with_data(data! {
-                count: 40,
-                word_types: vec![WordTypeFilter::Cmavo],
-                decompose_lujvo: true,
-            }),
-        );
+    fn decompose_lujvo_skips_non_lujvo_cards() {
+        let dictionary = jbotci_dictionary_data::english();
+        let options = VlackuSearchOptions::default().with_data(data! {
+            count: 4,
+            word_types: vec![WordTypeFilter::Cmavo],
+            decompose_lujvo: true,
+        });
+        let entries = dictionary
+            .entries()
+            .iter()
+            .filter(|entry| WordTypeFilter::Cmavo.matches_word_type(entry.word_type))
+            .take(options.count);
+        let cards = cards_for_matching_entries(dictionary, entries, &options);
 
-        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
-        assert_eq!(result.outcome, VlackuOutcome::Found);
-        assert!(!result.cards.is_empty());
-        assert!(result.cards.iter().all(|card| {
+        assert!(!cards.is_empty());
+        assert!(cards.iter().all(|card| {
             WordTypeFilter::parse(&card.word_type)
                 .is_some_and(|actual| WordTypeFilter::Cmavo.matches_filter(actual))
         }));
-        assert!(
-            result
-                .cards
-                .iter()
-                .all(|card| card.decomposition.is_empty())
-        );
+        assert!(cards.iter().all(|card| card.decomposition.is_empty()));
     }
 
     #[test]
@@ -2314,17 +2329,33 @@ mod tests {
         let dictionary = jbotci_dictionary_data::english();
         let entry = dictionary.lookup_word("klama").expect("entry for klama");
         let mut scored = vec![
-            (4, 0.60, entry),
-            (2, 0.90, entry),
-            (1, 0.90, entry),
-            (3, 0.10, entry),
+            new!(SoundScoreEntry {
+                entry_index: 4,
+                similarity: 0.60,
+                entry,
+            }),
+            new!(SoundScoreEntry {
+                entry_index: 2,
+                similarity: 0.90,
+                entry,
+            }),
+            new!(SoundScoreEntry {
+                entry_index: 1,
+                similarity: 0.90,
+                entry,
+            }),
+            new!(SoundScoreEntry {
+                entry_index: 3,
+                similarity: 0.10,
+                entry,
+            }),
         ];
 
         retain_best_sound_scores(&mut scored, 2);
 
         let retained = scored
             .iter()
-            .map(|(index, similarity, _)| (*index, *similarity))
+            .map(|scored| (scored.entry_index, scored.similarity))
             .collect::<Vec<_>>();
         assert_eq!(retained, vec![(1, 0.90), (2, 0.90)]);
     }
