@@ -11,7 +11,7 @@ use bityzba::{invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_orthography::LojbanScript;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use walkdir::WalkDir;
 
@@ -234,7 +234,7 @@ impl TestCase {
             if output
                 .tersmu
                 .as_ref()
-                .is_some_and(|tersmu| tersmu.json.is_some())
+                .is_some_and(|tersmu| tersmu.json.is_some() || tersmu.error.is_some())
             {
                 facets.insert(Facet::TersmuJson);
             }
@@ -365,8 +365,8 @@ impl TestCase {
                 .output
                 .as_ref()
                 .and_then(|output| output.tersmu.as_ref())
-                .and_then(|output| output.json.as_ref())
-                .map(|_| ExpectationStatus::Success),
+                .filter(|output| output.json.is_some() || output.error.is_some())
+                .map(|output| output.status),
         }
     }
 }
@@ -535,14 +535,31 @@ pub struct CommandOutputExpectation {
     pub json: Option<TextExpectation>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[invariant(true)]
 pub struct TersmuOutputExpectation {
+    #[serde(default = "success_expectation_status")]
+    pub status: ExpectationStatus,
     #[serde(default, rename = "story-time")]
     pub story_time: bool,
     #[serde(default)]
     pub json: Option<TextExpectation>,
+    #[serde(default)]
+    pub error: Option<TextExpectation>,
+}
+
+impl Default for TersmuOutputExpectation {
+    #[requires(true)]
+    #[ensures(ret.status == ExpectationStatus::Success)]
+    fn default() -> Self {
+        Self {
+            status: ExpectationStatus::Success,
+            story_time: false,
+            json: None,
+            error: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -726,6 +743,8 @@ pub struct ReferenceExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
     pub raw: Option<TextExpectation>,
+    #[serde(default)]
+    pub error: Option<TextExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -810,11 +829,77 @@ impl DiagnosticExpectation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextExpectation {
     pub text: String,
+    pub sha256: Option<String>,
+}
+
+impl Serialize for TextExpectation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        let Some(sha256) = &self.sha256 else {
+            return serializer.serialize_str(&self.text);
+        };
+        let mut map = serializer.serialize_map(Some(if self.text.is_empty() { 1 } else { 2 }))?;
+        if !self.text.is_empty() {
+            map.serialize_entry("text", &self.text)?;
+        }
+        map.serialize_entry("sha256", sha256)?;
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for TextExpectation {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        #[invariant(true)]
+        struct TextExpectationTable {
+            #[serde(default)]
+            text: String,
+            #[serde(default)]
+            sha256: Option<String>,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        #[invariant(true)]
+        #[invariant(::Text(_) => true)]
+        #[invariant(::Table(_) => true)]
+        enum TextExpectationWire {
+            Text(String),
+            Table(TextExpectationTable),
+        }
+
+        let expectation = match TextExpectationWire::deserialize(deserializer)? {
+            TextExpectationWire::Text(text) => Self { text, sha256: None },
+            TextExpectationWire::Table(table) => Self {
+                text: table.text,
+                sha256: table.sha256,
+            },
+        };
+        if let Some(sha256) = &expectation.sha256
+            && (sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        {
+            return Err(serde::de::Error::custom(
+                "`sha256` text expectations must be 64 hex digits",
+            ));
+        }
+        Ok(expectation)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -824,6 +909,12 @@ pub enum ExpectationStatus {
     Failure,
     Pending,
     NotApplicable,
+}
+
+#[requires(true)]
+#[ensures(ret == ExpectationStatus::Success)]
+fn success_expectation_status() -> ExpectationStatus {
+    ExpectationStatus::Success
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

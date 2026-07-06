@@ -1079,11 +1079,38 @@ pub mod generated_model {
         field veho <- opt(cmavo(Veho).wf()).elidable_terminator(Veho);
     }
 
-    rule "quantifier" zantufa_raw_mekso_quantifier(mekso) -> struct {
+    // ilmentufa's Zantufa grammars guard raw-mex quantifiers with
+    // `!selbri !sumti_6`; otherwise a BY pro-sumti sentence such as
+    // `my tcidu` is stolen as a raw-mex quantified description.
+    alias "raw mekso quantifier guard" zantufa_raw_mekso_quantifier_guard(letter_tokens) =
+        choice((
+            relation_word().ignored(),
+            selmaho(Goha).ignored(),
+            cmavo(Ke).ignored(),
+            cmavo(Me).ignored(),
+            cmavo(Nuha).ignored(),
+            selmaho(Se).ignored(),
+            cmavo(Jai).ignored(),
+            cmavo(Nu).ignored(),
+            pa_word().followed_by(selmaho(Moi).ignored()).ignored(),
+            selmaho(Lahe).ignored(),
+            selmaho(Nahe).ignored(),
+            selmaho(Lohoi).ignored(),
+            word_category(ProSumti).ignored(),
+            description_head().ignored(),
+            selmaho(Li).ignored(),
+            letter_string(letter_tokens).ignored(),
+            word_category(Quote).ignored(),
+            cmavo(Lu).ignored(),
+        )).not();
+
+    rule "quantifier" zantufa_raw_mekso_quantifier(mekso, letter_tokens) -> struct {
+        assert zantufa_raw_mekso_quantifier_guard(letter_tokens);
         field mekso <- arc(mekso);
     }
 
-    rule "quantifier" zantufa_priority_raw_mekso_quantifier(mekso) -> struct {
+    rule "quantifier" zantufa_priority_raw_mekso_quantifier(mekso, letter_tokens) -> struct {
+        assert zantufa_raw_mekso_quantifier_guard(letter_tokens);
         field mekso <- arc(mekso);
     }
 

@@ -549,18 +549,22 @@ fn writer_keeps_tree_and_output_values() {
                     json: Some(TextExpectation {
                         text: "[{\"PlainWord\":{\"Cmavo\":{\"phonemes\":\"coĭ\",\"span\":[0,3]}}}]"
                             .into(),
+                        sha256: None,
                     }),
                     ..VlaseiOutputExpectation::default()
                 }),
                 gentufa: Some(GentufaOutputExpectation {
                     brackets: Some(TextExpectation {
                         text: "[coi]".into(),
+                        sha256: None,
                     }),
                     tree: Some(TextExpectation {
                         text: "\"coi\"".into(),
+                        sha256: None,
                     }),
                     json: Some(TextExpectation {
                         text: "{}".into(),
+                        sha256: None,
                     }),
                     show_elided: None,
                 }),
@@ -568,6 +572,7 @@ fn writer_keeps_tree_and_output_values() {
                     story_time: true,
                     json: Some(TextExpectation {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
+                        sha256: None,
                     }),
                     ..TersmuOutputExpectation::default()
                 }),
@@ -576,6 +581,7 @@ fn writer_keeps_tree_and_output_values() {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
                     text: "[WordLike(PlainWord(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
+                    sha256: None,
                 }),
                 diagnostics: vec![],
             }),
@@ -584,6 +590,7 @@ fn writer_keeps_tree_and_output_values() {
                 status: ExpectationStatus::Success,
                 raw: Some(TextExpectation {
                     text: "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }".into(),
+                    sha256: None,
                 }),
                 diagnostics: vec![],
                 xfail: Some(XfailExpectation {
@@ -597,7 +604,9 @@ fn writer_keeps_tree_and_output_values() {
                     status: ExpectationStatus::Success,
                     raw: Some(TextExpectation {
                         text: "{\"frames\":[],\"assignments\":[],\"relation-places\":[],\"references\":[]}".into(),
+                        sha256: None,
                     }),
+                    error: None,
                 }),
             }),
         },
@@ -655,12 +664,15 @@ fn writer_round_trips_script_brackets_and_show_elided_profile() {
                     brackets: Some(BracketExpectations::Scripts(ScriptBracketExpectations {
                         latin: Some(TextExpectation {
                             text: "(mi kláma)".into(),
+                            sha256: None,
                         }),
                         cyrillic: Some(TextExpectation {
                             text: "(ми кла́ма)".into(),
+                            sha256: None,
                         }),
                         zbalermorna: Some(TextExpectation {
                             text: "zbal".into(),
+                            sha256: None,
                         }),
                     })),
                     ..VlaseiOutputExpectation::default()
@@ -669,11 +681,16 @@ fn writer_round_trips_script_brackets_and_show_elided_profile() {
                     show_elided: Some(CommandOutputExpectation {
                         brackets: Some(TextExpectation {
                             text: "(mi kláma vau)".into(),
+                            sha256: None,
                         }),
                         tree: Some(TextExpectation {
                             text: "tree".into(),
+                            sha256: None,
                         }),
-                        json: Some(TextExpectation { text: "{}".into() }),
+                        json: Some(TextExpectation {
+                            text: "{}".into(),
+                            sha256: None,
+                        }),
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
@@ -775,12 +792,14 @@ fn available_facets_include_tree_expectations() {
                 gentufa: Some(GentufaOutputExpectation {
                     tree: Some(TextExpectation {
                         text: "\"coi\"".into(),
+                        sha256: None,
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
                 tersmu: Some(TersmuOutputExpectation {
                     json: Some(TextExpectation {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
+                        sha256: None,
                     }),
                     ..TersmuOutputExpectation::default()
                 }),
@@ -852,12 +871,15 @@ fn available_facets_include_script_bracket_expectations() {
                     brackets: Some(BracketExpectations::Scripts(ScriptBracketExpectations {
                         latin: Some(TextExpectation {
                             text: "(mi kláma)".into(),
+                            sha256: None,
                         }),
                         cyrillic: Some(TextExpectation {
                             text: "(ми кла́ма)".into(),
+                            sha256: None,
                         }),
                         zbalermorna: Some(TextExpectation {
                             text: "zbal".into(),
+                            sha256: None,
                         }),
                     })),
                     ..VlaseiOutputExpectation::default()
@@ -900,11 +922,18 @@ fn available_facets_include_gentufa_show_elided_expectations() {
             output: Some(OutputExpectations {
                 gentufa: Some(GentufaOutputExpectation {
                     show_elided: Some(CommandOutputExpectation {
-                        brackets: Some(TextExpectation { text: "()".into() }),
+                        brackets: Some(TextExpectation {
+                            text: "()".into(),
+                            sha256: None,
+                        }),
                         tree: Some(TextExpectation {
                             text: "tree".into(),
+                            sha256: None,
                         }),
-                        json: Some(TextExpectation { text: "{}".into() }),
+                        json: Some(TextExpectation {
+                            text: "{}".into(),
+                            sha256: None,
+                        }),
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
@@ -942,7 +971,11 @@ fn available_facets_include_semantics_refs_expectations() {
             semantics: Some(SemanticsExpectations {
                 refs: Some(ReferenceExpectation {
                     status: ExpectationStatus::Success,
-                    raw: Some(TextExpectation { text: "{}".into() }),
+                    raw: Some(TextExpectation {
+                        text: "{}".into(),
+                        sha256: None,
+                    }),
+                    error: None,
                 }),
             }),
             ..Expectations::default()
@@ -985,6 +1018,7 @@ fn available_facets_include_jvozba_expectations() {
                 output: None,
                 error: Some(TextExpectation {
                     text: "Could not build a valid lujvo from the supplied inputs.".into(),
+                    sha256: None,
                 }),
             }),
             ..Expectations::default()

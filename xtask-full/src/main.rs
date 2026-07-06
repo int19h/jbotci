@@ -354,6 +354,8 @@ struct FixtureRewriteArgs {
     #[arg(long)]
     add_semantics_refs: bool,
     #[arg(long, hide = true)]
+    add_tersmu_json: bool,
+    #[arg(long, hide = true)]
     syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
     syntax_only: bool,
@@ -6859,6 +6861,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
+            || args.add_tersmu_json
             || args.syntax_only
             || args.gentufa_output_only
             || args.only_semantics_refs)
@@ -6871,6 +6874,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
+            || args.add_tersmu_json
             || args.gentufa_output_only
             || args.only_semantics_refs)
     {
@@ -6880,6 +6884,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
+            || args.add_tersmu_json
             || args.only_semantics_refs)
     {
         bail!("`--gentufa-output-only` cannot be combined with other fixture rewrite modes");
@@ -6887,9 +6892,13 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.rederive_morphology_status
         && (args.migrate_morphology_diagnostics
             || args.add_semantics_refs
+            || args.add_tersmu_json
             || args.only_semantics_refs)
     {
         bail!("`--rederive-morphology-status` cannot be combined with other fixture rewrite modes");
+    }
+    if args.only_semantics_refs && args.add_tersmu_json {
+        bail!("`--only-semantics-refs` cannot be combined with `--add-tersmu-json`");
     }
     if args.rederive_morphology_status && !args.chunk_worker {
         ensure_clean_git_tree_for_fixture_rederive()?;
@@ -6901,6 +6910,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
+            args.add_tersmu_json,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
             args.gentufa_output_only,
@@ -6916,6 +6926,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
+            args.add_tersmu_json,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
             args.gentufa_output_only,
@@ -6929,6 +6940,7 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.migrate_morphology_diagnostics,
         args.rederive_morphology_status,
         args.add_semantics_refs,
+        args.add_tersmu_json,
         args.syntax_failure_diagnostics_only,
         args.syntax_only,
         args.gentufa_output_only,
@@ -6967,6 +6979,7 @@ fn fixture_rewrite_subprocess_chunks(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
+    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -6989,6 +7002,7 @@ fn fixture_rewrite_subprocess_chunks(
             migrate_morphology_diagnostics,
             rederive_morphology_status,
             add_semantics_refs,
+            add_tersmu_json,
             syntax_failure_diagnostics_only,
             syntax_only,
             gentufa_output_only,
@@ -7026,6 +7040,7 @@ fn fixture_rewrite_chunk_output(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
+    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -7041,6 +7056,9 @@ fn fixture_rewrite_chunk_output(
     }
     if add_semantics_refs {
         command.arg("--add-semantics-refs");
+    }
+    if add_tersmu_json {
+        command.arg("--add-tersmu-json");
     }
     if syntax_failure_diagnostics_only {
         command.arg("--syntax-failure-diagnostics-only");
@@ -7142,6 +7160,7 @@ fn fixture_rewrite_paths(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
+    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -7202,8 +7221,13 @@ fn fixture_rewrite_paths(
                 )
             })?;
         } else {
-            refresh_fixture_expectations(&mut fixture, add_semantics_refs, only_semantics_refs)
-                .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+            refresh_fixture_expectations(
+                &mut fixture,
+                add_semantics_refs,
+                add_tersmu_json,
+                only_semantics_refs,
+            )
+            .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
         }
         write_fixture_file(&path, &fixture.test_case)
             .with_context(|| format!("rewriting fixture `{}`", path.display()))?;
@@ -8165,6 +8189,7 @@ fn format_fixture_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String>
 fn refresh_fixture_expectations(
     fixture: &mut LoadedTestCase,
     add_semantics_refs: bool,
+    add_tersmu_json: bool,
     only_semantics_refs: bool,
 ) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
@@ -8276,11 +8301,19 @@ fn refresh_fixture_expectations(
             .as_ref()
             .is_some_and(|syntax| syntax.status == ExpectationStatus::Success);
     let refresh_semantics_refs = existing_semantics_refs_success || add_semantics_refs_for_fixture;
+    let add_tersmu_json_for_fixture = add_tersmu_json
+        && fixture
+            .test_case
+            .expectations
+            .syntax
+            .as_ref()
+            .is_some_and(|syntax| syntax.status == ExpectationStatus::Success);
     if refresh_syntax
         || refresh_syntax_failure
         || refresh_tree
         || refresh_brackets
         || refresh_semantics_refs
+        || add_tersmu_json_for_fixture
     {
         let syntax_words = match &words {
             Ok(words) => words.clone(),
@@ -8301,6 +8334,18 @@ fn refresh_fixture_expectations(
                 }
                 if existing_semantics_refs_success {
                     bail!("semantics refs blocked by morphology error: {error}");
+                }
+                if add_semantics_refs_for_fixture {
+                    record_semantics_refs_expectation(
+                        &mut fixture.test_case.expectations,
+                        Err(format!("morphology error: {error}")),
+                    );
+                }
+                if add_tersmu_json_for_fixture {
+                    record_tersmu_json_expectation(
+                        &mut fixture.test_case.expectations,
+                        Err(format!("morphology error: {error}")),
+                    );
                 }
                 return Ok(());
             }
@@ -8397,14 +8442,20 @@ fn refresh_fixture_expectations(
                     )?;
                 }
                 if refresh_semantics_refs {
-                    let refs = analyze_generated_references(&parsed.parse_tree)
-                        .context("analyzing semantic references")?;
-                    let raw = refs
-                        .fixture_projection_json()
-                        .context("rendering semantic refs fixture projection")?;
-                    let refs = ensure_semantics_refs(&mut fixture.test_case.expectations);
-                    refs.status = ExpectationStatus::Success;
-                    refs.raw = Some(text_expectation(raw));
+                    let result = analyze_generated_references(&parsed.parse_tree)
+                        .map_err(|error| format!("semantic refs error: {error}"))
+                        .and_then(|refs| {
+                            refs.fixture_projection_json()
+                                .map_err(|error| format!("semantic refs render error: {error}"))
+                        });
+                    if existing_semantics_refs_success && let Err(error) = &result {
+                        bail!("{error}");
+                    }
+                    record_semantics_refs_expectation(&mut fixture.test_case.expectations, result);
+                }
+                if add_tersmu_json_for_fixture {
+                    let result = tersmu_json_fixture_result(fixture);
+                    record_tersmu_json_expectation(&mut fixture.test_case.expectations, result);
                 }
             }
             Err(error) => {
@@ -8424,6 +8475,18 @@ fn refresh_fixture_expectations(
                 }
                 if existing_semantics_refs_success {
                     bail!("semantics refs blocked by syntax error: {error}");
+                }
+                if add_semantics_refs_for_fixture {
+                    record_semantics_refs_expectation(
+                        &mut fixture.test_case.expectations,
+                        Err(format!("syntax error: {error}")),
+                    );
+                }
+                if add_tersmu_json_for_fixture {
+                    record_tersmu_json_expectation(
+                        &mut fixture.test_case.expectations,
+                        Err(format!("syntax error: {error}")),
+                    );
                 }
             }
         }
@@ -8457,6 +8520,18 @@ fn ensure_gentufa_output(
 
 #[requires(true)]
 #[ensures(true)]
+fn ensure_tersmu_output(
+    expectations: &mut fixtures::Expectations,
+) -> &mut fixtures::TersmuOutputExpectation {
+    expectations
+        .output
+        .get_or_insert_with(Default::default)
+        .tersmu
+        .get_or_insert_with(Default::default)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn ensure_semantics_refs(
     expectations: &mut fixtures::Expectations,
 ) -> &mut fixtures::ReferenceExpectation {
@@ -8467,13 +8542,105 @@ fn ensure_semantics_refs(
         .get_or_insert(fixtures::ReferenceExpectation {
             status: ExpectationStatus::Success,
             raw: None,
+            error: None,
         })
 }
 
 #[requires(true)]
 #[ensures(true)]
+fn record_semantics_refs_expectation(
+    expectations: &mut fixtures::Expectations,
+    result: std::result::Result<String, String>,
+) {
+    let refs = ensure_semantics_refs(expectations);
+    match result {
+        Ok(raw) => {
+            refs.status = ExpectationStatus::Success;
+            refs.raw = Some(refreshed_text_expectation(refs.raw.as_ref(), raw));
+            refs.error = None;
+        }
+        Err(error) => {
+            refs.status = ExpectationStatus::Failure;
+            refs.raw = None;
+            refs.error = Some(refreshed_text_expectation(refs.error.as_ref(), error));
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn record_tersmu_json_expectation(
+    expectations: &mut fixtures::Expectations,
+    result: std::result::Result<String, String>,
+) {
+    let tersmu = ensure_tersmu_output(expectations);
+    match result {
+        Ok(json) => {
+            tersmu.status = ExpectationStatus::Success;
+            tersmu.json = Some(refreshed_text_expectation(tersmu.json.as_ref(), json));
+            tersmu.error = None;
+        }
+        Err(error) => {
+            tersmu.status = ExpectationStatus::Failure;
+            tersmu.json = None;
+            tersmu.error = Some(refreshed_text_expectation(tersmu.error.as_ref(), error));
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn text_expectation(text: String) -> fixtures::TextExpectation {
-    fixtures::TextExpectation { text }
+    fixtures::TextExpectation { text, sha256: None }
+}
+
+#[requires(true)]
+#[ensures(ret.sha256.is_some())]
+fn hashed_text_expectation(text: &str) -> fixtures::TextExpectation {
+    fixtures::TextExpectation {
+        text: String::new(),
+        sha256: Some(sha256_hex(text.as_bytes())),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn refreshed_text_expectation(
+    previous: Option<&fixtures::TextExpectation>,
+    text: String,
+) -> fixtures::TextExpectation {
+    if previous
+        .is_some_and(|expectation| expectation.sha256.is_some() && expectation.text.is_empty())
+    {
+        hashed_text_expectation(&text)
+    } else {
+        text_expectation(text)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn text_expectation_matches(expectation: &fixtures::TextExpectation, actual: &str) -> bool {
+    if expectation.sha256.is_none() {
+        return actual == expectation.text;
+    }
+    (expectation.text.is_empty() || actual == expectation.text)
+        && expectation
+            .sha256
+            .as_deref()
+            .is_none_or(|expected| sha256_hex(actual.as_bytes()) == expected)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn debug_value_matches_expectation<T: std::fmt::Debug>(
+    value: &T,
+    expectation: &fixtures::TextExpectation,
+) -> bool {
+    if expectation.sha256.is_none() {
+        return debug_value_matches(value, &expectation.text);
+    }
+    text_expectation_matches(expectation, &format_debug_value(value))
 }
 
 #[requires(true)]
@@ -10316,10 +10483,14 @@ fn run_vlasei_brackets_fixture(
             ..BracketRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => {
+        Ok(actual) if text_expectation_matches(expectation, &actual) => {
             run_vlasei_brackets_round_trip(fixture, &options, &words, &actual)
         }
-        Ok(actual) => FacetResult::failed(format_text_mismatch(label, &expectation.text, &actual)),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
+            label,
+            expectation,
+            &actual,
+        )),
         Err(error) => FacetResult::failed(format!("{label} render error: {error}")),
     }
 }
@@ -10399,10 +10570,10 @@ fn run_vlasei_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..TreeRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "vlasei tree",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => FacetResult::failed(format!("vlasei tree render error: {error}")),
@@ -10442,10 +10613,10 @@ fn run_vlasei_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..JsonRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "vlasei JSON",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => FacetResult::failed(format!("vlasei JSON render error: {error}")),
@@ -10495,12 +10666,13 @@ fn run_gentufa_brackets_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..BracketRenderOptions::default()
         },
     ) {
-        Ok(actual) if expectation.text == actual => {
+        Ok(actual) if text_expectation_matches(expectation, &actual) => {
             run_gentufa_brackets_round_trip(fixture, &options, &syntax_options, &parsed, &actual)
         }
-        Ok(actual) => FacetResult::failed(format!(
-            "brackets mismatch: expected `{}`, got `{actual}`",
-            expectation.text
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
+            "brackets",
+            expectation,
+            &actual,
         )),
         Err(error) => FacetResult::failed(format!("brackets render error: {error}")),
     }
@@ -10634,10 +10806,10 @@ fn run_gentufa_tree_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..TreeRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa tree",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => FacetResult::failed(format!("tree render error: {error}")),
@@ -10686,10 +10858,10 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
             ..JsonRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa JSON",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => FacetResult::failed(format!("gentufa JSON render error: {error}")),
@@ -10705,33 +10877,85 @@ fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         .output
         .as_ref()
         .and_then(|output| output.tersmu.as_ref())
-        .and_then(|output| output.json.as_ref())
+        .filter(|output| output.json.is_some() || output.error.is_some())
     else {
         return FacetResult::skipped("fixture has no tersmu JSON expectation");
     };
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
+    if matches!(
+        expectation.status,
+        ExpectationStatus::Pending | ExpectationStatus::NotApplicable
+    ) {
+        return FacetResult::skipped(format!(
+            "tersmu JSON expectation is {:?}",
+            expectation.status
+        ));
+    }
+    let actual = tersmu_json_fixture_result(fixture);
+    match actual {
+        Ok(actual) if expectation.status == ExpectationStatus::Success => {
+            let Some(expected_json) = &expectation.json else {
+                return FacetResult::failed("tersmu JSON success expectation has no json value");
+            };
+            if text_expectation_matches(expected_json, &actual) {
+                FacetResult::passed()
+            } else {
+                FacetResult::failed(format_text_expectation_mismatch(
+                    "tersmu JSON",
+                    expected_json,
+                    &actual,
+                ))
+            }
+        }
+        Ok(actual) if expectation.status == ExpectationStatus::Failure => {
+            FacetResult::failed(format!(
+                "tersmu JSON unexpectedly succeeded with `{}`",
+                truncate_for_mismatch(&actual)
+            ))
+        }
+        Err(error) if expectation.status == ExpectationStatus::Failure => {
+            let Some(expected_error) = &expectation.error else {
+                return FacetResult::failed("tersmu JSON failure expectation has no error");
+            };
+            if text_expectation_matches(expected_error, &error) {
+                FacetResult::passed()
+            } else {
+                FacetResult::failed(format_text_expectation_mismatch(
+                    "tersmu JSON error",
+                    expected_error,
+                    &error,
+                ))
+            }
+        }
+        Err(error) => FacetResult::failed(error),
+        Ok(_) => FacetResult::failed(format!(
+            "tersmu JSON expectation has unsupported status {:?}",
+            expectation.status
+        )),
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
+    let dialect = fixture
+        .test_case
+        .dialect_definition()
+        .map_err(|error| format!("dialect error: {error}"))?;
     let options = MorphologyOptions::default().with_dialect_definition(&dialect);
     let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
+    let words = segment_words_with_modifiers_with_options_and_source_id(
         &fixture.test_case.lojban,
         &options,
         Some(SourceId("<fixture>".to_owned())),
-    ) {
-        Ok(words) => words,
-        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
-    };
-    let parsed = match parse_syntax_tree_generated_model_with_source_and_options(
+    )
+    .map_err(|error| format!("morphology error: {error}"))?;
+    let parsed = parse_syntax_tree_generated_model_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
-    };
-    let graph = match build_generated_semantic_graph_with_dictionary_and_options(
+    )
+    .map_err(|error| format!("syntax error: {error}"))?;
+    build_generated_semantic_graph_with_dictionary_and_options(
         &parsed,
         SemanticBuildOptions {
             source_text: Some(&fixture.test_case.lojban),
@@ -10744,19 +10968,13 @@ fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 .is_some_and(|tersmu| tersmu.story_time),
         },
         jbotci_dictionary_data::english(),
-    ) {
-        Ok(graph) => graph,
-        Err(error) => return FacetResult::failed(format!("tersmu JSON build error: {error}")),
-    };
-    match graph.to_json_string(0) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
-            "tersmu JSON",
-            &expectation.text,
-            &actual,
-        )),
-        Err(error) => FacetResult::failed(format!("tersmu JSON render error: {error}")),
-    }
+    )
+    .map_err(|error| format!("tersmu JSON build error: {error}"))
+    .and_then(|graph| {
+        graph
+            .to_json_string(0)
+            .map_err(|error| format!("tersmu JSON render error: {error}"))
+    })
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -10786,10 +11004,10 @@ fn run_gentufa_brackets_show_elided_fixture(fixture: &LoadedTestCase) -> FacetRe
             ..BracketRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa brackets show-elided",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => FacetResult::failed(format!(
@@ -10827,10 +11045,10 @@ fn run_gentufa_tree_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
             ..TreeRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa tree show-elided",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => {
@@ -10865,10 +11083,10 @@ fn run_gentufa_json_show_elided_fixture(fixture: &LoadedTestCase) -> FacetResult
             ..JsonRenderOptions::default()
         },
     ) {
-        Ok(actual) if actual == expectation.text => FacetResult::passed(),
-        Ok(actual) => FacetResult::failed(format_text_mismatch(
+        Ok(actual) if text_expectation_matches(expectation, &actual) => FacetResult::passed(),
+        Ok(actual) => FacetResult::failed(format_text_expectation_mismatch(
             "gentufa JSON show-elided",
-            &expectation.text,
+            expectation,
             &actual,
         )),
         Err(error) => {
@@ -10923,59 +11141,78 @@ fn run_semantics_refs_fixture(fixture: &LoadedTestCase) -> FacetResult {
             expectation.status
         ));
     }
-    let dialect = match fixture.test_case.dialect_definition() {
-        Ok(dialect) => dialect,
-        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
-    };
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = match segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &options,
-        Some(SourceId("<fixture>".to_owned())),
-    ) {
-        Ok(words) => words,
-        Err(error) => return FacetResult::failed(format!("morphology error: {error}")),
-    };
-    let parsed = match parse_syntax_tree_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &syntax_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => return FacetResult::failed(format!("syntax error: {error}")),
-    };
-    let actual = match analyze_generated_references(&parsed.parse_tree) {
-        Ok(analysis) => match analysis.fixture_projection_json() {
-            Ok(raw) => Ok(raw),
-            Err(error) => Err(format!("semantic refs render error: {error}")),
-        },
-        Err(error) => Err(format!("semantic refs error: {error}")),
-    };
+    let actual = semantics_refs_fixture_result(fixture);
     match actual {
         Ok(actual) if expectation.status == ExpectationStatus::Success => {
             let Some(expected_raw) = &expectation.raw else {
                 return FacetResult::failed("semantic refs success expectation has no raw value");
             };
-            if actual == expected_raw.text {
+            if text_expectation_matches(expected_raw, &actual) {
                 FacetResult::passed()
             } else {
-                FacetResult::failed(format_text_mismatch(
+                FacetResult::failed(format_text_expectation_mismatch(
                     "semantic refs",
-                    &expected_raw.text,
+                    expected_raw,
                     &actual,
                 ))
             }
         }
-        Ok(actual) => FacetResult::failed(format!(
-            "semantic refs unexpectedly succeeded with `{}`",
-            truncate_for_mismatch(&actual)
+        Ok(actual) if expectation.status == ExpectationStatus::Failure => {
+            FacetResult::failed(format!(
+                "semantic refs unexpectedly succeeded with `{}`",
+                truncate_for_mismatch(&actual)
+            ))
+        }
+        Err(error) if expectation.status == ExpectationStatus::Failure => {
+            let Some(expected_error) = &expectation.error else {
+                return FacetResult::failed("semantic refs failure expectation has no error");
+            };
+            if text_expectation_matches(expected_error, &error) {
+                FacetResult::passed()
+            } else {
+                FacetResult::failed(format_text_expectation_mismatch(
+                    "semantic refs error",
+                    expected_error,
+                    &error,
+                ))
+            }
+        }
+        Err(error) => FacetResult::failed(error),
+        Ok(_) => FacetResult::failed(format!(
+            "semantic refs expectation has unsupported status {:?}",
+            expectation.status
         )),
-        Err(error) if expectation.status == ExpectationStatus::Failure => FacetResult::failed(
-            format!("semantic refs failure expectations are not supported: {error}"),
-        ),
-        Err(error) => FacetResult::failed(format!("semantic refs error: {error}")),
     }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
+fn semantics_refs_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
+    let dialect = fixture
+        .test_case
+        .dialect_definition()
+        .map_err(|error| format!("dialect error: {error}"))?;
+    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let words = segment_words_with_modifiers_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    )
+    .map_err(|error| format!("morphology error: {error}"))?;
+    let parsed = parse_syntax_tree_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    )
+    .map_err(|error| format!("syntax error: {error}"))?;
+    analyze_generated_references(&parsed.parse_tree)
+        .map_err(|error| format!("semantic refs error: {error}"))
+        .and_then(|analysis| {
+            analysis
+                .fixture_projection_json()
+                .map_err(|error| format!("semantic refs render error: {error}"))
+        })
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -11030,12 +11267,12 @@ fn run_jvozba_fixture(fixture: &LoadedTestCase) -> FacetResult {
             Err(error) => {
                 if let Some(expected) = expectation.error.as_ref() {
                     let actual = error.to_string();
-                    if actual == expected.text {
+                    if text_expectation_matches(expected, &actual) {
                         FacetResult::passed()
                     } else {
-                        FacetResult::failed(format_text_mismatch(
+                        FacetResult::failed(format_text_expectation_mismatch(
                             "jvozba error",
-                            &expected.text,
+                            expected,
                             &actual,
                         ))
                     }
@@ -11186,6 +11423,29 @@ fn format_text_mismatch(label: &str, expected: &str, actual: &str) -> String {
     )
 }
 
+#[requires(!label.is_empty())]
+#[ensures(!ret.is_empty())]
+fn format_text_expectation_mismatch(
+    label: &str,
+    expected: &fixtures::TextExpectation,
+    actual: &str,
+) -> String {
+    let expected_description = match (&expected.sha256, expected.text.is_empty()) {
+        (Some(sha256), true) => format!("sha256:{sha256}"),
+        _ => truncate_for_mismatch(&expected.text),
+    };
+    let actual_description = if expected.sha256.is_some() {
+        format!(
+            "{} (sha256:{})",
+            truncate_for_mismatch(actual),
+            sha256_hex(actual.as_bytes())
+        )
+    } else {
+        truncate_for_mismatch(actual)
+    };
+    format!("{label} mismatch: expected `{expected_description}`, got `{actual_description}`")
+}
+
 #[requires(true)]
 #[ensures(ret.len() <= text.len() + 3)]
 fn truncate_for_mismatch(text: &str) -> String {
@@ -11287,7 +11547,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     let Some(expected_raw) = &expectation.raw else {
                         return FacetResult::failed("syntax success expectation has no raw tree");
                     };
-                    if debug_value_matches(&parsed.parse_tree, &expected_raw.text) {
+                    if debug_value_matches_expectation(&parsed.parse_tree, expected_raw) {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(FacetResult::passed)
                     } else if expectation.xfail.is_some()
@@ -11299,9 +11559,9 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                             "syntax xfail accepted success, but raw tree did not match",
                         )
                     } else {
-                        FacetResult::failed(format_text_mismatch(
+                        FacetResult::failed(format_text_expectation_mismatch(
                             "syntax raw",
-                            &expected_raw.text,
+                            expected_raw,
                             &format_debug_prefix(&parsed.parse_tree),
                         ))
                     }
@@ -11316,7 +11576,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     let Some(expected_raw) = &expectation.raw else {
                         return FacetResult::failed("syntax success xfail has no raw tree");
                     };
-                    if debug_value_matches(&parsed.parse_tree, &expected_raw.text) {
+                    if debug_value_matches_expectation(&parsed.parse_tree, expected_raw) {
                         syntax_xfail_result(expectation, ExpectationStatus::Success, true)
                             .unwrap_or_else(|| {
                                 FacetResult::failed(
@@ -11326,9 +11586,9 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     } else {
                         FacetResult::failed(format!(
                             "syntax xfail accepted success, but {}",
-                            format_text_mismatch(
+                            format_text_expectation_mismatch(
                                 "syntax raw",
-                                &expected_raw.text,
+                                expected_raw,
                                 &format_debug_prefix(&parsed.parse_tree),
                             )
                         ))
@@ -11441,17 +11701,18 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                     if expectation
                         .raw
                         .as_ref()
-                        .is_some_and(|raw| debug_value_matches(&actual, &raw.text))
+                        .is_some_and(|raw| debug_value_matches_expectation(&actual, raw))
                     {
                         FacetResult::passed()
                     } else {
-                        FacetResult::failed(format_text_mismatch(
+                        let Some(expected_raw) = expectation.raw.as_ref() else {
+                            return FacetResult::failed(
+                                "morphology success expectation has no raw",
+                            );
+                        };
+                        FacetResult::failed(format_text_expectation_mismatch(
                             "morphology raw",
-                            expectation
-                                .raw
-                                .as_ref()
-                                .map(|raw| raw.text.as_str())
-                                .unwrap_or_default(),
+                            expected_raw,
                             &format_debug_prefix(&actual),
                         ))
                     }
@@ -11604,8 +11865,8 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .output
             .as_ref()
             .and_then(|output| output.tersmu.as_ref())
-            .and_then(|output| output.json.as_ref())
-            .map(|_| ExpectationStatus::Success),
+            .filter(|output| output.json.is_some() || output.error.is_some())
+            .map(|output| output.status),
     }
 }
 
@@ -12604,6 +12865,25 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn text_expectation_matches_sha256_only_expectations() {
+        let expectation = fixtures::TextExpectation {
+            text: String::new(),
+            sha256: Some(sha256_hex(b"large generated baseline")),
+        };
+
+        assert!(text_expectation_matches(
+            &expectation,
+            "large generated baseline"
+        ));
+        assert!(!text_expectation_matches(
+            &expectation,
+            "different baseline"
+        ));
     }
 
     #[test]
