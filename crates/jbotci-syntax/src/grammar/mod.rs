@@ -3,7 +3,7 @@ use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, 
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     fmt,
     marker::PhantomData,
     sync::Arc,
@@ -899,19 +899,25 @@ fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
 #[requires(true)]
 #[ensures(true)]
 fn attach_bahe(words: Vec<Token>) -> Vec<Token> {
-    let mut reversed: VecDeque<_> = words.into_iter().rev().collect();
-    let mut out = Vec::new();
-    while let Some(word) = reversed.pop_front() {
-        if reversed.front().is_some_and(is_bahe_word)
-            && let Some(bahe_token) = reversed.pop_front()
-            && let Some(bahe) = modifier_word(&bahe_token)
+    let mut out = Vec::with_capacity(words.len());
+    let mut pending_bahe = Vec::new();
+    let mut iter = words.into_iter().peekable();
+    while let Some(word) = iter.next() {
+        if iter.peek().is_some()
+            && is_bahe_word(&word)
+            && let Some(bahe) = modifier_word(&word).cloned()
         {
-            reversed.push_front(word.with_prepended_bahe(bahe));
-        } else {
-            out.push(word);
+            pending_bahe.push(bahe);
+            continue;
         }
+
+        let mut word = word;
+        while let Some(bahe) = pending_bahe.pop() {
+            word = word.with_prepended_bahe(bahe);
+        }
+        out.push(word);
     }
-    out.reverse();
+    debug_assert!(pending_bahe.is_empty());
     out
 }
 
@@ -924,10 +930,10 @@ fn is_bahe_word(word: &Token) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token> {
-    let mut out = Vec::new();
+    let mut out = Vec::with_capacity(words.len());
     let mut iter = words.into_iter().peekable();
     while let Some(word) = iter.next() {
-        if modifier_word(&word).is_some_and(|word| is_indicator_word(&word)) {
+        if modifier_word(&word).is_some_and(is_indicator_word) {
             let indicator = modifier_word_with_bahe(&word);
             let nai = if iter
                 .peek()
@@ -944,7 +950,7 @@ fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token
                     && out
                         .last()
                         .and_then(modifier_word)
-                        .is_some_and(|word| is_indicator_word(&word));
+                        .is_some_and(is_indicator_word);
                 if prev_is_leading_indicator_nai
                     || !should_attach_indicator(&prev, &indicator, preserve_zantufa_iau)
                 {
@@ -980,8 +986,8 @@ fn attach_indicators(words: Vec<Token>, preserve_zantufa_iau: bool) -> Vec<Token
 
 #[requires(true)]
 #[ensures(true)]
-fn modifier_word(word: &Token) -> Option<Word> {
-    word.core_word().bare_word().cloned()
+fn modifier_word(word: &Token) -> Option<&Word> {
+    word.core_word().bare_word()
 }
 
 #[requires(true)]
@@ -1003,7 +1009,7 @@ fn modifier_word_with_bahe(word: &Token) -> Option<(Vec<Word>, Word)> {
             (bahes, word)
         }),
         data!(WithIndicators::WithIndicator { .. }) => {
-            modifier_word(word).map(|word| (Vec::new(), word))
+            modifier_word(word).cloned().map(|word| (Vec::new(), word))
         }
     }
 }
