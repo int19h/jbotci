@@ -608,6 +608,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "collision payloads are produced by dictionary-backed collision checks",
     ),
     (
+        "crates/jbotci-gimfihi/src/lib.rs:GismuScoreScratch",
+        "gimfihi scoring scratch is mutable work storage rebuilt by each scoring helper before use",
+    ),
+    (
+        "crates/jbotci-gimfihi/src/lib.rs:LcsScratch",
+        "LCS scratch rows are mutable work storage whose temporary lengths are controlled by longest_common_subsequence_len_chars",
+    ),
+    (
         "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
         "short rafsi candidates are generated and classified by possible_short_rafsis",
     ),
