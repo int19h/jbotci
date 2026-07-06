@@ -12,38 +12,21 @@ on:
 
 jobs:
   claude:
-    # Two gates before a runner is even allocated: only the repo owner's own
-    # comments/issues/reviews count (else anyone could spend credits/minutes),
-    # and the relevant text must plausibly contain this leg's phrase (a plain
-    # substring check - the action itself re-checks with an exact word-boundary
-    # regex and no-ops harmlessly on a false-positive substring match, e.g.
-    # "@claude" against "@claude-opus"). Without the second half, every
-    # qualifying event - even ones that never mention Claude at all - would
-    # spin up all 5 matrix legs. The action also requires collaborator write
-    # access as a further, independent check.
-    if: |
-      github.actor == github.repository_owner &&
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, matrix.phrase)) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, matrix.phrase)) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, matrix.phrase)) ||
-        (github.event_name == 'issues' && (contains(github.event.issue.body, matrix.phrase) || contains(github.event.issue.title, matrix.phrase)))
-      )
-    name: Claude Code (${{ matrix.phrase }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - phrase: "@claude"
-            model_arg: ""
-          - phrase: "@claude-sonnet"
-            model_arg: "--model claude-sonnet-5"
-          - phrase: "@claude-opus"
-            model_arg: "--model claude-opus-4-8"
-          - phrase: "@claude-fable"
-            model_arg: "--model claude-fable-5"
-          - phrase: "@claude-haiku"
-            model_arg: "--model claude-haiku-4-5-20251001"
+    # Only the repo owner's own comments/issues/reviews can spend Claude credits
+    # or Actions minutes here; anyone else mentioning a trigger phrase is ignored
+    # before a runner is even allocated. The action itself also requires
+    # collaborator write access as a second, independent check.
+    #
+    # This is deliberately one job with five steps rather than a matrix of five
+    # jobs. Each step below is separately gated on whether its own phrase
+    # plausibly appears in the relevant text (a plain substring check - the
+    # action itself re-checks with an exact word-boundary regex and no-ops
+    # harmlessly on a false-positive substring match, e.g. "@claude" against
+    # "@claude-opus"). A matrix job whose every leg's `if:` evaluates false
+    # produces a workflow run with zero surviving jobs, which GitHub reports
+    # (and emails about) as "No jobs were run" even though nothing failed.
+    # A single job with all its steps skipped just completes normally.
+    if: github.actor == github.repository_owner
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -57,14 +40,73 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
-        id: claude
+      - name: Run Claude Code (@claude)
+        if: |
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+          (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          trigger_phrase: ${{ matrix.phrase }}
-          # contents: read above already blocks pushes; disallowing the edit tools too
-          # keeps this workflow strictly a reviewer/analyst, not an agentic coder.
+          trigger_phrase: "@claude"
+          # contents: read above already blocks pushes; disallowing the edit tools
+          # too keeps this workflow strictly a reviewer/analyst, not an agentic coder.
           claude_args: |
-            ${{ matrix.model_arg }}
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      - name: Run Claude Code (@claude-sonnet)
+        if: |
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude-sonnet')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude-sonnet')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude-sonnet')) ||
+          (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude-sonnet') || contains(github.event.issue.title, '@claude-sonnet')))
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "@claude-sonnet"
+          claude_args: |
+            --model claude-sonnet-5
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      - name: Run Claude Code (@claude-opus)
+        if: |
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude-opus')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude-opus')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude-opus')) ||
+          (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude-opus') || contains(github.event.issue.title, '@claude-opus')))
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "@claude-opus"
+          claude_args: |
+            --model claude-opus-4-8
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      - name: Run Claude Code (@claude-fable)
+        if: |
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude-fable')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude-fable')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude-fable')) ||
+          (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude-fable') || contains(github.event.issue.title, '@claude-fable')))
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "@claude-fable"
+          claude_args: |
+            --model claude-fable-5
+            --disallowedTools "Edit,Write,NotebookEdit"
+
+      - name: Run Claude Code (@claude-haiku)
+        if: |
+          (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude-haiku')) ||
+          (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude-haiku')) ||
+          (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude-haiku')) ||
+          (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude-haiku') || contains(github.event.issue.title, '@claude-haiku')))
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "@claude-haiku"
+          claude_args: |
+            --model claude-haiku-4-5-20251001
             --disallowedTools "Edit,Write,NotebookEdit"
