@@ -719,67 +719,7 @@ fn is_zantufa_experimental_cmavo_for_context(
         ExperimentalCmavoContext::Selmaho(Selmaho::Toi) => {
             matches!(cmavo, Cmavo::Gehuhi | Cmavo::Mauho)
         }
-        ExperimentalCmavoContext::Selmaho(Selmaho::Ui) => matches!(
-            cmavo,
-            Cmavo::Ahai
-                | Cmavo::Auhau
-                | Cmavo::Bahei
-                | Cmavo::Buhei
-                | Cmavo::Cuhei
-                | Cmavo::Eihai
-                | Cmavo::Fahai
-                | Cmavo::Gahihi
-                | Cmavo::Gahuhi
-                | Cmavo::Gehai
-                | Cmavo::Iahau
-                | Cmavo::Ihau
-                | Cmavo::Ihei
-                | Cmavo::Ihihi
-                | Cmavo::Jahohe
-                | Cmavo::Jahoho
-                | Cmavo::Jihai
-                | Cmavo::Jihei
-                | Cmavo::Jihohe
-                | Cmavo::Jihoho
-                | Cmavo::Kehihai
-                | Cmavo::Kihai
-                | Cmavo::Lahei
-                | Cmavo::Lahoi
-                | Cmavo::Lehohe
-                | Cmavo::Mahai
-                | Cmavo::Muhei
-                | Cmavo::Nihei
-                | Cmavo::Nohoi
-                | Cmavo::Oihoi
-                | Cmavo::Pohai
-                | Cmavo::Saihi
-                | Cmavo::Seiha
-                | Cmavo::Seihi
-                | Cmavo::Sohahu
-                | Cmavo::Sohei
-                | Cmavo::Suhei
-                | Cmavo::Uhohe
-                | Cmavo::Uhohi
-                | Cmavo::Uhoho
-                | Cmavo::Uhohu
-                | Cmavo::Uhoi
-                | Cmavo::Uihai
-                | Cmavo::Vaihe
-                | Cmavo::Xauha
-                | Cmavo::Xauhe
-                | Cmavo::Xauhi
-                | Cmavo::Xauho
-                | Cmavo::Xauhu
-                | Cmavo::Xehiha
-                | Cmavo::Xehihe
-                | Cmavo::Xehihi
-                | Cmavo::Xehiho
-                | Cmavo::Xehihu
-                | Cmavo::Zahei
-                | Cmavo::Zahoha
-                | Cmavo::Zohoi
-        ),
-        ExperimentalCmavoContext::Selmaho(Selmaho::Ui3a) => matches!(
+        ExperimentalCmavoContext::Selmaho(Selmaho::Ui | Selmaho::Ui3a) => matches!(
             cmavo,
             Cmavo::Ahai
                 | Cmavo::Auhau
