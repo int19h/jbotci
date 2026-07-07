@@ -19,12 +19,10 @@ pub(crate) use phonotactics::{
 #[ensures(true)]
 pub(crate) fn is_separator(value: char) -> bool {
     value.is_whitespace()
-        || is_cyrillic_period(value)
-        || is_zbalermorna_period(value)
+        || crate::is_period_character(value)
         || matches!(
             value,
-            '.' | '?'
-                | '!'
+            '?' | '!'
                 | '('
                 | ')'
                 | '['

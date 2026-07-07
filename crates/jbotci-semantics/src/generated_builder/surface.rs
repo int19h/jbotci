@@ -41,7 +41,7 @@ pub(super) fn source_spans_with_following_cmevla_period(
     let Some(period) = source_text
         .get(last_span.byte_end..)
         .and_then(|tail| tail.chars().next())
-        .filter(|period| is_lojban_period(*period))
+        .filter(|period| jbotci_morphology::is_period_character(*period))
     else {
         return spans.to_vec();
     };
@@ -57,12 +57,6 @@ pub(super) fn source_spans_with_following_cmevla_period(
     let mut expanded_spans = spans.to_vec();
     expanded_spans[last_index] = expanded;
     expanded_spans
-}
-
-#[requires(true)]
-#[ensures(ret == matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}'))]
-pub(super) fn is_lojban_period(value: char) -> bool {
-    matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}')
 }
 
 #[requires(true)]

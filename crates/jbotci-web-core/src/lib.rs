@@ -4340,7 +4340,7 @@ fn link_tag(rel: &str, href: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn escape_html_text(input: &str) -> String {
+pub fn escape_html_text(input: &str) -> String {
     let mut output = String::new();
     for ch in input.chars() {
         match ch {

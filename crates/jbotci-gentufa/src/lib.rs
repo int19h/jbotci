@@ -9,8 +9,8 @@ use std::num::NonZeroUsize;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    Cmavo, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
-    segment_words_with_modifiers,
+    Cmavo, LeadingPauseVowelMode, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike,
+    WordLikeData, segment_words_with_modifiers, word_needs_leading_pause,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -2094,37 +2094,13 @@ fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
 #[ensures(true)]
 fn visible_latin_word_surface(word: &Word, options: PhonemeRenderOptions) -> String {
     let mut rendered = word.phonemes().render(options);
-    if needs_leading_pause(word) {
+    if word_needs_leading_pause(word, LeadingPauseVowelMode::LatinSurfaceVowels) {
         rendered.insert(0, '.');
     }
     if word.kind() == WordKind::Cmevla {
         rendered.push('.');
     }
     rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn needs_leading_pause(word: &Word) -> bool {
-    word.kind() == WordKind::Cmevla
-        || word
-            .phonemes()
-            .as_str()
-            .chars()
-            .next()
-            .is_some_and(is_latin_vowel_surface_char)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_latin_vowel_surface_char(ch: char) -> bool {
-    match ch {
-        'a' | 'e' | 'i' | 'o' | 'u' | 'á' | 'é' | 'í' | 'ó' | 'ú' => true,
-        other => matches!(
-            other,
-            'A' | 'E' | 'I' | 'O' | 'U' | 'Á' | 'É' | 'Í' | 'Ó' | 'Ú'
-        ),
-    }
 }
 
 #[requires(true)]

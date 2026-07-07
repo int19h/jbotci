@@ -5,6 +5,7 @@ mod diacritics;
 mod grammar;
 mod lujvo;
 mod segment;
+mod surface;
 mod syntax_eq;
 pub mod tree;
 
@@ -39,6 +40,7 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, syllables_pattern,
 };
+pub use surface::{LeadingPauseVowelMode, word_needs_leading_pause};
 pub use syntax_eq::{word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
@@ -2504,11 +2506,17 @@ fn append_normalized_lojban_input_chunk(
 #[requires(true)]
 #[ensures(true)]
 fn normalized_lojban_input_separator(value: char) -> char {
-    if segment::is_cyrillic_period(value) || segment::is_zbalermorna_period(value) {
+    if is_period_character(value) {
         '.'
     } else {
         value
     }
+}
+
+#[requires(true)]
+#[ensures(ret == matches!(value, '.' | 'ӏ' | 'Ӏ' | '\u{ed89}'))]
+pub fn is_period_character(value: char) -> bool {
+    value == '.' || segment::is_cyrillic_period(value) || segment::is_zbalermorna_period(value)
 }
 
 #[requires(true)]

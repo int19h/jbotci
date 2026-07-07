@@ -7,8 +7,8 @@ use std::sync::LazyLock;
 use bityzba::expensive_invariant;
 use bityzba::{data, invariant, new, requires};
 use jbotci_morphology::{
-    Phonemes, Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
-    segment_words_with_modifiers,
+    LeadingPauseVowelMode, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    pronunciation_syllables, segment_words_with_modifiers, word_needs_leading_pause,
 };
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
@@ -1161,18 +1161,10 @@ fn explicit_trailing_pause_count(source: &str, word: &Word) -> usize {
 #[requires(true)]
 #[ensures(ret <= 1)]
 fn required_leading_pause_count(word: &Word) -> usize {
-    usize::from(word.kind() == WordKind::Cmevla || starts_with_vowel_sound(word))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_vowel_sound(word: &Word) -> bool {
-    word.phonemes()
-        .as_str()
-        .chars()
-        .next()
-        .map(strip_vowel_diacritic)
-        .is_some_and(|value| matches!(value, 'a' | 'e' | 'i' | 'o' | 'u'))
+    usize::from(word_needs_leading_pause(
+        word,
+        LeadingPauseVowelMode::FoldedVowels,
+    ))
 }
 
 #[cfg(test)]

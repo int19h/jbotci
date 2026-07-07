@@ -31,9 +31,9 @@ use jbotci_embeddings::{load_latest_pack, model_spec};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
-    WebRoute, build_page_meta, parse_gentufa_for_web, parse_gentufa_web_export_request,
-    parse_web_route, render_gentufa_state_web_export, render_page_head_metadata_block,
-    web_route_url,
+    WebRoute, build_page_meta, escape_html_text, parse_gentufa_for_web,
+    parse_gentufa_web_export_request, parse_web_route, render_gentufa_state_web_export,
+    render_page_head_metadata_block, web_route_url,
 };
 use serde::Serialize;
 
@@ -876,21 +876,6 @@ fn request_origin(headers: &HeaderMap) -> Option<String> {
         .filter(|value| *value == "http" || *value == "https")
         .unwrap_or("http");
     Some(format!("{scheme}://{host}"))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn escape_html_text(input: &str) -> String {
-    let mut output = String::new();
-    for ch in input.chars() {
-        match ch {
-            '&' => output.push_str("&amp;"),
-            '<' => output.push_str("&lt;"),
-            '>' => output.push_str("&gt;"),
-            _ => output.push(ch),
-        }
-    }
-    output
 }
 
 #[requires(path.starts_with('/'))]
