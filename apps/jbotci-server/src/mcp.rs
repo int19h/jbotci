@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::sync::Arc;
 
 use axum::body::{Body, Bytes};
@@ -402,10 +403,16 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
     let arguments = params.arguments;
     match name.as_str() {
         "cukta" => {
-            call_typed_tool(arguments, move |request| tool_services.run_cukta(request)).await
+            call_async_typed_tool(arguments, move |request| async move {
+                tool_services.run_cukta(request).await
+            })
+            .await
         }
         "vlacku" => {
-            call_typed_tool(arguments, move |request| tool_services.run_vlacku(request)).await
+            call_async_typed_tool(arguments, move |request| async move {
+                tool_services.run_vlacku(request).await
+            })
+            .await
         }
         "jvozba" => call_typed_tool(arguments, run_tool_jvozba).await,
         "vlasei" => call_typed_tool(arguments, run_tool_vlasei).await,
@@ -418,6 +425,24 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
         }
         "tersmu" => call_typed_tool(arguments, run_tool_tersmu).await,
         _ => tool_error_result(format!("Unknown tool: {name}")),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn call_async_typed_tool<T, F, Fut>(arguments: Value, runner: F) -> Value
+where
+    T: for<'de> Deserialize<'de> + Send + 'static,
+    F: FnOnce(T) -> Fut + Send + 'static,
+    Fut: Future<Output = anyhow::Result<ToolRenderedOutput>> + Send + 'static,
+{
+    let request = match serde_json::from_value::<T>(arguments) {
+        Ok(request) => request,
+        Err(error) => return tool_error_result(format!("Invalid tool arguments: {error}")),
+    };
+    match runner(request).await {
+        Ok(output) => tool_output_result(output),
+        Err(error) => tool_error_result(error.to_string()),
     }
 }
 

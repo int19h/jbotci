@@ -5,7 +5,7 @@ mod mcp;
 
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::Arc;
 use std::thread;
 
 use anyhow::{Context, Result, anyhow};
@@ -36,6 +36,7 @@ use jbotci_web_core::{
     render_page_head_metadata_block, web_route_url,
 };
 use serde::Serialize;
+use tokio::sync::{mpsc, oneshot};
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
@@ -106,13 +107,13 @@ impl AppState {
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct ToolServices {
-    embedding_worker: Arc<Mutex<mpsc::Sender<EmbeddingToolJob>>>,
+    embedding_worker: mpsc::Sender<EmbeddingToolJob>,
 }
 
 #[invariant(true)]
 struct EmbeddingToolJob {
     request: EmbeddingToolRequest,
-    response: mpsc::SyncSender<Result<ToolRenderedOutput>>,
+    response: oneshot::Sender<Result<ToolRenderedOutput>>,
 }
 
 #[invariant(::Cukta { .. } => true)]
@@ -152,50 +153,71 @@ enum EmbeddingSearchCache {
     Unavailable { error: CachedEmbeddingError },
 }
 
+const EMBEDDING_TOOL_QUEUE_CAPACITY: usize = 16;
+
 impl ToolServices {
     #[requires(true)]
     #[ensures(true)]
     fn new() -> Self {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = mpsc::channel(EMBEDDING_TOOL_QUEUE_CAPACITY);
         spawn_embedding_worker(receiver, configured_embedding_search_startup());
         Self {
-            embedding_worker: Arc::new(Mutex::new(sender)),
+            embedding_worker: sender,
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub(crate) fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
+    pub(crate) async fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Cukta { request })
+                .await
         } else {
-            run_tool_cukta(request)
+            run_blocking_tool(move || run_tool_cukta(request)).await
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub(crate) fn run_vlacku(&self, request: ToolVlackuRequest) -> Result<ToolRenderedOutput> {
+    pub(crate) async fn run_vlacku(
+        &self,
+        request: ToolVlackuRequest,
+    ) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Vlacku { request })
+                .await
         } else {
-            run_tool_vlacku(request)
+            run_blocking_tool(move || run_tool_vlacku(request)).await
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn run_embedding_request(&self, request: EmbeddingToolRequest) -> Result<ToolRenderedOutput> {
-        let (response, received) = mpsc::sync_channel(1);
+    async fn run_embedding_request(
+        &self,
+        request: EmbeddingToolRequest,
+    ) -> Result<ToolRenderedOutput> {
+        let (response, received) = oneshot::channel();
         let job = EmbeddingToolJob { request, response };
         self.embedding_worker
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .send(job)
+            .await
             .map_err(|_| anyhow!("embedding search worker is not running"))?;
         received
-            .recv()
+            .await
             .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+async fn run_blocking_tool<F>(runner: F) -> Result<ToolRenderedOutput>
+where
+    F: FnOnce() -> Result<ToolRenderedOutput> + Send + 'static,
+{
+    match tokio::task::spawn_blocking(runner).await {
+        Ok(result) => result,
+        Err(error) => Err(anyhow!("tool task failed: {error}")),
     }
 }
 
@@ -214,11 +236,11 @@ fn spawn_embedding_worker(
 #[requires(true)]
 #[ensures(true)]
 fn embedding_worker_loop(
-    receiver: mpsc::Receiver<EmbeddingToolJob>,
+    mut receiver: mpsc::Receiver<EmbeddingToolJob>,
     startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
 ) {
     let mut cache = embedding_search_cache_from_startup(startup);
-    for job in receiver {
+    while let Some(job) = receiver.blocking_recv() {
         let EmbeddingToolJob { request, response } = job;
         let output = run_embedding_tool_request(request, &mut cache);
         if response.send(output).is_err() {
@@ -1323,10 +1345,10 @@ mod tests {
         assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
     }
 
-    #[test]
+    #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    fn tool_services_runs_nonsemantic_vlacku_without_embedding_context() {
+    async fn tool_services_runs_nonsemantic_vlacku_without_embedding_context() {
         let services = ToolServices::new();
         let output = services
             .run_vlacku(jbotci_cli::ToolVlackuRequest {
@@ -1339,6 +1361,7 @@ mod tests {
                 decompose_lujvo: true,
                 show_etymology: false,
             })
+            .await
             .expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::Success);

@@ -122,13 +122,10 @@ async fn handle_application_command(value: Value, tool_services: ToolServices) -
     };
     if discord_followup_enabled() {
         tokio::spawn(async move {
-            let rendered =
-                tokio::task::spawn_blocking(move || render_discord_command(command, tool_services))
-                    .await;
+            let rendered = render_discord_command(command, tool_services).await;
             let message = match rendered {
-                Ok(Ok(message)) => message,
-                Ok(Err(error)) => discord_message_data(&format!("jbotci command failed: {error}")),
-                Err(error) => discord_message_data(&format!("jbotci command task failed: {error}")),
+                Ok(message) => message,
+                Err(error) => discord_message_data(&format!("jbotci command failed: {error}")),
             };
             if let Err(error) =
                 send_discord_original_response_edit(&application_id, &token, message)
@@ -426,31 +423,41 @@ fn parse_discord_gimfihi(options: &[Value]) -> Result<ToolGimfihiRequest, String
 
 #[requires(true)]
 #[ensures(true)]
-fn render_discord_command(
+async fn render_discord_command(
     command: DiscordCommand,
     tool_services: ToolServices,
 ) -> anyhow::Result<Value> {
     let (output, link) = match command {
         DiscordCommand::Gentufa(request) => {
             let link = gentufa_link(&request);
-            (run_tool_gentufa(request)?, link)
+            (
+                crate::run_blocking_tool(move || run_tool_gentufa(request)).await?,
+                link,
+            )
         }
-        DiscordCommand::Vlasei(request) => (run_tool_vlasei(request)?, None),
+        DiscordCommand::Vlasei(request) => (
+            crate::run_blocking_tool(move || run_tool_vlasei(request)).await?,
+            None,
+        ),
         DiscordCommand::Vlacku(request) => {
             let link = vlacku_link(&request);
-            (tool_services.run_vlacku(request)?, link)
+            (tool_services.run_vlacku(request).await?, link)
         }
         DiscordCommand::Cukta(request) => {
             let link = cukta_link(&request);
-            (tool_services.run_cukta(request)?, link)
+            (tool_services.run_cukta(request).await?, link)
         }
-        DiscordCommand::Jvozba(request) => {
-            (run_tool_jvozba(request)?, Some(absolute_web_url("/vlacku")))
-        }
+        DiscordCommand::Jvozba(request) => (
+            crate::run_blocking_tool(move || run_tool_jvozba(request)).await?,
+            Some(absolute_web_url("/vlacku")),
+        ),
         DiscordCommand::Gimfihi(request) => {
             let link = Some(absolute_web_url("/gimfihi"));
             (
-                run_tool_gimfihi(request, GimfihiSourceWordKind::LojbanOrBracketedIpa)?,
+                crate::run_blocking_tool(move || {
+                    run_tool_gimfihi(request, GimfihiSourceWordKind::LojbanOrBracketedIpa)
+                })
+                .await?,
                 link,
             )
         }
