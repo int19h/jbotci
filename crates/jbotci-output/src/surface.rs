@@ -1,8 +1,8 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
-    GlideMark, LeadingPauseVowelMode, MorphologyError, MorphologyOptions, PhonemeRenderOptions,
-    Phonemes, Word, WordKind, WordLike, WordLikeData,
-    segment_words_for_display_with_options_and_source_id, word_needs_leading_pause,
+    GlideMark, LeadingPauseContext, LeadingPauseVowelMode, MorphologyError, MorphologyOptions,
+    PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    segment_words_for_display_with_options_and_source_id, word_needs_leading_pause_in_context,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
 
@@ -90,7 +90,17 @@ pub fn render_lojban_text_for_script_with_options(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn format_word_with_options(word: &Word, options: PhonemeRenderOptions) -> String {
-    render_word(word, options)
+    format_word_with_options_in_context(word, options, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn format_word_with_options_in_context(
+    word: &Word,
+    options: PhonemeRenderOptions,
+    context: LeadingPauseContext,
+) -> String {
+    render_word(word, options, context)
 }
 
 #[requires(true)]
@@ -228,8 +238,8 @@ fn render_display_gap_for_script(script: LojbanScript, gap: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_word(word: &Word, options: PhonemeRenderOptions) -> String {
-    render_visible_word_surface(word, options)
+fn render_word(word: &Word, options: PhonemeRenderOptions, context: LeadingPauseContext) -> String {
+    render_visible_word_surface(word, options, context)
 }
 
 #[requires(!phonemes.as_str().is_empty())]
@@ -250,11 +260,15 @@ pub(crate) fn render_word_phonemes_without_pause_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_visible_word_surface(word: &Word, options: PhonemeRenderOptions) -> String {
+fn render_visible_word_surface(
+    word: &Word,
+    options: PhonemeRenderOptions,
+    context: LeadingPauseContext,
+) -> String {
     let phonemes = word.phonemes();
     let mut rendered =
         render_word_phonemes_without_pause_with_options(word.kind(), &phonemes, options);
-    if word_needs_leading_pause(word, LeadingPauseVowelMode::FoldedVowels) {
+    if word_needs_leading_pause_in_context(word, LeadingPauseVowelMode::FoldedVowels, context) {
         rendered.insert(0, '.');
     }
     if word.kind() == WordKind::Cmevla {

@@ -9,8 +9,9 @@ use std::num::NonZeroUsize;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{
-    Cmavo, LeadingPauseVowelMode, PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike,
-    WordLikeData, segment_words_with_modifiers, word_needs_leading_pause,
+    Cmavo, LeadingPauseContext, LeadingPauseVowelMode, PhonemeRenderOptions, Phonemes, Word,
+    WordKind, WordLike, WordLikeData, segment_words_with_modifiers,
+    word_needs_leading_pause_in_context,
 };
 pub use jbotci_orthography::{
     LojbanScript as GentufaScript, render_latin_word_surface_for_script,
@@ -2011,8 +2012,24 @@ fn source_text_for_range(source: &str, range: Option<WebSourceRange>) -> String 
 #[requires(true)]
 #[ensures(true)]
 fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOptions) -> String {
+    render_word_like_in_context(
+        word_like,
+        source,
+        options,
+        LeadingPauseContext::IndependentWord,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_word_like_in_context(
+    word_like: &WordLike,
+    source: &str,
+    options: &GentufaBlockOptions,
+    context: LeadingPauseContext,
+) -> String {
     match word_like.as_data() {
-        WordLikeData::PlainWord(word) => render_word(word, options),
+        WordLikeData::PlainWord(word) => render_word_in_context(word, options, context),
         WordLikeData::QuotedWord { zo, word } => {
             format!(
                 "{} {}",
@@ -2058,7 +2075,12 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
         WordLikeData::LerfuWord { base, bu } => {
             format!(
                 "{} {}",
-                render_word_like(base, source, options),
+                render_word_like_in_context(
+                    base,
+                    source,
+                    options,
+                    LeadingPauseContext::BuLetterBase
+                ),
                 render_word(bu, options)
             )
         }
@@ -2074,7 +2096,17 @@ fn render_word_like(word_like: &WordLike, source: &str, options: &GentufaBlockOp
 #[requires(true)]
 #[ensures(true)]
 fn render_word(word: &Word, options: &GentufaBlockOptions) -> String {
-    let latin = visible_latin_word_surface(word, options.phonemes);
+    render_word_in_context(word, options, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_word_in_context(
+    word: &Word,
+    options: &GentufaBlockOptions,
+    context: LeadingPauseContext,
+) -> String {
+    let latin = visible_latin_word_surface(word, options.phonemes, context);
     render_latin_word_surface_for_script(options.script, word.kind(), &latin)
 }
 
@@ -2092,9 +2124,14 @@ fn render_elided_cmavo(cmavo: Cmavo, options: &GentufaBlockOptions) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn visible_latin_word_surface(word: &Word, options: PhonemeRenderOptions) -> String {
+fn visible_latin_word_surface(
+    word: &Word,
+    options: PhonemeRenderOptions,
+    context: LeadingPauseContext,
+) -> String {
     let mut rendered = word.phonemes().render(options);
-    if word_needs_leading_pause(word, LeadingPauseVowelMode::LatinSurfaceVowels) {
+    if word_needs_leading_pause_in_context(word, LeadingPauseVowelMode::LatinSurfaceVowels, context)
+    {
         rendered.insert(0, '.');
     }
     if word.kind() == WordKind::Cmevla {

@@ -337,6 +337,8 @@ BPFK morphology treats commas as syllable separators only; commas do not affect 
 
 The CgV (consonant-glide-vowel) ban applies across commas, so names that rely on a comma to block a glide are invalid (e.g., `.an,iis.`, `.melxi,or.`). We still allow this with a warning.
 
+BPFK morphology treats bare `y` as hesitation noise rather than an ordinary cmavo requiring written pause markers. A run such as `yyyyyyy` remains valid without periods; y-initial BY words such as `ybu` and `y'y` are ordinary lerfu words and follow the normal leading-pause rendering convention.
+
 The semantics of `le` and `lo` and default quantification rules are different. If you have read CLL regarding either of these as part of your research, you must also check https://mw.lojban.org/papri/How_to_use_xorlo for an important clarification before using the information from CLL for any decisions pertaining to Lojban semantics.
 
 

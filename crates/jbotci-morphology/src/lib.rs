@@ -40,7 +40,10 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, syllables_pattern,
 };
-pub use surface::{LeadingPauseVowelMode, word_needs_leading_pause};
+pub use surface::{
+    LeadingPauseContext, LeadingPauseVowelMode, word_needs_leading_pause,
+    word_needs_leading_pause_in_context,
+};
 pub use syntax_eq::{word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
