@@ -3,6 +3,8 @@
 mod discord;
 mod mcp;
 
+pub use discord::register_discord_commands_from_env;
+
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -1192,7 +1194,16 @@ mod tests {
         value: serde_json::Value,
         key: &SigningKey,
     ) -> Response<Body> {
-        let body = value.to_string();
+        post_signed_discord_body(app, value.to_string(), key).await
+    }
+
+    #[requires(!body.is_empty())]
+    #[ensures(true)]
+    async fn post_signed_discord_body(
+        app: Router,
+        body: String,
+        key: &SigningKey,
+    ) -> Response<Body> {
         let (timestamp, signature) = discord_signature_headers(key, &body, "1710000000");
         app.oneshot(
             Request::builder()
@@ -2271,6 +2282,28 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn discord_reports_malformed_json_as_interaction_message() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+
+        let response = post_signed_discord_body(app, "{".to_owned(), &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
+        assert!(
+            json["data"]["content"]
+                .as_str()
+                .expect("message content")
+                .contains("Invalid Discord interaction JSON")
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn discord_accepts_signed_ping_and_subcommands() {
         let _env_guard = lock_test_env();
         let key = test_discord_signing_key();
@@ -2305,6 +2338,39 @@ mod tests {
             let json = response_json(response).await;
             assert_eq!(json["type"], 5);
         }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_rejects_url_unsafe_interaction_identifiers() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+        let mut interaction =
+            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+        interaction["application_id"] = serde_json::json!("123/456");
+
+        let response = post_signed_discord(app.clone(), interaction, &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
+        assert!(
+            json["data"]["content"]
+                .as_str()
+                .expect("message content")
+                .contains("invalid application id or token")
+        );
+
+        let mut interaction =
+            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+        interaction["token"] = serde_json::json!("bad/token");
+        let response = post_signed_discord(app, interaction, &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
     }
 
     #[test]
