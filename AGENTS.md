@@ -45,6 +45,8 @@ Avoid unnecessary copies, clones, and temporary collections, especially in parse
 
 For the parser, keep struct fields ordered the same way the constructs appear in the input stream, and ensure pretty-printed outputs preserve that order.
 
+For generated syntax and tree-model traversal, use the traversal API that matches the job. Use `TreeVisitor`/`TreeNode::visit_in_order` for flat in-order scans such as indexing, source-span collection, rendering, and projections that need generic node/field/sequence events. Use the generated recursive walker (`TreeWalker`, `TreeWalkable`, and the generated `walk::*` free descent functions) for stateful, order-sensitive, grammar-directed passes where overrides need to run logic before, after, or instead of descending into a construct. Hand-rolled recursive descent over the generated model is no longer acceptable for new generated-tree passes; add or use generated walker overrides so traversal order and child coverage stay tied to the syntax model.
+
 Prefer structs over tuples, including in ADT constructors. If constructor wraps more than one value, it should have named fields.
 
 Use descriptive commit messages that clearly summarize the change batch.
