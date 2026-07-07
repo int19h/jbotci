@@ -1267,6 +1267,18 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn y_initial_by_words_render_written_leading_pauses() {
+        let source = "y ybu y'y y'y bu";
+        assert_eq!(
+            render_morphology_brackets_with_script(source, LojbanScript::Latin),
+            "([.y bu] .y'y [.y'y bu])"
+        );
+        assert_eq!(render_ipa("mi ybu y'y"), "mi ʔə bu ʔə.hə");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn dictionary_entries_parse_match_categories_and_render_ipa() {
         let mut failures = Vec::new();
         for entry in jbotci_dictionary_data::english().entries() {

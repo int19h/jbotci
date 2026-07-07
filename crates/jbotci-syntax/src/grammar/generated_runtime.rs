@@ -206,18 +206,8 @@ where
             return Err(error);
         }
         if !input.state().enter_syntax_memo_rule(name, start_location) {
-            let cursor = input.cursor();
-            let found = input
-                .next()
-                .map(|token| new!(SyntaxFound::Token(token)))
-                .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
-            let span = input.span_since(&cursor);
             input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected_found(
-                span,
-                vec![new!(SyntaxExpectedToken::Named(name.to_owned()))],
-                found,
-            ));
+            return Err(expected_found_named_at_current(input, name.to_owned()));
         }
         let warning_start = input.state().warning_count();
         match input.parse(&parser) {
@@ -352,29 +342,11 @@ where
     O: 'tokens,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
-        let env = input.state().syntax_grammar_env();
-        if feature.enabled(env.dialect) {
-            return input.parse(&parser);
-        }
-
-        let checkpoint = input.save();
-        let cursor = input.cursor();
-        let found = input
-            .next()
-            .map(|token| new!(SyntaxFound::Token(token)))
-            .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
-        let span = input.span_since(&cursor);
-        input.rewind(checkpoint);
-        Err(SyntaxParseError::expected_found(
-            span,
-            vec![new!(SyntaxExpectedToken::Named(
-                feature.expected_name().to_owned()
-            ))],
-            found,
-        ))
-    })
-    .boxed()
+    syntax_gate(
+        parser,
+        move |env| feature.enabled(env.dialect),
+        feature.expected_name(),
+    )
 }
 
 #[requires(true)]
@@ -387,27 +359,32 @@ where
     O: 'tokens,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
 {
+    syntax_gate(
+        parser,
+        move |env| policy.enabled(env.policy),
+        policy.expected_name(),
+    )
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+fn syntax_gate<'tokens, O, P, E>(
+    parser: P,
+    enabled: E,
+    expected: &'static str,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    E: Fn(SyntaxGrammarEnv) -> bool + Clone + 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let env = input.state().syntax_grammar_env();
-        if policy.enabled(env.policy) {
+        if enabled(env) {
             return input.parse(&parser);
         }
 
-        let checkpoint = input.save();
-        let cursor = input.cursor();
-        let found = input
-            .next()
-            .map(|token| new!(SyntaxFound::Token(token)))
-            .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
-        let span = input.span_since(&cursor);
-        input.rewind(checkpoint);
-        Err(SyntaxParseError::expected_found(
-            span,
-            vec![new!(SyntaxExpectedToken::Named(
-                policy.expected_name().to_owned()
-            ))],
-            found,
-        ))
+        Err(expected_found_named_at_current(input, expected.to_owned()))
     })
     .boxed()
 }
@@ -648,19 +625,7 @@ where
     F: 'tokens,
 {
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
-        let checkpoint = input.save();
-        let cursor = input.cursor();
-        let found = input
-            .next()
-            .map(|token| new!(SyntaxFound::Token(token)))
-            .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
-        let span = input.span_since(&cursor);
-        input.rewind(checkpoint);
-        Err(SyntaxParseError::expected_found(
-            span,
-            vec![new!(SyntaxExpectedToken::Named("free modifier".to_owned()))],
-            found,
-        ))
+        Err(expected_found_at_current(input, "free modifier"))
     })
     .boxed()
 }
@@ -670,18 +635,12 @@ where
 pub(crate) fn not_next_selmaho<'tokens>(selmaho: Selmaho) -> BoxedParser<'tokens, ()> {
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
-        let cursor = input.cursor();
         match input.next() {
             Some(token) if token.is_selmaho(selmaho) => {
-                let span = input.span_since(&cursor);
                 input.rewind(checkpoint);
-                Err(SyntaxParseError::expected_found(
-                    span,
-                    vec![new!(SyntaxExpectedToken::Named(format!(
-                        "not {}",
-                        selmaho.name()
-                    )))],
-                    new!(SyntaxFound::Token(token)),
+                Err(expected_found_named_at_current(
+                    input,
+                    format!("not {}", selmaho.name()),
                 ))
             }
             _ => {
@@ -779,45 +738,9 @@ where
     O: 'tokens,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
 {
-    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
-        let before = input.save();
-        let start_location = ParserInput::cursor_location(before.cursor().inner());
-        let start_byte = input.state().byte_offset_for_location(start_location);
-        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
-        match input.parse(&inner) {
-            Ok(value) => {
-                let after_inner = input.save();
-                let at_boundary = input.next().is_none_or(|token| {
-                    token.is_selmaho(Selmaho::I) || token.is_selmaho(Selmaho::Niho)
-                });
-                input.rewind(after_inner);
-                if at_boundary {
-                    Ok(value)
-                } else {
-                    input.rewind(before);
-                    input
-                        .state()
-                        .restore_diagnostic_candidates(diagnostic_snapshot);
-                    Err(expected_found_at_current(input, expected))
-                }
-            }
-            Err(error) => {
-                input.rewind(before);
-                input
-                    .state()
-                    .restore_diagnostic_candidates_preserving_start(
-                        diagnostic_snapshot,
-                        start_byte,
-                    );
-                if error.span().start == start_byte {
-                    Err(error)
-                } else {
-                    Err(expected_found_at_current(input, expected))
-                }
-            }
-        }
+    complete_before_boundary(inner, expected, |token| {
+        token.is_none_or(|token| token.is_selmaho(Selmaho::I) || token.is_selmaho(Selmaho::Niho))
     })
-    .boxed()
 }
 
 #[requires(!expected.is_empty())]
@@ -831,6 +754,23 @@ where
     O: 'tokens,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
 {
+    complete_before_boundary(inner, expected, move |token| {
+        token.is_some_and(|token| token.is_selmaho(selmaho))
+    })
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+fn complete_before_boundary<'tokens, O, P, B>(
+    inner: P,
+    expected: &'static str,
+    is_boundary: B,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    B: Fn(Option<&Token>) -> bool + Clone + 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let before = input.save();
         let start_location = ParserInput::cursor_location(before.cursor().inner());
@@ -839,7 +779,8 @@ where
         match input.parse(&inner) {
             Ok(value) => {
                 let after_inner = input.save();
-                let at_boundary = input.next().is_some_and(|token| token.is_selmaho(selmaho));
+                let next = input.next();
+                let at_boundary = is_boundary(next.as_ref());
                 input.rewind(after_inner);
                 if at_boundary {
                     Ok(value)
@@ -876,6 +817,24 @@ fn expected_found_at_current<'tokens>(
     input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
     expected: &'static str,
 ) -> SyntaxParseError<'tokens> {
+    expected_found_named_at_current(input, expected.to_owned())
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+fn expected_found_named_at_current<'tokens>(
+    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    expected: String,
+) -> SyntaxParseError<'tokens> {
+    expected_found_tokens_at_current(input, vec![new!(SyntaxExpectedToken::Named(expected))])
+}
+
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+fn expected_found_tokens_at_current<'tokens>(
+    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
+    expected: Vec<SyntaxExpectedToken>,
+) -> SyntaxParseError<'tokens> {
     let checkpoint = input.save();
     let cursor = input.cursor();
     let found = input
@@ -884,11 +843,7 @@ fn expected_found_at_current<'tokens>(
         .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
     let span = input.span_since(&cursor);
     input.rewind(checkpoint);
-    SyntaxParseError::expected_found(
-        span,
-        vec![new!(SyntaxExpectedToken::Named(expected.to_owned()))],
-        found,
-    )
+    SyntaxParseError::expected_found(span, expected, found)
 }
 
 #[requires(true)]
@@ -1050,45 +1005,19 @@ pub(crate) fn text_leading_cmevla_word<'tokens>() -> BoxedParser<'tokens, Token>
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         if input.state().syntax_grammar_env().dialect.cbm_enabled {
-            let cursor = input.cursor();
-            let found = input
-                .next()
-                .map(|word| new!(SyntaxFound::Token(word)))
-                .unwrap_or_else(|| new!(SyntaxFound::EndOfInput));
-            let span = input.span_since(&cursor);
             input.rewind(checkpoint);
-            return Err(SyntaxParseError::expected_found(
-                span,
-                vec![new!(SyntaxExpectedToken::Named(
-                    "non-CBM leading CMEVLA".to_owned()
-                ))],
-                found,
-            ));
+            return Err(expected_found_at_current(input, "non-CBM leading CMEVLA"));
         }
 
-        let cursor = input.cursor();
         match input.next() {
             Some(word) if is_cmevla_word(&word) => Ok(word),
-            Some(word) => {
-                let span = input.span_since(&cursor);
+            Some(_) | None => {
                 input.rewind(checkpoint);
-                Err(SyntaxParseError::expected_found(
-                    span,
+                Err(expected_found_tokens_at_current(
+                    input,
                     vec![new!(SyntaxExpectedToken::WordCategory(
                         SyntaxWordCategory::Cmevla,
                     ))],
-                    new!(SyntaxFound::Token(word)),
-                ))
-            }
-            None => {
-                let span = input.span_since(&cursor);
-                input.rewind(checkpoint);
-                Err(SyntaxParseError::expected_found(
-                    span,
-                    vec![new!(SyntaxExpectedToken::WordCategory(
-                        SyntaxWordCategory::Cmevla,
-                    ))],
-                    new!(SyntaxFound::EndOfInput),
                 ))
             }
         }

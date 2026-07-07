@@ -1,6 +1,7 @@
 //! Canonical text inputs for embedding-based jbotci search.
 
 use std::fmt;
+use std::fmt::Write as _;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
@@ -224,11 +225,12 @@ pub fn sha256_hex_bytes(bytes: &[u8]) -> String {
 #[requires(true)]
 #[ensures(ret.len() == bytes.as_ref().len() * 2)]
 pub fn lowercase_hex(bytes: impl AsRef<[u8]>) -> String {
-    bytes
-        .as_ref()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    let bytes = bytes.as_ref();
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(&mut output, "{byte:02x}").expect("writing hex to a String cannot fail");
+    }
+    output
 }
 
 #[requires(true)]

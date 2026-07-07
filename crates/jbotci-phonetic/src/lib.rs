@@ -7,8 +7,8 @@ use std::sync::LazyLock;
 use bityzba::expensive_invariant;
 use bityzba::{data, invariant, new, requires};
 use jbotci_morphology::{
-    Phonemes, Word, WordKind, WordLike, WordLikeData, pronunciation_syllables,
-    segment_words_with_modifiers,
+    LeadingPauseContext, LeadingPauseVowelMode, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    pronunciation_syllables, segment_words_with_modifiers, word_needs_leading_pause_in_context,
 };
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
@@ -219,10 +219,13 @@ enum AlineFeature {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
-#[invariant(::Word(_) => true)]
+#[invariant(::Word { .. } => true)]
 #[invariant(::Text(_) => true)]
 enum IpaSurfaceChunk<'word> {
-    Word(&'word Word),
+    Word {
+        word: &'word Word,
+        leading_pause_context: LeadingPauseContext,
+    },
     Text(&'word str),
 }
 
@@ -880,10 +883,22 @@ fn all_short_vowel_symbols() -> &'static [&'static str] {
 #[requires(true)]
 #[ensures(true)]
 fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
+    flatten_word_like_ipa_in_context(word_like, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn flatten_word_like_ipa_in_context(
+    word_like: &WordLike,
+    leading_pause_context: LeadingPauseContext,
+) -> Vec<IpaSurfaceChunk<'_>> {
     match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => vec![IpaSurfaceChunk::Word(word)],
+        data!(WordLike::PlainWord(word)) => vec![IpaSurfaceChunk::Word {
+            word,
+            leading_pause_context,
+        }],
         data!(WordLike::QuotedWord { zo, word }) => {
-            vec![IpaSurfaceChunk::Word(zo), IpaSurfaceChunk::Word(word)]
+            vec![word_ipa_chunk(zo), word_ipa_chunk(word)]
         }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
@@ -891,39 +906,49 @@ fn flatten_word_like_ipa(word_like: &WordLike) -> Vec<IpaSurfaceChunk<'_>> {
             quoted_text,
             closing_delimiter,
         }) => vec![
-            IpaSurfaceChunk::Word(zoi),
-            IpaSurfaceChunk::Word(opening_delimiter),
+            word_ipa_chunk(zoi),
+            word_ipa_chunk(opening_delimiter),
             IpaSurfaceChunk::Text(drop_leading_zoi_separator_ref(&quoted_text.text)),
-            IpaSurfaceChunk::Word(closing_delimiter),
+            word_ipa_chunk(closing_delimiter),
         ],
         data!(WordLike::QuotedWords {
             lohu,
             quoted_words,
             lehu,
         }) => {
-            let mut chunks = vec![IpaSurfaceChunk::Word(lohu)];
-            chunks.extend(quoted_words.iter().map(IpaSurfaceChunk::Word));
-            chunks.push(IpaSurfaceChunk::Word(lehu));
+            let mut chunks = vec![word_ipa_chunk(lohu)];
+            chunks.extend(quoted_words.iter().map(word_ipa_chunk));
+            chunks.push(word_ipa_chunk(lehu));
             chunks
         }
         data!(WordLike::DelimitedWordQuote {
             marker,
             quoted_text,
         }) => vec![
-            IpaSurfaceChunk::Word(marker),
+            word_ipa_chunk(marker),
             IpaSurfaceChunk::Text(&quoted_text.text),
         ],
         data!(WordLike::LerfuWord { base, bu }) => {
-            let mut chunks = flatten_word_like_ipa(base);
-            chunks.push(IpaSurfaceChunk::Word(bu));
+            let mut chunks =
+                flatten_word_like_ipa_in_context(base, LeadingPauseContext::BuLetterBase);
+            chunks.push(word_ipa_chunk(bu));
             chunks
         }
         data!(WordLike::ZeiCompound { left, zei, right }) => {
             let mut chunks = flatten_word_like_ipa(left);
-            chunks.push(IpaSurfaceChunk::Word(zei));
-            chunks.push(IpaSurfaceChunk::Word(right));
+            chunks.push(word_ipa_chunk(zei));
+            chunks.push(word_ipa_chunk(right));
             chunks
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_ipa_chunk(word: &Word) -> IpaSurfaceChunk<'_> {
+    IpaSurfaceChunk::Word {
+        word,
+        leading_pause_context: LeadingPauseContext::IndependentWord,
     }
 }
 
@@ -943,8 +968,11 @@ fn render_ipa_surface_chunks(
     let mut previous_word: Option<IpaRenderedWord> = None;
     for chunk in chunks {
         match chunk {
-            IpaSurfaceChunk::Word(word) => {
-                let word = render_word_ipa(word, source)?;
+            IpaSurfaceChunk::Word {
+                word,
+                leading_pause_context,
+            } => {
+                let word = render_word_ipa(word, source, *leading_pause_context)?;
                 let pause_before = previous_word
                     .as_ref()
                     .is_some_and(|previous| previous.trailing_pause_required)
@@ -970,7 +998,11 @@ fn render_ipa_surface_chunks(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|rendered| !rendered.body.is_empty()) || ret.is_err())]
-fn render_word_ipa(word: &Word, source: &str) -> Result<IpaRenderedWord, PhoneticError> {
+fn render_word_ipa(
+    word: &Word,
+    source: &str,
+    leading_pause_context: LeadingPauseContext,
+) -> Result<IpaRenderedWord, PhoneticError> {
     let phonemes = word.phonemes();
     let body = if word.kind() == WordKind::Cmevla {
         render_cmevla_ipa_body(&phonemes)
@@ -984,7 +1016,7 @@ fn render_word_ipa(word: &Word, source: &str) -> Result<IpaRenderedWord, Phoneti
     Ok(IpaRenderedWord {
         body,
         leading_pause_required: explicit_leading_pause_count(source, word) > 0
-            || required_leading_pause_count(word) > 0,
+            || required_leading_pause_count(word, leading_pause_context) > 0,
         trailing_pause_required: explicit_trailing_pause_count(source, word) > 0
             || word.kind() == WordKind::Cmevla,
     })
@@ -1160,19 +1192,12 @@ fn explicit_trailing_pause_count(source: &str, word: &Word) -> usize {
 
 #[requires(true)]
 #[ensures(ret <= 1)]
-fn required_leading_pause_count(word: &Word) -> usize {
-    usize::from(word.kind() == WordKind::Cmevla || starts_with_vowel_sound(word))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn starts_with_vowel_sound(word: &Word) -> bool {
-    word.phonemes()
-        .as_str()
-        .chars()
-        .next()
-        .map(strip_vowel_diacritic)
-        .is_some_and(|value| matches!(value, 'a' | 'e' | 'i' | 'o' | 'u'))
+fn required_leading_pause_count(word: &Word, context: LeadingPauseContext) -> usize {
+    usize::from(word_needs_leading_pause_in_context(
+        word,
+        LeadingPauseVowelMode::FoldedVowels,
+        context,
+    ))
 }
 
 #[cfg(test)]

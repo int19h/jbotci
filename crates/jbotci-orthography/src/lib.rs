@@ -5,7 +5,7 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::ensures;
 use bityzba::{invariant, requires};
-use jbotci_morphology::WordKind;
+use jbotci_morphology::{WordKind, strip_lojban_diacritic};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -66,27 +66,27 @@ struct NormalizedLatinChar {
 fn normalized_latin_char(ch: char) -> NormalizedLatinChar {
     match ch {
         'á' | 'Á' => NormalizedLatinChar {
-            base: 'a',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'é' | 'É' => NormalizedLatinChar {
-            base: 'e',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'í' | 'Í' => NormalizedLatinChar {
-            base: 'i',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'ó' | 'Ó' => NormalizedLatinChar {
-            base: 'o',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'ú' | 'Ú' => NormalizedLatinChar {
-            base: 'u',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'ý' | 'Ý' => NormalizedLatinChar {
-            base: 'y',
+            base: strip_lojban_diacritic(ch).expect("acute vowel has stripped base"),
             stressed: true,
         },
         'A' | 'E' | 'I' | 'O' | 'U' | 'Y' => NormalizedLatinChar {
@@ -94,11 +94,11 @@ fn normalized_latin_char(ch: char) -> NormalizedLatinChar {
             stressed: true,
         },
         'ĭ' | 'Ĭ' => NormalizedLatinChar {
-            base: 'ĭ',
+            base: strip_lojban_diacritic(ch).expect("glide has stripped base"),
             stressed: false,
         },
         'ŭ' | 'Ŭ' => NormalizedLatinChar {
-            base: 'ŭ',
+            base: strip_lojban_diacritic(ch).expect("glide has stripped base"),
             stressed: false,
         },
         other => NormalizedLatinChar {

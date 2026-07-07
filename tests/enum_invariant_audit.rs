@@ -808,14 +808,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment kind is a closed presentation selector with no payload to constrain",
     ),
     (
-        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Hyphen",
-        "internal fallback lujvo parser only emits known hyphen segments before Phonemes validation",
-    ),
-    (
-        "crates/jbotci-jvozba/src/lib.rs:RawLujvoSegment::Rafsi",
-        "internal fallback lujvo parser validates segment text before converting to Phonemes",
-    ),
-    (
         "crates/jbotci-morphology/src/grammar.rs:SAMatchTag::Selmaho",
         "selmaho erasure tags carry validated Selmaho values",
     ),

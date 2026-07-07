@@ -261,7 +261,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-dialect/src/lib.rs:DialectDefinition",
-        "cmavo entry validity is enforced by CmavoDialectEntry and feature validity by the closed DialectFeature enum",
+        "dialect word entry validity is enforced by CmavoDialectEntry and feature validity by the closed DialectFeature enum",
     ),
     (
         "crates/jbotci-dialect/src/lib.rs:DialectError",
@@ -649,7 +649,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-morphology/src/lib.rs:MorphologyOptions",
-        "cmavo dialect entry validity is enforced by CmavoDialectEntry and other fields are independent parser options",
+        "compiled dialect entry validity is enforced by CompiledDialectDefinition and other fields are independent parser options",
     ),
     (
         "crates/jbotci-morphology/src/segment.rs:LujvoParseFailure",

@@ -1,7 +1,8 @@
 use bityzba::{data, invariant, requires};
 use jbotci_morphology::{
-    GlideMark, MorphologyError, MorphologyOptions, PhonemeRenderOptions, Phonemes, Word, WordKind,
-    WordLike, WordLikeData, segment_words_for_display_with_options_and_source_id,
+    GlideMark, LeadingPauseContext, LeadingPauseVowelMode, MorphologyError, MorphologyOptions,
+    PhonemeRenderOptions, Phonemes, Word, WordKind, WordLike, WordLikeData,
+    segment_words_for_display_with_options_and_source_id, word_needs_leading_pause_in_context,
 };
 use jbotci_orthography::{LojbanScript, render_latin_word_surface_for_script};
 
@@ -89,7 +90,17 @@ pub fn render_lojban_text_for_script_with_options(
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn format_word_with_options(word: &Word, options: PhonemeRenderOptions) -> String {
-    render_word(word, options)
+    format_word_with_options_in_context(word, options, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn format_word_with_options_in_context(
+    word: &Word,
+    options: PhonemeRenderOptions,
+    context: LeadingPauseContext,
+) -> String {
+    render_word(word, options, context)
 }
 
 #[requires(true)]
@@ -227,8 +238,8 @@ fn render_display_gap_for_script(script: LojbanScript, gap: &str) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn render_word(word: &Word, options: PhonemeRenderOptions) -> String {
-    render_visible_word_surface(word, options)
+fn render_word(word: &Word, options: PhonemeRenderOptions, context: LeadingPauseContext) -> String {
+    render_visible_word_surface(word, options, context)
 }
 
 #[requires(!phonemes.as_str().is_empty())]
@@ -249,44 +260,21 @@ pub(crate) fn render_word_phonemes_without_pause_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_visible_word_surface(word: &Word, options: PhonemeRenderOptions) -> String {
+fn render_visible_word_surface(
+    word: &Word,
+    options: PhonemeRenderOptions,
+    context: LeadingPauseContext,
+) -> String {
     let phonemes = word.phonemes();
     let mut rendered =
         render_word_phonemes_without_pause_with_options(word.kind(), &phonemes, options);
-    if needs_leading_pause(word) {
+    if word_needs_leading_pause_in_context(word, LeadingPauseVowelMode::FoldedVowels, context) {
         rendered.insert(0, '.');
     }
     if word.kind() == WordKind::Cmevla {
         rendered.push('.');
     }
     rendered
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn needs_leading_pause(word: &Word) -> bool {
-    word.kind() == WordKind::Cmevla
-        || strip_diacritics(word.phonemes().as_str())
-            .chars()
-            .next()
-            .is_some_and(|ch| matches!(ch, 'a' | 'e' | 'i' | 'o' | 'u'))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_diacritics(text: &str) -> String {
-    text.chars()
-        .filter_map(|ch| match ch {
-            'á' | 'à' | 'Á' | 'À' => Some('a'),
-            'é' | 'è' | 'É' | 'È' => Some('e'),
-            'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => Some('i'),
-            'ó' | 'ò' | 'Ó' | 'Ò' => Some('o'),
-            'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => Some('u'),
-            'ý' | 'ỳ' | 'Ý' | 'Ỳ' => Some('y'),
-            '\u{0301}' | '\u{0300}' | '\u{0306}' => None,
-            other => Some(other),
-        })
-        .collect()
 }
 
 #[cfg(test)]

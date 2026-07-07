@@ -2,7 +2,7 @@
 use bityzba::ensures;
 use bityzba::{data, new};
 use bityzba::{invariant, requires};
-use jbotci_morphology::{Cmavo, Phonemes, Word, WordLike, WordLikeData};
+use jbotci_morphology::{Cmavo, LeadingPauseContext, Phonemes, Word, WordLike, WordLikeData};
 use jbotci_orthography::render_latin_word_surface_for_script;
 use jbotci_syntax::generated_model::{
     AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
@@ -259,8 +259,18 @@ fn with_indicators_brackets(
 #[requires(true)]
 #[ensures(true)]
 fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::SExpr {
+    word_like_brackets_in_context(word_like, source, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_like_brackets_in_context(
+    word_like: &WordLike,
+    source: &BracketContext,
+    context: LeadingPauseContext,
+) -> sexpr::SExpr {
     match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => word_leaf(word, source),
+        data!(WordLike::PlainWord(word)) => word_leaf_in_context(word, source, context),
         data!(WordLike::QuotedWord { zo, word }) => {
             sexpr::node(vec![word_leaf(zo, source), word_leaf(word, source)])
         }
@@ -293,7 +303,7 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::S
             quoted_text_leaf(quoted_text),
         ]),
         data!(WordLike::LerfuWord { base, bu }) => sexpr::node(vec![
-            word_like_brackets(base, source),
+            word_like_brackets_in_context(base, source, LeadingPauseContext::BuLetterBase),
             word_leaf(bu, source),
         ]),
         data!(WordLike::ZeiCompound { left, zei, right }) => sexpr::node(vec![
@@ -307,6 +317,16 @@ fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::S
 #[requires(true)]
 #[ensures(true)]
 fn word_leaf(word: &Word, source: &BracketContext) -> sexpr::SExpr {
+    word_leaf_in_context(word, source, LeadingPauseContext::IndependentWord)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn word_leaf_in_context(
+    word: &Word,
+    source: &BracketContext,
+    context: LeadingPauseContext,
+) -> sexpr::SExpr {
     let latin = if source.options.decompose_lujvo
         && let Some(parts) = word.lujvo_parts()
     {
@@ -316,7 +336,7 @@ fn word_leaf(word: &Word, source: &BracketContext) -> sexpr::SExpr {
             .collect::<Vec<_>>()
             .join(source.options.glyphs.lujvo_separator())
     } else {
-        surface::format_word_with_options(word, source.options.phonemes)
+        surface::format_word_with_options_in_context(word, source.options.phonemes, context)
     };
     sexpr::leaf_with_range(
         render_latin_word_surface_for_script(source.options.script, word.kind(), &latin),

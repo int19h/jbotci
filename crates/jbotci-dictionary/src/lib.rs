@@ -6,6 +6,7 @@ pub mod import;
 use std::collections::BTreeMap;
 
 use bityzba::{expensive_invariant, invariant, requires};
+use jbotci_morphology::fold_lojban_diacritic;
 use jbotci_phonetic::IpaTokenSequenceView;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -682,7 +683,7 @@ pub fn universal_gismu_rafsi_forms(word: &str) -> Vec<(String, RafsiSource)> {
 #[ensures(true)]
 fn normalize_lookup_token(raw: &str) -> String {
     raw.chars()
-        .filter_map(strip_diacritic)
+        .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
         .map(normalize_apostrophe)
         .filter(|value| is_lookup_char(*value))
@@ -702,21 +703,6 @@ fn normalize_apostrophe(value: char) -> char {
 #[ensures(true)]
 fn is_lookup_char(value: char) -> bool {
     value.is_ascii_lowercase() || value.is_ascii_digit() || value == '\'' || value == 'h'
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_diacritic(value: char) -> Option<char> {
-    Some(match value {
-        'á' | 'à' | 'Á' | 'À' => 'a',
-        'é' | 'è' | 'É' | 'È' => 'e',
-        'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => 'i',
-        'ó' | 'ò' | 'Ó' | 'Ò' => 'o',
-        'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => 'u',
-        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => 'y',
-        '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
-        other => other,
-    })
 }
 
 #[requires(true)]
