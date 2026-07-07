@@ -34,6 +34,12 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
     let atom_types = collect_atom_types(&items, &node_names, &aliases)?;
     let node_ref = node_ref_enum(&items)?;
     let atom_ref = atom_ref_enum(&atom_types);
+    let walk_api = walk_api(
+        &items,
+        &atom_types,
+        false,
+        options.generate_with_free_modifiers,
+    )?;
     let trait_impls = tree_node_trait_impls(&items, &node_names)?;
     let atom_impls = atom_trait_impls(&atom_types);
     let wrapper_impls = wrapper_trait_impls(false, options.generate_with_free_modifiers);
@@ -99,6 +105,7 @@ fn expand_tree_model(input: syn::File) -> syn::Result<proc_macro2::TokenStream> 
             ) -> Option<NodeRef<'tree>>;
         }
 
+        #walk_api
         #wrapper_impls
         #atom_impls
         #trait_impls
@@ -153,7 +160,7 @@ fn valid_module(items: &[Item]) -> proc_macro2::TokenStream {
     let names = items.iter().filter_map(item_ident);
     quote! {
         pub mod valid {
-            pub use super::{#(#names,)* AtomRef, NodeRef, TreeNode};
+            pub use super::{#(#names,)* AtomRef, NodeRef, TreeNode, TreeWalkable, TreeWalker};
         }
     }
 }
@@ -182,9 +189,15 @@ fn recovered_module(
         collect_atom_types(&recovered_items, node_names, &recovered_aliases)?;
     let node_ref = node_ref_enum(&recovered_items)?;
     let atom_ref = atom_ref_enum(&recovered_atom_types);
+    let has_with_free_modifiers = items_use_wrapper(items, "WithFreeModifiers");
+    let walk_api = walk_api(
+        &recovered_items,
+        &recovered_atom_types,
+        true,
+        has_with_free_modifiers,
+    )?;
     let trait_impls = tree_node_trait_impls(&recovered_items, node_names)?;
     let atom_impls = atom_trait_impls(&recovered_atom_types);
-    let has_with_free_modifiers = items_use_wrapper(items, "WithFreeModifiers");
     let wrapper_impls = wrapper_trait_impls(true, has_with_free_modifiers);
     let with_free_modifiers = recovered_with_free_modifiers(has_with_free_modifiers);
     let conversion_impls =
@@ -257,6 +270,7 @@ fn recovered_module(
                 ) -> Option<NodeRef<'tree>>;
             }
 
+            #walk_api
             #wrapper_impls
             #atom_impls
             #trait_impls
@@ -3074,6 +3088,827 @@ fn wrapper_trait_impls(
             }
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_api(
+    items: &[Item],
+    atom_types: &BTreeMap<String, Type>,
+    include_recovered: bool,
+    include_with_free_modifiers: bool,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let trait_methods = tree_walker_trait_methods(items)?;
+    let recovered_error_method = include_recovered.then(|| {
+        quote! {
+            fn walk_recovered_error(&mut self, _item: &'tree super::RecoveryTreeItem) {}
+        }
+    });
+    let walk_module = walk_module(items, include_recovered, include_with_free_modifiers)?;
+    let walkable_impls = tree_walkable_impls(
+        items,
+        atom_types,
+        include_recovered,
+        include_with_free_modifiers,
+    )?;
+    Ok(quote! {
+        /// Recursive, grammar-directed visitor generated from the tree model.
+        ///
+        /// Default methods descend through children in the same field order as
+        /// `TreeNode::visit_in_order`. Override a node or enum-variant method
+        /// to run pass-specific logic before, after, or around the generated
+        /// descent, and call the matching `walk::*` free function when default
+        /// descent should still run.
+        pub trait TreeWalker<'tree> {
+            fn walk_atom(&mut self, _atom: AtomRef<'tree>) {}
+
+            #recovered_error_method
+            #(#trait_methods)*
+        }
+
+        /// Types that can dispatch themselves into a generated `TreeWalker`.
+        pub trait TreeWalkable<'tree> {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized;
+        }
+
+        #walk_module
+        #walkable_impls
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tree_walker_trait_methods(items: &[Item]) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    items
+        .iter()
+        .map(|item| match item {
+            Item::Struct(item) => {
+                let ident = &item.ident;
+                let method = walk_method_ident_for_type(ident);
+                let function = walk_function_ident_for_type(ident);
+                Ok(vec![quote! {
+                    fn #method(&mut self, node: &'tree #ident) {
+                        walk::#function(self, node);
+                    }
+                }])
+            }
+            Item::Enum(item) => {
+                let enum_ident = &item.ident;
+                let enum_method = walk_method_ident_for_type(enum_ident);
+                let enum_function = walk_function_ident_for_type(enum_ident);
+                let mut methods = vec![quote! {
+                    fn #enum_method(&mut self, node: &'tree #enum_ident) {
+                        walk::#enum_function(self, node);
+                    }
+                }];
+                methods.extend(item.variants.iter().map(|variant| {
+                    let method = walk_method_ident_for_variant(enum_ident, &variant.ident);
+                    let function = walk_function_ident_for_variant(enum_ident, &variant.ident);
+                    let params = enum_variant_payload_params(&variant.fields);
+                    let args = enum_variant_payload_bindings(&variant.fields);
+                    quote! {
+                        fn #method(&mut self #(, #params)*) {
+                            walk::#function(self #(, #args)*);
+                        }
+                    }
+                }));
+                Ok(methods)
+            }
+            Item::Type(_) => Ok(Vec::new()),
+            other => Err(syn::Error::new_spanned(
+                other,
+                "tree_model! currently accepts only struct, enum, and type alias items",
+            )),
+        })
+        .collect::<syn::Result<Vec<_>>>()
+        .map(|groups| groups.into_iter().flatten().collect())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_module(
+    items: &[Item],
+    include_recovered: bool,
+    include_with_free_modifiers: bool,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let wrapper_functions = walk_wrapper_functions(include_recovered, include_with_free_modifiers);
+    let node_functions = items
+        .iter()
+        .map(|item| match item {
+            Item::Struct(item) => walk_struct_function(item),
+            Item::Enum(item) => walk_enum_functions(item),
+            Item::Type(_) => Ok(Vec::new()),
+            other => Err(syn::Error::new_spanned(
+                other,
+                "tree_model! currently accepts only struct, enum, and type alias items",
+            )),
+        })
+        .collect::<syn::Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    Ok(quote! {
+        /// Free descent functions backing `TreeWalker` default methods.
+        pub mod walk {
+            use super::*;
+
+            #wrapper_functions
+            #(#node_functions)*
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_wrapper_functions(
+    include_recovered: bool,
+    include_with_free_modifiers: bool,
+) -> proc_macro2::TokenStream {
+    let recovered_function = include_recovered.then(|| {
+        quote! {
+            pub fn recovered<'tree, W, T>(walker: &mut W, value: &'tree Recovered<T>)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+                T: TreeWalkable<'tree>,
+            {
+                match value {
+                    ::jbotci_tree::Recovered::Valid(value) => {
+                        TreeWalkable::walk_with(value, walker);
+                    }
+                    ::jbotci_tree::Recovered::Error(item) => {
+                        walker.walk_recovered_error(item);
+                    }
+                    ::jbotci_tree::Recovered::Prefix(prefix) => {
+                        for item in &prefix.errors {
+                            walker.walk_recovered_error(item);
+                        }
+                        TreeWalkable::walk_with(&prefix.value, walker);
+                    }
+                }
+            }
+        }
+    });
+    let with_free_modifiers_function = include_with_free_modifiers.then(|| {
+        if include_recovered {
+            quote! {
+                pub fn with_free_modifiers<'tree, W, T>(
+                    walker: &mut W,
+                    value: &'tree WithFreeModifiers<T>,
+                )
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                    T: TreeWalkable<'tree>,
+                {
+                    TreeWalkable::walk_with(&value.value, walker);
+                    TreeWalkable::walk_with(&value.free_modifiers, walker);
+                }
+            }
+        } else {
+            quote! {
+                pub fn with_free_modifiers<'tree, W, T, F>(
+                    walker: &mut W,
+                    value: &'tree WithFreeModifiers<T, F>,
+                )
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                    T: TreeWalkable<'tree>,
+                    F: TreeWalkable<'tree>,
+                {
+                    TreeWalkable::walk_with(&value.value, walker);
+                    TreeWalkable::walk_with(&value.free_modifiers, walker);
+                }
+            }
+        }
+    });
+    quote! {
+        #recovered_function
+        #with_free_modifiers_function
+
+        pub fn boxed<'tree, W, T>(walker: &mut W, value: &'tree Box<T>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            T: TreeWalkable<'tree> + ?Sized,
+        {
+            TreeWalkable::walk_with(&**value, walker);
+        }
+
+        pub fn arc<'tree, W, T>(walker: &mut W, value: &'tree ::std::sync::Arc<T>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            T: TreeWalkable<'tree> + ?Sized,
+        {
+            TreeWalkable::walk_with(&**value, walker);
+        }
+
+        pub fn option<'tree, W, T>(walker: &mut W, value: &'tree Option<T>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            T: TreeWalkable<'tree>,
+        {
+            if let Some(value) = value {
+                TreeWalkable::walk_with(value, walker);
+            }
+        }
+
+        pub fn tuple2<'tree, W, A, B>(walker: &mut W, value: &'tree (A, B))
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            A: TreeWalkable<'tree>,
+            B: TreeWalkable<'tree>,
+        {
+            TreeWalkable::walk_with(&value.0, walker);
+            TreeWalkable::walk_with(&value.1, walker);
+        }
+
+        pub fn chain_vec<'tree, W, E, L>(
+            walker: &mut W,
+            value: &'tree ::jbotci_tree::Chain<E, Vec<L>>,
+        )
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            E: TreeWalkable<'tree>,
+            L: TreeWalkable<'tree>,
+        {
+            TreeWalkable::walk_with(&value.first, walker);
+            for link in &value.links {
+                TreeWalkable::walk_with(link, walker);
+            }
+        }
+
+        pub fn chain_vec1<'tree, W, E, L>(
+            walker: &mut W,
+            value: &'tree ::jbotci_tree::Chain<E, ::vec1::Vec1<L>>,
+        )
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            E: TreeWalkable<'tree>,
+            L: TreeWalkable<'tree>,
+        {
+            TreeWalkable::walk_with(&value.first, walker);
+            for link in &value.links {
+                TreeWalkable::walk_with(link, walker);
+            }
+        }
+
+        pub fn vec<'tree, W, T>(walker: &mut W, value: &'tree Vec<T>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            T: TreeWalkable<'tree>,
+        {
+            for value in value {
+                TreeWalkable::walk_with(value, walker);
+            }
+        }
+
+        pub fn vec1<'tree, W, T>(walker: &mut W, value: &'tree ::vec1::Vec1<T>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            T: TreeWalkable<'tree>,
+        {
+            for value in value {
+                TreeWalkable::walk_with(value, walker);
+            }
+        }
+
+        pub fn small_vec<'tree, W, A>(walker: &mut W, value: &'tree ::smallvec::SmallVec<A>)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            A: ::smallvec::Array,
+            A::Item: TreeWalkable<'tree>,
+        {
+            for value in value {
+                TreeWalkable::walk_with(value, walker);
+            }
+        }
+
+        pub fn small_vec1<'tree, W, A>(
+            walker: &mut W,
+            value: &'tree ::vec1::smallvec_v1::SmallVec1<A>,
+        )
+        where
+            W: TreeWalker<'tree> + ?Sized,
+            A: ::smallvec::Array,
+            A::Item: TreeWalkable<'tree>,
+        {
+            for value in value {
+                TreeWalkable::walk_with(value, walker);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_struct_function(item: &ItemStruct) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    let ident = &item.ident;
+    let function = walk_function_ident_for_type(ident);
+    let walks = field_walks(&item.fields, |index, field| {
+        field
+            .ident
+            .as_ref()
+            .map(|ident| quote!(&node.#ident))
+            .unwrap_or_else(|| {
+                let index = syn::Index::from(index);
+                quote!(&node.#index)
+            })
+    })?;
+    Ok(vec![quote! {
+        pub fn #function<'tree, W>(walker: &mut W, node: &'tree #ident)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+        {
+            #(#walks)*
+        }
+    }])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_enum_functions(item: &ItemEnum) -> syn::Result<Vec<proc_macro2::TokenStream>> {
+    let enum_ident = &item.ident;
+    let enum_function = walk_function_ident_for_type(enum_ident);
+    let uses_data_patterns = enum_uses_data_patterns(item);
+    let enum_arms = item
+        .variants
+        .iter()
+        .map(|variant| {
+            let variant_method = walk_method_ident_for_variant(enum_ident, &variant.ident);
+            let bindings = enum_variant_payload_bindings(&variant.fields);
+            let pattern = enum_variant_payload_pattern(
+                enum_ident,
+                &variant.ident,
+                &variant.fields,
+                uses_data_patterns,
+                &bindings,
+            )?;
+            Ok(quote! {
+                #pattern => walker.#variant_method(#(#bindings),*),
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let match_value = if uses_data_patterns {
+        quote!(node.as_data())
+    } else {
+        quote!(node)
+    };
+    let mut functions = vec![quote! {
+        pub fn #enum_function<'tree, W>(walker: &mut W, node: &'tree #enum_ident)
+        where
+            W: TreeWalker<'tree> + ?Sized,
+        {
+            match #match_value {
+                #(#enum_arms)*
+            }
+        }
+    }];
+    for variant in &item.variants {
+        functions.push(walk_enum_variant_function(
+            enum_ident,
+            variant,
+            uses_data_patterns,
+        )?);
+    }
+    Ok(functions)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_enum_variant_function(
+    enum_ident: &Ident,
+    variant: &syn::Variant,
+    _uses_data_patterns: bool,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let variant_ident = &variant.ident;
+    let function = walk_function_ident_for_variant(enum_ident, variant_ident);
+    let params = enum_variant_payload_params(&variant.fields);
+    match &variant.fields {
+        Fields::Named(_) => {
+            let bindings = enum_variant_payload_bindings(&variant.fields);
+            let walks = field_walks(&variant.fields, |_index, field| {
+                let ident = field.ident.as_ref().unwrap();
+                quote!(#ident)
+            })?;
+            Ok(quote! {
+                pub fn #function<'tree, W>(walker: &mut W #(, #params)*)
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                {
+                    let _ = (#(#bindings,)*);
+                    #(#walks)*
+                }
+            })
+        }
+        Fields::Unnamed(_) => {
+            let bindings = enum_variant_payload_bindings(&variant.fields);
+            let walks = field_walks(&variant.fields, |index, _field| {
+                let ident = &bindings[index];
+                quote!(#ident)
+            })?;
+            Ok(quote! {
+                pub fn #function<'tree, W>(walker: &mut W #(, #params)*)
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                {
+                    let _ = (#(#bindings,)*);
+                    #(#walks)*
+                }
+            })
+        }
+        Fields::Unit => Ok(quote! {
+            pub fn #function<'tree, W>(_walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {}
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == fields.len())]
+fn enum_variant_payload_bindings(fields: &Fields) -> Vec<Ident> {
+    match fields {
+        Fields::Named(fields) => fields
+            .named
+            .iter()
+            .map(|field| field.ident.clone().expect("named fields have identifiers"))
+            .collect(),
+        Fields::Unnamed(fields) => (0..fields.unnamed.len())
+            .map(|index| format_ident!("field_{index}"))
+            .collect(),
+        Fields::Unit => Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == fields.len())]
+fn enum_variant_payload_params(fields: &Fields) -> Vec<proc_macro2::TokenStream> {
+    enum_variant_payload_bindings(fields)
+        .into_iter()
+        .zip(fields.iter())
+        .map(|(binding, field)| {
+            let ty = &field.ty;
+            quote!(#binding: &'tree #ty)
+        })
+        .collect()
+}
+
+#[requires(bindings.len() == fields.len())]
+#[ensures(true)]
+fn enum_variant_payload_pattern(
+    enum_ident: &Ident,
+    variant_ident: &Ident,
+    fields: &Fields,
+    uses_data_patterns: bool,
+    bindings: &[Ident],
+) -> syn::Result<proc_macro2::TokenStream> {
+    Ok(match fields {
+        Fields::Named(_) => {
+            if uses_data_patterns {
+                quote!(::bityzba::data!(#enum_ident::#variant_ident { #(#bindings,)* }))
+            } else {
+                quote!(#enum_ident::#variant_ident { #(#bindings,)* })
+            }
+        }
+        Fields::Unnamed(_) => {
+            if uses_data_patterns {
+                quote!(::bityzba::data!(#enum_ident::#variant_ident(#(#bindings,)*)))
+            } else {
+                quote!(#enum_ident::#variant_ident(#(#bindings,)*))
+            }
+        }
+        Fields::Unit => {
+            if uses_data_patterns {
+                quote!(::bityzba::data!(#enum_ident::#variant_ident))
+            } else {
+                quote!(#enum_ident::#variant_ident)
+            }
+        }
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tree_walkable_impls(
+    items: &[Item],
+    atom_types: &BTreeMap<String, Type>,
+    include_recovered: bool,
+    include_with_free_modifiers: bool,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let node_impls = items
+        .iter()
+        .map(|item| match item {
+            Item::Struct(item) => Ok(tree_walkable_node_impl(&item.ident)),
+            Item::Enum(item) => Ok(tree_walkable_node_impl(&item.ident)),
+            Item::Type(_) => Ok(quote!()),
+            other => Err(syn::Error::new_spanned(
+                other,
+                "tree_model! currently accepts only struct, enum, and type alias items",
+            )),
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let atom_impls = atom_types.values().map(|ty| {
+        let variant = atom_variant_ident(ty);
+        quote! {
+            impl<'tree> TreeWalkable<'tree> for #ty {
+                fn walk_with<W>(&'tree self, walker: &mut W)
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                {
+                    walker.walk_atom(AtomRef::#variant(self));
+                }
+            }
+        }
+    });
+    let wrapper_impls = tree_walkable_wrapper_impls(include_recovered, include_with_free_modifiers);
+    Ok(quote! {
+        #(#node_impls)*
+        #(#atom_impls)*
+        #wrapper_impls
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tree_walkable_node_impl(ident: &Ident) -> proc_macro2::TokenStream {
+    let method = walk_method_ident_for_type(ident);
+    quote! {
+        impl<'tree> TreeWalkable<'tree> for #ident {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walker.#method(self);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tree_walkable_wrapper_impls(
+    include_recovered: bool,
+    include_with_free_modifiers: bool,
+) -> proc_macro2::TokenStream {
+    let recovered_impl = include_recovered.then(|| {
+        quote! {
+            impl<'tree, T> TreeWalkable<'tree> for Recovered<T>
+            where
+                T: TreeWalkable<'tree>,
+            {
+                fn walk_with<W>(&'tree self, walker: &mut W)
+                where
+                    W: TreeWalker<'tree> + ?Sized,
+                {
+                    walk::recovered(walker, self);
+                }
+            }
+        }
+    });
+    let with_free_modifiers_impl = include_with_free_modifiers.then(|| {
+        if include_recovered {
+            quote! {
+                impl<'tree, T> TreeWalkable<'tree> for WithFreeModifiers<T>
+                where
+                    T: TreeWalkable<'tree>,
+                {
+                    fn walk_with<W>(&'tree self, walker: &mut W)
+                    where
+                        W: TreeWalker<'tree> + ?Sized,
+                    {
+                        walk::with_free_modifiers(walker, self);
+                    }
+                }
+            }
+        } else {
+            quote! {
+                impl<'tree, T, F> TreeWalkable<'tree> for WithFreeModifiers<T, F>
+                where
+                    T: TreeWalkable<'tree>,
+                    F: TreeWalkable<'tree>,
+                {
+                    fn walk_with<W>(&'tree self, walker: &mut W)
+                    where
+                        W: TreeWalker<'tree> + ?Sized,
+                    {
+                        walk::with_free_modifiers(walker, self);
+                    }
+                }
+            }
+        }
+    });
+    quote! {
+        #recovered_impl
+        #with_free_modifiers_impl
+
+        impl<'tree, T> TreeWalkable<'tree> for Box<T>
+        where
+            T: TreeWalkable<'tree> + ?Sized,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::boxed(walker, self);
+            }
+        }
+
+        impl<'tree, T> TreeWalkable<'tree> for ::std::sync::Arc<T>
+        where
+            T: TreeWalkable<'tree> + ?Sized,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::arc(walker, self);
+            }
+        }
+
+        impl<'tree, T> TreeWalkable<'tree> for Option<T>
+        where
+            T: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::option(walker, self);
+            }
+        }
+
+        impl<'tree, A, B> TreeWalkable<'tree> for (A, B)
+        where
+            A: TreeWalkable<'tree>,
+            B: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::tuple2(walker, self);
+            }
+        }
+
+        impl<'tree, E, L> TreeWalkable<'tree> for ::jbotci_tree::Chain<E, Vec<L>>
+        where
+            E: TreeWalkable<'tree>,
+            L: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::chain_vec(walker, self);
+            }
+        }
+
+        impl<'tree, E, L> TreeWalkable<'tree> for ::jbotci_tree::Chain<E, ::vec1::Vec1<L>>
+        where
+            E: TreeWalkable<'tree>,
+            L: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::chain_vec1(walker, self);
+            }
+        }
+
+        impl<'tree, T> TreeWalkable<'tree> for Vec<T>
+        where
+            T: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::vec(walker, self);
+            }
+        }
+
+        impl<'tree, T> TreeWalkable<'tree> for ::vec1::Vec1<T>
+        where
+            T: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::vec1(walker, self);
+            }
+        }
+
+        impl<'tree, A> TreeWalkable<'tree> for ::smallvec::SmallVec<A>
+        where
+            A: ::smallvec::Array,
+            A::Item: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::small_vec(walker, self);
+            }
+        }
+
+        impl<'tree, A> TreeWalkable<'tree> for ::vec1::smallvec_v1::SmallVec1<A>
+        where
+            A: ::smallvec::Array,
+            A::Item: TreeWalkable<'tree>,
+        {
+            fn walk_with<W>(&'tree self, walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {
+                walk::small_vec1(walker, self);
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn field_walks<F>(fields: &Fields, access: F) -> syn::Result<Vec<proc_macro2::TokenStream>>
+where
+    F: Fn(usize, &syn::Field) -> proc_macro2::TokenStream,
+{
+    fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| match tree_child_flags(&field.attrs) {
+            Ok(flags) if flags.skip => None,
+            Ok(_) => {
+                let access = access(index, field);
+                Some(Ok(quote! {
+                    TreeWalkable::walk_with(#access, walker);
+                }))
+            }
+            Err(error) => Some(Err(error)),
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_method_ident_for_type(ident: &Ident) -> Ident {
+    let function = walk_function_ident_for_type(ident);
+    format_ident!("walk_{function}")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_function_ident_for_type(ident: &Ident) -> Ident {
+    format_ident!("{}", walk_base_name(ident))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_method_ident_for_variant(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
+    let function = walk_function_ident_for_variant(enum_ident, variant_ident);
+    format_ident!("walk_{function}")
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn walk_function_ident_for_variant(enum_ident: &Ident, variant_ident: &Ident) -> Ident {
+    format_ident!(
+        "{}_{}",
+        walk_base_name(enum_ident),
+        camel_case_to_snake_case(&variant_ident.to_string())
+    )
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn walk_base_name(ident: &Ident) -> String {
+    let text = ident.to_string();
+    let text = text.strip_suffix("Syntax").unwrap_or(&text);
+    camel_case_to_snake_case(text)
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn camel_case_to_snake_case(text: &str) -> String {
+    let mut output = String::new();
+    let mut previous_is_lower_or_digit = false;
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_uppercase() {
+            let next_is_lower = chars.peek().is_some_and(|next| next.is_ascii_lowercase());
+            if !output.is_empty() && (previous_is_lower_or_digit || next_is_lower) {
+                output.push('_');
+            }
+            output.push(ch.to_ascii_lowercase());
+            previous_is_lower_or_digit = false;
+        } else {
+            output.push(ch);
+            previous_is_lower_or_digit = ch.is_ascii_lowercase() || ch.is_ascii_digit();
+        }
+    }
+    output
 }
 
 #[requires(true)]

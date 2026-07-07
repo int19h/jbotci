@@ -385,9 +385,18 @@ enum SyntaxConstructWiring {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+enum SyntaxConstructIncompleteAttribution {
+    Direct,
+    GenericConnectiveParent,
+    GenericConnectiveContext,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
 struct SyntaxConstructMetadata {
     name: &'static str,
     parent: Option<&'static str>,
+    incomplete_attribution: SyntaxConstructIncompleteAttribution,
     wiring: SyntaxConstructWiring,
 }
 
@@ -395,411 +404,1010 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     SyntaxConstructMetadata {
         name: "bridi",
         parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "prenex",
         parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "text group",
         parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "statement",
         parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "fragment",
         parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "free modifier",
         parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "terms",
         parent: Some("bridi"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "tail terms",
         parent: Some("bridi"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "forethought bridi connection",
         parent: Some("bridi"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "term",
         parent: Some("terms"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "termset",
         parent: Some("terms"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "sumti",
         parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "tag",
         parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "place tag",
         parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "NA KU term",
         parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "description",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "pro-sumti",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "name",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "quote",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "number sumti",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "lerfu string",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "converted sumti",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "bridi description",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "forethought sumti connection",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "relative clauses",
         parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "descriptor",
         parent: Some("description"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "description tail",
         parent: Some("description"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "relative clause",
         parent: Some("relative clauses"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "relative bridi",
         parent: Some("relative clause"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "sumti association phrase",
         parent: Some("relative clause"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "mex",
         parent: Some("number sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "operand",
         parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "operator",
         parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "forethought mex",
         parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "reverse Polish mex",
         parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "number",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "parenthesized mex",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "selbri operand",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "sumti operand",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "mekso array",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "qualified operand",
         parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "VUhU operator",
         parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "operand-to-operator",
         parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "selbri-to-operator",
         parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "converted operator",
         parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "selbri",
         parent: Some("bridi"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "negated selbri",
         parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "forethought selbri connection",
         parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "tanru",
         parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "tanru unit",
         parent: Some("tanru"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "abstraction",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "grouped tanru",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "sumti-to-selbri",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "operator-to-selbri",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "ordinal selbri",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "converted tanru unit",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "modal conversion",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "linked arguments",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "selbri relative phrase",
         parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "subbridi",
         parent: Some("abstraction"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "quantifier",
         parent: Some("description"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "simple tense/modal",
         parent: Some("tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "FIhO modal",
         parent: Some("tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "connected tag",
         parent: Some("tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "modal tag",
         parent: Some("simple tense/modal"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "time tense",
         parent: Some("simple tense/modal"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "space tense",
         parent: Some("simple tense/modal"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "vocative phrase",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "parenthetical text",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "metalinguistic comment",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "reciprocal",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "subscript",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "utterance ordinal",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "replacement phrase",
         parent: Some("free modifier"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "word quote",
         parent: Some("quote"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "text quote",
         parent: Some("quote"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "word-sequence quote",
         parent: Some("quote"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "non-Lojban quote",
         parent: Some("quote"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
+    },
+    SyntaxConstructMetadata {
+        name: "paragraphs",
+        parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "paragraph",
+        parent: Some("paragraphs"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "paragraph statement sequence",
+        parent: Some("paragraph"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "paragraph statement",
+        parent: Some("paragraph statement sequence"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "statement connection",
+        parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "statement connective",
+        parent: Some("statement connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "statement branch",
+        parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "bridi continuation",
+        parent: Some("statement"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "text connective",
+        parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "leading indicator",
+        parent: Some("text"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "bridi tail",
+        parent: Some("bridi"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "bridi tail connective",
+        parent: Some("bridi tail"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought bridi branch",
+        parent: Some("forethought bridi connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "term connection",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "term connection continuation",
+        parent: Some("term connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "term connective",
+        parent: Some("term connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "termset connection",
+        parent: Some("termset"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "termset connection continuation",
+        parent: Some("termset connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "termset connective",
+        parent: Some("termset connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "termset continuation",
+        parent: Some("termset"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "NOIhA adverbial",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "FIhOI adverbial",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "SOI adverbial",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "NA term",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "converted term",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "scalar-negated term",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "elided sumti",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti connection",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti connective",
+        parent: Some("sumti connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti relative phrase",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "quantified sumti",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "scalar-negated sumti",
+        parent: Some("sumti"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tagged sumti",
+        parent: Some("sumti association phrase"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "descriptor connective",
+        parent: Some("description"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "relative clause connective",
+        parent: Some("relative clauses"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "number mex",
+        parent: Some("number"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "number continuation",
+        parent: Some("number"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "number or lerfu string",
+        parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "lerfu word",
+        parent: Some("lerfu string"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "lerfu string continuation",
+        parent: Some("lerfu string"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "grouped mex",
+        parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mex precedence tail",
+        parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mex continuation",
+        parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "reverse Polish mex tail",
+        parent: Some("reverse Polish mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operand connective",
+        parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operand continuation",
+        parent: Some("operand connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "scalar-negated operand",
+        parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "operator continuation",
+        parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "grouped operator",
+        parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti-to-operator",
+        parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "connective operator",
+        parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri connection",
+        parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri connection continuation",
+        parent: Some("selbri connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri connective",
+        parent: Some("selbri connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tagged selbri",
+        parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tanru unit continuation",
+        parent: Some("tanru"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "BO-grouped tanru unit",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "pro-bridi assignment",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "pro-bridi",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "scalar-negated tanru unit",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "quoted bridi selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "text selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "quoted text selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "tag selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "mex selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "sumti selbri",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "abstractor connection",
+        parent: Some("abstraction"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // `ek` is shared by sumti, termset, and operand connections; the sumti
+    // connective branch is the canonical diagnostic parent because it is the
+    // closest user-facing EK connection class and keeps EK failures in the
+    // sumti/term family instead of the broader operand/mekso family.
+    SyntaxConstructMetadata {
+        name: "ek",
+        parent: Some("sumti connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // `jek` is reused by statement, selbri, and operator connections. The
+    // selbri connective parent matches the existing connective hierarchy and
+    // gives the most useful incomplete-selbri attribution for bare JA/JAI
+    // connection failures.
+    SyntaxConstructMetadata {
+        name: "jek",
+        parent: Some("selbri connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // `joik` spans sumti, term, selbri, bridi-tail, statement, and operator
+    // connections. The selbri connective parent is the canonical midpoint used
+    // by neighboring connective entries; more specific parser contexts can
+    // still refine to sumti, term, or mekso constructs when available.
+    SyntaxConstructMetadata {
+        name: "joik",
+        parent: Some("selbri connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // `interval` is the BIhI/GAhO branch inside `joik`, so its canonical
+    // parent is `joik` even though joik itself is reused by several connection
+    // families.
+    SyntaxConstructMetadata {
+        name: "interval",
+        parent: Some("joik"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // This is the grammar-level non-logical connective class around JOI/BIhI.
+    // It follows `joik` to the selbri connective branch so diagnostics stay
+    // consistent with neighboring logical/non-logical connective entries.
+    SyntaxConstructMetadata {
+        name: "non-logical connective",
+        parent: Some("selbri connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "gihek",
+        parent: Some("bridi tail connective"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought selbri connective",
+        parent: Some("forethought selbri connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // The unqualified forethought connective label is emitted for the generic
+    // GA/GI connective shape. `forethought bridi connection` is the canonical
+    // parent; parser contexts with known sumti, selbri, or mex ancestry use the
+    // specialized forethought construct entries instead.
+    SyntaxConstructMetadata {
+        name: "forethought connective",
+        parent: Some("forethought bridi connection"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveContext,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    // Tag connectives occur in both tense/modal tags and simple tags. The
+    // connected-tag parent keeps them under the adverbial/tag diagnostic branch
+    // rather than forcing a time/space-specific parent too early.
+    SyntaxConstructMetadata {
+        name: "tag connective",
+        parent: Some("connected tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "connected tag continuation",
+        parent: Some("connected tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "interval property",
+        parent: Some("simple tense/modal"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "time interval",
+        parent: Some("time tense"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "space interval",
+        parent: Some("space tense"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "space interval property",
+        parent: Some("space interval"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "vocative marker",
+        parent: Some("vocative phrase"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "text",
         parent: None,
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
         name: "parse_text",
         parent: None,
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "end of input",
         parent: None,
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
     SyntaxConstructMetadata {
         name: "syntax construct",
         parent: None,
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Synthetic,
     },
 ];
@@ -835,6 +1443,30 @@ pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
 #[ensures(ret -> !construct.is_empty())]
 pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
     syntax_construct_metadata(construct).is_some()
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret -> syntax_construct_is_known(construct))]
+pub(crate) fn syntax_construct_uses_generic_incomplete_attribution(construct: &str) -> bool {
+    syntax_construct_metadata(construct).is_some_and(|metadata| {
+        matches!(
+            metadata.incomplete_attribution,
+            SyntaxConstructIncompleteAttribution::GenericConnectiveParent
+                | SyntaxConstructIncompleteAttribution::GenericConnectiveContext
+        )
+    })
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret.as_ref().is_none_or(|parent| !parent.is_empty()))]
+pub(crate) fn syntax_construct_generic_incomplete_parent(construct: &str) -> Option<&'static str> {
+    let metadata = syntax_construct_metadata(construct)?;
+    if metadata.incomplete_attribution
+        != SyntaxConstructIncompleteAttribution::GenericConnectiveParent
+    {
+        return None;
+    }
+    metadata.parent
 }
 
 #[requires(!construct.is_empty())]
@@ -2213,95 +2845,6 @@ mod tests {
 
     use super::*;
 
-    // Frozen diagnostics debt tracked by #282. These labels are live generated
-    // parser contexts, but their canonical parent-tree entries require separate
-    // diagnostics review. The completeness test below fails on new drift and on
-    // stale entries, so this list can only shrink.
-    const KNOWN_MISSING_CONSTRUCT_METADATA: &[&str] = &[
-        "BO-grouped tanru unit",
-        "FIhOI adverbial",
-        "NA term",
-        "NOIhA adverbial",
-        "SOI adverbial",
-        "abstractor connection",
-        "bridi continuation",
-        "bridi tail",
-        "bridi tail connective",
-        "connected tag continuation",
-        "connective operator",
-        "converted term",
-        "descriptor connective",
-        "ek",
-        "elided sumti",
-        "forethought bridi branch",
-        "forethought connective",
-        "forethought selbri connective",
-        "gihek",
-        "grouped mex",
-        "grouped operator",
-        "interval",
-        "interval property",
-        "jek",
-        "joik",
-        "leading indicator",
-        "lerfu string continuation",
-        "lerfu word",
-        "mex continuation",
-        "mex precedence tail",
-        "mex selbri",
-        "non-logical connective",
-        "number continuation",
-        "number mex",
-        "number or lerfu string",
-        "operand connective",
-        "operand continuation",
-        "operator continuation",
-        "paragraph",
-        "paragraph statement",
-        "paragraph statement sequence",
-        "paragraphs",
-        "pro-bridi",
-        "pro-bridi assignment",
-        "quantified sumti",
-        "quoted bridi selbri",
-        "quoted text selbri",
-        "relative clause connective",
-        "reverse Polish mex tail",
-        "scalar-negated operand",
-        "scalar-negated sumti",
-        "scalar-negated tanru unit",
-        "scalar-negated term",
-        "selbri connection",
-        "selbri connection continuation",
-        "selbri connective",
-        "space interval",
-        "space interval property",
-        "statement branch",
-        "statement connection",
-        "statement connective",
-        "sumti connection",
-        "sumti connective",
-        "sumti relative phrase",
-        "sumti selbri",
-        "sumti-to-operator",
-        "tag connective",
-        "tag selbri",
-        "tagged selbri",
-        "tagged sumti",
-        "tanru unit continuation",
-        "term connection",
-        "term connection continuation",
-        "term connective",
-        "termset connection",
-        "termset connection continuation",
-        "termset connective",
-        "termset continuation",
-        "text connective",
-        "text selbri",
-        "time interval",
-        "vocative marker",
-    ];
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2657,31 +3200,15 @@ mod tests {
             .iter()
             .map(|(_, construct)| *construct)
             .collect::<BTreeSet<_>>();
-        let known_missing = KNOWN_MISSING_CONSTRUCT_METADATA
-            .iter()
-            .copied()
-            .collect::<BTreeSet<_>>();
-
-        for construct in &known_missing {
-            assert!(
-                generated_contexts.contains(construct),
-                "known-missing construct metadata entry {construct:?} is no longer generated",
-            );
-            assert!(
-                !syntax_construct_is_known(construct),
-                "known-missing construct metadata entry {construct:?} now has metadata and should be removed from the allowlist",
-            );
-        }
 
         let missing = generated_contexts
             .iter()
             .copied()
             .filter(|construct| !syntax_construct_is_known(construct))
-            .filter(|construct| !known_missing.contains(construct))
             .collect::<Vec<_>>();
         assert!(
             missing.is_empty(),
-            "generated parser contexts missing syntax construct metadata and not frozen by #282: {missing:?}",
+            "generated parser contexts missing syntax construct metadata: {missing:?}",
         );
     }
 
@@ -2728,7 +3255,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn truncated_forethought_forms_report_structured_expectations() {
-        assert_error_mentions_construct("ga mi broda gi", "forethought bridi connection");
+        assert_error_mentions_construct("ga mi broda gi", "forethought bridi branch");
         assert_error_mentions_construct("ga lo mlatu gi", "forethought sumti connection");
         assert_error_mentions_construct("mi gu'e broda gi", "forethought selbri connection");
         assert_error_mentions_construct("li ga pa gi", "forethought mex");
@@ -2747,13 +3274,23 @@ mod tests {
     #[ensures(true)]
     fn syntax_error_kinds_cover_generated_contexts() {
         assert_error_kind("lo", SyntaxErrorKind::IncompleteSumti);
+        assert_error_kind("se", SyntaxErrorKind::IncompleteSumti);
+        assert_error_kind("te", SyntaxErrorKind::IncompleteSumti);
         assert_error_kind("nu", SyntaxErrorKind::IncompleteSelbri);
+        assert_error_kind("ga'oga'i ki'a", SyntaxErrorKind::IncompleteSelbri);
+        assert_error_kind("because", SyntaxErrorKind::IncompleteSelbri);
         assert_error_kind("xi", SyntaxErrorKind::IncompleteFreeModifier);
         assert_error_kind("li peho suhi", SyntaxErrorKind::IncompleteMekso);
         assert_error_kind(
             "ga lo mlatu gi",
             SyntaxErrorKind::IncompleteForethoughtConnection,
         );
+        assert_error_kind(
+            "ga mi broda gi",
+            SyntaxErrorKind::IncompleteForethoughtConnection,
+        );
+        assert_error_kind("po li ce", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteSumti);
     }
 
     #[test]

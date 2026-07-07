@@ -19,7 +19,8 @@ use super::{
 use crate::{
     SyntaxConstructContext, SyntaxError, SyntaxErrorKind, SyntaxExpectation, SyntaxExpectedToken,
     SyntaxExpectedTokenData, SyntaxWordCategory, syntax_construct_depth,
-    syntax_construct_is_descendant_of, syntax_construct_is_known,
+    syntax_construct_generic_incomplete_parent, syntax_construct_is_descendant_of,
+    syntax_construct_is_known, syntax_construct_uses_generic_incomplete_attribution,
     syntax_expectation_summary_message,
 };
 
@@ -1032,8 +1033,14 @@ pub(super) fn syntax_error(
     let expected = error.expected_strings();
     let current_context = error.current_context().or(preferred_context);
     let contexts = error.report_contexts(error_context_depth);
+    let kind_contexts = error.report_contexts(usize::MAX);
     let summary_context = error.summary_context().or_else(|| current_context.clone());
-    let kind = syntax_error_kind(&error, &expectations, current_context.as_ref());
+    let kind = syntax_error_kind(
+        &error,
+        &expectations,
+        current_context.as_ref(),
+        &kind_contexts,
+    );
     let reason = syntax_error_reason(
         error.reason(),
         &expected,
@@ -1132,6 +1139,7 @@ fn syntax_error_kind(
     error: &SyntaxParseError<'_>,
     expectations: &[SyntaxExpectation],
     context: Option<&SyntaxConstructContext>,
+    contexts: &[SyntaxConstructContext],
 ) -> SyntaxErrorKind {
     if let Some(found) = error.found() {
         if let data!(SyntaxFound::Token(token)) = found.as_data() {
@@ -1146,7 +1154,7 @@ fn syntax_error_kind(
         .is_some_and(|found| matches!(found.as_data(), data!(SyntaxFound::EndOfInput)))
         || error.span().start == error.span().end
     {
-        return syntax_incomplete_kind(context, expectations);
+        return syntax_incomplete_kind(context, expectations, contexts);
     }
     match error.reason() {
         RichReason::Custom(_) => SyntaxErrorKind::InvalidConstruct,
@@ -1185,8 +1193,14 @@ fn syntax_error_kind_for_word_like(word_like: &WordLike) -> SyntaxErrorKind {
 fn syntax_incomplete_kind(
     context: Option<&SyntaxConstructContext>,
     expectations: &[SyntaxExpectation],
+    contexts: &[SyntaxConstructContext],
 ) -> SyntaxErrorKind {
     if let Some(kind) = syntax_incomplete_kind_from_committed_expectations(expectations, context) {
+        return kind;
+    }
+    if let Some(context) = context
+        && let Some(kind) = syntax_incomplete_kind_for_generic_context(&context.construct, contexts)
+    {
         return kind;
     }
     if let Some(context) = context
@@ -1195,6 +1209,25 @@ fn syntax_incomplete_kind(
         return kind;
     }
     syntax_incomplete_kind_from_expectations(expectations).unwrap_or(SyntaxErrorKind::UnexpectedEnd)
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(true)]
+fn syntax_incomplete_kind_for_generic_context(
+    construct: &str,
+    contexts: &[SyntaxConstructContext],
+) -> Option<SyntaxErrorKind> {
+    if !syntax_construct_uses_generic_incomplete_attribution(construct) {
+        return None;
+    }
+    let mut selected = None;
+    for context in contexts.iter().skip(1) {
+        if let Some(candidate) = syntax_incomplete_kind_candidate_for_construct(&context.construct)
+        {
+            selected = select_committed_incomplete_kind_candidate(selected, candidate);
+        }
+    }
+    selected.map(|candidate| candidate.kind)
 }
 
 #[requires(true)]
@@ -1228,6 +1261,9 @@ fn incomplete_expectation_context_is_compatible(
     let Some(context) = context else {
         return true;
     };
+    if syntax_construct_uses_generic_incomplete_attribution(&context.construct) {
+        return true;
+    }
     construct == context.construct
         || syntax_construct_is_descendant_of(construct, &context.construct)
         || syntax_construct_is_descendant_of(&context.construct, construct)
@@ -1346,6 +1382,10 @@ fn syntax_incomplete_kind_candidate_for_construct(
 #[requires(!construct.is_empty())]
 #[ensures(true)]
 fn syntax_incomplete_kind_for_construct(construct: &str) -> Option<SyntaxErrorKind> {
+    if syntax_construct_uses_generic_incomplete_attribution(construct) {
+        let parent = syntax_construct_generic_incomplete_parent(construct)?;
+        return syntax_incomplete_kind_for_construct(parent);
+    }
     if is_forethought_connection_construct(construct) {
         Some(SyntaxErrorKind::IncompleteForethoughtConnection)
     } else if construct == "mex"
@@ -1398,7 +1438,7 @@ fn syntax_incomplete_kind_for_construct(construct: &str) -> Option<SyntaxErrorKi
 #[requires(!construct.is_empty())]
 #[ensures(true)]
 fn is_forethought_connection_construct(construct: &str) -> bool {
-    construct == "forethought mex"
+    construct == "forethought bridi branch"
         || (construct.starts_with("forethought ") && construct.ends_with(" connection"))
 }
 

@@ -1928,8 +1928,16 @@ fn gentufa_syntax_errors_go_to_stderr() {
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
         assert!(stderr.contains("unexpected cmavo"));
-        assert!(stderr.contains("expected: end of input"), "{stderr}");
-        assert!(!stderr.contains("while parsing"), "{stderr}");
+        assert!(
+            stderr.contains(
+                "expected: free modifier, joik, linked arguments, forethought selbri connective",
+            ),
+            "{stderr}"
+        );
+        assert!(
+            stderr.contains("while parsing BO-grouped tanru unit"),
+            "{stderr}"
+        );
         assert!(!stderr.contains("expected one of:"));
         assert!(!stderr.contains("needs one of:"));
         assert!(!stderr.contains("{be}"));
@@ -1961,7 +1969,8 @@ fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         assert_eq!(status, CliStatus::Failure);
         assert!(output.is_empty());
         let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("expected: free modifier or terms"));
+        assert!(stderr.contains("expected: free modifier, terms"));
+        assert!(stderr.contains("bridi tail"));
         assert!(stderr.contains("while parsing bridi"));
         assert!(!stderr.contains("expected one of:"));
         assert!(stderr.contains("\n            "));

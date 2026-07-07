@@ -1,4 +1,14 @@
 //! Generic ordered tree traversal support.
+//!
+//! `tree_model!` generates two traversal APIs for each model. `TreeNode` plus
+//! [`TreeVisitor`] provides a flat in-order event stream with node, field,
+//! sequence, chain, atom, and recovery events; use it for indexing, span
+//! collection, rendering, and other scans that do not need grammar-directed
+//! control flow. The macro also generates a model-specific recursive
+//! `TreeWalker<'tree>` trait and `walk` module in the expanded model. That
+//! walker follows the same child order as `TreeNode::visit_in_order`, but its
+//! default-descent methods can be overridden and can call the public `walk::*`
+//! free functions before, after, or between pass-specific logic.
 
 extern crate self as jbotci_tree;
 
@@ -691,6 +701,7 @@ pub trait TreeVisitor<'tree> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
     use std::collections::HashSet;
     use std::sync::Arc;
 
@@ -890,8 +901,8 @@ mod tests {
         })
     }
 
-    #[derive(Debug, Default)]
     #[invariant(true)]
+    #[derive(Debug, Default)]
     struct NodeKindVisitor {
         nodes: Vec<(&'static str, bool)>,
     }
@@ -905,6 +916,74 @@ mod tests {
         fn enter_node(&mut self, node: Self::Node) {
             self.nodes
                 .push((node.constructor_name(), node.is_variant()));
+        }
+    }
+
+    #[invariant(events.borrow().iter().all(|event| !event.is_empty()))]
+    #[derive(Debug, Default)]
+    struct RecordingWalker {
+        events: RefCell<Vec<String>>,
+    }
+
+    impl<'tree> TreeWalker<'tree> for RecordingWalker {
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_pair_node(&mut self, node: &'tree PairNode) {
+            self.events.borrow_mut().push("pair:before".to_owned());
+            walk::pair_node(self, node);
+            self.events.borrow_mut().push("pair:after".to_owned());
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_leaf_node(&mut self, node: &'tree LeafNode) {
+            self.events.borrow_mut().push(format!("leaf:{}", node.text));
+            walk::leaf_node(self, node);
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_wrapped_node_named(&mut self, _left: &'tree LeafNode, _right: &'tree LeafNode) {
+            self.events.borrow_mut().push("named:cutoff".to_owned());
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_atom(&mut self, atom: AtomRef<'tree>) {
+            match atom {
+                AtomRef::String(text) => self.events.borrow_mut().push(format!("atom:{text}")),
+            }
+        }
+    }
+
+    #[invariant(events.borrow().iter().all(|event| !event.is_empty()))]
+    #[derive(Debug, Default)]
+    struct RecoveredRecordingWalker {
+        events: RefCell<Vec<String>>,
+    }
+
+    impl<'tree> recovered::TreeWalker<'tree> for RecoveredRecordingWalker {
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_recovered_error(&mut self, item: &'tree RecoveryTreeItem) {
+            self.events.borrow_mut().push(format!("error:{item:?}"));
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_leaf_node(&mut self, node: &'tree recovered::LeafNode) {
+            self.events.borrow_mut().push("leaf".to_owned());
+            recovered::walk::leaf_node(self, node);
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn walk_atom(&mut self, atom: recovered::AtomRef<'tree>) {
+            match atom {
+                recovered::AtomRef::String(text) => {
+                    self.events.borrow_mut().push(format!("atom:{text}"))
+                }
+            }
         }
     }
 
@@ -1044,6 +1123,75 @@ mod tests {
         let mut visitor = NodeKindVisitor::default();
         WrappedNode::Unit.visit_in_order(&mut visitor);
         assert_eq!(visitor.nodes, vec![("Unit", true)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_walker_defaults_descend_in_tree_order() {
+        let tree = sample_pair_node();
+        let mut walker = RecordingWalker::default();
+        tree.walk_with(&mut walker);
+
+        assert_eq!(
+            walker.events.borrow().as_slice(),
+            [
+                "pair:before",
+                "leaf:first",
+                "atom:first",
+                "leaf:rest",
+                "atom:rest",
+                "leaf:many",
+                "atom:many",
+                "leaf:aliases",
+                "atom:aliases",
+                "leaf:alias",
+                "atom:alias",
+                "leaf:vec1",
+                "atom:vec1",
+                "leaf:small",
+                "atom:small",
+                "pair:after",
+            ]
+            .as_slice()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_walker_overrides_can_cut_off_variant_descent() {
+        let tree = WrappedNode::Named {
+            left: LeafNode {
+                text: "left".to_owned(),
+            },
+            right: LeafNode {
+                text: "right".to_owned(),
+            },
+        };
+        let mut walker = RecordingWalker::default();
+        tree.walk_with(&mut walker);
+
+        assert_eq!(walker.events.borrow().as_slice(), ["named:cutoff"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_walker_visits_recovered_prefix_errors_before_value() {
+        let tree = recovered::Recovered::prefix(
+            vec![RecoveryTreeItem::Missing, RecoveryTreeItem::Invalid],
+            recovered::LeafNode {
+                text: recovered::Recovered::valid("leaf".to_owned()),
+            },
+        );
+        let mut walker = RecoveredRecordingWalker::default();
+        recovered::TreeWalkable::walk_with(&tree, &mut walker);
+
+        assert_eq!(
+            walker.events.borrow().as_slice(),
+            ["error:Missing", "error:Invalid", "leaf", "atom:leaf",].as_slice()
+        );
     }
 
     #[test]
