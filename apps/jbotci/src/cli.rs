@@ -344,8 +344,6 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             Ok(CliStatus::Success)
         }
         Command::Setup(input) => run_setup(input, stdout, progress_policy),
-        #[cfg(feature = "grammar-debug")]
-        Command::Gerna(input) => run_gerna(input, stdout),
     }
 }
 

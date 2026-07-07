@@ -3,9 +3,11 @@
 mod discord;
 mod mcp;
 
+pub use discord::register_discord_commands_from_env;
+
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::Arc;
 use std::thread;
 
 use anyhow::{Context, Result, anyhow};
@@ -13,15 +15,15 @@ use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::header::{
     ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap, HeaderValue,
-    LOCATION,
+    LOCATION, VARY,
 };
-use axum::http::{Response, StatusCode, Uri};
+use axum::http::{Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use dioxus::server::{DioxusRouterExt, FullstackState};
+use dioxus::server::FullstackState;
 use jbotci_cli::{
     ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext, ToolRenderedOutput,
     ToolVlackuRequest, run_tool_cukta, run_tool_cukta_with_context, run_tool_vlacku,
@@ -36,6 +38,9 @@ use jbotci_web_core::{
     render_page_head_metadata_block, web_route_url,
 };
 use serde::Serialize;
+use tokio::sync::{mpsc, oneshot};
+use tower::ServiceExt;
+use tower_http::services::ServeDir;
 
 #[invariant(base_path.starts_with('/'), "server base path must be absolute")]
 #[invariant(
@@ -104,13 +109,13 @@ impl AppState {
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct ToolServices {
-    embedding_worker: Arc<Mutex<mpsc::Sender<EmbeddingToolJob>>>,
+    embedding_worker: mpsc::Sender<EmbeddingToolJob>,
 }
 
 #[invariant(true)]
 struct EmbeddingToolJob {
     request: EmbeddingToolRequest,
-    response: mpsc::SyncSender<Result<ToolRenderedOutput>>,
+    response: oneshot::Sender<Result<ToolRenderedOutput>>,
 }
 
 #[invariant(::Cukta { .. } => true)]
@@ -150,50 +155,71 @@ enum EmbeddingSearchCache {
     Unavailable { error: CachedEmbeddingError },
 }
 
+const EMBEDDING_TOOL_QUEUE_CAPACITY: usize = 16;
+
 impl ToolServices {
     #[requires(true)]
     #[ensures(true)]
     fn new() -> Self {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = mpsc::channel(EMBEDDING_TOOL_QUEUE_CAPACITY);
         spawn_embedding_worker(receiver, configured_embedding_search_startup());
         Self {
-            embedding_worker: Arc::new(Mutex::new(sender)),
+            embedding_worker: sender,
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub(crate) fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
+    pub(crate) async fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Cukta { request })
+                .await
         } else {
-            run_tool_cukta(request)
+            run_blocking_tool(move || run_tool_cukta(request)).await
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub(crate) fn run_vlacku(&self, request: ToolVlackuRequest) -> Result<ToolRenderedOutput> {
+    pub(crate) async fn run_vlacku(
+        &self,
+        request: ToolVlackuRequest,
+    ) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Vlacku { request })
+                .await
         } else {
-            run_tool_vlacku(request)
+            run_blocking_tool(move || run_tool_vlacku(request)).await
         }
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    fn run_embedding_request(&self, request: EmbeddingToolRequest) -> Result<ToolRenderedOutput> {
-        let (response, received) = mpsc::sync_channel(1);
+    async fn run_embedding_request(
+        &self,
+        request: EmbeddingToolRequest,
+    ) -> Result<ToolRenderedOutput> {
+        let (response, received) = oneshot::channel();
         let job = EmbeddingToolJob { request, response };
         self.embedding_worker
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
             .send(job)
+            .await
             .map_err(|_| anyhow!("embedding search worker is not running"))?;
         received
-            .recv()
+            .await
             .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+async fn run_blocking_tool<F>(runner: F) -> Result<ToolRenderedOutput>
+where
+    F: FnOnce() -> Result<ToolRenderedOutput> + Send + 'static,
+{
+    match tokio::task::spawn_blocking(runner).await {
+        Ok(result) => result,
+        Err(error) => Err(anyhow!("tool task failed: {error}")),
     }
 }
 
@@ -212,11 +238,11 @@ fn spawn_embedding_worker(
 #[requires(true)]
 #[ensures(true)]
 fn embedding_worker_loop(
-    receiver: mpsc::Receiver<EmbeddingToolJob>,
+    mut receiver: mpsc::Receiver<EmbeddingToolJob>,
     startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
 ) {
     let mut cache = embedding_search_cache_from_startup(startup);
-    for job in receiver {
+    while let Some(job) = receiver.blocking_recv() {
         let EmbeddingToolJob { request, response } = job;
         let output = run_embedding_tool_request(request, &mut cache);
         if response.send(output).is_err() {
@@ -407,23 +433,16 @@ async fn shutdown_signal() {
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState::new(config));
-    let use_dioxus_static_assets = dioxus_public_dir()
-        .as_ref()
-        .is_some_and(|public_dir| public_dir.is_dir() && public_dir == &state.public_dir);
-    let router = Router::<FullstackState>::new()
+    Router::<FullstackState>::new()
         .route("/api/health", get(health))
-        .route("/api/features", get(features))
+        // Deliberately public: #204 keeps `/api/gentufa` for non-model clients
+        // and programmatic model use. Full REST tool parity belongs to #284.
         .route("/api/gentufa", post(gentufa))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
-        .layer(Extension(Arc::clone(&state)));
-    let router = if use_dioxus_static_assets {
-        router.serve_static_assets()
-    } else {
-        router
-    };
-    router.with_state(FullstackState::headless())
+        .layer(Extension(Arc::clone(&state)))
+        .with_state(FullstackState::headless())
 }
 
 #[requires(true)]
@@ -457,31 +476,11 @@ fn public_dir_from_env_or_exe(
 
 #[requires(true)]
 #[ensures(true)]
-fn dioxus_public_dir() -> Option<PathBuf> {
-    std::env::var_os(DIOXUS_PUBLIC_PATH_ENV)
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::current_exe()
-                .ok()
-                .as_deref()
-                .and_then(Path::parent)
-                .map(|parent| parent.join("public"))
-        })
-}
-
-#[requires(true)]
-#[ensures(true)]
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
         features: WebFeatureAvailability::default(),
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn features() -> Json<WebFeatureAvailability> {
-    Json(WebFeatureAvailability::default())
 }
 
 #[requires(true)]
@@ -520,7 +519,7 @@ async fn static_or_spa(
         if let Some(response) = static_dir_response(
             &state.public_dir,
             FAVICON_ASSET_PATH,
-            accepts_brotli(&headers),
+            accept_encoding_header(&headers),
         )
         .await
         {
@@ -549,8 +548,12 @@ async fn static_or_spa(
             .await
             .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
     }
-    if let Some(response) =
-        static_dir_response(&state.public_dir, &asset_path, accepts_brotli(&headers)).await
+    if let Some(response) = static_dir_response(
+        &state.public_dir,
+        &asset_path,
+        accept_encoding_header(&headers),
+    )
+    .await
     {
         return response;
     }
@@ -714,15 +717,8 @@ fn has_file_extension(path: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn accepts_brotli(headers: &HeaderMap) -> bool {
-    headers
-        .get(ACCEPT_ENCODING)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| {
-            value
-                .split(',')
-                .any(|encoding| encoding.trim().eq_ignore_ascii_case("br"))
-        })
+fn accept_encoding_header(headers: &HeaderMap) -> Option<HeaderValue> {
+    headers.get(ACCEPT_ENCODING).cloned()
 }
 
 #[requires(asset_path.starts_with('/'))]
@@ -730,43 +726,33 @@ fn accepts_brotli(headers: &HeaderMap) -> bool {
 async fn static_dir_response(
     static_dir: &Path,
     asset_path: &str,
-    accepts_brotli: bool,
+    accept_encoding: Option<HeaderValue>,
 ) -> Option<Response<Body>> {
-    let relative = safe_relative_path(asset_path)?;
-    let normal_path = static_dir.join(&relative);
-    let (path, logical_path, encoding) = if accepts_brotli {
-        let br_path = brotli_sidecar_path(&normal_path);
-        if is_regular_file(&br_path).await {
-            (br_path, asset_path.to_owned(), Some("br"))
-        } else {
-            (normal_path, asset_path.to_owned(), None)
-        }
-    } else {
-        (normal_path, asset_path.to_owned(), None)
-    };
-    let bytes = tokio::fs::read(path).await.ok()?;
-    Some(asset_response(
-        StatusCode::OK,
-        &logical_path,
-        encoding,
-        Body::from(bytes),
-    ))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn brotli_sidecar_path(path: &Path) -> PathBuf {
-    let mut sidecar = path.as_os_str().to_os_string();
-    sidecar.push(".br");
-    PathBuf::from(sidecar)
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn is_regular_file(path: &Path) -> bool {
-    tokio::fs::metadata(path)
+    safe_relative_path(asset_path)?;
+    let mut request = Request::builder().uri(asset_path);
+    if let Some(value) = accept_encoding {
+        request = request.header(ACCEPT_ENCODING, value);
+    }
+    let response = ServeDir::new(static_dir)
+        .precompressed_br()
+        .oneshot(request.body(Body::empty()).ok()?)
         .await
-        .is_ok_and(|metadata| metadata.is_file())
+        .ok()?;
+    if response.status() != StatusCode::OK {
+        return None;
+    }
+    let mut response = response.map(Body::new);
+    let headers = response.headers_mut();
+    headers.insert(
+        CONTENT_TYPE,
+        HeaderValue::from_static(content_type_for_path(asset_path)),
+    );
+    headers.insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static(cache_control_for_path(asset_path)),
+    );
+    append_accept_encoding_vary(headers);
+    Some(response)
 }
 
 #[requires(path.starts_with('/'))]
@@ -801,6 +787,37 @@ fn asset_response(
     response
         .body(body)
         .expect("asset response builder is valid")
+}
+
+#[requires(true)]
+#[ensures(
+    headers
+        .get(VARY)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(vary_mentions_accept_encoding)
+)]
+fn append_accept_encoding_vary(headers: &mut HeaderMap) {
+    match headers.get(VARY).and_then(|value| value.to_str().ok()) {
+        Some(value) if vary_mentions_accept_encoding(value) => {}
+        Some(value) => {
+            let merged = format!("{value}, Accept-Encoding");
+            headers.insert(
+                VARY,
+                HeaderValue::from_str(&merged).expect("merged Vary header is valid"),
+            );
+        }
+        None => {
+            headers.insert(VARY, HeaderValue::from_static("Accept-Encoding"));
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vary_mentions_accept_encoding(value: &str) -> bool {
+    value
+        .split(',')
+        .any(|name| name.trim().eq_ignore_ascii_case("accept-encoding"))
 }
 
 #[requires(true)]
@@ -1177,7 +1194,16 @@ mod tests {
         value: serde_json::Value,
         key: &SigningKey,
     ) -> Response<Body> {
-        let body = value.to_string();
+        post_signed_discord_body(app, value.to_string(), key).await
+    }
+
+    #[requires(!body.is_empty())]
+    #[ensures(true)]
+    async fn post_signed_discord_body(
+        app: Router,
+        body: String,
+        key: &SigningKey,
+    ) -> Response<Body> {
         let (timestamp, signature) = discord_signature_headers(key, &body, "1710000000");
         app.oneshot(
             Request::builder()
@@ -1330,10 +1356,10 @@ mod tests {
         assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
     }
 
-    #[test]
+    #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    fn tool_services_runs_nonsemantic_vlacku_without_embedding_context() {
+    async fn tool_services_runs_nonsemantic_vlacku_without_embedding_context() {
         let services = ToolServices::new();
         let output = services
             .run_vlacku(jbotci_cli::ToolVlackuRequest {
@@ -1346,6 +1372,7 @@ mod tests {
                 decompose_lujvo: true,
                 show_etymology: false,
             })
+            .await
             .expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::Success);
@@ -1414,7 +1441,7 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn health_and_features_routes_return_availability() {
+    async fn health_returns_availability_and_features_route_is_removed() {
         let app = router(test_config(test_static_dir()));
         let health = app
             .clone()
@@ -1441,11 +1468,8 @@ mod tests {
             )
             .await
             .expect("features response");
-        assert_eq!(features.status(), StatusCode::OK);
-        let features_json: serde_json::Value =
-            serde_json::from_str(&response_text(features).await).expect("features JSON");
-        assert_eq!(features_json["cukta"], true);
-        assert_eq!(features_json["vlacku"], true);
+        assert_eq!(features.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response_text(features).await, "not found");
     }
 
     #[tokio::test]
@@ -2258,6 +2282,28 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn discord_reports_malformed_json_as_interaction_message() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+
+        let response = post_signed_discord_body(app, "{".to_owned(), &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
+        assert!(
+            json["data"]["content"]
+                .as_str()
+                .expect("message content")
+                .contains("Invalid Discord interaction JSON")
+        );
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn discord_accepts_signed_ping_and_subcommands() {
         let _env_guard = lock_test_env();
         let key = test_discord_signing_key();
@@ -2292,6 +2338,39 @@ mod tests {
             let json = response_json(response).await;
             assert_eq!(json["type"], 5);
         }
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn discord_rejects_url_unsafe_interaction_identifiers() {
+        let _env_guard = lock_test_env();
+        let key = test_discord_signing_key();
+        let public_key = hex_bytes(&key.verifying_key().to_bytes());
+        configure_discord_test_env(&public_key);
+        let app = router(test_config(test_static_dir()));
+        let mut interaction =
+            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+        interaction["application_id"] = serde_json::json!("123/456");
+
+        let response = post_signed_discord(app.clone(), interaction, &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
+        assert!(
+            json["data"]["content"]
+                .as_str()
+                .expect("message content")
+                .contains("invalid application id or token")
+        );
+
+        let mut interaction =
+            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+        interaction["token"] = serde_json::json!("bad/token");
+        let response = post_signed_discord(app, interaction, &key).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["type"], 4);
     }
 
     #[test]
@@ -2430,6 +2509,20 @@ mod tests {
         assert_eq!(
             response
                 .headers()
+                .get(VARY)
+                .and_then(|value| value.to_str().ok()),
+            Some("Accept-Encoding")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=31536000, immutable")
+        );
+        assert_eq!(
+            response
+                .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok()),
             Some("text/javascript; charset=utf-8")
@@ -2458,6 +2551,20 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(response.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(
+            response
+                .headers()
+                .get(VARY)
+                .and_then(|value| value.to_str().ok()),
+            Some("Accept-Encoding")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=31536000, immutable")
+        );
         assert_eq!(response_text(response).await, "plain");
     }
 

@@ -58,11 +58,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
         Some(SourceId(source_label.clone())),
     );
     let attempt = attempt.into_data();
-    let trace_stderr = render_cli_trace(
-        attempt.trace.as_ref(),
-        color_policy.stderr,
-        diagnostic_terminal_width,
-    );
+    let trace_stderr = render_cli_trace(attempt.trace.as_ref(), color_policy.stderr);
     let words = match attempt.result {
         Ok(words) => words,
         Err(error) => {

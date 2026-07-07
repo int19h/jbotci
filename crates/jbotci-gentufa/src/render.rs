@@ -1121,17 +1121,20 @@ fn svg_css(script: GentufaScript, fonts: GentufaFontData<'_>) -> String {
     } else {
         String::new()
     };
+    // CDN font URLs are deliberate for exported SVGs: broad SVG viewer support
+    // for data-URI font embedding is poor, while PNG export is the
+    // self-contained output path.
     format!(
         r#"
 @font-face {{
   font-family: "Noto Sans";
-  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@latest/latin-wght-normal.woff2") format("woff2-variations");
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@5.2.10/latin-wght-normal.woff2") format("woff2-variations");
   font-weight: 100 900;
   font-style: normal;
 }}
 @font-face {{
   font-family: "Noto Sans";
-  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@latest/latin-wght-italic.woff2") format("woff2-variations");
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/noto-sans:vf@5.2.10/latin-wght-italic.woff2") format("woff2-variations");
   font-weight: 100 900;
   font-style: italic;
 }}

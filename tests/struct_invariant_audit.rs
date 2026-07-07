@@ -88,10 +88,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
-        "apps/jbotci/src/lib.rs:GernaInput",
-        "nightly grammar-export CLI args delegate validation to clap and command code",
-    ),
-    (
         "apps/jbotci/src/lib.rs:GimfihiInput",
         "gimfihi CLI input is raw clap transport state and is validated by gimfihi_request_from_input",
     ),
@@ -706,6 +702,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/lib.rs:TreeRenderOptions",
         "render options are independent flags with no cross-field invariant",
+    ),
+    (
+        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
+        "trace rendering now only carries a color flag, so all values are valid",
     ),
     (
         "crates/jbotci-output/src/qr_code.rs:QrBuild",

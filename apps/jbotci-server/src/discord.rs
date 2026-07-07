@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use axum::body::{Body, Bytes};
 use axum::extract::Extension;
@@ -27,6 +28,12 @@ const DISCORD_TIMESTAMP_HEADER: &str = "x-signature-timestamp";
 const DISCORD_RESPONSE_LIMIT: usize = 1900;
 const DEFAULT_PUBLIC_BASE_URL: &str = "https://jbotci.app";
 const DEFAULT_DISCORD_API_BASE: &str = "https://discord.com/api/v10";
+const DISCORD_APPLICATION_ID_ENV: &str = "DISCORD_APPLICATION_ID";
+const DISCORD_BOT_TOKEN_ENV: &str = "DISCORD_BOT_TOKEN";
+const DISCORD_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const DISCORD_GLOBAL_TIMEOUT: Duration = Duration::from_secs(20);
+
+static DISCORD_HTTP_AGENT: OnceLock<ureq::Agent> = OnceLock::new();
 
 #[invariant(payload.is_object(), "Discord command registration payload must be an object")]
 #[allow(dead_code)]
@@ -65,7 +72,7 @@ pub(crate) async fn discord_post(
         Ok(value) => value,
         Err(error) => {
             return json_response(
-                StatusCode::BAD_REQUEST,
+                StatusCode::OK,
                 json!({
                     "type": 4,
                     "data": discord_message_data(&format!("Invalid Discord interaction JSON: {error}"))
@@ -108,6 +115,15 @@ async fn handle_application_command(value: Value, tool_services: ToolServices) -
             }),
         );
     }
+    if !discord_snowflake_is_valid(&application_id) || !discord_interaction_token_is_valid(&token) {
+        return json_response(
+            StatusCode::OK,
+            json!({
+                "type": 4,
+                "data": discord_message_data("Discord interaction has an invalid application id or token.")
+            }),
+        );
+    }
     let command = match parse_discord_command(&value) {
         Ok(command) => command,
         Err(error) => {
@@ -122,18 +138,19 @@ async fn handle_application_command(value: Value, tool_services: ToolServices) -
     };
     if discord_followup_enabled() {
         tokio::spawn(async move {
-            let rendered =
-                tokio::task::spawn_blocking(move || render_discord_command(command, tool_services))
-                    .await;
+            let rendered = render_discord_command(command, tool_services).await;
             let message = match rendered {
-                Ok(Ok(message)) => message,
-                Ok(Err(error)) => discord_message_data(&format!("jbotci command failed: {error}")),
-                Err(error) => discord_message_data(&format!("jbotci command task failed: {error}")),
+                Ok(message) => message,
+                Err(error) => discord_message_data(&format!("jbotci command failed: {error}")),
             };
-            if let Err(error) =
+            let sent = tokio::task::spawn_blocking(move || {
                 send_discord_original_response_edit(&application_id, &token, message)
-            {
-                eprintln!("failed to edit Discord interaction response: {error}");
+            })
+            .await;
+            match sent {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => eprintln!("failed to edit Discord interaction response: {error}"),
+                Err(error) => eprintln!("Discord interaction follow-up task failed: {error}"),
             }
         });
     }
@@ -156,6 +173,54 @@ pub fn discord_command_registration() -> DiscordCommandRegistration {
             "options": discord_command_options()
         }),
     })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn register_discord_commands_from_env() -> anyhow::Result<()> {
+    let application_id = required_env(DISCORD_APPLICATION_ID_ENV)?;
+    if !discord_snowflake_is_valid(&application_id) {
+        anyhow::bail!("{DISCORD_APPLICATION_ID_ENV} must be a Discord snowflake");
+    }
+    let bot_token = required_env(DISCORD_BOT_TOKEN_ENV)?;
+    if !discord_authorization_token_is_valid(&bot_token) {
+        anyhow::bail!("{DISCORD_BOT_TOKEN_ENV} must be non-empty visible ASCII without spaces");
+    }
+    register_discord_commands(&application_id, &bot_token, discord_command_registration())
+}
+
+#[requires(name.starts_with("DISCORD_"))]
+#[ensures(ret.as_ref().is_ok_and(|value| !value.trim().is_empty()) || ret.is_err())]
+fn required_env(name: &str) -> anyhow::Result<String> {
+    let value = std::env::var(name).map_err(|_| anyhow::anyhow!("{name} is required"))?;
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        anyhow::bail!("{name} must not be empty");
+    }
+    Ok(trimmed.to_owned())
+}
+
+#[requires(discord_snowflake_is_valid(application_id))]
+#[requires(discord_authorization_token_is_valid(bot_token))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn register_discord_commands(
+    application_id: &str,
+    bot_token: &str,
+    registration: DiscordCommandRegistration,
+) -> anyhow::Result<()> {
+    let url = format!(
+        "{}/applications/{application_id}/commands",
+        discord_api_base().trim_end_matches('/')
+    );
+    let body = json!([registration.payload]).to_string();
+    let authorization = format!("Bot {bot_token}");
+    discord_http_agent()
+        .put(&url)
+        .header(CONTENT_TYPE.as_str(), "application/json")
+        .header("authorization", &authorization)
+        .send(body)
+        .map(|_| ())
+        .map_err(|error| anyhow::anyhow!("PUT `{url}`: {error}"))
 }
 
 #[requires(true)]
@@ -426,31 +491,41 @@ fn parse_discord_gimfihi(options: &[Value]) -> Result<ToolGimfihiRequest, String
 
 #[requires(true)]
 #[ensures(true)]
-fn render_discord_command(
+async fn render_discord_command(
     command: DiscordCommand,
     tool_services: ToolServices,
 ) -> anyhow::Result<Value> {
     let (output, link) = match command {
         DiscordCommand::Gentufa(request) => {
             let link = gentufa_link(&request);
-            (run_tool_gentufa(request)?, link)
+            (
+                crate::run_blocking_tool(move || run_tool_gentufa(request)).await?,
+                link,
+            )
         }
-        DiscordCommand::Vlasei(request) => (run_tool_vlasei(request)?, None),
+        DiscordCommand::Vlasei(request) => (
+            crate::run_blocking_tool(move || run_tool_vlasei(request)).await?,
+            None,
+        ),
         DiscordCommand::Vlacku(request) => {
             let link = vlacku_link(&request);
-            (tool_services.run_vlacku(request)?, link)
+            (tool_services.run_vlacku(request).await?, link)
         }
         DiscordCommand::Cukta(request) => {
             let link = cukta_link(&request);
-            (tool_services.run_cukta(request)?, link)
+            (tool_services.run_cukta(request).await?, link)
         }
-        DiscordCommand::Jvozba(request) => {
-            (run_tool_jvozba(request)?, Some(absolute_web_url("/vlacku")))
-        }
+        DiscordCommand::Jvozba(request) => (
+            crate::run_blocking_tool(move || run_tool_jvozba(request)).await?,
+            Some(absolute_web_url("/vlacku")),
+        ),
         DiscordCommand::Gimfihi(request) => {
             let link = Some(absolute_web_url("/gimfihi"));
             (
-                run_tool_gimfihi(request, GimfihiSourceWordKind::LojbanOrBracketedIpa)?,
+                crate::run_blocking_tool(move || {
+                    run_tool_gimfihi(request, GimfihiSourceWordKind::LojbanOrBracketedIpa)
+                })
+                .await?,
                 link,
             )
         }
@@ -604,8 +679,13 @@ fn send_discord_original_response_edit(
     if application_id.is_empty() || token.is_empty() {
         anyhow::bail!("application id and token are required for Discord follow-up edits");
     }
-    let base =
-        std::env::var("DISCORD_API_BASE").unwrap_or_else(|_| DEFAULT_DISCORD_API_BASE.to_owned());
+    if !discord_snowflake_is_valid(application_id) {
+        anyhow::bail!("invalid Discord application id");
+    }
+    if !discord_interaction_token_is_valid(token) {
+        anyhow::bail!("invalid Discord interaction token");
+    }
+    let base = discord_api_base();
     let url = format!(
         "{}/webhooks/{}/{}/messages/@original",
         base.trim_end_matches('/'),
@@ -613,11 +693,37 @@ fn send_discord_original_response_edit(
         token
     );
     let body = payload.to_string();
-    ureq::patch(&url)
+    discord_http_agent()
+        .patch(&url)
         .header(CONTENT_TYPE.as_str(), "application/json")
         .send(body)
         .map(|_| ())
         .map_err(|error| anyhow::anyhow!("PATCH `{url}`: {error}"))
+}
+
+#[requires(true)]
+#[ensures(!ret.trim().is_empty())]
+fn discord_api_base() -> String {
+    std::env::var("DISCORD_API_BASE")
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| DEFAULT_DISCORD_API_BASE.to_owned())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn discord_http_agent() -> &'static ureq::Agent {
+    DISCORD_HTTP_AGENT.get_or_init(|| {
+        // Discord follow-ups happen after the interaction ACK. Five seconds
+        // bounds dead TCP connects; twenty seconds keeps slow Discord API
+        // responses from parking the blocking pool indefinitely.
+        ureq::Agent::config_builder()
+            .timeout_connect(Some(DISCORD_CONNECT_TIMEOUT))
+            .timeout_global(Some(DISCORD_GLOBAL_TIMEOUT))
+            .build()
+            .into()
+    })
 }
 
 #[requires(true)]
@@ -627,6 +733,31 @@ fn discord_followup_enabled() -> bool {
         .ok()
         .as_deref()
         != Some("1")
+}
+
+#[requires(true)]
+#[ensures(ret == (!value.is_empty()
+    && value.len() <= 20
+    && value.bytes().all(|byte| byte.is_ascii_digit())))]
+fn discord_snowflake_is_valid(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 20 && value.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+#[requires(true)]
+#[ensures(ret == (!value.is_empty()
+    && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-' || byte == b'.')))]
+fn discord_interaction_token_is_valid(value: &str) -> bool {
+    !value.is_empty()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-' || byte == b'.'
+        })
+}
+
+#[requires(true)]
+#[ensures(ret == (!value.trim().is_empty()
+    && value.bytes().all(|byte| byte.is_ascii_graphic())))]
+fn discord_authorization_token_is_valid(value: &str) -> bool {
+    !value.trim().is_empty() && value.bytes().all(|byte| byte.is_ascii_graphic())
 }
 
 #[requires(true)]

@@ -37,49 +37,6 @@ pub(crate) fn run_gentufa<WOut: Write, WErr: Write>(
     Ok(rendered.status)
 }
 
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub(crate) fn run_gerna<WOut: Write>(input: GernaInput, stdout: &mut WOut) -> Result<CliStatus> {
-    let output_file = input.output_file.clone();
-    let rendered = render_gerna(input)?;
-    write_gerna_output(stdout, output_file.as_ref(), &rendered)?;
-    Ok(CliStatus::Success)
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
-fn render_gerna(input: GernaInput) -> Result<String> {
-    let dialect = input.dialect_definition()?;
-    let options = ParseOptions::default().with_dialect_definition(&dialect);
-    Ok(match input.format {
-        GernaFormat::Ebnf => syntax_grammar_ebnf(&options),
-        GernaFormat::Svg => syntax_grammar_svg(&options),
-    })
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(!rendered.is_empty())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn write_gerna_output<WOut: Write>(
-    stdout: &mut WOut,
-    output_file: Option<&PathBuf>,
-    rendered: &str,
-) -> Result<()> {
-    let mut output = rendered.to_owned();
-    if !output.ends_with('\n') {
-        output.push('\n');
-    }
-    if let Some(path) = output_file {
-        fs::write(path, output)
-            .with_context(|| format!("failed to write grammar output to `{}`", path.display()))?;
-    } else {
-        stdout.write_all(output.as_bytes())?;
-    }
-    Ok(())
-}
-
 #[requires(diagnostic_terminal_width > 0)]
 #[requires(trace.limit > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
@@ -108,11 +65,8 @@ fn render_gentufa(
         Some(SourceId(source_label.clone())),
     );
     let morphology_attempt = morphology_attempt.into_data();
-    let morphology_trace_stderr = render_cli_trace(
-        morphology_attempt.trace.as_ref(),
-        color_policy.stderr,
-        diagnostic_terminal_width,
-    );
+    let morphology_trace_stderr =
+        render_cli_trace(morphology_attempt.trace.as_ref(), color_policy.stderr);
     let morphology_diagnostics = morphology_warning_diagnostics(
         &morphology_attempt.warnings,
         Some(SourceId(source_label.clone())),

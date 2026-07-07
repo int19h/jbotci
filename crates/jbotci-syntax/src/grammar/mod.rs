@@ -870,20 +870,6 @@ fn generated_warning_anchor_index(tokens: &[Token], anchor: &Token) -> usize {
         .unwrap_or(tokens.len())
 }
 
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub(crate) fn syntax_grammar_ebnf(_options: &ParseOptions) -> String {
-    include_str!("generated.rs").to_owned()
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub(crate) fn syntax_grammar_svg(_options: &ParseOptions) -> String {
-    include_str!("generated.rs").to_owned()
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn syntax_tokens(words: &[WordLike], options: &ParseOptions) -> Vec<Token> {
