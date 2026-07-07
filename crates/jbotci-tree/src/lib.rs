@@ -701,6 +701,7 @@ pub trait TreeVisitor<'tree> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
     use std::collections::HashSet;
     use std::sync::Arc;
 
@@ -900,8 +901,8 @@ mod tests {
         })
     }
 
-    #[derive(Debug, Default)]
     #[invariant(true)]
+    #[derive(Debug, Default)]
     struct NodeKindVisitor {
         nodes: Vec<(&'static str, bool)>,
     }
@@ -918,60 +919,60 @@ mod tests {
         }
     }
 
+    #[invariant(events.borrow().iter().all(|event| !event.is_empty()))]
     #[derive(Debug, Default)]
-    #[invariant(events.iter().all(|event| !event.is_empty()))]
     struct RecordingWalker {
-        events: Vec<String>,
+        events: RefCell<Vec<String>>,
     }
 
     impl<'tree> TreeWalker<'tree> for RecordingWalker {
         #[requires(true)]
         #[ensures(true)]
         fn walk_pair_node(&mut self, node: &'tree PairNode) {
-            self.events.push("pair:before".to_owned());
+            self.events.borrow_mut().push("pair:before".to_owned());
             walk::pair_node(self, node);
-            self.events.push("pair:after".to_owned());
+            self.events.borrow_mut().push("pair:after".to_owned());
         }
 
         #[requires(true)]
         #[ensures(true)]
         fn walk_leaf_node(&mut self, node: &'tree LeafNode) {
-            self.events.push(format!("leaf:{}", node.text));
+            self.events.borrow_mut().push(format!("leaf:{}", node.text));
             walk::leaf_node(self, node);
         }
 
         #[requires(true)]
         #[ensures(true)]
         fn walk_wrapped_node_named(&mut self, _node: &'tree WrappedNode) {
-            self.events.push("named:cutoff".to_owned());
+            self.events.borrow_mut().push("named:cutoff".to_owned());
         }
 
         #[requires(true)]
         #[ensures(true)]
         fn walk_atom(&mut self, atom: AtomRef<'tree>) {
             match atom {
-                AtomRef::String(text) => self.events.push(format!("atom:{text}")),
+                AtomRef::String(text) => self.events.borrow_mut().push(format!("atom:{text}")),
             }
         }
     }
 
+    #[invariant(events.borrow().iter().all(|event| !event.is_empty()))]
     #[derive(Debug, Default)]
-    #[invariant(events.iter().all(|event| !event.is_empty()))]
     struct RecoveredRecordingWalker {
-        events: Vec<String>,
+        events: RefCell<Vec<String>>,
     }
 
     impl<'tree> recovered::TreeWalker<'tree> for RecoveredRecordingWalker {
         #[requires(true)]
         #[ensures(true)]
         fn walk_recovered_error(&mut self, item: &'tree RecoveryTreeItem) {
-            self.events.push(format!("error:{item:?}"));
+            self.events.borrow_mut().push(format!("error:{item:?}"));
         }
 
         #[requires(true)]
         #[ensures(true)]
         fn walk_leaf_node(&mut self, node: &'tree recovered::LeafNode) {
-            self.events.push("leaf".to_owned());
+            self.events.borrow_mut().push("leaf".to_owned());
             recovered::walk::leaf_node(self, node);
         }
 
@@ -979,7 +980,9 @@ mod tests {
         #[ensures(true)]
         fn walk_atom(&mut self, atom: recovered::AtomRef<'tree>) {
             match atom {
-                recovered::AtomRef::String(text) => self.events.push(format!("atom:{text}")),
+                recovered::AtomRef::String(text) => {
+                    self.events.borrow_mut().push(format!("atom:{text}"))
+                }
             }
         }
     }
@@ -1131,8 +1134,8 @@ mod tests {
         tree.walk_with(&mut walker);
 
         assert_eq!(
-            walker.events,
-            vec![
+            walker.events.borrow().as_slice(),
+            [
                 "pair:before",
                 "leaf:first",
                 "atom:first",
@@ -1150,6 +1153,7 @@ mod tests {
                 "atom:small",
                 "pair:after",
             ]
+            .as_slice()
         );
     }
 
@@ -1168,7 +1172,7 @@ mod tests {
         let mut walker = RecordingWalker::default();
         tree.walk_with(&mut walker);
 
-        assert_eq!(walker.events, vec!["named:cutoff"]);
+        assert_eq!(walker.events.borrow().as_slice(), ["named:cutoff"]);
     }
 
     #[test]
@@ -1185,8 +1189,8 @@ mod tests {
         recovered::TreeWalkable::walk_with(&tree, &mut walker);
 
         assert_eq!(
-            walker.events,
-            vec!["error:Missing", "error:Invalid", "leaf", "atom:leaf",]
+            walker.events.borrow().as_slice(),
+            ["error:Missing", "error:Invalid", "leaf", "atom:leaf",].as_slice()
         );
     }
 
