@@ -4983,6 +4983,72 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
     )
 }
 
+// Boundary inventory for the two remaining generated reference traversals.
+//
+// These predicates document places where the old hand-written traversals did
+// not descend through every generated tree child. The #219 conversion must
+// preserve these boundaries before deleting the old traversal copies; fixture
+// drift means this table is missing a deliberate non-descent.
+//
+// Provenance:
+// - Statement-connective material is a deliberate scope boundary. The failed
+//   #219 spike proved that descending into the `i ... bo` connective `fi'o`
+//   selbri for `corpus.camxes.157`/`.159` creates place frames for connective
+//   material instead of only the main statement.
+// - Empty/elided, NA, fragment-connective, quote, and replacement nodes are
+//   wrapper or token-only leaves for these semantic reference families.
+// - Free modifiers are handled only through explicit nested entry points so
+//   quote/utterance and prenex scopes remain under caller control.
+#[requires(true)]
+#[ensures(true)]
+fn generated_place_analysis_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
+    matches!(
+        node,
+        GeneratedSyntaxNodeRef::LeadingIStatementSyntax(_)
+            | GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
+            | GeneratedSyntaxNodeRef::PendingIConnectiveSyntax(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
+            | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxLerfuStringSumti(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
+            | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
+            | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_discourse_reference_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
+    matches!(
+        node,
+        GeneratedSyntaxNodeRef::LeadingIStatementSyntax(_)
+            | GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
+            | GeneratedSyntaxNodeRef::PendingIConnectiveSyntax(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
+            | GeneratedSyntaxNodeRef::TaggedOrElidedSumtiSyntaxTaggedElidedSumti(_)
+            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
+            | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
+            | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
+            | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(_)
+    )
+}
+
 #[derive(Debug)]
 #[invariant(true)]
 struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
