@@ -13,15 +13,15 @@ use axum::body::Body;
 use axum::extract::Extension;
 use axum::http::header::{
     ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_ENCODING, CONTENT_TYPE, HOST, HeaderMap, HeaderValue,
-    LOCATION,
+    LOCATION, VARY,
 };
-use axum::http::{Response, StatusCode, Uri};
+use axum::http::{Request, Response, StatusCode, Uri};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use dioxus::server::{DioxusRouterExt, FullstackState};
+use dioxus::server::FullstackState;
 use jbotci_cli::{
     ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext, ToolRenderedOutput,
     ToolVlackuRequest, run_tool_cukta, run_tool_cukta_with_context, run_tool_vlacku,
@@ -36,6 +36,8 @@ use jbotci_web_core::{
     render_page_head_metadata_block, web_route_url,
 };
 use serde::Serialize;
+use tower::ServiceExt;
+use tower_http::services::ServeDir;
 
 #[invariant(base_path.starts_with('/'), "server base path must be absolute")]
 #[invariant(
@@ -407,23 +409,15 @@ async fn shutdown_signal() {
 #[ensures(true)]
 pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState::new(config));
-    let use_dioxus_static_assets = dioxus_public_dir()
-        .as_ref()
-        .is_some_and(|public_dir| public_dir.is_dir() && public_dir == &state.public_dir);
-    let router = Router::<FullstackState>::new()
+    Router::<FullstackState>::new()
         .route("/api/health", get(health))
         .route("/api/features", get(features))
         .route("/api/gentufa", post(gentufa))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
-        .layer(Extension(Arc::clone(&state)));
-    let router = if use_dioxus_static_assets {
-        router.serve_static_assets()
-    } else {
-        router
-    };
-    router.with_state(FullstackState::headless())
+        .layer(Extension(Arc::clone(&state)))
+        .with_state(FullstackState::headless())
 }
 
 #[requires(true)]
@@ -453,20 +447,6 @@ fn public_dir_from_env_or_exe(
             .map(|parent| parent.join("public"))
             .unwrap_or_else(|| PathBuf::from("public"))
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn dioxus_public_dir() -> Option<PathBuf> {
-    std::env::var_os(DIOXUS_PUBLIC_PATH_ENV)
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::current_exe()
-                .ok()
-                .as_deref()
-                .and_then(Path::parent)
-                .map(|parent| parent.join("public"))
-        })
 }
 
 #[requires(true)]
@@ -520,7 +500,7 @@ async fn static_or_spa(
         if let Some(response) = static_dir_response(
             &state.public_dir,
             FAVICON_ASSET_PATH,
-            accepts_brotli(&headers),
+            accept_encoding_header(&headers),
         )
         .await
         {
@@ -549,8 +529,12 @@ async fn static_or_spa(
             .await
             .unwrap_or_else(|| plain_response(StatusCode::NOT_FOUND, "not found"));
     }
-    if let Some(response) =
-        static_dir_response(&state.public_dir, &asset_path, accepts_brotli(&headers)).await
+    if let Some(response) = static_dir_response(
+        &state.public_dir,
+        &asset_path,
+        accept_encoding_header(&headers),
+    )
+    .await
     {
         return response;
     }
@@ -714,15 +698,8 @@ fn has_file_extension(path: &str) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn accepts_brotli(headers: &HeaderMap) -> bool {
-    headers
-        .get(ACCEPT_ENCODING)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| {
-            value
-                .split(',')
-                .any(|encoding| encoding.trim().eq_ignore_ascii_case("br"))
-        })
+fn accept_encoding_header(headers: &HeaderMap) -> Option<HeaderValue> {
+    headers.get(ACCEPT_ENCODING).cloned()
 }
 
 #[requires(asset_path.starts_with('/'))]
@@ -730,43 +707,33 @@ fn accepts_brotli(headers: &HeaderMap) -> bool {
 async fn static_dir_response(
     static_dir: &Path,
     asset_path: &str,
-    accepts_brotli: bool,
+    accept_encoding: Option<HeaderValue>,
 ) -> Option<Response<Body>> {
-    let relative = safe_relative_path(asset_path)?;
-    let normal_path = static_dir.join(&relative);
-    let (path, logical_path, encoding) = if accepts_brotli {
-        let br_path = brotli_sidecar_path(&normal_path);
-        if is_regular_file(&br_path).await {
-            (br_path, asset_path.to_owned(), Some("br"))
-        } else {
-            (normal_path, asset_path.to_owned(), None)
-        }
-    } else {
-        (normal_path, asset_path.to_owned(), None)
-    };
-    let bytes = tokio::fs::read(path).await.ok()?;
-    Some(asset_response(
-        StatusCode::OK,
-        &logical_path,
-        encoding,
-        Body::from(bytes),
-    ))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn brotli_sidecar_path(path: &Path) -> PathBuf {
-    let mut sidecar = path.as_os_str().to_os_string();
-    sidecar.push(".br");
-    PathBuf::from(sidecar)
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn is_regular_file(path: &Path) -> bool {
-    tokio::fs::metadata(path)
+    safe_relative_path(asset_path)?;
+    let mut request = Request::builder().uri(asset_path);
+    if let Some(value) = accept_encoding {
+        request = request.header(ACCEPT_ENCODING, value);
+    }
+    let response = ServeDir::new(static_dir)
+        .precompressed_br()
+        .oneshot(request.body(Body::empty()).ok()?)
         .await
-        .is_ok_and(|metadata| metadata.is_file())
+        .ok()?;
+    if response.status() != StatusCode::OK {
+        return None;
+    }
+    let mut response = response.map(Body::new);
+    let headers = response.headers_mut();
+    headers.insert(
+        CONTENT_TYPE,
+        HeaderValue::from_static(content_type_for_path(asset_path)),
+    );
+    headers.insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static(cache_control_for_path(asset_path)),
+    );
+    append_accept_encoding_vary(headers);
+    Some(response)
 }
 
 #[requires(path.starts_with('/'))]
@@ -801,6 +768,37 @@ fn asset_response(
     response
         .body(body)
         .expect("asset response builder is valid")
+}
+
+#[requires(true)]
+#[ensures(
+    headers
+        .get(VARY)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(vary_mentions_accept_encoding)
+)]
+fn append_accept_encoding_vary(headers: &mut HeaderMap) {
+    match headers.get(VARY).and_then(|value| value.to_str().ok()) {
+        Some(value) if vary_mentions_accept_encoding(value) => {}
+        Some(value) => {
+            let merged = format!("{value}, Accept-Encoding");
+            headers.insert(
+                VARY,
+                HeaderValue::from_str(&merged).expect("merged Vary header is valid"),
+            );
+        }
+        None => {
+            headers.insert(VARY, HeaderValue::from_static("Accept-Encoding"));
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn vary_mentions_accept_encoding(value: &str) -> bool {
+    value
+        .split(',')
+        .any(|name| name.trim().eq_ignore_ascii_case("accept-encoding"))
 }
 
 #[requires(true)]
@@ -2430,6 +2428,20 @@ mod tests {
         assert_eq!(
             response
                 .headers()
+                .get(VARY)
+                .and_then(|value| value.to_str().ok()),
+            Some("Accept-Encoding")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=31536000, immutable")
+        );
+        assert_eq!(
+            response
+                .headers()
                 .get(CONTENT_TYPE)
                 .and_then(|value| value.to_str().ok()),
             Some("text/javascript; charset=utf-8")
@@ -2458,6 +2470,20 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(response.headers().get(CONTENT_ENCODING).is_none());
+        assert_eq!(
+            response
+                .headers()
+                .get(VARY)
+                .and_then(|value| value.to_str().ok()),
+            Some("Accept-Encoding")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(CACHE_CONTROL)
+                .and_then(|value| value.to_str().ok()),
+            Some("public, max-age=31536000, immutable")
+        );
         assert_eq!(response_text(response).await, "plain");
     }
 
