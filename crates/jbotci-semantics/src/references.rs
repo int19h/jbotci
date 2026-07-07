@@ -536,7 +536,7 @@ impl PlaceAnalysis {
         syntax: &'tree GeneratedTextSyntax,
     ) -> Self {
         let mut builder = GeneratedPlaceAnalysisBuilder::new(index);
-        builder.analyze_text(syntax);
+        syntax.visit_in_order(&mut builder);
         builder.finish()
     }
 
@@ -1031,7 +1031,7 @@ impl DiscourseReferences {
         syntax: &'tree GeneratedTextSyntax,
     ) -> Self {
         let mut builder = GeneratedDiscourseReferenceBuilder::new(index, places);
-        builder.visit_text(syntax);
+        syntax.visit_in_order(&mut builder);
         builder.finish()
     }
 
@@ -1046,6 +1046,7 @@ impl DiscourseReferences {
 #[invariant(true)]
 struct GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     index: &'index GeneratedSyntaxIndex<'tree>,
+    traversal_skip_depth: usize,
     frames: Vec<SelbriPlaceFrame>,
     frame_ids_by_node: HashMap<RawSyntaxNodeId, Vec<SelbriPlaceFrameId>>,
     assignments: Vec<SumtiPlaceAssignment>,
@@ -1065,6 +1066,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn new(index: &'index GeneratedSyntaxIndex<'tree>) -> Self {
         Self {
             index,
+            traversal_skip_depth: 0,
             frames: Vec::new(),
             frame_ids_by_node: HashMap::new(),
             assignments: Vec::new(),
@@ -4402,6 +4404,129 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             .id_of(GeneratedSyntaxNodeRef::TaggedElidedSumtiSyntax(sumti))
             .expect("elided generated sumti node belongs to indexed syntax tree")
     }
+
+    #[requires(true)]
+    #[ensures(self.traversal_skip_depth == 1)]
+    fn skip_generated_subtree(&mut self) {
+        self.traversal_skip_depth = 1;
+    }
+}
+
+impl<'index, 'tree> TreeVisitor<'tree> for GeneratedPlaceAnalysisBuilder<'index, 'tree> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if self.traversal_skip_depth > 0 {
+            self.traversal_skip_depth += 1;
+            return;
+        }
+        if generated_place_analysis_should_skip_node(node) {
+            self.skip_generated_subtree();
+            return;
+        }
+
+        match node {
+            GeneratedSyntaxNodeRef::BridiSyntaxBridiWithLeadingTerms(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBridiWithPostCuTerms(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBareCuBridi(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBareCuTermsBridi(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxRelationOnlyBridi(bridi) => {
+                self.analyze_predicate(bridi);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::TermSyntaxSimpleTerm(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxConnectedTerm(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxBoundTermConnection(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxTermsetGroup(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxPeheTermsetConnection(term) => {
+                self.analyze_term_nested(term);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::SumtiSyntax(sumti) => {
+                self.analyze_argument_nested(sumti);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::SelbriSyntaxTaggedSelbri(selbri)
+            | GeneratedSyntaxNodeRef::SelbriSyntaxUntaggedSelbri(selbri) => {
+                self.analyze_relation(selbri);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::RelativeClauseListSyntax(clauses) => {
+                self.analyze_relative_clause_list_nested(clauses);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::LinkargsSyntax(linkargs) => {
+                self.analyze_linkargs_nested(linkargs);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::BeiLinkSyntax(link) => {
+                self.analyze_linked_sumti_nested(&link.link);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::QuantifierSyntaxMeksoQuantifier(quantifier)
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(quantifier)
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
+                quantifier,
+            )
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxPaRunQuantifier(quantifier) => {
+                self.analyze_quantifier_nested(quantifier);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::MeksoSyntaxZantufaReversePolishMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxZantufaInfixMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxInfixMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxReversePolishMekso(expression) => {
+                self.analyze_math_expression_nested(expression);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::MeksoOperatorSyntaxAfterthoughtMeksoOperator(operator)
+            | GeneratedSyntaxNodeRef::MeksoOperatorSyntaxBoundMeksoOperator(operator)
+            | GeneratedSyntaxNodeRef::MeksoOperatorSyntaxSimpleMeksoOperator(operator) => {
+                self.analyze_math_operator_nested(operator);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::TenseModalSyntax(tense_modal) => {
+                self.analyze_tense_modal_nested(tense_modal);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(free_modifier) => {
+                self.analyze_free_modifier_nested(free_modifier);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::VocativeSumtiSyntaxSelbriVocativeSumti(sumti)
+            | GeneratedSyntaxNodeRef::VocativeSumtiSyntaxCmevlaVocativeSumti(sumti)
+            | GeneratedSyntaxNodeRef::VocativeSumtiSyntaxSumti(sumti) => {
+                self.analyze_vocative_sumti_nested(sumti);
+                self.skip_generated_subtree();
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        if self.traversal_skip_depth > 0 {
+            self.traversal_skip_depth -= 1;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -4994,7 +5119,9 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
 // - Statement-connective material is a deliberate scope boundary. The failed
 //   #219 spike proved that descending into the `i ... bo` connective `fi'o`
 //   selbri for `corpus.camxes.157`/`.159` creates place frames for connective
-//   material instead of only the main statement.
+//   material instead of only the main statement. The leading-`i` wrapper itself
+//   is not skipped because it can carry semantic free modifiers such as
+//   vocatives; only its connective child is a boundary.
 // - Empty/elided, NA, fragment-connective, quote, and replacement nodes are
 //   wrapper or token-only leaves for these semantic reference families.
 // - Free modifiers are handled only through explicit nested entry points so
@@ -5004,9 +5131,12 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
 fn generated_place_analysis_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
     matches!(
         node,
-        GeneratedSyntaxNodeRef::LeadingIStatementSyntax(_)
-            | GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
+        GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
             | GeneratedSyntaxNodeRef::PendingIConnectiveSyntax(_)
+            | GeneratedSyntaxNodeRef::IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IStatementConnectiveSyntaxIStandardStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IStatementConnectiveSyntaxITagBoStatementConnective(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
@@ -5030,9 +5160,12 @@ fn generated_place_analysis_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
 fn generated_discourse_reference_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
     matches!(
         node,
-        GeneratedSyntaxNodeRef::LeadingIStatementSyntax(_)
-            | GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
+        GeneratedSyntaxNodeRef::TrailingIjekParagraphStatementSyntax(_)
             | GeneratedSyntaxNodeRef::PendingIConnectiveSyntax(_)
+            | GeneratedSyntaxNodeRef::IParagraphStatementConnectiveSyntaxIStandardParagraphStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IParagraphStatementConnectiveSyntaxITagBoParagraphStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IStatementConnectiveSyntaxIStandardStatementConnective(_)
+            | GeneratedSyntaxNodeRef::IStatementConnectiveSyntaxITagBoStatementConnective(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
@@ -5054,6 +5187,7 @@ fn generated_discourse_reference_should_skip_node(node: GeneratedSyntaxNodeRef<'
 struct GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     index: &'index GeneratedSyntaxIndex<'tree>,
     places: &'index PlaceAnalysis,
+    traversal_skip_depth: usize,
     edges: Vec<ReferenceEdge>,
     koha_bindings: HashMap<Cmavo, SumtiNodeId>,
     cei_bridi_bindings: HashMap<CeiLabel, BridiNodeId>,
@@ -5088,6 +5222,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         Self {
             index,
             places,
+            traversal_skip_depth: 0,
             edges: Vec::new(),
             koha_bindings: HashMap::new(),
             cei_bridi_bindings: HashMap::new(),
@@ -7806,6 +7941,135 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 node.as_node_ref().map(|node| node.constructor_name())
             )
         })
+    }
+
+    #[requires(true)]
+    #[ensures(self.traversal_skip_depth == 1)]
+    fn skip_generated_subtree(&mut self) {
+        self.traversal_skip_depth = 1;
+    }
+}
+
+impl<'index, 'tree> TreeVisitor<'tree> for GeneratedDiscourseReferenceBuilder<'index, 'tree> {
+    type Node = GeneratedSyntaxNodeRef<'tree>;
+    type Atom = GeneratedSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if self.traversal_skip_depth > 0 {
+            self.traversal_skip_depth += 1;
+            return;
+        }
+        if generated_discourse_reference_should_skip_node(node) {
+            self.skip_generated_subtree();
+            return;
+        }
+
+        match node {
+            GeneratedSyntaxNodeRef::StatementSyntaxStatementBase(statement)
+            | GeneratedSyntaxNodeRef::StatementSyntaxIStatementConnection(statement)
+            | GeneratedSyntaxNodeRef::StatementSyntaxPreposedIStatementConnection(statement) => {
+                self.visit_statement(statement);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::BridiSyntaxBridiWithLeadingTerms(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBridiWithPostCuTerms(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBareCuBridi(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxBareCuTermsBridi(bridi)
+            | GeneratedSyntaxNodeRef::BridiSyntaxRelationOnlyBridi(bridi) => {
+                self.visit_predicate(bridi);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::TermSyntaxSimpleTerm(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxConnectedTerm(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxBoundTermConnection(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxTermsetGroup(term)
+            | GeneratedSyntaxNodeRef::TermSyntaxPeheTermsetConnection(term) => {
+                self.visit_term(term);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::SumtiSyntax(sumti) => {
+                self.visit_argument(sumti);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::SelbriSyntaxTaggedSelbri(selbri)
+            | GeneratedSyntaxNodeRef::SelbriSyntaxUntaggedSelbri(selbri) => {
+                self.visit_relation(selbri);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::RelativeClauseListSyntax(clauses) => {
+                self.visit_relative_clause_list_without_head(clauses);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::LinkargsSyntax(linkargs) => {
+                self.visit_linkargs(linkargs);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::BeiLinkSyntax(link) => {
+                self.visit_bei_link(link);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::QuantifierSyntaxMeksoQuantifier(quantifier)
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(quantifier)
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
+                quantifier,
+            )
+            | GeneratedSyntaxNodeRef::QuantifierSyntaxPaRunQuantifier(quantifier) => {
+                self.visit_quantifier(quantifier);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::MeksoSyntaxZantufaReversePolishMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxZantufaInfixMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxInfixMekso(expression)
+            | GeneratedSyntaxNodeRef::MeksoSyntaxReversePolishMekso(expression) => {
+                self.visit_math_expression(expression);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::MeksoOperatorSyntaxAfterthoughtMeksoOperator(operator)
+            | GeneratedSyntaxNodeRef::MeksoOperatorSyntaxBoundMeksoOperator(operator)
+            | GeneratedSyntaxNodeRef::MeksoOperatorSyntaxSimpleMeksoOperator(operator) => {
+                self.visit_math_operator(operator);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::TenseModalSyntax(tense_modal) => {
+                self.visit_tense_modal(tense_modal);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaSeiStatementFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSeiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxXiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxMaiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxZantufaMeksoMaiFreeModifier(
+                free_modifier,
+            )
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxSoiFreeModifier(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxParentheticalText(free_modifier)
+            | GeneratedSyntaxNodeRef::FreeModifierSyntaxVocativeFreeModifier(free_modifier) => {
+                self.visit_free_modifier(free_modifier);
+                self.skip_generated_subtree();
+            }
+            GeneratedSyntaxNodeRef::VocativeSumtiSyntaxSelbriVocativeSumti(sumti)
+            | GeneratedSyntaxNodeRef::VocativeSumtiSyntaxCmevlaVocativeSumti(sumti)
+            | GeneratedSyntaxNodeRef::VocativeSumtiSyntaxSumti(sumti) => {
+                self.visit_vocative_sumti(sumti);
+                self.skip_generated_subtree();
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        if self.traversal_skip_depth > 0 {
+            self.traversal_skip_depth -= 1;
+        }
     }
 }
 
