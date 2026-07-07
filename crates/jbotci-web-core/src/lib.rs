@@ -405,7 +405,17 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
     };
 
     let source_id = Some(SourceId("<web-input>".to_owned()));
-    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let morphology_options =
+        match MorphologyOptions::default().try_with_dialect_definition(&dialect) {
+            Ok(options) => options,
+            Err(error) => {
+                return GentufaWebResult::Error(GentufaError {
+                    phase: None,
+                    message: GentufaWebError::Dialect(error.to_string()).to_string(),
+                    diagnostics: Vec::new(),
+                });
+            }
+        };
     let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
         source,
         &morphology_options,

@@ -31,6 +31,7 @@ impl DialectError {
     }
 }
 
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DialectFeature {
@@ -89,7 +90,7 @@ impl DialectFeature {
 
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    fn atom_name(self) -> String {
+    pub fn atom_name(self) -> String {
         self.name().to_ascii_uppercase()
     }
 }
@@ -102,8 +103,8 @@ impl fmt::Display for DialectFeature {
     }
 }
 
-#[invariant(::Swap => is_normalized_cmavo(left) && is_normalized_cmavo(right))]
-#[invariant(::Expansion => is_normalized_cmavo(source) && !replacement.is_empty() && replacement.iter().all(|word| is_normalized_cmavo(word)))]
+#[invariant(::Swap => is_basic_dialect_word(left) && is_basic_dialect_word(right))]
+#[invariant(::Expansion => is_basic_dialect_word(source) && !replacement.is_empty() && replacement.iter().all(|word| is_basic_dialect_word(word)))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum CmavoDialectEntry {
@@ -117,10 +118,7 @@ pub enum CmavoDialectEntry {
     },
 }
 
-#[invariant(
-    true,
-    "cmavo dialect entry validity is guaranteed by CmavoDialectEntry"
-)]
+#[invariant(true, "dialect word entry validity is guaranteed by CmavoDialectEntry")]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct DialectDefinition {
@@ -206,6 +204,27 @@ enum DialectToken {
     OpenParen,
     CloseParen,
     Atom(String),
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DialectTokenKind {
+    OpenParen,
+    CloseParen,
+    Atom,
+}
+
+#[invariant(byte_start <= byte_end, "token byte range must be ordered")]
+#[invariant(
+    matches!(kind, DialectTokenKind::Atom) == !text.is_empty(),
+    "only atom tokens carry text"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ScannedDialectToken {
+    kind: DialectTokenKind,
+    text: String,
+    byte_start: usize,
+    byte_end: usize,
 }
 
 #[requires(true)]
@@ -527,66 +546,63 @@ fn strip_outer_dialect_formula_parens(formula_text: &str) -> &str {
 #[requires(true)]
 #[ensures(true)]
 fn parse_formula_components(raw_text: &str) -> Vec<DialectFormulaComponent> {
-    let chars = raw_text.chars().collect::<Vec<_>>();
+    let tokens = scan_dialect_tokens(raw_text);
     let mut components = Vec::new();
     let mut index = 0;
-    while index < chars.len() {
-        while chars.get(index).is_some_and(|value| value.is_whitespace()) {
-            index += 1;
-        }
-        let Some(value) = chars.get(index).copied() else {
-            break;
-        };
-        match value {
-            '(' => {
-                let (group_text, after_group) = collect_parenthesized_formula_group(&chars, index);
+    while let Some(token) = tokens.get(index) {
+        match token.kind {
+            DialectTokenKind::OpenParen => {
+                let (group_text, after_group) =
+                    collect_parenthesized_formula_group(raw_text, &tokens, index);
                 components.push(DialectFormulaComponent::Group(group_text));
                 index = after_group;
             }
-            ')' => {
+            DialectTokenKind::CloseParen => {
                 index += 1;
             }
-            _ => {
-                let start = index;
-                while chars
-                    .get(index)
-                    .is_some_and(|value| !is_atom_boundary(*value))
-                {
-                    index += 1;
-                }
-                let atom = chars[start..index].iter().collect::<String>();
-                components.push(DialectFormulaComponent::Atom(atom.trim().to_owned()));
+            DialectTokenKind::Atom => {
+                components.push(DialectFormulaComponent::Atom(token.text.trim().to_owned()));
+                index += 1;
             }
         }
     }
     components
 }
 
-#[requires(start < chars.len())]
+#[requires(start < tokens.len())]
+#[requires(matches!(tokens[start].kind, DialectTokenKind::OpenParen))]
 #[ensures(ret.1 > start)]
-fn collect_parenthesized_formula_group(chars: &[char], start: usize) -> (String, usize) {
+fn collect_parenthesized_formula_group(
+    source: &str,
+    tokens: &[ScannedDialectToken],
+    start: usize,
+) -> (String, usize) {
     let mut depth = 0usize;
-    let mut text = String::new();
     let mut index = start;
-    while let Some(value) = chars.get(index).copied() {
-        text.push(value);
-        match value {
-            '(' => {
+    while let Some(token) = tokens.get(index) {
+        match token.kind {
+            DialectTokenKind::OpenParen => {
                 depth += 1;
             }
-            ')' => {
+            DialectTokenKind::CloseParen => {
                 depth = depth.saturating_sub(1);
                 index += 1;
                 if depth == 0 {
-                    return (text, index);
+                    return (
+                        source[start_byte(tokens, start)..token.byte_end].to_owned(),
+                        index,
+                    );
                 }
                 continue;
             }
-            _ => {}
+            DialectTokenKind::Atom => {}
         }
         index += 1;
     }
-    (text, index)
+    (
+        source[start_byte(tokens, start)..end_byte(tokens, index)].to_owned(),
+        index,
+    )
 }
 
 #[requires(true)]
@@ -657,7 +673,7 @@ fn render_dialect_definition_entry(entry: &DialectDefinitionEntry) -> String {
 #[requires(true)]
 #[ensures(true)]
 fn definition_cmavo_word(word: &str) -> String {
-    strip_diacritics(word).to_ascii_lowercase()
+    word.to_owned()
 }
 
 #[requires(true)]
@@ -941,10 +957,7 @@ fn split_compact<'a>(
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.message().is_empty()))]
 fn cmavo_to_compact(raw_word: &str) -> Result<String, DialectError> {
     let normalized = normalize_dialect_word(raw_word)?;
-    strip_diacritics(&normalized)
-        .chars()
-        .map(encode_compact_cmavo_char)
-        .collect()
+    normalized.chars().map(encode_compact_cmavo_char).collect()
 }
 
 #[requires(true)]
@@ -972,10 +985,10 @@ fn compact_to_cmavo(raw_compact: &str) -> Result<String, DialectError> {
         .collect::<Result<String, _>>()?;
     let normalized = normalize_dialect_word(&decoded)?;
     if cmavo_to_compact(&normalized).as_deref() == Ok(&raw_compact.to_ascii_uppercase()) {
-        Ok(strip_diacritics(&normalized).to_ascii_lowercase())
+        Ok(normalized)
     } else {
         Err(DialectError::new(format!(
-            "Dialect QR token is not exactly one morphologically valid cmavo word: {raw_compact}"
+            "Dialect QR token is not a valid basic-orthography dialect word: {raw_compact}"
         )))
     }
 }
@@ -998,15 +1011,13 @@ fn decode_compact_cmavo_char(value: char) -> Result<char, DialectError> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|word| !word.is_empty()))]
 fn canonical_cmavo(raw_word: &str) -> Option<String> {
-    normalize_dialect_word(raw_word)
-        .ok()
-        .map(|word| strip_diacritics(&word).to_ascii_lowercase())
+    normalize_dialect_word(raw_word).ok()
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.message().is_empty()))]
 fn parse_compact_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectError> {
-    let requested_name = strip_diacritics(raw_feature).to_ascii_uppercase();
+    let requested_name = ascii_dialect_atom_key(raw_feature, "Dialect QR feature")?;
     DialectFeature::all()
         .iter()
         .copied()
@@ -1034,8 +1045,8 @@ fn canonical_cmavo_dialect_entries(entries: &[CmavoDialectEntry]) -> Vec<CmavoDi
 fn canonical_cmavo_dialect_entry(entry: &CmavoDialectEntry) -> CmavoDialectEntry {
     match entry.as_data() {
         data!(CmavoDialectEntry::Swap { left, right }) => {
-            let left_key = strip_diacritics(left).to_ascii_lowercase();
-            let right_key = strip_diacritics(right).to_ascii_lowercase();
+            let left_key = left.to_ascii_lowercase();
+            let right_key = right.to_ascii_lowercase();
             if left_key <= right_key {
                 new!(CmavoDialectEntry::Swap {
                     left: left.clone(),
@@ -1286,7 +1297,7 @@ fn parse_feature_toggle_atom(
 #[requires(!raw_feature.is_empty(), "feature toggles must name a feature")]
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|feature| DialectFeature::all().contains(feature)))]
 fn parse_dialect_feature(raw_feature: &str) -> Result<DialectFeature, DialectError> {
-    let requested_name = strip_diacritics(raw_feature).to_ascii_uppercase();
+    let requested_name = ascii_dialect_atom_key(raw_feature, "Dialect feature")?;
     DialectFeature::all()
         .iter()
         .copied()
@@ -1437,38 +1448,80 @@ fn builtin_dialect_source_map() -> BTreeMap<&'static str, &'static str> {
 #[requires(true)]
 #[ensures(!ret.is_empty() || source.trim().is_empty())]
 fn tokenize(source: &str) -> Vec<DialectToken> {
-    let chars: Vec<char> = source.chars().collect();
+    scan_dialect_tokens(source)
+        .into_iter()
+        .map(|token| {
+            let data = token.into_data();
+            match data.kind {
+                DialectTokenKind::OpenParen => DialectToken::OpenParen,
+                DialectTokenKind::CloseParen => DialectToken::CloseParen,
+                DialectTokenKind::Atom => DialectToken::Atom(data.text),
+            }
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty() || source.trim().is_empty())]
+fn scan_dialect_tokens(source: &str) -> Vec<ScannedDialectToken> {
     let mut tokens = Vec::new();
-    let mut index = 0;
-    while index < chars.len() {
-        while chars.get(index).is_some_and(|value| value.is_whitespace()) {
-            index += 1;
+    let mut chars = source.char_indices().peekable();
+    while let Some((byte_start, value)) = chars.next() {
+        if value.is_whitespace() {
+            continue;
         }
-        let Some(value) = chars.get(index).copied() else {
-            break;
-        };
+        let byte_end = byte_start + value.len_utf8();
         match value {
             '(' => {
-                tokens.push(DialectToken::OpenParen);
-                index += 1;
+                tokens.push(new!(ScannedDialectToken {
+                    kind: DialectTokenKind::OpenParen,
+                    text: String::new(),
+                    byte_start,
+                    byte_end,
+                }));
             }
             ')' => {
-                tokens.push(DialectToken::CloseParen);
-                index += 1;
+                tokens.push(new!(ScannedDialectToken {
+                    kind: DialectTokenKind::CloseParen,
+                    text: String::new(),
+                    byte_start,
+                    byte_end,
+                }));
             }
             _ => {
-                let start = index;
-                while chars
-                    .get(index)
-                    .is_some_and(|value| !is_atom_boundary(*value))
-                {
-                    index += 1;
+                let mut atom_end = byte_end;
+                while let Some((next_start, next_value)) = chars.peek().copied() {
+                    if is_atom_boundary(next_value) {
+                        break;
+                    }
+                    chars.next();
+                    atom_end = next_start + next_value.len_utf8();
                 }
-                tokens.push(DialectToken::Atom(chars[start..index].iter().collect()));
+                tokens.push(new!(ScannedDialectToken {
+                    kind: DialectTokenKind::Atom,
+                    text: source[byte_start..atom_end].to_owned(),
+                    byte_start,
+                    byte_end: atom_end,
+                }));
             }
         }
     }
     tokens
+}
+
+#[requires(start < tokens.len())]
+#[ensures(ret <= tokens[start].byte_end)]
+fn start_byte(tokens: &[ScannedDialectToken], start: usize) -> usize {
+    tokens[start].byte_start
+}
+
+#[requires(index <= tokens.len())]
+#[ensures(ret <= tokens.last().map_or(0, |token| token.byte_end))]
+fn end_byte(tokens: &[ScannedDialectToken], index: usize) -> usize {
+    tokens.get(index).map_or_else(
+        || tokens.last().map_or(0, |token| token.byte_end),
+        |token| token.byte_start,
+    )
 }
 
 #[requires(true)]
@@ -1490,396 +1543,55 @@ fn is_expansion_operator(op: &str) -> bool {
 }
 
 #[requires(!raw_word.is_empty(), "dialect words must not be empty")]
-#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|word| is_normalized_cmavo(word)))]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|word| is_basic_dialect_word(word)))]
 fn normalize_dialect_word(raw_word: &str) -> Result<String, DialectError> {
     let mut normalized = String::new();
     for value in raw_word.chars() {
-        let Some(normalized_char) = normalize_dialect_char(value) else {
+        let Some(normalized_char) = normalize_basic_dialect_word_char(value) else {
             return Err(DialectError::new(format!(
-                "Dialect token contains unsupported character `{value}`: {raw_word}"
+                "Dialect word contains unsupported character `{value}`: {raw_word}"
             )));
         };
         normalized.push(normalized_char);
     }
-    parse_cmavo_form(&normalized).ok_or_else(|| {
-        DialectError::new(format!(
-            "Dialect token is not exactly one morphologically valid cmavo word: {raw_word}"
-        ))
-    })
+    if is_basic_dialect_word(&normalized) {
+        Ok(normalized)
+    } else {
+        Err(DialectError::new(format!(
+            "Dialect word must contain at least one ASCII Latin letter: {raw_word}"
+        )))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn normalize_basic_dialect_word_char(value: char) -> Option<char> {
+    match value {
+        '\'' | 'h' | 'H' => Some('\''),
+        ',' => Some(','),
+        'a'..='z' => Some(value),
+        'A'..='Z' => Some(value.to_ascii_lowercase()),
+        _ => None,
+    }
 }
 
 #[requires(true)]
 #[ensures(ret -> !word.is_empty())]
-fn is_normalized_cmavo(word: &str) -> bool {
-    parse_cmavo_form(word).as_deref() == Some(word)
+fn is_basic_dialect_word(word: &str) -> bool {
+    word.chars()
+        .all(|value| value.is_ascii_lowercase() || matches!(value, '\'' | ','))
+        && word.chars().any(|value| value.is_ascii_lowercase())
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn normalize_dialect_char(value: char) -> Option<char> {
-    let normalized = match value {
-        '\'' | 'h' | 'H' | '\u{2019}' | '\u{a78b}' | '\u{a78c}' | '\u{02bb}' | '\u{02bf}'
-        | '\u{02b0}' | '\u{02d2}' => '\'',
-        'Á' | 'À' | 'à' => 'á',
-        'É' | 'È' | 'è' => 'é',
-        'Í' | 'Ì' | 'ì' => 'í',
-        'Ó' | 'Ò' | 'ò' => 'ó',
-        'Ú' | 'Ù' | 'ù' => 'ú',
-        'Ý' | 'Ỳ' | 'ỳ' => 'ý',
-        'Ĭ' => 'ĭ',
-        'Ŭ' => 'ŭ',
-        _ => value.to_ascii_lowercase(),
-    };
-    if is_valid_normalized_char(normalized) {
-        Some(normalized)
-    } else {
-        None
+#[ensures(ret.as_ref().is_ok_and(|key| key.is_ascii()) || ret.is_err())]
+fn ascii_dialect_atom_key(raw_atom: &str, label: &str) -> Result<String, DialectError> {
+    if let Some(value) = raw_atom.chars().find(|value| !value.is_ascii()) {
+        return Err(DialectError::new(format!(
+            "{label} contains unsupported non-ASCII character `{value}`: {raw_atom}"
+        )));
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_diacritics(text: &str) -> String {
-    text.chars()
-        .filter_map(|value| {
-            Some(match value {
-                'á' | 'Á' | 'à' | 'À' => 'a',
-                'é' | 'É' | 'è' | 'È' => 'e',
-                'í' | 'Í' | 'ì' | 'Ì' | 'ĭ' | 'Ĭ' => 'i',
-                'ó' | 'Ó' | 'ò' | 'Ò' => 'o',
-                'ú' | 'Ú' | 'ù' | 'Ù' | 'ŭ' | 'Ŭ' => 'u',
-                'ý' | 'Ý' | 'ỳ' | 'Ỳ' => 'y',
-                '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
-                _ => value,
-            })
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_valid_normalized_char(value: char) -> bool {
-    is_vowel(value) || is_consonant(value) || matches!(value, 'y' | 'ý' | '\'' | 'ĭ' | 'ŭ')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn parse_cmavo_form(text: &str) -> Option<String> {
-    let chars: Vec<char> = text.chars().collect();
-    if chars.is_empty() || chars.first().is_some_and(|value| *value == '\'') {
-        return None;
-    }
-    if chars.iter().all(|value| matches!(value, 'y' | 'ý')) {
-        return Some(strip_diacritics(text).to_ascii_lowercase());
-    }
-    parse_cmavo_form_main(&chars)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_main(chars: &[char]) -> Option<String> {
-    if starts_with_cluster(chars, 0) {
-        return None;
-    }
-    for (onset, after_onset) in parse_onsets(chars, 0) {
-        if let Some(rest) = parse_cmavo_form_tail(chars, after_onset) {
-            return Some(onset + &rest);
-        }
-    }
-    None
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|value| !value.is_empty()))]
-fn parse_cmavo_form_tail(chars: &[char], start: usize) -> Option<String> {
-    for (nucleus, after_nucleus) in parse_nuclei(chars, start) {
-        if after_nucleus == chars.len() {
-            return Some(nucleus);
-        }
-        if chars.get(after_nucleus) == Some(&'\'')
-            && let Some(rest) = parse_cmavo_form_tail(chars, after_nucleus + 1)
-        {
-            return Some(format!("{nucleus}'{rest}"));
-        }
-    }
-    None
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|(_, end)| *end >= start && *end <= chars.len()))]
-fn parse_onsets(chars: &[char], start: usize) -> Vec<(String, usize)> {
-    let mut onsets = Vec::new();
-    if let Some((glide, end)) = parse_glide(chars, start) {
-        onsets.push((glide, end));
-    }
-    for end in (start..=chars.len()).rev() {
-        if let Some(initial) = parse_initial(chars, start, end) {
-            onsets.push((initial, end));
-        }
-    }
-    onsets
-}
-
-#[requires(start <= end && end <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|value| value.chars().count() == end - start))]
-fn parse_initial(chars: &[char], start: usize, end: usize) -> Option<String> {
-    let initial: String = chars.get(start..end)?.iter().collect();
-    let valid_shape = match end - start {
-        0 => true,
-        1 => initial.chars().all(is_consonant),
-        2 => starts_with_initial_pair(chars, start),
-        3 => valid_three_consonant_initial(chars, start),
-        _ => false,
-    };
-    valid_shape.then_some(initial)
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.iter().all(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_nuclei(chars: &[char], start: usize) -> Vec<(String, usize)> {
-    let mut nuclei = Vec::new();
-    if let Some((diphthong, end)) = parse_diphthong(chars, start) {
-        nuclei.push((diphthong, end));
-    }
-    if let Some((single, end)) = parse_single_vowel(chars, start) {
-        nuclei.push((single, end));
-    }
-    nuclei
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_diphthong(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let first = normalize_vowel(*chars.get(start)?);
-    let second = normalize_vowel(*chars.get(start + 1)?);
-    if is_diphthong_pair(first, second) {
-        let output = if matches!(second, 'i') {
-            format!("{first}ĭ")
-        } else {
-            format!("{first}ŭ")
-        };
-        Some((output, start + 2))
-    } else {
-        None
-    }
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end == start + 1))]
-fn parse_single_vowel(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let value = *chars.get(start)?;
-    if is_vowel(value) || matches!(value, 'y' | 'ý') {
-        Some((
-            strip_diacritics(&value.to_string()).to_ascii_lowercase(),
-            start + 1,
-        ))
-    } else {
-        None
-    }
-}
-
-#[requires(start <= chars.len())]
-#[ensures(ret.as_ref().is_none_or(|(_, end)| *end > start && *end <= chars.len()))]
-fn parse_glide(chars: &[char], start: usize) -> Option<(String, usize)> {
-    let first = base_semivowel(*chars.get(start)?)?;
-    if !matches!(first, 'i' | 'u') {
-        return None;
-    }
-    if let Some((vowel, end)) = parse_single_vowel(chars, start + 1)
-        && !matches!(vowel.as_str(), "i" | "u")
-    {
-        let glide = if first == 'i' { "ĭ" } else { "ŭ" };
-        return Some((format!("{glide}{vowel}"), end));
-    }
-    None
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn starts_with_cluster(chars: &[char], index: usize) -> bool {
-    chars
-        .get(index..index + 2)
-        .is_some_and(|pair| pair.iter().copied().all(is_consonant))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn starts_with_initial_pair(chars: &[char], index: usize) -> bool {
-    chars
-        .get(index..index + 2)
-        .is_some_and(|pair| is_initial_pair(pair[0], pair[1]))
-}
-
-#[requires(index <= chars.len())]
-#[ensures(true)]
-fn valid_three_consonant_initial(chars: &[char], index: usize) -> bool {
-    chars.get(index..index + 3).is_some_and(|triple| {
-        is_consonant(triple[0])
-            && is_consonant(triple[1])
-            && is_consonant(triple[2])
-            && !is_sibilant(triple[0])
-            && is_other_consonant(triple[1])
-            && is_liquid(triple[2])
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_vowel(value: char) -> bool {
-    matches!(
-        value,
-        'a' | 'e'
-            | 'i'
-            | 'o'
-            | 'u'
-            | 'á'
-            | 'é'
-            | 'í'
-            | 'ó'
-            | 'ú'
-            | 'à'
-            | 'è'
-            | 'ì'
-            | 'ò'
-            | 'ù'
-            | 'ĭ'
-            | 'ŭ'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn normalize_vowel(value: char) -> char {
-    match value {
-        'á' | 'à' => 'a',
-        'é' | 'è' => 'e',
-        'í' | 'ì' => 'i',
-        'ó' | 'ò' => 'o',
-        'ú' | 'ù' => 'u',
-        'ý' | 'ỳ' => 'y',
-        'ĭ' => 'i',
-        'ŭ' => 'u',
-        _ => value,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_consonant(value: char) -> bool {
-    matches!(
-        value,
-        'b' | 'c'
-            | 'd'
-            | 'f'
-            | 'g'
-            | 'j'
-            | 'k'
-            | 'l'
-            | 'm'
-            | 'n'
-            | 'p'
-            | 'r'
-            | 's'
-            | 't'
-            | 'v'
-            | 'x'
-            | 'z'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_sibilant(value: char) -> bool {
-    matches!(value, 'c' | 'j' | 's' | 'z')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_other_consonant(value: char) -> bool {
-    matches!(
-        value,
-        'p' | 'b' | 'f' | 'v' | 't' | 'd' | 'x' | 'k' | 'g' | 'm' | 'n'
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_liquid(value: char) -> bool {
-    matches!(value, 'l' | 'r')
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_initial_pair(first: char, second: char) -> bool {
-    matches!(
-        (first, second),
-        ('b', 'l')
-            | ('b', 'r')
-            | ('c', 'f')
-            | ('c', 'k')
-            | ('c', 'l')
-            | ('c', 'm')
-            | ('c', 'n')
-            | ('c', 'p')
-            | ('c', 'r')
-            | ('c', 't')
-            | ('d', 'j')
-            | ('d', 'r')
-            | ('d', 'z')
-            | ('f', 'l')
-            | ('f', 'r')
-            | ('g', 'l')
-            | ('g', 'r')
-            | ('j', 'b')
-            | ('j', 'd')
-            | ('j', 'g')
-            | ('j', 'm')
-            | ('j', 'v')
-            | ('k', 'l')
-            | ('k', 'r')
-            | ('m', 'r')
-            | ('p', 'l')
-            | ('p', 'r')
-            | ('s', 'f')
-            | ('s', 'k')
-            | ('s', 'l')
-            | ('s', 'm')
-            | ('s', 'n')
-            | ('s', 'p')
-            | ('s', 'r')
-            | ('s', 't')
-            | ('t', 'c')
-            | ('t', 'r')
-            | ('t', 's')
-            | ('v', 'l')
-            | ('v', 'r')
-            | ('x', 'l')
-            | ('x', 'r')
-            | ('z', 'b')
-            | ('z', 'd')
-            | ('z', 'g')
-            | ('z', 'm')
-            | ('z', 'v')
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_diphthong_pair(first: char, second: char) -> bool {
-    matches!(
-        (first, second),
-        ('a', 'i') | ('a', 'u') | ('e', 'i') | ('o', 'i')
-    )
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn base_semivowel(value: char) -> Option<char> {
-    match value {
-        'i' | 'í' | 'ì' | 'ĭ' => Some('i'),
-        'u' | 'ú' | 'ù' | 'ŭ' => Some('u'),
-        _ => None,
-    }
+    Ok(raw_atom.to_ascii_uppercase())
 }
 
 impl DialectToken {
@@ -1959,6 +1671,38 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn parses_basic_orthography_word_entries_without_morphology_validation() {
+        let dialect =
+            parse_dialect_definition("((AAA <-> stillnoth) (lahu -> taU))").expect("dialect");
+        assert_eq!(
+            dialect.cmavo_entries,
+            vec![
+                new!(CmavoDialectEntry::Swap {
+                    left: "aaa".into(),
+                    right: "stillnot'".into(),
+                }),
+                new!(CmavoDialectEntry::Expansion {
+                    source: "la'u".into(),
+                    replacement: vec!["tau".into()],
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_non_ascii_formula_words() {
+        let error = parse_dialect_definition("((tau <-> taŭ))")
+            .expect_err("dialect formulas use basic ASCII orthography");
+
+        assert!(error.message().contains("unsupported character"), "{error}");
+        assert!(error.message().contains("taŭ"), "{error}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn rejects_unmappable_dialect_word_characters() {
         let error = parse_dialect_definition("((c%3e <-> ce))")
             .expect_err("unsupported characters must not be dropped");
@@ -1985,7 +1729,7 @@ mod tests {
                 }),
                 new!(CmavoDialectEntry::Swap {
                     left: "tu'a".into(),
-                    right: "taŭ".into(),
+                    right: "tau".into(),
                 }),
                 new!(CmavoDialectEntry::Swap {
                     left: "su'o".into(),
@@ -1993,7 +1737,7 @@ mod tests {
                 }),
                 new!(CmavoDialectEntry::Swap {
                     left: "jo'u".into(),
-                    right: "jaŭ".into(),
+                    right: "jau".into(),
                 }),
             ]
         );
@@ -2058,6 +1802,14 @@ mod tests {
             dialect_formula_top_level_references(&format!("(cbm {swap} +GADGANZU renamed)")),
             vec!["cbm".to_owned(), "renamed".to_owned()]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn formula_editing_preserves_legacy_stray_close_paren_behavior() {
+        assert_eq!(normalize_formula_text("custom)"), "(custom)");
+        assert!(parse_dialect_definition("(custom))").is_err());
     }
 
     #[test]

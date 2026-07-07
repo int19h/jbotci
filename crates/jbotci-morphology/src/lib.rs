@@ -2,6 +2,7 @@
 
 mod cmavo;
 mod diacritics;
+mod dialect;
 mod grammar;
 mod lujvo;
 mod segment;
@@ -17,9 +18,7 @@ use jbotci_diagnostics::{
     DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TraceReport,
     source_span_from_char_offsets,
 };
-pub use jbotci_dialect::{
-    CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
-};
+use jbotci_dialect::{DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
 use serde::ser::{SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
@@ -32,6 +31,9 @@ pub use diacritics::{
     push_folded_lojban_diacritics_to, push_stripped_diacritics_to,
     push_stripped_lojban_diacritics_to, strip_diacritics, strip_diacritics_eq,
     strip_lojban_diacritic, strip_lojban_diacritics, stripped_lojban_diacritics_eq,
+};
+pub use dialect::{
+    CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectWord, DialectCompilationError,
 };
 pub use lujvo::{
     ConsonantPairClass, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate,
@@ -73,17 +75,15 @@ pub const MORPHOLOGY_TRACE_FILTERS: &[&str] = &[
     "CMEVLA",
 ];
 
-#[invariant(
-    true,
-    "cmavo dialect entry validity is guaranteed by CmavoDialectEntry"
-)]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct MorphologyOptions {
     pub accept_latin: bool,
     pub accept_cyrillic: bool,
     pub accept_zbalermorna: bool,
-    pub cmavo_dialect_entries: Vec<CmavoDialectEntry>,
+    #[serde(default)]
+    pub compiled_dialect: CompiledDialectDefinition,
     pub cmevla_as_relation_words: bool,
     pub uppercase_marks_stress: bool,
     #[serde(default)]
@@ -98,7 +98,7 @@ impl Default for MorphologyOptions {
             accept_latin: true,
             accept_cyrillic: true,
             accept_zbalermorna: true,
-            cmavo_dialect_entries: Vec::new(),
+            compiled_dialect: CompiledDialectDefinition::default(),
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
             trace: TraceOptions::disabled(),
@@ -108,14 +108,17 @@ impl Default for MorphologyOptions {
 
 impl MorphologyOptions {
     #[requires(true)]
-    #[ensures(ret.cmavo_dialect_entries == definition.cmavo_entries)]
-    #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
-    #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
-    pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
+    #[ensures(ret.as_ref().is_ok_and(|options| options.compiled_dialect.entries.len() == definition.cmavo_entries.len()) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|options| !definition.features.contains(&DialectFeature::Cbm) || options.cmevla_as_relation_words) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|options| !definition.features.contains(&DialectFeature::CaseInsensitive) || !options.uppercase_marks_stress) || ret.is_err())]
+    pub fn try_with_dialect_definition(
+        self,
+        definition: &DialectDefinition,
+    ) -> Result<Self, DialectCompilationError> {
         let cmevla_as_relation_words = self.cmevla_as_relation_words;
         let uppercase_marks_stress = self.uppercase_marks_stress;
-        MorphologyOptions {
-            cmavo_dialect_entries: definition.cmavo_entries.clone(),
+        Ok(MorphologyOptions {
+            compiled_dialect: CompiledDialectDefinition::compile(definition)?,
             cmevla_as_relation_words: cmevla_as_relation_words
                 || definition.features.contains(&DialectFeature::Cbm),
             uppercase_marks_stress: uppercase_marks_stress
@@ -123,7 +126,15 @@ impl MorphologyOptions {
                     .features
                     .contains(&DialectFeature::CaseInsensitive),
             ..self
-        }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(definition.features.contains(&DialectFeature::Cbm) -> ret.cmevla_as_relation_words)]
+    #[ensures(definition.features.contains(&DialectFeature::CaseInsensitive) -> !ret.uppercase_marks_stress)]
+    pub fn with_dialect_definition(self, definition: &DialectDefinition) -> Self {
+        self.try_with_dialect_definition(definition)
+            .expect("dialect definition must compile")
     }
 
     #[requires(true)]
@@ -548,6 +559,14 @@ impl Phonemes {
     }
 }
 
+#[invariant(!phonemes.as_str().is_empty(), "word key phonemes must not be empty")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct WordKey {
+    pub kind: WordKind,
+    pub phonemes: Phonemes,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn render_phoneme_char(ch: char, options: PhonemeRenderOptions) -> char {
@@ -683,6 +702,21 @@ impl Word {
             )
             .expect("lujvo parts are valid phoneme text"),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.kind == self.kind())]
+    pub fn key(&self) -> WordKey {
+        new!(WordKey {
+            kind: self.kind(),
+            phonemes: self.phonemes(),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.key() == other.key()))]
+    pub fn is_same_word(&self, other: &Word) -> bool {
+        self.key() == other.key()
     }
 
     #[requires(true)]
@@ -2083,7 +2117,7 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
     let data = attempt.into_data();
     let result = data
         .result
-        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries));
+        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect));
     new!(MorphologySegmentAttempt {
         result,
         warnings: data.warnings,
@@ -2105,7 +2139,7 @@ pub fn segment_words_for_display_with_options_and_source_id(
     source_id: Option<SourceId>,
 ) -> Result<Vec<WordLike>, MorphologyError> {
     grammar::segment_words_for_display(input, options, source_id)
-        .map(|words| apply_cmavo_dialect_entries(words, &options.cmavo_dialect_entries))
+        .map(|words| apply_compiled_dialect_entries(words, &options.compiled_dialect))
 }
 
 #[requires(!phonemes.as_str().is_empty())]
@@ -2117,87 +2151,46 @@ pub fn pronunciation_syllables(phonemes: &Phonemes) -> Result<Vec<String>, Strin
 
 #[requires(true)]
 #[ensures(true)]
-fn apply_cmavo_dialect_entries(
+fn apply_compiled_dialect_entries(
     mut words: Vec<WordLike>,
-    entries: &[CmavoDialectEntry],
+    dialect: &CompiledDialectDefinition,
 ) -> Vec<WordLike> {
-    for entry in entries {
-        words = apply_cmavo_dialect_entry(words, entry);
+    for entry in &dialect.entries {
+        words = apply_compiled_dialect_entry(words, entry);
     }
     words
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn apply_cmavo_dialect_entry(words: Vec<WordLike>, entry: &CmavoDialectEntry) -> Vec<WordLike> {
+fn apply_compiled_dialect_entry(
+    words: Vec<WordLike>,
+    entry: &CompiledDialectEntry,
+) -> Vec<WordLike> {
     words
         .into_iter()
-        .flat_map(|word_like| apply_cmavo_dialect_entry_to_word_like(word_like, entry))
+        .flat_map(|word_like| apply_compiled_dialect_entry_to_word_like(word_like, entry))
         .collect()
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn apply_cmavo_dialect_entry_to_word_like(
+fn apply_compiled_dialect_entry_to_word_like(
     word_like: WordLike,
-    entry: &CmavoDialectEntry,
+    entry: &CompiledDialectEntry,
 ) -> Vec<WordLike> {
     let data!(WordLike::PlainWord(word)) = word_like.as_data() else {
         return vec![word_like];
     };
-    let Some(replacement) = cmavo_dialect_replacement(word, entry) else {
+    let key = word.key();
+    let Some(replacement) = entry.replacement_for(&key) else {
         return vec![word_like];
     };
+    let span = word.span().clone();
     replacement
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|words| !words.is_empty()))]
-fn cmavo_dialect_replacement(word: &Word, entry: &CmavoDialectEntry) -> Option<Vec<WordLike>> {
-    if word.kind() != WordKind::Cmavo {
-        return None;
-    }
-    let replacement = match entry.as_data() {
-        data!(CmavoDialectEntry::Swap { left, right })
-            if cmavo_dialect_entry_matches(word, left) =>
-        {
-            vec![right]
-        }
-        data!(CmavoDialectEntry::Swap { left, right })
-            if cmavo_dialect_entry_matches(word, right) =>
-        {
-            vec![left]
-        }
-        data!(CmavoDialectEntry::Expansion {
-            source,
-            replacement,
-        }) if cmavo_dialect_entry_matches(word, source) => replacement.iter().collect(),
-        _ => return None,
-    };
-    Some(
-        replacement
-            .into_iter()
-            .map(|phonemes| replacement_cmavo(phonemes, word.span()))
-            .collect(),
-    )
-}
-
-#[requires(!candidate.is_empty())]
-#[ensures(true)]
-fn cmavo_dialect_entry_matches(word: &Word, candidate: &str) -> bool {
-    canonical_text_eq(word.phonemes().as_str(), candidate)
-}
-
-#[requires(!phonemes.is_empty())]
-#[ensures(matches!(ret.as_data(), data!(WordLike::PlainWord(word)) if word.kind() == WordKind::Cmavo))]
-fn replacement_cmavo(phonemes: &str, span: &SourceSpan) -> WordLike {
-    let normalized =
-        segment::parse_cmavo_form(phonemes).unwrap_or_else(|| canonicalize_text(phonemes));
-    WordLike::bare(Word::from_kind(
-        WordKind::Cmavo,
-        Phonemes::from_canonical(normalized).expect("dialect cmavo entry is normalized"),
-        span.clone(),
-    ))
+        .into_iter()
+        .map(|word| word.to_word_like_with_span(&span))
+        .collect()
 }
 
 #[requires(true)]
@@ -2557,6 +2550,12 @@ pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
 pub fn normalize_cmavo_form(text: &str) -> Option<String> {
+    normalize_normalized_cmavo_form(text)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn normalize_normalized_cmavo_form(text: &str) -> Option<String> {
     let normalized = segment::parse_cmavo_form(text)?;
     Some(
         normalized
@@ -2569,7 +2568,7 @@ pub fn normalize_cmavo_form(text: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|phonemes| !phonemes.as_str().is_empty()))]
 pub fn cmavo_phonemes(text: &str) -> Option<Phonemes> {
-    let normalized = segment::parse_cmavo_form(text)?;
+    let normalized = normalize_cmavo_form(text)?;
     Cmavo::from_text(&normalized)?;
     Phonemes::from_canonical(normalized).ok()
 }
@@ -2620,6 +2619,9 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<std::ops::Range<usize>> 
 mod tests {
     use super::*;
     use bityzba::requires;
+    use jbotci_dialect::{
+        CmavoDialectEntry, CmavoDialectEntryData, DialectDefinition, DialectFeature,
+    };
 
     #[test]
     #[requires(true)]
@@ -3475,7 +3477,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cbm_dialect_to_morphology_options() {
-        let dialect = jbotci_dialect::parse_dialect_definition("(cbm)").expect("dialect");
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::Cbm]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words = segment_words_with_modifiers_with_options_and_source_id(
             "mi .alis. do sa broda",
@@ -3494,8 +3499,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_case_insensitive_dialect_to_morphology_options() {
-        let dialect =
-            jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words =
             segment_words_with_modifiers_with_options_and_source_id("NALSELTRO", &options, None)
@@ -3507,8 +3514,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_combined_dialect_formula_to_morphology_options() {
-        let dialect =
-            jbotci_dialect::parse_dialect_definition("(case-insensitive)").expect("dialect");
+        let dialect = DialectDefinition {
+            cmavo_entries: Vec::new(),
+            features: std::collections::BTreeSet::from([DialectFeature::CaseInsensitive]),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
         let words =
             segment_words_with_modifiers_with_options_and_source_id("la ITALIAS.", &options, None)
@@ -3520,8 +3529,19 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cmavo_dialect_swaps_in_order() {
-        let dialect = jbotci_dialect::parse_dialect_definition("((ce'u <-> ce) (ce'u <-> ki))")
-            .expect("dialect");
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![
+                new!(CmavoDialectEntry::Swap {
+                    left: "ce'u".to_owned(),
+                    right: "ce".to_owned(),
+                }),
+                new!(CmavoDialectEntry::Swap {
+                    left: "ce'u".to_owned(),
+                    right: "ki".to_owned(),
+                }),
+            ],
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id("ce", &options, None)
@@ -3534,8 +3554,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn applies_cmavo_dialect_expansions() {
-        let dialect =
-            jbotci_dialect::parse_dialect_definition("((la'u -> la'e di'u))").expect("dialect");
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![new!(CmavoDialectEntry::Expansion {
+                source: "la'u".to_owned(),
+                replacement: vec!["la'e".to_owned(), "di'u".to_owned()],
+            })],
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id("la'u", &options, None)
@@ -3547,9 +3572,64 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn applies_builtin_cmavo_dialects() {
+    fn applies_compiled_non_cmavo_dialect_entries() {
         let dialect =
-            jbotci_dialect::parse_dialect_definition("(jboponei ce-ki-tau)").expect("dialect");
+            jbotci_dialect::parse_dialect_definition("((klama <-> cadzu))").expect("dialect");
+        let options = MorphologyOptions::default().with_dialect_definition(&dialect);
+
+        let words =
+            segment_words_with_modifiers_with_options_and_source_id("mi klama", &options, None)
+                .expect("valid morphology");
+
+        assert_eq!(base_phoneme_texts(&words), vec!["mi", "cádzu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_morphologically_invalid_compiled_dialect_words() {
+        let dialect = jbotci_dialect::parse_dialect_definition("((aaa <-> eee))").expect("dialect");
+
+        assert!(
+            MorphologyOptions::default()
+                .try_with_dialect_definition(&dialect)
+                .is_err()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn applies_multiple_cmavo_dialect_entries() {
+        let dialect = DialectDefinition {
+            cmavo_entries: vec![
+                new!(CmavoDialectEntry::Expansion {
+                    source: "po".to_owned(),
+                    replacement: vec!["lo".to_owned(), "su'u".to_owned()],
+                }),
+                new!(CmavoDialectEntry::Expansion {
+                    source: "nei".to_owned(),
+                    replacement: vec!["kei".to_owned()],
+                }),
+                new!(CmavoDialectEntry::Swap {
+                    left: "ce'u".to_owned(),
+                    right: "ce".to_owned(),
+                }),
+                new!(CmavoDialectEntry::Swap {
+                    left: "ke'a".to_owned(),
+                    right: "ki".to_owned(),
+                }),
+                new!(CmavoDialectEntry::Swap {
+                    left: "tu'a".to_owned(),
+                    right: "tau".to_owned(),
+                }),
+                new!(CmavoDialectEntry::Swap {
+                    left: "su'o".to_owned(),
+                    right: "su".to_owned(),
+                }),
+            ],
+            features: std::collections::BTreeSet::new(),
+        };
         let options = MorphologyOptions::default().with_dialect_definition(&dialect);
 
         let words = segment_words_with_modifiers_with_options_and_source_id(
