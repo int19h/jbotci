@@ -72,10 +72,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI enum delegates validation to clap and command option structs",
     ),
     (
-        "apps/jbotci/src/lib.rs:Command::Gerna",
-        "cfg-gated nightly command delegates payload validity to GernaInput; stable builds cannot reference the variant in a stronger invariant",
-    ),
-    (
         "apps/jbotci/src/lib.rs:Command::Gimfihi",
         "CLI enum delegates validation to clap and gimfihi option handling",
     ),

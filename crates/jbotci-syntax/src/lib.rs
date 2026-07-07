@@ -1496,20 +1496,6 @@ pub fn parse_text(words: &[WordLike], options: &ParseOptions) -> Result<TextSynt
         .map(|parse_tree| *parse_tree)
 }
 
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn syntax_grammar_ebnf(options: &ParseOptions) -> String {
-    grammar::syntax_grammar_ebnf(options)
-}
-
-#[cfg(feature = "grammar-debug")]
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-pub fn syntax_grammar_svg(options: &ParseOptions) -> String {
-    grammar::syntax_grammar_svg(options)
-}
-
 #[invariant(warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
 #[expensive_invariant({
     let mut last_end = None;
@@ -2866,18 +2852,6 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "grammar-debug")]
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn grammar_debug_ebnf_contains_terminal_labels() {
-        let output = syntax_grammar_ebnf(&ParseOptions::default());
-
-        assert!(output.contains("sumti"));
-        assert!(output.contains("BRIVLA"));
-        assert!(output.contains("QUOTE"));
-    }
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -2891,21 +2865,6 @@ mod tests {
             &same_tree_different_spans
         ));
         assert!(!syntax_tree_eq_ignoring_spans(&left, &different_tree));
-    }
-
-    #[cfg(feature = "grammar-debug")]
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn grammar_debug_dialect_changes_generated_grammar() {
-        let default_output = syntax_grammar_ebnf(&ParseOptions::default());
-        let dialect = jbotci_dialect::parse_dialect_definition("(+ZANTUFA-QUOTES)")
-            .expect("valid dialect definition");
-        let zantufa_options = ParseOptions::default().with_dialect_definition(&dialect);
-        let zantufa_output = syntax_grammar_ebnf(&zantufa_options);
-
-        assert_ne!(default_output, zantufa_output);
-        assert!(zantufa_output.contains("mu'oi"));
     }
 
     #[requires(true)]

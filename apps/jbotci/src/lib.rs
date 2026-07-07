@@ -22,8 +22,6 @@ pub mod test_harness {
         ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat, VlataiInput,
         run_tool_cukta_with_context, run_tool_vlacku, run_tool_vlacku_with_context,
     };
-    #[cfg(feature = "grammar-debug")]
-    pub use super::{GernaFormat, GernaInput};
     pub use bityzba::{ensures, invariant, new, requires};
     pub use clap::{CommandFactory, Parser};
     pub use jbotci_diagnostics::{TraceLevel, TraceOptions, TracePhase};
@@ -186,8 +184,6 @@ use jbotci_syntax::{
     ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_generated_model_with_source_and_options,
     parse_syntax_tree_generated_model_with_source_and_options_attempt,
 };
-#[cfg(feature = "grammar-debug")]
-use jbotci_syntax::{syntax_grammar_ebnf, syntax_grammar_svg};
 use unicode_width::UnicodeWidthStr;
 
 const VLACKU_DETAIL_INDENT: &str = "    ";
@@ -226,7 +222,6 @@ pub struct Cli {
 #[invariant(::Cukta(..) => true)]
 #[invariant(::Zbasu(..) => true)]
 #[invariant(::Setup(..) => true)]
-#[invariant(::Gerna(..) => true)]
 #[derive(Debug, Clone, Subcommand)]
 pub enum Command {
     #[command(name = "vlasei", visible_alias = "lex")]
@@ -251,9 +246,6 @@ pub enum Command {
     Zbasu(TextInput),
     #[command(name = "setup")]
     Setup(SetupInput),
-    #[cfg(feature = "grammar-debug")]
-    #[command(name = "gerna", visible_alias = "grammar")]
-    Gerna(GernaInput),
 }
 
 #[invariant(true)]
@@ -396,13 +388,6 @@ impl From<CliCollisionScope> for CollisionScope {
             CliCollisionScope::None => Self::None,
         }
     }
-}
-
-#[cfg(feature = "grammar-debug")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum GernaFormat {
-    Ebnf,
-    Svg,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -754,32 +739,6 @@ impl GentufaInput {
         read_text_input(self.file.as_ref(), &self.text, stdin_text)
     }
 
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
-        dialect_definition(self.dialect.as_deref())
-    }
-}
-
-#[cfg(feature = "grammar-debug")]
-#[invariant(true)]
-#[derive(Debug, Clone, Args)]
-pub struct GernaInput {
-    #[arg(
-        long = "turtai",
-        visible_alias = "format",
-        default_value_t = GernaFormat::Ebnf,
-        value_enum
-    )]
-    pub format: GernaFormat,
-    #[arg(short = 'o', long = "output-file")]
-    pub output_file: Option<PathBuf>,
-    #[arg(long = "dialect")]
-    pub dialect: Option<String>,
-}
-
-#[cfg(feature = "grammar-debug")]
-impl GernaInput {
     #[requires(true)]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub fn dialect_definition(&self) -> Result<DialectDefinition> {

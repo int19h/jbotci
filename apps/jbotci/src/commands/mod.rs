@@ -10,8 +10,6 @@ mod vlatai;
 
 pub(super) use cukta::run_cukta;
 pub(super) use gentufa::run_gentufa;
-#[cfg(feature = "grammar-debug")]
-pub(super) use gentufa::run_gerna;
 pub(super) use gimfihi::run_gimfihi;
 pub(super) use jvozba::run_jvozba;
 pub(super) use setup::run_setup;
