@@ -19,7 +19,8 @@ use super::{
 use crate::{
     SyntaxConstructContext, SyntaxError, SyntaxErrorKind, SyntaxExpectation, SyntaxExpectedToken,
     SyntaxExpectedTokenData, SyntaxWordCategory, syntax_construct_depth,
-    syntax_construct_is_descendant_of, syntax_construct_is_known,
+    syntax_construct_generic_incomplete_parent, syntax_construct_is_descendant_of,
+    syntax_construct_is_known, syntax_construct_uses_generic_incomplete_attribution,
     syntax_expectation_summary_message,
 };
 
@@ -1216,7 +1217,7 @@ fn syntax_incomplete_kind_for_generic_context(
     construct: &str,
     contexts: &[SyntaxConstructContext],
 ) -> Option<SyntaxErrorKind> {
-    if construct != "forethought connective" {
+    if !syntax_construct_uses_generic_incomplete_attribution(construct) {
         return None;
     }
     let mut selected = None;
@@ -1260,7 +1261,7 @@ fn incomplete_expectation_context_is_compatible(
     let Some(context) = context else {
         return true;
     };
-    if context.construct == "forethought connective" {
+    if syntax_construct_uses_generic_incomplete_attribution(&context.construct) {
         return true;
     }
     construct == context.construct
@@ -1381,8 +1382,9 @@ fn syntax_incomplete_kind_candidate_for_construct(
 #[requires(!construct.is_empty())]
 #[ensures(true)]
 fn syntax_incomplete_kind_for_construct(construct: &str) -> Option<SyntaxErrorKind> {
-    if construct == "forethought connective" {
-        return None;
+    if syntax_construct_uses_generic_incomplete_attribution(construct) {
+        let parent = syntax_construct_generic_incomplete_parent(construct)?;
+        return syntax_incomplete_kind_for_construct(parent);
     }
     if is_forethought_connection_construct(construct) {
         Some(SyntaxErrorKind::IncompleteForethoughtConnection)

@@ -3166,9 +3166,11 @@ fn tree_walker_trait_methods(items: &[Item]) -> syn::Result<Vec<proc_macro2::Tok
                 methods.extend(item.variants.iter().map(|variant| {
                     let method = walk_method_ident_for_variant(enum_ident, &variant.ident);
                     let function = walk_function_ident_for_variant(enum_ident, &variant.ident);
+                    let params = enum_variant_payload_params(&variant.fields);
+                    let args = enum_variant_payload_bindings(&variant.fields);
                     quote! {
-                        fn #method(&mut self, node: &'tree #enum_ident) {
-                            walk::#function(self, node);
+                        fn #method(&mut self #(, #params)*) {
+                            walk::#function(self #(, #args)*);
                         }
                     }
                 }));
@@ -3433,14 +3435,16 @@ fn walk_enum_functions(item: &ItemEnum) -> syn::Result<Vec<proc_macro2::TokenStr
         .iter()
         .map(|variant| {
             let variant_method = walk_method_ident_for_variant(enum_ident, &variant.ident);
-            let pattern = enum_variant_wildcard_pattern(
+            let bindings = enum_variant_payload_bindings(&variant.fields);
+            let pattern = enum_variant_payload_pattern(
                 enum_ident,
                 &variant.ident,
                 &variant.fields,
                 uses_data_patterns,
+                &bindings,
             )?;
             Ok(quote! {
-                #pattern => walker.#variant_method(node),
+                #pattern => walker.#variant_method(#(#bindings),*),
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
@@ -3474,92 +3478,114 @@ fn walk_enum_functions(item: &ItemEnum) -> syn::Result<Vec<proc_macro2::TokenStr
 fn walk_enum_variant_function(
     enum_ident: &Ident,
     variant: &syn::Variant,
-    uses_data_patterns: bool,
+    _uses_data_patterns: bool,
 ) -> syn::Result<proc_macro2::TokenStream> {
     let variant_ident = &variant.ident;
     let function = walk_function_ident_for_variant(enum_ident, variant_ident);
-    let match_value = if uses_data_patterns {
-        quote!(node.as_data())
-    } else {
-        quote!(node)
-    };
+    let params = enum_variant_payload_params(&variant.fields);
     match &variant.fields {
-        Fields::Named(fields) => {
-            let bindings = fields
-                .named
-                .iter()
-                .map(|field| field.ident.as_ref().unwrap());
-            let pattern_bindings = bindings.clone();
+        Fields::Named(_) => {
+            let bindings = enum_variant_payload_bindings(&variant.fields);
             let walks = field_walks(&variant.fields, |_index, field| {
                 let ident = field.ident.as_ref().unwrap();
                 quote!(#ident)
             })?;
-            let pattern = if uses_data_patterns {
-                quote!(::bityzba::data!(#enum_ident::#variant_ident { #(#pattern_bindings,)* }))
-            } else {
-                quote!(#enum_ident::#variant_ident { #(#pattern_bindings,)* })
-            };
             Ok(quote! {
-                pub fn #function<'tree, W>(walker: &mut W, node: &'tree #enum_ident)
+                pub fn #function<'tree, W>(walker: &mut W #(, #params)*)
                 where
                     W: TreeWalker<'tree> + ?Sized,
                 {
-                    match #match_value {
-                        #pattern => {
-                            #(#walks)*
-                        }
-                        _ => {}
-                    }
+                    let _ = (#(#bindings,)*);
+                    #(#walks)*
                 }
             })
         }
-        Fields::Unnamed(fields) => {
-            let bindings = (0..fields.unnamed.len())
-                .map(|index| format_ident!("field_{index}"))
-                .collect::<Vec<_>>();
-            let pattern_bindings = bindings.clone();
+        Fields::Unnamed(_) => {
+            let bindings = enum_variant_payload_bindings(&variant.fields);
             let walks = field_walks(&variant.fields, |index, _field| {
                 let ident = &bindings[index];
                 quote!(#ident)
             })?;
-            let pattern = if uses_data_patterns {
-                quote!(::bityzba::data!(#enum_ident::#variant_ident(#(#pattern_bindings,)*)))
-            } else {
-                quote!(#enum_ident::#variant_ident(#(#pattern_bindings,)*))
-            };
             Ok(quote! {
-                pub fn #function<'tree, W>(walker: &mut W, node: &'tree #enum_ident)
+                pub fn #function<'tree, W>(walker: &mut W #(, #params)*)
                 where
                     W: TreeWalker<'tree> + ?Sized,
                 {
-                    match #match_value {
-                        #pattern => {
-                            #(#walks)*
-                        }
-                        _ => {}
-                    }
+                    let _ = (#(#bindings,)*);
+                    #(#walks)*
                 }
             })
         }
+        Fields::Unit => Ok(quote! {
+            pub fn #function<'tree, W>(_walker: &mut W)
+            where
+                W: TreeWalker<'tree> + ?Sized,
+            {}
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == fields.len())]
+fn enum_variant_payload_bindings(fields: &Fields) -> Vec<Ident> {
+    match fields {
+        Fields::Named(fields) => fields
+            .named
+            .iter()
+            .map(|field| field.ident.clone().expect("named fields have identifiers"))
+            .collect(),
+        Fields::Unnamed(fields) => (0..fields.unnamed.len())
+            .map(|index| format_ident!("field_{index}"))
+            .collect(),
+        Fields::Unit => Vec::new(),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.len() == fields.len())]
+fn enum_variant_payload_params(fields: &Fields) -> Vec<proc_macro2::TokenStream> {
+    enum_variant_payload_bindings(fields)
+        .into_iter()
+        .zip(fields.iter())
+        .map(|(binding, field)| {
+            let ty = &field.ty;
+            quote!(#binding: &'tree #ty)
+        })
+        .collect()
+}
+
+#[requires(bindings.len() == fields.len())]
+#[ensures(true)]
+fn enum_variant_payload_pattern(
+    enum_ident: &Ident,
+    variant_ident: &Ident,
+    fields: &Fields,
+    uses_data_patterns: bool,
+    bindings: &[Ident],
+) -> syn::Result<proc_macro2::TokenStream> {
+    Ok(match fields {
+        Fields::Named(_) => {
+            if uses_data_patterns {
+                quote!(::bityzba::data!(#enum_ident::#variant_ident { #(#bindings,)* }))
+            } else {
+                quote!(#enum_ident::#variant_ident { #(#bindings,)* })
+            }
+        }
+        Fields::Unnamed(_) => {
+            if uses_data_patterns {
+                quote!(::bityzba::data!(#enum_ident::#variant_ident(#(#bindings,)*)))
+            } else {
+                quote!(#enum_ident::#variant_ident(#(#bindings,)*))
+            }
+        }
         Fields::Unit => {
-            let pattern = if uses_data_patterns {
+            if uses_data_patterns {
                 quote!(::bityzba::data!(#enum_ident::#variant_ident))
             } else {
                 quote!(#enum_ident::#variant_ident)
-            };
-            Ok(quote! {
-                pub fn #function<'tree, W>(_walker: &mut W, node: &'tree #enum_ident)
-                where
-                    W: TreeWalker<'tree> + ?Sized,
-                {
-                    match #match_value {
-                        #pattern => {}
-                        _ => {}
-                    }
-                }
-            })
+            }
         }
-    }
+    })
 }
 
 #[requires(true)]

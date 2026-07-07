@@ -943,7 +943,7 @@ mod tests {
 
         #[requires(true)]
         #[ensures(true)]
-        fn walk_wrapped_node_named(&mut self, _node: &'tree WrappedNode) {
+        fn walk_wrapped_node_named(&mut self, _left: &'tree LeafNode, _right: &'tree LeafNode) {
             self.events.borrow_mut().push("named:cutoff".to_owned());
         }
 

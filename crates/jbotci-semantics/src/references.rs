@@ -1095,252 +1095,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_text(&mut self, text: &'tree GeneratedTextSyntax) {
-        match text {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.analyze_text_paragraph_with_additional_niho(&text.0);
-            }
-            generated::TextSyntax::RegularText(text) => {
-                self.analyze_free_modifiers_nested(&text.leading_free_modifiers);
-                for statement in &text.leading_i_statements {
-                    self.analyze_free_modifiers_nested(&statement.free_modifiers);
-                }
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.analyze_text_paragraphs(paragraphs);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_text_paragraphs(&mut self, paragraphs: &'tree generated::TextParagraphsSyntax) {
-        match paragraphs {
-            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
-                self.analyze_text_paragraph_with_additional_niho(paragraphs);
-            }
-            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
-                for paragraph in &paragraphs.0 {
-                    self.analyze_niho_paragraph(paragraph);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_text_paragraph_with_additional_niho(
-        &mut self,
-        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
-    ) {
-        self.analyze_paragraph(&paragraphs.first);
-        for paragraph in &paragraphs.additional_niho {
-            self.analyze_niho_paragraph(paragraph);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_paragraph(&mut self, paragraph: &'tree generated::ParagraphSyntax) {
-        match paragraph {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.analyze_paragraph_statement_sequence(&paragraph.0);
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                self.analyze_free_modifiers_nested(&paragraph.free_modifiers);
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.analyze_paragraph_statement_sequence(statements);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_niho_paragraph(&mut self, paragraph: &'tree generated::NihoParagraphSyntax) {
-        self.analyze_free_modifiers_nested(&paragraph.free_modifiers);
-        if let Some(statements) = paragraph.statements.as_deref() {
-            self.analyze_paragraph_statement_sequence(statements);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_paragraph_statement_sequence(
-        &mut self,
-        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
-    ) {
-        self.analyze_statement_or_fragment(&sequence.initial.0);
-        for statement in &sequence.following {
-            self.analyze_free_modifiers_nested(&statement.free_modifiers);
-            if let Some(statement) = statement.statement.as_deref() {
-                self.analyze_statement_or_fragment(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_statement_or_fragment(
-        &mut self,
-        statement: &'tree generated::StatementOrFragmentSyntax,
-    ) {
-        match statement {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.analyze_statement(&statement.statement);
-                self.analyze_zantufa_statement_terms_tail(&statement.tail);
-            }
-            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
-                self.analyze_statement(&statement.0);
-            }
-            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
-                self.analyze_fragment_statement(fragment);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_statement(&mut self, statement: &'tree generated::StatementSyntax) {
-        match statement {
-            generated::StatementSyntax::StatementBase(statement) => {
-                self.analyze_statement_base(statement);
-            }
-            generated::StatementSyntax::IStatementConnection(connection) => {
-                self.analyze_statement_base(&connection.leading_statement);
-                for continuation in &connection.continuations {
-                    self.analyze_i_statement_connection_tail(continuation);
-                }
-            }
-            generated::StatementSyntax::PreposedIStatementConnection(connection) => {
-                self.analyze_statement_base(&connection.leading_statement);
-                self.analyze_statement_after_i_connective(&connection.trailing_statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_i_statement_connection_tail(
-        &mut self,
-        tail: &'tree generated::IStatementConnectionTailSyntax,
-    ) {
-        match tail {
-            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
-                self.analyze_statement_after_i_connective(&tail.trailing_statement);
-            }
-            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-                self.analyze_statement_after_i_connective(&tail.trailing_statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_statement_after_i_connective(
-        &mut self,
-        statement: &'tree generated::StatementAfterIConnectiveSyntax,
-    ) {
-        match statement {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
-                self.analyze_bridi_statement(statement);
-            }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
-                self.analyze_text_group_statement(statement);
-            }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.analyze_forethought_statement(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_text_group_statement(
-        &mut self,
-        statement: &'tree generated::TextGroupStatementSyntax,
-    ) {
-        if let Some(tense_modal) = statement.tense_modal.as_deref() {
-            self.analyze_tense_modal_nested(tense_modal);
-        }
-        self.analyze_text(&statement.text);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_bridi_statement(&mut self, statement: &'tree generated::BridiStatementSyntax) {
-        self.analyze_predicate(&statement.bridi);
-        for continuation in &statement.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.analyze_tense_modal_nested(tense_modal);
-                    }
-                    self.analyze_subbridi(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.analyze_tense_modal_nested(tense_modal);
-                    }
-                    self.analyze_subbridi(&continuation.trailing_subbridi);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_statement_base(&mut self, statement: &'tree generated::StatementBaseSyntax) {
-        match statement {
-            generated::StatementBaseSyntax::PrenexStatement(statement) => {
-                self.analyze_terms_nested(&statement.prenex_terms);
-                self.analyze_statement(&statement.inner_statement);
-            }
-            generated::StatementBaseSyntax::BridiStatement(statement) => {
-                self.analyze_bridi_statement(statement);
-            }
-            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
-                self.analyze_text_group_statement(statement);
-            }
-            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.analyze_forethought_statement(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_forethought_statement(
-        &mut self,
-        statement: &'tree generated::ForethoughtStatementSyntax,
-    ) {
-        self.analyze_statement(&statement.first);
-        self.analyze_statement(&statement.first_branch.statement);
-        for branch in &statement.additional_branches {
-            self.analyze_statement(&branch.statement);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_subbridi(&mut self, subbridi: &'tree generated::SubbridiSyntax) {
-        match subbridi {
-            generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
-                self.analyze_predicate(&subbridi.0);
-            }
-            generated::SubbridiSyntax::PrenexSubbridi(subbridi) => {
-                self.analyze_terms_nested(&subbridi.prenex_terms);
-                self.analyze_subbridi(&subbridi.inner_subbridi);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn analyze_predicate(&mut self, bridi: &'tree generated::BridiSyntax) -> SelbriPlaceFrameId {
         self.analyze_predicate_with_initial_place(bridi, 1)
     }
@@ -2231,7 +1985,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => {
-                self.analyze_text(&unit.text);
+                self.walk_node(&unit.text);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2289,7 +2043,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     let inner = self.analyze_subbridi_frame_with_initial_place(&unit.subbridi, 1);
                     propagation_forward(inner)
                 } else {
-                    self.analyze_subbridi(&unit.subbridi);
+                    self.walk_node(&unit.subbridi);
                     propagation_none()
                 };
                 self.add_frame(
@@ -2301,7 +2055,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::ZantufaStatementAbstractionTanruUnit(unit) => {
-                self.analyze_statement(&unit.statement);
+                self.walk_node(&unit.statement);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Abstraction,
@@ -2383,7 +2137,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(unit) => {
-                self.analyze_text(&unit.text);
+                self.walk_node(&unit.text);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2441,7 +2195,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     let inner = self.analyze_subbridi_frame_with_initial_place(&unit.subbridi, 1);
                     propagation_forward(inner)
                 } else {
-                    self.analyze_subbridi(&unit.subbridi);
+                    self.walk_node(&unit.subbridi);
                     propagation_none()
                 };
                 self.add_frame(
@@ -2455,7 +2209,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::ZantufaStatementAbstractionTanruUnit(
                 unit,
             ) => {
-                self.analyze_statement(&unit.statement);
+                self.walk_node(&unit.statement);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Abstraction,
@@ -2564,7 +2318,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(unit) => {
-                self.analyze_text(&unit.text);
+                self.walk_node(&unit.text);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::TanruUnit,
@@ -2802,7 +2556,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.walk_node(&sumti.inner_term);
             }
             generated::SumtiBaseSyntax::BridiDescriptionSumti(sumti) => {
-                self.analyze_statement(&sumti.statement);
+                self.walk_node(&sumti.statement);
             }
             generated::SumtiBaseSyntax::NumberSumti(sumti) => {
                 self.analyze_math_expression_nested(&sumti.expression);
@@ -2865,7 +2619,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_quote_nested(&mut self, quote: &'tree generated::QuoteSyntax) {
         if let generated::QuoteSyntax::TextQuote(quote) = quote {
-            self.analyze_text(&quote.text);
+            self.walk_node(&quote.text);
         }
     }
 
@@ -2945,20 +2699,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             generated::RelativeClauseAtomSyntax::BridiRelativeClause(clause) => match clause {
                 generated::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(clause) => {
-                    self.analyze_subbridi(&clause.subbridi);
+                    self.walk_node(&clause.subbridi);
                 }
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
-                    self.analyze_subbridi(&clause.subbridi);
+                    self.walk_node(&clause.subbridi);
                 }
                 generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
                     clause,
                 ) => {
-                    self.analyze_statement(&clause.statement);
+                    self.walk_node(&clause.statement);
                 }
                 generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
                     clause,
                 ) => {
-                    self.analyze_statement(&clause.statement);
+                    self.walk_node(&clause.statement);
                 }
             },
         }
@@ -3328,10 +3082,10 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.analyze_relation(&free_modifier.selbri);
             }
             generated::FreeModifierSyntax::ZantufaSeiStatementFreeModifier(free_modifier) => {
-                self.analyze_statement(&free_modifier.statement);
+                self.walk_node(&free_modifier.statement);
             }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
-                self.analyze_text(&free_modifier.text);
+                self.walk_node(&free_modifier.text);
             }
             generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => match free_modifier {
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
@@ -4302,245 +4056,372 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 {
     #[requires(true)]
     #[ensures(true)]
-    fn walk_bridi_bridi_with_leading_terms(&mut self, node: &'tree generated::BridiSyntax) {
-        self.analyze_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bridi_with_post_cu_terms(&mut self, node: &'tree generated::BridiSyntax) {
-        self.analyze_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bare_cu_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.analyze_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bare_cu_terms_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.analyze_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_relation_only_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.analyze_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_simple_term(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::SimpleTerm(term) = node else {
-            return;
-        };
-        self.walk_node(term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_connected_term(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::ConnectedTerm(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_bound_term_connection(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::BoundTermConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        self.walk_node(&term.trailing_term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_termset_group(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::TermsetGroup(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_pehe_termset_connection(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::PeheTermsetConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_bound_term_connection(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::BoundTermConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        self.walk_node(&term.trailing_term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_termset_group(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::TermsetGroup(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_simple_term(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::SimpleTerm(term) = node else {
-            return;
-        };
-        self.walk_node(term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::SumtiTerm(term) = node else {
-            return;
-        };
-        self.analyze_argument_nested(&term.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_place_tagged_sumti_term(
-        &mut self,
-        node: &'tree generated::SimpleTermSyntax,
-    ) {
-        let generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) = node else {
-            return;
-        };
-        self.analyze_tagged_or_elided_sumti_nested(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_tagged_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::TaggedSumtiTerm(term) = node else {
-            return;
-        };
-        self.analyze_leading_term_tag_tense_modal_nested(&term.tense_modal);
-        self.analyze_tagged_or_elided_sumti_nested(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_jai_tagged_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) = node else {
-            return;
-        };
-        if let Some(tense_modal) = term.tag.as_deref() {
-            self.analyze_tense_modal_nested(tense_modal);
-        }
-        self.analyze_argument_nested(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_fihoi_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::FihoiAdverbialTerm(term) = node else {
-            return;
-        };
-        self.analyze_statement(&term.statement);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_soi_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::SoiAdverbialTerm(term) = node else {
-            return;
-        };
-        self.analyze_statement(&term.statement);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_noiha_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::NoihaAdverbialTerm(term) = node else {
-            return;
-        };
-        match term {
-            generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                self.analyze_free_modifiers_nested(&term.free_modifiers);
-                self.analyze_relation(&term.selbri);
+    fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
+        match node {
+            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
+                self.walk_node(&text.0);
             }
-            generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                self.analyze_relation(&term.selbri);
+            generated::TextSyntax::RegularText(text) => {
+                for free_modifier in &text.leading_free_modifiers {
+                    self.walk_node(free_modifier);
+                }
+                for statement in &text.leading_i_statements {
+                    for free_modifier in &statement.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                }
+                if let Some(paragraphs) = text.paragraphs.as_deref() {
+                    self.walk_node(paragraphs);
+                }
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_forethought_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::ForethoughtTermset(term) = node else {
-            return;
-        };
-        for term in &term.terms {
-            self.walk_node(term);
-        }
-        for term in &term.first_branch.terms {
-            self.walk_node(term);
-        }
-        for branch in &term.additional_branches {
-            for term in &branch.terms {
-                self.walk_node(term);
+    fn walk_text_paragraphs(&mut self, node: &'tree generated::TextParagraphsSyntax) {
+        match node {
+            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
+                self.walk_node(paragraphs);
+            }
+            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
+                for paragraph in &paragraphs.0 {
+                    self.walk_node(paragraph);
+                }
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_nuhi_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::NuhiTermset(term) = node else {
-            return;
-        };
-        for term in &term.termset {
-            self.walk_node(term);
+    fn walk_text_paragraph_with_additional_niho(
+        &mut self,
+        node: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
+    ) {
+        self.walk_node(&node.first);
+        for paragraph in &node.additional_niho {
+            self.walk_node(paragraph);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_ke_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::KeTermset(term) = node else {
-            return;
-        };
-        for term in &term.termset {
-            self.walk_node(term);
+    fn walk_paragraph(&mut self, node: &'tree generated::ParagraphSyntax) {
+        match node {
+            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
+                self.walk_node(&paragraph.0);
+            }
+            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
+                for free_modifier in &paragraph.free_modifiers {
+                    self.walk_node(free_modifier);
+                }
+                if let Some(statements) = paragraph.statements.as_deref() {
+                    self.walk_node(statements);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_niho_paragraph(&mut self, node: &'tree generated::NihoParagraphSyntax) {
+        for free_modifier in &node.free_modifiers {
+            self.walk_node(free_modifier);
+        }
+        if let Some(statements) = node.statements.as_deref() {
+            self.walk_node(statements);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_paragraph_statement_sequence(
+        &mut self,
+        node: &'tree generated::ParagraphStatementSequenceSyntax,
+    ) {
+        self.walk_node(&node.initial.0);
+        for statement in &node.following {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
+            }
+            if let Some(statement) = statement.statement.as_deref() {
+                self.walk_node(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_or_fragment(&mut self, node: &'tree generated::StatementOrFragmentSyntax) {
+        match node {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.walk_node(&statement.statement);
+                self.walk_node(&statement.tail);
+            }
+            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
+                self.walk_node(&statement.0);
+            }
+            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+                self.walk_node(fragment);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement(&mut self, node: &'tree generated::StatementSyntax) {
+        match node {
+            generated::StatementSyntax::StatementBase(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementSyntax::IStatementConnection(connection) => {
+                self.walk_node(&connection.leading_statement);
+                for continuation in &connection.continuations {
+                    self.walk_node(continuation);
+                }
+            }
+            generated::StatementSyntax::PreposedIStatementConnection(connection) => {
+                self.walk_node(&connection.leading_statement);
+                self.walk_node(&connection.trailing_statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_i_statement_connection_tail(
+        &mut self,
+        node: &'tree generated::IStatementConnectionTailSyntax,
+    ) {
+        match node {
+            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
+                self.walk_node(&tail.trailing_statement);
+            }
+            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
+                self.walk_node(&tail.trailing_statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_after_i_connective(
+        &mut self,
+        node: &'tree generated::StatementAfterIConnectiveSyntax,
+    ) {
+        match node {
+            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.walk_node(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_text_group_statement(&mut self, node: &'tree generated::TextGroupStatementSyntax) {
+        if let Some(tense_modal) = node.tense_modal.as_deref() {
+            self.walk_node(tense_modal);
+        }
+        self.walk_node(&node.text);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
+        self.analyze_predicate(&node.bridi);
+        for continuation in &node.continuations {
+            match continuation {
+                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                    continuation,
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.walk_node(&continuation.trailing_subbridi);
+                }
+                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                    continuation,
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.walk_node(&continuation.trailing_subbridi);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_base(&mut self, node: &'tree generated::StatementBaseSyntax) {
+        match node {
+            generated::StatementBaseSyntax::PrenexStatement(statement) => {
+                for term in &statement.prenex_terms {
+                    self.walk_node(term);
+                }
+                self.walk_node(&statement.inner_statement);
+            }
+            generated::StatementBaseSyntax::BridiStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementBaseSyntax::TextGroupStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
+                self.walk_node(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_forethought_statement(&mut self, node: &'tree generated::ForethoughtStatementSyntax) {
+        self.walk_node(&node.first);
+        self.walk_node(&node.first_branch.statement);
+        for branch in &node.additional_branches {
+            self.walk_node(&branch.statement);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_subbridi(&mut self, node: &'tree generated::SubbridiSyntax) {
+        match node {
+            generated::SubbridiSyntax::BridiSubbridi(subbridi) => {
+                self.analyze_predicate(&subbridi.0);
+            }
+            generated::SubbridiSyntax::PrenexSubbridi(subbridi) => {
+                for term in &subbridi.prenex_terms {
+                    self.walk_node(term);
+                }
+                self.walk_node(&subbridi.inner_subbridi);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bridi(&mut self, node: &'tree generated::BridiSyntax) {
+        self.analyze_predicate(node);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term(&mut self, node: &'tree generated::TermSyntax) {
+        match node {
+            generated::TermSyntax::SimpleTerm(term) => self.walk_node(term),
+            generated::TermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::TermSyntax::BoundTermConnection(term) => {
+                self.walk_node(&term.leading_term);
+                self.walk_node(&term.trailing_term);
+            }
+            generated::TermSyntax::TermsetGroup(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::TermSyntax::PeheTermsetConnection(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_pehe_termset_operand(&mut self, node: &'tree generated::PeheTermsetOperandSyntax) {
+        match node {
+            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
+                self.walk_node(&term.leading_term);
+                self.walk_node(&term.trailing_term);
+            }
+            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => self.walk_node(term),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
+        match node {
+            generated::SimpleTermSyntax::SumtiTerm(term) => {
+                self.analyze_argument_nested(&term.0);
+            }
+            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                self.analyze_tagged_or_elided_sumti_nested(&term.sumti);
+            }
+            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                self.analyze_leading_term_tag_tense_modal_nested(&term.tense_modal);
+                self.analyze_tagged_or_elided_sumti_nested(&term.sumti);
+            }
+            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.analyze_tense_modal_nested(tense_modal);
+                }
+                self.analyze_argument_nested(&term.sumti);
+            }
+            generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    self.analyze_free_modifiers_nested(&term.free_modifiers);
+                    self.analyze_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.analyze_relation(&term.selbri);
+                }
+            },
+            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term);
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term);
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term);
+                    }
+                }
+            }
+            generated::SimpleTermSyntax::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            generated::SimpleTermSyntax::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                self.analyze_leading_term_tag_tense_modal_nested(&term.0);
+            }
+            generated::SimpleTermSyntax::NaKuTerm(_)
+            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
         }
     }
 
@@ -4552,13 +4433,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_selbri_tagged_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
-        self.analyze_relation(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_selbri_untagged_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
+    fn walk_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
         self.analyze_relation(node);
     }
 
@@ -4582,82 +4457,19 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_quantifier_mekso_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
+    fn walk_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
         self.analyze_quantifier_nested(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_quantifier_zantufa_raw_mekso_quantifier(
-        &mut self,
-        node: &'tree generated::QuantifierSyntax,
-    ) {
-        self.analyze_quantifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_quantifier_zantufa_priority_raw_mekso_quantifier(
-        &mut self,
-        node: &'tree generated::QuantifierSyntax,
-    ) {
-        self.analyze_quantifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_quantifier_pa_run_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
-        self.analyze_quantifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_zantufa_reverse_polish_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
+    fn walk_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
         self.analyze_math_expression_nested(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_mekso_zantufa_infix_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.analyze_math_expression_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_infix_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.analyze_math_expression_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_reverse_polish_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.analyze_math_expression_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_afterthought_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
-        self.analyze_math_operator_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_bound_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
-        self.analyze_math_operator_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_simple_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
+    fn walk_mekso_operator(&mut self, node: &'tree generated::MeksoOperatorSyntax) {
         self.analyze_math_operator_nested(node);
     }
 
@@ -4669,94 +4481,13 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_free_modifier_text_replacement_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
+    fn walk_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
         self.analyze_free_modifier_nested(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_free_modifier_zantufa_sei_statement_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_sei_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_xi_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_mai_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_zantufa_mekso_mai_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_soi_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_parenthetical_text(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_vocative_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.analyze_free_modifier_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_selbri_vocative_sumti(
-        &mut self,
-        node: &'tree generated::VocativeSumtiSyntax,
-    ) {
-        self.analyze_vocative_sumti_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_cmevla_vocative_sumti(
-        &mut self,
-        node: &'tree generated::VocativeSumtiSyntax,
-    ) {
-        self.analyze_vocative_sumti_nested(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_sumti(&mut self, node: &'tree generated::VocativeSumtiSyntax) {
+    fn walk_vocative_sumti(&mut self, node: &'tree generated::VocativeSumtiSyntax) {
         self.analyze_vocative_sumti_nested(node);
     }
 
@@ -4782,7 +4513,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+        _node: &'tree generated::IStandardParagraphStatementConnectiveSyntax,
     ) {
     }
 
@@ -4790,7 +4521,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+        _node: &'tree generated::ITagBoParagraphStatementConnectiveSyntax,
     ) {
     }
 
@@ -4798,7 +4529,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_standard_statement_connective(
         &mut self,
-        _node: &'tree generated::IStatementConnectiveSyntax,
+        _node: &'tree generated::IStandardStatementConnectiveSyntax,
     ) {
     }
 
@@ -4806,67 +4537,43 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_tag_bo_statement_connective(
         &mut self,
-        _node: &'tree generated::IStatementConnectiveSyntax,
+        _node: &'tree generated::ITagBoStatementConnectiveSyntax,
     ) {
     }
-
-    // Boundary: these leaves are unreachable children, token-only constructs,
-    // or explicitly elided placeholders for place assignment. The
-    // tagged-before-tag recovery form still exposes a leading tense/modal
-    // before cutting off the missing sumti branch.
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_tagged_sumti_before_tag_term(
-        &mut self,
-        node: &'tree generated::SimpleTermSyntax,
-    ) {
-        let generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) = node else {
-            return;
-        };
-        self.analyze_leading_term_tag_tense_modal_nested(&term.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_na_ku_term(&mut self, _node: &'tree generated::SimpleTermSyntax) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_bare_na_term(&mut self, _node: &'tree generated::SimpleTermSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_tagged_or_elided_sumti_tagged_elided_sumti(
         &mut self,
-        _node: &'tree generated::TaggedOrElidedSumtiSyntax,
+        _node: &'tree generated::TaggedElidedSumtiSyntax,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_pro_sumti(&mut self, _node: &'tree generated::SumtiBaseSyntax) {}
+    fn walk_sumti_base_pro_sumti(&mut self, _node: &'tree generated::ProSumtiSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::SumtiBaseSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_lerfu_string_sumti(&mut self, _node: &'tree generated::SumtiBaseSyntax) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_fragment_statement_ek_fragment(
+    fn walk_sumti_base_lerfu_string_sumti(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::LerfuStringSumtiSyntax,
     ) {
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_fragment_statement_ek_fragment(&mut self, _node: &'tree generated::EkFragmentSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_fragment_statement_gihek_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::GihekFragmentSyntax,
     ) {
     }
 
@@ -4874,7 +4581,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_multiple_na_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::MultipleNaFragmentSyntax,
     ) {
     }
 
@@ -4882,20 +4589,23 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_single_na_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::SingleNaFragmentSyntax,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_linked_sumti_empty_linked_sumti(&mut self, _node: &'tree generated::LinkedSumtiSyntax) {
+    fn walk_linked_sumti_empty_linked_sumti(
+        &mut self,
+        _node: &'tree generated::EmptyLinkedSumtiSyntax,
+    ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_relative_sumti_na_ku_relative_sumti(
         &mut self,
-        _node: &'tree generated::RelativeSumtiSyntax,
+        _node: &'tree generated::NaKuRelativeSumtiSyntax,
     ) {
     }
 }
@@ -5479,12 +5189,12 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
     )
 }
 
-// Boundary inventory for the two remaining generated reference traversals.
+// Boundary inventory for the prenex-binding flat scan.
 //
-// These predicates document places where the old hand-written traversals did
-// not descend through every generated tree child. The #219 conversion must
-// preserve these boundaries before deleting the old traversal copies; fixture
-// drift means this table is missing a deliberate non-descent.
+// Prenex binding deliberately uses `TreeVisitor` instead of the recursive
+// walker because it is an in-order collection pass over a bounded term slice,
+// not a stateful grammar-directed traversal. These skips keep that flat scan
+// aligned with the semantic boundaries enforced by the recursive walkers.
 //
 // Provenance:
 // - Statement-connective material is a deliberate scope boundary. The failed
@@ -5586,112 +5296,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_text(&mut self, text: &'tree GeneratedTextSyntax) {
-        match text {
-            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
-                self.visit_text_paragraph_with_additional_niho(&text.0);
-            }
-            generated::TextSyntax::RegularText(text) => {
-                self.visit_free_modifiers(&text.leading_free_modifiers);
-                for statement in &text.leading_i_statements {
-                    self.visit_free_modifiers(&statement.free_modifiers);
-                }
-                if let Some(paragraphs) = text.paragraphs.as_deref() {
-                    self.visit_text_paragraphs(paragraphs);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_text_paragraphs(&mut self, paragraphs: &'tree generated::TextParagraphsSyntax) {
-        match paragraphs {
-            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
-                self.visit_text_paragraph_with_additional_niho(paragraphs);
-            }
-            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
-                for paragraph in &paragraphs.0 {
-                    self.visit_niho_paragraph(paragraph);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_text_paragraph_with_additional_niho(
-        &mut self,
-        paragraphs: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
-    ) {
-        self.visit_paragraph(&paragraphs.first);
-        for paragraph in &paragraphs.additional_niho {
-            self.visit_niho_paragraph(paragraph);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_paragraph(&mut self, paragraph: &'tree generated::ParagraphSyntax) {
-        match paragraph {
-            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
-                self.visit_paragraph_statement_sequence(&paragraph.0);
-            }
-            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
-                self.visit_free_modifiers(&paragraph.free_modifiers);
-                if let Some(statements) = paragraph.statements.as_deref() {
-                    self.visit_paragraph_statement_sequence(statements);
-                }
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_niho_paragraph(&mut self, paragraph: &'tree generated::NihoParagraphSyntax) {
-        self.visit_free_modifiers(&paragraph.free_modifiers);
-        if let Some(statements) = paragraph.statements.as_deref() {
-            self.visit_paragraph_statement_sequence(statements);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_paragraph_statement_sequence(
-        &mut self,
-        sequence: &'tree generated::ParagraphStatementSequenceSyntax,
-    ) {
-        self.visit_statement_or_fragment(&sequence.initial.0);
-        for statement in &sequence.following {
-            self.visit_free_modifiers(&statement.free_modifiers);
-            if let Some(statement) = statement.statement.as_deref() {
-                self.visit_statement_or_fragment(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_statement_or_fragment(
-        &mut self,
-        statement: &'tree generated::StatementOrFragmentSyntax,
-    ) {
-        match statement {
-            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
-                self.visit_statement(&statement.statement);
-                self.visit_zantufa_statement_terms_tail(&statement.tail);
-            }
-            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
-                self.visit_statement(&statement.0);
-            }
-            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
-                self.visit_fragment(fragment);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn visit_statement(&mut self, statement: &'tree generated::StatementSyntax) {
         let statement_id = StatementNodeId(self.raw_for_node(statement));
         for source in std::mem::take(&mut self.pending_next_utterance_sources) {
@@ -5710,51 +5314,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::StatementSyntax::IStatementConnection(connection) => {
                 self.visit_statement_base(&connection.leading_statement);
                 for continuation in &connection.continuations {
-                    self.visit_i_statement_connection_tail(continuation);
+                    self.walk_node(continuation);
                 }
             }
             generated::StatementSyntax::PreposedIStatementConnection(connection) => {
                 self.visit_statement_base(&connection.leading_statement);
-                self.visit_statement_after_i_connective(&connection.trailing_statement);
+                self.walk_node(&connection.trailing_statement);
             }
         }
         self.current_utterance = previous_utterance;
         self.utterance_history.push(statement_id.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_i_statement_connection_tail(
-        &mut self,
-        tail: &'tree generated::IStatementConnectionTailSyntax,
-    ) {
-        match tail {
-            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
-                self.visit_statement_after_i_connective(&tail.trailing_statement);
-            }
-            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
-                self.visit_statement_after_i_connective(&tail.trailing_statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_statement_after_i_connective(
-        &mut self,
-        statement: &'tree generated::StatementAfterIConnectiveSyntax,
-    ) {
-        match statement {
-            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
-                self.visit_bridi_statement(statement);
-            }
-            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
-                self.visit_text_group_statement(statement);
-            }
-            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
-                self.visit_forethought_statement(statement);
-            }
-        }
     }
 
     #[requires(true)]
@@ -5777,64 +5346,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.da_bindings = previous_da_bindings;
             }
             generated::StatementBaseSyntax::BridiStatement(statement) => {
-                self.visit_bridi_statement(statement);
+                self.walk_node(statement);
             }
             generated::StatementBaseSyntax::TextGroupStatement(statement) => {
-                self.visit_text_group_statement(statement);
+                self.walk_node(statement);
             }
             generated::StatementBaseSyntax::ForethoughtStatement(statement) => {
-                self.visit_forethought_statement(statement);
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_forethought_statement(
-        &mut self,
-        statement: &'tree generated::ForethoughtStatementSyntax,
-    ) {
-        self.visit_statement(&statement.first);
-        self.visit_statement(&statement.first_branch.statement);
-        for branch in &statement.additional_branches {
-            self.visit_statement(&branch.statement);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_text_group_statement(
-        &mut self,
-        statement: &'tree generated::TextGroupStatementSyntax,
-    ) {
-        if let Some(tense_modal) = statement.tense_modal.as_deref() {
-            self.visit_tense_modal(tense_modal);
-        }
-        self.visit_text(&statement.text);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_bridi_statement(&mut self, statement: &'tree generated::BridiStatementSyntax) {
-        self.visit_predicate(&statement.bridi);
-        for continuation in &statement.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.visit_tense_modal(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.visit_tense_modal(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
+                self.walk_node(statement);
             }
         }
     }
@@ -6236,7 +5754,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_statement(&free_modifier.statement);
             }
             generated::FreeModifierSyntax::ParentheticalText(free_modifier) => {
-                self.visit_text(&free_modifier.text);
+                self.walk_node(&free_modifier.text);
             }
             generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => match free_modifier {
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
@@ -6714,7 +6232,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn visit_text_with_quote_anaphora_context(&mut self, text: &'tree GeneratedTextSyntax) {
         if self.quote_depth > 0 {
             self.quote_depth += 1;
-            self.visit_text(text);
+            self.walk_node(text);
             self.quote_depth -= 1;
             return;
         }
@@ -6749,7 +6267,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         let outer_discourse_predicate_stack = std::mem::take(&mut self.discourse_predicate_stack);
         let outer_current_bridi = self.current_bridi.take();
         let outer_cei_bridi_bindings = std::mem::take(&mut self.cei_bridi_bindings);
-        self.visit_text(text);
+        self.walk_node(text);
         self.flush_unresolved_pending_next_utterance_sources();
         self.cei_bridi_bindings = outer_cei_bridi_bindings;
         self.current_bridi = outer_current_bridi;
@@ -7476,7 +6994,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_expression(&unit.expression);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::TextSelbriTanruUnit(unit) => {
-                self.visit_text(&unit.text);
+                self.walk_node(&unit.text);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::TagSelbriTanruUnit(unit) => {
                 self.visit_tense_modal(&unit.tag);
@@ -7543,7 +7061,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_expression(&unit.expression);
             }
             generated::TanruUnitAtomBaseSyntax::TextSelbriTanruUnit(unit) => {
-                self.visit_text(&unit.text);
+                self.walk_node(&unit.text);
             }
             generated::TanruUnitAtomBaseSyntax::TagSelbriTanruUnit(unit) => {
                 self.visit_tense_modal(&unit.tag);
@@ -7612,7 +7130,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_math_operator(&unit.mekso_operator);
             }
             generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(unit) => {
-                self.visit_text(&unit.text);
+                self.walk_node(&unit.text);
             }
             generated::JaiInnerTanruUnitSyntax::GroupedJaiInnerTanruUnit(unit) => {
                 self.visit_connected_jai_inner_selbri(&unit.selbri);
@@ -8160,267 +7678,319 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 {
     #[requires(true)]
     #[ensures(true)]
-    fn walk_statement_statement_base(&mut self, node: &'tree generated::StatementSyntax) {
-        self.visit_statement(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_statement_i_statement_connection(&mut self, node: &'tree generated::StatementSyntax) {
-        self.visit_statement(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_statement_preposed_i_statement_connection(
-        &mut self,
-        node: &'tree generated::StatementSyntax,
-    ) {
-        self.visit_statement(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bridi_with_leading_terms(&mut self, node: &'tree generated::BridiSyntax) {
-        self.visit_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bridi_with_post_cu_terms(&mut self, node: &'tree generated::BridiSyntax) {
-        self.visit_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bare_cu_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.visit_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_bare_cu_terms_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.visit_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bridi_relation_only_bridi(&mut self, node: &'tree generated::BridiSyntax) {
-        self.visit_predicate(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_simple_term(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::SimpleTerm(term) = node else {
-            return;
-        };
-        self.walk_node(term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_connected_term(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::ConnectedTerm(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_bound_term_connection(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::BoundTermConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        self.walk_node(&term.trailing_term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_termset_group(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::TermsetGroup(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_pehe_termset_connection(&mut self, node: &'tree generated::TermSyntax) {
-        let generated::TermSyntax::PeheTermsetConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_simple_term(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::SimpleTerm(term) = node else {
-            return;
-        };
-        self.walk_node(term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_termset_group(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::TermsetGroup(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        for continuation in &term.continuations {
-            self.walk_node(&continuation.trailing_term);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand_bound_term_connection(
-        &mut self,
-        node: &'tree generated::PeheTermsetOperandSyntax,
-    ) {
-        let generated::PeheTermsetOperandSyntax::BoundTermConnection(term) = node else {
-            return;
-        };
-        self.walk_node(&term.leading_term);
-        self.walk_node(&term.trailing_term);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::SumtiTerm(term) = node else {
-            return;
-        };
-        self.visit_argument(&term.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_place_tagged_sumti_term(
-        &mut self,
-        node: &'tree generated::SimpleTermSyntax,
-    ) {
-        let generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) = node else {
-            return;
-        };
-        self.visit_tagged_or_elided_sumti(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_tagged_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::TaggedSumtiTerm(term) = node else {
-            return;
-        };
-        self.visit_leading_term_tag_tense_modal(&term.tense_modal);
-        self.visit_tagged_or_elided_sumti(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_jai_tagged_sumti_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) = node else {
-            return;
-        };
-        if let Some(tense_modal) = term.tag.as_deref() {
-            self.visit_tense_modal(tense_modal);
-        }
-        self.visit_argument(&term.sumti);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_forethought_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::ForethoughtTermset(term) = node else {
-            return;
-        };
-        for term in &term.terms {
-            self.walk_node(term.as_ref());
-        }
-        for term in &term.first_branch.terms {
-            self.walk_node(term.as_ref());
-        }
-        for branch in &term.additional_branches {
-            for term in &branch.terms {
-                self.walk_node(term.as_ref());
+    fn walk_text(&mut self, node: &'tree GeneratedTextSyntax) {
+        match node {
+            generated::TextSyntax::ExplicitXauhaLohoiText(text) => {
+                self.walk_node(&text.0);
+            }
+            generated::TextSyntax::RegularText(text) => {
+                for free_modifier in &text.leading_free_modifiers {
+                    self.walk_node(free_modifier);
+                }
+                for statement in &text.leading_i_statements {
+                    for free_modifier in &statement.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                }
+                if let Some(paragraphs) = text.paragraphs.as_deref() {
+                    self.walk_node(paragraphs);
+                }
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_nuhi_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::NuhiTermset(term) = node else {
-            return;
-        };
-        for term in &term.termset {
-            self.walk_node(term.as_ref());
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_ke_termset(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::KeTermset(term) = node else {
-            return;
-        };
-        for term in &term.termset {
-            self.walk_node(term.as_ref());
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_noiha_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::NoihaAdverbialTerm(term) = node else {
-            return;
-        };
-        match term {
-            generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                self.visit_free_modifiers(&term.free_modifiers);
-                self.visit_relation(&term.selbri);
+    fn walk_text_paragraphs(&mut self, node: &'tree generated::TextParagraphsSyntax) {
+        match node {
+            generated::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(paragraphs) => {
+                self.walk_node(paragraphs);
             }
-            generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                self.visit_relation(&term.selbri);
+            generated::TextParagraphsSyntax::TextNihoParagraphs(paragraphs) => {
+                for paragraph in &paragraphs.0 {
+                    self.walk_node(paragraph);
+                }
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_fihoi_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::FihoiAdverbialTerm(term) = node else {
-            return;
-        };
-        self.visit_statement(&term.statement);
+    fn walk_text_paragraph_with_additional_niho(
+        &mut self,
+        node: &'tree generated::TextParagraphWithAdditionalNihoSyntax,
+    ) {
+        self.walk_node(&node.first);
+        for paragraph in &node.additional_niho {
+            self.walk_node(paragraph);
+        }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_soi_adverbial_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        let generated::SimpleTermSyntax::SoiAdverbialTerm(term) = node else {
-            return;
-        };
-        self.visit_statement(&term.statement);
+    fn walk_paragraph(&mut self, node: &'tree generated::ParagraphSyntax) {
+        match node {
+            generated::ParagraphSyntax::SimpleParagraph(paragraph) => {
+                self.walk_node(&paragraph.0);
+            }
+            generated::ParagraphSyntax::INihoParagraph(paragraph) => {
+                for free_modifier in &paragraph.free_modifiers {
+                    self.walk_node(free_modifier);
+                }
+                if let Some(statements) = paragraph.statements.as_deref() {
+                    self.walk_node(statements);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_niho_paragraph(&mut self, node: &'tree generated::NihoParagraphSyntax) {
+        for free_modifier in &node.free_modifiers {
+            self.walk_node(free_modifier);
+        }
+        if let Some(statements) = node.statements.as_deref() {
+            self.walk_node(statements);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_paragraph_statement_sequence(
+        &mut self,
+        node: &'tree generated::ParagraphStatementSequenceSyntax,
+    ) {
+        self.walk_node(&node.initial.0);
+        for statement in &node.following {
+            for free_modifier in &statement.free_modifiers {
+                self.walk_node(free_modifier);
+            }
+            if let Some(statement) = statement.statement.as_deref() {
+                self.walk_node(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_or_fragment(&mut self, node: &'tree generated::StatementOrFragmentSyntax) {
+        match node {
+            generated::StatementOrFragmentSyntax::ZantufaStatementTermsStatement(statement) => {
+                self.visit_statement(&statement.statement);
+                self.walk_node(&statement.tail);
+            }
+            generated::StatementOrFragmentSyntax::StatementOrFragmentStatement(statement) => {
+                self.visit_statement(&statement.0);
+            }
+            generated::StatementOrFragmentSyntax::FragmentStatement(fragment) => {
+                self.walk_node(fragment);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement(&mut self, node: &'tree generated::StatementSyntax) {
+        self.visit_statement(node);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_i_statement_connection_tail(
+        &mut self,
+        node: &'tree generated::IStatementConnectionTailSyntax,
+    ) {
+        match node {
+            generated::IStatementConnectionTailSyntax::ChainedIConnectiveStatementTail(tail) => {
+                self.walk_node(&tail.trailing_statement);
+            }
+            generated::IStatementConnectionTailSyntax::SimpleIConnectiveStatementTail(tail) => {
+                self.walk_node(&tail.trailing_statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_statement_after_i_connective(
+        &mut self,
+        node: &'tree generated::StatementAfterIConnectiveSyntax,
+    ) {
+        match node {
+            generated::StatementAfterIConnectiveSyntax::BridiStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementAfterIConnectiveSyntax::TextGroupStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::StatementAfterIConnectiveSyntax::ForethoughtStatement(statement) => {
+                self.walk_node(statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_forethought_statement(&mut self, node: &'tree generated::ForethoughtStatementSyntax) {
+        self.visit_statement(&node.first);
+        self.visit_statement(&node.first_branch.statement);
+        for branch in &node.additional_branches {
+            self.visit_statement(&branch.statement);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_text_group_statement(&mut self, node: &'tree generated::TextGroupStatementSyntax) {
+        if let Some(tense_modal) = node.tense_modal.as_deref() {
+            self.walk_node(tense_modal);
+        }
+        self.walk_node(&node.text);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
+        self.visit_predicate(&node.bridi);
+        for continuation in &node.continuations {
+            match continuation {
+                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
+                    continuation,
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_subbridi(&continuation.trailing_subbridi);
+                }
+                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
+                    continuation,
+                ) => {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_subbridi(&continuation.trailing_subbridi);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bridi(&mut self, node: &'tree generated::BridiSyntax) {
+        self.visit_predicate(node);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term(&mut self, node: &'tree generated::TermSyntax) {
+        match node {
+            generated::TermSyntax::SimpleTerm(term) => self.walk_node(term),
+            generated::TermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::TermSyntax::BoundTermConnection(term) => {
+                self.walk_node(&term.leading_term);
+                self.walk_node(&term.trailing_term);
+            }
+            generated::TermSyntax::TermsetGroup(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::TermSyntax::PeheTermsetConnection(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_pehe_termset_operand(&mut self, node: &'tree generated::PeheTermsetOperandSyntax) {
+        match node {
+            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => self.walk_node(term),
+            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
+                self.walk_node(&term.leading_term);
+                self.walk_node(&term.trailing_term);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
+        match node {
+            generated::SimpleTermSyntax::SumtiTerm(term) => self.visit_argument(&term.0),
+            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                self.visit_tagged_or_elided_sumti(&term.sumti);
+            }
+            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                self.visit_leading_term_tag_tense_modal(&term.tense_modal);
+                self.visit_tagged_or_elided_sumti(&term.sumti);
+            }
+            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.visit_tense_modal(tense_modal);
+                }
+                self.visit_argument(&term.sumti);
+            }
+            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term.as_ref());
+                    }
+                }
+            }
+            generated::SimpleTermSyntax::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            generated::SimpleTermSyntax::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    self.visit_free_modifiers(&term.free_modifiers);
+                    self.visit_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.visit_relation(&term.selbri);
+                }
+            },
+            generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                self.visit_leading_term_tag_tense_modal(&term.0);
+            }
+            generated::SimpleTermSyntax::NaKuTerm(_)
+            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
+        }
     }
 
     #[requires(true)]
@@ -8431,13 +8001,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_selbri_tagged_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
-        self.visit_relation(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_selbri_untagged_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
+    fn walk_selbri(&mut self, node: &'tree generated::SelbriSyntax) {
         self.visit_relation(node);
     }
 
@@ -8461,82 +8025,19 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_quantifier_mekso_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
+    fn walk_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
         self.visit_quantifier(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_quantifier_zantufa_raw_mekso_quantifier(
-        &mut self,
-        node: &'tree generated::QuantifierSyntax,
-    ) {
-        self.visit_quantifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_quantifier_zantufa_priority_raw_mekso_quantifier(
-        &mut self,
-        node: &'tree generated::QuantifierSyntax,
-    ) {
-        self.visit_quantifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_quantifier_pa_run_quantifier(&mut self, node: &'tree generated::QuantifierSyntax) {
-        self.visit_quantifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_zantufa_reverse_polish_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
+    fn walk_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
         self.visit_math_expression(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_mekso_zantufa_infix_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.visit_math_expression(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_infix_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.visit_math_expression(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_reverse_polish_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
-        self.visit_math_expression(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_afterthought_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
-        self.visit_math_operator(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_bound_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
-        self.visit_math_operator(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_mekso_operator_simple_mekso_operator(
-        &mut self,
-        node: &'tree generated::MeksoOperatorSyntax,
-    ) {
+    fn walk_mekso_operator(&mut self, node: &'tree generated::MeksoOperatorSyntax) {
         self.visit_math_operator(node);
     }
 
@@ -8548,79 +8049,13 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_free_modifier_zantufa_sei_statement_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
+    fn walk_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
         self.visit_free_modifier(node);
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_free_modifier_sei_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_xi_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_zantufa_mekso_mai_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_soi_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_parenthetical_text(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_vocative_free_modifier(
-        &mut self,
-        node: &'tree generated::FreeModifierSyntax,
-    ) {
-        self.visit_free_modifier(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_selbri_vocative_sumti(
-        &mut self,
-        node: &'tree generated::VocativeSumtiSyntax,
-    ) {
-        self.visit_vocative_sumti(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_cmevla_vocative_sumti(
-        &mut self,
-        node: &'tree generated::VocativeSumtiSyntax,
-    ) {
-        self.visit_vocative_sumti(node);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_vocative_sumti_sumti(&mut self, node: &'tree generated::VocativeSumtiSyntax) {
+    fn walk_vocative_sumti(&mut self, node: &'tree generated::VocativeSumtiSyntax) {
         self.visit_vocative_sumti(node);
     }
 
@@ -8646,7 +8081,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_standard_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+        _node: &'tree generated::IStandardParagraphStatementConnectiveSyntax,
     ) {
     }
 
@@ -8654,7 +8089,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_paragraph_statement_connective_i_tag_bo_paragraph_statement_connective(
         &mut self,
-        _node: &'tree generated::IParagraphStatementConnectiveSyntax,
+        _node: &'tree generated::ITagBoParagraphStatementConnectiveSyntax,
     ) {
     }
 
@@ -8662,7 +8097,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_standard_statement_connective(
         &mut self,
-        _node: &'tree generated::IStatementConnectiveSyntax,
+        _node: &'tree generated::IStandardStatementConnectiveSyntax,
     ) {
     }
 
@@ -8670,59 +8105,31 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_i_statement_connective_i_tag_bo_statement_connective(
         &mut self,
-        _node: &'tree generated::IStatementConnectiveSyntax,
+        _node: &'tree generated::ITagBoStatementConnectiveSyntax,
     ) {
     }
-
-    // Boundary: these leaves are unreachable children, token-only constructs,
-    // or explicitly elided placeholders for discourse references. The
-    // tagged-before-tag recovery form still exposes a leading tense/modal
-    // before cutting off the missing sumti branch.
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_tagged_sumti_before_tag_term(
-        &mut self,
-        node: &'tree generated::SimpleTermSyntax,
-    ) {
-        let generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) = node else {
-            return;
-        };
-        self.visit_leading_term_tag_tense_modal(&term.0);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_na_ku_term(&mut self, _node: &'tree generated::SimpleTermSyntax) {}
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term_bare_na_term(&mut self, _node: &'tree generated::SimpleTermSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_tagged_or_elided_sumti_tagged_elided_sumti(
         &mut self,
-        _node: &'tree generated::TaggedOrElidedSumtiSyntax,
+        _node: &'tree generated::TaggedElidedSumtiSyntax,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::SumtiBaseSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_fragment_statement_ek_fragment(
-        &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
-    ) {
-    }
+    fn walk_fragment_statement_ek_fragment(&mut self, _node: &'tree generated::EkFragmentSyntax) {}
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_fragment_statement_gihek_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::GihekFragmentSyntax,
     ) {
     }
 
@@ -8730,7 +8137,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_multiple_na_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::MultipleNaFragmentSyntax,
     ) {
     }
 
@@ -8738,36 +8145,23 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_fragment_statement_single_na_fragment(
         &mut self,
-        _node: &'tree generated::FragmentStatementSyntax,
+        _node: &'tree generated::SingleNaFragmentSyntax,
     ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_linked_sumti_empty_linked_sumti(&mut self, _node: &'tree generated::LinkedSumtiSyntax) {
+    fn walk_linked_sumti_empty_linked_sumti(
+        &mut self,
+        _node: &'tree generated::EmptyLinkedSumtiSyntax,
+    ) {
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_relative_sumti_na_ku_relative_sumti(
         &mut self,
-        _node: &'tree generated::RelativeSumtiSyntax,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_text_replacement_free_modifier(
-        &mut self,
-        _node: &'tree generated::FreeModifierSyntax,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_free_modifier_mai_free_modifier(
-        &mut self,
-        _node: &'tree generated::FreeModifierSyntax,
+        _node: &'tree generated::NaKuRelativeSumtiSyntax,
     ) {
     }
 }
