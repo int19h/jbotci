@@ -51,11 +51,8 @@ fn render_tersmu(
         Some(SourceId(source_label.clone())),
     );
     let morphology_attempt = morphology_attempt.into_data();
-    let morphology_trace_stderr = render_cli_trace(
-        morphology_attempt.trace.as_ref(),
-        color_policy.stderr,
-        diagnostic_terminal_width,
-    );
+    let morphology_trace_stderr =
+        render_cli_trace(morphology_attempt.trace.as_ref(), color_policy.stderr);
     let morphology_diagnostics = morphology_warning_diagnostics(
         &morphology_attempt.warnings,
         Some(SourceId(source_label.clone())),
@@ -91,11 +88,7 @@ fn render_tersmu(
         &text,
         &parse_options,
     );
-    let trace_stderr = render_cli_trace(
-        parsed.trace.as_ref(),
-        color_policy.stderr,
-        diagnostic_terminal_width,
-    );
+    let trace_stderr = render_cli_trace(parsed.trace.as_ref(), color_policy.stderr);
     let parsed = match parsed.result {
         Ok(parsed) => parsed,
         Err(error) => {

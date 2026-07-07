@@ -4,11 +4,10 @@ use jbotci_diagnostics::{
 };
 use owo_colors::OwoColorize;
 
-#[invariant(*terminal_width > 0, "trace render width must be positive")]
+#[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TraceRenderOptions {
     pub color: bool,
-    pub terminal_width: usize,
 }
 
 #[requires(true)]

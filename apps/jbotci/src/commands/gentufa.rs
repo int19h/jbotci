@@ -65,11 +65,8 @@ fn render_gentufa(
         Some(SourceId(source_label.clone())),
     );
     let morphology_attempt = morphology_attempt.into_data();
-    let morphology_trace_stderr = render_cli_trace(
-        morphology_attempt.trace.as_ref(),
-        color_policy.stderr,
-        diagnostic_terminal_width,
-    );
+    let morphology_trace_stderr =
+        render_cli_trace(morphology_attempt.trace.as_ref(), color_policy.stderr);
     let morphology_diagnostics = morphology_warning_diagnostics(
         &morphology_attempt.warnings,
         Some(SourceId(source_label.clone())),

@@ -704,6 +704,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
+        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
+        "trace rendering now only carries a color flag, so all values are valid",
+    ),
+    (
         "crates/jbotci-output/src/qr_code.rs:QrBuild",
         "QR build state is internal renderer assembly data validated by encoded-output tests",
     ),

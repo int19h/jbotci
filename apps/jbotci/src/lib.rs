@@ -1523,20 +1523,15 @@ fn write_trace_filter_group<W: Write>(stdout: &mut W, title: &str, names: &[&str
     Ok(())
 }
 
-#[requires(terminal_width > 0)]
+#[requires(true)]
 #[ensures(ret.is_empty() || ret.ends_with('\n'))]
-fn render_cli_trace(
-    report: Option<&TraceReport>,
-    color_enabled: bool,
-    terminal_width: usize,
-) -> String {
+fn render_cli_trace(report: Option<&TraceReport>, color_enabled: bool) -> String {
     report.map_or_else(String::new, |report| {
         render_trace_report(
             report,
-            new!(TraceRenderOptions {
+            TraceRenderOptions {
                 color: color_enabled,
-                terminal_width,
-            }),
+            },
         )
     })
 }
