@@ -4,10 +4,10 @@
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, RafsiSource, WordType};
 use jbotci_morphology::{
-    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind, bond_rafsis,
+    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoPart, Phonemes, WordKind,
     canonicalize_text, choose_best_lujvo_candidate_from_parts, ends_with_consonant,
-    ensure_cmevla_word, is_bonding_hyphen, parse_lujvo_word_parts, segment_words_with_modifiers,
-    syllables_pattern,
+    ensure_cmevla_word, is_bonding_hyphen, parse_cmevla_lujvo_word_part_candidates,
+    parse_lujvo_word_parts, segment_words_with_modifiers,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -155,8 +155,14 @@ pub fn decompose_lujvo_like<'a>(
         return None;
     }
 
-    let decomposition = decomposition_from_parts(dictionary, fallback_lujvo_parts(&normalized)?)?;
-    all_rafsi_segments_have_sources(&decomposition).then_some(decomposition)
+    for parts in fallback_lujvo_part_candidates(&normalized) {
+        if let Some(decomposition) = decomposition_from_parts(dictionary, parts)
+            && all_rafsi_segments_have_sources(&decomposition)
+        {
+            return Some(decomposition);
+        }
+    }
+    None
 }
 
 #[invariant(segments
@@ -288,7 +294,7 @@ fn candidate_list_for_word(
     {
         all_candidates.push(new!(LujvoBuildPart::BrivlaCore(canonical_word.clone())));
     }
-    let all_candidates = unique_candidate_parts(all_candidates);
+    let all_candidates = unique_preserving_order(all_candidates);
     let candidates = match (mode, is_last_input) {
         (JvozbaMode::Lujvo, true) => all_candidates,
         (JvozbaMode::Cmevla, true) => {
@@ -349,19 +355,7 @@ fn non_dictionary_word_candidates(
 
 #[requires(true)]
 #[ensures(true)]
-fn unique_candidate_parts(values: Vec<LujvoBuildPart>) -> Vec<LujvoBuildPart> {
-    let mut unique = Vec::new();
-    for value in values {
-        if !unique.contains(&value) {
-            unique.push(value);
-        }
-    }
-    unique
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn unique_source_words<'a>(values: Vec<&'a str>) -> Vec<&'a str> {
+fn unique_preserving_order<T: PartialEq>(values: Vec<T>) -> Vec<T> {
     let mut unique = Vec::new();
     for value in values {
         if !unique.contains(&value) {
@@ -538,7 +532,7 @@ fn decomposition_from_parts<'a>(
         return None;
     }
 
-    let source_words = unique_source_words(
+    let source_words = unique_preserving_order(
         segments
             .iter()
             .filter_map(|segment| match &segment.segment {
@@ -618,216 +612,9 @@ fn exact_brivla_source_word<'a>(dictionary: &Dictionary<'a>, surface: &str) -> O
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn fallback_lujvo_parts(normalized: &str) -> Option<Vec<LujvoPart>> {
-    let parts = sloppy_decompose(normalized)?;
-    if !sloppy_parts_match_cmevla_bonding(&parts) {
-        return None;
-    }
-    parts
-        .into_iter()
-        .map(|part| match part {
-            RawLujvoSegment::Rafsi(text) => Some(LujvoPart::rafsi(phonemes(text)?)),
-            RawLujvoSegment::Hyphen(text) => Some(LujvoPart::hyphen(phonemes(text)?)),
-        })
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn sloppy_parts_match_cmevla_bonding(parts: &[RawLujvoSegment]) -> bool {
-    let rafsi_parts = parts
-        .iter()
-        .filter_map(|part| match part {
-            RawLujvoSegment::Rafsi(text) => Some(text.clone()),
-            RawLujvoSegment::Hyphen(_) => None,
-        })
-        .collect::<Vec<_>>();
-    let Some(bonded) = bond_rafsis(&rafsi_parts) else {
-        return false;
-    };
-    raw_segments_match_bonded_parts(parts, &bonded)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn raw_segments_match_bonded_parts(parts: &[RawLujvoSegment], bonded: &[String]) -> bool {
-    let mut part_index = 0;
-    let mut used_cmevla_r_omission = false;
-    let has_explicit_hyphen = parts
-        .iter()
-        .any(|part| matches!(part, RawLujvoSegment::Hyphen(_)));
-    let has_noninitial_r_rafsi = parts
-        .iter()
-        .filter_map(|part| match part {
-            RawLujvoSegment::Rafsi(text) => Some(text),
-            RawLujvoSegment::Hyphen(_) => None,
-        })
-        .skip(1)
-        .any(|text| text.starts_with('r'));
-    for bonded_part in bonded {
-        if parts
-            .get(part_index)
-            .is_some_and(|part| raw_lujvo_segment_text(part) == bonded_part)
-        {
-            part_index += 1;
-            continue;
-        }
-        if is_bonding_hyphen(bonded_part)
-            && parts
-                .get(part_index)
-                .is_some_and(|part| raw_lujvo_segment_text(part).starts_with('r'))
-        {
-            used_cmevla_r_omission = true;
-            continue;
-        }
-        return false;
-    }
-    // Preserve the historical cmevla fallback boundary: require visible lujvo
-    // structure so coincidentally rafsi-shaped names do not get rafsi cards.
-    part_index == parts.len()
-        && (has_explicit_hyphen || used_cmevla_r_omission || has_noninitial_r_rafsi)
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn raw_lujvo_segment_text(part: &RawLujvoSegment) -> &str {
-    match part {
-        RawLujvoSegment::Rafsi(text) | RawLujvoSegment::Hyphen(text) => text,
-    }
-}
-
-#[invariant(true)]
-#[invariant(::Rafsi(_) => true)]
-#[invariant(::Hyphen(_) => true)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum RawLujvoSegment {
-    Rafsi(String),
-    Hyphen(String),
-}
-
-#[requires(!text.is_empty())]
-#[ensures(true)]
-fn phonemes(text: String) -> Option<Phonemes> {
-    Phonemes::from_canonical(text).ok()
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn sloppy_decompose(normalized: &str) -> Option<Vec<RawLujvoSegment>> {
-    sloppy_decompose_from(Vec::new(), normalized)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn sloppy_decompose_from(
-    mut acc: Vec<RawLujvoSegment>,
-    remaining: &str,
-) -> Option<Vec<RawLujvoSegment>> {
-    if remaining.is_empty() {
-        return Some(acc);
-    }
-
-    if should_drop_hyphen(&acc, remaining) {
-        let (hyphen, rest) = split_char_at(remaining, 1)?;
-        acc.push(RawLujvoSegment::Hyphen(hyphen.to_owned()));
-        return sloppy_decompose_from(acc, rest);
-    }
-
-    if has_head_syllable(remaining, "CVV") && has_vowel_pair_after_initial(remaining) {
-        let (rafsi, rest) = split_char_at(remaining, 3)?;
-        acc.push(RawLujvoSegment::Rafsi(rafsi.to_owned()));
-        return sloppy_decompose_from(acc, rest);
-    }
-
-    if split_char_at(remaining, 4)
-        .and_then(|(prefix, _)| syllables_pattern(prefix))
-        .as_deref()
-        == Some("CV'V")
-    {
-        let (rafsi, rest) = split_char_at(remaining, 4)?;
-        acc.push(RawLujvoSegment::Rafsi(rafsi.to_owned()));
-        return sloppy_decompose_from(acc, rest);
-    }
-
-    if has_head_syllable(remaining, "CVCCY") || has_head_syllable(remaining, "CCVCY") {
-        let (rafsi, rest_with_hyphen) = split_char_at(remaining, 4)?;
-        let (_, rest) = split_char_at(rest_with_hyphen, 1)?;
-        acc.push(RawLujvoSegment::Rafsi(rafsi.to_owned()));
-        acc.push(RawLujvoSegment::Hyphen("y".to_owned()));
-        return sloppy_decompose_from(acc, rest);
-    }
-
-    if matches!(
-        syllables_pattern(remaining).as_deref(),
-        Some("CVCCV" | "CCVCV")
-    ) {
-        acc.push(RawLujvoSegment::Rafsi(remaining.to_owned()));
-        return Some(acc);
-    }
-
-    if has_head_syllable(remaining, "CVC") || has_head_syllable(remaining, "CCV") {
-        let (rafsi, rest) = split_char_at(remaining, 3)?;
-        acc.push(RawLujvoSegment::Rafsi(rafsi.to_owned()));
-        return sloppy_decompose_from(acc, rest);
-    }
-
-    None
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn split_char_at(text: &str, count: usize) -> Option<(&str, &str)> {
-    let byte_index = text
-        .char_indices()
-        .nth(count)
-        .map(|(index, _)| index)
-        .unwrap_or(text.len());
-    if text.chars().count() < count {
-        None
-    } else {
-        Some(text.split_at(byte_index))
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn should_drop_hyphen(acc: &[RawLujvoSegment], remaining: &str) -> bool {
-    previous_is_rafsi(acc)
-        && (remaining.starts_with('y')
-            || remaining.starts_with("nr")
-            || starts_with_r_hyphen(remaining))
-}
-
-#[requires(true)]
-#[ensures(ret -> remaining.starts_with('r'))]
-fn starts_with_r_hyphen(remaining: &str) -> bool {
-    let Some((_, after_r)) = split_char_at(remaining, 1) else {
-        return false;
-    };
-    remaining.starts_with('r') && has_head_syllable(after_r, "C")
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn previous_is_rafsi(acc: &[RawLujvoSegment]) -> bool {
-    matches!(acc.last(), Some(RawLujvoSegment::Rafsi(_)))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn has_head_syllable(text: &str, pattern: &str) -> bool {
-    split_char_at(text, pattern.chars().count())
-        .and_then(|(prefix, _)| syllables_pattern(prefix))
-        .is_some_and(|actual| actual == pattern)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn has_vowel_pair_after_initial(text: &str) -> bool {
-    split_char_at(text, 3)
-        .map(|(prefix, _)| prefix.chars().skip(1).collect::<String>())
-        .is_some_and(|pair| matches!(pair.as_str(), "ai" | "ei" | "oi" | "au"))
+#[ensures(ret.iter().all(|parts| !parts.is_empty()))]
+fn fallback_lujvo_part_candidates(normalized: &str) -> Vec<Vec<LujvoPart>> {
+    parse_cmevla_lujvo_word_part_candidates(normalized)
 }
 
 #[cfg(test)]
@@ -1105,12 +892,23 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn sloppy_decompose_keeps_terminal_long_rafsi_in_source_order() {
-        let parts = sloppy_decompose_from(vec![RawLujvoSegment::Rafsi("jet".to_owned())], "barda")
-            .expect("terminal long rafsi decomposition");
-        let surfaces = parts.iter().map(raw_lujvo_segment_text).collect::<Vec<_>>();
+    fn decomposes_cmevla_lujvo_with_cvv_prefix_before_r_initial_cvc_rafsi() {
+        let decomposition = decompose_lujvo_like(jbotci_dictionary_data::english(), "baunrok")
+            .expect("cmevla fallback decomposition");
+        let surfaces = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.segment.phonemes().as_str())
+            .collect::<Vec<_>>();
+        let sources = decomposition
+            .segments
+            .iter()
+            .map(|segment| segment.source)
+            .collect::<Vec<_>>();
 
-        assert_eq!(surfaces, ["jet", "barda"]);
+        assert_eq!(surfaces, ["bau", "n", "rok"]);
+        assert_eq!(sources, [Some("bangu"), None, Some("rokci")]);
+        assert_eq!(decomposition.source_words, ["bangu", "rokci"]);
     }
 
     #[requires(true)]

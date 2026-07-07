@@ -626,6 +626,35 @@ pub(crate) fn parse_lujvo_parts_with_canonical_phonemes(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+pub(crate) fn parse_cmevla_lujvo_parts_with_canonical_phonemes(
+    shape_word: &str,
+    canonical_word: &str,
+) -> Option<Vec1<LujvoPart>> {
+    parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(shape_word, canonical_word)
+        .into_iter()
+        .next()
+        .and_then(|parts| Vec1::try_from_vec(parts).ok())
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|parts| !parts.is_empty()))]
+pub(crate) fn parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(
+    shape_word: &str,
+    canonical_word: &str,
+) -> Vec<Vec<LujvoPart>> {
+    let shape_chars = text_chars(shape_word);
+    let canonical_chars = text_chars(canonical_word);
+    if shape_chars.len() != canonical_chars.len() {
+        return Vec::new();
+    }
+    analyze_cmevla_lujvo_part_range_candidates_chars(&shape_chars)
+        .into_iter()
+        .filter_map(|ranges| lujvo_ranges_to_parts(&canonical_chars, ranges))
+        .collect()
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn invalid_lujvo_error_detail(word: &str) -> Option<MorphologyErrorDetail> {
     let chars = text_chars(word);
@@ -2623,6 +2652,223 @@ fn lujvo_ranges_to_parts(chars: &[char], ranges: Vec<LujvoPartRange>) -> Option<
             LujvoPartRangeKind::Hyphen => hyphen_part(chars, range.start, range.end),
         })
         .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|ranges| !ranges.is_empty()))]
+fn analyze_cmevla_lujvo_part_range_candidates_chars(chars: &[char]) -> Vec<Vec<LujvoPartRange>> {
+    if chars.len() <= 3 || !chars.iter().all(|value| is_lujvo_char(*value)) {
+        return Vec::new();
+    }
+    let mut candidates = Vec::new();
+    collect_cmevla_lujvo_part_ranges_from(chars, 0, &mut Vec::new(), &mut candidates);
+    unique_cmevla_lujvo_part_range_candidates(candidates)
+}
+
+#[requires(candidates.iter().all(|ranges| !ranges.is_empty()))]
+#[ensures(ret.iter().all(|ranges| !ranges.is_empty()))]
+fn unique_cmevla_lujvo_part_range_candidates(
+    candidates: Vec<Vec<LujvoPartRange>>,
+) -> Vec<Vec<LujvoPartRange>> {
+    let mut unique = Vec::new();
+    for candidate in candidates {
+        if !unique.contains(&candidate) {
+            unique.push(candidate);
+        }
+    }
+    unique
+}
+
+#[requires(index <= chars.len())]
+#[requires(acc.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[requires(out.iter().all(|ranges| !ranges.is_empty()))]
+#[ensures(out.iter().all(|ranges| !ranges.is_empty()))]
+fn collect_cmevla_lujvo_part_ranges_from(
+    chars: &[char],
+    index: usize,
+    acc: &mut Vec<LujvoPartRange>,
+    out: &mut Vec<Vec<LujvoPartRange>>,
+) {
+    if index == chars.len() {
+        if cmevla_lujvo_ranges_match_bonded(chars, acc) {
+            out.push(acc.clone());
+        }
+        return;
+    }
+
+    for ranges in cmevla_lujvo_range_candidates(chars, index, acc) {
+        let Some(next) = ranges.last().map(|range| range.end) else {
+            continue;
+        };
+        let previous_len = acc.len();
+        acc.extend(ranges);
+        collect_cmevla_lujvo_part_ranges_from(chars, next, acc, out);
+        acc.truncate(previous_len);
+    }
+}
+
+#[requires(index < chars.len())]
+#[requires(acc.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[ensures(ret.iter().all(|ranges| !ranges.is_empty()))]
+fn cmevla_lujvo_range_candidates(
+    chars: &[char],
+    index: usize,
+    acc: &[LujvoPartRange],
+) -> Vec<Vec<LujvoPartRange>> {
+    let mut candidates = Vec::new();
+    if acc
+        .last()
+        .is_some_and(|range| range.kind == LujvoPartRangeKind::Rafsi)
+        && let Some(hyphen) = cmevla_lujvo_standalone_hyphen_range(chars, index)
+    {
+        candidates.push(vec![hyphen]);
+    }
+
+    candidates.extend(
+        cmevla_lujvo_cvv_rafsi_ends(chars, index)
+            .into_iter()
+            .map(|end| vec![LujvoPartRange::rafsi(index, end)]),
+    );
+
+    if let Some(ranges) = cmevla_lujvo_y_hyphenated_rafsi_ranges(chars, index) {
+        candidates.push(ranges);
+    }
+
+    if let Some(range) = cmevla_lujvo_final_long_vowel_range(chars, index) {
+        candidates.push(vec![range]);
+    }
+    if let Some(range) = cmevla_lujvo_final_long_consonant_range(chars, index) {
+        candidates.push(vec![range]);
+    }
+
+    if let Some(end) = cvc_rafsi_end(chars, index) {
+        candidates.push(vec![LujvoPartRange::rafsi(index, end)]);
+    }
+    if let Some(end) = ccv_rafsi_end(chars, index) {
+        candidates.push(vec![LujvoPartRange::rafsi(index, end)]);
+    }
+
+    candidates
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end > index && range.end <= chars.len()))]
+fn cmevla_lujvo_standalone_hyphen_range(chars: &[char], index: usize) -> Option<LujvoPartRange> {
+    rafsi_hyphen_end(chars, index)
+        .or_else(|| r_hyphen_end(chars, index))
+        .or_else(|| n_hyphen_end(chars, index))
+        .map(|end| LujvoPartRange::hyphen(index, end))
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.iter().all(|end| *end > index && *end <= chars.len()))]
+fn cmevla_lujvo_cvv_rafsi_ends(chars: &[char], index: usize) -> Vec<usize> {
+    let mut ends = cvv_rafsi_base_ends(chars, index);
+    ends.sort_by_key(|end| (*end, *end - index));
+    ends
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|ranges| !ranges.is_empty()))]
+fn cmevla_lujvo_y_hyphenated_rafsi_ranges(
+    chars: &[char],
+    index: usize,
+) -> Option<Vec<LujvoPartRange>> {
+    long_rafsi_ends(chars, index)
+        .into_iter()
+        .chain(cvc_rafsi_end(chars, index))
+        .find_map(|base_end| {
+            rafsi_hyphen_end(chars, base_end).map(|end| {
+                vec![
+                    LujvoPartRange::rafsi(index, base_end),
+                    LujvoPartRange::hyphen(base_end, end),
+                ]
+            })
+        })
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end == chars.len()))]
+fn cmevla_lujvo_final_long_vowel_range(chars: &[char], index: usize) -> Option<LujvoPartRange> {
+    is_gismu_slice(chars, index, chars.len()).then_some(LujvoPartRange::rafsi(index, chars.len()))
+}
+
+#[requires(index <= chars.len())]
+#[ensures(ret.as_ref().is_none_or(|range| range.start == index && range.end == chars.len()))]
+fn cmevla_lujvo_final_long_consonant_range(chars: &[char], index: usize) -> Option<LujvoPartRange> {
+    long_rafsi_ends(chars, index)
+        .into_iter()
+        .any(|end| end == chars.len())
+        .then_some(LujvoPartRange::rafsi(index, chars.len()))
+}
+
+#[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[ensures(true)]
+fn cmevla_lujvo_ranges_match_bonded(chars: &[char], ranges: &[LujvoPartRange]) -> bool {
+    let rafsi_texts = cmevla_lujvo_rafsi_texts(chars, ranges);
+    if rafsi_texts.len() < 2 {
+        return false;
+    }
+    let Some(bonded) = crate::bond_rafsis(&rafsi_texts) else {
+        return false;
+    };
+    cmevla_lujvo_raw_ranges_match_bonded(chars, ranges, &bonded)
+}
+
+#[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[ensures(ret.iter().all(|text| !text.is_empty()))]
+fn cmevla_lujvo_rafsi_texts(chars: &[char], ranges: &[LujvoPartRange]) -> Vec<String> {
+    ranges
+        .iter()
+        .filter(|range| range.kind == LujvoPartRangeKind::Rafsi)
+        .map(|range| chars[range.start..range.end].iter().collect())
+        .collect()
+}
+
+#[requires(ranges.iter().all(|range| range.start < range.end && range.end <= chars.len()))]
+#[ensures(true)]
+fn cmevla_lujvo_raw_ranges_match_bonded(
+    chars: &[char],
+    ranges: &[LujvoPartRange],
+    bonded: &[String],
+) -> bool {
+    let has_explicit_hyphen = ranges
+        .iter()
+        .any(|range| range.kind == LujvoPartRangeKind::Hyphen);
+    let has_noninitial_r_rafsi = ranges
+        .iter()
+        .filter(|range| range.kind == LujvoPartRangeKind::Rafsi)
+        .skip(1)
+        .any(|range| chars.get(range.start) == Some(&'r'));
+
+    let mut range_index = 0;
+    let mut used_cmevla_hyphen_omission = false;
+    for bonded_part in bonded {
+        if ranges
+            .get(range_index)
+            .is_some_and(|range| cmevla_lujvo_range_text(chars, range) == bonded_part.as_str())
+        {
+            range_index += 1;
+            continue;
+        }
+        if crate::is_bonding_hyphen(bonded_part)
+            && ranges.get(range_index).is_some_and(|range| {
+                range.kind == LujvoPartRangeKind::Rafsi && chars.get(range.start) == Some(&'r')
+            })
+        {
+            used_cmevla_hyphen_omission = true;
+            continue;
+        }
+        return false;
+    }
+    range_index == ranges.len()
+        && (has_explicit_hyphen || used_cmevla_hyphen_omission || has_noninitial_r_rafsi)
+}
+
+#[requires(range.start < range.end && range.end <= chars.len())]
+#[ensures(!ret.is_empty())]
+fn cmevla_lujvo_range_text(chars: &[char], range: &LujvoPartRange) -> String {
+    chars[range.start..range.end].iter().collect()
 }
 
 #[requires(start < end && end <= chars.len())]

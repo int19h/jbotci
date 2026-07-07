@@ -2455,6 +2455,23 @@ pub fn parse_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|parts| !parts.is_empty()))]
+pub fn parse_cmevla_lujvo_word_parts(word: &str) -> Option<Vec<LujvoPart>> {
+    let normalized = canonicalize_text(word);
+    let shape = normalized.replace(',', "");
+    segment::parse_cmevla_lujvo_parts_with_canonical_phonemes(&shape, &normalized)
+        .map(Vec1::into_vec)
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|parts| !parts.is_empty()))]
+pub fn parse_cmevla_lujvo_word_part_candidates(word: &str) -> Vec<Vec<LujvoPart>> {
+    let normalized = canonicalize_text(word);
+    let shape = normalized.replace(',', "");
+    segment::parse_cmevla_lujvo_part_candidates_with_canonical_phonemes(&shape, &normalized)
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty() || input.is_empty()))]
 pub fn normalize_lojban_input_text(input: &str) -> Option<String> {
     normalize_lojban_input_text_with_options(input, &MorphologyOptions::default())
