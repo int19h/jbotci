@@ -1,6 +1,7 @@
 //! Lojban morphology model.
 
 mod cmavo;
+mod diacritics;
 mod grammar;
 mod lujvo;
 mod segment;
@@ -25,6 +26,12 @@ use thiserror::Error;
 use vec1::Vec1;
 
 pub use cmavo::{Cmavo, Selmaho};
+pub use diacritics::{
+    fold_lojban_diacritic, fold_lojban_diacritics, folded_lojban_diacritics_eq,
+    push_folded_lojban_diacritics_to, push_stripped_diacritics_to,
+    push_stripped_lojban_diacritics_to, strip_diacritics, strip_diacritics_eq,
+    strip_lojban_diacritic, strip_lojban_diacritics, stripped_lojban_diacritics_eq,
+};
 pub use lujvo::{
     ConsonantPairClass, LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate,
     bond_rafsis, choose_best_lujvo_candidate, choose_best_lujvo_candidate_from_parts,
@@ -32,9 +39,7 @@ pub use lujvo::{
     is_bonding_hyphen, is_cmevla, is_consonant, is_valid_lujvo_candidate_word, is_vowel,
     permissible_consonant_pair, syllables_pattern,
 };
-pub use syntax_eq::{
-    push_stripped_diacritics_to, strip_diacritics, word_like_syntax_eq, word_syntax_eq,
-};
+pub use syntax_eq::{word_like_syntax_eq, word_syntax_eq};
 pub use tree::{
     AtomRef, LujvoPart, NodeRef, TreeNode, Verbatim, VerbatimData, Word, WordData, WordLike,
     WordLikeData,
@@ -2434,7 +2439,7 @@ pub fn is_valid_phoneme(value: char) -> bool {
 pub fn canonicalize_text(text: &str) -> String {
     text.chars()
         .filter(|value| *value != ',')
-        .flat_map(strip_diacritic)
+        .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
         .collect()
 }
@@ -2511,12 +2516,12 @@ fn normalized_lojban_input_separator(value: char) -> char {
 pub fn canonical_text_eq(left: &str, right: &str) -> bool {
     left.chars()
         .filter(|value| *value != ',')
-        .flat_map(strip_diacritic)
+        .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
         .eq(right
             .chars()
             .filter(|value| *value != ',')
-            .flat_map(strip_diacritic)
+            .filter_map(fold_lojban_diacritic)
             .flat_map(char::to_lowercase))
 }
 
@@ -2527,7 +2532,7 @@ pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
     for value in text
         .chars()
         .filter(|value| *value != ',')
-        .flat_map(strip_diacritic)
+        .filter_map(fold_lojban_diacritic)
         .flat_map(char::to_lowercase)
     {
         if value != expected {
@@ -2539,26 +2544,15 @@ pub fn canonical_text_is_all(text: &str, expected: char) -> bool {
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub fn strip_diacritics_eq(left: &str, right: &str) -> bool {
-    left.chars()
-        .filter_map(strip_diacritic)
-        .eq(right.chars().filter_map(strip_diacritic))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn strip_diacritic(value: char) -> Option<char> {
-    Some(match value {
-        'á' | 'à' | 'Á' | 'À' => 'a',
-        'é' | 'è' | 'É' | 'È' => 'e',
-        'í' | 'ì' | 'ĭ' | 'Ĭ' | 'Í' | 'Ì' => 'i',
-        'ó' | 'ò' | 'Ó' | 'Ò' => 'o',
-        'ú' | 'ù' | 'ŭ' | 'Ŭ' | 'Ú' | 'Ù' => 'u',
-        'ý' | 'ỳ' | 'Ý' | 'Ỳ' => 'y',
-        '\u{0301}' | '\u{0300}' | '\u{0306}' => return None,
-        other => other,
-    })
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+pub fn normalize_cmavo_form(text: &str) -> Option<String> {
+    let normalized = segment::parse_cmavo_form(text)?;
+    Some(
+        normalized
+            .chars()
+            .map(|value| if value == 'ý' { 'y' } else { value })
+            .collect(),
+    )
 }
 
 #[requires(true)]
@@ -3626,6 +3620,20 @@ mod tests {
     #[ensures(true)]
     fn strip_diacritics_allows_combining_marks_only() {
         assert_eq!(strip_diacritics("\u{0301}\u{0300}\u{0306}"), "");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diacritic_helpers_distinguish_glide_preservation_from_folding() {
+        let source = "coĭ taŭ bródà\u{0301}";
+
+        assert_eq!(strip_lojban_diacritics(source), "coĭ taŭ broda");
+        assert_eq!(fold_lojban_diacritics(source), "coi tau broda");
+        assert_eq!(strip_diacritics(source), "coi tau broda");
+        assert!(stripped_lojban_diacritics_eq("coĭ", "coĭ"));
+        assert!(!stripped_lojban_diacritics_eq("coĭ", "coi"));
+        assert!(folded_lojban_diacritics_eq("coĭ", "coi"));
     }
 
     #[test]
