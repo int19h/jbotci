@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 use axum::body::{Body, Bytes};
 use axum::extract::Extension;
@@ -27,6 +28,10 @@ const DISCORD_TIMESTAMP_HEADER: &str = "x-signature-timestamp";
 const DISCORD_RESPONSE_LIMIT: usize = 1900;
 const DEFAULT_PUBLIC_BASE_URL: &str = "https://jbotci.app";
 const DEFAULT_DISCORD_API_BASE: &str = "https://discord.com/api/v10";
+const DISCORD_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const DISCORD_GLOBAL_TIMEOUT: Duration = Duration::from_secs(20);
+
+static DISCORD_HTTP_AGENT: OnceLock<ureq::Agent> = OnceLock::new();
 
 #[invariant(payload.is_object(), "Discord command registration payload must be an object")]
 #[allow(dead_code)]
@@ -127,10 +132,14 @@ async fn handle_application_command(value: Value, tool_services: ToolServices) -
                 Ok(message) => message,
                 Err(error) => discord_message_data(&format!("jbotci command failed: {error}")),
             };
-            if let Err(error) =
+            let sent = tokio::task::spawn_blocking(move || {
                 send_discord_original_response_edit(&application_id, &token, message)
-            {
-                eprintln!("failed to edit Discord interaction response: {error}");
+            })
+            .await;
+            match sent {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => eprintln!("failed to edit Discord interaction response: {error}"),
+                Err(error) => eprintln!("Discord interaction follow-up task failed: {error}"),
             }
         });
     }
@@ -620,11 +629,27 @@ fn send_discord_original_response_edit(
         token
     );
     let body = payload.to_string();
-    ureq::patch(&url)
+    discord_http_agent()
+        .patch(&url)
         .header(CONTENT_TYPE.as_str(), "application/json")
         .send(body)
         .map(|_| ())
         .map_err(|error| anyhow::anyhow!("PATCH `{url}`: {error}"))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn discord_http_agent() -> &'static ureq::Agent {
+    DISCORD_HTTP_AGENT.get_or_init(|| {
+        // Discord follow-ups happen after the interaction ACK. Five seconds
+        // bounds dead TCP connects; twenty seconds keeps slow Discord API
+        // responses from parking the blocking pool indefinitely.
+        ureq::Agent::config_builder()
+            .timeout_connect(Some(DISCORD_CONNECT_TIMEOUT))
+            .timeout_global(Some(DISCORD_GLOBAL_TIMEOUT))
+            .build()
+            .into()
+    })
 }
 
 #[requires(true)]
