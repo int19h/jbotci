@@ -1117,26 +1117,44 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         parent: Some("abstraction"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // `ek` is shared by sumti, termset, and operand connections; the sumti
+    // connective branch is the canonical diagnostic parent because it is the
+    // closest user-facing EK connection class and keeps EK failures in the
+    // sumti/term family instead of the broader operand/mekso family.
     SyntaxConstructMetadata {
         name: "ek",
         parent: Some("sumti connective"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // `jek` is reused by statement, selbri, and operator connections. The
+    // selbri connective parent matches the existing connective hierarchy and
+    // gives the most useful incomplete-selbri attribution for bare JA/JAI
+    // connection failures.
     SyntaxConstructMetadata {
         name: "jek",
         parent: Some("selbri connective"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // `joik` spans sumti, term, selbri, bridi-tail, statement, and operator
+    // connections. The selbri connective parent is the canonical midpoint used
+    // by neighboring connective entries; more specific parser contexts can
+    // still refine to sumti, term, or mekso constructs when available.
     SyntaxConstructMetadata {
         name: "joik",
         parent: Some("selbri connective"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // `interval` is the BIhI/GAhO branch inside `joik`, so its canonical
+    // parent is `joik` even though joik itself is reused by several connection
+    // families.
     SyntaxConstructMetadata {
         name: "interval",
         parent: Some("joik"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // This is the grammar-level non-logical connective class around JOI/BIhI.
+    // It follows `joik` to the selbri connective branch so diagnostics stay
+    // consistent with neighboring logical/non-logical connective entries.
     SyntaxConstructMetadata {
         name: "non-logical connective",
         parent: Some("selbri connective"),
@@ -1152,11 +1170,18 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         parent: Some("forethought selbri connection"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // The unqualified forethought connective label is emitted for the generic
+    // GA/GI connective shape. `forethought bridi connection` is the canonical
+    // parent; parser contexts with known sumti, selbri, or mex ancestry use the
+    // specialized forethought construct entries instead.
     SyntaxConstructMetadata {
         name: "forethought connective",
         parent: Some("forethought bridi connection"),
         wiring: SyntaxConstructWiring::Parser,
     },
+    // Tag connectives occur in both tense/modal tags and simple tags. The
+    // connected-tag parent keeps them under the adverbial/tag diagnostic branch
+    // rather than forcing a time/space-specific parent too early.
     SyntaxConstructMetadata {
         name: "tag connective",
         parent: Some("connected tag"),
@@ -3059,6 +3084,12 @@ mod tests {
             "ga lo mlatu gi",
             SyntaxErrorKind::IncompleteForethoughtConnection,
         );
+        assert_error_kind(
+            "ga mi broda gi",
+            SyntaxErrorKind::IncompleteForethoughtConnection,
+        );
+        assert_error_kind("po li ce", SyntaxErrorKind::IncompleteMekso);
+        assert_error_kind("voi ce", SyntaxErrorKind::IncompleteSumti);
     }
 
     #[test]
