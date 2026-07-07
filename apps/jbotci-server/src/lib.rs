@@ -411,7 +411,8 @@ pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState::new(config));
     Router::<FullstackState>::new()
         .route("/api/health", get(health))
-        .route("/api/features", get(features))
+        // Deliberately public: #204 keeps `/api/gentufa` for non-model clients
+        // and programmatic model use. Full REST tool parity belongs to #284.
         .route("/api/gentufa", post(gentufa))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .route("/discord", post(discord::discord_post))
@@ -456,12 +457,6 @@ async fn health() -> Json<HealthResponse> {
         status: "ok",
         features: WebFeatureAvailability::default(),
     })
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn features() -> Json<WebFeatureAvailability> {
-    Json(WebFeatureAvailability::default())
 }
 
 #[requires(true)]
@@ -1412,7 +1407,7 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn health_and_features_routes_return_availability() {
+    async fn health_returns_availability_and_features_route_is_removed() {
         let app = router(test_config(test_static_dir()));
         let health = app
             .clone()
@@ -1439,11 +1434,8 @@ mod tests {
             )
             .await
             .expect("features response");
-        assert_eq!(features.status(), StatusCode::OK);
-        let features_json: serde_json::Value =
-            serde_json::from_str(&response_text(features).await).expect("features JSON");
-        assert_eq!(features_json["cukta"], true);
-        assert_eq!(features_json["vlacku"], true);
+        assert_eq!(features.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response_text(features).await, "not found");
     }
 
     #[tokio::test]
