@@ -1300,14 +1300,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "F2LLM tokenizer artifacts are external manifest DTOs validated while loading the runtime",
     ),
     (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ArtifactManifest",
-        "WebGPU artifact manifests are external DTOs validated while loading model artifacts",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:ChunkedSpec",
-        "WebGPU chunked tensor specs are external manifest DTOs validated while loading chunks",
-    ),
-    (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:CorpusShard",
         "corpus shards are external artifact DTOs validated while loading semantic search data",
     ),
@@ -1326,14 +1318,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:RuntimeLoadOptions",
         "WebGPU runtime load options are caller-selected controls checked by runtime loading code",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:TensorSpec",
-        "WebGPU tensor specs are external manifest DTOs validated while binding tensors",
-    ),
-    (
-        "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:TokenizerSpec",
-        "WebGPU tokenizer specs are external manifest DTOs validated while loading artifacts",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:VectorBuffer",

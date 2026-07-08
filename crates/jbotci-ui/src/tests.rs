@@ -1,6 +1,8 @@
 use super::*;
 use std::num::NonZeroUsize;
 
+const EMBEDDINGS_JS: &str = include_str!("../assets/embeddings.js");
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -906,6 +908,19 @@ fn browser_embedding_catalog_serializes_runtime_specs() {
         fallback_model["wasmRuntime"]["onnxUrl"],
         "https://assets.jbotci.app/models/f2llm-v2-80m-onnx-q4/v1/model_q4.onnx"
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn browser_embedding_js_default_model_keys_match_rust_catalog() {
+    assert!(EMBEDDINGS_JS.contains(&format!(
+        r#"const DEFAULT_MOBILE_MODEL_KEY = "{F2LLM_80M_MODEL_KEY}""#
+    )));
+    assert!(EMBEDDINGS_JS.contains(&format!(
+        r#"const DEFAULT_DESKTOP_MODEL_KEY = "{F2LLM_330M_MODEL_KEY}""#
+    )));
+    assert!(EMBEDDINGS_JS.contains("if (configuredCatalog === null)"));
 }
 
 #[test]

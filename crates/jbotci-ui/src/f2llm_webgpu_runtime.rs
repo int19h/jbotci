@@ -1,11 +1,10 @@
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use futures_channel::oneshot;
 use js_sys::{Array, Float32Array, Function, Object, Promise, Reflect, Uint8Array, Uint32Array};
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -13,12 +12,15 @@ use wasm_bindgen_futures::JsFuture;
 
 use crate::f2llm_runtime_core::{
     DEFAULT_MAX_SEQUENCE_LENGTH, QwenByteBpeTokenizer, TokenWindow, mean_pool_normalized,
-    normalize_in_place, pack_token_windows, q4_padded_row_stride, validate_chunk_layout,
-    validate_embedding_vector_before_normalize, validate_q4_tensor_storage, validate_sha256_hex,
-    validate_token_ids,
+    normalize_in_place, pack_token_windows, q4_padded_row_stride,
+    validate_embedding_vector_before_normalize, validate_sha256_hex, validate_token_ids,
+};
+use crate::f2llm_webgpu_manifest::{
+    ArtifactManifest, ChunkedSpec, TensorSpec, TokenizerSpec, checked_rank2_shape,
+    tensor_byte_length, validate_artifact_manifest, validate_chunked_spec,
+    validate_q4_tensor_chunks,
 };
 
-const EXPECTED_SCHEMA_VERSION: u32 = 1;
 const DEFAULT_WORKGROUP_WIDTH: u32 = 8;
 const ATTENTION_WORKGROUP_WIDTH: u32 = 4;
 const ELEMENTWISE_WORKGROUP_SIZE: u32 = 256;
@@ -365,85 +367,6 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 }
 "#;
 
-#[invariant(true)]
-#[derive(Debug, Deserialize)]
-struct ArtifactManifest {
-    schema_version: u32,
-    runtime: String,
-    artifact_version: String,
-    model_key: String,
-    max_sequence_length: Option<usize>,
-    model: ModelConfig,
-    tokenizer: TokenizerSpec,
-    tensors: BTreeMap<String, TensorSpec>,
-}
-
-#[invariant(*vocab_size > 0)]
-#[invariant(*hidden_size > 0)]
-#[invariant(*num_hidden_layers > 0)]
-#[invariant(*num_attention_heads > 0)]
-#[invariant(*num_key_value_heads > 0)]
-#[invariant(*head_dim > 0)]
-#[invariant(*intermediate_size > 0)]
-#[invariant(*num_attention_heads % *num_key_value_heads == 0)]
-#[invariant(num_attention_heads
-    .checked_mul(*head_dim)
-    .is_some_and(|expected| expected == *hidden_size))]
-#[invariant(*head_dim % 2 == 0)]
-#[invariant(rms_norm_eps.is_finite() && *rms_norm_eps > 0.0)]
-#[invariant(rope_theta.is_finite() && *rope_theta > 0.0)]
-#[derive(Debug, Clone, Deserialize)]
-struct ModelConfig {
-    vocab_size: usize,
-    hidden_size: usize,
-    num_hidden_layers: usize,
-    num_attention_heads: usize,
-    num_key_value_heads: usize,
-    head_dim: usize,
-    intermediate_size: usize,
-    rms_norm_eps: f32,
-    rope_theta: f32,
-}
-
-#[invariant(true)]
-#[derive(Debug, Deserialize)]
-struct TokenizerSpec {
-    url: String,
-    byte_length: usize,
-    canonical_json_sha256: String,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Deserialize)]
-struct TensorSpec {
-    kind: String,
-    shape: Vec<usize>,
-    group_size: Option<usize>,
-    groups: Option<usize>,
-    qweight: Option<ChunkedSpec>,
-    scales: Option<ChunkedSpec>,
-    zero_points: Option<ChunkedSpec>,
-    data: Option<ChunkedSpec>,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Deserialize)]
-struct ChunkedSpec {
-    byte_length: usize,
-    chunks: Vec<ChunkSpec>,
-}
-
-#[invariant(!url.is_empty())]
-#[invariant(*byte_length > 0)]
-#[invariant(sha256.len() == 64 && sha256.chars().all(|character| character.is_ascii_hexdigit()))]
-#[derive(Debug, Clone, Deserialize)]
-struct ChunkSpec {
-    url: String,
-    byte_offset: usize,
-    byte_length: usize,
-    sha256: String,
-}
-
 #[invariant(::Q4OnnxGather(_) => true)]
 #[invariant(::Q4OnnxMatmul(_) => true)]
 #[invariant(::F32(_) => true)]
@@ -677,7 +600,13 @@ impl WebGpuRuntime {
             fetch_bytes(&fetch_array_buffer, &manifest_url, "F2LLM WebGPU manifest").await?;
         let manifest: ArtifactManifest = serde_json::from_slice(&manifest_bytes)
             .map_err(|error| format!("failed to parse F2LLM WebGPU manifest: {error}"))?;
-        validate_manifest(&manifest, &options)?;
+        validate_artifact_manifest(
+            &manifest,
+            &options.expected_runtime,
+            &options.expected_version,
+            &options.expected_model_key,
+            options.dimensions,
+        )?;
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::BROWSER_WEBGPU,
@@ -2150,101 +2079,6 @@ fn note_gpu_failure(failure: &Arc<Mutex<Option<String>>>, message: String) {
     }
 }
 
-#[requires(!manifest.model_key.is_empty())]
-#[ensures(true)]
-fn validate_manifest(
-    manifest: &ArtifactManifest,
-    options: &RuntimeLoadOptions,
-) -> Result<(), String> {
-    for (field, actual, expected) in [
-        (
-            "schema_version",
-            manifest.schema_version.to_string(),
-            EXPECTED_SCHEMA_VERSION.to_string(),
-        ),
-        (
-            "runtime",
-            manifest.runtime.clone(),
-            options.expected_runtime.clone(),
-        ),
-        (
-            "artifact_version",
-            manifest.artifact_version.clone(),
-            options.expected_version.clone(),
-        ),
-        (
-            "model_key",
-            manifest.model_key.clone(),
-            options.expected_model_key.clone(),
-        ),
-    ] {
-        if actual != expected {
-            return Err(format!(
-                "F2LLM WebGPU manifest {field} mismatch: expected {expected}, got {actual}"
-            ));
-        }
-    }
-    for (field, value) in [
-        ("vocab_size", manifest.model.vocab_size),
-        ("hidden_size", manifest.model.hidden_size),
-        ("num_hidden_layers", manifest.model.num_hidden_layers),
-        ("num_attention_heads", manifest.model.num_attention_heads),
-        ("num_key_value_heads", manifest.model.num_key_value_heads),
-        ("head_dim", manifest.model.head_dim),
-        ("intermediate_size", manifest.model.intermediate_size),
-    ] {
-        if value == 0 {
-            return Err(format!(
-                "F2LLM WebGPU manifest model.{field} must be positive"
-            ));
-        }
-    }
-    if manifest.model.hidden_size != options.dimensions {
-        return Err(format!(
-            "F2LLM WebGPU hidden size mismatch: expected {}, got {}",
-            options.dimensions, manifest.model.hidden_size
-        ));
-    }
-    if manifest.model.num_attention_heads % manifest.model.num_key_value_heads != 0 {
-        return Err(format!(
-            "F2LLM WebGPU attention heads must be divisible by key/value heads: {} % {} != 0",
-            manifest.model.num_attention_heads, manifest.model.num_key_value_heads
-        ));
-    }
-    if manifest.model.hidden_size != manifest.model.num_attention_heads * manifest.model.head_dim {
-        return Err(format!(
-            "F2LLM WebGPU hidden size must equal attention heads * head dimension: {} != {} * {}",
-            manifest.model.hidden_size, manifest.model.num_attention_heads, manifest.model.head_dim
-        ));
-    }
-    if manifest.model.head_dim % 2 != 0 {
-        return Err(format!(
-            "F2LLM WebGPU head_dim must be even for RoPE, got {}",
-            manifest.model.head_dim
-        ));
-    }
-    if !manifest.model.rms_norm_eps.is_finite() || manifest.model.rms_norm_eps <= 0.0 {
-        return Err("F2LLM WebGPU rms_norm_eps must be positive and finite".to_owned());
-    }
-    if !manifest.model.rope_theta.is_finite() || manifest.model.rope_theta <= 0.0 {
-        return Err("F2LLM WebGPU rope_theta must be positive and finite".to_owned());
-    }
-    validate_sha256_hex(
-        &manifest.tokenizer.canonical_json_sha256,
-        "F2LLM tokenizer canonical JSON SHA-256",
-    )?;
-    if manifest.tokenizer.byte_length == 0 {
-        return Err("F2LLM tokenizer byte length must be positive".to_owned());
-    }
-    if manifest.tokenizer.url.trim().is_empty() {
-        return Err("F2LLM tokenizer URL must be non-empty".to_owned());
-    }
-    for (name, spec) in &manifest.tensors {
-        validate_tensor_spec_shape(name, spec)?;
-    }
-    Ok(())
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn validate_required_tensors(
@@ -2282,109 +2116,6 @@ fn validate_required_tensors(
             "F2LLM WebGPU artifact is missing required tensors: {}",
             missing.join(", ")
         ))
-    }
-}
-
-#[requires(!name.is_empty())]
-#[ensures(true)]
-fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), String> {
-    match spec.kind.as_str() {
-        "q4_onnx_gather" | "q4_onnx_matmul" => {
-            let shape = checked_rank2_shape(name, &spec.shape)?;
-            let group_size = spec
-                .group_size
-                .ok_or_else(|| format!("{name} is missing group_size"))?;
-            let groups = spec
-                .groups
-                .ok_or_else(|| format!("{name} is missing groups"))?;
-            if group_size == 0 {
-                return Err(format!("{name} group_size must be positive"));
-            }
-            let expected_groups = shape[1].div_ceil(group_size);
-            if groups != expected_groups {
-                return Err(format!(
-                    "{name} groups mismatch: expected {expected_groups}, got {groups}"
-                ));
-            }
-            Ok(())
-        }
-        "f32" => {
-            if spec.shape.is_empty() || spec.shape.contains(&0) {
-                Err(format!(
-                    "{name} f32 tensor shape must be non-empty and positive"
-                ))
-            } else {
-                Ok(())
-            }
-        }
-        other => Err(format!("unsupported F2LLM tensor kind for {name}: {other}")),
-    }
-}
-
-#[requires(!name.is_empty())]
-#[requires(kind == "q4_onnx_gather" || kind == "q4_onnx_matmul")]
-#[requires(group_size > 0)]
-#[requires(groups > 0)]
-#[ensures(true)]
-fn validate_q4_tensor_chunks(
-    name: &str,
-    kind: &str,
-    shape: [usize; 2],
-    group_size: usize,
-    groups: usize,
-    qweight: &ChunkedSpec,
-    scales: &ChunkedSpec,
-    zero_points: &ChunkedSpec,
-) -> Result<(), String> {
-    validate_q4_tensor_storage(
-        name,
-        kind,
-        shape,
-        group_size,
-        groups,
-        qweight.byte_length,
-        scales.byte_length,
-        zero_points.byte_length,
-    )
-}
-
-#[requires(!label.is_empty())]
-#[ensures(true)]
-fn validate_chunked_spec(label: &str, chunked: &ChunkedSpec) -> Result<(), String> {
-    let chunks = chunked
-        .chunks
-        .iter()
-        .map(|chunk| {
-            (
-                chunk.url.as_str(),
-                chunk.byte_offset,
-                chunk.byte_length,
-                chunk.sha256.as_str(),
-            )
-        })
-        .collect::<Vec<_>>();
-    validate_chunk_layout(label, chunked.byte_length, &chunks)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn tensor_byte_length(spec: &TensorSpec) -> usize {
-    match spec.kind.as_str() {
-        "q4_onnx_gather" | "q4_onnx_matmul" => {
-            spec.qweight
-                .as_ref()
-                .map_or(0, |chunked| chunked.byte_length)
-                + spec
-                    .scales
-                    .as_ref()
-                    .map_or(0, |chunked| chunked.byte_length)
-                + spec
-                    .zero_points
-                    .as_ref()
-                    .map_or(0, |chunked| chunked.byte_length)
-        }
-        "f32" => spec.data.as_ref().map_or(0, |chunked| chunked.byte_length),
-        _ => 0,
     }
 }
 
@@ -2467,16 +2198,6 @@ fn verify_sha256(bytes: &[u8], expected: &str, name: &str) -> Result<(), String>
         Ok(())
     } else {
         Err(format!("{name} SHA-256 mismatch"))
-    }
-}
-
-#[requires(!name.is_empty())]
-#[ensures(true)]
-fn checked_rank2_shape(name: &str, shape: &[usize]) -> Result<[usize; 2], String> {
-    if shape.len() != 2 || shape[0] == 0 || shape[1] == 0 {
-        Err(format!("{name} must have rank 2 positive shape"))
-    } else {
-        Ok([shape[0], shape[1]])
     }
 }
 

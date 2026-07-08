@@ -474,15 +474,21 @@ pub(crate) fn example_plain_text(example: &CllExample) -> String {
     if example.lines.is_empty() {
         normalized_plain_text(&example.plain_text)
     } else {
-        normalized_plain_text(
-            &example
-                .lines
-                .iter()
-                .map(|line| line.text.as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
-        )
+        example_lines_plain_text(&example.lines)
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn example_lines_plain_text(lines: &[CllExampleLine]) -> String {
+    let mut output = String::new();
+    for line in lines {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(&line.text);
+    }
+    output
 }
 
 #[requires(true)]

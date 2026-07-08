@@ -925,6 +925,13 @@ extern "C" {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = "/assets/model-catalog.js")]
+extern "C" {
+    #[wasm_bindgen(js_name = jbotciModelCatalogAssetPin)]
+    fn js_model_catalog_asset_pin();
+}
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(module = "/assets/compute.js")]
 extern "C" {
     #[wasm_bindgen(js_name = jbotciComputeConfigureWorker)]
@@ -1045,6 +1052,7 @@ pub(super) fn configure_embedding_model_key(model_key: &str) {
 #[ensures(true)]
 pub(super) fn pin_worker_client_asset() {
     js_worker_client_asset_pin();
+    js_model_catalog_asset_pin();
 }
 
 #[cfg(not(target_arch = "wasm32"))]

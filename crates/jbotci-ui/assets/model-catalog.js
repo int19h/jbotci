@@ -105,3 +105,5 @@ function requiredPositiveInteger(value, field, label) {
   }
   return fieldValue;
 }
+
+export function jbotciModelCatalogAssetPin() {}

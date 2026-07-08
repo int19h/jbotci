@@ -106,17 +106,31 @@ include!("page_find.rs");
 
 #[cfg(any(target_arch = "wasm32", test))]
 mod f2llm_runtime_core;
+#[cfg(any(target_arch = "wasm32", test))]
+mod f2llm_webgpu_manifest;
 #[cfg(target_arch = "wasm32")]
 mod f2llm_webgpu_runtime;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const COMPUTE_WORKER_JS: Asset = asset!("/assets/compute-worker.js");
-const EMBEDDING_WORKER_JS: Asset = asset!("/assets/embedding-worker.js");
-// Worker-only ES modules imported from worker scripts; keep explicit asset pins for Dioxus.
+const COMPUTE_WORKER_JS: Asset = asset!(
+    "/assets/compute-worker.js",
+    AssetOptions::js().with_module(true).with_hash_suffix(false)
+);
+const EMBEDDING_WORKER_JS: Asset = asset!(
+    "/assets/embedding-worker.js",
+    AssetOptions::js().with_module(true).with_hash_suffix(false)
+);
+// Worker-only ES modules imported from worker scripts; keep explicit stable asset pins for Dioxus.
 #[allow(dead_code)]
-const APP_MODULE_READY_JS: Asset = asset!("/assets/app-module-ready.js");
+const APP_MODULE_READY_JS: Asset = asset!(
+    "/assets/app-module-ready.js",
+    AssetOptions::js().with_module(true).with_hash_suffix(false)
+);
 #[allow(dead_code)]
-const MODEL_CATALOG_JS: Asset = asset!("/assets/model-catalog.js");
+const MODEL_CATALOG_JS: Asset = asset!(
+    "/assets/model-catalog.js",
+    AssetOptions::js().with_module(true).with_hash_suffix(false)
+);
 // The embedding worker imports these dynamically, so keep explicit asset pins for Dioxus.
 #[allow(dead_code)]
 const ORT_WASM_MIN_MJS: Asset = asset!("/assets/ort/ort.wasm.min.mjs");

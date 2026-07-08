@@ -1441,6 +1441,11 @@ mod tests {
     const WINDOWS_WIX_TEMPLATE: &str =
         include_str!("../../apps/jbotci-app/bundle/windows/jbotci.wxs.hbs");
     const DIOXUS_CONFIG: &str = include_str!("../../apps/jbotci-app/Dioxus.toml");
+    const DIOXUS_INDEX_TEMPLATE: &str = include_str!("../../apps/jbotci-app/index.html");
+    const JBOTCI_UI_LIB: &str = include_str!("../../crates/jbotci-ui/src/lib.rs");
+    const JBOTCI_UI_LAYOUT: &str = include_str!("../../crates/jbotci-ui/src/layout.rs");
+    const JBOTCI_UI_PLATFORM: &str = include_str!("../../crates/jbotci-ui/src/platform.rs");
+    const MODEL_CATALOG_JS: &str = include_str!("../../crates/jbotci-ui/assets/model-catalog.js");
 
     #[requires(true)]
     #[ensures(true)]
@@ -1576,5 +1581,58 @@ mod tests {
                 .contains("desktop_template = \"apps/jbotci-app/bundle/linux/jbotci.desktop.hbs\"")
         );
         assert!(DIOXUS_CONFIG.contains("template = \"bundle/windows/jbotci.wxs.hbs\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_index_gates_app_module_import_after_local_service_worker_cleanup() {
+        let cleanup = DIOXUS_INDEX_TEMPLATE
+            .find("await unregisterLocalServiceWorkers()")
+            .expect("service worker cleanup should be awaited");
+        let module_import = DIOXUS_INDEX_TEMPLATE
+            .find("await import(mainModuleUrl)")
+            .expect("app module import should be explicit");
+
+        assert!(cleanup < module_import);
+        assert!(DIOXUS_INDEX_TEMPLATE.contains("navigator.serviceWorker.controller"));
+        assert!(DIOXUS_INDEX_TEMPLATE.contains("window.location.reload()"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_worker_module_assets_keep_resolvable_runtime_paths() {
+        for asset_path in [
+            "/assets/compute-worker.js",
+            "/assets/embedding-worker.js",
+            "/assets/app-module-ready.js",
+            "/assets/model-catalog.js",
+        ] {
+            let asset_decl = JBOTCI_UI_LIB
+                .find(asset_path)
+                .expect("critical worker module asset should be declared");
+            let following_decl = &JBOTCI_UI_LIB[asset_decl..];
+            assert!(
+                following_decl.contains(".with_hash_suffix(false)"),
+                "{asset_path} must keep a stable public path because module workers import sibling files by name"
+            );
+        }
+
+        assert!(
+            JBOTCI_UI_LAYOUT.contains("#[wasm_bindgen(module = \"/assets/model-catalog.js\")]")
+        );
+        assert!(JBOTCI_UI_LAYOUT.contains("jbotciModelCatalogAssetPin"));
+        assert!(MODEL_CATALOG_JS.contains("export function jbotciModelCatalogAssetPin() {}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_delayed_layout_schedulers_do_not_require_current_dioxus_scope() {
+        assert!(JBOTCI_UI_PLATFORM.contains("wasm_bindgen_futures::spawn_local(async move"));
+        assert!(!JBOTCI_UI_PLATFORM.contains(
+            "#[cfg(target_arch = \"wasm32\")]\n#[requires(true)]\n#[ensures(true)]\npub fn schedule_visual_measure_task"
+        ) || JBOTCI_UI_PLATFORM.contains("wait_animation_frame().await;"));
     }
 }
