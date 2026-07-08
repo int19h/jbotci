@@ -265,9 +265,11 @@ struct WasmStackTestArgs {
 #[derive(Debug)]
 #[invariant(!js.as_os_str().is_empty())]
 #[invariant(!wasm.as_os_str().is_empty())]
+#[invariant(!ready_js.as_os_str().is_empty())]
 struct WasmBundlePaths {
     js: PathBuf,
     wasm: PathBuf,
+    ready_js: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -1123,6 +1125,8 @@ fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
         .arg(&paths.js)
         .arg("--wasm")
         .arg(&paths.wasm)
+        .arg("--ready-js")
+        .arg(&paths.ready_js)
         .arg("--default-text")
         .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT);
     for case in &args.cases {
@@ -1181,15 +1185,19 @@ fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundleP
             let public_dir = dioxus_web_public_dir("debug")?;
             let js = public_dir.join("wasm/jbotci-app.js");
             let wasm = public_dir.join("wasm/jbotci-app_bg.wasm");
+            let ready_js = public_dir.join("assets/app-module-ready.js");
             ensure_existing_file(&js)?;
             ensure_existing_file(&wasm)?;
-            Ok(new!(WasmBundlePaths { js, wasm }))
+            ensure_existing_file(&ready_js)?;
+            Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
         }
         WasmStackProfile::Release => {
             let assets_dir = dioxus_web_public_dir("release")?.join("assets");
             let js = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app-", ".js")?;
             let wasm = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app_bg-", ".wasm")?;
-            Ok(new!(WasmBundlePaths { js, wasm }))
+            let ready_js = assets_dir.join("app-module-ready.js");
+            ensure_existing_file(&ready_js)?;
+            Ok(new!(WasmBundlePaths { js, wasm, ready_js }))
         }
     }
 }
