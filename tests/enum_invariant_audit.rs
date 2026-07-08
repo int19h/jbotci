@@ -1676,6 +1676,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree macro test wrapper delegates validity to the wrapped payload",
     ),
     (
+        "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Context",
+        "diagnostic hover context target validity depends on the current diagnostics and is guarded at use sites",
+    ),
+    (
+        "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Primary",
+        "diagnostic hover primary target validity depends on the current diagnostics and is guarded at use sites",
+    ),
+    (
         "crates/jbotci-ui/src/f2llm_runtime_core.rs:MergeSpec::Pair",
         "tokenizer merge specs are external artifact projections normalized by merge_pair before ranking",
     ),

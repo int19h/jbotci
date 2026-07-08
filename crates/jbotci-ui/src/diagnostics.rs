@@ -15,19 +15,17 @@ pub(super) struct DiagnosticCounts {
     pub(super) warnings: usize,
 }
 
-#[invariant(true)]
+#[invariant(::Primary { diagnostic_index } => true)]
+#[invariant(::Context { diagnostic_index, label_index } => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum ActiveDiagnosticTargetKind {
-    Primary,
-    Context,
-}
-
-#[invariant(matches!(kind, ActiveDiagnosticTargetKind::Context) == label_index.is_some())]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct ActiveDiagnosticTarget {
-    pub(super) diagnostic_index: usize,
-    pub(super) kind: ActiveDiagnosticTargetKind,
-    pub(super) label_index: Option<usize>,
+pub(super) enum ActiveDiagnosticTarget {
+    Primary {
+        diagnostic_index: usize,
+    },
+    Context {
+        diagnostic_index: usize,
+        label_index: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,33 +76,6 @@ pub(super) struct DiagnosticTextRenderPart {
 pub(super) struct DiagnosticContextLabel<'a> {
     pub(super) label_index: usize,
     pub(super) label: &'a DiagnosticLabel,
-}
-
-#[requires(true)]
-#[ensures(ret.diagnostic_index == diagnostic_index)]
-#[ensures(matches!(ret.kind, ActiveDiagnosticTargetKind::Primary))]
-#[ensures(ret.label_index.is_none())]
-pub(super) fn active_primary_diagnostic_target(diagnostic_index: usize) -> ActiveDiagnosticTarget {
-    new!(ActiveDiagnosticTarget {
-        diagnostic_index,
-        kind: ActiveDiagnosticTargetKind::Primary,
-        label_index: None,
-    })
-}
-
-#[requires(true)]
-#[ensures(ret.diagnostic_index == diagnostic_index)]
-#[ensures(matches!(ret.kind, ActiveDiagnosticTargetKind::Context))]
-#[ensures(ret.label_index == Some(label_index))]
-pub(super) fn active_context_diagnostic_target(
-    diagnostic_index: usize,
-    label_index: usize,
-) -> ActiveDiagnosticTarget {
-    new!(ActiveDiagnosticTarget {
-        diagnostic_index,
-        kind: ActiveDiagnosticTargetKind::Context,
-        label_index: Some(label_index),
-    })
 }
 
 #[requires(true)]
@@ -469,7 +440,11 @@ pub(super) fn render_diagnostic_card(
     rsx! {
         article {
             class: "{card_class}",
-            onmouseenter: move |_| enter_active.set(Some(active_primary_diagnostic_target(index))),
+            onmouseenter: move |_| {
+                enter_active.set(Some(ActiveDiagnosticTarget::Primary {
+                    diagnostic_index: index,
+                }))
+            },
             onmouseleave: move |_| leave_active.set(None),
             div { class: "gentufa-diagnostic-main",
                 span { class: "gentufa-diagnostic-severity",
@@ -830,16 +805,6 @@ pub(super) fn diagnostic_expected_detail_parts_from_detailed_note(
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|label| !label.primary))]
-pub(super) fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
-    diagnostic
-        .labels
-        .iter()
-        .filter(|label| !label.primary)
-        .collect()
-}
-
-#[requires(true)]
 #[ensures(ret.iter().all(|entry| !entry.label.primary))]
 pub(super) fn diagnostic_context_label_entries(
     diagnostic: &Diagnostic,
@@ -869,13 +834,13 @@ pub(super) fn render_diagnostic_context_label(
         div {
             class: "gentufa-diagnostic-context",
             onmouseenter: move |_| {
-                enter_active.set(Some(active_context_diagnostic_target(
+                enter_active.set(Some(ActiveDiagnosticTarget::Context {
                     diagnostic_index,
                     label_index,
-                )))
+                }))
             },
             onmouseleave: move |_| {
-                leave_active.set(Some(active_primary_diagnostic_target(diagnostic_index)))
+                leave_active.set(Some(ActiveDiagnosticTarget::Primary { diagnostic_index }))
             },
             em {
                 if let Some(descriptor) = descriptor {
@@ -1420,16 +1385,13 @@ pub(super) fn push_diagnostic_overlay_carets(
             }
             let role = if label.primary {
                 match active_diagnostic {
-                    Some(target)
-                        if target.diagnostic_index == diagnostic_index
-                            && matches!(target.kind, ActiveDiagnosticTargetKind::Primary) =>
-                    {
-                        DiagnosticOverlayRole::ActivePrimary
-                    }
-                    Some(target)
-                        if target.diagnostic_index == diagnostic_index
-                            && matches!(target.kind, ActiveDiagnosticTargetKind::Context) =>
-                    {
+                    Some(ActiveDiagnosticTarget::Primary {
+                        diagnostic_index: active_index,
+                    }) if active_index == diagnostic_index => DiagnosticOverlayRole::ActivePrimary,
+                    Some(ActiveDiagnosticTarget::Context {
+                        diagnostic_index: active_index,
+                        ..
+                    }) if active_index == diagnostic_index => {
                         DiagnosticOverlayRole::ActivePrimaryWithContext
                     }
                     _ => DiagnosticOverlayRole::Primary,
@@ -1459,54 +1421,43 @@ pub(super) fn diagnostic_overlay_mark_for_char(
     diagnostics: &[Diagnostic],
     active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) -> Option<DiagnosticOverlayMark> {
-    match active_diagnostic {
-        Some(target)
-            if matches!(target.kind, ActiveDiagnosticTargetKind::Primary)
-                && diagnostics
-                    .get(target.diagnostic_index)
-                    .is_some_and(|diagnostic| {
-                        label_contains_char(diagnostic.primary_label(), index, char_len)
-                    }) =>
-        {
-            return Some(DiagnosticOverlayMark {
-                diagnostic_index: target.diagnostic_index,
-                role: DiagnosticOverlayRole::ActivePrimary,
-            });
+    if let Some(target) = active_diagnostic {
+        match target {
+            ActiveDiagnosticTarget::Primary { diagnostic_index }
+            | ActiveDiagnosticTarget::Context {
+                diagnostic_index, ..
+            } => {
+                if let Some(diagnostic) = diagnostics.get(diagnostic_index) {
+                    if label_contains_char(diagnostic.primary_label(), index, char_len) {
+                        let role = match target {
+                            ActiveDiagnosticTarget::Primary { .. } => {
+                                DiagnosticOverlayRole::ActivePrimary
+                            }
+                            ActiveDiagnosticTarget::Context { .. } => {
+                                DiagnosticOverlayRole::ActivePrimaryWithContext
+                            }
+                        };
+                        return Some(DiagnosticOverlayMark {
+                            diagnostic_index,
+                            role,
+                        });
+                    }
+                    if let ActiveDiagnosticTarget::Context { label_index, .. } = target
+                        && active_context_label_range_contains_char(
+                            diagnostic,
+                            label_index,
+                            index,
+                            char_len,
+                        )
+                    {
+                        return Some(DiagnosticOverlayMark {
+                            diagnostic_index,
+                            role: DiagnosticOverlayRole::ActiveContextPrefix,
+                        });
+                    }
+                }
+            }
         }
-        Some(target)
-            if matches!(target.kind, ActiveDiagnosticTargetKind::Context)
-                && diagnostics
-                    .get(target.diagnostic_index)
-                    .is_some_and(|diagnostic| {
-                        label_contains_char(diagnostic.primary_label(), index, char_len)
-                    }) =>
-        {
-            return Some(DiagnosticOverlayMark {
-                diagnostic_index: target.diagnostic_index,
-                role: DiagnosticOverlayRole::ActivePrimaryWithContext,
-            });
-        }
-        Some(target)
-            if matches!(target.kind, ActiveDiagnosticTargetKind::Context)
-                && target.label_index.is_some_and(|label_index| {
-                    diagnostics
-                        .get(target.diagnostic_index)
-                        .is_some_and(|diagnostic| {
-                            active_context_label_range_contains_char(
-                                diagnostic,
-                                label_index,
-                                index,
-                                char_len,
-                            )
-                        })
-                }) =>
-        {
-            return Some(DiagnosticOverlayMark {
-                diagnostic_index: target.diagnostic_index,
-                role: DiagnosticOverlayRole::ActiveContextPrefix,
-            });
-        }
-        _ => {}
     }
     primary_overlay_mark_for_char(index, char_len, diagnostics)
 }
@@ -1573,11 +1524,13 @@ pub(super) fn diagnostic_label_is_visible_in_overlay(
     if label.primary {
         return true;
     }
-    active_diagnostic.is_some_and(|target| {
-        target.diagnostic_index == diagnostic_index
-            && matches!(target.kind, ActiveDiagnosticTargetKind::Context)
-            && target.label_index == Some(label_index)
-    })
+    matches!(
+        active_diagnostic,
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: active_index,
+            label_index: active_label_index,
+        }) if active_index == diagnostic_index && active_label_index == label_index
+    )
 }
 
 #[requires(true)]

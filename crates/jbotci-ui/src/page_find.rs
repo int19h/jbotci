@@ -1254,7 +1254,8 @@ fn collect_diagnostic_card_page_find_entries(
             location.line, location.column, diagnostic.message
         ),
     );
-    for label in diagnostic_context_labels(diagnostic) {
+    for entry in diagnostic_context_label_entries(diagnostic) {
+        let label = entry.label;
         if let Some(descriptor) = diagnostic_context_descriptor(&label.message) {
             push_page_find_entry(entries, "while parsing ");
             push_page_find_entry(entries, descriptor);

@@ -1160,7 +1160,9 @@ fn primary_overlay_target_does_not_activate_context_span() {
     let fragments = diagnostic_overlay_fragments(
         source,
         &diagnostics,
-        Some(active_primary_diagnostic_target(0)),
+        Some(ActiveDiagnosticTarget::Primary {
+            diagnostic_index: 0,
+        }),
     );
     let context_prefix = fragments
         .iter()
@@ -1214,7 +1216,10 @@ fn active_overlay_context_prefix_extends_to_primary_span() {
     let fragments = diagnostic_overlay_fragments(
         source,
         &diagnostics,
-        Some(active_context_diagnostic_target(0, 1)),
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
     );
     let context_prefix = fragments
         .iter()
@@ -1289,7 +1294,10 @@ fn selected_overlay_context_does_not_activate_outer_context_span() {
     let fragments = diagnostic_overlay_fragments(
         source,
         &diagnostics,
-        Some(active_context_diagnostic_target(0, 1)),
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
     );
     let outer_only_prefix = fragments
         .iter()
@@ -1351,7 +1359,10 @@ fn diagnostic_overlay_selection_offsets_are_utf16_offsets() {
     let fragments = diagnostic_overlay_fragments(
         source,
         &diagnostics,
-        Some(active_context_diagnostic_target(0, 1)),
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
     );
     let primary = fragments
         .iter()
