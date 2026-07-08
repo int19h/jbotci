@@ -58,7 +58,6 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
-const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
@@ -1180,7 +1179,7 @@ fn build_wasm_stack_test_bundle(profile: WasmStackProfile) -> Result<()> {
 fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundlePaths> {
     match profile {
         WasmStackProfile::Debug => {
-            let public_dir = absolute_path(Path::new("target/dx/jbotci-app/debug/web/public"))?;
+            let public_dir = dioxus_web_public_dir("debug")?;
             let js = public_dir.join("wasm/jbotci-app.js");
             let wasm = public_dir.join("wasm/jbotci-app_bg.wasm");
             ensure_existing_file(&js)?;
@@ -1188,8 +1187,7 @@ fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundleP
             Ok(new!(WasmBundlePaths { js, wasm }))
         }
         WasmStackProfile::Release => {
-            let assets_dir =
-                absolute_path(Path::new("target/dx/jbotci-app/release/web/public/assets"))?;
+            let assets_dir = dioxus_web_public_dir("release")?.join("assets");
             let js = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app-", ".js")?;
             let wasm = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app_bg-", ".wasm")?;
             Ok(new!(WasmBundlePaths { js, wasm }))
@@ -1253,7 +1251,7 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
         status,
         "dx build --web --release --debug-symbols=false --inject-loading-scripts=false",
     )?;
-    write_release_service_worker(&Path::new(DIOXUS_WEB_RELEASE_DIR).join("public"))
+    write_release_service_worker(&dioxus_web_release_dir()?.join("public"))
 }
 
 #[requires(true)]
@@ -1620,9 +1618,9 @@ fn dioxus_asset_root(base_path: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn clean_dioxus_web_release_output() -> Result<()> {
-    let release_dir = Path::new(DIOXUS_WEB_RELEASE_DIR);
+    let release_dir = dioxus_web_release_dir()?;
     if release_dir.exists() {
-        fs::remove_dir_all(release_dir).with_context(|| {
+        fs::remove_dir_all(&release_dir).with_context(|| {
             format!(
                 "removing old Dioxus release web output `{}`",
                 release_dir.display()
@@ -1630,6 +1628,59 @@ fn clean_dioxus_web_release_output() -> Result<()> {
         })?;
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_release_dir() -> Result<PathBuf> {
+    dioxus_web_profile_dir("release")
+}
+
+#[requires(!profile.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_public_dir(profile: &str) -> Result<PathBuf> {
+    Ok(dioxus_web_profile_dir(profile)?.join("public"))
+}
+
+#[requires(!profile.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_profile_dir(profile: &str) -> Result<PathBuf> {
+    Ok(cargo_target_dir()?
+        .join("dx")
+        .join("jbotci-app")
+        .join(profile)
+        .join("web"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_target_dir() -> Result<PathBuf> {
+    if let Some(value) = std::env::var_os("CARGO_TARGET_DIR") {
+        let path = PathBuf::from(value);
+        if path.as_os_str().is_empty() {
+            bail!("CARGO_TARGET_DIR is set to an empty path");
+        }
+        return absolute_path(&path);
+    }
+    cargo_metadata_target_dir()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_metadata_target_dir() -> Result<PathBuf> {
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| std::ffi::OsString::from("cargo"));
+    let output = ProcessCommand::new(&cargo)
+        .args(["metadata", "--format-version=1", "--no-deps"])
+        .output()
+        .with_context(|| format!("failed to run `{}` metadata", Path::new(&cargo).display()))?;
+    check_status(output.status, "cargo metadata --format-version=1 --no-deps")?;
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("parsing Cargo metadata JSON")?;
+    let target_dir = metadata
+        .get("target_directory")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Cargo metadata JSON is missing `target_directory`"))?;
+    absolute_path(Path::new(target_dir))
 }
 
 #[requires(true)]
