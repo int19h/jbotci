@@ -19,7 +19,7 @@ function casesFor(defaultText) {
 
 function usage() {
   return [
-    "usage: node --stack-size=<kb> tests/wasm/gentufa_compute_stack_probe.mjs --js <path> --wasm <path> --default-text <text> [--case <name>]...",
+    "usage: node --stack-size=<kb> tests/wasm/gentufa_compute_stack_probe.mjs --js <path> --wasm <path> --ready-js <path> --default-text <text> [--case <name>]...",
     "",
     "cases:",
     ...CASE_NAMES.map((name) => `  ${name}`),
@@ -30,6 +30,7 @@ function parseArgs(argv) {
   const args = {
     jsPath: null,
     wasmPath: null,
+    readyJsPath: null,
     defaultText: null,
     cases: [],
   };
@@ -47,6 +48,10 @@ function parseArgs(argv) {
       args.wasmPath = requiredValue(argv, ++i, arg);
       continue;
     }
+    if (arg === "--ready-js") {
+      args.readyJsPath = requiredValue(argv, ++i, arg);
+      continue;
+    }
     if (arg === "--default-text") {
       args.defaultText = requiredValue(argv, ++i, arg);
       continue;
@@ -62,6 +67,9 @@ function parseArgs(argv) {
   }
   if (!args.wasmPath) {
     throw new Error(`missing --wasm\n${usage()}`);
+  }
+  if (!args.readyJsPath) {
+    throw new Error(`missing --ready-js\n${usage()}`);
   }
   if (args.defaultText === null) {
     throw new Error(`missing --default-text\n${usage()}`);
@@ -115,15 +123,16 @@ function requestFor(text) {
   };
 }
 
-async function loadAppModule(jsPath, wasmPath) {
+async function loadAppModule(jsPath, wasmPath, readyJsPath) {
   const wasmBytes = readFileSync(wasmPath);
   globalThis.fetch = async () =>
     new Response(wasmBytes, {
       status: 200,
       headers: { "Content-Type": "application/wasm" },
     });
+  const readinessModule = await import(pathToFileURL(readyJsPath).href);
   const module = await import(pathToFileURL(jsPath).href);
-  await module.default({ module_or_path: wasmBytes });
+  await readinessModule.waitForAppModuleReady(module);
   if (typeof module.jbotciComputeHandle !== "function") {
     throw new Error("Dioxus app module does not export jbotciComputeHandle");
   }
@@ -158,7 +167,7 @@ function validateResponse(caseName, json) {
 
 const args = parseArgs(process.argv);
 const cases = casesFor(args.defaultText);
-const module = await loadAppModule(args.jsPath, args.wasmPath);
+const module = await loadAppModule(args.jsPath, args.wasmPath, args.readyJsPath);
 let failed = false;
 
 for (const caseName of args.cases) {

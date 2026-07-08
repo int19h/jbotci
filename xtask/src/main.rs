@@ -1493,6 +1493,8 @@ mod tests {
     const JBOTCI_UI_LIB: &str = include_str!("../../crates/jbotci-ui/src/lib.rs");
     const JBOTCI_UI_LAYOUT: &str = include_str!("../../crates/jbotci-ui/src/layout.rs");
     const JBOTCI_UI_PLATFORM: &str = include_str!("../../crates/jbotci-ui/src/platform.rs");
+    const APP_MODULE_READY_JS: &str =
+        include_str!("../../crates/jbotci-ui/assets/app-module-ready.js");
     const MODEL_CATALOG_JS: &str = include_str!("../../crates/jbotci-ui/assets/model-catalog.js");
 
     #[requires(true)]
@@ -1678,6 +1680,16 @@ mod tests {
         );
         assert!(JBOTCI_UI_LAYOUT.contains("jbotciModelCatalogAssetPin"));
         assert!(MODEL_CATALOG_JS.contains("export function jbotciModelCatalogAssetPin() {}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_app_module_ready_accepts_current_dioxus_wasm_signal() {
+        assert!(APP_MODULE_READY_JS.contains("globalThis.__dx_mainWasm"));
+        assert!(APP_MODULE_READY_JS.contains("appModule.__wasm"));
+        assert!(APP_MODULE_READY_JS.contains("waiting for"));
+        assert!(!APP_MODULE_READY_JS.contains("does not export the wasm readiness binding"));
     }
 
     #[test]
