@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, format_ident, quote};
@@ -1314,7 +1314,7 @@ impl SyntaxGrammar {
                     .map(|argument| {
                         let argument_name = argument.to_string();
                         if local_recursive_names.contains(&argument_name) {
-                            Ok(quote!(#argument.clone().boxed()))
+                            Ok(quote!(#argument.clone()))
                         } else if all_recursive_names.contains(&argument_name) {
                             Ok(quote!(super::strict_generated_parser_family().#argument))
                         } else {
@@ -1988,28 +1988,37 @@ impl AliasRule {
         )?;
         let name = format_ident!("strict_{}_parser", self.name);
         let output = parser_type_tokens(output, generate_model, model_outputs, model_path);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
+        let argument_tokens = strict_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            generate_model,
+            model_outputs,
+            model_path,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens();
         let rule_name = self.name.to_string();
-        let parser_body = self.context.as_ref().map_or(parser.clone(), |context| {
-            let context = context.value();
-            quote!(generated_runtime::syntax_context(#context, #parser))
-        });
+        let context = self.context.as_ref().map_or_else(
+            || quote!(None),
+            |context| {
+                let context = context.value();
+                quote!(Some(#context))
+            },
+        );
         Ok(quote! {
             #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #output> {
-                generated_runtime::memoized_rule(
+            ) -> BoxedParser<'tokens, #output>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
                     #rule_name,
-                    #parser_body
+                    #context,
+                    #parser
                 )
             }
         })
@@ -2276,26 +2285,31 @@ impl EnumRule {
             .collect::<Result<Vec<_>>>()?;
         let parser = strict_choice_chain(alternatives, &self.name)?;
         let name = format_ident!("strict_{}_parser", self.name);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
+        let argument_tokens = strict_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            generate_model,
+            model_outputs,
+            model_path,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens();
         let rule_name = self.name.to_string();
         let context = self.context.value();
-        let parser_body = quote!(generated_runtime::syntax_context(#context, #parser));
         Ok(quote! {
             #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #output_tokens> {
-                generated_runtime::memoized_rule(
+            ) -> BoxedParser<'tokens, #output_tokens>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
                     #rule_name,
-                    #parser_body
+                    Some(#context),
+                    #parser
                 )
             }
         })
@@ -2503,13 +2517,16 @@ impl NodeRule {
         let name = format_ident!("strict_{}_parser", self.name);
         let output = &self.output;
         let output_tokens = parser_type_tokens(output, generate_model, model_outputs, model_path);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
+        let argument_tokens = strict_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            generate_model,
+            model_outputs,
+            model_path,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens();
         let body = if is_unit_type(output) {
             let let_bindings = self.fields.iter().filter_map(|field| {
@@ -2590,21 +2607,24 @@ impl NodeRule {
         };
         let rule_name = self.name.to_string();
         let parser_body = quote!(#parser.map(|#pattern| #body));
-        let parser_body = self
-            .context
-            .as_ref()
-            .map_or(parser_body.clone(), |context| {
+        let context = self.context.as_ref().map_or_else(
+            || quote!(None),
+            |context| {
                 let context = context.value();
-                quote!(generated_runtime::syntax_context(#context, #parser_body))
-            });
+                quote!(Some(#context))
+            },
+        );
         Ok(quote! {
             #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #output_tokens> {
-                generated_runtime::memoized_rule(
+            ) -> BoxedParser<'tokens, #output_tokens>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
                     #rule_name,
+                    #context,
                     #parser_body
                 )
             }
@@ -2885,6 +2905,49 @@ fn field_type_for_chain_metadata(
 #[ensures(true)]
 fn strict_free_modifier_param_tokens() -> TokenStream2 {
     quote!(__generated_free_modifier: BoxedParser<'tokens, FreeModifierSyntax>,)
+}
+
+#[invariant(generic_params.len() == params.len())]
+struct StrictParserArgumentTokens {
+    generic_params: Vec<Ident>,
+    params: Vec<TokenStream2>,
+    where_clause: TokenStream2,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn strict_parser_argument_tokens(
+    arguments: &[Ident],
+    argument_types: &BTreeMap<String, Type>,
+    generate_model: bool,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+) -> StrictParserArgumentTokens {
+    let mut generic_params = Vec::new();
+    let mut params = Vec::new();
+    let mut where_predicates = Vec::new();
+    for (index, argument) in arguments.iter().enumerate() {
+        let generic = format_ident!("__Argument{index}Parser");
+        let ty = argument_types
+            .get(&argument.to_string())
+            .expect("argument types are populated from recursive declarations");
+        let ty = parser_type_tokens(ty, generate_model, model_outputs, model_path);
+        generic_params.push(generic.clone());
+        params.push(quote!(#argument: #generic));
+        where_predicates.push(quote!(
+            #generic: Parser<'tokens, ParserInput<'tokens>, #ty, ParseExtra<'tokens>> + Clone + 'tokens
+        ));
+    }
+    let where_clause = if where_predicates.is_empty() {
+        quote!()
+    } else {
+        quote!(where #(#where_predicates,)*)
+    };
+    new!(StrictParserArgumentTokens {
+        generic_params,
+        params,
+        where_clause,
+    })
 }
 
 #[requires(true)]

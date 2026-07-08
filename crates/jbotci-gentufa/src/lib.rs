@@ -1182,16 +1182,71 @@ struct BlockTemp<Tooltip> {
     block: GentufaBlock<Tooltip>,
 }
 
+#[invariant(node.children.is_empty(), "collapse frames store pending children outside the node")]
+#[invariant(remaining_children.len() <= max_vec_len::<BlockTreeNode>())]
+#[invariant(collapsed_children.len() <= max_vec_len::<BlockTreeNode>())]
+struct BlockCollapseFrame {
+    node: BlockTreeNode,
+    remaining_children: Vec<BlockTreeNode>,
+    collapsed_children: Vec<BlockTreeNode>,
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn max_vec_len<T>() -> usize {
+    isize::MAX as usize / std::mem::size_of::<T>().max(1)
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn collapse_single_child_chains(node: BlockTreeNode) -> BlockTreeNode {
-    let mut node_data = node.into_data();
-    let children = std::mem::take(&mut node_data.children);
-    node_data.children = children
-        .into_iter()
-        .map(collapse_single_child_chains)
-        .collect();
-    let mut node = BlockTreeNode::from_data(node_data);
+    let mut frames = Vec::new();
+    let mut next = Some(node);
+    let mut completed = None;
+    loop {
+        if let Some(node) = next.take() {
+            let mut node_data = node.into_data();
+            let mut remaining_children = std::mem::take(&mut node_data.children);
+            remaining_children.reverse();
+            frames.push(new!(BlockCollapseFrame {
+                node: BlockTreeNode::from_data(node_data),
+                remaining_children,
+                collapsed_children: Vec::new(),
+            }));
+            continue;
+        }
+
+        if let Some(node) = completed.take() {
+            if let Some(parent) = frames.pop() {
+                let mut parent_data = parent.into_data();
+                parent_data.collapsed_children.push(node);
+                frames.push(BlockCollapseFrame::from_data(parent_data));
+            } else {
+                return node;
+            }
+        }
+
+        let Some(frame) = frames.pop() else {
+            panic!("block collapse traversal lost its root frame");
+        };
+        let mut frame_data = frame.into_data();
+        if let Some(child) = frame_data.remaining_children.pop() {
+            frames.push(BlockCollapseFrame::from_data(frame_data));
+            next = Some(child);
+            continue;
+        }
+
+        let mut node_data = frame_data.node.into_data();
+        node_data.children = frame_data.collapsed_children;
+        completed = Some(collapse_single_child_node(BlockTreeNode::from_data(
+            node_data,
+        )));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
     if node.children.len() == 1 {
         let mut node_data = node.into_data();
         let child = node_data

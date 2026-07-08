@@ -62,10 +62,9 @@ const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
-// #290 intentionally starts with a non-fixing gate: on Node 24.14, main passes
-// the default-input probe at 453 KB in debug and 290 KB in release. 512 KB is
-// the smallest round budget that current main passes before #289 tightens it.
-const DEFAULT_WASM_STACK_SIZE_KB: usize = 512;
+// Safari exposes no browser knob for the JS engine stack that also bounds nested wasm calls;
+// 168 KB is the historical proxy budget used by the Node stack probe for that engine limit.
+const DEFAULT_WASM_STACK_SIZE_KB: usize = 168;
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";

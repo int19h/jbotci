@@ -1,4 +1,4 @@
-use bityzba::{invariant, new, requires};
+use bityzba::{data, invariant, new, requires};
 
 use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
 
@@ -89,34 +89,92 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
     }
 }
 
+#[invariant(remaining.len() <= max_vec_len::<SExpr>())]
+#[invariant(range.is_none_or(|range| range.byte_start <= range.byte_end))]
+#[invariant(flattened.len() <= max_vec_len::<SExpr>())]
+struct FlattenFrame {
+    remaining: Vec<SExpr>,
+    range: Option<BracketSourceRange>,
+    flattened: Vec<SExpr>,
+}
+
+#[requires(true)]
+#[ensures(ret > 0)]
+fn max_vec_len<T>() -> usize {
+    isize::MAX as usize / std::mem::size_of::<T>().max(1)
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn flatten(expr: SExpr) -> SExpr {
-    match expr {
-        SExpr::Leaf {
-            text,
-            range,
-            elided,
-        } => SExpr::Leaf {
-            text,
-            range,
-            elided,
-        },
-        SExpr::Node { children, range } => {
-            let mut flattened = children
-                .into_iter()
-                .map(flatten)
-                .filter(|child| !is_empty(child))
-                .collect::<Vec<_>>();
-            if flattened.len() == 1 {
-                flattened.remove(0)
-            } else {
-                SExpr::Node {
-                    children: flattened,
+    let mut frames = Vec::new();
+    let mut next = Some(expr);
+    let mut completed = None;
+    loop {
+        if let Some(expr) = next.take() {
+            match expr {
+                SExpr::Leaf {
+                    text,
                     range,
+                    elided,
+                } => {
+                    completed = Some(SExpr::Leaf {
+                        text,
+                        range,
+                        elided,
+                    });
+                }
+                SExpr::Node {
+                    mut children,
+                    range,
+                } => {
+                    children.reverse();
+                    frames.push(new!(FlattenFrame {
+                        remaining: children,
+                        range,
+                        flattened: Vec::new(),
+                    }));
+                    continue;
                 }
             }
         }
+
+        if let Some(value) = completed.take() {
+            if let Some(parent) = frames.pop() {
+                let mut parent_data = parent.into_data();
+                if !is_empty(&value) {
+                    parent_data.flattened.push(value);
+                }
+                frames.push(FlattenFrame::from_data(parent_data));
+            } else {
+                return value;
+            }
+        }
+
+        let Some(frame) = frames.pop() else {
+            return empty_node();
+        };
+        let mut frame_data = frame.into_data();
+        if let Some(child) = frame_data.remaining.pop() {
+            frames.push(FlattenFrame::from_data(frame_data));
+            next = Some(child);
+            continue;
+        }
+
+        let data!(FlattenFrame {
+            remaining: _,
+            range,
+            flattened,
+        }) = frame_data;
+        let mut flattened = flattened;
+        completed = Some(if flattened.len() == 1 {
+            flattened.remove(0)
+        } else {
+            SExpr::Node {
+                children: flattened,
+                range,
+            }
+        });
     }
 }
 

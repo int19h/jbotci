@@ -3441,6 +3441,7 @@ mod tests {
             format!("alias\"{normalized_construct}\""),
             format!("context\"{normalized_construct}\""),
             format!("syntax_context(\"{normalized_construct}\""),
+            format!("Some(\"{normalized_construct}\")"),
             format!("syntax_label(\"{normalized_construct}\""),
             format!(".labelled(\"{normalized_construct}\""),
         ]

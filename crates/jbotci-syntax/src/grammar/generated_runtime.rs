@@ -185,8 +185,13 @@ impl Default for SyntaxGrammarPolicy {
 }
 
 #[requires(!name.is_empty())]
+#[requires(context.is_none_or(|construct| !construct.is_empty()))]
 #[ensures(true)]
-pub(crate) fn memoized_rule<'tokens, O, P>(name: &'static str, parser: P) -> BoxedParser<'tokens, O>
+pub(crate) fn rule_wrapper<'tokens, O, P>(
+    name: &'static str,
+    context: Option<&'static str>,
+    parser: P,
+) -> BoxedParser<'tokens, O>
 where
     O: Clone + 'static,
     P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
@@ -210,8 +215,25 @@ where
             return Err(expected_found_named_at_current(input, name.to_owned()));
         }
         let warning_start = input.state().warning_count();
+        let start_byte = input.state().byte_offset_for_location(start_location);
+        if let Some(construct) = context {
+            if input
+                .state()
+                .trace_should_record(TraceLevel::Top, construct)
+            {
+                input
+                    .state()
+                    .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
+            }
+            input.state().push_syntax_context(construct, start_byte);
+        }
         match input.parse(&parser) {
             Ok(output) => {
+                if let Some(construct) = context {
+                    let span = input.span_since(checkpoint.cursor());
+                    trace_rule_exit(input, construct, TraceEventKind::ConstructSuccess, span);
+                    input.state().pop_syntax_context();
+                }
                 let end_location = ParserInput::cursor_location(input.cursor().inner());
                 let warnings = input.state().warnings_since(warning_start);
                 input.state().store_syntax_memo_success(
@@ -225,6 +247,21 @@ where
                 Ok(output)
             }
             Err(error) => {
+                let error = if let Some(construct) = context {
+                    let failure_location = ParserInput::cursor_location(input.cursor().inner());
+                    let span = rule_failure_span(start_byte, *error.span());
+                    trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
+                    let error = error.with_rule_context_from_progress(
+                        construct,
+                        start_byte,
+                        failure_location > start_location,
+                    );
+                    let error = error.with_active_contexts(input.state().active_syntax_contexts());
+                    input.state().pop_syntax_context();
+                    error
+                } else {
+                    error
+                };
                 input.rewind(checkpoint);
                 input
                     .state()
@@ -239,72 +276,28 @@ where
 
 #[requires(!construct.is_empty())]
 #[ensures(true)]
-pub(crate) fn syntax_context<'tokens, O: 'tokens>(
+fn trace_rule_exit<'tokens>(
+    input: &mut chumsky::input::InputRef<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>,
     construct: &'static str,
-    parser: impl Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + 'tokens,
-) -> BoxedParser<'tokens, O> {
-    let parser = parser
-        .labelled(construct)
-        .as_context()
-        .map_with(move |output, extra| {
-            let span: Span = extra.span();
-            let byte_start = span.start.min(span.end);
-            let byte_end = span.start.max(span.end);
-            extra.state().trace_exit_construct(
-                TraceLevel::Top,
-                TraceEventKind::ConstructSuccess,
-                construct,
-                byte_start,
-                byte_end,
-                || None,
-            );
-            output
-        })
-        .map_err_with_state(move |error, span: Span, state| {
-            let byte_start = span.start.min(span.end);
-            let byte_end = span.start.max(span.end);
-            state.trace_exit_construct(
-                TraceLevel::Top,
-                TraceEventKind::ConstructFailure,
-                construct,
-                byte_start,
-                byte_end,
-                || None,
-            );
-            error
-        })
-        .boxed();
-    trace_enter(construct)
-        .ignore_then(custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(
-            move |input| {
-                let start_location = ParserInput::cursor_location(input.cursor().inner());
-                let byte_start = input.state().byte_offset_for_location(start_location);
-                input.state().push_syntax_context(construct, byte_start);
-                let result = input.parse(&parser).map_err(|error| {
-                    error.with_active_contexts(input.state().active_syntax_contexts())
-                });
-                input.state().pop_syntax_context();
-                result
-            },
-        ))
-        .boxed()
+    kind: TraceEventKind,
+    span: Span,
+) {
+    let byte_start = span.start.min(span.end);
+    let byte_end = span.start.max(span.end);
+    input.state().trace_exit_construct(
+        TraceLevel::Top,
+        kind,
+        construct,
+        byte_start,
+        byte_end,
+        || None,
+    );
 }
 
-#[requires(!construct.is_empty())]
-#[ensures(true)]
-fn trace_enter<'tokens>(construct: &'static str) -> BoxedParser<'tokens, ()> {
-    custom::<_, ParserInput<'tokens>, (), ParseExtra<'tokens>>(move |input| {
-        if input
-            .state()
-            .trace_should_record(TraceLevel::Top, construct)
-        {
-            input
-                .state()
-                .trace_enter_construct(TraceLevel::Top, construct, 0, 0);
-        }
-        Ok(())
-    })
-    .boxed()
+#[requires(true)]
+#[ensures(ret.start <= ret.end)]
+fn rule_failure_span(start_byte: usize, error_span: Span) -> Span {
+    Span::from(start_byte..error_span.start.max(start_byte))
 }
 
 #[requires(true)]
