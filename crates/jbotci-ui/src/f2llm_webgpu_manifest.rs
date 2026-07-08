@@ -4,9 +4,7 @@ use std::collections::BTreeMap;
 use bityzba::{ensures, invariant, requires};
 use serde::Deserialize;
 
-use crate::f2llm_runtime_core::{
-    validate_chunk_layout, validate_q4_tensor_storage, validate_sha256_hex,
-};
+use crate::f2llm_runtime_core::{validate_chunk_layout, validate_q4_tensor_storage};
 
 const EXPECTED_SCHEMA_VERSION: u32 = 1;
 
@@ -154,58 +152,22 @@ pub(super) fn validate_artifact_manifest(
             expected_dimensions, manifest.model.hidden_size
         ));
     }
-    if manifest.model.num_attention_heads % manifest.model.num_key_value_heads != 0 {
-        return Err(format!(
-            "F2LLM WebGPU attention heads must be divisible by key/value heads: {} % {} != 0",
-            manifest.model.num_attention_heads, manifest.model.num_key_value_heads
-        ));
-    }
-    let query_width = checked_attention_width(
-        "query",
-        manifest.model.num_attention_heads,
-        manifest.model.head_dim,
-    )?;
-    let key_value_width = checked_attention_width(
-        "key/value",
-        manifest.model.num_key_value_heads,
-        manifest.model.head_dim,
-    )?;
-    if manifest.model.head_dim % 2 != 0 {
-        return Err(format!(
-            "F2LLM WebGPU head_dim must be even for RoPE, got {}",
-            manifest.model.head_dim
-        ));
-    }
-    if !manifest.model.rms_norm_eps.is_finite() || manifest.model.rms_norm_eps <= 0.0 {
-        return Err("F2LLM WebGPU rms_norm_eps must be positive and finite".to_owned());
-    }
-    if !manifest.model.rope_theta.is_finite() || manifest.model.rope_theta <= 0.0 {
-        return Err("F2LLM WebGPU rope_theta must be positive and finite".to_owned());
-    }
-    validate_sha256_hex(
-        &manifest.tokenizer.canonical_json_sha256,
-        "F2LLM tokenizer canonical JSON SHA-256",
-    )?;
-    if manifest.tokenizer.byte_length == 0 {
-        return Err("F2LLM tokenizer byte length must be positive".to_owned());
-    }
-    if manifest.tokenizer.url.trim().is_empty() {
-        return Err("F2LLM tokenizer URL must be non-empty".to_owned());
-    }
+    let query_width = attention_width(manifest.model.num_attention_heads, manifest.model.head_dim);
+    let key_value_width =
+        attention_width(manifest.model.num_key_value_heads, manifest.model.head_dim);
     for (name, spec) in &manifest.tensors {
         validate_tensor_spec_shape(name, spec)?;
     }
     validate_model_tensor_shapes(manifest, query_width, key_value_width)
 }
 
-#[requires(!label.is_empty())]
 #[requires(heads > 0)]
 #[requires(head_dim > 0)]
-#[ensures(ret.as_ref().is_ok_and(|width| *width >= head_dim) || ret.is_err())]
-fn checked_attention_width(label: &str, heads: usize, head_dim: usize) -> Result<usize, String> {
+#[ensures(ret >= head_dim)]
+fn attention_width(heads: usize, head_dim: usize) -> usize {
     heads
         .checked_mul(head_dim)
-        .ok_or_else(|| format!("F2LLM WebGPU {label} attention width overflow"))
+        .expect("ModelConfig invariant guarantees attention width does not overflow")
 }
 
 #[requires(query_width > 0)]
@@ -330,16 +292,13 @@ fn validate_manifest_tensor_shape(
 fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), String> {
     match spec.kind.as_str() {
         "q4_onnx_gather" | "q4_onnx_matmul" => {
-            let shape = checked_rank2_shape(name, &spec.shape)?;
+            let shape = rank2_shape_from_valid_tensor(&spec.shape);
             let group_size = spec
                 .group_size
                 .ok_or_else(|| format!("{name} is missing group_size"))?;
             let groups = spec
                 .groups
                 .ok_or_else(|| format!("{name} is missing groups"))?;
-            if group_size == 0 {
-                return Err(format!("{name} group_size must be positive"));
-            }
             let expected_groups = shape[1].div_ceil(group_size);
             if groups != expected_groups {
                 return Err(format!(
@@ -348,17 +307,16 @@ fn validate_tensor_spec_shape(name: &str, spec: &TensorSpec) -> Result<(), Strin
             }
             Ok(())
         }
-        "f32" => {
-            if spec.shape.is_empty() || spec.shape.contains(&0) {
-                Err(format!(
-                    "{name} f32 tensor shape must be non-empty and positive"
-                ))
-            } else {
-                Ok(())
-            }
-        }
+        "f32" => Ok(()),
         other => Err(format!("unsupported F2LLM tensor kind for {name}: {other}")),
     }
+}
+
+#[requires(shape.len() == 2)]
+#[requires(shape.iter().all(|dimension| *dimension > 0))]
+#[ensures(ret.iter().all(|dimension| *dimension > 0))]
+fn rank2_shape_from_valid_tensor(shape: &[usize]) -> [usize; 2] {
+    [shape[0], shape[1]]
 }
 
 #[requires(!name.is_empty())]

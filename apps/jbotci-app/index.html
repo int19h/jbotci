@@ -67,17 +67,19 @@
         if (!("serviceWorker" in navigator)) {
           return true;
         }
+        let unregisteredAny = false;
         try {
           const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(
+          const unregisterResults = await Promise.all(
             registrations
               .filter(registrationCanControlApp)
               .map((registration) => registration.unregister()),
           );
+          unregisteredAny = unregisterResults.some(Boolean);
         } catch (error) {
           console.warn("jbotci service worker cleanup failed", error);
         }
-        if (navigator.serviceWorker.controller) {
+        if (unregisteredAny && navigator.serviceWorker.controller) {
           window.location.reload();
           return false;
         }

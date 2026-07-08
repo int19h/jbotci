@@ -756,7 +756,9 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                     self.output.push_str(&inline_plain_text(line));
                     self.output.push('\n');
                 }
-                let column_count = rows.iter().map(Vec::len).max().unwrap_or(0);
+                let column_count = headers
+                    .len()
+                    .max(rows.iter().map(Vec::len).max().unwrap_or(0));
                 for index in 0..column_count {
                     if let Some(header) = headers.get(index) {
                         self.output.push_str(&inline_plain_text(header));
@@ -1180,6 +1182,27 @@ mod tests {
         let markdown = render_section(site, section, CllRenderFormat::Markdown);
         assert!(markdown.contains("| cmavo | gismu | comments |"));
         assert!(markdown.contains("| --- | --- | --- |"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_text_preserves_cmavo_headers_wider_than_rows() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: vec![
+                vec![CllInline::Text("cmavo".to_owned())],
+                vec![CllInline::Text("selma'o".to_owned())],
+                vec![CllInline::Text("notes".to_owned())],
+            ],
+            rows: vec![vec![vec![CllInline::Text("coi".to_owned())]]],
+        };
+
+        let plain_text = blocks_plain_text(site, &[block]);
+
+        assert_eq!(plain_text, "cmavo selma'o notes coi");
     }
 
     #[test]

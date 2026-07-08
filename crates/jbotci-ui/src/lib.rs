@@ -112,6 +112,10 @@ mod f2llm_webgpu_manifest;
 mod f2llm_webgpu_runtime;
 
 const MAIN_CSS: Asset = asset!("/assets/main.css");
+// These worker module assets must keep stable public URLs because index.html,
+// worker constructors, and wasm-bindgen imports refer to them by literal path.
+// They therefore rely on the app bundle/deployment update path for cache busting;
+// add explicit URL versioning before serving them with long-lived cache headers.
 const COMPUTE_WORKER_JS: Asset = asset!(
     "/assets/compute-worker.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)
@@ -120,7 +124,6 @@ const EMBEDDING_WORKER_JS: Asset = asset!(
     "/assets/embedding-worker.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)
 );
-// Worker-only ES modules imported from worker scripts; keep explicit stable asset pins for Dioxus.
 #[allow(dead_code)]
 const APP_MODULE_READY_JS: Asset = asset!(
     "/assets/app-module-ready.js",

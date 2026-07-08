@@ -1596,6 +1596,10 @@ mod tests {
 
         assert!(cleanup < module_import);
         assert!(DIOXUS_INDEX_TEMPLATE.contains("navigator.serviceWorker.controller"));
+        assert!(DIOXUS_INDEX_TEMPLATE.contains("unregisterResults.some(Boolean)"));
+        assert!(
+            DIOXUS_INDEX_TEMPLATE.contains("unregisteredAny && navigator.serviceWorker.controller")
+        );
         assert!(DIOXUS_INDEX_TEMPLATE.contains("window.location.reload()"));
     }
 
@@ -1619,6 +1623,8 @@ mod tests {
             );
         }
 
+        assert!(JBOTCI_UI_LIB.contains("literal path"));
+        assert!(JBOTCI_UI_LIB.contains("add explicit URL versioning"));
         assert!(
             JBOTCI_UI_LAYOUT.contains("#[wasm_bindgen(module = \"/assets/model-catalog.js\")]")
         );
@@ -1630,9 +1636,22 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn web_delayed_layout_schedulers_do_not_require_current_dioxus_scope() {
-        assert!(JBOTCI_UI_PLATFORM.contains("wasm_bindgen_futures::spawn_local(async move"));
-        assert!(!JBOTCI_UI_PLATFORM.contains(
-            "#[cfg(target_arch = \"wasm32\")]\n#[requires(true)]\n#[ensures(true)]\npub fn schedule_visual_measure_task"
-        ) || JBOTCI_UI_PLATFORM.contains("wait_animation_frame().await;"));
+        let scheduler = source_item_after(
+            JBOTCI_UI_PLATFORM,
+            "pub fn schedule_visual_measure_task",
+            "\n#[cfg",
+        );
+        assert!(scheduler.contains("wasm_bindgen_futures::spawn_local(async move"));
+        assert!(scheduler.contains("wait_animation_frame().await;"));
+    }
+
+    #[requires(!needle.is_empty())]
+    #[requires(!next_item_marker.is_empty())]
+    #[ensures(ret.contains(needle))]
+    fn source_item_after<'a>(source: &'a str, needle: &str, next_item_marker: &str) -> &'a str {
+        let start = source.find(needle).expect("source item should exist");
+        let suffix = &source[start..];
+        let end = suffix.find(next_item_marker).unwrap_or(suffix.len());
+        &suffix[..end]
     }
 }
