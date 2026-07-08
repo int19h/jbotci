@@ -5,6 +5,7 @@ use chumsky::{Parser, input::Input, primitive::custom};
 use jbotci_diagnostics::{TraceEventKind, TraceLevel};
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho};
+use std::cell::Cell;
 
 use super::{
     BoxedParser, ParseExtra, ParserInput, Span, SyntaxFound, SyntaxFoundData, SyntaxParseError,
@@ -227,7 +228,19 @@ where
             }
             input.state().push_syntax_context(construct, start_byte);
         }
-        match input.parse(&parser) {
+        let failure_span = Cell::new(None);
+        let parse_result = if context.is_some() {
+            let parser = parser
+                .clone()
+                .map_err_with_state(|error, span: Span, _state| {
+                    failure_span.set(Some(span));
+                    error
+                });
+            input.parse(parser)
+        } else {
+            input.parse(&parser)
+        };
+        match parse_result {
             Ok(output) => {
                 if let Some(construct) = context {
                     let span = input.span_since(checkpoint.cursor());
@@ -249,7 +262,7 @@ where
             Err(error) => {
                 let error = if let Some(construct) = context {
                     let failure_location = ParserInput::cursor_location(input.cursor().inner());
-                    let span = rule_failure_span(start_byte, *error.span());
+                    let span = failure_span.get().unwrap_or(*error.span());
                     trace_rule_exit(input, construct, TraceEventKind::ConstructFailure, span);
                     let error = error.with_rule_context_from_progress(
                         construct,
@@ -292,12 +305,6 @@ fn trace_rule_exit<'tokens>(
         byte_end,
         || None,
     );
-}
-
-#[requires(true)]
-#[ensures(ret.start <= ret.end)]
-fn rule_failure_span(start_byte: usize, error_span: Span) -> Span {
-    Span::from(start_byte..error_span.start.max(start_byte))
 }
 
 #[requires(true)]

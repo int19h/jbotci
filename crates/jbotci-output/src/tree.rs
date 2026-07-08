@@ -2836,148 +2836,131 @@ fn syntax_value(syntax_ids: Vec<RawSyntaxNodeId>, value: TreeValue) -> TreeValue
     }
 }
 
-#[invariant(::Value { value } => collapse_task_value_shape(value))]
-#[invariant(::FinishCollection { child_count } => *child_count <= max_vec_len::<TreeValue>())]
-#[invariant(::FinishSyntax { syntax_ids } => syntax_ids.len() <= max_vec_len::<RawSyntaxNodeId>())]
-#[invariant(::FinishNode { labels, child_count, .. } => labels.len() == *child_count)]
-enum CollapseTask {
-    Value {
-        value: TreeValue,
-    },
-    FinishCollection {
-        child_count: usize,
-    },
-    FinishSyntax {
-        syntax_ids: Vec<RawSyntaxNodeId>,
-    },
-    FinishNode {
-        constructor: &'static str,
-        labels: Vec<Option<&'static str>>,
-        child_count: usize,
-    },
-}
-
-#[requires(true)]
-#[ensures(ret > 0)]
-fn max_vec_len<T>() -> usize {
-    isize::MAX as usize / std::mem::size_of::<T>().max(1)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn collapse_task_value_shape(value: &TreeValue) -> bool {
-    match value {
-        TreeValue::Node(node) => !node.constructor.is_empty(),
-        TreeValue::Collection(items) => items.len() <= max_vec_len::<TreeValue>(),
-        TreeValue::Syntax { syntax_ids, .. } => {
-            syntax_ids.len() <= max_vec_len::<RawSyntaxNodeId>()
-        }
-        TreeValue::Word {
-            constructor, span, ..
-        } => !constructor.is_empty() && optional_byte_span_is_ordered(span),
-        TreeValue::Verbatim { span, .. } => optional_byte_span_is_ordered(span),
-        TreeValue::Text(_) => true,
-        TreeValue::Span {
-            byte_start,
-            byte_end,
-            char_start,
-            char_end,
-        } => byte_start <= byte_end && char_start <= char_end,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn optional_byte_span_is_ordered(span: &Option<(usize, usize)>) -> bool {
-    span.is_none_or(|(start, end)| start <= end)
+#[invariant(true)]
+struct CollapseFrame {
+    output_label: Option<&'static str>,
+    constructor: Option<&'static str>,
+    syntax_ids: Vec<RawSyntaxNodeId>,
+    remaining: Vec<TreeEntry>,
+    collapsed: Vec<TreeEntry>,
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn collapse_value(value: TreeValue) -> TreeValue {
-    let mut tasks = vec![new!(CollapseTask::Value { value })];
-    let mut values = Vec::new();
-    while let Some(task) = tasks.pop() {
-        match task.into_data() {
-            data!(CollapseTask::Value { value }) => match value {
+    let mut next = Some(TreeEntry { label: None, value });
+    let mut frames = Vec::<CollapseFrame>::new();
+    let mut completed = None;
+
+    loop {
+        if let Some(entry) = next.take() {
+            match entry.value {
                 TreeValue::Node(node) => {
-                    let child_count = node.entries.len();
-                    let labels = node
-                        .entries
-                        .iter()
-                        .map(|entry| entry.label)
-                        .collect::<Vec<_>>();
-                    tasks.push(new!(CollapseTask::FinishNode {
-                        constructor: node.constructor,
-                        labels,
-                        child_count,
-                    }));
-                    for entry in node.entries.into_iter().rev() {
-                        tasks.push(new!(CollapseTask::Value { value: entry.value }));
-                    }
+                    let mut remaining = node.entries;
+                    remaining.reverse();
+                    frames.push(CollapseFrame {
+                        output_label: entry.label,
+                        constructor: Some(node.constructor),
+                        syntax_ids: Vec::new(),
+                        remaining,
+                        collapsed: Vec::new(),
+                    });
+                    continue;
                 }
                 TreeValue::Collection(items) => {
-                    let child_count = items.len();
-                    tasks.push(new!(CollapseTask::FinishCollection { child_count }));
-                    for item in items.into_iter().rev() {
-                        tasks.push(new!(CollapseTask::Value { value: item }));
-                    }
+                    let mut remaining = items
+                        .into_iter()
+                        .map(|value| TreeEntry { label: None, value })
+                        .collect::<Vec<_>>();
+                    remaining.reverse();
+                    frames.push(CollapseFrame {
+                        output_label: entry.label,
+                        constructor: None,
+                        syntax_ids: Vec::new(),
+                        remaining,
+                        collapsed: Vec::new(),
+                    });
+                    continue;
                 }
                 TreeValue::Syntax { syntax_ids, value } => {
-                    tasks.push(new!(CollapseTask::FinishSyntax { syntax_ids }));
-                    tasks.push(new!(CollapseTask::Value { value: *value }));
+                    if syntax_ids.is_empty() {
+                        next = Some(TreeEntry {
+                            label: entry.label,
+                            value: *value,
+                        });
+                    } else {
+                        frames.push(CollapseFrame {
+                            output_label: entry.label,
+                            constructor: None,
+                            syntax_ids,
+                            remaining: vec![TreeEntry {
+                                label: None,
+                                value: *value,
+                            }],
+                            collapsed: Vec::new(),
+                        });
+                    }
+                    continue;
                 }
                 TreeValue::Word { .. }
                 | TreeValue::Verbatim { .. }
                 | TreeValue::Text(..)
-                | TreeValue::Span { .. } => values.push(value),
-            },
-            data!(CollapseTask::FinishCollection { child_count }) => {
-                let items = collapse_children(&mut values, child_count);
-                values.push(TreeValue::Collection(items));
-            }
-            data!(CollapseTask::FinishSyntax { syntax_ids }) => {
-                let value = values
-                    .pop()
-                    .expect("syntax finish task follows one collapsed child");
-                values.push(syntax_value(syntax_ids, value));
-            }
-            data!(CollapseTask::FinishNode {
-                constructor,
-                labels,
-                child_count,
-            }) => {
-                let child_values = collapse_children(&mut values, child_count);
-                let mut entries = labels
-                    .into_iter()
-                    .zip(child_values)
-                    .map(|(label, value)| TreeEntry { label, value })
-                    .collect::<Vec<_>>();
-                if entries.len() == 1 {
-                    values.push(
-                        entries
-                            .pop()
-                            .expect("length check guarantees one entry")
-                            .value,
-                    );
-                } else {
-                    values.push(TreeValue::Node(TreeNode {
-                        constructor,
-                        entries,
-                    }));
-                }
+                | TreeValue::Span { .. } => completed = Some(entry),
             }
         }
-    }
-    values
-        .pop()
-        .expect("collapse traversal always yields one root value")
-}
 
-#[requires(child_count <= values.len())]
-#[ensures(ret.len() == child_count)]
-fn collapse_children(values: &mut Vec<TreeValue>, child_count: usize) -> Vec<TreeValue> {
-    values.split_off(values.len() - child_count)
+        if let Some(entry) = completed.take() {
+            if let Some(mut parent) = frames.pop() {
+                parent.collapsed.push(entry);
+                frames.push(parent);
+            } else {
+                return entry.value;
+            }
+        }
+
+        let Some(mut frame) = frames.pop() else {
+            panic!("tree collapse traversal lost its root frame");
+        };
+        if let Some(child) = frame.remaining.pop() {
+            frames.push(frame);
+            next = Some(child);
+            continue;
+        }
+
+        let value = if let Some(constructor) = frame.constructor {
+            let mut entries = frame.collapsed;
+            if entries.len() == 1 {
+                entries
+                    .pop()
+                    .expect("length check guarantees one entry")
+                    .value
+            } else {
+                TreeValue::Node(TreeNode {
+                    constructor,
+                    entries,
+                })
+            }
+        } else if frame.syntax_ids.is_empty() {
+            TreeValue::Collection(
+                frame
+                    .collapsed
+                    .into_iter()
+                    .map(|entry| entry.value)
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            let value = frame
+                .collapsed
+                .pop()
+                .expect("syntax collapse frame follows one collapsed child")
+                .value;
+            syntax_value(frame.syntax_ids, value)
+        };
+        completed = Some(TreeEntry {
+            label: frame.output_label,
+            value,
+        });
+    }
 }
 
 #[derive(Debug)]

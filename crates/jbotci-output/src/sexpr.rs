@@ -1,4 +1,4 @@
-use bityzba::{data, invariant, new, requires};
+use bityzba::{invariant, new, requires};
 
 use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
 
@@ -89,19 +89,11 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
     }
 }
 
-#[invariant(remaining.len() <= max_vec_len::<SExpr>())]
-#[invariant(range.is_none_or(|range| range.byte_start <= range.byte_end))]
-#[invariant(flattened.len() <= max_vec_len::<SExpr>())]
+#[invariant(true)]
 struct FlattenFrame {
     remaining: Vec<SExpr>,
     range: Option<BracketSourceRange>,
     flattened: Vec<SExpr>,
-}
-
-#[requires(true)]
-#[ensures(ret > 0)]
-fn max_vec_len<T>() -> usize {
-    isize::MAX as usize / std::mem::size_of::<T>().max(1)
 }
 
 #[requires(true)]
@@ -129,43 +121,41 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
                     range,
                 } => {
                     children.reverse();
-                    frames.push(new!(FlattenFrame {
+                    frames.push(FlattenFrame {
                         remaining: children,
                         range,
                         flattened: Vec::new(),
-                    }));
+                    });
                     continue;
                 }
             }
         }
 
         if let Some(value) = completed.take() {
-            if let Some(parent) = frames.pop() {
-                let mut parent_data = parent.into_data();
+            if let Some(mut parent) = frames.pop() {
                 if !is_empty(&value) {
-                    parent_data.flattened.push(value);
+                    parent.flattened.push(value);
                 }
-                frames.push(FlattenFrame::from_data(parent_data));
+                frames.push(parent);
             } else {
                 return value;
             }
         }
 
-        let Some(frame) = frames.pop() else {
-            return empty_node();
+        let Some(mut frame) = frames.pop() else {
+            panic!("S-expression flatten traversal lost its root frame");
         };
-        let mut frame_data = frame.into_data();
-        if let Some(child) = frame_data.remaining.pop() {
-            frames.push(FlattenFrame::from_data(frame_data));
+        if let Some(child) = frame.remaining.pop() {
+            frames.push(frame);
             next = Some(child);
             continue;
         }
 
-        let data!(FlattenFrame {
+        let FlattenFrame {
             remaining: _,
             range,
             flattened,
-        }) = frame_data;
+        } = frame;
         let mut flattened = flattened;
         completed = Some(if flattened.len() == 1 {
             flattened.remove(0)

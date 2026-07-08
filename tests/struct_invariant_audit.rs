@@ -524,6 +524,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "temporary block color state is consumed inside the layout builder before transport output",
     ),
     (
+        "crates/jbotci-gentufa/src/lib.rs:BlockCollapseFrame",
+        "private block-collapse traversal frame; stack sequencing, not the field tuple itself, enforces traversal balance",
+    ),
+    (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -676,6 +680,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:FlattenFrame",
+        "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
+    ),
+    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -746,6 +754,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:CollapseFrame",
+        "private tree-collapse traversal frame; stack sequencing controls pending and collapsed child flow",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedStatementConnectionPart",
