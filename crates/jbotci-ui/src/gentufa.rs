@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 #[invariant(true)]
 pub(super) struct GentufaPageSnapshot {
-    pub(super) active_diagnostic: Option<usize>,
+    pub(super) active_diagnostic: Option<ActiveDiagnosticTarget>,
     pub(super) input_diagnostic_tooltip: Option<DiagnosticInputTooltip>,
     pub(super) diagnostics_open: bool,
 }
@@ -11,7 +11,7 @@ pub(super) struct GentufaPageSnapshot {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn gentufa_page_snapshot(
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     input_diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
     diagnostics_open: Signal<bool>,
 ) -> GentufaPageSnapshot {
@@ -38,7 +38,7 @@ pub(super) fn GentufaPage(
     result: GentufaWebResult,
     request: Option<GentufaWebRequest>,
     diagnostics_open: Signal<bool>,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     input_diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: String,
@@ -137,8 +137,8 @@ pub(super) fn render_gentufa_input(
     mut input_text: Signal<String>,
     result: &GentufaWebResult,
     request: Option<&GentufaWebRequest>,
-    active_diagnostic: Option<usize>,
-    mut active_diagnostic_signal: Signal<Option<usize>>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
+    mut active_diagnostic_signal: Signal<Option<ActiveDiagnosticTarget>>,
     mut diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
     diagnostic_tooltip_value: Option<DiagnosticInputTooltip>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
@@ -202,7 +202,7 @@ pub(super) fn render_result(
     request: Option<&GentufaWebRequest>,
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     view_mode: Signal<GentufaWebViewMode>,
@@ -258,7 +258,7 @@ pub(super) fn render_error(
     request: Option<&GentufaWebRequest>,
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -290,7 +290,7 @@ pub(super) fn render_success(
     request: Option<&GentufaWebRequest>,
     diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     view_mode: Signal<GentufaWebViewMode>,

@@ -15,11 +15,25 @@ pub(super) struct DiagnosticCounts {
     pub(super) warnings: usize,
 }
 
+#[invariant(::Primary { diagnostic_index } => true)]
+#[invariant(::Context { diagnostic_index, label_index } => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ActiveDiagnosticTarget {
+    Primary {
+        diagnostic_index: usize,
+    },
+    Context {
+        diagnostic_index: usize,
+        label_index: usize,
+    },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
 pub(super) enum DiagnosticOverlayRole {
     Primary,
     ActivePrimary,
+    ActivePrimaryWithContext,
     ActiveContextPrefix,
 }
 
@@ -57,12 +71,19 @@ pub(super) struct DiagnosticTextRenderPart {
     pub(super) link: Option<DiagnosticTextLink>,
 }
 
+#[invariant(!label.primary)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct DiagnosticContextLabel<'a> {
+    pub(super) label_index: usize,
+    pub(super) label: &'a DiagnosticLabel,
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_gentufa_diagnostic_overlay(
     text: &str,
     diagnostics: &[Diagnostic],
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
     diagnostic_tooltip: Signal<Option<DiagnosticInputTooltip>>,
 ) -> Element {
     if diagnostics.is_empty() {
@@ -156,7 +177,7 @@ pub(super) fn render_gentufa_diagnostic_input_tooltip(
     tooltip: Option<DiagnosticInputTooltip>,
     diagnostics: &[Diagnostic],
     source: &str,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -329,7 +350,7 @@ pub(super) fn render_diagnostics_pane(
     fallback_error: Option<&str>,
     mut diagnostics_open: Signal<bool>,
     diagnostics_open_value: bool,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -397,7 +418,7 @@ pub(super) fn render_diagnostic_card(
     index: usize,
     diagnostic: &Diagnostic,
     source: &str,
-    active_diagnostic: Signal<Option<usize>>,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     pending_cukta_scroll: Signal<Option<CuktaPendingScroll>>,
     base_path: &str,
     script: GentufaScript,
@@ -412,14 +433,18 @@ pub(super) fn render_diagnostic_card(
         "{}:{}: {}",
         location.line, location.column, diagnostic.message
     );
-    let context_labels = diagnostic_context_labels(diagnostic);
+    let context_labels = diagnostic_context_label_entries(diagnostic);
     let styled_notes = diagnostic_styled_notes_for_web(diagnostic);
     let plain_notes = diagnostic_plain_note_segments_for_web(diagnostic);
     let primary_detail_segments = diagnostic_primary_detail_parts(diagnostic);
     rsx! {
         article {
             class: "{card_class}",
-            onmouseenter: move |_| enter_active.set(Some(index)),
+            onmouseenter: move |_| {
+                enter_active.set(Some(ActiveDiagnosticTarget::Primary {
+                    diagnostic_index: index,
+                }))
+            },
             onmouseleave: move |_| leave_active.set(None),
             div { class: "gentufa-diagnostic-main",
                 span { class: "gentufa-diagnostic-severity",
@@ -433,7 +458,7 @@ pub(super) fn render_diagnostic_card(
                 }
             }
             for label in context_labels {
-                { render_diagnostic_context_label(label, page_find) }
+                { render_diagnostic_context_label(index, label.label_index, label.label, active_diagnostic, page_find) }
             }
             if !primary_detail_segments.is_empty() {
                 div { class: "gentufa-diagnostic-primary-detail",
@@ -780,24 +805,43 @@ pub(super) fn diagnostic_expected_detail_parts_from_detailed_note(
 }
 
 #[requires(true)]
-#[ensures(ret.iter().all(|label| !label.primary))]
-pub(super) fn diagnostic_context_labels(diagnostic: &Diagnostic) -> Vec<&DiagnosticLabel> {
+#[ensures(ret.iter().all(|entry| !entry.label.primary))]
+pub(super) fn diagnostic_context_label_entries(
+    diagnostic: &Diagnostic,
+) -> Vec<DiagnosticContextLabel<'_>> {
     diagnostic
         .labels
         .iter()
-        .filter(|label| !label.primary)
+        .enumerate()
+        .filter(|(_, label)| !label.primary)
+        .map(|(label_index, label)| new!(DiagnosticContextLabel { label_index, label }))
         .collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_diagnostic_context_label(
+    diagnostic_index: usize,
+    label_index: usize,
     label: &DiagnosticLabel,
+    active_diagnostic: Signal<Option<ActiveDiagnosticTarget>>,
     page_find: Option<&PageFindContext>,
 ) -> Element {
     let descriptor = diagnostic_context_descriptor(&label.message);
+    let mut enter_active = active_diagnostic;
+    let mut leave_active = active_diagnostic;
     rsx! {
-        div { class: "gentufa-diagnostic-context",
+        div {
+            class: "gentufa-diagnostic-context",
+            onmouseenter: move |_| {
+                enter_active.set(Some(ActiveDiagnosticTarget::Context {
+                    diagnostic_index,
+                    label_index,
+                }))
+            },
+            onmouseleave: move |_| {
+                leave_active.set(Some(ActiveDiagnosticTarget::Primary { diagnostic_index }))
+            },
             em {
                 if let Some(descriptor) = descriptor {
                     { render_optional_page_find_text(page_find, "while parsing ") }
@@ -1125,7 +1169,7 @@ pub(super) fn diagnostic_ebnf_rule_href(base_path: &str, rule_name: &str) -> Str
 pub(super) fn diagnostic_overlay_fragments(
     text: &str,
     diagnostics: &[Diagnostic],
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) -> Vec<DiagnosticOverlayFragment> {
     let chars = text.chars().collect::<Vec<_>>();
     let mut fragments = Vec::new();
@@ -1295,16 +1339,24 @@ pub(super) fn has_diagnostic_caret_at(
     index: usize,
     char_len: usize,
     diagnostics: &[Diagnostic],
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) -> bool {
     diagnostics
         .iter()
         .enumerate()
         .any(|(diagnostic_index, diagnostic)| {
-            diagnostic.labels.iter().any(|label| {
-                diagnostic_label_is_visible_in_overlay(diagnostic_index, label, active_diagnostic)
-                    && label_span_char_range(label, char_len) == (index, index)
-            })
+            diagnostic
+                .labels
+                .iter()
+                .enumerate()
+                .any(|(label_index, label)| {
+                    diagnostic_label_is_visible_in_overlay(
+                        diagnostic_index,
+                        label_index,
+                        label,
+                        active_diagnostic,
+                    ) && label_span_char_range(label, char_len) == (index, index)
+                })
         })
 }
 
@@ -1316,21 +1368,33 @@ pub(super) fn push_diagnostic_overlay_carets(
     char_len: usize,
     selection_offset: u32,
     diagnostics: &[Diagnostic],
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) {
     for (diagnostic_index, diagnostic) in diagnostics.iter().enumerate() {
-        for label in &diagnostic.labels {
-            if !diagnostic_label_is_visible_in_overlay(diagnostic_index, label, active_diagnostic) {
+        for (label_index, label) in diagnostic.labels.iter().enumerate() {
+            if !diagnostic_label_is_visible_in_overlay(
+                diagnostic_index,
+                label_index,
+                label,
+                active_diagnostic,
+            ) {
                 continue;
             }
             if label_span_char_range(label, char_len) != (index, index) {
                 continue;
             }
             let role = if label.primary {
-                if active_diagnostic == Some(diagnostic_index) {
-                    DiagnosticOverlayRole::ActivePrimary
-                } else {
-                    DiagnosticOverlayRole::Primary
+                match active_diagnostic {
+                    Some(ActiveDiagnosticTarget::Primary {
+                        diagnostic_index: active_index,
+                    }) if active_index == diagnostic_index => DiagnosticOverlayRole::ActivePrimary,
+                    Some(ActiveDiagnosticTarget::Context {
+                        diagnostic_index: active_index,
+                        ..
+                    }) if active_index == diagnostic_index => {
+                        DiagnosticOverlayRole::ActivePrimaryWithContext
+                    }
+                    _ => DiagnosticOverlayRole::Primary,
                 }
             } else {
                 DiagnosticOverlayRole::ActiveContextPrefix
@@ -1355,22 +1419,44 @@ pub(super) fn diagnostic_overlay_mark_for_char(
     index: usize,
     char_len: usize,
     diagnostics: &[Diagnostic],
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) -> Option<DiagnosticOverlayMark> {
-    if let Some(active_index) = active_diagnostic
-        && let Some(active) = diagnostics.get(active_index)
-    {
-        if label_contains_char(active.primary_label(), index, char_len) {
-            return Some(DiagnosticOverlayMark {
-                diagnostic_index: active_index,
-                role: DiagnosticOverlayRole::ActivePrimary,
-            });
-        }
-        if active_context_range_contains_char(active, index, char_len) {
-            return Some(DiagnosticOverlayMark {
-                diagnostic_index: active_index,
-                role: DiagnosticOverlayRole::ActiveContextPrefix,
-            });
+    if let Some(target) = active_diagnostic {
+        match target {
+            ActiveDiagnosticTarget::Primary { diagnostic_index }
+            | ActiveDiagnosticTarget::Context {
+                diagnostic_index, ..
+            } => {
+                if let Some(diagnostic) = diagnostics.get(diagnostic_index) {
+                    if label_contains_char(diagnostic.primary_label(), index, char_len) {
+                        let role = match target {
+                            ActiveDiagnosticTarget::Primary { .. } => {
+                                DiagnosticOverlayRole::ActivePrimary
+                            }
+                            ActiveDiagnosticTarget::Context { .. } => {
+                                DiagnosticOverlayRole::ActivePrimaryWithContext
+                            }
+                        };
+                        return Some(DiagnosticOverlayMark {
+                            diagnostic_index,
+                            role,
+                        });
+                    }
+                    if let ActiveDiagnosticTarget::Context { label_index, .. } = target
+                        && active_context_label_range_contains_char(
+                            diagnostic,
+                            label_index,
+                            index,
+                            char_len,
+                        )
+                    {
+                        return Some(DiagnosticOverlayMark {
+                            diagnostic_index,
+                            role: DiagnosticOverlayRole::ActiveContextPrefix,
+                        });
+                    }
+                }
+            }
         }
     }
     primary_overlay_mark_for_char(index, char_len, diagnostics)
@@ -1378,21 +1464,23 @@ pub(super) fn diagnostic_overlay_mark_for_char(
 
 #[requires(index < char_len)]
 #[ensures(true)]
-pub(super) fn active_context_range_contains_char(
+pub(super) fn active_context_label_range_contains_char(
     diagnostic: &Diagnostic,
+    label_index: usize,
     index: usize,
     char_len: usize,
 ) -> bool {
+    let Some(label) = diagnostic.labels.get(label_index) else {
+        return false;
+    };
+    if label.primary {
+        return false;
+    }
     let (primary_start, primary_end) = label_span_char_range(diagnostic.primary_label(), char_len);
-    diagnostic.labels.iter().any(|label| {
-        if label.primary {
-            return false;
-        }
-        let (context_start, _) = label_span_char_range(label, char_len);
-        let start = context_start.min(primary_start);
-        let end = primary_end.max(primary_start);
-        start <= index && index < end
-    })
+    let (context_start, _) = label_span_char_range(label, char_len);
+    let start = context_start.min(primary_start);
+    let end = primary_end.max(primary_start);
+    start <= index && index < end
 }
 
 #[requires(index < char_len)]
@@ -1429,10 +1517,20 @@ pub(super) fn primary_overlay_mark_for_char(
 #[ensures(true)]
 pub(super) fn diagnostic_label_is_visible_in_overlay(
     diagnostic_index: usize,
+    label_index: usize,
     label: &DiagnosticLabel,
-    active_diagnostic: Option<usize>,
+    active_diagnostic: Option<ActiveDiagnosticTarget>,
 ) -> bool {
-    label.primary || active_diagnostic == Some(diagnostic_index)
+    if label.primary {
+        return true;
+    }
+    matches!(
+        active_diagnostic,
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: active_index,
+            label_index: active_label_index,
+        }) if active_index == diagnostic_index && active_label_index == label_index
+    )
 }
 
 #[requires(true)]
@@ -1494,7 +1592,11 @@ pub(super) fn diagnostic_overlay_mark_class(
             ("is-warning", severity != DiagnosticSeverity::Error),
             (
                 "is-active-primary",
-                mark.role == DiagnosticOverlayRole::ActivePrimary,
+                matches!(
+                    mark.role,
+                    DiagnosticOverlayRole::ActivePrimary
+                        | DiagnosticOverlayRole::ActivePrimaryWithContext
+                ),
             ),
             (
                 "is-active-context",
@@ -1502,12 +1604,7 @@ pub(super) fn diagnostic_overlay_mark_class(
             ),
             (
                 "is-active-context-token",
-                mark.role == DiagnosticOverlayRole::ActivePrimary
-                    && diagnostics
-                        .get(mark.diagnostic_index)
-                        .is_some_and(|diagnostic| {
-                            diagnostic.labels.iter().any(|label| !label.primary)
-                        }),
+                mark.role == DiagnosticOverlayRole::ActivePrimaryWithContext,
             ),
         ],
     )

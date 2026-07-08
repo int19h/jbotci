@@ -1135,6 +1135,62 @@ fn stale_gentufa_input_disables_decorations() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn primary_overlay_target_does_not_activate_context_span() {
+    let source = "mi broda";
+    let diagnostic = test_diagnostic(
+        source,
+        DiagnosticSeverity::Error,
+        "syntax.unexpected-cmavo",
+        "unexpected cmavo",
+        3,
+        8,
+        "expected selbri",
+    );
+    let context_span = jbotci_diagnostics::source_span_from_char_offsets(None, source, 0, 2)
+        .expect("test context span is valid");
+    let mut labels = diagnostic.labels.clone();
+    labels.push(DiagnosticLabel::new(
+        context_span,
+        "while parsing sumti".to_owned(),
+        false,
+    ));
+    let diagnostic = diagnostic.with_data(data! { labels: labels });
+    let diagnostics = vec![diagnostic];
+
+    let fragments = diagnostic_overlay_fragments(
+        source,
+        &diagnostics,
+        Some(ActiveDiagnosticTarget::Primary {
+            diagnostic_index: 0,
+        }),
+    );
+    let context_prefix = fragments
+        .iter()
+        .find(|fragment| fragment.text == "mi ")
+        .expect("context prefix should still be present as plain text");
+    let primary = fragments
+        .iter()
+        .find(|fragment| fragment.text == "broda")
+        .expect("primary span should be present");
+
+    assert!(!has_css_class(
+        &context_prefix.class_name,
+        "is-active-context"
+    ));
+    assert!(!has_css_class(
+        &context_prefix.class_name,
+        "is-active-context-start"
+    ));
+    assert!(has_css_class(&primary.class_name, "is-active-primary"));
+    assert!(!has_css_class(
+        &primary.class_name,
+        "is-active-context-token"
+    ));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn active_overlay_context_prefix_extends_to_primary_span() {
     let source = "mi broda";
     let diagnostic = test_diagnostic(
@@ -1157,7 +1213,14 @@ fn active_overlay_context_prefix_extends_to_primary_span() {
     let diagnostic = diagnostic.with_data(data! { labels: labels });
     let diagnostics = vec![diagnostic];
 
-    let fragments = diagnostic_overlay_fragments(source, &diagnostics, Some(0));
+    let fragments = diagnostic_overlay_fragments(
+        source,
+        &diagnostics,
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
+    );
     let context_prefix = fragments
         .iter()
         .find(|fragment| fragment.text == "mi ")
@@ -1199,6 +1262,78 @@ fn active_overlay_context_prefix_extends_to_primary_span() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn selected_overlay_context_does_not_activate_outer_context_span() {
+    let source = "mi do broda";
+    let diagnostic = test_diagnostic(
+        source,
+        DiagnosticSeverity::Error,
+        "syntax.unexpected-cmavo",
+        "unexpected cmavo",
+        6,
+        11,
+        "expected selbri",
+    );
+    let inner_context_span = jbotci_diagnostics::source_span_from_char_offsets(None, source, 3, 5)
+        .expect("test inner context span is valid");
+    let outer_context_span = jbotci_diagnostics::source_span_from_char_offsets(None, source, 0, 5)
+        .expect("test outer context span is valid");
+    let mut labels = diagnostic.labels.clone();
+    labels.push(DiagnosticLabel::new(
+        inner_context_span,
+        "while parsing term".to_owned(),
+        false,
+    ));
+    labels.push(DiagnosticLabel::new(
+        outer_context_span,
+        "while parsing bridi".to_owned(),
+        false,
+    ));
+    let diagnostic = diagnostic.with_data(data! { labels: labels });
+    let diagnostics = vec![diagnostic];
+
+    let fragments = diagnostic_overlay_fragments(
+        source,
+        &diagnostics,
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
+    );
+    let outer_only_prefix = fragments
+        .iter()
+        .find(|fragment| fragment.text == "mi ")
+        .expect("outer-only context prefix should be present");
+    let selected_context_prefix = fragments
+        .iter()
+        .find(|fragment| fragment.text == "do ")
+        .expect("selected context prefix should be present");
+    let primary = fragments
+        .iter()
+        .find(|fragment| fragment.text == "broda")
+        .expect("primary span should be present");
+
+    assert!(!has_css_class(
+        &outer_only_prefix.class_name,
+        "is-active-context"
+    ));
+    assert!(has_css_class(
+        &selected_context_prefix.class_name,
+        "is-active-context"
+    ));
+    assert!(has_css_class(
+        &selected_context_prefix.class_name,
+        "is-active-context-start"
+    ));
+    assert!(has_css_class(&primary.class_name, "is-active-primary"));
+    assert!(has_css_class(
+        &primary.class_name,
+        "is-active-context-token"
+    ));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn diagnostic_overlay_selection_offsets_are_utf16_offsets() {
     let source = "a 😀 broda";
     let diagnostic = test_diagnostic(
@@ -1221,7 +1356,14 @@ fn diagnostic_overlay_selection_offsets_are_utf16_offsets() {
     let diagnostic = diagnostic.with_data(data! { labels: labels });
     let diagnostics = vec![diagnostic];
 
-    let fragments = diagnostic_overlay_fragments(source, &diagnostics, Some(0));
+    let fragments = diagnostic_overlay_fragments(
+        source,
+        &diagnostics,
+        Some(ActiveDiagnosticTarget::Context {
+            diagnostic_index: 0,
+            label_index: 1,
+        }),
+    );
     let primary = fragments
         .iter()
         .find(|fragment| fragment.text == "broda")
