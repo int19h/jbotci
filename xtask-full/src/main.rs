@@ -63,6 +63,9 @@ const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
+// #290 intentionally starts with a non-fixing gate: on Node 24.14, main passes
+// the default-input probe at 453 KB in debug and 290 KB in release. 512 KB is
+// the smallest round budget that current main passes before #289 tightens it.
 const DEFAULT_WASM_STACK_SIZE_KB: usize = 512;
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
@@ -1587,7 +1590,8 @@ fn dx_web_release_command(subcommand: &str) -> ProcessCommand {
         .arg("-p")
         .arg("jbotci-app")
         // Dioxus 0.7.x can emit DWARF that makes wasm-opt abort during release web builds.
-        .arg("--debug-symbols=false");
+        .arg("--debug-symbols=false")
+        .arg("--inject-loading-scripts=false");
     command
 }
 
@@ -2013,6 +2017,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
         .arg("jbotci-app")
         .arg("--release")
         .arg("--debug-symbols=false")
+        .arg("--inject-loading-scripts=false")
         .arg("--base-path")
         .arg(base_path)
         .arg("@server")
@@ -2023,7 +2028,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(
         status,
-        "dx bundle @client --web -p jbotci-app --release @server --server -p jbotci-server --release",
+        "dx bundle @client --web -p jbotci-app --release --debug-symbols=false --inject-loading-scripts=false @server --server -p jbotci-server --release",
     )?;
     let web_dist = web_dist_dir(out_dir)?;
     write_release_service_worker(&web_dist)?;

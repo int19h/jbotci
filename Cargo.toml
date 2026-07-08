@@ -211,11 +211,6 @@ xtask-common = { workspace = true, features = ["fixtures"] }
 [build-dependencies]
 bityzba = { workspace = true, features = ["contract_scanner"] }
 
-[profile.release]
-# Line tables and function names only. This keeps release artifacts usable for
-# browser panic stacks and perf slices without carrying full debug info.
-debug = 1
-
 [profile.desktop-dev]
 inherits = "dev"
 
