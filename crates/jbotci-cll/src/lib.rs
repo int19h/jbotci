@@ -752,8 +752,20 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 rows,
                 ..
             } => {
-                for line in titles.iter().chain(headers.iter()) {
+                for line in titles {
                     self.output.push_str(&inline_plain_text(line));
+                    self.output.push('\n');
+                }
+                let column_count = headers
+                    .len()
+                    .max(rows.iter().map(Vec::len).max().unwrap_or(0));
+                for index in 0..column_count {
+                    if let Some(header) = headers.get(index) {
+                        self.output.push_str(&inline_plain_text(header));
+                    } else {
+                        self.output
+                            .push_str(cmavo_list_plain_text_column_label(index));
+                    }
                     self.output.push('\n');
                 }
                 for row in rows {
@@ -790,6 +802,17 @@ impl CllBlockVisitor for BlockPlainTextVisitor<'_> {
                 }
             }
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn cmavo_list_plain_text_column_label(index: usize) -> &'static str {
+    match index {
+        0 => "cmavo",
+        1 => "selma'o",
+        2 => "description",
+        _ => "",
     }
 }
 
@@ -905,6 +928,27 @@ mod tests {
         assert_eq!(
             block_markdown,
             render_example(site, example, CllRenderFormat::Markdown)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn example_search_chunks_preserve_line_breaks() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let chunk = site
+            .search_chunks
+            .iter()
+            .find(|chunk| {
+                chunk.kind == CllSearchChunkKind::Example
+                    && chunk.section_number == "1.3"
+                    && chunk.label == "Example 1.1"
+            })
+            .expect("example 1.1 search chunk should exist");
+
+        assert_eq!(
+            chunk.text,
+            "mi klama le zarci\nI go-to that-which-I-describe-as-a store.\nI go to the store."
         );
     }
 
@@ -1099,6 +1143,10 @@ mod tests {
         assert!(!markdown.contains("| --- |"));
         assert!(markdown.contains("coi | greetings\n\n"));
         assert!(markdown.contains("ju'i | [jundi] | attention | at ease | ignore me/us\n\n"));
+
+        let plain_text = blocks_plain_text(site, &section.blocks);
+        assert!(plain_text.contains("cmavo selma'o coi greetings"));
+        assert!(plain_text.contains("cmavo selma'o co'o partings"));
     }
 
     #[test]
@@ -1134,6 +1182,27 @@ mod tests {
         let markdown = render_section(site, section, CllRenderFormat::Markdown);
         assert!(markdown.contains("| cmavo | gismu | comments |"));
         assert!(markdown.contains("| --- | --- | --- |"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn plain_text_preserves_cmavo_headers_wider_than_rows() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let block = CllBlock::CmavoList {
+            id: None,
+            titles: Vec::new(),
+            headers: vec![
+                vec![CllInline::Text("cmavo".to_owned())],
+                vec![CllInline::Text("selma'o".to_owned())],
+                vec![CllInline::Text("notes".to_owned())],
+            ],
+            rows: vec![vec![vec![CllInline::Text("coi".to_owned())]]],
+        };
+
+        let plain_text = blocks_plain_text(site, &[block]);
+
+        assert_eq!(plain_text, "cmavo selma'o notes coi");
     }
 
     #[test]

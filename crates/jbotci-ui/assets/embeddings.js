@@ -2,6 +2,8 @@ import { createWorkerClient } from "./worker-client.js";
 import { validateModelCatalog } from "./model-catalog.js";
 
 const DEFAULT_REMOTE_BASE_URL = "https://assets.jbotci.app/embeddings/web/v1";
+const DEFAULT_MOBILE_MODEL_KEY = "f2llm-v2-80m-q4-320";
+const DEFAULT_DESKTOP_MODEL_KEY = "f2llm-v2-330m-q4-896";
 const LOG_PREFIX = "[jbotci embeddings]";
 const DEBUG_STORAGE_KEY = "jbotci.embedding.debug";
 
@@ -53,8 +55,12 @@ function activeModelKey() {
 }
 
 function defaultModelKey() {
-  const catalog = requireCatalog();
-  return isMobileDevice() ? catalog.defaultMobileModelKey : catalog.defaultDesktopModelKey;
+  if (configuredCatalog === null) {
+    return isMobileDevice() ? DEFAULT_MOBILE_MODEL_KEY : DEFAULT_DESKTOP_MODEL_KEY;
+  }
+  return isMobileDevice()
+    ? configuredCatalog.defaultMobileModelKey
+    : configuredCatalog.defaultDesktopModelKey;
 }
 
 function isMobileDevice() {

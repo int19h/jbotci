@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, requires};
+#[cfg(not(target_arch = "wasm32"))]
 use dioxus::prelude::spawn;
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
@@ -564,10 +565,21 @@ async fn wait_animation_frame() {
     sleep_ms(16).await;
 }
 
-#[cfg(any(
-    target_arch = "wasm32",
-    all(not(target_arch = "wasm32"), feature = "desktop")
-))]
+#[cfg(target_arch = "wasm32")]
+#[requires(delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_task_after_delay<F, Fut>(delay_ms: i32, task: F)
+where
+    F: FnOnce() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    wasm_bindgen_futures::spawn_local(async move {
+        sleep_ms(delay_ms).await;
+        task().await;
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(delay_ms >= 0)]
 #[ensures(true)]
 pub fn schedule_layout_task_after_delay<F, Fut>(delay_ms: i32, task: F)
@@ -601,7 +613,7 @@ where
     F: FnOnce() -> Fut + 'static,
     Fut: Future<Output = ()> + 'static,
 {
-    spawn(async move {
+    wasm_bindgen_futures::spawn_local(async move {
         wait_animation_frame().await;
         task().await;
     });
@@ -634,10 +646,25 @@ where
     });
 }
 
-#[cfg(any(
-    target_arch = "wasm32",
-    all(not(target_arch = "wasm32"), feature = "desktop")
-))]
+#[cfg(target_arch = "wasm32")]
+#[requires(initial_delay_ms >= 0)]
+#[ensures(true)]
+pub fn schedule_layout_passes<F, Fut>(initial_delay_ms: i32, frame_passes: u8, mut task: F)
+where
+    F: FnMut() -> Fut + 'static,
+    Fut: Future<Output = ()> + 'static,
+{
+    wasm_bindgen_futures::spawn_local(async move {
+        sleep_ms(initial_delay_ms).await;
+        task().await;
+        for _ in 0..frame_passes {
+            wait_animation_frame().await;
+            task().await;
+        }
+    });
+}
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "desktop"))]
 #[requires(initial_delay_ms >= 0)]
 #[ensures(true)]
 pub fn schedule_layout_passes<F, Fut>(initial_delay_ms: i32, frame_passes: u8, mut task: F)

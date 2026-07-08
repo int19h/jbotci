@@ -8,6 +8,7 @@ cargo xtask test
 cargo xtask clippy
 cargo xtask fixture-check
 cargo xtask fixture-list --profile cargo
+dx serve --web -p jbotci-app --inject-loading-scripts false --port 8080
 cargo xtask build-web-release
 cargo xtask dist-server --out-dir .jbotci-build/jbotci-web --base-path /
 cargo xtask publish-web-embeddings-r2 --backend fixture --embedding-dtype q4

@@ -44,13 +44,6 @@
         document.head.appendChild(link);
       }
 
-      function serviceWorkerScriptUrl(registration) {
-        return registration.active?.scriptURL
-          ?? registration.installing?.scriptURL
-          ?? registration.waiting?.scriptURL
-          ?? "";
-      }
-
       function registerReleaseServiceWorker() {
         if (!("serviceWorker" in navigator)) {
           return;
@@ -64,27 +57,33 @@
         }, { once: true });
       }
 
-      function unregisterLocalServiceWorker() {
+      function registrationCanControlApp(registration) {
+        const scope = new URL(registration.scope);
+        return scope.origin === appRoot.origin
+          && appRoot.pathname.startsWith(scope.pathname);
+      }
+
+      async function unregisterLocalServiceWorkers() {
         if (!("serviceWorker" in navigator)) {
-          return;
+          return true;
         }
-        navigator.serviceWorker.getRegistration(appRoot.href)
-          .then((registration) => {
-            if (!registration || registration.scope !== appRoot.href) {
-              return;
-            }
-            const scriptUrl = serviceWorkerScriptUrl(registration);
-            if (scriptUrl.endsWith("/service-worker.js")) {
-              return registration.unregister().then((unregistered) => {
-                if (unregistered && navigator.serviceWorker.controller) {
-                  window.location.reload();
-                }
-              });
-            }
-          })
-          .catch((error) => {
-            console.warn("jbotci service worker cleanup failed", error);
-          });
+        let unregisteredAny = false;
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          const unregisterResults = await Promise.all(
+            registrations
+              .filter(registrationCanControlApp)
+              .map((registration) => registration.unregister()),
+          );
+          unregisteredAny = unregisterResults.some(Boolean);
+        } catch (error) {
+          console.warn("jbotci service worker cleanup failed", error);
+        }
+        if (unregisteredAny && navigator.serviceWorker.controller) {
+          window.location.reload();
+          return false;
+        }
+        return true;
       }
 
       appendBootstrapLink("manifest", new URL("assets/manifest.webmanifest", appRoot).href);
@@ -104,15 +103,23 @@
         serviceWorkerUrl,
       });
 
-      if (localDevelopmentOrigin) {
-        unregisterLocalServiceWorker();
-      } else if (releaseBuild) {
-        registerReleaseServiceWorker();
-      } else {
-        unregisterLocalServiceWorker();
+      async function bootstrapJbotciWeb() {
+        if (localDevelopmentOrigin) {
+          if (!(await unregisterLocalServiceWorkers())) {
+            return;
+          }
+        } else if (releaseBuild) {
+          registerReleaseServiceWorker();
+        } else if (!(await unregisterLocalServiceWorkers())) {
+          return;
+        }
+
+        await import(mainModuleUrl);
       }
 
-      import(mainModuleUrl);
+      bootstrapJbotciWeb().catch((error) => {
+        console.error("jbotci web bootstrap failed", error);
+      });
     </script>
   </body>
 </html>
