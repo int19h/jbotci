@@ -6,7 +6,7 @@ use chumsky::util::MaybeRef;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use super::{Span, SyntaxContextFrame, Token};
+use super::{ParserInput, Span, SyntaxContextFrame, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
@@ -214,16 +214,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
                 .expected()
                 .filter_map(syntax_expected_token_from_rich_pattern)
             {
-                expectations.push(SyntaxExpectation::new(
-                    vec![token],
-                    normalize_expectation_reason(
-                        expectation_reason(
-                            &[new!(SyntaxExpectedToken::Named("input".to_owned()))],
-                            &contexts,
-                        ),
-                        &self.context_paths,
+                let reason = normalize_expectation_reason(
+                    expectation_reason(
+                        &[new!(SyntaxExpectedToken::Named("input".to_owned()))],
+                        &contexts,
                     ),
-                ));
+                    &self.context_paths,
+                );
+                expectations.push(SyntaxExpectation::new(vec![token], reason));
             }
         }
         expectations
@@ -322,6 +320,40 @@ impl<'tokens> SyntaxParseError<'tokens> {
                 preferred_context_from_branches(&self.same_position_branches);
         }
         self
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    pub(super) fn with_rule_start_label(mut self, construct: &'static str) -> Self {
+        <Self as LabelError<'tokens, ParserInput<'tokens>, &'static str>>::label_with(
+            &mut self, construct,
+        );
+        self
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    pub(super) fn with_rule_context(mut self, construct: &'static str, span: Span) -> Self {
+        <Self as LabelError<'tokens, ParserInput<'tokens>, &'static str>>::in_context(
+            &mut self, construct, span,
+        );
+        self
+    }
+
+    #[requires(!construct.is_empty())]
+    #[ensures(true)]
+    pub(super) fn with_rule_context_from_progress(
+        self,
+        construct: &'static str,
+        start_byte: usize,
+        advanced: bool,
+    ) -> Self {
+        let error_start = self.span.start;
+        if advanced && error_start >= start_byte {
+            self.with_rule_context(construct, Span::from(start_byte..error_start))
+        } else {
+            self.with_rule_start_label(construct)
+        }
     }
 
     #[requires(true)]

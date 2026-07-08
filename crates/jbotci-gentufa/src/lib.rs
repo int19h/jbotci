@@ -1182,16 +1182,61 @@ struct BlockTemp<Tooltip> {
     block: GentufaBlock<Tooltip>,
 }
 
+#[invariant(true)]
+struct BlockCollapseFrame {
+    node: BlockTreeNode,
+    remaining_children: Vec<BlockTreeNode>,
+    collapsed_children: Vec<BlockTreeNode>,
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn collapse_single_child_chains(node: BlockTreeNode) -> BlockTreeNode {
-    let mut node_data = node.into_data();
-    let children = std::mem::take(&mut node_data.children);
-    node_data.children = children
-        .into_iter()
-        .map(collapse_single_child_chains)
-        .collect();
-    let mut node = BlockTreeNode::from_data(node_data);
+    let mut frames = Vec::new();
+    let mut next = Some(node);
+    let mut completed = None;
+    loop {
+        if let Some(node) = next.take() {
+            let mut node_data = node.into_data();
+            let mut remaining_children = std::mem::take(&mut node_data.children);
+            remaining_children.reverse();
+            frames.push(BlockCollapseFrame {
+                node: BlockTreeNode::from_data(node_data),
+                remaining_children,
+                collapsed_children: Vec::new(),
+            });
+            continue;
+        }
+
+        if let Some(node) = completed.take() {
+            if let Some(mut parent) = frames.pop() {
+                parent.collapsed_children.push(node);
+                frames.push(parent);
+            } else {
+                return node;
+            }
+        }
+
+        let Some(mut frame) = frames.pop() else {
+            panic!("block collapse traversal lost its root frame");
+        };
+        if let Some(child) = frame.remaining_children.pop() {
+            frames.push(frame);
+            next = Some(child);
+            continue;
+        }
+
+        let mut node_data = frame.node.into_data();
+        node_data.children = frame.collapsed_children;
+        completed = Some(collapse_single_child_node(BlockTreeNode::from_data(
+            node_data,
+        )));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
     if node.children.len() == 1 {
         let mut node_data = node.into_data();
         let child = node_data

@@ -89,34 +89,82 @@ pub(crate) fn is_empty(expr: &SExpr) -> bool {
     }
 }
 
+#[invariant(true)]
+struct FlattenFrame {
+    remaining: Vec<SExpr>,
+    range: Option<BracketSourceRange>,
+    flattened: Vec<SExpr>,
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn flatten(expr: SExpr) -> SExpr {
-    match expr {
-        SExpr::Leaf {
-            text,
-            range,
-            elided,
-        } => SExpr::Leaf {
-            text,
-            range,
-            elided,
-        },
-        SExpr::Node { children, range } => {
-            let mut flattened = children
-                .into_iter()
-                .map(flatten)
-                .filter(|child| !is_empty(child))
-                .collect::<Vec<_>>();
-            if flattened.len() == 1 {
-                flattened.remove(0)
-            } else {
-                SExpr::Node {
-                    children: flattened,
+    let mut frames = Vec::new();
+    let mut next = Some(expr);
+    let mut completed = None;
+    loop {
+        if let Some(expr) = next.take() {
+            match expr {
+                SExpr::Leaf {
+                    text,
                     range,
+                    elided,
+                } => {
+                    completed = Some(SExpr::Leaf {
+                        text,
+                        range,
+                        elided,
+                    });
+                }
+                SExpr::Node {
+                    mut children,
+                    range,
+                } => {
+                    children.reverse();
+                    frames.push(FlattenFrame {
+                        remaining: children,
+                        range,
+                        flattened: Vec::new(),
+                    });
+                    continue;
                 }
             }
         }
+
+        if let Some(value) = completed.take() {
+            if let Some(mut parent) = frames.pop() {
+                if !is_empty(&value) {
+                    parent.flattened.push(value);
+                }
+                frames.push(parent);
+            } else {
+                return value;
+            }
+        }
+
+        let Some(mut frame) = frames.pop() else {
+            panic!("S-expression flatten traversal lost its root frame");
+        };
+        if let Some(child) = frame.remaining.pop() {
+            frames.push(frame);
+            next = Some(child);
+            continue;
+        }
+
+        let FlattenFrame {
+            remaining: _,
+            range,
+            flattened,
+        } = frame;
+        let mut flattened = flattened;
+        completed = Some(if flattened.len() == 1 {
+            flattened.remove(0)
+        } else {
+            SExpr::Node {
+                children: flattened,
+                range,
+            }
+        });
     }
 }
 
