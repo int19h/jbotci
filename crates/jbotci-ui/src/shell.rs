@@ -219,7 +219,7 @@ pub(super) fn AppShell() -> Element {
     let gentufa_page = use_signal(GentufaAsyncPageState::default);
     let gentufa_page_task = use_signal(|| None::<LatestAsyncTask>);
     let gentufa_diagnostics_open = use_signal(|| true);
-    let gentufa_active_diagnostic = use_signal(|| None::<usize>);
+    let gentufa_active_diagnostic = use_signal(|| None::<ActiveDiagnosticTarget>);
     let gentufa_input_diagnostic_tooltip = use_signal(|| None::<DiagnosticInputTooltip>);
     let export_task = use_signal(|| None::<LatestAsyncTask>);
     let mut pending_local_route_writes = use_signal(PendingLocalRouteWrites::default);
