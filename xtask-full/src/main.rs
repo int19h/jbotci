@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
@@ -57,11 +58,14 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
-const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
 const WEB_ASSET_SYNC_TEMP_DIR: &str = "target/jbotci-web-public-sync";
+// #290 intentionally starts with a non-fixing gate: on Node 24.14, main passes
+// the default-input probe at 453 KB in debug and 290 KB in release. 512 KB is
+// the smallest round budget that current main passes before #289 tightens it.
+const DEFAULT_WASM_STACK_SIZE_KB: usize = 512;
 const R2_CATALOG_CACHE_CONTROL: &str = "public, max-age=300";
 const R2_IMMUTABLE_CACHE_CONTROL: &str = "public, max-age=31536000, immutable";
 const F2LLM_VECTOR_PACK_OUT_DIR: &str = ".jbotci-build/r2-web-embeddings-f2llm";
@@ -195,6 +199,7 @@ struct Cli {
 #[invariant(::PublishGgufEmbeddingsR2(..) => true)]
 #[invariant(::RenderDockerBuild(..) => true)]
 #[invariant(::RenderDockerRun(..) => true)]
+#[invariant(::WasmStackTest(..) => true)]
 enum Command {
     FixtureCheck {
         #[arg(default_value = "tests/fixtures")]
@@ -231,6 +236,39 @@ enum Command {
     PublishGgufEmbeddingsR2(PublishGgufEmbeddingsR2Args),
     RenderDockerBuild(RenderDockerBuildArgs),
     RenderDockerRun(RenderDockerRunArgs),
+    WasmStackTest(WasmStackTestArgs),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[invariant(true)]
+enum WasmStackProfile {
+    Debug,
+    Release,
+}
+
+#[derive(Debug, Args)]
+#[invariant(true)]
+struct WasmStackTestArgs {
+    #[arg(long, value_enum, default_value = "debug")]
+    profile: WasmStackProfile,
+    #[arg(long, default_value_t = DEFAULT_WASM_STACK_SIZE_KB, value_name = "KB")]
+    stack_size_kb: usize,
+    #[arg(long)]
+    no_build: bool,
+    #[arg(long, default_value = "node")]
+    node: PathBuf,
+    #[arg(long, default_value = "tests/wasm/gentufa_compute_stack_probe.mjs")]
+    probe: PathBuf,
+    #[arg(long = "case")]
+    cases: Vec<String>,
+}
+
+#[derive(Debug)]
+#[invariant(!js.as_os_str().is_empty())]
+#[invariant(!wasm.as_os_str().is_empty())]
+struct WasmBundlePaths {
+    js: PathBuf,
+    wasm: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -1065,7 +1103,137 @@ fn main() -> Result<()> {
         Command::PublishGgufEmbeddingsR2(args) => publish_gguf_embeddings_r2(args),
         Command::RenderDockerBuild(args) => render_docker_build(args),
         Command::RenderDockerRun(args) => render_docker_run(args),
+        Command::WasmStackTest(args) => wasm_stack_test(args),
     }
+}
+
+#[requires(args.stack_size_kb > 0)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn wasm_stack_test(args: WasmStackTestArgs) -> Result<()> {
+    if !args.no_build {
+        build_wasm_stack_test_bundle(args.profile)?;
+    }
+    let paths = wasm_stack_test_bundle_paths(args.profile)?;
+    let probe = absolute_path(&args.probe)?;
+    let node = args.node.clone();
+    let mut command = ProcessCommand::new(&node);
+    command
+        .arg(format!("--stack-size={}", args.stack_size_kb))
+        .arg(&probe)
+        .arg("--js")
+        .arg(&paths.js)
+        .arg("--wasm")
+        .arg(&paths.wasm)
+        .arg("--default-text")
+        .arg(jbotci_web_core::DEFAULT_GENTUFA_TEXT);
+    for case in &args.cases {
+        command.arg("--case").arg(case);
+    }
+    let description = format!(
+        "{} --stack-size={} {}",
+        node.display(),
+        args.stack_size_kb,
+        probe.display()
+    );
+    let status = command
+        .status()
+        .with_context(|| format!("failed to run Wasm stack probe with `{}`", node.display()))?;
+    check_status(status, &description)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn build_wasm_stack_test_bundle(profile: WasmStackProfile) -> Result<()> {
+    prepare_dioxus_web_public_input()?;
+    match profile {
+        WasmStackProfile::Debug => {
+            let status = ProcessCommand::new("dx")
+                .args([
+                    "build",
+                    "--web",
+                    "-p",
+                    "jbotci-app",
+                    "--inject-loading-scripts=false",
+                ])
+                .status()
+                .context(
+                    "failed to run `dx build --web -p jbotci-app --inject-loading-scripts=false`",
+                )?;
+            check_status(
+                status,
+                "dx build --web -p jbotci-app --inject-loading-scripts=false",
+            )
+        }
+        WasmStackProfile::Release => build_web_release(BuildWebReleaseArgs { base_path: None }),
+    }
+}
+
+#[requires(true)]
+#[ensures(
+    ret.as_ref().err().is_some()
+        || ret
+            .as_ref()
+            .is_ok_and(|paths| paths.js.is_absolute() && paths.wasm.is_absolute())
+)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn wasm_stack_test_bundle_paths(profile: WasmStackProfile) -> Result<WasmBundlePaths> {
+    match profile {
+        WasmStackProfile::Debug => {
+            let public_dir = dioxus_web_public_dir("debug")?;
+            let js = public_dir.join("wasm/jbotci-app.js");
+            let wasm = public_dir.join("wasm/jbotci-app_bg.wasm");
+            ensure_existing_file(&js)?;
+            ensure_existing_file(&wasm)?;
+            Ok(new!(WasmBundlePaths { js, wasm }))
+        }
+        WasmStackProfile::Release => {
+            let assets_dir = dioxus_web_public_dir("release")?.join("assets");
+            let js = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app-", ".js")?;
+            let wasm = newest_file_with_prefix_suffix(&assets_dir, "jbotci-app_bg-", ".wasm")?;
+            Ok(new!(WasmBundlePaths { js, wasm }))
+        }
+    }
+}
+
+#[requires(!path.as_os_str().is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn ensure_existing_file(path: &Path) -> Result<()> {
+    if path.is_file() {
+        Ok(())
+    } else {
+        bail!("expected file `{}` to exist", path.display())
+    }
+}
+
+#[requires(!dir.as_os_str().is_empty())]
+#[requires(!prefix.is_empty())]
+#[requires(!suffix.is_empty())]
+#[ensures(ret.as_ref().err().is_some() || ret.as_ref().is_ok_and(|path| path.is_absolute()))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn newest_file_with_prefix_suffix(dir: &Path, prefix: &str, suffix: &str) -> Result<PathBuf> {
+    let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+    for entry in fs::read_dir(dir).with_context(|| format!("reading `{}`", dir.display()))? {
+        let entry = entry.with_context(|| format!("reading entry in `{}`", dir.display()))?;
+        let path = entry.path();
+        let Some(file_name) = path.file_name().and_then(OsStr::to_str) else {
+            continue;
+        };
+        if !file_name.starts_with(prefix) || !file_name.ends_with(suffix) {
+            continue;
+        }
+        let modified = entry
+            .metadata()
+            .with_context(|| format!("reading metadata for `{}`", path.display()))?
+            .modified()
+            .with_context(|| format!("reading mtime for `{}`", path.display()))?;
+        match &newest {
+            Some((newest_modified, _)) if *newest_modified >= modified => {}
+            _ => newest = Some((modified, path)),
+        }
+    }
+    newest
+        .map(|(_, path)| path)
+        .ok_or_else(|| anyhow::anyhow!("no `{prefix}*{suffix}` file found in `{}`", dir.display()))
 }
 
 #[requires(true)]
@@ -1083,7 +1251,7 @@ fn build_web_release(args: BuildWebReleaseArgs) -> Result<()> {
         status,
         "dx build --web --release --debug-symbols=false --inject-loading-scripts=false",
     )?;
-    write_release_service_worker(&Path::new(DIOXUS_WEB_RELEASE_DIR).join("public"))
+    write_release_service_worker(&dioxus_web_release_dir()?.join("public"))
 }
 
 #[requires(true)]
@@ -1450,9 +1618,9 @@ fn dioxus_asset_root(base_path: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn clean_dioxus_web_release_output() -> Result<()> {
-    let release_dir = Path::new(DIOXUS_WEB_RELEASE_DIR);
+    let release_dir = dioxus_web_release_dir()?;
     if release_dir.exists() {
-        fs::remove_dir_all(release_dir).with_context(|| {
+        fs::remove_dir_all(&release_dir).with_context(|| {
             format!(
                 "removing old Dioxus release web output `{}`",
                 release_dir.display()
@@ -1460,6 +1628,59 @@ fn clean_dioxus_web_release_output() -> Result<()> {
         })?;
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_release_dir() -> Result<PathBuf> {
+    dioxus_web_profile_dir("release")
+}
+
+#[requires(!profile.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_public_dir(profile: &str) -> Result<PathBuf> {
+    Ok(dioxus_web_profile_dir(profile)?.join("public"))
+}
+
+#[requires(!profile.trim().is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_profile_dir(profile: &str) -> Result<PathBuf> {
+    Ok(cargo_target_dir()?
+        .join("dx")
+        .join("jbotci-app")
+        .join(profile)
+        .join("web"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_target_dir() -> Result<PathBuf> {
+    if let Some(value) = std::env::var_os("CARGO_TARGET_DIR") {
+        let path = PathBuf::from(value);
+        if path.as_os_str().is_empty() {
+            bail!("CARGO_TARGET_DIR is set to an empty path");
+        }
+        return absolute_path(&path);
+    }
+    cargo_metadata_target_dir()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_metadata_target_dir() -> Result<PathBuf> {
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| std::ffi::OsString::from("cargo"));
+    let output = ProcessCommand::new(&cargo)
+        .args(["metadata", "--format-version=1", "--no-deps"])
+        .output()
+        .with_context(|| format!("failed to run `{}` metadata", Path::new(&cargo).display()))?;
+    check_status(output.status, "cargo metadata --format-version=1 --no-deps")?;
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("parsing Cargo metadata JSON")?;
+    let target_dir = metadata
+        .get("target_directory")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Cargo metadata JSON is missing `target_directory`"))?;
+    absolute_path(Path::new(target_dir))
 }
 
 #[requires(true)]
@@ -1858,7 +2079,7 @@ fn run_dx_bundle(out_dir: &Path, base_path: &str) -> Result<()> {
     let status = command.status().context("failed to run `dx bundle`")?;
     check_status(
         status,
-        "dx bundle @client --web -p jbotci-app --release @server --server -p jbotci-server --release",
+        "dx bundle @client --web -p jbotci-app --release --debug-symbols=false --inject-loading-scripts=false @server --server -p jbotci-server --release",
     )?;
     let web_dist = web_dist_dir(out_dir)?;
     write_release_service_worker(&web_dist)?;

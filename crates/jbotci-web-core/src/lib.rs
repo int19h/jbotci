@@ -90,6 +90,8 @@ pub enum GentufaWebViewMode {
     Ipa,
 }
 
+pub const DEFAULT_GENTUFA_TEXT: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[invariant(true)]
@@ -5652,8 +5654,6 @@ mod tests {
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
 
-    const DEFAULT_GENTUFA_SAMPLE: &str = "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli";
-
     #[requires(true)]
     #[ensures(ret.preset == Some(GimfihiPreset::Data1995))]
     fn gimfihi_sample_state(highlight: Option<&str>) -> GimfihiWebState {
@@ -5973,7 +5973,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn default_gentufa_bracket_fragments_are_flat_for_web_rendering() {
-        let success = run_on_normal_stack(|| parse_success(DEFAULT_GENTUFA_SAMPLE));
+        let success = run_on_normal_stack(|| parse_success(DEFAULT_GENTUFA_TEXT));
         let (count, max_depth) = bracket_fragment_stats(&success.bracket_fragments);
         assert_eq!(
             bracket_fragment_text(&success.bracket_fragments),

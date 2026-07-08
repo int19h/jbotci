@@ -17,8 +17,6 @@ use xtask_common::service_worker::{
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
 const DEFAULT_TEST_JOBS_TEXT: &str = "16";
-const DIOXUS_WEB_RELEASE_DIR: &str = "target/dx/jbotci-app/release/web";
-const DIOXUS_DESKTOP_BUNDLE_DIR: &str = "target/dx/jbotci-app/bundle";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const DIOXUS_DESKTOP_DEV_PROFILE: &str = "desktop-dev";
 const DESKTOP_BUNDLE_OUT_DIR: &str = "target/jbotci-desktop-bundles";
@@ -441,7 +439,7 @@ fn dx_desktop_bundle(target: DesktopBundleTarget) -> Result<()> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn clean_dioxus_desktop_bundle_staging(target: DesktopBundleTarget) -> Result<()> {
-    let staging_dir = Path::new(DIOXUS_DESKTOP_BUNDLE_DIR).join(target.platform_dir_name());
+    let staging_dir = dioxus_desktop_bundle_dir()?.join(target.platform_dir_name());
     match fs::remove_dir_all(&staging_dir) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
@@ -775,9 +773,9 @@ fn dioxus_asset_root(base_path: &str) -> Option<String> {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn clean_dioxus_web_release_output() -> Result<()> {
-    let release_dir = Path::new(DIOXUS_WEB_RELEASE_DIR);
+    let release_dir = dioxus_web_release_dir()?;
     if release_dir.exists() {
-        fs::remove_dir_all(release_dir).with_context(|| {
+        fs::remove_dir_all(&release_dir).with_context(|| {
             format!(
                 "removing old Dioxus release web output `{}`",
                 release_dir.display()
@@ -785,6 +783,56 @@ fn clean_dioxus_web_release_output() -> Result<()> {
         })?;
     }
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_web_release_dir() -> Result<PathBuf> {
+    Ok(cargo_target_dir()?
+        .join("dx")
+        .join("jbotci-app")
+        .join("release")
+        .join("web"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn dioxus_desktop_bundle_dir() -> Result<PathBuf> {
+    Ok(cargo_target_dir()?
+        .join("dx")
+        .join("jbotci-app")
+        .join("bundle"))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_target_dir() -> Result<PathBuf> {
+    if let Some(value) = std::env::var_os("CARGO_TARGET_DIR") {
+        let path = PathBuf::from(value);
+        if path.as_os_str().is_empty() {
+            bail!("CARGO_TARGET_DIR is set to an empty path");
+        }
+        return absolute_path(&path);
+    }
+    cargo_metadata_target_dir()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|path| path.is_absolute()) || ret.is_err())]
+fn cargo_metadata_target_dir() -> Result<PathBuf> {
+    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo"));
+    let output = ProcessCommand::new(&cargo)
+        .args(["metadata", "--format-version=1", "--no-deps"])
+        .output()
+        .with_context(|| format!("failed to run `{}` metadata", Path::new(&cargo).display()))?;
+    check_status(output.status, "cargo metadata --format-version=1 --no-deps")?;
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("parsing Cargo metadata JSON")?;
+    let target_dir = metadata
+        .get("target_directory")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Cargo metadata JSON is missing `target_directory`"))?;
+    absolute_path(Path::new(target_dir))
 }
 
 #[requires(true)]
