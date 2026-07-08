@@ -21,15 +21,19 @@ jobs:
     container:
       image: rust:1-bookworm
     env:
+      DIOXUS_CLI_VERSION: 0.7.9
       CARGO_HOME: ${{ github.workspace }}/.github-cache/cargo
       CARGO_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/test
+      DIOXUS_HOME: ${{ github.workspace }}/.github-cache/home
+      DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
+      DIOXUS_CLI_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/dioxus-cli-0.7.9
       CARGO_BUILD_JOBS: 4
       RUSTUP_HOME: /usr/local/rustup
     steps:
       - name: Install build dependencies
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates clang cmake git libclang-dev pkg-config
+          apt-get install -y --no-install-recommends ca-certificates clang cmake curl git libclang-dev nodejs npm pkg-config zstd
           rm -rf /var/lib/apt/lists/*
 
       - name: Check out source
@@ -44,12 +48,43 @@ jobs:
           path: |
             .github-cache/cargo
             .github-cache/cargo-target/test
+            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
+            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: jbotci-test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             jbotci-test-${{ runner.os }}-
 
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install Dioxus CLI
+        env:
+          HOME: ${{ env.DIOXUS_HOME }}
+        run: |
+          mkdir -p "${DIOXUS_HOME}" "${DIOXUS_CLI_ROOT}" "${DIOXUS_CLI_TARGET_DIR}"
+          if ! "${DIOXUS_CLI_ROOT}/bin/dx" --version | grep -Eq "^dioxus ${DIOXUS_CLI_VERSION}( |$)"; then
+            CARGO_TARGET_DIR="${DIOXUS_CLI_TARGET_DIR}" \
+              cargo install dioxus-cli \
+                --version "${DIOXUS_CLI_VERSION}" \
+                --locked \
+                --root "${DIOXUS_CLI_ROOT}" \
+                --force
+          fi
+          echo "${DIOXUS_CLI_ROOT}/bin" >> "${GITHUB_PATH}"
+          "${DIOXUS_CLI_ROOT}/bin/dx" --version
+
       - name: Run workspace tests with import feature
         run: cargo test -r --workspace --features jbotci-dictionary/import
+
+      - name: Run wasm stack probe (debug)
+        env:
+          HOME: ${{ env.DIOXUS_HOME }}
+        run: cargo run -r -p xtask-full -- wasm-stack-test --profile debug
+
+      - name: Run wasm stack probe (release)
+        env:
+          HOME: ${{ env.DIOXUS_HOME }}
+        run: cargo run -r -p xtask-full -- wasm-stack-test --profile release
 
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
@@ -61,4 +96,6 @@ jobs:
           path: |
             .github-cache/cargo
             .github-cache/cargo-target/test
+            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
+            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
           key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
