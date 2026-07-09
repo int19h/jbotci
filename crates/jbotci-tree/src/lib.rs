@@ -762,7 +762,7 @@ mod tests {
     use vec1::Vec1;
 
     #[invariant(true)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
     pub(crate) enum RecoveryTreeItem {
         Missing,
         Invalid,

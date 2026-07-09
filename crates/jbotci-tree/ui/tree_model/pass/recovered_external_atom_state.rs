@@ -1,6 +1,6 @@
 use jbotci_tree::{RecoveryItemKind, RecoveryItemState, tree_model};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum RecoveryTreeItem {
     Missing,
 }
