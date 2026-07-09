@@ -2,6 +2,7 @@ mod support;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "expensive_contracts")]
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -17,9 +18,11 @@ use support::fixtures::{
     OutputExpectations, Provenance, RecoveredExpectation, ReferenceExpectation,
     ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation,
     TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
-    fixture_paths, import_export_file, load_fixture_file, load_fixture_path, load_fixture_tree,
-    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
+    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
+#[cfg(feature = "expensive_contracts")]
+use support::fixtures::{fixture_paths, load_fixture_path};
 
 #[test]
 #[requires(true)]
@@ -159,8 +162,10 @@ fn recovered_syntax_contracts_hold_for_fixture_corpus() {
     assert!(checked > 0);
 }
 
+#[cfg(feature = "expensive_contracts")]
 const RECOVERED_SYNTAX_CONTRACT_CHUNK_SIZE: usize = 1000;
 
+#[cfg(feature = "expensive_contracts")]
 #[requires(true)]
 #[ensures(ret.is_none_or(|(start, end)| start <= end))]
 fn recovered_syntax_contract_worker_range() -> Option<(usize, usize)> {
@@ -175,6 +180,7 @@ fn recovered_syntax_contract_worker_range() -> Option<(usize, usize)> {
     (start <= end).then_some((start, end))
 }
 
+#[cfg(feature = "expensive_contracts")]
 #[requires(start <= end)]
 #[ensures(ret.as_ref().is_ok_and(|checked| *checked <= paths.len()) || ret.is_err())]
 fn recovered_syntax_contract_fixture_range(
@@ -235,6 +241,7 @@ fn recovered_syntax_contract_fixture_range(
     Ok(checked)
 }
 
+#[cfg(feature = "expensive_contracts")]
 #[requires(true)]
 #[ensures(true)]
 fn recovered_syntax_contract_checked_count(stdout: &[u8]) -> usize {
