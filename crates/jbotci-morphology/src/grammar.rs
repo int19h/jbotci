@@ -110,12 +110,16 @@ struct Segmenter<'a> {
 }
 
 #[invariant(word_snapshot.as_ref().is_none_or(|words| words.len() == *word_count))]
+#[invariant(expensive_snapshot.as_ref().is_none_or(|snapshot| {
+    snapshot.words.len() == *word_count && snapshot.warnings.len() == *warning_count
+}))]
 #[derive(Debug, Clone)]
 struct RecoveryCheckpoint {
     index: usize,
     word_count: usize,
     warning_count: usize,
     word_snapshot: Option<Vec<WordLike>>,
+    expensive_snapshot: Option<RecoveryDeepSnapshot>,
 }
 
 impl RecoveryCheckpoint {
@@ -129,6 +133,36 @@ impl RecoveryCheckpoint {
             ..checkpoint
         }))
     }
+}
+
+#[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[derive(Debug, Clone)]
+struct RecoveryDeepSnapshot {
+    words: Vec<WordLike>,
+    warnings: Vec<MorphologyWarning>,
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[requires(true)]
+#[ensures(ret.is_some())]
+fn recovery_deep_snapshot(
+    words: &[WordLike],
+    warnings: &[MorphologyWarning],
+) -> Option<RecoveryDeepSnapshot> {
+    Some(new!(RecoveryDeepSnapshot {
+        words: words.to_vec(),
+        warnings: warnings.to_vec(),
+    }))
+}
+
+#[cfg(not(feature = "expensive_contracts"))]
+#[requires(true)]
+#[ensures(ret.is_none())]
+fn recovery_deep_snapshot(
+    _words: &[WordLike],
+    _warnings: &[MorphologyWarning],
+) -> Option<RecoveryDeepSnapshot> {
+    None
 }
 
 #[invariant(::Morphology => true)]
@@ -159,6 +193,9 @@ impl SegmentMode {
 #[requires(true)]
 #[ensures(true)]
 fn segment_needs_recovery_word_snapshot(segment: &[WordLike]) -> bool {
+    // This must list every cmavo whose handler can mutate output at or before
+    // the checkpoint watermark; expensive-contract snapshots assert the list
+    // stays complete on every recovered error path.
     let [token] = segment else {
         return false;
     };
@@ -317,6 +354,7 @@ impl<'a> Segmenter<'a> {
             word_count: words.len(),
             warning_count: self.warnings.len(),
             word_snapshot: None,
+            expensive_snapshot: recovery_deep_snapshot(words, &self.warnings),
         })
     }
 
@@ -339,6 +377,19 @@ impl<'a> Segmenter<'a> {
             words.truncate(checkpoint.word_count);
         }
         self.warnings.truncate(checkpoint.warning_count);
+        #[cfg(feature = "expensive_contracts")]
+        if let Some(snapshot) = checkpoint.expensive_snapshot {
+            assert_eq!(
+                words.as_slice(),
+                snapshot.words.as_slice(),
+                "recovered morphology cheap word restore must match deep snapshot"
+            );
+            assert_eq!(
+                self.warnings.as_slice(),
+                snapshot.warnings.as_slice(),
+                "recovered morphology cheap warning restore must match deep snapshot"
+            );
+        }
         self.index = checkpoint_index;
 
         let (region_end, should_continue) = match error {
