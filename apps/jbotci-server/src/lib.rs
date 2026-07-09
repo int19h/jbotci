@@ -922,11 +922,24 @@ fn cache_control_for_path(path: &str) -> &'static str {
         || path == MANIFEST_ASSET_PATH
         || path == SERVICE_WORKER_ASSET_PATH
         || path == "/assets/embeddings/web/v1/catalog.json"
+        || is_unhashed_web_module_asset(path)
     {
         "no-cache"
     } else {
         "public, max-age=31536000, immutable"
     }
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_unhashed_web_module_asset(path: &str) -> bool {
+    matches!(
+        path,
+        "/assets/app-module-ready.js"
+            | "/assets/compute-worker.js"
+            | "/assets/embedding-worker.js"
+            | "/assets/model-catalog.js"
+    )
 }
 
 #[requires(!location.is_empty())]
@@ -1415,6 +1428,14 @@ mod tests {
             "no-cache"
         );
         assert_eq!(cache_control_for_path("/service-worker.js"), "no-cache");
+        assert_eq!(
+            cache_control_for_path("/assets/embedding-worker.js"),
+            "no-cache"
+        );
+        assert_eq!(
+            cache_control_for_path("/assets/app-module-ready.js"),
+            "no-cache"
+        );
         assert_eq!(
             cache_control_for_path("/assets/icons/jbotci-icon-192.png"),
             "public, max-age=31536000, immutable"

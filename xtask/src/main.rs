@@ -1495,6 +1495,7 @@ mod tests {
     const JBOTCI_UI_PLATFORM: &str = include_str!("../../crates/jbotci-ui/src/platform.rs");
     const APP_MODULE_READY_JS: &str =
         include_str!("../../crates/jbotci-ui/assets/app-module-ready.js");
+    const WORKER_CLIENT_JS: &str = include_str!("../../crates/jbotci-ui/assets/worker-client.js");
     const MODEL_CATALOG_JS: &str = include_str!("../../crates/jbotci-ui/assets/model-catalog.js");
 
     #[requires(true)]
@@ -1674,12 +1675,26 @@ mod tests {
         }
 
         assert!(JBOTCI_UI_LIB.contains("literal path"));
-        assert!(JBOTCI_UI_LIB.contains("add explicit URL versioning"));
+        assert!(JBOTCI_UI_LIB.contains("app-bundle URL versioning"));
+        assert!(JBOTCI_UI_LIB.contains("must not serve these literal paths as immutable"));
         assert!(
             JBOTCI_UI_LAYOUT.contains("#[wasm_bindgen(module = \"/assets/model-catalog.js\")]")
         );
         assert!(JBOTCI_UI_LAYOUT.contains("jbotciModelCatalogAssetPin"));
         assert!(MODEL_CATALOG_JS.contains("export function jbotciModelCatalogAssetPin() {}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_worker_client_versions_stable_worker_urls_by_app_bundle() {
+        assert!(
+            WORKER_CLIENT_JS.contains(
+                "const workerUrlHref = versionedWorkerUrl(workerUrl(), mainModuleUrl).href"
+            )
+        );
+        assert!(WORKER_CLIENT_JS.contains("url.searchParams.set(\"jbotci-app\""));
+        assert!(WORKER_CLIENT_JS.contains("workerVersionFromAppModuleUrl(mainModuleUrlHref)"));
     }
 
     #[test]

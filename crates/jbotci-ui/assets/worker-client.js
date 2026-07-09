@@ -25,14 +25,29 @@ export function createWorkerClient(options) {
     return new URL(url, globalThis.location.href);
   }
 
+  function versionedWorkerUrl(baseWorkerUrl, mainModuleUrlHref) {
+    const url = new URL(baseWorkerUrl.href);
+    url.searchParams.set("jbotci-app", workerVersionFromAppModuleUrl(mainModuleUrlHref));
+    return url;
+  }
+
+  function workerVersionFromAppModuleUrl(mainModuleUrlHref) {
+    try {
+      const url = new URL(mainModuleUrlHref, globalThis.location.href);
+      return url.pathname.split("/").pop() || url.href;
+    } catch (_) {
+      return String(mainModuleUrlHref);
+    }
+  }
+
   function workerConfig() {
     return options.workerConfig?.() ?? {};
   }
 
   function currentWorkerContext() {
     const config = workerConfig();
-    const workerUrlHref = workerUrl().href;
     const mainModuleUrl = appModuleUrl().href;
+    const workerUrlHref = versionedWorkerUrl(workerUrl(), mainModuleUrl).href;
     const keyParts = [
       workerUrlHref,
       mainModuleUrl,
