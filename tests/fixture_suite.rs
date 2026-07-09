@@ -13,11 +13,11 @@ use support::fixtures::{
     FixtureExport, FixtureSelector, GentufaOutputExpectation, JvozbaExpectation,
     JvozbaFixtureInput, JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectations, Provenance, ReferenceExpectation, ScriptBracketExpectations,
-    SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation, TestCase, TextExpectation,
-    VlaseiOutputExpectation, XfailExpectation, filter_fixtures, import_export_file,
-    load_fixture_file, load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel,
-    validate_fixture_tree, write_fixture_file,
+    OutputExpectations, Provenance, RecoveredExpectation, ReferenceExpectation,
+    ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation,
+    TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
+    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
+    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -45,6 +45,76 @@ fn loads_smoke_fixture() {
         value[0]["PlainWord"]["Cmavo"]["span"],
         serde_json::json!([0, 3])
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_morphology_preserves_strict_first_error_for_failure_fixtures() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let fixtures = load_fixture_tree(&root).expect("fixtures should load");
+    let mut checked = 0usize;
+    for fixture in fixtures {
+        let Some(expectation) = &fixture.test_case.expectations.morphology else {
+            continue;
+        };
+        if expectation.status != ExpectationStatus::Failure {
+            continue;
+        }
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .unwrap_or_else(|error| panic!("{} dialect error: {error}", fixture.test_case.id));
+        let options =
+            jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+        let source_id = Some(SourceId("<fixture>".to_owned()));
+        let strict = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &options,
+            source_id.clone(),
+        )
+        .unwrap_err();
+        let recovered =
+            jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+                &fixture.test_case.lojban,
+                &options,
+                source_id,
+            );
+        assert_eq!(
+            recovered.errors.first(),
+            Some(&strict),
+            "{}",
+            fixture.test_case.id
+        );
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_morphology_contracts_hold_for_fixture_corpus() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let fixtures = load_fixture_tree(&root).expect("fixtures should load");
+    let mut checked = 0usize;
+    for fixture in fixtures {
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .unwrap_or_else(|error| panic!("{} dialect error: {error}", fixture.test_case.id));
+        let options =
+            jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+        let _ =
+            jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+                &fixture.test_case.lojban,
+                &options,
+                Some(SourceId("<fixture>".to_owned())),
+            );
+        checked += 1;
+    }
+    assert!(checked > 0);
 }
 
 #[test]
@@ -584,6 +654,7 @@ fn writer_keeps_tree_and_output_values() {
                     sha256: None,
                 }),
                 diagnostics: vec![],
+                recovered: None,
             }),
             jvozba: None,
             syntax: Some(SyntaxExpectation {
@@ -1056,10 +1127,14 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
 #[requires(!test_case.id.is_empty())]
 #[ensures(true)]
 fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyExpectation) {
+    let dialect = test_case
+        .dialect_definition()
+        .unwrap_or_else(|error| panic!("{} dialect error: {error}", test_case.id));
+    let options = jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
     let attempt =
         jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
             &test_case.lojban,
-            &jbotci_morphology::MorphologyOptions::default(),
+            &options,
             Some(SourceId("<fixture>".to_owned())),
         );
     let data = attempt.into_data();
@@ -1096,6 +1171,67 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
         }
     }
     assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+    if let Some(recovered) = &expectation.recovered {
+        assert_recovered_morphology_expectation(test_case, recovered);
+    }
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn assert_recovered_morphology_expectation(
+    test_case: &TestCase,
+    expectation: &RecoveredExpectation,
+) {
+    let dialect = test_case
+        .dialect_definition()
+        .unwrap_or_else(|error| panic!("{} dialect error: {error}", test_case.id));
+    let options = jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+    let attempt =
+        jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
+            &test_case.lojban,
+            &options,
+            Some(SourceId("<fixture>".to_owned())),
+        );
+    let actual_status = if attempt.errors.is_empty() {
+        ExpectationStatus::Success
+    } else {
+        ExpectationStatus::Failure
+    };
+    assert_eq!(actual_status, expectation.status, "{}", test_case.id);
+    let diagnostics = recovered_morphology_diagnostics(test_case, &attempt);
+    assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn recovered_morphology_diagnostics(
+    test_case: &TestCase,
+    recovered: &jbotci_morphology::RecoveredMorphologySegmentation,
+) -> Vec<DiagnosticExpectation> {
+    let mut diagnostics = recovered
+        .warnings
+        .iter()
+        .map(|warning| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        })
+        .chain(recovered.errors.iter().map(|error| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        }))
+        .collect::<Vec<_>>();
+    diagnostics.sort_by_key(|diagnostic| {
+        (
+            diagnostic.byte_span[0],
+            diagnostic.byte_span[1],
+            diagnostic.code.clone(),
+        )
+    });
+    diagnostics
 }
 
 #[requires(!id.is_empty())]

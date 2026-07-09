@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.error-in-first-word"
+lojban = "@@@ mi"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [0, 1], source-text = "@", message = "invalid character in Lojban word" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [0, 1], source-text = "@", message = "invalid character in Lojban word" }]

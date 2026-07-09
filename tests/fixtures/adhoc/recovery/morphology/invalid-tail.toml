@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.invalid-tail"
+lojban = "mi do @@@"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [6, 7], source-text = "@", message = "invalid character in Lojban word" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [6, 7], source-text = "@", message = "invalid character in Lojban word" }]

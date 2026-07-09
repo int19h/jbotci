@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.two-invalid-words"
+lojban = "mi @@@ do ### mi"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [3, 4], source-text = "@", message = "invalid character in Lojban word" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [3, 4], source-text = "@", message = "invalid character in Lojban word" }, { severity = "error", code = "morphology.invalid-character", byte-span = [10, 11], source-text = "#", message = "invalid character in Lojban word" }]

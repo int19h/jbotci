@@ -662,6 +662,17 @@ pub struct MorphologyExpectation {
     pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default)]
+    pub recovered: Option<RecoveredExpectation>,
+}
+
+#[invariant(matches!(*status, ExpectationStatus::Success | ExpectationStatus::Failure))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveredExpectation {
+    pub status: ExpectationStatus,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

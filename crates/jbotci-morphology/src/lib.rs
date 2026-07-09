@@ -15,8 +15,8 @@ use std::{fmt, sync::Arc};
 use bityzba::{data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
-    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TraceReport,
-    source_span_from_char_offsets,
+    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TracePhase,
+    TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
@@ -150,6 +150,85 @@ pub struct MorphologySegmentAttempt {
     pub result: Result<Vec<WordLike>, MorphologyError>,
     pub warnings: Vec<MorphologyWarning>,
     pub trace: Option<TraceReport>,
+}
+
+#[invariant(recovered_morphology_errors_match_regions(&errors, &error_regions))]
+#[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
+#[bityzba::expensive_invariant(recovered_morphology_words_disjoint_from_error_regions(&words, &error_regions))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecoveredMorphologySegmentation {
+    pub words: Vec<WordLike>,
+    pub errors: Vec<MorphologyError>,
+    /// Source regions skipped while resynchronizing after morphology errors.
+    ///
+    /// Each region starts at the failed stretch checkpoint and ends at EOF, or
+    /// just after the whitespace that recovery used to resume segmentation.
+    pub error_regions: Vec<SourceSpan>,
+    pub warnings: Vec<MorphologyWarning>,
+}
+
+#[invariant(trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
+#[derive(Debug, Clone)]
+pub struct RecoveredMorphologySegmentAttempt {
+    pub result: RecoveredMorphologySegmentation,
+    pub trace: Option<TraceReport>,
+}
+
+#[requires(true)]
+#[ensures(ret -> errors.len() == error_regions.len())]
+fn recovered_morphology_errors_match_regions(
+    errors: &[MorphologyError],
+    error_regions: &[SourceSpan],
+) -> bool {
+    if errors.len() != error_regions.len() {
+        return false;
+    }
+    if !error_regions
+        .windows(2)
+        .all(|regions| regions[0].char_end <= regions[1].char_start)
+    {
+        return false;
+    }
+    if !errors.windows(2).all(|errors| {
+        let Some(left) = morphology_error_recovery_start(&errors[0]) else {
+            return true;
+        };
+        let Some(right) = morphology_error_recovery_start(&errors[1]) else {
+            return true;
+        };
+        left <= right
+    }) {
+        return false;
+    }
+    errors.iter().zip(error_regions).all(|(error, region)| {
+        morphology_error_recovery_start(error)
+            .is_none_or(|start| region.char_start <= start && start <= region.char_end)
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_morphology_words_disjoint_from_error_regions(
+    words: &[WordLike],
+    error_regions: &[SourceSpan],
+) -> bool {
+    words.iter().all(|word| {
+        word.source_spans().into_iter().all(|span| {
+            error_regions.iter().all(|region| {
+                span.char_end <= region.char_start || region.char_end <= span.char_start
+            })
+        })
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_none() == matches!(error, MorphologyError::SourceSpan(_)))]
+fn morphology_error_recovery_start(error: &MorphologyError) -> Option<usize> {
+    match error {
+        MorphologyError::Invalid { char_start, .. } => Some(*char_start),
+        MorphologyError::UnterminatedZoiQuote { char_offset, .. } => Some(*char_offset),
+        MorphologyError::SourceSpan(_) => None,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1908,6 +1987,25 @@ pub fn segment_words_with_modifiers(input: &str) -> Result<Vec<WordLike>, Morpho
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered(input: &str) -> RecoveredMorphologySegmentation {
+    segment_words_with_modifiers_recovered_with_options_and_source_id(
+        input,
+        &MorphologyOptions::default(),
+        None,
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_options(
+    input: &str,
+    options: &MorphologyOptions,
+) -> RecoveredMorphologySegmentation {
+    segment_words_with_modifiers_recovered_with_options_and_source_id(input, options, None)
+}
+
+#[requires(true)]
 #[ensures(ret.input == input)]
 #[ensures(matches!(ret.result.status, ValsiAnalysisStatus::Valid | ValsiAnalysisStatus::Invalid | ValsiAnalysisStatus::NotSingleWord))]
 pub fn analyze_valsi_with_options_and_source_id(
@@ -2122,6 +2220,45 @@ pub fn segment_words_with_modifiers_with_options_and_source_id_attempt(
         result,
         warnings: data.warnings,
         trace: data.trace,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_options_and_source_id(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> RecoveredMorphologySegmentation {
+    segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+        input, options, source_id,
+    )
+    .into_data()
+    .result
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> RecoveredMorphologySegmentAttempt {
+    let attempt =
+        grammar::segment_words_with_modifiers_recovered_attempt(input, options, source_id);
+    let attempt = attempt.into_data();
+    let result = attempt.result.into_data();
+    let words = apply_compiled_dialect_entries(result.words, &options.compiled_dialect);
+    let result =
+        RecoveredMorphologySegmentation::from_data(data!(RecoveredMorphologySegmentation {
+            words,
+            errors: result.errors,
+            error_regions: result.error_regions,
+            warnings: result.warnings,
+        }));
+    new!(RecoveredMorphologySegmentAttempt {
+        result,
+        trace: attempt.trace,
     })
 }
 
@@ -3218,6 +3355,126 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_morphology_resyncs_at_whitespace() {
+        let source = "mi @@@ do";
+        let strict_error = segment_words_with_modifiers(source).expect_err("strict API fails");
+        let recovered = segment_words_with_modifiers_recovered(source);
+
+        assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi", "do"]);
+        assert_eq!(recovered.errors, vec![strict_error]);
+        assert_eq!(recovered.error_regions.len(), 1);
+        assert_eq!(recovered.error_regions[0].char_start, 3);
+        assert_eq!(recovered.error_regions[0].char_end, 7);
+        assert_invalid_error(
+            &recovered.errors[0],
+            MorphologyErrorKind::InvalidCharacter,
+            3,
+            4,
+            None,
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_reports_multiple_errors_in_order() {
+        let recovered = segment_words_with_modifiers_recovered("mi @@@ do ### mi");
+
+        assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi", "do", "mi"]);
+        assert_eq!(recovered.errors.len(), 2);
+        assert_eq!(recovered.error_regions.len(), 2);
+        assert_invalid_error(
+            &recovered.errors[0],
+            MorphologyErrorKind::InvalidCharacter,
+            3,
+            4,
+            None,
+        );
+        assert_invalid_error(
+            &recovered.errors[1],
+            MorphologyErrorKind::InvalidCharacter,
+            10,
+            11,
+            None,
+        );
+        assert_eq!(
+            recovered
+                .error_regions
+                .iter()
+                .map(|span| [span.char_start, span.char_end])
+                .collect::<Vec<_>>(),
+            vec![[3, 7], [10, 14]]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_stops_at_invalid_tail_without_whitespace() {
+        let recovered = segment_words_with_modifiers_recovered("mi do @@@");
+
+        assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi", "do"]);
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(recovered.error_regions.len(), 1);
+        assert_eq!(recovered.error_regions[0].char_start, 6);
+        assert_eq!(recovered.error_regions[0].char_end, 9);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_resyncs_after_error_in_first_word() {
+        let recovered = segment_words_with_modifiers_recovered("@@@ mi");
+
+        assert_eq!(base_phoneme_texts(&recovered.words), vec!["mi"]);
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(recovered.error_regions.len(), 1);
+        assert_eq!(recovered.error_regions[0].char_start, 0);
+        assert_eq!(recovered.error_regions[0].char_end, 4);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_does_not_resync_unterminated_zoi() {
+        let source = "zoi gy foo bar";
+        let strict_error = segment_words_with_modifiers(source).expect_err("strict API fails");
+        let recovered = segment_words_with_modifiers_recovered(source);
+
+        assert!(recovered.words.is_empty());
+        assert_eq!(recovered.errors, vec![strict_error]);
+        assert_eq!(recovered.error_regions.len(), 1);
+        assert_eq!(recovered.error_regions[0].char_start, 0);
+        assert_eq!(recovered.error_regions[0].char_end, source.chars().count());
+        assert!(matches!(
+            recovered.errors[0],
+            MorphologyError::UnterminatedZoiQuote { .. }
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_morphology_preserves_warnings_from_valid_stretches() {
+        let recovered = segment_words_with_modifiers_recovered("namzi @@@ kamzifre");
+
+        assert_eq!(
+            base_phoneme_texts(&recovered.words),
+            vec!["námzi", "kamzífre"]
+        );
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(recovered.warnings.len(), 2);
+        assert!(
+            recovered
+                .warnings
+                .iter()
+                .all(|warning| warning.kind == MorphologyWarningKind::ExperimentalMz)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn segments_simple_cmavo_and_gismu() {
         let words = segment_words_with_modifiers("mi klama do").expect("valid morphology");
         assert_eq!(words.len(), 3);
@@ -4145,6 +4402,34 @@ mod tests {
             .iter()
             .map(|word| base_phonemes(word).expect("base word"))
             .collect()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_invalid_error(
+        error: &MorphologyError,
+        expected_kind: MorphologyErrorKind,
+        expected_start: usize,
+        expected_end: usize,
+        expected_context: Option<MorphologyContextKind>,
+    ) {
+        let MorphologyError::Invalid {
+            kind,
+            char_start,
+            char_end,
+            context,
+            ..
+        } = error
+        else {
+            panic!("expected invalid morphology error, got {error:?}");
+        };
+        assert_eq!(*kind, expected_kind);
+        assert_eq!(*char_start, expected_start);
+        assert_eq!(*char_end, expected_end);
+        assert_eq!(
+            context.as_ref().map(|context| context.kind),
+            expected_context
+        );
     }
 
     #[requires(!source.is_empty())]
