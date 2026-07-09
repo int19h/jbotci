@@ -43,19 +43,46 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Restore build cache
-        id: build-cache
+      - name: Capture Rust version
+        id: rustc
+        run: |
+          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
+          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
+          echo "Rust cache version: ${rustc_version}"
+
+      - name: Restore cargo home cache
+        id: cargo-home-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/cargo
+          key: jbotci-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-cargo-home-${{ runner.os }}-
+
+      - name: Restore Dioxus CLI cache
+        id: dioxus-cli-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          key: jbotci-dx-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.rustc.outputs.version }}
+
+      - name: Restore render target cache
+        id: target-cache
         uses: actions/cache/restore@v5
         with:
           path: |
-            .github-cache/cargo
             .github-cache/cargo-target/deploy
-            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
-            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
             .github-cache/home/.dx
-          key: jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          key: jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-render-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-
+            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-render-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+
+      - name: Normalize render target cache mtimes
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: .github-cache/cargo-target/deploy
 
       - name: Install Rust wasm target
         run: rustup target add wasm32-unknown-unknown
@@ -122,17 +149,35 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Save build cache
-        if: success() && steps.build-cache.outputs.cache-hit != 'true'
+      - name: Stamp render target cache
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: stamp
+          target-dir: .github-cache/cargo-target/deploy
+
+      - name: Save cargo home cache
+        if: ${{ steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/cargo
+          key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+      - name: Save Dioxus CLI cache
+        if: ${{ steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
+
+      - name: Save render target cache
+        if: ${{ !cancelled() }}
         uses: actions/cache/save@v5
         with:
           path: |
-            .github-cache/cargo
             .github-cache/cargo-target/deploy
-            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
-            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
             .github-cache/home/.dx
-          key: ${{ steps.build-cache.outputs.cache-primary-key }}
+          key: ${{ steps.target-cache.outputs.cache-primary-key }}
 
   publish-image:
     name: Publish GHCR runtime image
