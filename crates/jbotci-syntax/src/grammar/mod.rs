@@ -17,15 +17,19 @@ use chumsky::prelude::*;
 use chumsky::span::{SimpleSpan, Spanned};
 use jbotci_diagnostics::{
     TraceEventKind, TraceFailureSummary, TraceLevel, TracePhase, TraceRecorder, TraceReport,
+    source_span_from_byte_offsets,
 };
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
+use jbotci_source::SourceSpan;
 use jbotci_tree::TreeVisitor;
+use vec1::Vec1;
 
+use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData};
 use crate::{
-    ExperimentalConstruct, ParseOptions, SyntaxError, SyntaxParse, SyntaxParseAttempt,
-    SyntaxWarning, Token, WithIndicators, WithIndicatorsData, syntax_construct_is_descendant_of,
-    syntax_immediate_child_under,
+    ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
+    SyntaxError, SyntaxParse, SyntaxParseAttempt, SyntaxWarning, Token, WithIndicators,
+    WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 mod generated;
@@ -58,6 +62,7 @@ pub(super) struct ParserStateFinish {
 pub(crate) struct ParserCheckpoint {
     warning_count: usize,
     syntax_context_count: usize,
+    syntax_rule_count: usize,
     trace_save: bool,
 }
 
@@ -89,6 +94,72 @@ impl SyntaxContextFrame {
     #[ensures(true)]
     pub(super) fn byte_start(&self) -> usize {
         self.byte_start
+    }
+}
+
+#[invariant(!rule.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct SyntaxRuleFrame {
+    rule: &'static str,
+    byte_start: usize,
+}
+
+impl SyntaxRuleFrame {
+    #[requires(!rule.is_empty())]
+    #[ensures(ret.rule == rule)]
+    #[ensures(ret.byte_start == byte_start)]
+    pub(super) fn new(rule: &'static str, byte_start: usize) -> Self {
+        new!(SyntaxRuleFrame { rule, byte_start })
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub(super) fn rule(&self) -> &'static str {
+        self.rule
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn byte_start(&self) -> usize {
+        self.byte_start
+    }
+}
+
+#[invariant(!rule.is_empty())]
+#[invariant(fail_token_index <= resume_token_index)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RecoveryDirective {
+    rule: &'static str,
+    instance_byte_start: usize,
+    fail_token_index: usize,
+    resume_token_index: usize,
+    resume_field: usize,
+    error: SyntaxError,
+}
+
+impl RecoveryDirective {
+    #[requires(!rule.is_empty())]
+    #[requires(fail_token_index <= resume_token_index)]
+    #[ensures(ret.rule == rule)]
+    #[ensures(ret.fail_token_index == fail_token_index)]
+    #[ensures(ret.resume_token_index == resume_token_index)]
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn new(
+        rule: &'static str,
+        instance_byte_start: usize,
+        fail_token_index: usize,
+        resume_token_index: usize,
+        resume_field: usize,
+        error: SyntaxError,
+    ) -> Self {
+        new!(RecoveryDirective {
+            rule,
+            instance_byte_start,
+            fail_token_index,
+            resume_token_index,
+            resume_field,
+            error,
+        })
     }
 }
 
@@ -128,6 +199,7 @@ pub(super) struct ParserState<'tokens> {
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
     active_syntax_contexts: Vec<SyntaxContextFrame>,
+    active_syntax_rules: Vec<SyntaxRuleFrame>,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     _tokens: PhantomData<&'tokens ()>,
 }
@@ -157,6 +229,7 @@ impl<'tokens> ParserState<'tokens> {
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             active_syntax_contexts: Vec::new(),
+            active_syntax_rules: Vec::new(),
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
             _tokens: PhantomData,
         }
@@ -285,7 +358,9 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
-        let error = error.with_active_contexts(&self.active_syntax_contexts);
+        let error = error
+            .with_active_contexts(&self.active_syntax_contexts)
+            .with_active_rule_contexts(&self.active_syntax_rules);
         let Some(farthest_start) = self
             .diagnostic_candidates
             .first()
@@ -361,6 +436,21 @@ impl<'tokens> ParserState<'tokens> {
             .expect("syntax context stack is non-empty");
     }
 
+    #[requires(!rule.is_empty())]
+    #[ensures(self.active_syntax_rules.len() == old(self.active_syntax_rules.len()) + 1)]
+    pub(super) fn push_syntax_rule(&mut self, rule: &'static str, byte_start: usize) {
+        self.active_syntax_rules
+            .push(SyntaxRuleFrame::new(rule, byte_start));
+    }
+
+    #[requires(!self.active_syntax_rules.is_empty())]
+    #[ensures(self.active_syntax_rules.len() + 1 == old(self.active_syntax_rules.len()))]
+    pub(super) fn pop_syntax_rule(&mut self) {
+        self.active_syntax_rules
+            .pop()
+            .expect("syntax rule stack is non-empty");
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn diagnostic_candidate(&self) -> Option<SyntaxParseError<'tokens>> {
@@ -388,6 +478,12 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn active_syntax_contexts(&self) -> &[SyntaxContextFrame] {
         &self.active_syntax_contexts
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn active_syntax_rules(&self) -> &[SyntaxRuleFrame] {
+        &self.active_syntax_rules
     }
 
     #[requires(true)]
@@ -638,6 +734,7 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
         ParserCheckpoint {
             warning_count: self.warnings.len(),
             syntax_context_count: self.active_syntax_contexts.len(),
+            syntax_rule_count: self.active_syntax_rules.len(),
             trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
         }
     }
@@ -669,6 +766,8 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
         self.warnings.truncate(marker.inspector().warning_count);
         self.active_syntax_contexts
             .truncate(marker.inspector().syntax_context_count);
+        self.active_syntax_rules
+            .truncate(marker.inspector().syntax_rule_count);
     }
 }
 
@@ -751,6 +850,816 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     SyntaxParseAttempt {
         result,
         trace: parsed.trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> RecoveredSyntaxParseAttempt {
+    let tokens = syntax_tokens(words, options);
+    let strict_attempt = generated::generated_model::parse_text_detailed_attempt(&tokens, options);
+    let failure = match strict_attempt.result {
+        Ok(parsed) => {
+            let mut warnings = parsed.warnings;
+            add_generated_construct_warnings(&parsed.text, &tokens, &mut warnings);
+            return RecoveredSyntaxParseAttempt {
+                result: new!(RecoveredSyntaxParse {
+                    parse_tree: Box::new(
+                        generated::generated_model::recovered::TextSyntax::from_valid(parsed.text),
+                    ),
+                    errors: Vec::new(),
+                    warnings,
+                }),
+                trace: strict_attempt.trace,
+            };
+        }
+        Err(failure) => failure,
+    };
+
+    recover_after_strict_failure(tokens, source, options, failure, strict_attempt.trace)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recover_after_strict_failure(
+    tokens: Vec<Token>,
+    source: Option<&str>,
+    options: &ParseOptions,
+    mut failure: generated::generated_model::GeneratedParseFailure,
+    mut trace: Option<TraceReport>,
+) -> RecoveredSyntaxParseAttempt {
+    let cap = options.max_recovery_errors.max(1);
+    let mut errors = vec![failure.public_error.clone()];
+    let mut directives = Vec::new();
+
+    while errors.len() <= cap {
+        let Some(directive) = select_recovery_directive(&tokens, &failure, options) else {
+            break;
+        };
+        if directives
+            .iter()
+            .any(|existing| same_recovery_site(existing, &directive))
+        {
+            break;
+        }
+        directives.push(directive);
+
+        let recovered_tokens = tokens_after_recovery_directives(&tokens, &directives);
+        let attempt =
+            generated::generated_model::parse_text_detailed_attempt(&recovered_tokens, options);
+        trace = attempt.trace;
+        match attempt.result {
+            Ok(parsed) => {
+                let mut warnings = parsed.warnings;
+                add_generated_construct_warnings(&parsed.text, &recovered_tokens, &mut warnings);
+                let mut parse_tree =
+                    generated::generated_model::recovered::TextSyntax::from_valid(parsed.text);
+                apply_recovery_directives(&mut parse_tree, &tokens, source, &directives);
+                return RecoveredSyntaxParseAttempt {
+                    result: new!(RecoveredSyntaxParse {
+                        parse_tree: Box::new(parse_tree),
+                        errors,
+                        warnings,
+                    }),
+                    trace,
+                };
+            }
+            Err(next_failure) => {
+                if errors.len() >= cap {
+                    break;
+                }
+                if syntax_error_start(&next_failure.public_error)
+                    < errors.last().map_or(0, syntax_error_start)
+                {
+                    break;
+                }
+                errors.push(next_failure.public_error.clone());
+                failure = next_failure;
+            }
+        }
+    }
+
+    let recovered_tokens = tokens_after_recovery_directives(&tokens, &directives);
+    let mut parse_tree = generated::generated_model::parse_text_attempt(&recovered_tokens, options)
+        .result
+        .ok()
+        .map(|parsed| generated::generated_model::recovered::TextSyntax::from_valid(parsed.text))
+        .unwrap_or_else(empty_recovered_text);
+    apply_recovery_directives(&mut parse_tree, &tokens, source, &directives);
+    if directives.is_empty() {
+        apply_unanchored_recovery_error(&mut parse_tree, &tokens, source, 0);
+    }
+    RecoveredSyntaxParseAttempt {
+        result: new!(RecoveredSyntaxParse {
+            parse_tree: Box::new(parse_tree),
+            errors,
+            warnings: Vec::new(),
+        }),
+        trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn same_recovery_site(left: &RecoveryDirective, right: &RecoveryDirective) -> bool {
+    left.fail_token_index == right.fail_token_index
+        && left.resume_token_index == right.resume_token_index
+        && left.rule == right.rule
+        && left.instance_byte_start == right.instance_byte_start
+}
+
+#[requires(true)]
+#[ensures(ret.len() <= tokens.len())]
+fn tokens_after_recovery_directives(
+    tokens: &[Token],
+    directives: &[RecoveryDirective],
+) -> Vec<Token> {
+    tokens
+        .iter()
+        .enumerate()
+        .filter(|(index, _token)| {
+            !directives.iter().any(|directive| {
+                *index >= directive.fail_token_index && *index < directive.resume_token_index
+            })
+        })
+        .map(|(_index, token)| token.clone())
+        .collect()
+}
+
+#[invariant(!rule.is_empty())]
+#[derive(Debug, Clone)]
+struct RecoveryClaim {
+    branch_index: usize,
+    inner_rank: usize,
+    rule: &'static str,
+    instance_byte_start: usize,
+    resume_token_index: usize,
+    resume_field: usize,
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|directive| directive.fail_token_index <= directive.resume_token_index))]
+fn select_recovery_directive(
+    tokens: &[Token],
+    failure: &generated::generated_model::GeneratedParseFailure,
+    options: &ParseOptions,
+) -> Option<RecoveryDirective> {
+    let fail_token_index = token_index_for_byte_start(
+        tokens,
+        failure.branches.first().map_or_else(
+            || syntax_error_start(&failure.public_error),
+            |branch| branch.span_start,
+        ),
+    );
+    let env = generated_runtime::SyntaxGrammarEnv::from_options(options);
+    let mut selected: Option<RecoveryClaim> = None;
+
+    for (branch_index, branch) in failure.branches.iter().enumerate() {
+        for (inner_rank, frame) in branch.active_rule_contexts.iter().rev().enumerate() {
+            let Some(metadata) =
+                generated::generated_model::syntax_grammar_anchor_metadata_by_rule_name(
+                    frame.rule(),
+                )
+            else {
+                continue;
+            };
+            for field in metadata.fields {
+                for anchor in field.anchors {
+                    if !recovery_anchor_origin_is_v1(anchor.origin)
+                        || !recovery_conditions_match(anchor.conditions, env)
+                    {
+                        continue;
+                    }
+                    let Some(resume_token_index) =
+                        scan_for_recovery_anchor(tokens, fail_token_index, anchor.start_tokens)
+                    else {
+                        continue;
+                    };
+                    let claim = new!(RecoveryClaim {
+                        branch_index,
+                        inner_rank,
+                        rule: metadata.rule,
+                        instance_byte_start: frame.byte_start(),
+                        resume_token_index,
+                        resume_field: anchor.resume_field,
+                    });
+                    if recovery_claim_precedes(&claim, selected.as_ref()) {
+                        selected = Some(claim);
+                    }
+                }
+            }
+        }
+    }
+
+    let selected = selected.or_else(|| {
+        failure
+            .branches
+            .first()
+            .and_then(|branch| branch.active_rule_contexts.last())
+            .map(|frame| {
+                new!(RecoveryClaim {
+                    branch_index: 0,
+                    inner_rank: 0,
+                    rule: frame.rule(),
+                    instance_byte_start: frame.byte_start(),
+                    resume_token_index: tokens.len(),
+                    resume_field: usize::MAX,
+                })
+            })
+    })?;
+    Some(RecoveryDirective::new(
+        selected.rule,
+        selected.instance_byte_start,
+        fail_token_index,
+        selected.resume_token_index,
+        selected.resume_field,
+        failure.public_error.clone(),
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_claim_precedes(left: &RecoveryClaim, right: Option<&RecoveryClaim>) -> bool {
+    let Some(right) = right else {
+        return true;
+    };
+    (left.resume_token_index, left.inner_rank, left.branch_index)
+        < (
+            right.resume_token_index,
+            right.inner_rank,
+            right.branch_index,
+        )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_error_start(error: &SyntaxError) -> usize {
+    match error {
+        SyntaxError::Parse { byte_start, .. } => *byte_start,
+        SyntaxError::NotImplemented => 0,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret <= tokens.len())]
+fn token_index_for_byte_start(tokens: &[Token], byte_start: usize) -> usize {
+    tokens
+        .iter()
+        .position(|token| {
+            token
+                .core_word()
+                .byte_range()
+                .is_some_and(|range| range.start >= byte_start)
+        })
+        .unwrap_or(tokens.len())
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_anchor_origin_is_v1(
+    origin: generated::generated_model::SyntaxGrammarAnchorOrigin,
+) -> bool {
+    use generated::generated_model::SyntaxGrammarAnchorOrigin::{
+        FieldFirst, LiteralRun, RepetitionElementFirst,
+    };
+    match origin {
+        LiteralRun | RepetitionElementFirst => true,
+        FieldFirst => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_conditions_match(
+    conditions: &[generated::generated_model::SyntaxGrammarCondition],
+    env: generated_runtime::SyntaxGrammarEnv,
+) -> bool {
+    conditions
+        .iter()
+        .all(|condition| recovery_condition_matches(*condition, env))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_condition_matches(
+    condition: generated::generated_model::SyntaxGrammarCondition,
+    env: generated_runtime::SyntaxGrammarEnv,
+) -> bool {
+    use generated::generated_model::SyntaxGrammarConditionKind::{Feature, Policy};
+    match condition.kind {
+        Feature => recovery_feature_condition_matches(condition.name, env.dialect),
+        Policy => recovery_policy_condition_matches(condition.name, env.policy),
+    }
+}
+
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn recovery_feature_condition_matches(
+    name: &str,
+    dialect: generated_runtime::SyntaxGrammarDialect,
+) -> bool {
+    match name {
+        "TermHierarchy" => dialect.term_hierarchy_enabled,
+        "Cbm" => dialect.cbm_enabled,
+        "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
+        "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
+        "ZantufaMex" => dialect.zantufa_mex_enabled,
+        "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
+        "ZantufaTags" => dialect.zantufa_tags_enabled,
+        "ZantufaTerms" => dialect.zantufa_terms_enabled,
+        _ => false,
+    }
+}
+
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn recovery_policy_condition_matches(
+    name: &str,
+    policy: generated_runtime::SyntaxGrammarPolicy,
+) -> bool {
+    match name {
+        "SoiAdverbials" => policy.soi_adverbials_enabled,
+        "ZantufaAdverbials" => policy.zantufa_adverbials_enabled,
+        "ZantufaQuotes" => policy.zantufa_quotes_enabled,
+        _ => false,
+    }
+}
+
+#[requires(start <= tokens.len())]
+#[ensures(ret.is_none_or(|index| index >= start && index < tokens.len()))]
+fn scan_for_recovery_anchor(
+    tokens: &[Token],
+    start: usize,
+    anchors: &[generated::generated_model::SyntaxGrammarAnchorToken],
+) -> Option<usize> {
+    let mut depth = subtext_container_depth_before(tokens, start);
+    for (index, token) in tokens.iter().enumerate().skip(start) {
+        if depth == 0
+            && anchors
+                .iter()
+                .any(|anchor| recovery_anchor_matches(*anchor, token))
+        {
+            return Some(index);
+        }
+        let opens = token_opens_subtext_container(token);
+        let closes = token_closes_subtext_container(token);
+        if closes && depth > 0 {
+            depth -= 1;
+        }
+        if opens {
+            depth += 1;
+        }
+    }
+    None
+}
+
+#[requires(start <= tokens.len())]
+#[ensures(true)]
+fn subtext_container_depth_before(tokens: &[Token], start: usize) -> usize {
+    let mut depth = 0usize;
+    for token in tokens.iter().take(start) {
+        if token_closes_subtext_container(token) && depth > 0 {
+            depth -= 1;
+        }
+        if token_opens_subtext_container(token) {
+            depth += 1;
+        }
+    }
+    depth
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn token_opens_subtext_container(token: &Token) -> bool {
+    generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
+        .iter()
+        .any(|container| {
+            container
+                .opener_tokens
+                .iter()
+                .any(|anchor| recovery_anchor_matches(*anchor, token))
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn token_closes_subtext_container(token: &Token) -> bool {
+    generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
+        .iter()
+        .any(|container| {
+            container
+                .closer_tokens
+                .iter()
+                .any(|anchor| recovery_anchor_matches(*anchor, token))
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_anchor_matches(
+    anchor: generated::generated_model::SyntaxGrammarAnchorToken,
+    token: &Token,
+) -> bool {
+    match anchor {
+        generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(cmavo) => token.is_cmavo(cmavo),
+        generated::generated_model::SyntaxGrammarAnchorToken::Selmaho(selmaho) => {
+            token.is_selmaho(selmaho)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_recovery_directives(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+    tokens: &[Token],
+    source: Option<&str>,
+    directives: &[RecoveryDirective],
+) {
+    for (error_index, directive) in directives.iter().enumerate() {
+        let item = skipped_recovery_item(error_index, tokens, directive)
+            .unwrap_or_else(|| missing_recovery_item(error_index, tokens, source, directive));
+        if !attach_recovery_item_at_anchor(tree, tokens, directive.resume_token_index, item.clone())
+        {
+            insert_leading_recovery_item(tree, item);
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn apply_unanchored_recovery_error(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+    tokens: &[Token],
+    source: Option<&str>,
+    error_index: usize,
+) {
+    let directive = RecoveryDirective::new(
+        "text",
+        0,
+        0,
+        tokens.len(),
+        usize::MAX,
+        SyntaxError::NotImplemented,
+    );
+    let item = skipped_recovery_item(error_index, tokens, &directive)
+        .unwrap_or_else(|| missing_recovery_item(error_index, tokens, source, &directive));
+    insert_leading_recovery_item(tree, item);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn skipped_recovery_item(
+    error_index: usize,
+    tokens: &[Token],
+    directive: &RecoveryDirective,
+) -> Option<SyntaxRecoveryItem> {
+    let start = directive.fail_token_index.min(tokens.len());
+    let end = directive.resume_token_index.min(tokens.len());
+    if start >= end {
+        return None;
+    }
+    let skipped = Vec1::try_from_vec(tokens[start..end].to_vec()).ok()?;
+    Some(new!(SyntaxRecoveryItem::SkippedTokens {
+        error_index,
+        tokens: skipped,
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn missing_recovery_item(
+    error_index: usize,
+    tokens: &[Token],
+    source: Option<&str>,
+    directive: &RecoveryDirective,
+) -> SyntaxRecoveryItem {
+    let byte = recovery_byte_at(tokens, directive.fail_token_index);
+    let span = source
+        .and_then(|source| source_span_from_byte_offsets(None, source, byte, byte).ok())
+        .unwrap_or_else(|| {
+            SourceSpan::new(None, byte, byte, byte, byte)
+                .expect("zero-width byte and char span is valid")
+        });
+    new!(SyntaxRecoveryItem::MissingRequiredField {
+        error_index,
+        span: Arc::new(span),
+        expected: directive.rule.to_owned(),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovery_byte_at(tokens: &[Token], index: usize) -> usize {
+    tokens
+        .get(index)
+        .and_then(|token| token.core_word().byte_range().map(|range| range.start))
+        .or_else(|| {
+            tokens
+                .last()
+                .and_then(|token| token.core_word().byte_range().map(|range| range.end))
+        })
+        .unwrap_or(0)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn empty_recovered_text() -> generated::generated_model::recovered::TextSyntax {
+    generated::generated_model::recovered::TextSyntax::RegularText(
+        generated::generated_model::recovered::Recovered::valid(
+            generated::generated_model::recovered::RegularTextSyntax {
+                leading_nai: Vec::new(),
+                leading_cmevla: Vec::new(),
+                leading_indicators: Vec::new(),
+                leading_free_modifiers: Vec::new(),
+                leading_connective: None,
+                leading_i_statements: Vec::new(),
+                paragraphs: None,
+            },
+        ),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn insert_leading_recovery_item(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+    item: SyntaxRecoveryItem,
+) {
+    if regular_text_mut(tree).is_none() {
+        *tree = empty_recovered_text();
+    }
+    let Some(regular_text) = regular_text_mut(tree) else {
+        return;
+    };
+    regular_text
+        .leading_nai
+        .push(generated::generated_model::recovered::Recovered::error(
+            item,
+        ));
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_at_anchor(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+    tokens: &[Token],
+    anchor_index: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(anchor_start) = tokens
+        .get(anchor_index)
+        .and_then(|token| token.core_word().byte_range().map(|range| range.start))
+    else {
+        return false;
+    };
+    attach_recovery_item_to_regular_text_following_i(tree, anchor_start, item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_regular_text_following_i(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(regular_text) = regular_text_mut(tree) else {
+        return false;
+    };
+    let Some(paragraphs) = &mut regular_text.paragraphs else {
+        return false;
+    };
+    let paragraphs = Arc::make_mut(paragraphs);
+    let Some(paragraphs) = recovered_value_mut(paragraphs) else {
+        return false;
+    };
+    attach_recovery_item_to_text_paragraphs_following_i(paragraphs, anchor_start, item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_text_paragraphs_following_i(
+    paragraphs: &mut generated::generated_model::recovered::TextParagraphsSyntax,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    match paragraphs {
+        generated::generated_model::recovered::TextParagraphsSyntax::TextParagraphWithAdditionalNiho(
+            paragraphs,
+        ) => recovered_value_mut(paragraphs).is_some_and(|paragraphs| {
+            attach_recovery_item_to_paragraph_following_i(
+                &mut paragraphs.first,
+                anchor_start,
+                item.clone(),
+            ) || paragraphs.additional_niho.iter_mut().any(|paragraph| {
+                attach_recovery_item_to_niho_paragraph_following_i(
+                    paragraph,
+                    anchor_start,
+                    item.clone(),
+                )
+            })
+        }),
+        generated::generated_model::recovered::TextParagraphsSyntax::TextNihoParagraphs(
+            paragraphs,
+        ) => recovered_value_mut(paragraphs).is_some_and(|paragraphs| {
+            paragraphs.0.iter_mut().any(|paragraph| {
+                attach_recovery_item_to_niho_paragraph_following_i(
+                    paragraph,
+                    anchor_start,
+                    item.clone(),
+                )
+            })
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_paragraph_following_i(
+    paragraph: &mut generated::generated_model::recovered::Recovered<
+        generated::generated_model::recovered::ParagraphSyntax,
+    >,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(paragraph) = recovered_value_mut(paragraph) else {
+        return false;
+    };
+    match paragraph {
+        generated::generated_model::recovered::ParagraphSyntax::SimpleParagraph(paragraph) => {
+            let Some(paragraph) = recovered_value_mut(paragraph) else {
+                return false;
+            };
+            attach_recovery_item_to_sequence_following_i(&mut paragraph.0, anchor_start, item)
+        }
+        generated::generated_model::recovered::ParagraphSyntax::INihoParagraph(paragraph) => {
+            attach_recovery_item_to_i_niho_paragraph_following_i(paragraph, anchor_start, item)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_niho_paragraph_following_i(
+    paragraph: &mut generated::generated_model::recovered::Recovered<
+        generated::generated_model::recovered::NihoParagraphSyntax,
+    >,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(paragraph) = recovered_value_mut(paragraph) else {
+        return false;
+    };
+    let Some(statements) = &mut paragraph.statements else {
+        return false;
+    };
+    let statements = Arc::make_mut(statements);
+    let Some(statements) = recovered_value_mut(statements) else {
+        return false;
+    };
+    attach_recovery_item_to_sequence_value_following_i(statements, anchor_start, item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_i_niho_paragraph_following_i(
+    paragraph: &mut generated::generated_model::recovered::Recovered<
+        generated::generated_model::recovered::INihoParagraphSyntax,
+    >,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(paragraph) = recovered_value_mut(paragraph) else {
+        return false;
+    };
+    let Some(statements) = &mut paragraph.statements else {
+        return false;
+    };
+    let statements = Arc::make_mut(statements);
+    let Some(statements) = recovered_value_mut(statements) else {
+        return false;
+    };
+    attach_recovery_item_to_sequence_value_following_i(statements, anchor_start, item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_sequence_following_i(
+    sequence: &mut generated::generated_model::recovered::Recovered<
+        generated::generated_model::recovered::ParagraphStatementSequenceSyntax,
+    >,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let Some(sequence) = recovered_value_mut(sequence) else {
+        return false;
+    };
+    attach_recovery_item_to_sequence_value_following_i(sequence, anchor_start, item)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn attach_recovery_item_to_sequence_value_following_i(
+    sequence: &mut generated::generated_model::recovered::ParagraphStatementSequenceSyntax,
+    anchor_start: usize,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    for following in &mut sequence.following {
+        if recovered_following_i_byte_start(following) == Some(anchor_start) {
+            return prepend_recovery_item(following, item);
+        }
+    }
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_following_i_byte_start(
+    following: &generated::generated_model::recovered::Recovered<
+        generated::generated_model::recovered::FollowingParagraphStatementSyntax,
+    >,
+) -> Option<usize> {
+    recovered_value(following).and_then(|following| recovered_token_byte_start(&following.i))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_token_byte_start(
+    token: &generated::generated_model::recovered::Recovered<Token>,
+) -> Option<usize> {
+    recovered_value(token).and_then(|token| token.core_word().byte_range().map(|range| range.start))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn regular_text_mut(
+    tree: &mut generated::generated_model::recovered::TextSyntax,
+) -> Option<&mut generated::generated_model::recovered::RegularTextSyntax> {
+    match tree {
+        generated::generated_model::recovered::TextSyntax::RegularText(regular_text) => {
+            recovered_value_mut(regular_text)
+        }
+        generated::generated_model::recovered::TextSyntax::ExplicitXauhaLohoiText(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_value<T>(value: &generated::generated_model::recovered::Recovered<T>) -> Option<&T> {
+    match value {
+        generated::generated_model::recovered::Recovered::Valid(value) => Some(value.as_ref()),
+        generated::generated_model::recovered::Recovered::Prefix(prefix) => {
+            Some(prefix.value.as_ref())
+        }
+        generated::generated_model::recovered::Recovered::Error(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_value_mut<T>(
+    value: &mut generated::generated_model::recovered::Recovered<T>,
+) -> Option<&mut T> {
+    match value {
+        generated::generated_model::recovered::Recovered::Valid(value) => Some(value.as_mut()),
+        generated::generated_model::recovered::Recovered::Prefix(prefix) => {
+            Some(prefix.value.as_mut())
+        }
+        generated::generated_model::recovered::Recovered::Error(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn prepend_recovery_item<T>(
+    slot: &mut generated::generated_model::recovered::Recovered<T>,
+    item: SyntaxRecoveryItem,
+) -> bool {
+    let placeholder = generated::generated_model::recovered::Recovered::error(item.clone());
+    let old = std::mem::replace(slot, placeholder);
+    match old {
+        generated::generated_model::recovered::Recovered::Valid(value) => {
+            *slot =
+                generated::generated_model::recovered::Recovered::prefix_boxed(vec![item], value);
+            true
+        }
+        generated::generated_model::recovered::Recovered::Prefix(prefix) => {
+            let mut errors = vec![item];
+            errors.extend(prefix.errors.into_vec());
+            *slot = generated::generated_model::recovered::Recovered::prefix_boxed(
+                errors,
+                prefix.value,
+            );
+            true
+        }
+        generated::generated_model::recovered::Recovered::Error(existing) => {
+            *slot = generated::generated_model::recovered::Recovered::error(existing);
+            false
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use chumsky::util::MaybeRef;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use super::{ParserInput, Span, SyntaxContextFrame, Token};
+use super::{ParserInput, Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
@@ -26,6 +26,7 @@ pub(super) struct SyntaxParseError<'tokens> {
     found: Option<SyntaxFound>,
     custom_kind: Option<SyntaxParseCustomKind>,
     active_contexts: Vec<SyntaxContextFrame>,
+    active_rule_contexts: Vec<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: Vec<Arc<SyntaxParseError<'tokens>>>,
 }
@@ -95,6 +96,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             found: None,
             custom_kind: None,
             active_contexts: Vec::new(),
+            active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
         }
@@ -115,6 +117,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             found: None,
             custom_kind: Some(custom_kind),
             active_contexts: Vec::new(),
+            active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
         }
@@ -137,6 +140,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             found: None,
             custom_kind: None,
             active_contexts: Vec::new(),
+            active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
         }
@@ -167,6 +171,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
             found: Some(found),
             custom_kind: None,
             active_contexts: Vec::new(),
+            active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
         }
@@ -289,6 +294,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
+    pub(super) fn active_rule_contexts(&self) -> &[SyntaxRuleFrame] {
+        &self.active_rule_contexts
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     pub(super) fn merge_for_report(self, other: Self) -> Self {
         let preferred_context_hint =
             deeper_preferred_context(self.preferred_context(), other.preferred_context());
@@ -318,6 +329,15 @@ impl<'tokens> SyntaxParseError<'tokens> {
         if self.preferred_context_hint.is_none() {
             self.preferred_context_hint =
                 preferred_context_from_branches(&self.same_position_branches);
+        }
+        self
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn with_active_rule_contexts(mut self, contexts: &[SyntaxRuleFrame]) -> Self {
+        if self.active_rule_contexts.len() <= contexts.len() {
+            self.active_rule_contexts = contexts.to_vec();
         }
         self
     }
@@ -431,6 +451,7 @@ where
             found: Some(syntax_found),
             custom_kind: None,
             active_contexts: Vec::new(),
+            active_rule_contexts: Vec::new(),
             preferred_context_hint: None,
             same_position_branches: Vec::new(),
         }
@@ -489,6 +510,7 @@ where
         self.found = Some(syntax_found);
         self.custom_kind = None;
         self.active_contexts = Vec::new();
+        self.active_rule_contexts = Vec::new();
         self.preferred_context_hint = None;
         self
     }

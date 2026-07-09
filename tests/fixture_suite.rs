@@ -494,6 +494,66 @@ fn morphology_matches_simple_cll_fixture_expectation() {
     assert_eq!(format!("{actual:?}"), expected);
 }
 
+#[cfg(not(debug_assertions))]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_first_error_matches_strict_failure_fixtures() {
+    run_on_fixture_worker_stack(recovered_syntax_first_error_matches_strict_failure_fixtures_inner);
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
+    let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let fixtures = load_fixture_tree(&fixture_root).expect("fixture tree should load");
+    let mut checked = 0usize;
+    for fixture in fixtures {
+        let Some(expectation) = fixture.test_case.expectations.syntax.as_ref() else {
+            continue;
+        };
+        if expectation.status != ExpectationStatus::Failure {
+            continue;
+        }
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .expect("fixture dialect should parse");
+        let morphology_options =
+            jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+        let syntax_options =
+            jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &morphology_options,
+            Some(SourceId("<fixture>".to_owned())),
+        ) else {
+            continue;
+        };
+        let strict = match jbotci_syntax::parse_syntax_tree_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        ) {
+            Ok(_) => continue,
+            Err(error) => error,
+        };
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        );
+        assert_eq!(
+            recovered.errors.first(),
+            Some(&strict),
+            "first recovered syntax error differs for fixture {}",
+            fixture.test_case.id,
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "expected at least one syntax-failure fixture");
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -1380,4 +1440,16 @@ fn temp_root(prefix: &str) -> PathBuf {
             .expect("clock")
             .as_nanos()
     ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn run_on_fixture_worker_stack(test: impl FnOnce() + Send + 'static) {
+    let handle = std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(test)
+        .expect("fixture worker stack test thread should spawn");
+    if let Err(panic) = handle.join() {
+        std::panic::resume_unwind(panic);
+    }
 }

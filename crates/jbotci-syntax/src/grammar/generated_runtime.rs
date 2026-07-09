@@ -217,6 +217,7 @@ where
         }
         let warning_start = input.state().warning_count();
         let start_byte = input.state().byte_offset_for_location(start_location);
+        input.state().push_syntax_rule(name, start_byte);
         if let Some(construct) = context {
             if input
                 .state()
@@ -256,6 +257,7 @@ where
                     output.clone(),
                     warnings,
                 );
+                input.state().pop_syntax_rule();
                 input.state().exit_syntax_memo_rule(name, start_location);
                 Ok(output)
             }
@@ -269,12 +271,15 @@ where
                         start_byte,
                         failure_location > start_location,
                     );
-                    let error = error.with_active_contexts(input.state().active_syntax_contexts());
+                    let error = error
+                        .with_active_contexts(input.state().active_syntax_contexts())
+                        .with_active_rule_contexts(input.state().active_syntax_rules());
                     input.state().pop_syntax_context();
                     error
                 } else {
                     error
                 };
+                input.state().pop_syntax_rule();
                 input.rewind(checkpoint);
                 input
                     .state()

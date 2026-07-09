@@ -14,7 +14,7 @@ use super::tokens::{
     cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
     syntax_error_with_diagnostic_candidate,
 };
-use super::{BoxedParser, ParseExtra, ParserInput, ParserState};
+use super::{BoxedParser, ParseExtra, ParserInput, ParserState, SyntaxParseError, SyntaxRuleFrame};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
 };
@@ -3031,12 +3031,46 @@ pub mod generated_model {
         pub trace: Option<TraceReport>,
     }
 
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone)]
+    pub(crate) struct GeneratedRecoveryBranch {
+        pub span_start: usize,
+        pub active_rule_contexts: Vec<SyntaxRuleFrame>,
+    }
+
+    #[bityzba::invariant(true)]
+    #[derive(Debug, Clone)]
+    pub(crate) struct GeneratedParseFailure {
+        pub public_error: crate::SyntaxError,
+        pub branches: Vec<GeneratedRecoveryBranch>,
+    }
+
+    #[bityzba::invariant(true)]
+    pub(crate) struct GeneratedParsedTextDetailedAttempt {
+        pub result: Result<GeneratedParsedText, GeneratedParseFailure>,
+        pub trace: Option<TraceReport>,
+    }
+
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     pub(crate) fn parse_text_attempt(
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextAttempt {
+        let attempt = parse_text_detailed_attempt(words, options);
+        let result = attempt.result.map_err(|failure| failure.public_error);
+        GeneratedParsedTextAttempt {
+            result,
+            trace: attempt.trace,
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_text_detailed_attempt(
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextDetailedAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new(words, options);
@@ -3049,22 +3083,54 @@ pub mod generated_model {
             )
             .into_result();
         let diagnostic_candidate = state.diagnostic_candidate();
+        let diagnostic_candidates = state.diagnostic_candidates_snapshot();
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
                 text,
                 warnings: finish.warnings,
             }),
-            Err(errors) => Err(syntax_error_with_diagnostic_candidate(
-                errors,
-                diagnostic_candidate,
-                options.error_context_depth,
-            )),
+            Err(errors) => {
+                let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
+                let public_error = syntax_error_with_diagnostic_candidate(
+                    errors.clone(),
+                    diagnostic_candidate,
+                    options.error_context_depth,
+                );
+                Err(GeneratedParseFailure {
+                    public_error,
+                    branches,
+                })
+            }
         };
-        GeneratedParsedTextAttempt {
+        GeneratedParsedTextDetailedAttempt {
             result,
             trace: finish.trace,
         }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn generated_recovery_branches(
+        diagnostic_candidates: &[SyntaxParseError<'_>],
+        errors: &[SyntaxParseError<'_>],
+    ) -> Vec<GeneratedRecoveryBranch> {
+        let source = if diagnostic_candidates.is_empty() {
+            errors
+        } else {
+            diagnostic_candidates
+        };
+        let Some(deepest_start) = source.iter().map(|error| error.span().start).max() else {
+            return Vec::new();
+        };
+        source
+            .iter()
+            .filter(|error| error.span().start == deepest_start)
+            .map(|error| GeneratedRecoveryBranch {
+                span_start: error.span().start,
+                active_rule_contexts: error.active_rule_contexts().to_vec(),
+            })
+            .collect()
     }
 
     #[bityzba::requires(true)]
