@@ -51,7 +51,7 @@ impl generated_model::TextSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&SourceSpan)) {
-        let mut span_visitor = GeneratedModelSourceSpanVisitor { visitor };
+        let mut span_visitor = GeneratedModelSourceSpanVisitor::<_, false> { visitor };
         generated_model::TreeNode::visit_in_order(self, &mut span_visitor);
     }
 }
@@ -60,20 +60,20 @@ impl generated_model::recovered::TextSyntax {
     #[requires(true)]
     #[ensures(true)]
     pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&SourceSpan)) {
-        let mut span_visitor = RecoveredGeneratedModelSourceSpanVisitor { visitor };
+        let mut span_visitor = GeneratedModelSourceSpanVisitor::<_, true> { visitor };
         generated_model::recovered::TreeNode::visit_in_order(self, &mut span_visitor);
     }
 }
 
 #[invariant(true)]
-struct GeneratedModelSourceSpanVisitor<'a, F>
+struct GeneratedModelSourceSpanVisitor<'a, F, const RECOVERED: bool>
 where
     F: FnMut(&SourceSpan),
 {
     visitor: &'a mut F,
 }
 
-impl<F> GeneratedModelSourceSpanVisitor<'_, F>
+impl<F, const RECOVERED: bool> GeneratedModelSourceSpanVisitor<'_, F, RECOVERED>
 where
     F: FnMut(&SourceSpan),
 {
@@ -84,18 +84,9 @@ where
             (self.visitor)(span);
         }
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_generated_tree<T>(&mut self, value: &T)
-    where
-        T: generated_model::TreeNode,
-    {
-        value.visit_in_order(self);
-    }
 }
 
-impl<'tree, F> TreeVisitor<'tree> for GeneratedModelSourceSpanVisitor<'_, F>
+impl<'tree, F> TreeVisitor<'tree> for GeneratedModelSourceSpanVisitor<'_, F, false>
 where
     F: FnMut(&SourceSpan),
 {
@@ -111,28 +102,7 @@ where
     }
 }
 
-#[invariant(true)]
-struct RecoveredGeneratedModelSourceSpanVisitor<'a, F>
-where
-    F: FnMut(&SourceSpan),
-{
-    visitor: &'a mut F,
-}
-
-impl<F> RecoveredGeneratedModelSourceSpanVisitor<'_, F>
-where
-    F: FnMut(&SourceSpan),
-{
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_token(&mut self, token: &Token) {
-        for span in token.source_spans() {
-            (self.visitor)(span);
-        }
-    }
-}
-
-impl<'tree, F> TreeVisitor<'tree> for RecoveredGeneratedModelSourceSpanVisitor<'_, F>
+impl<'tree, F> TreeVisitor<'tree> for GeneratedModelSourceSpanVisitor<'_, F, true>
 where
     F: FnMut(&SourceSpan),
 {
