@@ -24,8 +24,11 @@ enum Cmavo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
 enum Selmaho {
+    A,
     Fa,
+    Na,
     Pa,
+    Se,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -270,9 +273,19 @@ mod anchor_metadata {
             field tail <- opt(arc(item));
         }
 
+        rule "optional run item" optional_run_item -> struct {
+            field na <- opt(selmaho(Na).wf());
+            field se <- opt(selmaho(Se).wf());
+            field a <- selmaho(A).wf();
+        }
+
         rule "recursive item" recursive_item(item) -> struct {
             field inner <- opt(arc(item));
             field pa <- selmaho(Pa).wf();
+        }
+
+        rule "repeated item" repeated_item(item) -> struct {
+            field items <- [zero_or_more item];
         }
 
         rule "gated item" gated_item -> struct {
@@ -321,6 +334,10 @@ mod anchor_metadata {
 
         let literal = anchors_for("literal_item");
         assert_eq!(literal.fields[0].anchors[0].resume_field, 0);
+        assert_eq!(
+            literal.fields[0].anchors[0].origin,
+            SyntaxGrammarAnchorOrigin::LiteralRun,
+        );
         assert!(token_set_contains(
             literal.fields[0].anchors[0].start_tokens,
             SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
@@ -342,6 +359,22 @@ mod anchor_metadata {
             literal.fields[2].anchors[0].start_tokens,
             SyntaxGrammarAnchorToken::Selmaho(Selmaho::Fa),
         ));
+        let optional_run = anchors_for("optional_run_item");
+        let optional_run_start = &optional_run.fields[0].anchors[0];
+        assert_eq!(optional_run_start.resume_field, 0);
+        assert_eq!(
+            optional_run_start.origin,
+            SyntaxGrammarAnchorOrigin::LiteralRun,
+        );
+        for token in [Selmaho::Na, Selmaho::Se, Selmaho::A] {
+            assert!(
+                token_set_contains(
+                    optional_run_start.start_tokens,
+                    SyntaxGrammarAnchorToken::Selmaho(token),
+                ),
+                "optional literal run should include {token:?} in its start set",
+            );
+        }
 
         let item = anchors_for("item");
         assert!(item.fields.is_empty(), "enum rules carry no field anchors");
@@ -397,6 +430,16 @@ mod anchor_metadata {
         let tail_anchors = &literal.fields[3].anchors;
         assert!(tail_anchors.iter().any(|anchor| {
             anchor.resume_field == 3
+                && anchor.origin == SyntaxGrammarAnchorOrigin::FieldFirst
+                && token_set_contains(
+                    anchor.start_tokens,
+                    SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+                )
+        }));
+        let repeated = anchors_for("repeated_item");
+        assert!(repeated.fields[0].anchors.iter().any(|anchor| {
+            anchor.resume_field == 0
+                && anchor.origin == SyntaxGrammarAnchorOrigin::RepetitionElementFirst
                 && token_set_contains(
                     anchor.start_tokens,
                     SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),

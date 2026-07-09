@@ -1174,8 +1174,9 @@ mod tests {
                 for anchor in field.anchors {
                     writeln!(
                         &mut snapshot,
-                        "    resume {} start {} conditions {}",
+                        "    resume {} origin {:?} start {} conditions {}",
                         anchor.resume_field,
+                        anchor.origin,
                         format_anchor_tokens(anchor.start_tokens),
                         format_anchor_conditions(anchor.conditions),
                     )
@@ -1286,6 +1287,29 @@ mod tests {
     }
 
     #[requires(!rule.is_empty())]
+    #[requires(!field.is_empty())]
+    #[ensures(true)]
+    fn assert_field_anchor_contains_origin(
+        rule: &str,
+        field: &str,
+        token: generated::generated_model::SyntaxGrammarAnchorToken,
+        origin: generated::generated_model::SyntaxGrammarAnchorOrigin,
+    ) {
+        let metadata = generated_anchor_metadata(rule);
+        let field_metadata = metadata
+            .fields
+            .iter()
+            .find(|field_metadata| field_metadata.field_name == field)
+            .expect("field metadata exists");
+        assert!(
+            field_metadata.anchors.iter().any(|anchor| {
+                anchor.origin == origin && anchor_tokens_contain(anchor.start_tokens, token)
+            }),
+            "{rule}.{field} does not contain {origin:?} anchor token {token:?}",
+        );
+    }
+
+    #[requires(!rule.is_empty())]
     #[requires(!condition.is_empty())]
     #[ensures(true)]
     fn assert_first_contains_condition(rule: &str, condition: &str) {
@@ -1345,6 +1369,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn generated_recovery_anchor_metadata_spot_checks() {
+        use generated::generated_model::SyntaxGrammarAnchorOrigin::{
+            FieldFirst, LiteralRun, RepetitionElementFirst,
+        };
         use generated::generated_model::SyntaxGrammarAnchorToken::{
             Cmavo as AnchorCmavo, Selmaho as AnchorSelmaho,
         };
@@ -1379,6 +1406,24 @@ mod tests {
             "text_paragraph_with_additional_niho",
             "additional_niho",
             AnchorSelmaho(Selmaho::Niho),
+        );
+        assert_field_anchor_contains_origin(
+            "descriptor_with_gadri_sumti",
+            "tail",
+            AnchorCmavo(Cmavo::Ku),
+            LiteralRun,
+        );
+        assert_field_anchor_contains_origin(
+            "descriptor_with_gadri_sumti",
+            "tail",
+            AnchorCmavo(Cmavo::Noi),
+            FieldFirst,
+        );
+        assert_field_anchor_contains_origin(
+            "paragraph_statement_sequence",
+            "following",
+            AnchorCmavo(Cmavo::I),
+            RepetitionElementFirst,
         );
 
         assert_subtext_container(

@@ -240,6 +240,13 @@ impl SyntaxGrammar {
             }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) enum SyntaxGrammarAnchorOrigin {
+                LiteralRun,
+                RepetitionElementFirst,
+                FieldFirst,
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             pub(crate) struct SyntaxGrammarAnchorTokenSet {
                 pub tokens: &'static [SyntaxGrammarAnchorToken],
                 pub conditions: &'static [SyntaxGrammarCondition],
@@ -249,6 +256,7 @@ impl SyntaxGrammar {
             pub(crate) struct SyntaxGrammarAnchorRun {
                 pub start_tokens: &'static [SyntaxGrammarAnchorToken],
                 pub resume_field: usize,
+                pub origin: SyntaxGrammarAnchorOrigin,
                 pub conditions: &'static [SyntaxGrammarCondition],
             }
 
@@ -5819,12 +5827,35 @@ impl FirstEntry {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AnchorRunOrigin {
+    LiteralRun,
+    RepetitionElementFirst,
+    FieldFirst,
+}
+
+impl AnchorRunOrigin {
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(self) -> TokenStream2 {
+        match self {
+            Self::LiteralRun => quote!(SyntaxGrammarAnchorOrigin::LiteralRun),
+            Self::RepetitionElementFirst => {
+                quote!(SyntaxGrammarAnchorOrigin::RepetitionElementFirst)
+            }
+            Self::FieldFirst => quote!(SyntaxGrammarAnchorOrigin::FieldFirst),
+        }
+    }
+}
+
 #[invariant(!start_tokens.is_empty())]
 #[invariant(conditions.iter().all(|condition| !condition.name.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AnchorRunSpec {
     start_tokens: BTreeSet<AnchorToken>,
     resume_field: usize,
+    origin: AnchorRunOrigin,
     conditions: Vec<AnchorCondition>,
 }
 
@@ -5834,11 +5865,13 @@ impl AnchorRunSpec {
     fn new(
         start_tokens: BTreeSet<AnchorToken>,
         resume_field: usize,
+        origin: AnchorRunOrigin,
         conditions: Vec<AnchorCondition>,
     ) -> Self {
         Self::from_data(data!(AnchorRunSpec {
             start_tokens,
             resume_field,
+            origin,
             conditions,
         }))
     }
@@ -5848,11 +5881,13 @@ impl AnchorRunSpec {
     fn expand(&self) -> TokenStream2 {
         let start_tokens = expand_anchor_token_slice(&self.start_tokens);
         let resume_field = self.resume_field;
+        let origin = self.origin.expand();
         let conditions = expand_anchor_condition_slice(&self.conditions);
         quote! {
             SyntaxGrammarAnchorRun {
                 start_tokens: #start_tokens,
                 resume_field: #resume_field,
+                origin: #origin,
                 conditions: #conditions,
             }
         }
@@ -6086,17 +6121,30 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             }
             let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
             let conditions = anchor_conditions_from(&field.conditions);
-            if let Some(tokens) = literal_start_tokens(&expr) {
-                push_anchor_run(&mut runs, tokens, field_index, conditions);
-                field_index = self.after_adjacent_literal_run(rule, argument_names, field_index)?;
+            if literal_start_tokens(&expr).is_some() {
+                let (literal_entries, after_run) =
+                    self.literal_run_first_entries(rule, argument_names, field_index)?;
+                for entry in literal_entries {
+                    let entry = entry.into_data();
+                    push_anchor_run(
+                        &mut runs,
+                        entry.tokens,
+                        field_index,
+                        AnchorRunOrigin::LiteralRun,
+                        entry.conditions,
+                    );
+                }
+                field_index = after_run;
                 continue;
             }
+            let origin = anchor_origin_for_non_literal_expr(&expr);
             for entry in self.expr_first_entries(&expr)? {
                 let entry = entry.into_data();
                 push_anchor_run(
                     &mut runs,
                     entry.tokens,
                     field_index,
+                    origin,
                     combine_anchor_conditions(&conditions, &entry.conditions),
                 );
             }
@@ -6106,26 +6154,34 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
     }
 
     #[requires(start_field < rule.fields.len())]
-    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|field| *field > start_field))]
-    fn after_adjacent_literal_run(
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|(entries, field)| *field > start_field && entries.iter().all(|entry| !entry.tokens.is_empty())))]
+    fn literal_run_first_entries(
         &self,
         rule: &NodeRule,
         argument_names: &BTreeSet<String>,
         start_field: usize,
-    ) -> Result<usize> {
-        let mut field_index = start_field + 1;
+    ) -> Result<(Vec<FirstEntry>, usize)> {
+        let mut entries = Vec::new();
+        let mut field_index = start_field;
         while field_index < rule.fields.len() {
             let field = &rule.fields[field_index];
             if !matches!(field.kind, FieldKind::Field) {
                 break;
             }
             let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
-            if literal_start_tokens(&expr).is_none() {
+            let Some(tokens) = literal_start_tokens(&expr) else {
+                break;
+            };
+            push_first_entry(
+                &mut entries,
+                FirstEntry::new(tokens, anchor_conditions_from(&field.conditions)),
+            );
+            field_index += 1;
+            if !self.expr_nullable(&expr)? {
                 break;
             }
-            field_index += 1;
         }
-        Ok(field_index)
+        Ok((entries, field_index))
     }
 
     #[requires(!rule_name.is_empty())]
@@ -6139,6 +6195,10 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             .borrow_mut()
             .insert(rule_name.to_owned())
         {
+            // The DSL generates PEG parsers, so true left recursion (including through
+            // nullable prefixes) is invalid. A cycle here must pass through a consumed
+            // token before returning to this rule, so breaking it contributes no FIRST
+            // token and keeps the memoized result exact rather than heuristic.
             return Ok(Vec::new());
         }
         let entries = if let Some(index) = self.rule_indices.get(rule_name).copied() {
@@ -6316,6 +6376,9 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             .borrow_mut()
             .insert(rule_name.to_owned())
         {
+            // As with FIRST sets, a nullable cycle would imply PEG left recursion.
+            // Generated grammar rules are non-left-recursive, so a recursive visit is
+            // only a defensive guard and cannot make the current rule nullable.
             return Ok(false);
         }
         let nullable = if let Some(index) = self.rule_indices.get(rule_name).copied() {
@@ -6453,6 +6516,23 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
 
 #[requires(true)]
 #[ensures(true)]
+fn anchor_origin_for_non_literal_expr(expr: &RecoveryExpr) -> AnchorRunOrigin {
+    match expr {
+        RecoveryExpr::Boxed(inner)
+        | RecoveryExpr::Arc(inner)
+        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::PayloadStart(inner)
+        | RecoveryExpr::Ignored(inner) => anchor_origin_for_non_literal_expr(inner),
+        RecoveryExpr::Sequence(parts) if parts.len() == 1 => {
+            anchor_origin_for_non_literal_expr(&parts[0])
+        }
+        RecoveryExpr::Many(_) | RecoveryExpr::Many1(_) => AnchorRunOrigin::RepetitionElementFirst,
+        _ => AnchorRunOrigin::FieldFirst,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn expr_is_rule_reference(expr: &RecoveryExpr, rule_name: &str) -> bool {
     match expr {
         RecoveryExpr::Rule(rule) => rule == rule_name,
@@ -6525,10 +6605,13 @@ fn push_anchor_run(
     runs: &mut Vec<AnchorRunSpec>,
     tokens: BTreeSet<AnchorToken>,
     resume_field: usize,
+    origin: AnchorRunOrigin,
     conditions: Vec<AnchorCondition>,
 ) {
     let existing_index = runs.iter().position(|existing| {
-        existing.resume_field == resume_field && existing.conditions == conditions
+        existing.resume_field == resume_field
+            && existing.origin == origin
+            && existing.conditions == conditions
     });
     if let Some(existing_index) = existing_index {
         let existing = runs.remove(existing_index).into_data();
@@ -6539,11 +6622,12 @@ fn push_anchor_run(
             AnchorRunSpec::from_data(data!(AnchorRunSpec {
                 start_tokens,
                 resume_field: existing.resume_field,
+                origin: existing.origin,
                 conditions: existing.conditions,
             })),
         );
     } else {
-        runs.push(AnchorRunSpec::new(tokens, resume_field, conditions));
+        runs.push(AnchorRunSpec::new(tokens, resume_field, origin, conditions));
     }
 }
 
