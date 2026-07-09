@@ -666,9 +666,9 @@ pub struct MorphologyExpectation {
     pub recovered: Option<RecoveredExpectation>,
 }
 
+#[invariant(matches!(*status, ExpectationStatus::Success | ExpectationStatus::Failure))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[invariant(true)]
 pub struct RecoveredExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]

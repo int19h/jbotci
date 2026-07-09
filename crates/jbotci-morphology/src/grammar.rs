@@ -94,8 +94,10 @@ struct Segmenter<'a> {
     trace: TraceRecorder,
 }
 
+#[invariant(*word_count == words.len())]
+#[invariant(*warning_count == warnings.len())]
+#[invariant(warnings.iter().all(|warning| warning.char_start < warning.char_end))]
 #[derive(Debug, Clone)]
-#[invariant(true)]
 struct RecoveryCheckpoint {
     index: usize,
     word_count: usize,
@@ -167,7 +169,7 @@ impl<'a> Segmenter<'a> {
         self.trace_step(TraceLevel::Top, "morphology recovered", 0, 0, || None);
         let result = self.segment_words_recovered();
         let trace = self.trace.finish();
-        RecoveredMorphologySegmentAttempt { result, trace }
+        new!(RecoveredMorphologySegmentAttempt { result, trace })
     }
 
     #[requires(true)]
@@ -269,13 +271,13 @@ impl<'a> Segmenter<'a> {
     fn recovery_checkpoint(&self, words: &[WordLike]) -> RecoveryCheckpoint {
         // Erasure and ZEI handling can mutate earlier output before a later token fails.
         // Recovery must restore the checkpoint state exactly, not only truncate new words.
-        RecoveryCheckpoint {
+        new!(RecoveryCheckpoint {
             index: self.index,
             word_count: words.len(),
             warning_count: self.warnings.len(),
             words: words.to_vec(),
             warnings: self.warnings.clone(),
-        }
+        })
     }
 
     #[requires(checkpoint.index <= self.chars.len())]
@@ -290,9 +292,11 @@ impl<'a> Segmenter<'a> {
         error_regions: &mut Vec<SourceSpan>,
         error: MorphologyError,
     ) -> bool {
+        let checkpoint = checkpoint.into_data();
+        let checkpoint_index = checkpoint.index;
         *words = checkpoint.words;
         self.warnings = checkpoint.warnings;
-        self.index = checkpoint.index;
+        self.index = checkpoint_index;
 
         let (region_end, should_continue) = match error {
             MorphologyError::UnterminatedZoiQuote { .. } => (self.chars.len(), false),
@@ -306,7 +310,7 @@ impl<'a> Segmenter<'a> {
                 }
             }
         };
-        let region_start = checkpoint.index.min(region_end);
+        let region_start = checkpoint_index.min(region_end);
         error_regions.push(self.recovery_source_span(region_start, region_end));
         errors.push(error);
         self.index = region_end;

@@ -15,8 +15,8 @@ use std::{fmt, sync::Arc};
 use bityzba::{data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticLabel, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
-    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TraceReport,
-    source_span_from_char_offsets,
+    DiagnosticStyledNote, DiagnosticTextRole, DiagnosticTextSegment, TraceOptions, TracePhase,
+    TraceReport, source_span_from_char_offsets,
 };
 use jbotci_dialect::{DialectDefinition, DialectFeature};
 use jbotci_source::{SourceId, SourceLocationError, SourceSpan};
@@ -163,7 +163,7 @@ pub struct RecoveredMorphologySegmentation {
     pub warnings: Vec<MorphologyWarning>,
 }
 
-#[invariant(true)]
+#[invariant(trace.as_ref().is_none_or(|trace| trace.phase == TracePhase::Morphology))]
 #[derive(Debug, Clone)]
 pub struct RecoveredMorphologySegmentAttempt {
     pub result: RecoveredMorphologySegmentation,
@@ -2229,6 +2229,7 @@ pub fn segment_words_with_modifiers_recovered_with_options_and_source_id(
     segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
         input, options, source_id,
     )
+    .into_data()
     .result
 }
 
@@ -2241,6 +2242,7 @@ pub fn segment_words_with_modifiers_recovered_with_options_and_source_id_attempt
 ) -> RecoveredMorphologySegmentAttempt {
     let attempt =
         grammar::segment_words_with_modifiers_recovered_attempt(input, options, source_id);
+    let attempt = attempt.into_data();
     let result = attempt.result.into_data();
     let words = apply_compiled_dialect_entries(result.words, &options.compiled_dialect);
     let result =
@@ -2250,10 +2252,10 @@ pub fn segment_words_with_modifiers_recovered_with_options_and_source_id_attempt
             error_regions: result.error_regions,
             warnings: result.warnings,
         }));
-    RecoveredMorphologySegmentAttempt {
+    new!(RecoveredMorphologySegmentAttempt {
         result,
         trace: attempt.trace,
-    }
+    })
 }
 
 #[requires(true)]
