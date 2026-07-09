@@ -21,6 +21,7 @@ use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
 use jbotci_morphology::{
     MorphologyError, MorphologyOptions, MorphologyWarning, WordLike,
+    segment_words_with_modifiers_recovered_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id,
     segment_words_with_modifiers_with_options_and_source_id_attempt, word_like_syntax_eq,
 };
@@ -5738,6 +5739,7 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
                     status: ExpectationStatus::Success,
                     raw: None,
                     diagnostics: vec![],
+                    recovered: None,
                 }),
                 syntax: Some(SyntaxExpectation {
                     status: ExpectationStatus::Success,
@@ -11897,7 +11899,7 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
     let Some(expectation) = &fixture.test_case.expectations.morphology else {
         return FacetResult::skipped("fixture has no morphology expectation");
     };
-    match expectation.status {
+    let strict_result = match expectation.status {
         ExpectationStatus::Success => {
             let options = match fixture.test_case.dialect_definition() {
                 Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
@@ -11924,9 +11926,8 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                         }
                     }
                     if expectation.raw.is_none() && !expectation.diagnostics.is_empty() {
-                        return FacetResult::passed();
-                    }
-                    if expectation
+                        FacetResult::passed()
+                    } else if expectation
                         .raw
                         .as_ref()
                         .is_some_and(|raw| debug_value_matches_expectation(&actual, raw))
@@ -11985,23 +11986,98 @@ fn run_morphology_fixture(fixture: &LoadedTestCase) -> FacetResult {
                             &fixture.test_case.lojban,
                             &error,
                         );
-                        return if expectation.diagnostics == actual {
+                        if expectation.diagnostics == actual {
                             FacetResult::passed()
                         } else {
                             FacetResult::failed(format!(
                                 "morphology diagnostics mismatch: expected {:?}, got {actual:?}",
                                 expectation.diagnostics
                             ))
-                        };
+                        }
+                    } else {
+                        FacetResult::passed()
                     }
-                    FacetResult::passed()
                 }
             }
         }
         ExpectationStatus::Pending | ExpectationStatus::NotApplicable => FacetResult::skipped(
             format!("morphology expectation is {:?}", expectation.status),
         ),
+    };
+    if strict_result.status != fixtures::FacetStatus::Passed {
+        return strict_result;
     }
+    if let Some(recovered) = &expectation.recovered {
+        run_recovered_morphology_fixture(fixture, recovered)
+    } else {
+        strict_result
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_recovered_morphology_fixture(
+    fixture: &LoadedTestCase,
+    expectation: &fixtures::RecoveredExpectation,
+) -> FacetResult {
+    let options = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => MorphologyOptions::default().with_dialect_definition(&dialect),
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let recovered = segment_words_with_modifiers_recovered_with_options_and_source_id(
+        &fixture.test_case.lojban,
+        &options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+    let actual_status = if recovered.errors.is_empty() {
+        ExpectationStatus::Success
+    } else {
+        ExpectationStatus::Failure
+    };
+    if expectation.status != actual_status {
+        return FacetResult::failed(format!(
+            "recovered morphology status mismatch: expected {:?}, got {:?}",
+            expectation.status, actual_status
+        ));
+    }
+    let diagnostics =
+        recovered_morphology_diagnostic_expectation_items(&fixture.test_case.lojban, &recovered);
+    if expectation.diagnostics == diagnostics {
+        FacetResult::passed()
+    } else {
+        FacetResult::failed(format!(
+            "recovered morphology diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+            expectation.diagnostics
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_morphology_diagnostic_expectation_items(
+    source: &str,
+    recovered: &jbotci_morphology::RecoveredMorphologySegmentation,
+) -> Vec<fixtures::DiagnosticExpectation> {
+    let mut diagnostics = recovered
+        .warnings
+        .iter()
+        .map(|warning| {
+            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        })
+        .chain(recovered.errors.iter().map(|error| {
+            let diagnostic = error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        }))
+        .collect::<Vec<_>>();
+    diagnostics.sort_by_key(|diagnostic| {
+        (
+            diagnostic.byte_span[0],
+            diagnostic.byte_span[1],
+            diagnostic.code.clone(),
+        )
+    });
+    diagnostics
 }
 
 #[requires(true)]

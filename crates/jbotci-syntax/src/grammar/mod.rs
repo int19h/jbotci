@@ -1043,8 +1043,8 @@ mod tests {
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
     use jbotci_tree::RecoveredFieldState;
-    use vec1::Vec1;
     use std::{fmt::Write as _, fs, path::Path};
+    use vec1::Vec1;
 
     use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, WithFreeModifiers};
 

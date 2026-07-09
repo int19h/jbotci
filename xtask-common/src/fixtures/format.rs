@@ -112,6 +112,13 @@ fn push_expectations_toml(
         if !morphology.diagnostics.is_empty() {
             push_field(output, "diagnostics", &morphology.diagnostics)?;
         }
+        if let Some(recovered) = &morphology.recovered {
+            output.push_str("\n[expectations.morphology.recovered]\n");
+            push_field(output, "status", &recovered.status)?;
+            if !recovered.diagnostics.is_empty() {
+                push_field(output, "diagnostics", &recovered.diagnostics)?;
+            }
+        }
     }
     if let Some(jvozba) = &expectations.jvozba {
         output.push_str("\n[expectations.jvozba]\n");

@@ -10,9 +10,10 @@ use crate::segment::{
 use crate::{
     Cmavo, ExpectedWordDetailKind, MorphologyContext, MorphologyContextKind, MorphologyError,
     MorphologyErrorDetail, MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions,
-    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes, Selmaho,
-    Verbatim, Word, WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
-    canonical_text_is_all, canonicalize_text, erasure_selmaho,
+    MorphologySegmentAttempt, MorphologyWarning, MorphologyWarningKind, Phonemes,
+    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, Verbatim, Word,
+    WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind, canonical_text_eq,
+    canonical_text_is_all, canonicalize_text, erasure_selmaho, morphology_error_recovery_start,
 };
 
 #[requires(true)]
@@ -38,6 +39,17 @@ pub(crate) fn segment_words_with_modifiers_attempt(
     // single non-display segmentation entry point.
     let segmenter = Segmenter::new(input, options, source_id);
     segmenter.segment_attempt()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn segment_words_with_modifiers_recovered_attempt(
+    input: &str,
+    options: &MorphologyOptions,
+    source_id: Option<SourceId>,
+) -> RecoveredMorphologySegmentAttempt {
+    let segmenter = Segmenter::new(input, options, source_id);
+    segmenter.segment_recovered_attempt()
 }
 
 #[requires(true)]
@@ -80,6 +92,16 @@ struct Segmenter<'a> {
     index: usize,
     warnings: Vec<MorphologyWarning>,
     trace: TraceRecorder,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+struct RecoveryCheckpoint {
+    index: usize,
+    word_count: usize,
+    warning_count: usize,
+    words: Vec<WordLike>,
+    warnings: Vec<MorphologyWarning>,
 }
 
 #[invariant(::Morphology => true)]
@@ -141,6 +163,15 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn segment_recovered_attempt(mut self) -> RecoveredMorphologySegmentAttempt {
+        self.trace_step(TraceLevel::Top, "morphology recovered", 0, 0, || None);
+        let result = self.segment_words_recovered();
+        let trace = self.trace.finish();
+        RecoveredMorphologySegmentAttempt { result, trace }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn segment_display_attempt(mut self) -> MorphologySegmentAttempt {
         self.trace_step(TraceLevel::Top, "morphology display", 0, 0, || None);
         let result = self.segment_display();
@@ -168,6 +199,57 @@ impl<'a> Segmenter<'a> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn segment_words_recovered(&mut self) -> RecoveredMorphologySegmentation {
+        let mut words = Vec::new();
+        let mut errors = Vec::new();
+        let mut error_regions = Vec::new();
+        loop {
+            let checkpoint = self.recovery_checkpoint(&words);
+            match self.skip_magic_noise(true) {
+                Ok(true) => {}
+                Ok(false) => break,
+                Err(error) => {
+                    if !self.record_recovered_error(
+                        checkpoint,
+                        &mut words,
+                        &mut errors,
+                        &mut error_regions,
+                        error,
+                    ) {
+                        break;
+                    }
+                    continue;
+                }
+            }
+            if self.index == self.chars.len() {
+                break;
+            }
+            let checkpoint = self.recovery_checkpoint(&words);
+            let segment_result = self
+                .next_segment(SegmentMode::Morphology)
+                .and_then(|segment| self.process_segment(&mut words, segment));
+            if let Err(error) = segment_result
+                && !self.record_recovered_error(
+                    checkpoint,
+                    &mut words,
+                    &mut errors,
+                    &mut error_regions,
+                    error,
+                )
+            {
+                break;
+            }
+        }
+        new!(RecoveredMorphologySegmentation {
+            words,
+            errors,
+            error_regions,
+            warnings: self.warnings.clone(),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn segment_display(&mut self) -> Result<Vec<WordLike>, MorphologyError> {
         let mut acc = Vec::new();
         loop {
@@ -178,6 +260,79 @@ impl<'a> Segmenter<'a> {
             acc.extend(self.next_segment(SegmentMode::Display)?);
         }
         Ok(acc)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.index == self.index)]
+    #[ensures(ret.word_count == words.len())]
+    #[ensures(ret.warning_count == self.warnings.len())]
+    fn recovery_checkpoint(&self, words: &[WordLike]) -> RecoveryCheckpoint {
+        // Erasure and ZEI handling can mutate earlier output before a later token fails.
+        // Recovery must restore the checkpoint state exactly, not only truncate new words.
+        RecoveryCheckpoint {
+            index: self.index,
+            word_count: words.len(),
+            warning_count: self.warnings.len(),
+            words: words.to_vec(),
+            warnings: self.warnings.clone(),
+        }
+    }
+
+    #[requires(checkpoint.index <= self.chars.len())]
+    #[requires(checkpoint.word_count == checkpoint.words.len())]
+    #[requires(checkpoint.warning_count == checkpoint.warnings.len())]
+    #[ensures(self.index <= self.chars.len())]
+    fn record_recovered_error(
+        &mut self,
+        checkpoint: RecoveryCheckpoint,
+        words: &mut Vec<WordLike>,
+        errors: &mut Vec<MorphologyError>,
+        error_regions: &mut Vec<SourceSpan>,
+        error: MorphologyError,
+    ) -> bool {
+        *words = checkpoint.words;
+        self.warnings = checkpoint.warnings;
+        self.index = checkpoint.index;
+
+        let (region_end, should_continue) = match error {
+            MorphologyError::UnterminatedZoiQuote { .. } => (self.chars.len(), false),
+            _ => {
+                let Some(error_start) = morphology_error_recovery_start(&error) else {
+                    return false;
+                };
+                match self.recovery_resume_index(error_start) {
+                    Some(resume) => (resume, true),
+                    None => (self.chars.len(), false),
+                }
+            }
+        };
+        let region_start = checkpoint.index.min(region_end);
+        error_regions.push(self.recovery_source_span(region_start, region_end));
+        errors.push(error);
+        self.index = region_end;
+        should_continue
+    }
+
+    #[requires(error_start <= self.chars.len())]
+    #[ensures(ret.is_none_or(|resume| resume > error_start && resume <= self.chars.len()))]
+    fn recovery_resume_index(&self, error_start: usize) -> Option<usize> {
+        ((error_start + 1)..self.chars.len())
+            .find(|index| self.chars[*index].value.is_whitespace())
+            .map(|index| index + 1)
+    }
+
+    #[requires(start <= end && end <= self.chars.len())]
+    #[ensures(ret.char_start == start)]
+    #[ensures(ret.char_end == end)]
+    fn recovery_source_span(&self, start: usize, end: usize) -> SourceSpan {
+        SourceSpan::new(
+            self.source_id.clone(),
+            self.byte_offset(start),
+            self.byte_offset(end),
+            start,
+            end,
+        )
+        .expect("ordered in-bounds char offsets must produce a valid recovery span")
     }
 
     #[requires(start <= end)]
