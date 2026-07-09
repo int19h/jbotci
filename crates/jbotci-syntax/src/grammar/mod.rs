@@ -709,6 +709,9 @@ fn syntax_location_byte_offsets(words: &[Token]) -> Vec<usize> {
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
     crate::generated_model_text_syntax_leaf_spans_match_words(words, &parse.parse_tree)
 }))]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    crate::generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
+}))]
 pub(crate) fn parse_syntax_tree(
     words: &[WordLike],
     options: &ParseOptions,
@@ -1036,11 +1039,13 @@ fn should_attach_indicator(prev: &Token, indicator: &Word, preserve_zantufa_iau:
 #[cfg(test)]
 mod tests {
     #[allow(unused_imports)]
-    use bityzba::{data, requires};
+    use bityzba::{data, ensures, new, requires};
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
+    use jbotci_tree::RecoveredFieldState;
+    use vec1::Vec1;
 
-    use crate::tree::WithFreeModifiers;
+    use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData, WithFreeModifiers};
 
     use super::*;
 
@@ -1094,6 +1099,138 @@ mod tests {
             assert_eq!(regular_text.leading_i_statements.len(), 1);
             assert!(regular_text.paragraphs.is_some());
         });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_generated_model_round_trips_representative_valid_sources() {
+        run_on_normal_stack(|| {
+            for source in [
+                "mi klama",
+                "i mi klama",
+                "do mamta mi",
+                "lo gerku cu batci lo nanmu",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                let parsed =
+                    parse_syntax_tree(&words, &ParseOptions::default()).expect("valid syntax");
+                let valid = parsed.parse_tree.as_ref().clone();
+                let recovered =
+                    generated::generated_model::recovered::TextSyntax::from_valid(valid.clone());
+
+                assert_eq!(recovered.recovery_error_slots(), 0);
+                assert_eq!(recovered.clone().try_into_valid(), Ok(valid.clone()));
+
+                let mut valid_spans = Vec::new();
+                valid.visit_source_spans(&mut |span| valid_spans.push(span.clone()));
+                let mut recovered_spans = Vec::new();
+                recovered.visit_source_spans(&mut |span| recovered_spans.push(span.clone()));
+                assert_eq!(recovered_spans, valid_spans);
+
+                let json = serde_json::to_string(&recovered)
+                    .expect("recovered valid tree should serialize");
+                let decoded: generated::generated_model::recovered::TextSyntax =
+                    serde_json::from_str(&json).expect("recovered valid tree should deserialize");
+                assert_eq!(decoded, recovered);
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_generated_model_error_slots_block_strict_conversion() {
+        run_on_normal_stack(|| {
+            let (tree, skipped_item, _missing_item, _missing_span) =
+                recovered_text_with_skipped_and_missing_slots();
+
+            assert_eq!(tree.recovery_error_slots(), 2);
+            assert_eq!(tree.invalid_error_slots(), 1);
+            assert_eq!(tree.missing_error_slots(), 1);
+            let error = tree
+                .try_into_valid()
+                .expect_err("error slots must prevent strict conversion");
+            assert_eq!(error.item, skipped_item);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_generated_model_visits_recovery_spans_in_tree_order() {
+        run_on_normal_stack(|| {
+            let (tree, _skipped_item, _missing_item, missing_span) =
+                recovered_text_with_skipped_and_missing_slots();
+
+            let mut spans = Vec::new();
+            tree.visit_source_spans(&mut |span| spans.push(span.clone()));
+
+            assert_eq!(spans.len(), 2);
+            assert_eq!((spans[0].byte_start, spans[0].byte_end), (0, 2));
+            assert_eq!(spans[1], missing_span);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_generated_model_error_slots_serde_round_trip() {
+        run_on_normal_stack(|| {
+            let (tree, _skipped_item, _missing_item, _missing_span) =
+                recovered_text_with_skipped_and_missing_slots();
+
+            let json =
+                serde_json::to_string(&tree).expect("recovered tree with errors should serialize");
+            let decoded: generated::generated_model::recovered::TextSyntax =
+                serde_json::from_str(&json).expect("recovered tree with errors should deserialize");
+
+            assert_eq!(decoded, tree);
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_text_with_skipped_and_missing_slots() -> (
+        generated::generated_model::recovered::TextSyntax,
+        SyntaxRecoveryItem,
+        SyntaxRecoveryItem,
+        jbotci_source::SourceSpan,
+    ) {
+        let source = "mi";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let skipped_token = tokens[0].clone();
+        let skipped_item = new!(SyntaxRecoveryItem::SkippedTokens {
+            error_index: 0,
+            tokens: Vec1::try_from_vec(vec![skipped_token]).expect("one skipped token"),
+        });
+        let missing_span = jbotci_diagnostics::source_span_from_byte_offsets(None, source, 2, 2)
+            .expect("valid zero-width source span");
+        let missing_item = new!(SyntaxRecoveryItem::MissingRequiredField {
+            error_index: 1,
+            span: Arc::new(missing_span.clone()),
+            expected: "paragraphs".to_owned(),
+        });
+
+        let skipped_slot =
+            generated::generated_model::recovered::Recovered::error(skipped_item.clone());
+        let missing_paragraphs =
+            generated::generated_model::recovered::Recovered::error(missing_item.clone());
+        let tree = generated::generated_model::recovered::TextSyntax::RegularText(
+            generated::generated_model::recovered::Recovered::valid(
+                generated::generated_model::recovered::RegularTextSyntax {
+                    leading_nai: vec![skipped_slot],
+                    leading_cmevla: Vec::new(),
+                    leading_indicators: Vec::new(),
+                    leading_free_modifiers: Vec::new(),
+                    leading_connective: None,
+                    leading_i_statements: Vec::new(),
+                    paragraphs: Some(Arc::new(missing_paragraphs)),
+                },
+            ),
+        );
+        (tree, skipped_item, missing_item, missing_span)
     }
 
     #[test]

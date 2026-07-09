@@ -21,13 +21,14 @@ use crate::{
 
 #[doc(hidden)]
 pub mod generated_model {
-    use crate::tree::WithFreeModifiers;
+    use crate::tree::{SyntaxRecoveryItem as RecoveryTreeItem, WithFreeModifiers};
 
     use super::*;
 
     jbotci_syntax_macros::syntax_grammar! {
         tree_model {
             #![tree_with_free_modifiers]
+            #![tree_recovered]
         }
         model;
         env generated_runtime::SyntaxGrammarEnv;

@@ -84,6 +84,10 @@ pub trait RecoveryItemState {
     fn recovery_item_kind(&self) -> RecoveryItemKind;
 
     #[requires(true)]
+    #[ensures(true)]
+    fn visit_source_spans(&self, _visitor: &mut dyn FnMut(&jbotci_source::SourceSpan)) {}
+
+    #[requires(true)]
     #[ensures(ret == (self.recovery_item_kind() == RecoveryItemKind::Missing))]
     fn is_unconsumed_missing_error(&self) -> bool {
         self.recovery_item_kind() == RecoveryItemKind::Missing
@@ -375,6 +379,52 @@ impl RecoveredFieldState for jbotci_source::SourceSpan {
         0
     }
 }
+
+#[contract_trait]
+impl RecoveredFieldState for () {
+    #[requires(true)]
+    #[ensures(ret == 0)]
+    fn recovery_error_slots(&self) -> usize {
+        0
+    }
+}
+
+macro_rules! impl_recovered_field_state_for_tuple {
+    ($($name:ident $index:tt),+) => {
+        #[contract_trait]
+        impl<$($name),+> RecoveredFieldState for ($($name,)+)
+        where
+            $($name: RecoveredFieldState),+
+        {
+            #[requires(true)]
+            #[ensures(true)]
+            fn recovery_error_slots(&self) -> usize {
+                0usize $(+ self.$index.recovery_error_slots())+
+            }
+
+            #[requires(true)]
+            #[ensures(true)]
+            fn missing_error_slots(&self) -> usize {
+                0usize $(+ self.$index.missing_error_slots())+
+            }
+
+            #[requires(true)]
+            #[ensures(true)]
+            fn unconsumed_missing_error_slots(&self) -> usize {
+                0usize $(+ self.$index.unconsumed_missing_error_slots())+
+            }
+        }
+    };
+}
+
+impl_recovered_field_state_for_tuple!(A 0);
+impl_recovered_field_state_for_tuple!(A 0, B 1);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2, D 3);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2, D 3, E 4);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2, D 3, E 4, F 5);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2, D 3, E 4, F 5, G 6);
+impl_recovered_field_state_for_tuple!(A 0, B 1, C 2, D 3, E 4, F 5, G 6, H 7);
 
 #[contract_trait]
 impl RecoveryItemState for () {
@@ -695,7 +745,7 @@ pub trait TreeVisitor<'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_recovered_error<E: Serialize>(&mut self, _item: &'tree E) {}
+    fn visit_recovered_error<E: RecoveryItemState + Serialize>(&mut self, _item: &'tree E) {}
 }
 
 #[cfg(test)]

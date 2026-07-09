@@ -1,8 +1,11 @@
 //! Lojban syntax model and parser facade.
 
+#![recursion_limit = "512"]
+
 pub mod tree;
 pub use tree::{
-    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
+    SyntaxRecoveryItem, Token, WithIndicators, WithIndicatorsData,
+    elidable_terminator_for_absent_field_ref,
 };
 
 mod grammar;
@@ -53,6 +56,15 @@ impl generated_model::TextSyntax {
     }
 }
 
+impl generated_model::recovered::TextSyntax {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn visit_source_spans(&self, visitor: &mut impl FnMut(&SourceSpan)) {
+        let mut span_visitor = RecoveredGeneratedModelSourceSpanVisitor { visitor };
+        generated_model::recovered::TreeNode::visit_in_order(self, &mut span_visitor);
+    }
+}
+
 #[invariant(true)]
 struct GeneratedModelSourceSpanVisitor<'a, F>
 where
@@ -99,6 +111,52 @@ where
     }
 }
 
+#[invariant(true)]
+struct RecoveredGeneratedModelSourceSpanVisitor<'a, F>
+where
+    F: FnMut(&SourceSpan),
+{
+    visitor: &'a mut F,
+}
+
+impl<F> RecoveredGeneratedModelSourceSpanVisitor<'_, F>
+where
+    F: FnMut(&SourceSpan),
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_token(&mut self, token: &Token) {
+        for span in token.source_spans() {
+            (self.visitor)(span);
+        }
+    }
+}
+
+impl<'tree, F> TreeVisitor<'tree> for RecoveredGeneratedModelSourceSpanVisitor<'_, F>
+where
+    F: FnMut(&SourceSpan),
+{
+    type Node = generated_model::recovered::NodeRef<'tree>;
+    type Atom = generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            generated_model::recovered::AtomRef::Token(token) => self.visit_token(token),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + Serialize>(
+        &mut self,
+        item: &'tree E,
+    ) {
+        item.visit_source_spans(&mut |span| (self.visitor)(span));
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn text_syntax_leaf_spans_match_words(
@@ -122,6 +180,17 @@ pub fn generated_model_text_syntax_leaf_spans_match_words(
     let mut actual = Vec::new();
     parse_tree.visit_source_spans(&mut |span| actual.push(span.clone()));
     actual == expected
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn generated_model_recovered_round_trip_matches_valid(
+    parse_tree: &generated_model::TextSyntax,
+) -> bool {
+    let recovered = generated_model::recovered::TextSyntax::from_valid(parse_tree.clone());
+    recovered
+        .try_into_valid()
+        .is_ok_and(|round_trip| round_trip == *parse_tree)
 }
 
 #[requires(true)]
@@ -2723,6 +2792,9 @@ fn warning_word_text(word: &Token) -> String {
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
     syntax_parse_leaf_spans_match_words(words, parse)
 }))]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
+}))]
 pub fn parse_syntax_tree(words: &[WordLike]) -> Result<SyntaxParse, SyntaxError> {
     parse_syntax_tree_with_options(words, &ParseOptions::default())
 }
@@ -2731,6 +2803,9 @@ pub fn parse_syntax_tree(words: &[WordLike]) -> Result<SyntaxParse, SyntaxError>
 #[ensures(true)]
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
     syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
 }))]
 pub fn parse_syntax_tree_with_options(
     words: &[WordLike],
@@ -2744,6 +2819,9 @@ pub fn parse_syntax_tree_with_options(
 #[expensive_ensures(ret.as_ref().map_or(true, |parse| {
     syntax_parse_leaf_spans_match_words(words, parse)
 }))]
+#[expensive_ensures(ret.as_ref().map_or(true, |parse| {
+    generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
+}))]
 pub fn parse_syntax_tree_with_source_and_options(
     words: &[WordLike],
     source: &str,
@@ -2756,6 +2834,9 @@ pub fn parse_syntax_tree_with_source_and_options(
 #[ensures(true)]
 #[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
     syntax_parse_leaf_spans_match_words(words, parse)
+}))]
+#[expensive_ensures(ret.result.as_ref().map_or(true, |parse| {
+    generated_model_recovered_round_trip_matches_valid(&parse.parse_tree)
 }))]
 pub fn parse_syntax_tree_with_source_and_options_attempt(
     words: &[WordLike],

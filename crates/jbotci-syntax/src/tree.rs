@@ -12,40 +12,74 @@ use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_tree::FieldRef;
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
+use vec1::Vec1;
 
-#[invariant(::Missing => span.char_len() == 0
-    && !expected.is_empty()
-    && !diagnostic_code.is_empty())]
-#[invariant(::Invalid => span.char_len() > 0
-    && !text.is_empty()
-    && !expected.is_empty()
-    && !diagnostic_code.is_empty())]
+#[invariant(::SkippedTokens => syntax_recovery_tokens_have_ordered_spans(tokens))]
+#[invariant(::MissingRequiredField => span.is_empty() && !expected.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
-pub enum RecoveryTreeItem {
-    Missing {
-        span: Arc<jbotci_source::SourceSpan>,
-        expected: Vec<String>,
-        diagnostic_code: String,
+pub enum SyntaxRecoveryItem {
+    SkippedTokens {
+        error_index: usize,
+        tokens: Vec1<Token>,
     },
-    Invalid {
+    MissingRequiredField {
+        error_index: usize,
         span: Arc<jbotci_source::SourceSpan>,
-        text: String,
-        expected: Vec<String>,
-        diagnostic_code: String,
+        expected: String,
     },
 }
 
 #[contract_trait]
-impl jbotci_tree::RecoveryItemState for RecoveryTreeItem {
+impl jbotci_tree::RecoveryItemState for SyntaxRecoveryItem {
     #[requires(true)]
     #[ensures(true)]
     fn recovery_item_kind(&self) -> jbotci_tree::RecoveryItemKind {
         match self.as_data() {
-            data!(RecoveryTreeItem::Missing { .. }) => jbotci_tree::RecoveryItemKind::Missing,
-            data!(RecoveryTreeItem::Invalid { .. }) => jbotci_tree::RecoveryItemKind::Invalid,
+            data!(SyntaxRecoveryItem::SkippedTokens { .. }) => {
+                jbotci_tree::RecoveryItemKind::Invalid
+            }
+            data!(SyntaxRecoveryItem::MissingRequiredField { .. }) => {
+                jbotci_tree::RecoveryItemKind::Missing
+            }
         }
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_source_spans(&self, visitor: &mut dyn FnMut(&jbotci_source::SourceSpan)) {
+        match self.as_data() {
+            data!(SyntaxRecoveryItem::SkippedTokens { tokens, .. }) => {
+                for token in tokens {
+                    for span in token.source_spans() {
+                        visitor(span);
+                    }
+                }
+            }
+            data!(SyntaxRecoveryItem::MissingRequiredField { span, .. }) => visitor(span),
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_recovery_tokens_have_ordered_spans(tokens: &Vec1<Token>) -> bool {
+    let mut previous_byte_end = None;
+    let mut saw_span = false;
+    for token in tokens {
+        let spans = token.source_spans();
+        if spans.is_empty() {
+            return false;
+        }
+        for span in spans {
+            if previous_byte_end.is_some_and(|byte_end| span.byte_start < byte_end) {
+                return false;
+            }
+            previous_byte_end = Some(span.byte_end);
+            saw_span = true;
+        }
+    }
+    saw_span
 }
 
 #[invariant(true)]
