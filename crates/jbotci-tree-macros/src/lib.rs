@@ -11,7 +11,7 @@ use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
     Attribute, Fields, GenericArgument, Ident, Item, ItemEnum, ItemStruct, ItemType, PathArguments,
-    Type, parse_macro_input, parse_quote,
+    Type, parse_macro_input, parse_quote, punctuated::Punctuated,
 };
 
 #[requires(true)]
@@ -649,13 +649,36 @@ fn recovered_item(
 #[requires(true)]
 #[ensures(true)]
 fn recovered_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
-    attrs
+    let mut recovered_attrs: Vec<_> = attrs
         .iter()
         .filter(|attr| {
             !attr.path().is_ident("invariant") && !attr.path().is_ident("expensive_invariant")
         })
         .cloned()
-        .collect()
+        .collect();
+    if !attrs_derive_trait(&recovered_attrs, "Deserialize") {
+        recovered_attrs.push(parse_quote!(#[derive(::serde::Deserialize)]));
+    }
+    recovered_attrs
+}
+
+#[requires(!trait_name.is_empty())]
+#[ensures(true)]
+fn attrs_derive_trait(attrs: &[Attribute], trait_name: &str) -> bool {
+    attrs.iter().any(|attr| {
+        if !attr.path().is_ident("derive") {
+            return false;
+        }
+        attr.parse_args_with(Punctuated::<syn::Path, syn::Token![,]>::parse_terminated)
+            .ok()
+            .is_some_and(|paths| {
+                paths.iter().any(|path| {
+                    path.segments
+                        .last()
+                        .is_some_and(|segment| segment.ident == trait_name)
+                })
+            })
+    })
 }
 
 #[requires(true)]
@@ -702,6 +725,13 @@ fn transform_type_for_recovery(
             )?);
             Ok(Type::Array(array))
         }
+        Type::Tuple(tuple) => {
+            let mut tuple = tuple.clone();
+            for elem in &mut tuple.elems {
+                *elem = transform_type_for_recovery(elem, node_names, aliases)?;
+            }
+            Ok(Type::Tuple(tuple))
+        }
         _ => {
             let _ = node_names;
             Ok(wrap_recovered(ty.clone()))
@@ -723,6 +753,19 @@ fn transform_wrapper_type_for_recovery(
     let Some(segment) = path.path.segments.last_mut() else {
         return Ok(ty);
     };
+    if segment.ident == "WithFreeModifiers" {
+        let inner = first_type_argument(&segment.arguments)
+            .cloned()
+            .ok_or_else(|| {
+                syn::Error::new_spanned(
+                    &*segment,
+                    "`WithFreeModifiers` needs a value type argument",
+                )
+            })?;
+        let inner = transform_type_for_recovery(&inner, node_names, aliases)?;
+        segment.arguments = PathArguments::AngleBracketed(parse_quote!(<#inner>));
+        return Ok(ty);
+    }
     let PathArguments::AngleBracketed(arguments) = &mut segment.arguments else {
         return Ok(ty);
     };
@@ -759,7 +802,7 @@ fn recovered_with_free_modifiers(emit: bool) -> proc_macro2::TokenStream {
     quote! {
         // `WithFreeModifiers` and `FreeModifierSyntax` are jbotci syntax-model
         // conventions used by generated recovered syntax trees.
-        #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize)]
+        #[derive(Debug, Clone, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
         pub struct WithFreeModifiers<T> {
             pub value: T,
             pub free_modifiers: Vec<Recovered<FreeModifierSyntax>>,
@@ -1703,6 +1746,7 @@ fn convert_value_for_type(
         Type::Array(array) => {
             convert_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
+        Type::Tuple(tuple) => convert_tuple_value_for_type(tuple, expr, node_names, aliases),
         _ => Ok(convert_recovered_atom(expr)),
     }
 }
@@ -1886,6 +1930,41 @@ fn convert_array_value_for_type(
 
 #[requires(true)]
 #[ensures(true)]
+fn convert_tuple_value_for_type(
+    tuple: &syn::TypeTuple,
+    expr: proc_macro2::TokenStream,
+    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+) -> syn::Result<proc_macro2::TokenStream> {
+    if tuple.elems.is_empty() {
+        return Ok(quote!({
+            let () = #expr;
+            Ok(())
+        }));
+    }
+    let bindings: Vec<_> = (0..tuple.elems.len())
+        .map(|index| format_ident!("tuple_{index}"))
+        .collect();
+    let conversions = tuple
+        .elems
+        .iter()
+        .zip(&bindings)
+        .map(|(elem, binding)| {
+            let converted = convert_value_for_type(elem, quote!(#binding), node_names, aliases)?;
+            Ok(quote! {
+                let #binding = #converted?;
+            })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(quote!({
+        let (#(#bindings,)*) = #expr;
+        #(#conversions)*
+        Ok((#(#bindings,)*))
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn convert_recovered_node(expr: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! {
         (#expr).try_into_valid_boxed_with(path, |value, path| {
@@ -1939,6 +2018,7 @@ fn convert_valid_value_for_type(
         Type::Array(array) => {
             convert_valid_array_value_for_type(&array.elem, &array.len, expr, node_names, aliases)
         }
+        Type::Tuple(tuple) => convert_valid_tuple_value_for_type(tuple, expr, node_names, aliases),
         _ => Ok(convert_valid_atom(expr)),
     }
 }
@@ -2136,6 +2216,39 @@ fn convert_valid_array_value_for_type(
         values
             .try_into()
             .unwrap_or_else(|_| panic!("valid array conversion must preserve length {}", #len))
+    }))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn convert_valid_tuple_value_for_type(
+    tuple: &syn::TypeTuple,
+    expr: proc_macro2::TokenStream,
+    node_names: &BTreeSet<String>,
+    aliases: &BTreeMap<String, Type>,
+) -> syn::Result<proc_macro2::TokenStream> {
+    if tuple.elems.is_empty() {
+        return Ok(quote!({
+            let () = #expr;
+            ()
+        }));
+    }
+    let bindings: Vec<_> = (0..tuple.elems.len())
+        .map(|index| format_ident!("tuple_{index}"))
+        .collect();
+    let conversions = tuple
+        .elems
+        .iter()
+        .zip(&bindings)
+        .map(|(elem, binding)| {
+            let converted =
+                convert_valid_value_for_type(elem, quote!(#binding), node_names, aliases)?;
+            Ok(quote!(#converted))
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(quote!({
+        let (#(#bindings,)*) = #expr;
+        (#(#conversions,)*)
     }))
 }
 
