@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.invalid-word-in-lohu"
+lojban = "lo'u broda @@@ le'u"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [11, 12], source-text = "@", message = "invalid character in Lojban word" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.invalid-character", byte-span = [11, 12], source-text = "@", message = "invalid character in Lojban word" }]

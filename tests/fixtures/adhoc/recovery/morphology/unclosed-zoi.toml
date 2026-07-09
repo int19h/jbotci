@@ -1,0 +1,11 @@
+id = "adhoc.recovery.morphology.unclosed-zoi"
+lojban = "zoi gy foo bar"
+tags = ["adhoc", "recovery", "morphology"]
+
+[expectations.morphology]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [7, 14], source-text = "foo bar", message = "unterminated ZOI quote" }]
+
+[expectations.morphology.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "morphology.unterminated-zoi-quote", byte-span = [7, 14], source-text = "foo bar", message = "unterminated ZOI quote" }]
