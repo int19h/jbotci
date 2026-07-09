@@ -1,0 +1,360 @@
+name: Cargo cache mtimes
+description: Normalize workspace mtimes against a stamped Cargo target-cache commit.
+
+inputs:
+  mode:
+    description: Use "restore" to normalize mtimes, or "stamp" before saving the target cache.
+    required: true
+  target-dir:
+    description: Cargo target directory containing the cache commit stamp.
+    required: true
+  stamp-file:
+    description: File name, relative to target-dir, that stores the cache source commit.
+    required: false
+    default: .cache-commit
+  old-timestamp:
+    description: Timestamp used for unchanged tracked files, in GNU touch -t format.
+    required: false
+    default: "200001010000.00"
+
+runs:
+  using: composite
+  steps:
+    - name: Normalize or stamp Cargo target-cache mtimes
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        TARGET_DIR: ${{ inputs.target-dir }}
+        STAMP_FILE: ${{ inputs.stamp-file }}
+        OLD_TOUCH_TIMESTAMP: ${{ inputs.old-timestamp }}
+      run: |
+        set -euo pipefail
+
+        warn() {
+          echo "::warning title=Cargo target cache mtime normalization::$*"
+        }
+
+        workspace="${GITHUB_WORKSPACE:-$PWD}"
+        git config --global --add safe.directory "${workspace}" || true
+        repo_root="$(cd "${workspace}" && pwd -P)"
+        git config --global --add safe.directory "${repo_root}" || true
+        cd "${repo_root}"
+
+        target_dir="${TARGET_DIR%/}"
+        stamp_path="${target_dir}/${STAMP_FILE}"
+
+        add_submodule_safe_directories() {
+          git submodule foreach --quiet --recursive '
+            path="${toplevel}/${sm_path}"
+            physical_path="$(cd "${path}" && pwd -P)"
+            git config --global --add safe.directory "${path}" || true
+            git config --global --add safe.directory "${physical_path}" || true
+          ' || true
+        }
+
+        add_submodule_safe_directories
+
+        touch_one() {
+          local mode="$1"
+          local path="$2"
+
+          if [[ ! -e "${path}" && ! -L "${path}" ]]; then
+            return 0
+          fi
+
+          if [[ "${mode}" == "old" ]]; then
+            touch -h -t "${OLD_TOUCH_TIMESTAMP}" -- "${path}"
+          else
+            touch -h -- "${path}"
+          fi
+        }
+
+        touch_repo_tracked_files() {
+          local repo="$1"
+          local mode="$2"
+          local tracked_paths
+          local count
+
+          tracked_paths="$(mktemp)"
+          git -C "${repo}" ls-files -z > "${tracked_paths}"
+          count="$(tr -cd '\0' < "${tracked_paths}" | wc -c | tr -d '[:space:]')"
+          if [[ "${count}" != "0" ]]; then
+            if [[ "${mode}" == "old" ]]; then
+              (cd "${repo}" && xargs -0 -r touch -h -t "${OLD_TOUCH_TIMESTAMP}" -- < "${tracked_paths}")
+            else
+              (cd "${repo}" && xargs -0 -r touch -h -- < "${tracked_paths}")
+            fi
+          fi
+          rm -f "${tracked_paths}"
+
+          echo "${count}"
+        }
+
+        touch_repo_tracked_directories() {
+          local repo="$1"
+          local mode="$2"
+          local tracked_dirs
+          local count
+          local path
+          local dir
+
+          tracked_dirs="$(mktemp)"
+          while IFS= read -r -d '' path; do
+            if [[ "${path}" != */* ]]; then
+              continue
+            fi
+            dir="${path%/*}"
+            while [[ -n "${dir}" ]]; do
+              printf "%s\0" "${dir}"
+              if [[ "${dir}" != */* ]]; then
+                break
+              fi
+              dir="${dir%/*}"
+            done
+          done < <(git -C "${repo}" ls-files -z) | sort -zu > "${tracked_dirs}"
+
+          count="$(tr -cd '\0' < "${tracked_dirs}" | wc -c | tr -d '[:space:]')"
+          if [[ "${count}" != "0" ]]; then
+            if [[ "${mode}" == "old" ]]; then
+              (cd "${repo}" && xargs -0 -r touch -h -t "${OLD_TOUCH_TIMESTAMP}" -- < "${tracked_dirs}")
+            else
+              (cd "${repo}" && xargs -0 -r touch -h -- < "${tracked_dirs}")
+            fi
+          fi
+          rm -f "${tracked_dirs}"
+
+          echo "${count}"
+        }
+
+        touch_repo_tracked_tree() {
+          local repo="$1"
+          local mode="$2"
+          local file_count
+          local dir_count
+
+          file_count="$(touch_repo_tracked_files "${repo}" "${mode}")"
+          dir_count="$(touch_repo_tracked_directories "${repo}" "${mode}")"
+          echo $((file_count + dir_count))
+        }
+
+        touch_parent_directories_now() {
+          local path="$1"
+          local dir
+
+          if [[ "${path}" != */* ]]; then
+            return 0
+          fi
+
+          dir="${path%/*}"
+          while [[ -n "${dir}" ]]; do
+            touch_one now "${dir}"
+            if [[ "${dir}" != */* ]]; then
+              break
+            fi
+            dir="${dir%/*}"
+          done
+        }
+
+        absolute_git_path() {
+          local repo="$1"
+          local path="$2"
+
+          if [[ "${path}" = /* ]]; then
+            printf "%s\n" "${path}"
+          else
+            printf "%s\n" "${repo%/}/${path}"
+          fi
+        }
+
+        git_metadata_paths_for_repo() {
+          local repo="$1"
+          local git_dir
+          local git_common_dir
+          local head_path
+          local packed_refs_path
+          local reference
+          local ref_path
+
+          git_dir="$(git -C "${repo}" rev-parse --git-dir)" || return 1
+          git_common_dir="$(git -C "${repo}" rev-parse --git-common-dir)" || git_common_dir="${git_dir}"
+
+          git_dir="$(absolute_git_path "${repo}" "${git_dir}")"
+          git_common_dir="$(absolute_git_path "${repo}" "${git_common_dir}")"
+
+          head_path="${git_dir}/HEAD"
+          if [[ -e "${head_path}" || -L "${head_path}" ]]; then
+            printf "%s\0" "${head_path}"
+            if reference="$(sed -n 's/^ref: //p' "${head_path}")" && [[ -n "${reference}" ]]; then
+              ref_path="${git_common_dir}/${reference}"
+              if [[ -e "${ref_path}" || -L "${ref_path}" ]]; then
+                printf "%s\0" "${ref_path}"
+              fi
+            fi
+          fi
+
+          packed_refs_path="${git_common_dir}/packed-refs"
+          if [[ -e "${packed_refs_path}" || -L "${packed_refs_path}" ]]; then
+            printf "%s\0" "${packed_refs_path}"
+          fi
+        }
+
+        touch_git_metadata_for_repo() {
+          local repo="$1"
+          local mode="$2"
+          local path
+          local count=0
+          local status=0
+
+          while IFS= read -r -d '' path; do
+            count=$((count + 1))
+            touch_one "${mode}" "${path}" || status=1
+          done < <(git_metadata_paths_for_repo "${repo}")
+
+          echo "${count}"
+          return "${status}"
+        }
+
+        each_submodule_path() {
+          git submodule foreach --quiet --recursive 'printf "%s\0" "$displaypath"'
+        }
+
+        touch_all_tracked_files() {
+          local mode="$1"
+          local total=0
+          local count=0
+          local status=0
+
+          count="$(touch_repo_tracked_tree "." "${mode}")" || status=1
+          total=$((total + count))
+
+          while IFS= read -r -d '' submodule_path; do
+            if [[ ! -d "${submodule_path}" ]]; then
+              continue
+            fi
+            count="$(touch_repo_tracked_tree "${submodule_path}" "${mode}")" || status=1
+            total=$((total + count))
+          done < <(each_submodule_path)
+
+          echo "${total}"
+          return "${status}"
+        }
+
+        touch_all_git_metadata() {
+          local mode="$1"
+          local total=0
+          local count=0
+          local status=0
+          local submodule_path
+
+          count="$(touch_git_metadata_for_repo "." "${mode}")" || status=1
+          total=$((total + count))
+
+          while IFS= read -r -d '' submodule_path; do
+            if [[ ! -d "${submodule_path}" ]]; then
+              continue
+            fi
+            count="$(touch_git_metadata_for_repo "${submodule_path}" "${mode}")" || status=1
+            total=$((total + count))
+          done < <(each_submodule_path)
+
+          echo "${total}"
+          return "${status}"
+        }
+
+        is_submodule_path() {
+          local candidate="$1"
+          local submodule_path
+
+          while IFS= read -r -d '' submodule_path; do
+            if [[ "${candidate}" == "${submodule_path}" ]]; then
+              return 0
+            fi
+          done < <(each_submodule_path)
+
+          return 1
+        }
+
+        touch_changed_paths_now() {
+          local base_sha="$1"
+          local changed_count=0
+          local status=0
+          local path
+          local count
+
+          while IFS= read -r -d '' path; do
+            changed_count=$((changed_count + 1))
+
+            if is_submodule_path "${path}"; then
+              if [[ -d "${path}" ]]; then
+                count="$(touch_repo_tracked_tree "${path}" now)" || status=1
+                echo "Touched ${count} tracked path(s) in changed submodule ${path}."
+              fi
+              touch_parent_directories_now "${path}" || status=1
+              continue
+            fi
+
+            touch_one now "${path}" || status=1
+            touch_parent_directories_now "${path}" || status=1
+          done < <(git diff --name-only -z "${base_sha}" HEAD --)
+
+          echo "Touched ${changed_count} changed path(s) to current time."
+          return "${status}"
+        }
+
+        touch_everything_now_fallback() {
+          local reason="$1"
+          warn "${reason}; touching every tracked path and Git metadata path so Cargo performs a full rebuild."
+          local total
+          local metadata_count
+          total="$(touch_all_tracked_files now)"
+          metadata_count="$(touch_all_git_metadata now)"
+          echo "Fallback touched ${total} tracked path(s) to current time."
+          echo "Fallback touched ${metadata_count} Git metadata path(s) to current time."
+        }
+
+        case "${MODE}" in
+          stamp)
+            mkdir -p "${target_dir}"
+            printf "%s\n" "${GITHUB_SHA:?GITHUB_SHA is required}" > "${stamp_path}"
+            echo "Stamped Cargo target cache with ${GITHUB_SHA} at ${stamp_path}."
+            ;;
+          restore)
+            if [[ ! -f "${stamp_path}" ]]; then
+              touch_everything_now_fallback "No Cargo target-cache stamp found at ${stamp_path}"
+              exit 0
+            fi
+
+            stamp_sha="$(tr -d '[:space:]' < "${stamp_path}")"
+            if [[ ! "${stamp_sha}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+              touch_everything_now_fallback "Invalid Cargo target-cache stamp '${stamp_sha}'"
+              exit 0
+            fi
+
+            if ! git fetch --no-tags --depth=1 origin "${stamp_sha}"; then
+              touch_everything_now_fallback "Could not fetch stamped commit ${stamp_sha}"
+              exit 0
+            fi
+
+            if ! git diff --name-only -z "${stamp_sha}" HEAD -- >/dev/null; then
+              touch_everything_now_fallback "Could not diff stamped commit ${stamp_sha} against HEAD"
+              exit 0
+            fi
+
+            unchanged_count="$(touch_all_tracked_files old)"
+            echo "Touched ${unchanged_count} tracked path(s) to ${OLD_TOUCH_TIMESTAMP}."
+            git_metadata_count="$(touch_all_git_metadata old)"
+            echo "Touched ${git_metadata_count} Git metadata path(s) to ${OLD_TOUCH_TIMESTAMP}."
+            if ! touch_changed_paths_now "${stamp_sha}"; then
+              touch_everything_now_fallback "Could not touch every changed path from ${stamp_sha}"
+              exit 0
+            fi
+            if [[ "${stamp_sha}" != "${GITHUB_SHA:?GITHUB_SHA is required}" ]]; then
+              git_metadata_count="$(touch_all_git_metadata now)"
+              echo "Touched ${git_metadata_count} Git metadata path(s) to current time because HEAD changed."
+            fi
+            ;;
+          *)
+            echo "Unsupported mode '${MODE}'. Expected 'restore' or 'stamp'." >&2
+            exit 2
+            ;;
+        esac
