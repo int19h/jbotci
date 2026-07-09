@@ -159,6 +159,10 @@ pub struct MorphologySegmentAttempt {
 pub struct RecoveredMorphologySegmentation {
     pub words: Vec<WordLike>,
     pub errors: Vec<MorphologyError>,
+    /// Source regions skipped while resynchronizing after morphology errors.
+    ///
+    /// Each region starts at the failed stretch checkpoint and ends at EOF, or
+    /// just after the whitespace that recovery used to resume segmentation.
     pub error_regions: Vec<SourceSpan>,
     pub warnings: Vec<MorphologyWarning>,
 }
