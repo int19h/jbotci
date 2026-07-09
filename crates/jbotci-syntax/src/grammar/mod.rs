@@ -1039,10 +1039,16 @@ mod tests {
     use bityzba::{data, requires};
     use jbotci_dialect::parse_dialect_definition;
     use jbotci_morphology::{WordLikeData, segment_words_with_modifiers};
+    use std::{fmt::Write as _, fs, path::Path};
 
     use crate::tree::WithFreeModifiers;
 
     use super::*;
+
+    const RECOVERY_ANCHOR_SNAPSHOT_PATH: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/recovery-anchor-metadata.snapshot.txt"
+    );
 
     #[test]
     #[requires(true)]
@@ -1134,6 +1140,279 @@ mod tests {
     impl<'tree> jbotci_tree::TreeVisitor<'tree> for GeneratedModelNoopVisitor {
         type Node = generated::generated_model::NodeRef<'tree>;
         type Atom = generated::generated_model::AtomRef<'tree>;
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn recovery_anchor_metadata_snapshot() -> String {
+        let mut snapshot = String::new();
+        writeln!(
+            &mut snapshot,
+            "rules: {}",
+            generated::generated_model::SYNTAX_GRAMMAR_RECOVERY_ANCHORS.len()
+        )
+        .expect("writing to string cannot fail");
+        for metadata in generated::generated_model::SYNTAX_GRAMMAR_RECOVERY_ANCHORS {
+            writeln!(&mut snapshot, "rule {}", metadata.rule)
+                .expect("writing to string cannot fail");
+            for first in metadata.first {
+                writeln!(
+                    &mut snapshot,
+                    "  first {} conditions {}",
+                    format_anchor_tokens(first.tokens),
+                    format_anchor_conditions(first.conditions),
+                )
+                .expect("writing to string cannot fail");
+            }
+            for field in metadata.fields {
+                writeln!(
+                    &mut snapshot,
+                    "  field {} {}",
+                    field.field_index, field.field_name
+                )
+                .expect("writing to string cannot fail");
+                for anchor in field.anchors {
+                    writeln!(
+                        &mut snapshot,
+                        "    resume {} start {} conditions {}",
+                        anchor.resume_field,
+                        format_anchor_tokens(anchor.start_tokens),
+                        format_anchor_conditions(anchor.conditions),
+                    )
+                    .expect("writing to string cannot fail");
+                }
+            }
+        }
+        writeln!(&mut snapshot, "subtext-containers").expect("writing to string cannot fail");
+        for container in generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS {
+            writeln!(
+                &mut snapshot,
+                "  {} opener {} {} text {} closer {} {}",
+                container.rule,
+                container.opener_field,
+                format_anchor_tokens(container.opener_tokens),
+                container.text_field,
+                container.closer_field,
+                format_anchor_tokens(container.closer_tokens),
+            )
+            .expect("writing to string cannot fail");
+        }
+        snapshot
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with('['))]
+    fn format_anchor_tokens(
+        tokens: &[generated::generated_model::SyntaxGrammarAnchorToken],
+    ) -> String {
+        let mut rendered = String::new();
+        rendered.push('[');
+        for (index, token) in tokens.iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(", ");
+            }
+            match token {
+                generated::generated_model::SyntaxGrammarAnchorToken::Cmavo(cmavo) => {
+                    write!(&mut rendered, "Cmavo({cmavo:?})")
+                        .expect("writing to string cannot fail");
+                }
+                generated::generated_model::SyntaxGrammarAnchorToken::Selmaho(selmaho) => {
+                    write!(&mut rendered, "Selmaho({selmaho:?})")
+                        .expect("writing to string cannot fail");
+                }
+            }
+        }
+        rendered.push(']');
+        rendered
+    }
+
+    #[requires(true)]
+    #[ensures(ret.starts_with('['))]
+    fn format_anchor_conditions(
+        conditions: &[generated::generated_model::SyntaxGrammarCondition],
+    ) -> String {
+        let mut rendered = String::new();
+        rendered.push('[');
+        for (index, condition) in conditions.iter().enumerate() {
+            if index > 0 {
+                rendered.push_str(", ");
+            }
+            write!(&mut rendered, "{:?}({})", condition.kind, condition.name)
+                .expect("writing to string cannot fail");
+        }
+        rendered.push(']');
+        rendered
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(ret.rule == rule)]
+    fn generated_anchor_metadata(
+        rule: &str,
+    ) -> &'static generated::generated_model::SyntaxGrammarRuleAnchorMetadata {
+        generated::generated_model::syntax_grammar_anchor_metadata_by_rule_name(rule)
+            .expect("generated anchor metadata exists")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn anchor_tokens_contain(
+        tokens: &[generated::generated_model::SyntaxGrammarAnchorToken],
+        token: generated::generated_model::SyntaxGrammarAnchorToken,
+    ) -> bool {
+        tokens.contains(&token)
+    }
+
+    #[requires(!rule.is_empty())]
+    #[requires(!field.is_empty())]
+    #[ensures(true)]
+    fn assert_field_anchor_contains(
+        rule: &str,
+        field: &str,
+        token: generated::generated_model::SyntaxGrammarAnchorToken,
+    ) {
+        let metadata = generated_anchor_metadata(rule);
+        let field_metadata = metadata
+            .fields
+            .iter()
+            .find(|field_metadata| field_metadata.field_name == field)
+            .expect("field metadata exists");
+        assert!(
+            field_metadata
+                .anchors
+                .iter()
+                .any(|anchor| anchor_tokens_contain(anchor.start_tokens, token)),
+            "{rule}.{field} does not contain anchor token {token:?}",
+        );
+    }
+
+    #[requires(!rule.is_empty())]
+    #[requires(!condition.is_empty())]
+    #[ensures(true)]
+    fn assert_first_contains_condition(rule: &str, condition: &str) {
+        let metadata = generated_anchor_metadata(rule);
+        assert!(
+            metadata.first.iter().any(|entry| entry
+                .conditions
+                .iter()
+                .any(|entry_condition| entry_condition.name == condition)),
+            "{rule} has no FIRST entry conditioned on {condition}",
+        );
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(ret.rule == rule)]
+    fn subtext_container(
+        rule: &str,
+    ) -> &'static generated::generated_model::SyntaxGrammarSubtextContainer {
+        generated::generated_model::SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS
+            .iter()
+            .find(|container| container.rule == rule)
+            .expect("subtext container exists")
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    fn assert_subtext_container(
+        rule: &str,
+        opener_field: usize,
+        opener: generated::generated_model::SyntaxGrammarAnchorToken,
+        text_field: usize,
+        closer_field: usize,
+        closer: generated::generated_model::SyntaxGrammarAnchorToken,
+    ) {
+        let container = subtext_container(rule);
+        assert_eq!(container.opener_field, opener_field);
+        assert_eq!(container.text_field, text_field);
+        assert_eq!(container.closer_field, closer_field);
+        assert!(anchor_tokens_contain(container.opener_tokens, opener));
+        assert!(anchor_tokens_contain(container.closer_tokens, closer));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_recovery_anchor_metadata_snapshot_matches() {
+        let snapshot = recovery_anchor_metadata_snapshot();
+        let path = Path::new(RECOVERY_ANCHOR_SNAPSHOT_PATH);
+        if std::env::var_os("JBOTCI_UPDATE_RECOVERY_ANCHOR_SNAPSHOT").is_some() {
+            fs::write(path, &snapshot).expect("snapshot can be updated");
+        }
+        let expected = fs::read_to_string(path).expect("checked-in recovery anchor snapshot");
+        assert_eq!(snapshot, expected);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_recovery_anchor_metadata_spot_checks() {
+        use generated::generated_model::SyntaxGrammarAnchorToken::{
+            Cmavo as AnchorCmavo, Selmaho as AnchorSelmaho,
+        };
+
+        assert_eq!(
+            generated::generated_model::SYNTAX_GRAMMAR_RECOVERY_ANCHORS.len(),
+            generated::generated_model::SYNTAX_GRAMMAR_RULES.len()
+        );
+
+        assert_field_anchor_contains(
+            "descriptor_with_gadri_sumti",
+            "tail",
+            AnchorCmavo(Cmavo::Ku),
+        );
+        assert_field_anchor_contains(
+            "abstraction_tanru_unit",
+            "subbridi",
+            AnchorCmavo(Cmavo::Kei),
+        );
+        assert_field_anchor_contains(
+            "restrictive_bridi_relative_clause",
+            "subbridi",
+            AnchorCmavo(Cmavo::Kuho),
+        );
+        assert_field_anchor_contains("selbri_simple_bridi_tail", "terms", AnchorCmavo(Cmavo::Vau));
+        assert_field_anchor_contains(
+            "paragraph_statement_sequence",
+            "following",
+            AnchorCmavo(Cmavo::I),
+        );
+        assert_field_anchor_contains(
+            "text_paragraph_with_additional_niho",
+            "additional_niho",
+            AnchorSelmaho(Selmaho::Niho),
+        );
+
+        assert_subtext_container(
+            "text_quote",
+            0,
+            AnchorCmavo(Cmavo::Lu),
+            1,
+            2,
+            AnchorCmavo(Cmavo::Lihu),
+        );
+        assert_subtext_container(
+            "parenthetical_text",
+            0,
+            AnchorSelmaho(Selmaho::To),
+            1,
+            2,
+            AnchorCmavo(Cmavo::Toi),
+        );
+        assert_subtext_container(
+            "text_group_statement",
+            1,
+            AnchorCmavo(Cmavo::Tuhe),
+            2,
+            3,
+            AnchorCmavo(Cmavo::Tuhu),
+        );
+
+        assert_first_contains_condition("statement_base", "ZantufaConnectives");
+        for rule in ["text", "statement", "sumti", "selbri"] {
+            assert!(
+                !generated_anchor_metadata(rule).first.is_empty(),
+                "{rule} should have non-empty FIRST metadata",
+            );
+        }
     }
 
     #[test]

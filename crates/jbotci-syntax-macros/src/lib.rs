@@ -1,6 +1,9 @@
 //! Proc macros for syntax grammar declarations.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+};
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -88,6 +91,10 @@ impl SyntaxGrammar {
             .collect::<Result<Vec<_>>>()
         {
             Ok(rules) => rules,
+            Err(error) => return error.into_compile_error(),
+        };
+        let anchor_metadata = match expand_recovery_anchor_metadata(&self.rules, &type_env) {
+            Ok(metadata) => metadata,
             Err(error) => return error.into_compile_error(),
         };
         let rule_lookup_arms = self.rules.iter().enumerate().map(|(index, rule)| {
@@ -226,6 +233,49 @@ impl SyntaxGrammar {
                 pub fields: &'static [SyntaxGrammarField],
             }
 
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) enum SyntaxGrammarAnchorToken {
+                Cmavo(Cmavo),
+                Selmaho(Selmaho),
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) struct SyntaxGrammarAnchorTokenSet {
+                pub tokens: &'static [SyntaxGrammarAnchorToken],
+                pub conditions: &'static [SyntaxGrammarCondition],
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) struct SyntaxGrammarAnchorRun {
+                pub start_tokens: &'static [SyntaxGrammarAnchorToken],
+                pub resume_field: usize,
+                pub conditions: &'static [SyntaxGrammarCondition],
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) struct SyntaxGrammarFieldAnchors {
+                pub field_index: usize,
+                pub field_name: &'static str,
+                pub anchors: &'static [SyntaxGrammarAnchorRun],
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) struct SyntaxGrammarRuleAnchorMetadata {
+                pub rule: &'static str,
+                pub first: &'static [SyntaxGrammarAnchorTokenSet],
+                pub fields: &'static [SyntaxGrammarFieldAnchors],
+            }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            pub(crate) struct SyntaxGrammarSubtextContainer {
+                pub rule: &'static str,
+                pub opener_field: usize,
+                pub opener_tokens: &'static [SyntaxGrammarAnchorToken],
+                pub text_field: usize,
+                pub closer_field: usize,
+                pub closer_tokens: &'static [SyntaxGrammarAnchorToken],
+            }
+
             pub(crate) const SYNTAX_GRAMMAR_ENV: &str = #env;
             #(#parser_functions)*
             #(#partial_valid_parser_functions)*
@@ -238,6 +288,7 @@ impl SyntaxGrammar {
             pub(crate) const SYNTAX_GRAMMAR_RULES: &[SyntaxGrammarRule] = &[
                 #(#rules),*
             ];
+            #anchor_metadata
 
             #[bityzba::requires(!name.is_empty())]
             #[bityzba::ensures(ret.as_ref().is_none_or(|rule| rule.name == name))]
@@ -5104,6 +5155,7 @@ impl FieldKind {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Condition {
     kind: ConditionKind,
     name: Ident,
@@ -5172,6 +5224,8 @@ impl Parse for Condition {
     }
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ConditionKind {
     Feature,
     Policy,
@@ -5381,7 +5435,12 @@ fn classify_postfix_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+            Ok(RecoveryExpr::WithFreeModifiers(inner()?))
+        }
+        ("warn", 1) | ("elidable_terminator", 1) => {
+            classify_parser_expr(receiver, arguments, type_env)
+        }
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
@@ -5454,7 +5513,10 @@ fn classify_method_recovery_expr(
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
         ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
-        ("wf", 0) | ("with_free_modifiers", 0) => Ok(RecoveryExpr::WithFreeModifiers(inner()?)),
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+            Ok(RecoveryExpr::WithFreeModifiers(inner()?))
+        }
+        ("warn", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
@@ -5580,9 +5642,7 @@ fn classify_call_recovery_expr(
         ("relation_word" | "tanru_unit_relation_word", 0) => RecoveryExpr::RelationWord,
         ("bare_negation_term", 0) => RecoveryExpr::BareNegationTerm,
         ("eof", 0) => RecoveryExpr::Eof,
-        _ if call.args.is_empty() && type_env.rule_known_for_recovery(&name, arguments) => {
-            RecoveryExpr::Rule(name)
-        }
+        _ if type_env.rule_known_for_recovery(&name, arguments) => RecoveryExpr::Rule(name),
         _ if call.args.is_empty() => RecoveryExpr::Opaque(compact_tokens(call)),
         _ => RecoveryExpr::Opaque(compact_tokens(call)),
     })
@@ -5647,6 +5707,900 @@ fn compact_tokens(tokens: impl ToTokens) -> String {
         .chars()
         .filter(|ch| !ch.is_whitespace())
         .collect()
+}
+
+#[invariant(true)]
+#[invariant(::Cmavo(cmavo) => !cmavo.is_empty())]
+#[invariant(::Selmaho(selmaho) => !selmaho.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum AnchorToken {
+    Cmavo(String),
+    Selmaho(String),
+}
+
+impl AnchorToken {
+    #[requires(!cmavo.is_empty())]
+    #[ensures(true)]
+    fn cmavo(cmavo: String) -> Self {
+        Self::from_data(data!(AnchorToken::Cmavo(cmavo)))
+    }
+
+    #[requires(!selmaho.is_empty())]
+    #[ensures(true)]
+    fn selmaho(selmaho: String) -> Self {
+        Self::from_data(data!(AnchorToken::Selmaho(selmaho)))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        match self.as_data() {
+            data!(AnchorToken::Cmavo(cmavo)) => {
+                let cmavo = format_ident!("{cmavo}");
+                quote!(SyntaxGrammarAnchorToken::Cmavo(Cmavo::#cmavo))
+            }
+            data!(AnchorToken::Selmaho(selmaho)) => {
+                let selmaho = format_ident!("{selmaho}");
+                quote!(SyntaxGrammarAnchorToken::Selmaho(Selmaho::#selmaho))
+            }
+        }
+    }
+}
+
+#[invariant(!name.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AnchorCondition {
+    kind: ConditionKind,
+    name: String,
+}
+
+impl AnchorCondition {
+    #[requires(true)]
+    #[ensures(!ret.name.is_empty())]
+    fn from_condition(condition: &Condition) -> Self {
+        Self::from_data(data!(AnchorCondition {
+            kind: condition.kind,
+            name: condition.name.to_string(),
+        }))
+    }
+
+    #[requires(!self.name.is_empty())]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        let kind = match self.kind {
+            ConditionKind::Feature => quote!(SyntaxGrammarConditionKind::Feature),
+            ConditionKind::Policy => quote!(SyntaxGrammarConditionKind::Policy),
+        };
+        let name = &self.name;
+        quote! {
+            SyntaxGrammarCondition {
+                kind: #kind,
+                name: #name,
+            }
+        }
+    }
+}
+
+#[invariant(!tokens.is_empty())]
+#[invariant(conditions.iter().all(|condition| !condition.name.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FirstEntry {
+    tokens: BTreeSet<AnchorToken>,
+    conditions: Vec<AnchorCondition>,
+}
+
+impl FirstEntry {
+    #[requires(!tokens.is_empty())]
+    #[ensures(!ret.tokens.is_empty())]
+    fn new(tokens: BTreeSet<AnchorToken>, conditions: Vec<AnchorCondition>) -> Self {
+        Self::from_data(data!(FirstEntry { tokens, conditions }))
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.tokens.is_empty())]
+    fn with_conditions(&self, conditions: &[AnchorCondition]) -> Self {
+        Self::from_data(data!(FirstEntry {
+            tokens: self.tokens.clone(),
+            conditions: combine_anchor_conditions(conditions, &self.conditions),
+        }))
+    }
+
+    #[requires(!self.tokens.is_empty())]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        let tokens = expand_anchor_token_slice(&self.tokens);
+        let conditions = expand_anchor_condition_slice(&self.conditions);
+        quote! {
+            SyntaxGrammarAnchorTokenSet {
+                tokens: #tokens,
+                conditions: #conditions,
+            }
+        }
+    }
+}
+
+#[invariant(!start_tokens.is_empty())]
+#[invariant(conditions.iter().all(|condition| !condition.name.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AnchorRunSpec {
+    start_tokens: BTreeSet<AnchorToken>,
+    resume_field: usize,
+    conditions: Vec<AnchorCondition>,
+}
+
+impl AnchorRunSpec {
+    #[requires(!start_tokens.is_empty())]
+    #[ensures(!ret.start_tokens.is_empty())]
+    fn new(
+        start_tokens: BTreeSet<AnchorToken>,
+        resume_field: usize,
+        conditions: Vec<AnchorCondition>,
+    ) -> Self {
+        Self::from_data(data!(AnchorRunSpec {
+            start_tokens,
+            resume_field,
+            conditions,
+        }))
+    }
+
+    #[requires(!self.start_tokens.is_empty())]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        let start_tokens = expand_anchor_token_slice(&self.start_tokens);
+        let resume_field = self.resume_field;
+        let conditions = expand_anchor_condition_slice(&self.conditions);
+        quote! {
+            SyntaxGrammarAnchorRun {
+                start_tokens: #start_tokens,
+                resume_field: #resume_field,
+                conditions: #conditions,
+            }
+        }
+    }
+}
+
+#[invariant(!field_name.is_empty())]
+#[invariant(anchors.iter().all(|anchor| !anchor.start_tokens.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FieldAnchorSpec {
+    field_index: usize,
+    field_name: String,
+    anchors: Vec<AnchorRunSpec>,
+}
+
+impl FieldAnchorSpec {
+    #[requires(true)]
+    #[ensures(ret.field_index == field_index)]
+    fn new(field_index: usize, field_name: String, anchors: Vec<AnchorRunSpec>) -> Self {
+        Self::from_data(data!(FieldAnchorSpec {
+            field_index,
+            field_name,
+            anchors,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        let field_index = self.field_index;
+        let field_name = &self.field_name;
+        let anchors = self.anchors.iter().map(AnchorRunSpec::expand);
+        quote! {
+            SyntaxGrammarFieldAnchors {
+                field_index: #field_index,
+                field_name: #field_name,
+                anchors: &[#(#anchors),*],
+            }
+        }
+    }
+}
+
+#[invariant(!rule.is_empty())]
+#[invariant(opener_field < text_field && text_field < closer_field)]
+#[invariant(!opener_tokens.is_empty())]
+#[invariant(!closer_tokens.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SubtextContainerSpec {
+    rule: String,
+    opener_field: usize,
+    opener_tokens: BTreeSet<AnchorToken>,
+    text_field: usize,
+    closer_field: usize,
+    closer_tokens: BTreeSet<AnchorToken>,
+}
+
+impl SubtextContainerSpec {
+    #[requires(!opener_tokens.is_empty())]
+    #[requires(!closer_tokens.is_empty())]
+    #[ensures(!ret.opener_tokens.is_empty())]
+    #[ensures(!ret.closer_tokens.is_empty())]
+    fn new(
+        rule: String,
+        opener_field: usize,
+        opener_tokens: BTreeSet<AnchorToken>,
+        text_field: usize,
+        closer_field: usize,
+        closer_tokens: BTreeSet<AnchorToken>,
+    ) -> Self {
+        Self::from_data(data!(SubtextContainerSpec {
+            rule,
+            opener_field,
+            opener_tokens,
+            text_field,
+            closer_field,
+            closer_tokens,
+        }))
+    }
+
+    #[requires(!self.opener_tokens.is_empty())]
+    #[requires(!self.closer_tokens.is_empty())]
+    #[ensures(true)]
+    fn expand(&self) -> TokenStream2 {
+        let rule = &self.rule;
+        let opener_field = self.opener_field;
+        let opener_tokens = expand_anchor_token_slice(&self.opener_tokens);
+        let text_field = self.text_field;
+        let closer_field = self.closer_field;
+        let closer_tokens = expand_anchor_token_slice(&self.closer_tokens);
+        quote! {
+            SyntaxGrammarSubtextContainer {
+                rule: #rule,
+                opener_field: #opener_field,
+                opener_tokens: #opener_tokens,
+                text_field: #text_field,
+                closer_field: #closer_field,
+                closer_tokens: #closer_tokens,
+            }
+        }
+    }
+}
+
+#[invariant(rule_indices.values().all(|index| *index < rules.len()))]
+#[invariant(rule_indices.keys().all(|name| !name.is_empty()))]
+struct RecoveryAnchorAnalyzer<'a> {
+    rules: &'a [Rule],
+    type_env: &'a GrammarTypeEnv,
+    rule_indices: BTreeMap<String, usize>,
+    first_cache: RefCell<BTreeMap<String, Vec<FirstEntry>>>,
+    first_visiting: RefCell<BTreeSet<String>>,
+    nullable_cache: RefCell<BTreeMap<String, bool>>,
+    nullable_visiting: RefCell<BTreeSet<String>>,
+}
+
+impl<'a> RecoveryAnchorAnalyzer<'a> {
+    #[requires(true)]
+    #[ensures(ret.rules.len() == rules.len())]
+    fn new(rules: &'a [Rule], type_env: &'a GrammarTypeEnv) -> Self {
+        Self::from_data(data!(RecoveryAnchorAnalyzer {
+            rules,
+            type_env,
+            rule_indices: rules
+                .iter()
+                .enumerate()
+                .map(|(index, rule)| (rule.name().to_string(), index))
+                .collect(),
+            first_cache: RefCell::new(BTreeMap::new()),
+            first_visiting: RefCell::new(BTreeSet::new()),
+            nullable_cache: RefCell::new(BTreeMap::new()),
+            nullable_visiting: RefCell::new(BTreeSet::new()),
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_metadata(&self) -> Result<TokenStream2> {
+        let mut rule_items = Vec::new();
+        for rule in self.rules {
+            rule_items.push(self.expand_rule_metadata(rule)?);
+        }
+        let rule_lookup_arms = self.rules.iter().enumerate().map(|(index, rule)| {
+            let name = rule.name().to_string();
+            quote!(#name => Some(&SYNTAX_GRAMMAR_RECOVERY_ANCHORS[#index]))
+        });
+        let container_items = self
+            .subtext_containers()?
+            .iter()
+            .map(SubtextContainerSpec::expand)
+            .collect::<Vec<_>>();
+        Ok(quote! {
+            pub(crate) const SYNTAX_GRAMMAR_RECOVERY_ANCHORS: &[SyntaxGrammarRuleAnchorMetadata] = &[
+                #(#rule_items),*
+            ];
+
+            pub(crate) const SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS: &[SyntaxGrammarSubtextContainer] = &[
+                #(#container_items),*
+            ];
+
+            #[bityzba::requires(!name.is_empty())]
+            #[bityzba::ensures(ret.as_ref().is_none_or(|metadata| metadata.rule == name))]
+            pub(crate) fn syntax_grammar_anchor_metadata_by_rule_name(
+                name: &str,
+            ) -> Option<&'static SyntaxGrammarRuleAnchorMetadata> {
+                match name {
+                    #(#rule_lookup_arms,)*
+                    _ => None,
+                }
+            }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_rule_metadata(&self, rule: &Rule) -> Result<TokenStream2> {
+        let name = rule.name().to_string();
+        let first = self.rule_first_entries(&name)?;
+        let first_items = first.iter().map(FirstEntry::expand);
+        let field_items = self
+            .field_anchor_specs(rule)?
+            .iter()
+            .map(FieldAnchorSpec::expand)
+            .collect::<Vec<_>>();
+        Ok(quote! {
+            SyntaxGrammarRuleAnchorMetadata {
+                rule: #name,
+                first: &[#(#first_items),*],
+                fields: &[#(#field_items),*],
+            }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn field_anchor_specs(&self, rule: &Rule) -> Result<Vec<FieldAnchorSpec>> {
+        let Rule::Struct(rule) = rule else {
+            return Ok(Vec::new());
+        };
+        let argument_names = rule.argument_name_set();
+        let mut specs = Vec::new();
+        for (field_index, field) in rule.fields.iter().enumerate() {
+            if !matches!(field.kind, FieldKind::Field) {
+                continue;
+            }
+            specs.push(FieldAnchorSpec::new(
+                field_index,
+                field
+                    .name
+                    .as_ref()
+                    .map_or_else(String::new, Ident::to_string),
+                self.anchor_runs_from_field(rule, &argument_names, field_index)?,
+            ));
+        }
+        Ok(specs)
+    }
+
+    #[requires(start_field <= rule.fields.len())]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|runs| runs.iter().all(|run| !run.start_tokens.is_empty())))]
+    fn anchor_runs_from_field(
+        &self,
+        rule: &NodeRule,
+        argument_names: &BTreeSet<String>,
+        start_field: usize,
+    ) -> Result<Vec<AnchorRunSpec>> {
+        let mut runs = Vec::new();
+        let mut field_index = start_field;
+        while field_index < rule.fields.len() {
+            let field = &rule.fields[field_index];
+            if !matches!(field.kind, FieldKind::Field) {
+                field_index += 1;
+                continue;
+            }
+            let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
+            let conditions = anchor_conditions_from(&field.conditions);
+            if let Some(tokens) = literal_start_tokens(&expr) {
+                push_anchor_run(&mut runs, tokens, field_index, conditions);
+                field_index = self.after_adjacent_literal_run(rule, argument_names, field_index)?;
+                continue;
+            }
+            for entry in self.expr_first_entries(&expr)? {
+                let entry = entry.into_data();
+                push_anchor_run(
+                    &mut runs,
+                    entry.tokens,
+                    field_index,
+                    combine_anchor_conditions(&conditions, &entry.conditions),
+                );
+            }
+            field_index += 1;
+        }
+        Ok(runs)
+    }
+
+    #[requires(start_field < rule.fields.len())]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|field| *field > start_field))]
+    fn after_adjacent_literal_run(
+        &self,
+        rule: &NodeRule,
+        argument_names: &BTreeSet<String>,
+        start_field: usize,
+    ) -> Result<usize> {
+        let mut field_index = start_field + 1;
+        while field_index < rule.fields.len() {
+            let field = &rule.fields[field_index];
+            if !matches!(field.kind, FieldKind::Field) {
+                break;
+            }
+            let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
+            if literal_start_tokens(&expr).is_none() {
+                break;
+            }
+            field_index += 1;
+        }
+        Ok(field_index)
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|entries| entries.iter().all(|entry| !entry.tokens.is_empty())))]
+    fn rule_first_entries(&self, rule_name: &str) -> Result<Vec<FirstEntry>> {
+        if let Some(cached) = self.first_cache.borrow().get(rule_name) {
+            return Ok(cached.clone());
+        }
+        if !self
+            .first_visiting
+            .borrow_mut()
+            .insert(rule_name.to_owned())
+        {
+            return Ok(Vec::new());
+        }
+        let entries = if let Some(index) = self.rule_indices.get(rule_name).copied() {
+            match &self.rules[index] {
+                Rule::Alias(rule) => {
+                    let argument_names = rule.argument_name_set();
+                    let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
+                    self.expr_first_entries(&expr)?
+                }
+                Rule::Struct(rule) => {
+                    let argument_names = rule.argument_name_set();
+                    self.struct_first_entries(rule, &argument_names)?
+                }
+                Rule::Enum(rule) => self.enum_first_entries(rule)?,
+            }
+        } else {
+            Vec::new()
+        };
+        self.first_visiting.borrow_mut().remove(rule_name);
+        self.first_cache
+            .borrow_mut()
+            .insert(rule_name.to_owned(), entries.clone());
+        Ok(entries)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|entries| entries.iter().all(|entry| !entry.tokens.is_empty())))]
+    fn struct_first_entries(
+        &self,
+        rule: &NodeRule,
+        argument_names: &BTreeSet<String>,
+    ) -> Result<Vec<FirstEntry>> {
+        let mut entries = Vec::new();
+        for field in &rule.fields {
+            match field.kind {
+                FieldKind::Field => {
+                    let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
+                    let conditions = anchor_conditions_from(&field.conditions);
+                    for entry in self.expr_first_entries(&expr)? {
+                        push_first_entry(&mut entries, entry.with_conditions(&conditions));
+                    }
+                    if !self.expr_nullable(&expr)? {
+                        break;
+                    }
+                }
+                FieldKind::Require | FieldKind::Computed | FieldKind::TempLet => {}
+            }
+        }
+        Ok(entries)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|entries| entries.iter().all(|entry| !entry.tokens.is_empty())))]
+    fn enum_first_entries(&self, rule: &EnumRule) -> Result<Vec<FirstEntry>> {
+        let mut entries = Vec::new();
+        for branch in &rule.branches {
+            let conditions = anchor_conditions_from(&branch.conditions);
+            for entry in self.rule_first_entries(&branch.name.to_string())? {
+                push_first_entry(&mut entries, entry.with_conditions(&conditions));
+            }
+        }
+        Ok(entries)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|entries| entries.iter().all(|entry| !entry.tokens.is_empty())))]
+    fn expr_first_entries(&self, expr: &RecoveryExpr) -> Result<Vec<FirstEntry>> {
+        let mut entries = Vec::new();
+        match expr {
+            RecoveryExpr::Cmavo(cmavo) => {
+                push_first_entry(&mut entries, first_entry(AnchorToken::cmavo(cmavo.clone())));
+            }
+            RecoveryExpr::Selmaho(selmaho) => {
+                push_first_entry(
+                    &mut entries,
+                    first_entry(AnchorToken::selmaho(selmaho.clone())),
+                );
+            }
+            RecoveryExpr::Opt(inner)
+            | RecoveryExpr::Many(inner)
+            | RecoveryExpr::Many1(inner)
+            | RecoveryExpr::Boxed(inner)
+            | RecoveryExpr::Arc(inner)
+            | RecoveryExpr::WithFreeModifiers(inner)
+            | RecoveryExpr::PayloadStart(inner)
+            | RecoveryExpr::Ignored(inner) => {
+                entries.extend(self.expr_first_entries(inner)?);
+            }
+            RecoveryExpr::Choice(alternatives) => {
+                for alternative in alternatives {
+                    for entry in self.expr_first_entries(alternative)? {
+                        push_first_entry(&mut entries, entry);
+                    }
+                }
+            }
+            RecoveryExpr::Sequence(parts) => {
+                for part in parts {
+                    for entry in self.expr_first_entries(part)? {
+                        push_first_entry(&mut entries, entry);
+                    }
+                    if !self.expr_nullable(part)? {
+                        break;
+                    }
+                }
+            }
+            RecoveryExpr::Rule(rule) => {
+                entries.extend(self.rule_first_entries(rule)?);
+            }
+            RecoveryExpr::WordCategory(_)
+            | RecoveryExpr::Lookahead(_)
+            | RecoveryExpr::Not(_)
+            | RecoveryExpr::NotNextSelmaho(_)
+            | RecoveryExpr::NotNextToken(_)
+            | RecoveryExpr::NotNextRule(_)
+            | RecoveryExpr::BareNegationTerm
+            | RecoveryExpr::RelationWord
+            | RecoveryExpr::Opaque(_)
+            | RecoveryExpr::Eof => {}
+        }
+        Ok(entries)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expr_nullable(&self, expr: &RecoveryExpr) -> Result<bool> {
+        Ok(match expr {
+            RecoveryExpr::Opt(_) | RecoveryExpr::Many(_) => true,
+            RecoveryExpr::Boxed(inner)
+            | RecoveryExpr::Arc(inner)
+            | RecoveryExpr::WithFreeModifiers(inner)
+            | RecoveryExpr::PayloadStart(inner)
+            | RecoveryExpr::Ignored(inner)
+            | RecoveryExpr::Many1(inner) => self.expr_nullable(inner)?,
+            RecoveryExpr::Choice(alternatives) => {
+                let mut nullable = false;
+                for alternative in alternatives {
+                    nullable |= self.expr_nullable(alternative)?;
+                }
+                nullable
+            }
+            RecoveryExpr::Sequence(parts) => {
+                let mut nullable = true;
+                for part in parts {
+                    nullable &= self.expr_nullable(part)?;
+                    if !nullable {
+                        break;
+                    }
+                }
+                nullable
+            }
+            RecoveryExpr::Lookahead(_)
+            | RecoveryExpr::Not(_)
+            | RecoveryExpr::NotNextSelmaho(_)
+            | RecoveryExpr::NotNextToken(_)
+            | RecoveryExpr::NotNextRule(_)
+            | RecoveryExpr::Eof => true,
+            RecoveryExpr::Rule(rule) => self.rule_nullable(rule)?,
+            RecoveryExpr::Cmavo(_)
+            | RecoveryExpr::Selmaho(_)
+            | RecoveryExpr::WordCategory(_)
+            | RecoveryExpr::BareNegationTerm
+            | RecoveryExpr::RelationWord
+            | RecoveryExpr::Opaque(_) => false,
+        })
+    }
+
+    #[requires(!rule_name.is_empty())]
+    #[ensures(true)]
+    fn rule_nullable(&self, rule_name: &str) -> Result<bool> {
+        if let Some(cached) = self.nullable_cache.borrow().get(rule_name) {
+            return Ok(*cached);
+        }
+        if !self
+            .nullable_visiting
+            .borrow_mut()
+            .insert(rule_name.to_owned())
+        {
+            return Ok(false);
+        }
+        let nullable = if let Some(index) = self.rule_indices.get(rule_name).copied() {
+            match &self.rules[index] {
+                Rule::Alias(rule) => {
+                    let argument_names = rule.argument_name_set();
+                    let expr = classify_parser_expr(&rule.parser, &argument_names, self.type_env)?;
+                    self.expr_nullable(&expr)?
+                }
+                Rule::Struct(rule) => {
+                    let argument_names = rule.argument_name_set();
+                    let mut nullable = true;
+                    for field in &rule.fields {
+                        if matches!(field.kind, FieldKind::Field) {
+                            let expr = classify_parser_expr(
+                                &field.parser,
+                                &argument_names,
+                                self.type_env,
+                            )?;
+                            nullable &= self.expr_nullable(&expr)?;
+                            if !nullable {
+                                break;
+                            }
+                        }
+                    }
+                    nullable
+                }
+                Rule::Enum(rule) => {
+                    let mut nullable = false;
+                    for branch in &rule.branches {
+                        nullable |= self.rule_nullable(&branch.name.to_string())?;
+                    }
+                    nullable
+                }
+            }
+        } else {
+            false
+        };
+        self.nullable_visiting.borrow_mut().remove(rule_name);
+        self.nullable_cache
+            .borrow_mut()
+            .insert(rule_name.to_owned(), nullable);
+        Ok(nullable)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|containers| containers.iter().all(|container| !container.opener_tokens.is_empty() && !container.closer_tokens.is_empty())))]
+    fn subtext_containers(&self) -> Result<Vec<SubtextContainerSpec>> {
+        let mut containers = Vec::new();
+        for rule in self.rules {
+            let Rule::Struct(rule) = rule else {
+                continue;
+            };
+            let argument_names = rule.argument_name_set();
+            for (field_index, field) in rule.fields.iter().enumerate() {
+                if !matches!(field.kind, FieldKind::Field) {
+                    continue;
+                }
+                let expr = classify_parser_expr(&field.parser, &argument_names, self.type_env)?;
+                if !expr_is_rule_reference(&expr, "text") {
+                    continue;
+                }
+                let Some((opener_field, opener_tokens)) =
+                    previous_literal_field(rule, &argument_names, field_index, self.type_env)?
+                else {
+                    continue;
+                };
+                let Some((closer_field, closer_tokens)) =
+                    next_literal_field(rule, &argument_names, field_index, self.type_env)?
+                else {
+                    continue;
+                };
+                containers.push(SubtextContainerSpec::new(
+                    rule.name.to_string(),
+                    opener_field,
+                    opener_tokens,
+                    field_index,
+                    closer_field,
+                    closer_tokens,
+                ));
+            }
+        }
+        Ok(containers)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_recovery_anchor_metadata(
+    rules: &[Rule],
+    type_env: &GrammarTypeEnv,
+) -> Result<TokenStream2> {
+    RecoveryAnchorAnalyzer::new(rules, type_env).expand_metadata()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|tokens| !tokens.is_empty()))]
+fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
+    match expr {
+        RecoveryExpr::Cmavo(cmavo) => Some(BTreeSet::from([AnchorToken::cmavo(cmavo.clone())])),
+        RecoveryExpr::Selmaho(selmaho) => {
+            Some(BTreeSet::from([AnchorToken::selmaho(selmaho.clone())]))
+        }
+        RecoveryExpr::Opt(inner)
+        | RecoveryExpr::Boxed(inner)
+        | RecoveryExpr::Arc(inner)
+        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::PayloadStart(inner)
+        | RecoveryExpr::Ignored(inner) => literal_start_tokens(inner),
+        RecoveryExpr::Choice(alternatives) => {
+            let mut tokens = BTreeSet::new();
+            for alternative in alternatives {
+                if let Some(alternative_tokens) = literal_start_tokens(alternative) {
+                    tokens.extend(alternative_tokens);
+                }
+            }
+            (!tokens.is_empty()).then_some(tokens)
+        }
+        RecoveryExpr::Many(_)
+        | RecoveryExpr::Many1(_)
+        | RecoveryExpr::Lookahead(_)
+        | RecoveryExpr::Not(_)
+        | RecoveryExpr::NotNextSelmaho(_)
+        | RecoveryExpr::NotNextToken(_)
+        | RecoveryExpr::NotNextRule(_)
+        | RecoveryExpr::Sequence(_)
+        | RecoveryExpr::WordCategory(_)
+        | RecoveryExpr::BareNegationTerm
+        | RecoveryExpr::RelationWord
+        | RecoveryExpr::Rule(_)
+        | RecoveryExpr::Opaque(_)
+        | RecoveryExpr::Eof => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expr_is_rule_reference(expr: &RecoveryExpr, rule_name: &str) -> bool {
+    match expr {
+        RecoveryExpr::Rule(rule) => rule == rule_name,
+        RecoveryExpr::Boxed(inner)
+        | RecoveryExpr::Arc(inner)
+        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::PayloadStart(inner)
+        | RecoveryExpr::Ignored(inner)
+        | RecoveryExpr::Opt(inner) => expr_is_rule_reference(inner, rule_name),
+        _ => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|condition| !condition.name.is_empty()))]
+fn anchor_conditions_from(conditions: &[Condition]) -> Vec<AnchorCondition> {
+    conditions
+        .iter()
+        .map(AnchorCondition::from_condition)
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(ret.len() >= base.len())]
+fn combine_anchor_conditions(
+    base: &[AnchorCondition],
+    additional: &[AnchorCondition],
+) -> Vec<AnchorCondition> {
+    let mut conditions = base.to_vec();
+    for condition in additional {
+        if !conditions.contains(condition) {
+            conditions.push(condition.clone());
+        }
+    }
+    conditions
+}
+
+#[requires(true)]
+#[ensures(!ret.tokens.is_empty())]
+fn first_entry(token: AnchorToken) -> FirstEntry {
+    FirstEntry::new(BTreeSet::from([token]), Vec::new())
+}
+
+#[requires(!entry.tokens.is_empty())]
+#[ensures(entries.iter().all(|entry| !entry.tokens.is_empty()))]
+fn push_first_entry(entries: &mut Vec<FirstEntry>, entry: FirstEntry) {
+    let existing_index = entries
+        .iter()
+        .position(|existing| existing.conditions == entry.conditions);
+    let entry = entry.into_data();
+    if let Some(existing_index) = existing_index {
+        let existing = entries.remove(existing_index).into_data();
+        let mut tokens = existing.tokens;
+        tokens.extend(entry.tokens);
+        entries.insert(
+            existing_index,
+            FirstEntry::from_data(data!(FirstEntry {
+                tokens,
+                conditions: existing.conditions,
+            })),
+        );
+    } else {
+        entries.push(FirstEntry::from_data(entry));
+    }
+}
+
+#[requires(!tokens.is_empty())]
+#[ensures(runs.iter().all(|run| !run.start_tokens.is_empty()))]
+fn push_anchor_run(
+    runs: &mut Vec<AnchorRunSpec>,
+    tokens: BTreeSet<AnchorToken>,
+    resume_field: usize,
+    conditions: Vec<AnchorCondition>,
+) {
+    let existing_index = runs.iter().position(|existing| {
+        existing.resume_field == resume_field && existing.conditions == conditions
+    });
+    if let Some(existing_index) = existing_index {
+        let existing = runs.remove(existing_index).into_data();
+        let mut start_tokens = existing.start_tokens;
+        start_tokens.extend(tokens);
+        runs.insert(
+            existing_index,
+            AnchorRunSpec::from_data(data!(AnchorRunSpec {
+                start_tokens,
+                resume_field: existing.resume_field,
+                conditions: existing.conditions,
+            })),
+        );
+    } else {
+        runs.push(AnchorRunSpec::new(tokens, resume_field, conditions));
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(_, tokens)| !tokens.is_empty())))]
+fn previous_literal_field(
+    rule: &NodeRule,
+    argument_names: &BTreeSet<String>,
+    before_field: usize,
+    type_env: &GrammarTypeEnv,
+) -> Result<Option<(usize, BTreeSet<AnchorToken>)>> {
+    for field_index in (0..before_field).rev() {
+        let field = &rule.fields[field_index];
+        if !matches!(field.kind, FieldKind::Field) {
+            continue;
+        }
+        let expr = classify_parser_expr(&field.parser, argument_names, type_env)?;
+        if let Some(tokens) = literal_start_tokens(&expr) {
+            return Ok(Some((field_index, tokens)));
+        }
+    }
+    Ok(None)
+}
+
+#[requires(after_field < rule.fields.len())]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|value| value.as_ref().is_none_or(|(_, tokens)| !tokens.is_empty())))]
+fn next_literal_field(
+    rule: &NodeRule,
+    argument_names: &BTreeSet<String>,
+    after_field: usize,
+    type_env: &GrammarTypeEnv,
+) -> Result<Option<(usize, BTreeSet<AnchorToken>)>> {
+    for field_index in after_field + 1..rule.fields.len() {
+        let field = &rule.fields[field_index];
+        if !matches!(field.kind, FieldKind::Field) {
+            continue;
+        }
+        let expr = classify_parser_expr(&field.parser, argument_names, type_env)?;
+        if let Some(tokens) = literal_start_tokens(&expr) {
+            return Ok(Some((field_index, tokens)));
+        }
+    }
+    Ok(None)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_anchor_token_slice(tokens: &BTreeSet<AnchorToken>) -> TokenStream2 {
+    let tokens = tokens.iter().map(AnchorToken::expand);
+    quote!(&[#(#tokens),*])
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn expand_anchor_condition_slice(conditions: &[AnchorCondition]) -> TokenStream2 {
+    let conditions = conditions.iter().map(AnchorCondition::expand);
+    quote!(&[#(#conditions),*])
 }
 
 #[cfg(test)]

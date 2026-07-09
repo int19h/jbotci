@@ -234,6 +234,197 @@ mod recovery_classification {
     }
 }
 
+mod anchor_metadata {
+    use crate::{Cmavo, Selmaho};
+
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct TextSyntax;
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct ItemSyntax;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        env SyntaxGrammarEnv;
+
+        recursive {
+            text: TextSyntax;
+            item: ItemSyntax;
+        }
+
+        rule "item" item(item) -> enum {
+            literal_item,
+            recursive_item,
+            when feature(ZantufaTags) gated_item,
+            nullable_item,
+            explicit_argument_item,
+        }
+
+        rule "literal item" literal_item(item) -> struct {
+            field be <- cmavo(Be).wf();
+            field bo <- cmavo(Bo).wf();
+            field maybe_fa <- opt(selmaho(Fa).wf());
+            field tail <- opt(arc(item));
+        }
+
+        rule "recursive item" recursive_item(item) -> struct {
+            field inner <- opt(arc(item));
+            field pa <- selmaho(Pa).wf();
+        }
+
+        rule "gated item" gated_item -> struct {
+            field fa <- selmaho(Fa).warn(ExperimentalAnchorMetadata).wf();
+            when feature(ZantufaTags) field bo <- cmavo(Bo).wf();
+        }
+
+        rule "nullable item" nullable_item -> struct {
+            field maybe_bo <- opt(cmavo(Bo));
+        }
+
+        rule "explicit argument item" explicit_argument_item(item) -> struct {
+            field inner <- literal_item(item);
+        }
+
+        rule "text quote" text_quote(text) -> struct {
+            field be <- cmavo(Be).wf();
+            field text <- arc(text);
+            field bo <- opt(cmavo(Bo).wf()).elidable_terminator(Bo);
+        }
+    }
+
+    #[bityzba::requires(!rule.is_empty())]
+    #[bityzba::ensures(ret.rule == rule)]
+    fn anchors_for(rule: &str) -> &'static SyntaxGrammarRuleAnchorMetadata {
+        syntax_grammar_anchor_metadata_by_rule_name(rule).expect("anchor metadata exists")
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn token_set_contains(
+        tokens: &[SyntaxGrammarAnchorToken],
+        token: SyntaxGrammarAnchorToken,
+    ) -> bool {
+        tokens.contains(&token)
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_macro_derives_anchor_metadata() {
+        assert_eq!(
+            SYNTAX_GRAMMAR_RECOVERY_ANCHORS.len(),
+            SYNTAX_GRAMMAR_RULES.len()
+        );
+
+        let literal = anchors_for("literal_item");
+        assert_eq!(literal.fields[0].anchors[0].resume_field, 0);
+        assert!(token_set_contains(
+            literal.fields[0].anchors[0].start_tokens,
+            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+        ));
+        assert!(
+            !token_set_contains(
+                literal.fields[0].anchors[0].start_tokens,
+                SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+            ),
+            "adjacent literal runs match only the run start token",
+        );
+        assert_eq!(literal.fields[1].anchors[0].resume_field, 1);
+        assert!(token_set_contains(
+            literal.fields[1].anchors[0].start_tokens,
+            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+        ));
+        assert_eq!(literal.fields[2].anchors[0].resume_field, 2);
+        assert!(token_set_contains(
+            literal.fields[2].anchors[0].start_tokens,
+            SyntaxGrammarAnchorToken::Selmaho(Selmaho::Fa),
+        ));
+
+        let item = anchors_for("item");
+        assert!(item.fields.is_empty(), "enum rules carry no field anchors");
+        assert!(item.first.iter().any(|entry| token_set_contains(
+            entry.tokens,
+            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be)
+        )));
+        assert!(item.first.iter().any(|entry| token_set_contains(
+            entry.tokens,
+            SyntaxGrammarAnchorToken::Selmaho(Selmaho::Pa)
+        )));
+        let explicit = anchors_for("explicit_argument_item");
+        assert!(explicit.fields[0].anchors.iter().any(|anchor| {
+            anchor.resume_field == 0
+                && token_set_contains(
+                    anchor.start_tokens,
+                    SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+                )
+        }));
+        let gated_first = item
+            .first
+            .iter()
+            .find(|entry| {
+                token_set_contains(entry.tokens, SyntaxGrammarAnchorToken::Selmaho(Selmaho::Fa))
+            })
+            .expect("gated first token");
+        assert_eq!(
+            gated_first.conditions,
+            &[SyntaxGrammarCondition {
+                kind: SyntaxGrammarConditionKind::Feature,
+                name: "ZantufaTags",
+            }]
+        );
+        let gated = anchors_for("gated_item");
+        let gated_field_anchor = gated.fields[1]
+            .anchors
+            .iter()
+            .find(|anchor| {
+                token_set_contains(
+                    anchor.start_tokens,
+                    SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+                )
+            })
+            .expect("gated field anchor");
+        assert_eq!(
+            gated_field_anchor.conditions,
+            &[SyntaxGrammarCondition {
+                kind: SyntaxGrammarConditionKind::Feature,
+                name: "ZantufaTags",
+            }]
+        );
+
+        let tail_anchors = &literal.fields[3].anchors;
+        assert!(tail_anchors.iter().any(|anchor| {
+            anchor.resume_field == 3
+                && token_set_contains(
+                    anchor.start_tokens,
+                    SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+                )
+        }));
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_macro_derives_subtext_containers() {
+        assert_eq!(SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS.len(), 1);
+        let container = &SYNTAX_GRAMMAR_SUBTEXT_CONTAINERS[0];
+        assert_eq!(container.rule, "text_quote");
+        assert_eq!(container.opener_field, 0);
+        assert_eq!(container.text_field, 1);
+        assert_eq!(container.closer_field, 2);
+        assert!(token_set_contains(
+            container.opener_tokens,
+            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Be),
+        ));
+        assert!(token_set_contains(
+            container.closer_tokens,
+            SyntaxGrammarAnchorToken::Cmavo(Cmavo::Bo),
+        ));
+    }
+}
+
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 #[test]
