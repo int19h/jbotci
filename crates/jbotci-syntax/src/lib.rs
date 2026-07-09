@@ -207,7 +207,8 @@ pub struct SyntaxParseAttempt {
 }
 
 #[invariant(errors.windows(2).all(|window| syntax_error_byte_start(&window[0]) <= syntax_error_byte_start(&window[1])))]
-#[expensive_invariant(errors.is_empty() == parse_tree.clone().try_into_valid().is_ok())]
+#[expensive_invariant(errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&parse_tree))]
+#[expensive_invariant(recovered_syntax_error_indices_in_range(&parse_tree, errors.len()))]
 #[derive(Debug, Clone)]
 pub struct RecoveredSyntaxParse {
     pub parse_tree: Box<generated_model::recovered::TextSyntax>,
@@ -220,6 +221,64 @@ pub struct RecoveredSyntaxParse {
 pub struct RecoveredSyntaxParseAttempt {
     pub result: RecoveredSyntaxParse,
     pub trace: Option<TraceReport>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_tree_has_no_error_slots(
+    parse_tree: &generated_model::recovered::TextSyntax,
+) -> bool {
+    jbotci_tree::RecoveredFieldState::recovery_error_slots(parse_tree) == 0
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_error_indices_in_range(
+    parse_tree: &generated_model::recovered::TextSyntax,
+    error_count: usize,
+) -> bool {
+    let mut visitor = RecoveredSyntaxErrorIndexVisitor {
+        error_count,
+        indices_in_range: true,
+    };
+    generated_model::recovered::TreeNode::visit_in_order(parse_tree, &mut visitor);
+    visitor.indices_in_range
+}
+
+#[invariant(true)]
+struct RecoveredSyntaxErrorIndexVisitor {
+    error_count: usize,
+    indices_in_range: bool,
+}
+
+impl<'tree> TreeVisitor<'tree> for RecoveredSyntaxErrorIndexVisitor {
+    type Node = generated_model::recovered::NodeRef<'tree>;
+    type Atom = generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + Serialize>(
+        &mut self,
+        item: &'tree E,
+    ) {
+        let Some(error_index) = recovered_error_index(item) else {
+            self.indices_in_range = false;
+            return;
+        };
+        if error_index >= self.error_count {
+            self.indices_in_range = false;
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| index < usize::MAX))]
+fn recovered_error_index<E: Serialize>(item: &E) -> Option<usize> {
+    let value = serde_json::to_value(item).ok()?;
+    value
+        .get("error_index")
+        .and_then(Value::as_u64)
+        .and_then(|index| usize::try_from(index).ok())
 }
 
 #[requires(true)]
@@ -2865,7 +2924,7 @@ fn parse_syntax_tree_with_source_and_options_attempt_inner(
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.errors.is_empty() == ret.parse_tree.clone().try_into_valid().is_ok())]
+#[expensive_ensures(ret.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.parse_tree))]
 pub fn parse_syntax_tree_recovered_with_source_and_options(
     words: &[WordLike],
     source: &str,
@@ -2876,7 +2935,7 @@ pub fn parse_syntax_tree_recovered_with_source_and_options(
 
 #[requires(true)]
 #[ensures(true)]
-#[expensive_ensures(ret.result.errors.is_empty() == ret.result.parse_tree.clone().try_into_valid().is_ok())]
+#[expensive_ensures(ret.result.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.result.parse_tree))]
 pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
     words: &[WordLike],
     source: &str,

@@ -1,0 +1,12 @@
+id = "adhoc.recovery.syntax.dialect-gated-anchor"
+lojban = "mi ku ke broda ke'e i do"
+dialect = "(zantufa)"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]

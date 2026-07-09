@@ -744,6 +744,8 @@ pub struct SyntaxExpectation {
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
     #[serde(default)]
+    pub recovered: Option<RecoveredExpectation>,
+    #[serde(default)]
     pub xfail: Option<XfailExpectation>,
 }
 

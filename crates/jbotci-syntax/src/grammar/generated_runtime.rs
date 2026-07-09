@@ -17,7 +17,8 @@ use super::{
 };
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    SyntaxWordCategory, Token, tree::WithFreeModifiers,
+    SyntaxWordCategory, Token,
+    tree::{SyntaxRecoveryItem, WithFreeModifiers},
 };
 
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
@@ -567,6 +568,418 @@ where
 }
 
 #[contract_trait]
+pub(crate) trait RecoveredSyntaxSlot: Sized {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self;
+}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for jbotci_tree::Recovered<T, SyntaxRecoveryItem> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Self::error(item)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        match self {
+            Self::Valid(value) => Self::prefix_boxed(vec![item], value),
+            Self::Prefix(jbotci_tree::RecoveredPrefix { errors, value }) => {
+                let mut errors = errors.into_vec();
+                errors.insert(0, item);
+                Self::prefix_boxed(errors, value)
+            }
+            Self::Error(existing) => Self::error(existing),
+        }
+    }
+}
+
+#[contract_trait]
+trait RecoveredSyntaxRequiredSlot: RecoveredSyntaxSlot {}
+
+impl<T> RecoveredSyntaxRequiredSlot for jbotci_tree::Recovered<T, SyntaxRecoveryItem> {}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for Vec<T>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        vec![T::from_recovery_item(item)]
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn prepend_recovery_item(mut self, item: SyntaxRecoveryItem) -> Self {
+        if let Some(first) = self.first_mut() {
+            let placeholder = T::from_recovery_item(item.clone());
+            let previous = std::mem::replace(first, placeholder);
+            *first = previous.prepend_recovery_item(item);
+        } else {
+            self.push(T::from_recovery_item(item));
+        }
+        self
+    }
+}
+
+impl<T> RecoveredSyntaxRequiredSlot for Vec<T> where T: RecoveredSyntaxSlot {}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for vec1::Vec1<T>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        vec1::Vec1::new(T::from_recovery_item(item))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        let mut values = self.into_vec();
+        let first = values
+            .first_mut()
+            .expect("Vec1 contains at least one value");
+        let placeholder = T::from_recovery_item(item.clone());
+        let previous = std::mem::replace(first, placeholder);
+        *first = previous.prepend_recovery_item(item);
+        vec1::Vec1::try_from_vec(values).expect("Vec1 recovery prefix preserves non-empty vector")
+    }
+}
+
+impl<T> RecoveredSyntaxRequiredSlot for vec1::Vec1<T> where T: RecoveredSyntaxSlot {}
+
+#[contract_trait]
+impl<A> RecoveredSyntaxSlot for smallvec::SmallVec<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        smallvec::SmallVec::from_vec(vec![A::Item::from_recovery_item(item)])
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn prepend_recovery_item(mut self, item: SyntaxRecoveryItem) -> Self {
+        if let Some(first) = self.first_mut() {
+            let placeholder = A::Item::from_recovery_item(item.clone());
+            let previous = std::mem::replace(first, placeholder);
+            *first = previous.prepend_recovery_item(item);
+        } else {
+            self.push(A::Item::from_recovery_item(item));
+        }
+        self
+    }
+}
+
+impl<A> RecoveredSyntaxRequiredSlot for smallvec::SmallVec<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredSyntaxSlot,
+{
+}
+
+#[contract_trait]
+impl<A> RecoveredSyntaxSlot for vec1::smallvec_v1::SmallVec1<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        vec1::smallvec_v1::SmallVec1::try_from_vec(vec![A::Item::from_recovery_item(item)])
+            .expect("one recovery item creates non-empty SmallVec1")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        let mut values = self.into_vec();
+        let first = values
+            .first_mut()
+            .expect("SmallVec1 contains at least one value");
+        let placeholder = A::Item::from_recovery_item(item.clone());
+        let previous = std::mem::replace(first, placeholder);
+        *first = previous.prepend_recovery_item(item);
+        vec1::smallvec_v1::SmallVec1::try_from_vec(values)
+            .expect("SmallVec1 recovery prefix preserves non-empty vector")
+    }
+}
+
+impl<A> RecoveredSyntaxRequiredSlot for vec1::smallvec_v1::SmallVec1<A>
+where
+    A: smallvec::Array,
+    A::Item: RecoveredSyntaxSlot,
+{
+}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for Option<T>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Some(T::from_recovery_item(item))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some())]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        Some(match self {
+            Some(value) => value.prepend_recovery_item(item),
+            None => T::from_recovery_item(item),
+        })
+    }
+}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for Box<T>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Box::new(T::from_recovery_item(item))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        Box::new((*self).prepend_recovery_item(item))
+    }
+}
+
+impl<T> RecoveredSyntaxRequiredSlot for Box<T> where T: RecoveredSyntaxSlot {}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for std::sync::Arc<T>
+where
+    T: Clone + RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        std::sync::Arc::new(T::from_recovery_item(item))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        let value = std::sync::Arc::try_unwrap(self).unwrap_or_else(|value| (*value).clone());
+        std::sync::Arc::new(value.prepend_recovery_item(item))
+    }
+}
+
+impl<T> RecoveredSyntaxRequiredSlot for std::sync::Arc<T> where T: Clone + RecoveredSyntaxSlot {}
+
+#[contract_trait]
+impl<T, F> RecoveredSyntaxSlot for WithFreeModifiers<T, F>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Self {
+            value: T::from_recovery_item(item),
+            free_modifiers: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        Self {
+            value: self.value.prepend_recovery_item(item),
+            free_modifiers: self.free_modifiers,
+        }
+    }
+}
+
+impl<T, F> RecoveredSyntaxRequiredSlot for WithFreeModifiers<T, F> where T: RecoveredSyntaxSlot {}
+
+#[contract_trait]
+impl<T> RecoveredSyntaxSlot for super::generated_model::recovered::WithFreeModifiers<T>
+where
+    T: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Self {
+            value: T::from_recovery_item(item),
+            free_modifiers: Vec::new(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        Self {
+            value: self.value.prepend_recovery_item(item),
+            free_modifiers: self.free_modifiers,
+        }
+    }
+}
+
+impl<T> RecoveredSyntaxRequiredSlot for super::generated_model::recovered::WithFreeModifiers<T> where
+    T: RecoveredSyntaxSlot
+{
+}
+
+#[contract_trait]
+impl<E, Links> RecoveredSyntaxSlot for jbotci_tree::Chain<E, Links>
+where
+    E: RecoveredSyntaxSlot,
+    Links: Default,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        Self {
+            first: E::from_recovery_item(item),
+            links: Links::default(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        Self {
+            first: self.first.prepend_recovery_item(item),
+            links: self.links,
+        }
+    }
+}
+
+impl<E, Links> RecoveredSyntaxRequiredSlot for jbotci_tree::Chain<E, Links>
+where
+    E: RecoveredSyntaxSlot,
+    Links: Default,
+{
+}
+
+#[contract_trait]
+impl<A, B> RecoveredSyntaxSlot for (Option<A>, B)
+where
+    A: RecoveredSyntaxSlot,
+    B: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        (None, B::from_recovery_item(item))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        match self.0 {
+            Some(first) => (Some(first.prepend_recovery_item(item)), self.1),
+            None => (None, self.1.prepend_recovery_item(item)),
+        }
+    }
+}
+
+#[contract_trait]
+impl<A, B> RecoveredSyntaxSlot for (A, Option<B>)
+where
+    A: RecoveredSyntaxRequiredSlot,
+    B: RecoveredSyntaxSlot,
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
+        (A::from_recovery_item(item), None)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn prepend_recovery_item(self, item: SyntaxRecoveryItem) -> Self {
+        (self.0.prepend_recovery_item(item), self.1)
+    }
+}
+
+#[requires(!rule.is_empty())]
+#[ensures(true)]
+pub(crate) fn recovered_field_parser<'tokens, O, P>(
+    rule: &'static str,
+    field_index: usize,
+    parser: P,
+) -> BoxedParser<'tokens, O>
+where
+    O: RecoveredSyntaxSlot + 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let checkpoint = input.save();
+        let location = ParserInput::cursor_location(checkpoint.cursor().inner());
+        let active_frame = input
+            .state()
+            .active_syntax_rules()
+            .iter()
+            .rev()
+            .find(|frame| frame.rule() == rule);
+        let instance_byte_start = match active_frame {
+            Some(frame) => frame.byte_start(),
+            None => input.state().byte_offset_for_location(location),
+        };
+        let directive = input.state().consume_recovery_directive(
+            rule,
+            instance_byte_start,
+            field_index,
+            location,
+        );
+        let item = directive.map(|directive| {
+            advance_to_location(input, directive.resume_token_index);
+            input.state().recovery_item_for_directive(&directive)
+        });
+        let value = input.parse(&parser)?;
+        match item {
+            Some(item) => Ok(value.prepend_recovery_item(item)),
+            None => Ok(value),
+        }
+    })
+    .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_free_modifier_list_parser<'tokens, F>(
+    free_modifier: BoxedParser<'tokens, F>,
+) -> BoxedParser<'tokens, Vec<jbotci_tree::Recovered<F, crate::tree::SyntaxRecoveryItem>>>
+where
+    F: 'tokens,
+{
+    strict_free_modifier_list_parser(free_modifier)
+        .map(|free_modifiers| {
+            free_modifiers
+                .into_iter()
+                .map(jbotci_tree::Recovered::valid)
+                .collect()
+        })
+        .boxed()
+}
+
+#[contract_trait]
 pub(crate) trait SyntaxFirstWord {
     #[requires(true)]
     #[ensures(true)]
@@ -606,6 +1019,24 @@ where
 
 #[requires(true)]
 #[ensures(true)]
+pub(crate) fn recovered_cll_prohibited_free_modifier_list_parser<'tokens, F>(
+    free_modifier: BoxedParser<'tokens, F>,
+) -> BoxedParser<'tokens, Vec<jbotci_tree::Recovered<F, crate::tree::SyntaxRecoveryItem>>>
+where
+    F: SyntaxFirstWord + 'tokens,
+{
+    strict_cll_prohibited_free_modifier_list_parser(free_modifier)
+        .map(|free_modifiers| {
+            free_modifiers
+                .into_iter()
+                .map(jbotci_tree::Recovered::valid)
+                .collect()
+        })
+        .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(crate) fn with_free_modifier_list<'tokens, O, F, P>(
     inner: P,
     free_modifier_list: BoxedParser<'tokens, Vec<F>>,
@@ -633,6 +1064,15 @@ where
         Err(expected_found_at_current(input, "free modifier"))
     })
     .boxed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn recovered_empty_free_modifier_parser<'tokens, F>() -> BoxedParser<'tokens, F>
+where
+    F: 'tokens,
+{
+    strict_empty_free_modifier_parser()
 }
 
 #[requires(true)]

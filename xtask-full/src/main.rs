@@ -42,7 +42,7 @@ use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxWarning,
     parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_with_source_and_options,
+    parse_syntax_tree_recovered_with_source_and_options, parse_syntax_tree_with_source_and_options,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -5745,6 +5745,7 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
                     status: ExpectationStatus::Success,
                     raw: None,
                     diagnostics: vec![],
+                    recovered: None,
                     xfail: None,
                 }),
                 ..Expectations::default()
@@ -11750,7 +11751,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
     };
 
-    match parse_syntax_tree_with_source_and_options(
+    let strict_result = match parse_syntax_tree_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -11864,7 +11865,102 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
             }
         },
+    };
+    if strict_result.status != fixtures::FacetStatus::Passed {
+        return strict_result;
     }
+    if let Some(recovered) = &expectation.recovered {
+        run_recovered_syntax_fixture(fixture, recovered)
+    } else {
+        strict_result
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_recovered_syntax_fixture(
+    fixture: &LoadedTestCase,
+    expectation: &fixtures::RecoveredExpectation,
+) -> FacetResult {
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+    let attempt = attempt.into_data();
+    let words = match attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "recovered syntax blocked by morphology error: {error}"
+            ));
+        }
+    };
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    );
+    let actual_status = if recovered.errors.is_empty() {
+        ExpectationStatus::Success
+    } else {
+        ExpectationStatus::Failure
+    };
+    if expectation.status != actual_status {
+        return FacetResult::failed(format!(
+            "recovered syntax status mismatch: expected {:?}, got {:?}",
+            expectation.status, actual_status
+        ));
+    }
+    let mut diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    diagnostics.extend(recovered_syntax_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &recovered,
+    ));
+    diagnostics.sort_by_key(|diagnostic| {
+        (
+            diagnostic.byte_span[0],
+            diagnostic.byte_span[1],
+            diagnostic.code.clone(),
+        )
+    });
+    if expectation.diagnostics == diagnostics {
+        FacetResult::passed()
+    } else {
+        FacetResult::failed(format!(
+            "recovered syntax diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+            expectation.diagnostics
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_diagnostic_expectation_items(
+    source: &str,
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+) -> Vec<fixtures::DiagnosticExpectation> {
+    recovered
+        .warnings
+        .iter()
+        .map(|warning| {
+            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        })
+        .chain(recovered.errors.iter().map(|error| {
+            let diagnostic = error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        }))
+        .collect()
 }
 
 #[requires(true)]

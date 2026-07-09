@@ -2,10 +2,11 @@ mod support;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use jbotci_source::SourceId;
 use support::fixtures::{
     BracketExpectations, CllSelector, CommandOutputExpectation, DiagnosticExpectation,
@@ -16,8 +17,8 @@ use support::fixtures::{
     OutputExpectations, Provenance, RecoveredExpectation, ReferenceExpectation,
     ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation, TersmuOutputExpectation,
     TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
-    import_export_file, load_fixture_file, load_fixture_tree, run_fixture_facets,
-    run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
+    fixture_paths, import_export_file, load_fixture_file, load_fixture_path, load_fixture_tree,
+    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -115,6 +116,133 @@ fn recovered_morphology_contracts_hold_for_fixture_corpus() {
         checked += 1;
     }
     assert!(checked > 0);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_contracts_hold_for_fixture_corpus() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let paths = fixture_paths(&root).expect("fixture paths should load");
+    if let Some((start, end)) = recovered_syntax_contract_worker_range() {
+        let checked = recovered_syntax_contract_fixture_range(&paths, start, end)
+            .expect("fixture chunk should load");
+        println!("checked={checked}");
+        return;
+    }
+
+    let current_exe = std::env::current_exe().expect("current test binary path");
+    let mut checked = 0usize;
+    for start in (0..paths.len()).step_by(RECOVERED_SYNTAX_CONTRACT_CHUNK_SIZE) {
+        let end = paths
+            .len()
+            .min(start + RECOVERED_SYNTAX_CONTRACT_CHUNK_SIZE);
+        let output = Command::new(&current_exe)
+            .arg("recovered_syntax_contracts_hold_for_fixture_corpus")
+            .arg("--exact")
+            .arg("--nocapture")
+            .env("RECOVERED_SYNTAX_CONTRACT_START", start.to_string())
+            .env("RECOVERED_SYNTAX_CONTRACT_END", end.to_string())
+            .output()
+            .expect("fixture chunk process should run");
+        if !output.status.success() {
+            panic!(
+                "fixture chunk {start}..{end} failed with status {:?}\nstdout:\n{}\nstderr:\n{}",
+                output.status.code(),
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }
+        checked += recovered_syntax_contract_checked_count(&output.stdout);
+    }
+    assert!(checked > 0);
+}
+
+const RECOVERED_SYNTAX_CONTRACT_CHUNK_SIZE: usize = 1000;
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|(start, end)| start <= end))]
+fn recovered_syntax_contract_worker_range() -> Option<(usize, usize)> {
+    let start = std::env::var("RECOVERED_SYNTAX_CONTRACT_START")
+        .ok()?
+        .parse()
+        .ok()?;
+    let end = std::env::var("RECOVERED_SYNTAX_CONTRACT_END")
+        .ok()?
+        .parse()
+        .ok()?;
+    (start <= end).then_some((start, end))
+}
+
+#[requires(start <= end)]
+#[ensures(ret.as_ref().is_ok_and(|checked| *checked <= paths.len()) || ret.is_err())]
+fn recovered_syntax_contract_fixture_range(
+    paths: &[PathBuf],
+    start: usize,
+    end: usize,
+) -> Result<usize, FixtureError> {
+    let start = start.min(paths.len());
+    let end = end.min(paths.len());
+    let mut checked = 0usize;
+    for path in &paths[start..end] {
+        let fixture = load_fixture_path(path)?;
+        let dialect = fixture
+            .test_case
+            .dialect_definition()
+            .unwrap_or_else(|error| panic!("{} dialect error: {error}", fixture.test_case.id));
+        let morphology_options =
+            jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+        let syntax_options = jbotci_syntax::ParseOptions::default()
+            .with_dialect_definition(&dialect)
+            .with_max_recovery_errors(1);
+        let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+            &fixture.test_case.lojban,
+            &morphology_options,
+            Some(SourceId("<fixture>".to_owned())),
+        ) else {
+            continue;
+        };
+        let Ok(strict) = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        ) else {
+            continue;
+        };
+        let strict = *strict;
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            &fixture.test_case.lojban,
+            &syntax_options,
+        )
+        .into_data();
+        assert!(
+            recovered.errors.is_empty(),
+            "{} strict parse succeeded but recovered API reported errors: {:?}",
+            fixture.test_case.id,
+            recovered.errors,
+        );
+        let valid = (*recovered.parse_tree).try_into_valid();
+        assert_eq!(
+            valid,
+            Ok(strict),
+            "{} zero-error recovered parse differs from strict parse",
+            fixture.test_case.id,
+        );
+        checked += 1;
+    }
+    Ok(checked)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_contract_checked_count(stdout: &[u8]) -> usize {
+    let stdout = String::from_utf8_lossy(stdout);
+    stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("checked=")?.parse().ok())
+        .unwrap_or(0)
 }
 
 #[test]
@@ -521,8 +649,9 @@ fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
             .expect("fixture dialect should parse");
         let morphology_options =
             jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
-        let syntax_options =
-            jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        let syntax_options = jbotci_syntax::ParseOptions::default()
+            .with_dialect_definition(&dialect)
+            .with_max_recovery_errors(1);
         let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
             &fixture.test_case.lojban,
             &morphology_options,
@@ -552,6 +681,35 @@ fn recovered_syntax_first_error_matches_strict_failure_fixtures_inner() {
         checked += 1;
     }
     assert!(checked > 0, "expected at least one syntax-failure fixture");
+}
+
+#[cfg(not(debug_assertions))]
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_recovery_fixtures_match() {
+    let fixture_root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/adhoc/recovery/syntax");
+    let fixtures = load_fixture_tree(&fixture_root).expect("syntax recovery fixtures");
+    assert!(!fixtures.is_empty());
+    let mut checked = 0usize;
+    for fixture in fixtures {
+        if fixture.test_case.id == "adhoc.recovery.syntax.error-cap-truncation" {
+            continue;
+        }
+        let Some(expectation) = fixture
+            .test_case
+            .expectations
+            .syntax
+            .as_ref()
+            .and_then(|syntax| syntax.recovered.as_ref())
+        else {
+            continue;
+        };
+        assert_recovered_syntax_expectation(&fixture.test_case, expectation);
+        checked += 1;
+    }
+    assert!(checked > 0, "expected recovered syntax expectations");
 }
 
 #[test]
@@ -724,6 +882,10 @@ fn writer_keeps_tree_and_output_values() {
                     sha256: None,
                 }),
                 diagnostics: vec![],
+                recovered: Some(new!(RecoveredExpectation {
+                    status: ExpectationStatus::Success,
+                    diagnostics: vec![],
+                })),
                 xfail: Some(XfailExpectation {
                     source: "test".into(),
                     reason: "intentional writer coverage".into(),
@@ -757,6 +919,7 @@ fn writer_keeps_tree_and_output_values() {
     assert!(!text.contains("words = ["));
     assert!(!text.contains("options = "));
     assert!(text.contains("[expectations.syntax]\nstatus = \"success\"\nraw = "));
+    assert!(text.contains("[expectations.syntax.recovered]\nstatus = \"success\""));
     assert!(text.contains("[expectations.semantics.refs]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("parse-tree"));
     assert!(
@@ -1292,6 +1455,90 @@ fn recovered_morphology_diagnostics(
         )
     });
     diagnostics
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn assert_recovered_syntax_expectation(test_case: &TestCase, expectation: &RecoveredExpectation) {
+    let dialect = test_case
+        .dialect_definition()
+        .unwrap_or_else(|error| panic!("{} dialect error: {error}", test_case.id));
+    let morphology_options =
+        jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
+    let syntax_options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+    let attempt =
+        jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+            &test_case.lojban,
+            &morphology_options,
+            Some(SourceId("<fixture>".to_owned())),
+        )
+        .into_data();
+    let words = attempt
+        .result
+        .unwrap_or_else(|error| panic!("{} morphology should parse: {error}", test_case.id));
+    let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+        &words,
+        &test_case.lojban,
+        &syntax_options,
+    );
+    let actual_status = if recovered.errors.is_empty() {
+        ExpectationStatus::Success
+    } else {
+        ExpectationStatus::Failure
+    };
+    assert_eq!(actual_status, expectation.status, "{}", test_case.id);
+    let mut diagnostics =
+        morphology_warning_diagnostics_from_warnings(test_case, &attempt.warnings);
+    diagnostics.extend(recovered_syntax_diagnostics(test_case, &recovered));
+    diagnostics.sort_by_key(|diagnostic| {
+        (
+            diagnostic.byte_span[0],
+            diagnostic.byte_span[1],
+            diagnostic.code.clone(),
+        )
+    });
+    assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn morphology_warning_diagnostics_from_warnings(
+    test_case: &TestCase,
+    warnings: &[jbotci_morphology::MorphologyWarning],
+) -> Vec<DiagnosticExpectation> {
+    warnings
+        .iter()
+        .map(|warning| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        })
+        .collect()
+}
+
+#[requires(!test_case.id.is_empty())]
+#[ensures(true)]
+fn recovered_syntax_diagnostics(
+    test_case: &TestCase,
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+) -> Vec<DiagnosticExpectation> {
+    recovered
+        .warnings
+        .iter()
+        .map(|warning| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        })
+        .chain(recovered.errors.iter().map(|error| {
+            DiagnosticExpectation::from_diagnostic(
+                &test_case.lojban,
+                &error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), &test_case.lojban),
+            )
+        }))
+        .collect()
 }
 
 #[requires(!id.is_empty())]

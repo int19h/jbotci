@@ -1,0 +1,14 @@
+id = "adhoc.recovery.syntax.two-errors-different-statements"
+lojban = "mi ku i do ku i mi klama"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [
+    { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" },
+    { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [11, 13], source-text = "ku", message = "unexpected cmavo" },
+]

@@ -14,7 +14,10 @@ use super::tokens::{
     cmavo, cmevla_word, pa_word, relation_word, selmaho, spanned_tokens,
     syntax_error_with_diagnostic_candidate,
 };
-use super::{BoxedParser, ParseExtra, ParserInput, ParserState, SyntaxParseError, SyntaxRuleFrame};
+use super::{
+    BoxedParser, ParseExtra, ParserInput, ParserState, RecoveryDirective, SyntaxParseError,
+    SyntaxRuleFrame,
+};
 use crate::{
     ExperimentalConstruct, ParseOptions, SyntaxWarning, SyntaxWordCategory, Token, TraceReport,
 };
@@ -3008,6 +3011,35 @@ pub mod generated_model {
         }
     }
 
+    #[bityzba::invariant(true)]
+    struct FirstRecoveredGeneratedTokenVisitor<'tree> {
+        first: Option<&'tree Token>,
+    }
+
+    impl<'tree> jbotci_tree::TreeVisitor<'tree> for FirstRecoveredGeneratedTokenVisitor<'tree> {
+        type Node = recovered::NodeRef<'tree>;
+        type Atom = recovered::AtomRef<'tree>;
+
+        #[bityzba::requires(true)]
+        #[bityzba::ensures(true)]
+        fn visit_atom(&mut self, atom: Self::Atom) {
+            if self.first.is_some() {
+                return;
+            }
+            let recovered::AtomRef::Token(token) = atom;
+            self.first = Some(token);
+        }
+    }
+
+    #[bityzba::contract_trait]
+    impl generated_runtime::SyntaxFirstWord for recovered::FreeModifierSyntax {
+        fn first_word(&self) -> Option<&Token> {
+            let mut visitor = FirstRecoveredGeneratedTokenVisitor { first: None };
+            recovered::TreeNode::visit_in_order(self, &mut visitor);
+            visitor.first
+        }
+    }
+
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
     pub fn parse_text(
@@ -3049,6 +3081,19 @@ pub mod generated_model {
     pub(crate) struct GeneratedParsedTextDetailedAttempt {
         pub result: Result<GeneratedParsedText, GeneratedParseFailure>,
         pub trace: Option<TraceReport>,
+    }
+
+    #[bityzba::invariant(true)]
+    pub(crate) struct GeneratedRecoveredParsedText {
+        pub text: recovered::TextSyntax,
+        pub warnings: Vec<SyntaxWarning>,
+    }
+
+    #[bityzba::invariant(true)]
+    pub(crate) struct GeneratedRecoveredParsedTextAttempt {
+        pub result: Result<GeneratedRecoveredParsedText, GeneratedParseFailure>,
+        pub trace: Option<TraceReport>,
+        pub unconsumed_directives: usize,
     }
 
     #[bityzba::requires(true)]
@@ -3111,6 +3156,53 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
+    pub(crate) fn parse_recovered_text_attempt(
+        words: &[Token],
+        source: Option<&str>,
+        options: &ParseOptions,
+        directives: &[RecoveryDirective],
+    ) -> GeneratedRecoveredParsedTextAttempt {
+        let tokens = spanned_tokens(words);
+        let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
+        let mut state = ParserState::new_with_recovery(words, source, options, directives);
+        let result = recovered_generated_text_parser_with_eof()
+            .parse_with_state(
+                tokens
+                    .as_slice()
+                    .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
+                &mut state,
+            )
+            .into_result();
+        let diagnostic_candidate = state.diagnostic_candidate();
+        let diagnostic_candidates = state.diagnostic_candidates_snapshot();
+        let finish = state.finish();
+        let result = match result {
+            Ok(text) => Ok(GeneratedRecoveredParsedText {
+                text,
+                warnings: finish.warnings,
+            }),
+            Err(errors) => {
+                let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
+                let public_error = syntax_error_with_diagnostic_candidate(
+                    errors.clone(),
+                    diagnostic_candidate,
+                    options.error_context_depth,
+                );
+                Err(GeneratedParseFailure {
+                    public_error,
+                    branches,
+                })
+            }
+        };
+        GeneratedRecoveredParsedTextAttempt {
+            result,
+            trace: finish.trace,
+            unconsumed_directives: finish.unconsumed_recovery_directives,
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
     fn generated_recovery_branches(
         diagnostic_candidates: &[SyntaxParseError<'_>],
         errors: &[SyntaxParseError<'_>],
@@ -3138,6 +3230,17 @@ pub mod generated_model {
     fn strict_generated_text_parser_with_eof<'tokens>() -> BoxedParser<'tokens, TextSyntax> {
         custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
             let text = input.parse(&strict_generated_text_parser())?;
+            input.parse(end()).map(|()| text)
+        })
+        .boxed()
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    fn recovered_generated_text_parser_with_eof<'tokens>()
+    -> BoxedParser<'tokens, recovered::TextSyntax> {
+        custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+            let text = input.parse(&recovered_generated_text_parser())?;
             input.parse(end()).map(|()| text)
         })
         .boxed()
