@@ -3102,20 +3102,6 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextAttempt {
-        let attempt = parse_text_detailed_attempt(words, options);
-        let result = attempt.result.map_err(|failure| failure.public_error);
-        GeneratedParsedTextAttempt {
-            result,
-            trace: attempt.trace,
-        }
-    }
-
-    #[bityzba::requires(true)]
-    #[bityzba::ensures(true)]
-    pub(crate) fn parse_text_detailed_attempt(
-        words: &[Token],
-        options: &ParseOptions,
-    ) -> GeneratedParsedTextDetailedAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new(words, options);
@@ -3127,8 +3113,7 @@ pub mod generated_model {
                 &mut state,
             )
             .into_result();
-        let diagnostic_candidate = state.diagnostic_candidate();
-        let diagnostic_candidates = state.diagnostic_candidates_snapshot();
+        let diagnostic_candidate = result.as_ref().err().map(|_| state.diagnostic_candidate());
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedParsedText {
@@ -3136,6 +3121,52 @@ pub mod generated_model {
                 warnings: finish.warnings,
             }),
             Err(errors) => {
+                let public_error = syntax_error_with_diagnostic_candidate(
+                    errors.clone(),
+                    diagnostic_candidate.expect("failure context captured for syntax errors"),
+                    options.error_context_depth,
+                );
+                Err(public_error)
+            }
+        };
+        GeneratedParsedTextAttempt {
+            result,
+            trace: finish.trace,
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_text_detailed_attempt(
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextDetailedAttempt {
+        let tokens = spanned_tokens(words);
+        let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
+        let mut state = ParserState::new_with_recovery_branches(words, options);
+        let result = strict_generated_text_parser_with_eof()
+            .parse_with_state(
+                tokens
+                    .as_slice()
+                    .split_spanned(SimpleSpan::from(eoi_offset..eoi_offset)),
+                &mut state,
+            )
+            .into_result();
+        let failure_context = result.as_ref().err().map(|_| {
+            (
+                state.diagnostic_candidate(),
+                state.diagnostic_candidates_snapshot(),
+            )
+        });
+        let finish = state.finish();
+        let result = match result {
+            Ok(text) => Ok(GeneratedParsedText {
+                text,
+                warnings: finish.warnings,
+            }),
+            Err(errors) => {
+                let (diagnostic_candidate, diagnostic_candidates) =
+                    failure_context.expect("failure context captured for syntax errors");
                 let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
                 let public_error = syntax_error_with_diagnostic_candidate(
                     errors.clone(),
@@ -3173,8 +3204,12 @@ pub mod generated_model {
                 &mut state,
             )
             .into_result();
-        let diagnostic_candidate = state.diagnostic_candidate();
-        let diagnostic_candidates = state.diagnostic_candidates_snapshot();
+        let failure_context = result.as_ref().err().map(|_| {
+            (
+                state.diagnostic_candidate(),
+                state.diagnostic_candidates_snapshot(),
+            )
+        });
         let finish = state.finish();
         let result = match result {
             Ok(text) => Ok(GeneratedRecoveredParsedText {
@@ -3182,6 +3217,8 @@ pub mod generated_model {
                 warnings: finish.warnings,
             }),
             Err(errors) => {
+                let (diagnostic_candidate, diagnostic_candidates) =
+                    failure_context.expect("failure context captured for syntax errors");
                 let branches = generated_recovery_branches(&diagnostic_candidates, &errors);
                 let public_error = syntax_error_with_diagnostic_candidate(
                     errors.clone(),

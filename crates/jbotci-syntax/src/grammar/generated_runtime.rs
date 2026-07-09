@@ -201,24 +201,36 @@ where
     custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
         let checkpoint = input.save();
         let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+        let recovery_index = input.state().syntax_recovery_memo_index();
         if let Some((output, end_location, warnings)) =
-            input.state().syntax_memo_success::<O>(name, start_location)
+            input
+                .state()
+                .syntax_memo_success::<O>(name, start_location, recovery_index)
         {
             advance_to_location(input, end_location);
             input.state().extend_warnings(&warnings);
             return Ok(output);
         }
-        if let Some(error) = input.state().syntax_memo_failure(name, start_location) {
+        if let Some(error) = input
+            .state()
+            .syntax_memo_failure(name, start_location, recovery_index)
+        {
             input.rewind(checkpoint);
             return Err(error);
         }
-        if !input.state().enter_syntax_memo_rule(name, start_location) {
+        if !input
+            .state()
+            .enter_syntax_memo_rule(name, start_location, recovery_index)
+        {
             input.rewind(checkpoint);
             return Err(expected_found_named_at_current(input, name.to_owned()));
         }
         let warning_start = input.state().warning_count();
         let start_byte = input.state().byte_offset_for_location(start_location);
-        input.state().push_syntax_rule(name, start_byte);
+        let track_recovery_branches = input.state().recovery_branch_tracking_enabled();
+        if track_recovery_branches {
+            input.state().push_syntax_rule(name, start_byte);
+        }
         if let Some(construct) = context {
             if input
                 .state()
@@ -254,12 +266,17 @@ where
                 input.state().store_syntax_memo_success(
                     name,
                     start_location,
+                    recovery_index,
                     end_location,
                     output.clone(),
                     warnings,
                 );
-                input.state().pop_syntax_rule();
-                input.state().exit_syntax_memo_rule(name, start_location);
+                if track_recovery_branches {
+                    input.state().pop_syntax_rule();
+                }
+                input
+                    .state()
+                    .exit_syntax_memo_rule(name, start_location, recovery_index);
                 Ok(output)
             }
             Err(error) => {
@@ -280,12 +297,19 @@ where
                 } else {
                     error
                 };
-                input.state().pop_syntax_rule();
+                if track_recovery_branches {
+                    input.state().pop_syntax_rule();
+                }
                 input.rewind(checkpoint);
+                input.state().store_syntax_memo_failure(
+                    name,
+                    start_location,
+                    recovery_index,
+                    error.clone(),
+                );
                 input
                     .state()
-                    .store_syntax_memo_failure(name, start_location, error.clone());
-                input.state().exit_syntax_memo_rule(name, start_location);
+                    .exit_syntax_memo_rule(name, start_location, recovery_index);
                 Err(error)
             }
         }
@@ -571,6 +595,12 @@ where
 pub(crate) trait RecoveredSyntaxSlot: Sized {
     #[requires(true)]
     #[ensures(true)]
+    fn empty_recovery_slot() -> Option<Self> {
+        None
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn from_recovery_item(item: SyntaxRecoveryItem) -> Self;
 
     #[requires(true)]
@@ -611,6 +641,12 @@ impl<T> RecoveredSyntaxSlot for Vec<T>
 where
     T: RecoveredSyntaxSlot,
 {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(Vec::is_empty))]
+    fn empty_recovery_slot() -> Option<Self> {
+        Some(Vec::new())
+    }
+
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
@@ -666,6 +702,12 @@ where
     A: smallvec::Array,
     A::Item: RecoveredSyntaxSlot,
 {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(smallvec::SmallVec::is_empty))]
+    fn empty_recovery_slot() -> Option<Self> {
+        Some(smallvec::SmallVec::new())
+    }
+
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
@@ -733,6 +775,12 @@ impl<T> RecoveredSyntaxSlot for Option<T>
 where
     T: RecoveredSyntaxSlot,
 {
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_some_and(Option::is_none))]
+    fn empty_recovery_slot() -> Option<Self> {
+        Some(None)
+    }
+
     #[requires(true)]
     #[ensures(ret.is_some())]
     fn from_recovery_item(item: SyntaxRecoveryItem) -> Self {
@@ -942,21 +990,129 @@ where
             Some(frame) => frame.byte_start(),
             None => input.state().byte_offset_for_location(location),
         };
-        let directive = input.state().consume_recovery_directive(
+        let empty_slot = O::empty_recovery_slot();
+        let action = input.state().recovery_field_action(
             rule,
             instance_byte_start,
             field_index,
             location,
+            empty_slot.is_some(),
         );
-        let item = directive.map(|directive| {
-            advance_to_location(input, directive.resume_token_index);
-            input.state().recovery_item_for_directive(&directive)
-        });
-        let value = input.parse(&parser)?;
-        match item {
-            Some(item) => Ok(value.prepend_recovery_item(item)),
-            None => Ok(value),
+        let item = match action.map(super::RecoveryFieldAction::into_parts) {
+            Some((super::RecoveryFieldActionKind::Abandon, item, _resume_token_index)) => {
+                if let Some(value) = empty_slot {
+                    return Ok(value);
+                }
+                return Ok(O::from_recovery_item(item.expect(
+                    "required abandoned recovery fields carry a recovery item",
+                )));
+            }
+            Some((super::RecoveryFieldActionKind::Resume, item, Some(resume_token_index))) => {
+                advance_to_location(input, resume_token_index);
+                item
+            }
+            Some((super::RecoveryFieldActionKind::Resume, _, None)) => {
+                unreachable!("resume recovery actions carry a resume token index")
+            }
+            None => None,
+        };
+        let mut value = input.parse(&parser)?;
+        if let Some(item) = item {
+            value = value.prepend_recovery_item(item);
         }
+        let location = ParserInput::cursor_location(input.cursor().inner());
+        if let Some((item, resume_token_index)) = input.state().trailing_recovery_field_action(
+            rule,
+            instance_byte_start,
+            field_index,
+            location,
+        ) {
+            advance_to_location(input, resume_token_index);
+            value = value.prepend_recovery_item(item);
+        }
+        Ok(value)
+    })
+    .boxed()
+}
+
+#[requires(!rule.is_empty())]
+#[requires(min_count <= 1)]
+#[ensures(true)]
+pub(crate) fn recovered_greedy_many_field_parser<'tokens, O, P>(
+    rule: &'static str,
+    field_index: usize,
+    min_count: usize,
+    parser: P,
+) -> BoxedParser<'tokens, Vec<O>>
+where
+    O: RecoveredSyntaxSlot + 'tokens,
+    P: Parser<'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>> + Clone + 'tokens,
+{
+    custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
+        let mut values = Vec::new();
+        loop {
+            let checkpoint = input.save();
+            let start_location = ParserInput::cursor_location(checkpoint.cursor().inner());
+            let active_frame = input
+                .state()
+                .active_syntax_rules()
+                .iter()
+                .rev()
+                .find(|frame| frame.rule() == rule);
+            let instance_byte_start = match active_frame {
+                Some(frame) => frame.byte_start(),
+                None => input.state().byte_offset_for_location(start_location),
+            };
+            let action = input.state().recovery_field_action(
+                rule,
+                instance_byte_start,
+                field_index,
+                start_location,
+                values.len() >= min_count,
+            );
+            match action.map(super::RecoveryFieldAction::into_parts) {
+                Some((super::RecoveryFieldActionKind::Abandon, item, _resume_token_index)) => {
+                    if let Some(item) = item {
+                        values.push(O::from_recovery_item(item));
+                    }
+                    if values.len() >= min_count {
+                        break;
+                    }
+                }
+                Some((super::RecoveryFieldActionKind::Resume, item, Some(resume_token_index))) => {
+                    advance_to_location(input, resume_token_index);
+                    if let Some(item) = item {
+                        values.push(O::from_recovery_item(item));
+                    }
+                    continue;
+                }
+                Some((super::RecoveryFieldActionKind::Resume, _, None)) => {
+                    unreachable!("resume recovery actions carry a resume token index")
+                }
+                None => {}
+            }
+
+            match input.parse(&parser) {
+                Ok(output) => {
+                    let end_location = ParserInput::cursor_location(input.cursor().inner());
+                    if end_location == start_location {
+                        debug_assert!(false, "generated repetition parser accepted empty input");
+                        input.rewind(checkpoint);
+                        break;
+                    }
+                    values.push(output);
+                }
+                Err(error) => {
+                    input.rewind(checkpoint);
+                    if values.len() >= min_count {
+                        input.state().record_diagnostic_candidate(error);
+                        break;
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(values)
     })
     .boxed()
 }

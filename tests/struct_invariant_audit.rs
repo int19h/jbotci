@@ -1784,6 +1784,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture test backend stores scripted outputs and captured invocations",
     ),
     (
+        "tests/fixture_suite.rs:RecoveredSyntaxTreeExpectationVisitor",
+        "fixture test visitor is transient mutable accumulator state converted into validated recovered tree expectations",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:CllSelector",
         "fixture selector validity is checked by fixture profile loading",
     ),

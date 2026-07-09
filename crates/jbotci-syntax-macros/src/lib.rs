@@ -3711,39 +3711,169 @@ fn recovered_sequence_parser_tokens(
     let Some(first) = fields.first() else {
         return Ok((quote!(generated_runtime::empty()), quote!(())));
     };
-    let mut parser = recovered_parser_expr_tokens(
-        &first.parser,
-        arguments,
-        generation,
-        free_modifier_parser,
-        mode,
-    )?;
-    if matches!(first.kind, FieldKind::Field) {
-        parser = quote!(generated_runtime::recovered_field_parser(#rule_name, 0usize, #parser));
-    }
-    let mut pattern = sequence_item_pattern(first);
-    for (field_index, field) in fields.iter().enumerate().skip(1) {
-        let next = recovered_parser_expr_tokens(
-            &field.parser,
+    let mut parser = if matches!(first.kind, FieldKind::Field) {
+        recovered_field_parser_expr_tokens(
+            rule_name,
+            0usize,
+            &first.parser,
             arguments,
             generation,
             free_modifier_parser,
             mode,
-        )?;
+        )?
+    } else {
+        recovered_parser_expr_tokens(
+            &first.parser,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?
+    };
+    let mut pattern = sequence_item_pattern(first);
+    for (field_index, field) in fields.iter().enumerate().skip(1) {
         let next = if matches!(field.kind, FieldKind::Field) {
-            quote!(generated_runtime::recovered_field_parser(
-                #rule_name,
-                #field_index,
-                #next
-            ))
+            recovered_field_parser_expr_tokens(
+                rule_name,
+                field_index,
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
         } else {
-            next
+            recovered_parser_expr_tokens(
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
         };
         let name = sequence_item_pattern(field);
         parser = quote!(#parser.then(#next));
         pattern = quote!((#pattern, #name));
     }
     Ok((parser, pattern))
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(true)]
+fn recovered_field_parser_expr_tokens(
+    rule_name: &str,
+    field_index: usize,
+    parser: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if let ParserExpr::Vector(vector) = parser {
+        if let [item] = vector.items.as_slice() {
+            let repeated = match item {
+                VectorItem::ZeroOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                    })
+                }
+                VectorItem::ZeroOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            __items
+                        })
+                    })
+                }
+                VectorItem::OneOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__items| {
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered non-empty vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::OneOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered non-empty spread vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+            };
+            if let Some(repeated) = repeated {
+                return Ok(repeated);
+            }
+        }
+    }
+
+    let inner =
+        recovered_parser_expr_tokens(parser, arguments, generation, free_modifier_parser, mode)?;
+    Ok(quote!(generated_runtime::recovered_field_parser(
+        #rule_name,
+        #field_index,
+        #inner
+    )))
 }
 
 #[requires(true)]

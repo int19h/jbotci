@@ -22,7 +22,7 @@ use jbotci_diagnostics::{
 use jbotci_dialect::DialectFeature;
 use jbotci_morphology::{Cmavo, Selmaho, Word, WordLike};
 use jbotci_source::SourceSpan;
-use jbotci_tree::TreeVisitor;
+use jbotci_tree::{RecoveryItemState, TreeVisitor};
 use vec1::Vec1;
 
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData};
@@ -50,22 +50,34 @@ type ParseExtra<'tokens> = extra::Full<SyntaxParseError<'tokens>, ParserState<'t
 type BoxedParser<'tokens, O> =
     Boxed<'tokens, 'tokens, ParserInput<'tokens>, O, ParseExtra<'tokens>>;
 
-#[derive(Debug, Clone)]
+// Candidate directives are already sorted by the spec's priority order. This
+// caps pathological no-recovery cases without changing which candidate wins
+// when a high-priority recovery works.
+const MAX_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR: usize = 8;
+
 #[invariant(true)]
+#[derive(Debug, Clone)]
 pub(super) struct ParserStateFinish {
     pub warnings: Vec<SyntaxWarning>,
     pub trace: Option<TraceReport>,
     pub unconsumed_recovery_directives: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ParserCheckpoint {
     warning_count: usize,
     syntax_context_count: usize,
     syntax_rule_count: usize,
-    consumed_recovery_directives: usize,
+    recovery: Option<ParserRecoveryCheckpoint>,
     trace_save: bool,
+}
+
+#[invariant(active_recovery_directive.as_ref().is_none_or(|active| active.directive.fail_token_index <= active.directive.resume_token_index))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ParserRecoveryCheckpoint {
+    consumed_recovery_directives: usize,
+    active_recovery_directive: Option<ActiveRecoveryDirective>,
 }
 
 #[invariant(!construct.is_empty())]
@@ -140,6 +152,72 @@ pub(super) struct RecoveryDirective {
     error: SyntaxError,
 }
 
+#[invariant(directive.fail_token_index <= directive.resume_token_index)]
+#[invariant(*skipped_item_emitted -> directive.error_index < usize::MAX)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ActiveRecoveryDirective {
+    directive: RecoveryDirective,
+    skipped_item_emitted: bool,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum RecoveryFieldActionKind {
+    Abandon,
+    Resume,
+}
+
+#[invariant(item.as_ref().is_none_or(|item| item.recovery_error_index().is_some()))]
+#[invariant(match kind {
+    RecoveryFieldActionKind::Abandon => resume_token_index.is_none(),
+    RecoveryFieldActionKind::Resume => resume_token_index.is_some_and(|index| index < usize::MAX),
+})]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RecoveryFieldAction {
+    kind: RecoveryFieldActionKind,
+    item: Option<SyntaxRecoveryItem>,
+    resume_token_index: Option<usize>,
+}
+
+impl RecoveryFieldAction {
+    #[requires(true)]
+    #[ensures(ret.kind == RecoveryFieldActionKind::Abandon)]
+    pub(super) fn abandon(item: Option<SyntaxRecoveryItem>) -> Self {
+        new!(RecoveryFieldAction {
+            kind: RecoveryFieldActionKind::Abandon,
+            item,
+            resume_token_index: None,
+        })
+    }
+
+    #[requires(resume_token_index < usize::MAX)]
+    #[ensures(ret.kind == RecoveryFieldActionKind::Resume)]
+    pub(super) fn resume(item: Option<SyntaxRecoveryItem>, resume_token_index: usize) -> Self {
+        new!(RecoveryFieldAction {
+            kind: RecoveryFieldActionKind::Resume,
+            item,
+            resume_token_index: Some(resume_token_index),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn into_parts(
+        self,
+    ) -> (
+        RecoveryFieldActionKind,
+        Option<SyntaxRecoveryItem>,
+        Option<usize>,
+    ) {
+        let data!(RecoveryFieldAction {
+            kind,
+            item,
+            resume_token_index,
+        }) = self.into_data();
+        (kind, item, resume_token_index)
+    }
+}
+
 impl RecoveryDirective {
     #[requires(!rule.is_empty())]
     #[requires(fail_token_index <= resume_token_index)]
@@ -174,6 +252,9 @@ pub(super) struct SyntaxMemoValue {
     value: Arc<dyn Any>,
 }
 
+type StrictSyntaxMemoKey = (&'static str, usize);
+type RecoverySyntaxMemoKey = (&'static str, usize, usize);
+
 impl fmt::Debug for SyntaxMemoValue {
     #[requires(true)]
     #[ensures(true)]
@@ -187,6 +268,7 @@ impl fmt::Debug for SyntaxMemoValue {
 pub(super) struct SyntaxMemoSuccess {
     start_location: usize,
     end_location: usize,
+    consumed_recovery_directives: usize,
     value: SyntaxMemoValue,
     warnings: Vec<SyntaxWarning>,
 }
@@ -197,9 +279,11 @@ pub(super) struct ParserState<'tokens> {
     anchor_byte_starts: Vec<Option<usize>>,
     syntax_location_byte_offsets: Vec<usize>,
     cmavo_cache: HashMap<(usize, usize), Option<Cmavo>>,
-    syntax_memo: HashMap<(&'static str, usize), SyntaxMemoSuccess>,
-    syntax_failure_memo: HashMap<(&'static str, usize), SyntaxParseError<'tokens>>,
-    syntax_memo_in_progress: HashSet<(&'static str, usize)>,
+    syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess>,
+    syntax_recovery_memo: HashMap<RecoverySyntaxMemoKey, SyntaxMemoSuccess>,
+    syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxParseError<'tokens>>,
+    syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
+    syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoKey>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
     warnings: Vec<SyntaxWarning>,
     trace: TraceRecorder,
@@ -207,8 +291,10 @@ pub(super) struct ParserState<'tokens> {
     active_syntax_rules: Vec<SyntaxRuleFrame>,
     recovery_directives: Vec<RecoveryDirective>,
     consumed_recovery_directives: usize,
+    active_recovery_directive: Option<ActiveRecoveryDirective>,
     recovery_tokens: Vec<Token>,
     recovery_source: Option<Arc<str>>,
+    track_recovery_branches: bool,
     syntax_grammar_env: generated_runtime::SyntaxGrammarEnv,
     _tokens: PhantomData<&'tokens ()>,
 }
@@ -232,8 +318,10 @@ impl<'tokens> ParserState<'tokens> {
             syntax_location_byte_offsets: syntax_location_byte_offsets(words),
             cmavo_cache: HashMap::new(),
             syntax_memo: HashMap::new(),
+            syntax_recovery_memo: HashMap::new(),
             syntax_failure_memo: HashMap::new(),
             syntax_memo_in_progress: HashSet::new(),
+            syntax_recovery_memo_in_progress: HashSet::new(),
             diagnostic_candidates: Vec::new(),
             warnings: Vec::new(),
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
@@ -241,11 +329,22 @@ impl<'tokens> ParserState<'tokens> {
             active_syntax_rules: Vec::new(),
             recovery_directives: Vec::new(),
             consumed_recovery_directives: 0,
+            active_recovery_directive: None,
             recovery_tokens: Vec::new(),
             recovery_source: None,
+            track_recovery_branches: false,
             syntax_grammar_env: generated_runtime::SyntaxGrammarEnv::from_options(options),
             _tokens: PhantomData,
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.anchor_byte_starts.len() == words.len())]
+    #[ensures(ret.syntax_location_byte_offsets.len() == words.len() + 1)]
+    pub(super) fn new_with_recovery_branches(words: &[Token], options: &ParseOptions) -> Self {
+        let mut state = Self::new(words, options);
+        state.track_recovery_branches = true;
+        state
     }
 
     #[requires(true)]
@@ -257,7 +356,7 @@ impl<'tokens> ParserState<'tokens> {
         options: &ParseOptions,
         directives: &[RecoveryDirective],
     ) -> Self {
-        let mut state = Self::new(words, options);
+        let mut state = Self::new_with_recovery_branches(words, options);
         state.recovery_directives = directives.to_vec();
         state.recovery_tokens = words.to_vec();
         state.recovery_source = source.map(Arc::<str>::from);
@@ -293,21 +392,48 @@ impl<'tokens> ParserState<'tokens> {
         !self.recovery_directives.is_empty()
     }
 
+    #[requires(true)]
+    #[ensures(ret == self.track_recovery_branches)]
+    pub(super) fn recovery_branch_tracking_enabled(&self) -> bool {
+        self.track_recovery_branches
+    }
+
+    #[requires(true)]
+    #[ensures(ret == self.consumed_recovery_directives)]
+    pub(super) fn syntax_recovery_memo_index(&self) -> usize {
+        self.consumed_recovery_directives
+    }
+
     #[requires(!rule_name.is_empty())]
     #[ensures(true)]
     pub(super) fn syntax_memo_success<O: Clone + 'static>(
-        &self,
+        &mut self,
         rule_name: &'static str,
         start_location: usize,
+        recovery_index: usize,
     ) -> Option<(O, usize, Vec<SyntaxWarning>)> {
         if self.recovery_enabled() {
-            return None;
+            let (value, end_location, warnings, consumed_recovery_directives) = {
+                let memo =
+                    self.syntax_recovery_memo
+                        .get(&(rule_name, start_location, recovery_index))?;
+                let value = memo.value.value.downcast_ref::<O>()?.clone();
+                (
+                    value,
+                    memo.end_location,
+                    memo.warnings.clone(),
+                    memo.consumed_recovery_directives,
+                )
+            };
+            self.consumed_recovery_directives = consumed_recovery_directives;
+            return Some((value, end_location, warnings));
         }
-        let memo = self
-            .active_syntax_memo()
-            .get(&(rule_name, start_location))?;
-        let value = memo.value.value.downcast_ref::<O>()?.clone();
-        Some((value, memo.end_location, memo.warnings.clone()))
+        let (value, end_location, warnings) = {
+            let memo = self.syntax_memo.get(&(rule_name, start_location))?;
+            let value = memo.value.value.downcast_ref::<O>()?.clone();
+            (value, memo.end_location, memo.warnings.clone())
+        };
+        Some((value, end_location, warnings))
     }
 
     #[requires(!rule_name.is_empty())]
@@ -316,11 +442,13 @@ impl<'tokens> ParserState<'tokens> {
         &self,
         rule_name: &'static str,
         start_location: usize,
+        recovery_index: usize,
     ) -> Option<SyntaxParseError<'tokens>> {
         if self.recovery_enabled() {
             return None;
         }
-        self.active_syntax_failure_memo()
+        let _ = recovery_index;
+        self.syntax_failure_memo
             .get(&(rule_name, start_location))
             .cloned()
     }
@@ -330,27 +458,33 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(!self.recovery_enabled() || self.syntax_recovery_memo.contains_key(&(rule_name, start_location, recovery_index)))]
     pub(super) fn store_syntax_memo_success<O: Clone + 'static>(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
+        recovery_index: usize,
         end_location: usize,
         value: O,
         warnings: Vec<SyntaxWarning>,
     ) {
-        if self.recovery_enabled() {
-            return;
-        }
         let success = new!(SyntaxMemoSuccess {
             start_location,
             end_location,
+            consumed_recovery_directives: self.consumed_recovery_directives,
             value: SyntaxMemoValue {
                 value: Arc::new(value),
             },
             warnings,
         });
-        self.syntax_memo
-            .insert((rule_name, start_location), success);
+        if self.recovery_enabled() {
+            self.syntax_recovery_memo
+                .insert((rule_name, start_location, recovery_index), success);
+        } else {
+            let _ = recovery_index;
+            self.syntax_memo
+                .insert((rule_name, start_location), success);
+        }
     }
 
     #[requires(!rule_name.is_empty())]
@@ -360,46 +494,60 @@ impl<'tokens> ParserState<'tokens> {
         &mut self,
         rule_name: &'static str,
         start_location: usize,
+        recovery_index: usize,
         error: SyntaxParseError<'tokens>,
     ) {
         if self.recovery_enabled() {
             return;
         }
+        let _ = recovery_index;
         self.syntax_failure_memo
             .insert((rule_name, start_location), error);
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(ret -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
+    #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
+    #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, recovery_index)))]
     pub(super) fn enter_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
         start_location: usize,
+        recovery_index: usize,
     ) -> bool {
-        self.syntax_memo_in_progress
-            .insert((rule_name, start_location))
+        if self.recovery_enabled() {
+            self.syntax_recovery_memo_in_progress.insert((
+                rule_name,
+                start_location,
+                recovery_index,
+            ))
+        } else {
+            let _ = recovery_index;
+            self.syntax_memo_in_progress
+                .insert((rule_name, start_location))
+        }
     }
 
     #[requires(!rule_name.is_empty())]
     #[ensures(!self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
-    pub(super) fn exit_syntax_memo_rule(&mut self, rule_name: &'static str, start_location: usize) {
-        self.syntax_memo_in_progress
-            .remove(&(rule_name, start_location));
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn active_syntax_memo(&self) -> &HashMap<(&'static str, usize), SyntaxMemoSuccess> {
-        &self.syntax_memo
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn active_syntax_failure_memo(
-        &self,
-    ) -> &HashMap<(&'static str, usize), SyntaxParseError<'tokens>> {
-        &self.syntax_failure_memo
+    #[ensures(!self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, recovery_index)))]
+    pub(super) fn exit_syntax_memo_rule(
+        &mut self,
+        rule_name: &'static str,
+        start_location: usize,
+        recovery_index: usize,
+    ) {
+        if self.recovery_enabled() {
+            self.syntax_recovery_memo_in_progress.remove(&(
+                rule_name,
+                start_location,
+                recovery_index,
+            ));
+        } else {
+            let _ = recovery_index;
+            self.syntax_memo_in_progress
+                .remove(&(rule_name, start_location));
+        }
     }
 
     #[requires(true)]
@@ -534,26 +682,104 @@ impl<'tokens> ParserState<'tokens> {
     }
 
     #[requires(!rule.is_empty())]
-    #[ensures(ret.as_ref().is_none_or(|directive| directive.resume_token_index >= directive.fail_token_index))]
-    pub(super) fn consume_recovery_directive(
+    #[ensures(true)]
+    pub(super) fn recovery_field_action(
         &mut self,
         rule: &'static str,
         instance_byte_start: usize,
         field_index: usize,
         input_location: usize,
-    ) -> Option<RecoveryDirective> {
-        let directive = self
-            .recovery_directives
-            .get(self.consumed_recovery_directives)?;
-        if directive.rule != rule
-            || directive.instance_byte_start != instance_byte_start
-            || directive.resume_field != field_index
-            || directive.fail_token_index != input_location
+        field_can_be_absent: bool,
+    ) -> Option<RecoveryFieldAction> {
+        if self.active_recovery_directive.is_none() {
+            let directive = self
+                .recovery_directives
+                .get(self.consumed_recovery_directives)?
+                .clone();
+            if directive.rule != rule
+                || directive.instance_byte_start != instance_byte_start
+                || directive.fail_token_index != input_location
+                || field_index > directive.resume_field
+            {
+                return None;
+            }
+            self.consumed_recovery_directives += 1;
+            self.active_recovery_directive = Some(new!(ActiveRecoveryDirective {
+                directive,
+                skipped_item_emitted: false,
+            }));
+        }
+
+        let active = self.active_recovery_directive.as_ref()?;
+        if active.directive.rule != rule
+            || active.directive.instance_byte_start != instance_byte_start
         {
             return None;
         }
+        if field_index < active.directive.resume_field {
+            if field_can_be_absent {
+                return Some(RecoveryFieldAction::abandon(None));
+            }
+            let directive = active.directive.clone();
+            let skipped_item_emitted = active.skipped_item_emitted;
+            if let Some(active) = self.active_recovery_directive.take() {
+                self.active_recovery_directive = Some(active.with_data(data! {
+                    skipped_item_emitted: true,
+                }));
+            }
+            let item = if skipped_item_emitted {
+                self.missing_recovery_item_for_directive(&directive)
+            } else {
+                self.recovery_item_for_directive(&directive)
+            };
+            return Some(RecoveryFieldAction::abandon(Some(item)));
+        }
+        if field_index == active.directive.resume_field {
+            let directive = active.directive.clone();
+            let skipped_item_emitted = active.skipped_item_emitted;
+            self.active_recovery_directive = None;
+            let item =
+                (!skipped_item_emitted).then(|| self.recovery_item_for_directive(&directive));
+            return Some(RecoveryFieldAction::resume(
+                item,
+                directive.resume_token_index,
+            ));
+        }
+        None
+    }
+
+    #[requires(!rule.is_empty())]
+    #[ensures(true)]
+    pub(super) fn trailing_recovery_field_action(
+        &mut self,
+        rule: &'static str,
+        instance_byte_start: usize,
+        field_index: usize,
+        input_location: usize,
+    ) -> Option<(SyntaxRecoveryItem, usize)> {
+        if self.active_recovery_directive.is_some() {
+            return None;
+        }
+        let directive = self
+            .recovery_directives
+            .get(self.consumed_recovery_directives)?
+            .clone();
+        if directive.rule != rule
+            || directive.instance_byte_start != instance_byte_start
+            || directive.fail_token_index != input_location
+            || field_index > directive.resume_field
+        {
+            return None;
+        }
+        let item = skipped_recovery_item(directive.error_index, &self.recovery_tokens, &directive)?;
         self.consumed_recovery_directives += 1;
-        Some(directive.clone())
+        if field_index < directive.resume_field {
+            self.active_recovery_directive = Some(new!(ActiveRecoveryDirective {
+                directive: directive.clone(),
+                skipped_item_emitted: true,
+            }));
+        }
+        Some((item, directive.resume_token_index))
     }
 
     #[requires(true)]
@@ -579,6 +805,20 @@ impl<'tokens> ParserState<'tokens> {
                     directive,
                 )
             })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn missing_recovery_item_for_directive(
+        &self,
+        directive: &RecoveryDirective,
+    ) -> SyntaxRecoveryItem {
+        missing_recovery_item(
+            directive.error_index,
+            &self.recovery_tokens,
+            self.recovery_source.as_deref(),
+            directive,
+        )
     }
 
     #[requires(true)]
@@ -833,7 +1073,12 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             warning_count: self.warnings.len(),
             syntax_context_count: self.active_syntax_contexts.len(),
             syntax_rule_count: self.active_syntax_rules.len(),
-            consumed_recovery_directives: self.consumed_recovery_directives,
+            recovery: self.recovery_enabled().then(|| {
+                new!(ParserRecoveryCheckpoint {
+                    consumed_recovery_directives: self.consumed_recovery_directives,
+                    active_recovery_directive: self.active_recovery_directive.clone(),
+                })
+            }),
             trace_save: self.trace_should_record(TraceLevel::Primitives, "save"),
         }
     }
@@ -867,7 +1112,10 @@ impl<'tokens> Inspector<'tokens, ParserInput<'tokens>> for ParserState<'tokens> 
             .truncate(marker.inspector().syntax_context_count);
         self.active_syntax_rules
             .truncate(marker.inspector().syntax_rule_count);
-        self.consumed_recovery_directives = marker.inspector().consumed_recovery_directives;
+        if let Some(recovery) = &marker.inspector().recovery {
+            self.consumed_recovery_directives = recovery.consumed_recovery_directives;
+            self.active_recovery_directive = recovery.active_recovery_directive.clone();
+        }
     }
 }
 
@@ -997,52 +1245,79 @@ fn recover_after_strict_failure(
     let mut directives = Vec::new();
 
     while errors.len() < cap {
-        let Some(directive) =
-            select_recovery_directive(&tokens, &failure, options, errors.len() - 1)
-        else {
+        let candidates = select_recovery_directives(&tokens, &failure, options, errors.len() - 1);
+        let candidates = if candidates.is_empty() {
+            select_final_recovery_directives(&tokens, &failure, errors.len() - 1)
+        } else {
+            candidates
+        };
+        if candidates.is_empty() {
+            break;
+        }
+
+        let mut accepted_progress = None;
+        let mut trial_count = 0usize;
+        for directive in candidates {
+            if directives
+                .iter()
+                .any(|existing| same_recovery_site(existing, &directive))
+            {
+                continue;
+            }
+            if trial_count >= MAX_RECOVERY_DIRECTIVE_TRIALS_PER_ERROR {
+                break;
+            }
+            trial_count += 1;
+            let mut trial_directives = directives.clone();
+            trial_directives.push(directive.clone());
+
+            let attempt = generated::generated_model::parse_recovered_text_attempt(
+                &tokens,
+                source,
+                options,
+                &trial_directives,
+            );
+            let generated::generated_model::GeneratedRecoveredParsedTextAttempt {
+                result,
+                trace: attempt_trace,
+                unconsumed_directives,
+            } = attempt;
+            trace = attempt_trace;
+            match result {
+                Ok(parsed) if unconsumed_directives == 0 => {
+                    let warnings = parsed.warnings;
+                    return RecoveredSyntaxParseAttempt {
+                        result: new!(RecoveredSyntaxParse {
+                            parse_tree: Box::new(parsed.text),
+                            errors,
+                            warnings,
+                        }),
+                        trace,
+                    };
+                }
+                Ok(_) => continue,
+                Err(next_failure) => {
+                    if errors.len() >= cap {
+                        break;
+                    }
+                    let next_error_start = syntax_error_start(&next_failure.public_error);
+                    if next_error_start <= recovery_byte_at(&tokens, directive.resume_token_index)
+                        || next_error_start <= errors.last().map_or(0, syntax_error_start)
+                    {
+                        continue;
+                    }
+                    accepted_progress = Some((trial_directives, next_failure));
+                    break;
+                }
+            }
+        }
+
+        let Some((trial_directives, next_failure)) = accepted_progress else {
             break;
         };
-        if directives
-            .iter()
-            .any(|existing| same_recovery_site(existing, &directive))
-        {
-            break;
-        }
-        directives.push(directive);
-
-        let attempt = generated::generated_model::parse_recovered_text_attempt(
-            &tokens,
-            source,
-            options,
-            &directives,
-        );
-        trace = attempt.trace;
-        match attempt.result {
-            Ok(parsed) if attempt.unconsumed_directives == 0 => {
-                let warnings = parsed.warnings;
-                return RecoveredSyntaxParseAttempt {
-                    result: new!(RecoveredSyntaxParse {
-                        parse_tree: Box::new(parsed.text),
-                        errors,
-                        warnings,
-                    }),
-                    trace,
-                };
-            }
-            Ok(_) => break,
-            Err(next_failure) => {
-                if errors.len() >= cap {
-                    break;
-                }
-                if syntax_error_start(&next_failure.public_error)
-                    <= errors.last().map_or(0, syntax_error_start)
-                {
-                    break;
-                }
-                errors.push(next_failure.public_error.clone());
-                failure = next_failure;
-            }
-        }
+        directives = trial_directives;
+        errors.push(next_failure.public_error.clone());
+        failure = next_failure;
     }
 
     let parse_tree = degraded_recovered_text(&tokens, source, &directives, &errors);
@@ -1061,6 +1336,7 @@ fn recover_after_strict_failure(
 fn same_recovery_site(left: &RecoveryDirective, right: &RecoveryDirective) -> bool {
     left.fail_token_index == right.fail_token_index
         && left.resume_token_index == right.resume_token_index
+        && left.resume_field == right.resume_field
         && left.rule == right.rule
         && left.instance_byte_start == right.instance_byte_start
 }
@@ -1077,13 +1353,13 @@ struct RecoveryClaim {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|directive| directive.fail_token_index <= directive.resume_token_index))]
-fn select_recovery_directive(
+#[ensures(ret.iter().all(|directive| directive.fail_token_index <= directive.resume_token_index))]
+fn select_recovery_directives(
     tokens: &[Token],
     failure: &generated::generated_model::GeneratedParseFailure,
     options: &ParseOptions,
     error_index: usize,
-) -> Option<RecoveryDirective> {
+) -> Vec<RecoveryDirective> {
     let fail_token_index = token_index_for_byte_start(
         tokens,
         failure.branches.first().map_or_else(
@@ -1091,8 +1367,9 @@ fn select_recovery_directive(
             |branch| branch.span_start,
         ),
     );
+    let fail_byte_start = recovery_byte_at(tokens, fail_token_index);
     let env = generated_runtime::SyntaxGrammarEnv::from_options(options);
-    let mut selected: Option<RecoveryClaim> = None;
+    let mut claims = Vec::new();
 
     for (branch_index, branch) in failure.branches.iter().enumerate() {
         for (inner_rank, frame) in branch.active_rule_contexts.iter().rev().enumerate() {
@@ -1110,11 +1387,22 @@ fn select_recovery_directive(
                     {
                         continue;
                     }
-                    let Some(resume_token_index) =
-                        scan_for_recovery_anchor(tokens, fail_token_index, anchor.start_tokens)
-                    else {
+                    let frame_token_index = token_index_for_byte_start(tokens, frame.byte_start());
+                    let frame_container_depth =
+                        subtext_container_depth_before(tokens, frame_token_index);
+                    let Some(resume_token_index) = scan_for_recovery_anchor(
+                        tokens,
+                        fail_token_index,
+                        frame_container_depth,
+                        anchor.start_tokens,
+                    ) else {
                         continue;
                     };
+                    if frame.byte_start() >= fail_byte_start
+                        && resume_token_index > fail_token_index
+                    {
+                        continue;
+                    }
                     let claim = new!(RecoveryClaim {
                         branch_index,
                         inner_rank,
@@ -1123,38 +1411,99 @@ fn select_recovery_directive(
                         resume_token_index,
                         resume_field: anchor.resume_field,
                     });
-                    if recovery_claim_precedes(&claim, selected.as_ref()) {
-                        selected = Some(claim);
-                    }
+                    claims.push(claim);
                 }
             }
         }
     }
 
-    let selected = selected?;
-    Some(RecoveryDirective::new(
-        selected.rule,
-        selected.instance_byte_start,
-        fail_token_index,
-        selected.resume_token_index,
-        selected.resume_field,
-        error_index,
-        failure.public_error.clone(),
-    ))
+    claims.sort_by_key(recovery_claim_sort_key);
+    let mut directives = Vec::new();
+    for selected in claims {
+        let directive = RecoveryDirective::new(
+            selected.rule,
+            selected.instance_byte_start,
+            fail_token_index,
+            selected.resume_token_index,
+            selected.resume_field,
+            error_index,
+            failure.public_error.clone(),
+        );
+        if directives
+            .iter()
+            .any(|existing| same_recovery_site(existing, &directive))
+        {
+            continue;
+        }
+        directives.push(directive);
+    }
+    directives
+}
+
+#[requires(true)]
+#[ensures(ret.iter().all(|directive| directive.resume_token_index == tokens.len()))]
+fn select_final_recovery_directives(
+    tokens: &[Token],
+    failure: &generated::generated_model::GeneratedParseFailure,
+    error_index: usize,
+) -> Vec<RecoveryDirective> {
+    let fail_token_index =
+        token_index_for_byte_start(tokens, syntax_error_start(&failure.public_error));
+    let fail_byte_start = recovery_byte_at(tokens, fail_token_index);
+    let mut claims = Vec::new();
+    for (branch_index, branch) in failure.branches.iter().enumerate() {
+        for (inner_rank, frame) in branch.active_rule_contexts.iter().rev().enumerate() {
+            if frame.byte_start() >= fail_byte_start {
+                continue;
+            }
+            let Some(metadata) =
+                generated::generated_model::syntax_grammar_anchor_metadata_by_rule_name(
+                    frame.rule(),
+                )
+            else {
+                continue;
+            };
+            claims.push(new!(RecoveryClaim {
+                branch_index,
+                inner_rank,
+                rule: metadata.rule,
+                instance_byte_start: frame.byte_start(),
+                resume_token_index: tokens.len(),
+                resume_field: usize::MAX,
+            }));
+        }
+    }
+    claims.sort_by_key(recovery_claim_sort_key);
+    let mut directives = Vec::new();
+    for claim in claims {
+        let directive = RecoveryDirective::new(
+            claim.rule,
+            claim.instance_byte_start,
+            fail_token_index,
+            tokens.len(),
+            claim.resume_field,
+            error_index,
+            failure.public_error.clone(),
+        );
+        if directives
+            .iter()
+            .any(|existing| same_recovery_site(existing, &directive))
+        {
+            continue;
+        }
+        directives.push(directive);
+    }
+    directives
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovery_claim_precedes(left: &RecoveryClaim, right: Option<&RecoveryClaim>) -> bool {
-    let Some(right) = right else {
-        return true;
-    };
-    (left.resume_token_index, left.inner_rank, left.branch_index)
-        < (
-            right.resume_token_index,
-            right.inner_rank,
-            right.branch_index,
-        )
+fn recovery_claim_sort_key(claim: &RecoveryClaim) -> (usize, usize, usize) {
+    (
+        claim.resume_token_index,
+        claim.inner_rank,
+        claim.branch_index,
+    )
 }
 
 #[requires(true)]
@@ -1256,21 +1605,25 @@ fn recovery_policy_condition_matches(
 fn scan_for_recovery_anchor(
     tokens: &[Token],
     start: usize,
+    base_depth: usize,
     anchors: &[generated::generated_model::SyntaxGrammarAnchorToken],
 ) -> Option<usize> {
-    let mut depth = subtext_container_depth_before(tokens, start);
+    let mut depth = subtext_container_depth_before(tokens, start).saturating_sub(base_depth);
     for (index, token) in tokens.iter().enumerate().skip(start) {
+        let opens = token_opens_subtext_container(token);
+        let closes = token_closes_subtext_container(token);
+        if closes {
+            if depth == 0 {
+                return None;
+            }
+            depth -= 1;
+        }
         if depth == 0
             && anchors
                 .iter()
                 .any(|anchor| recovery_anchor_matches(*anchor, token))
         {
             return Some(index);
-        }
-        let opens = token_opens_subtext_container(token);
-        let closes = token_closes_subtext_container(token);
-        if closes && depth > 0 {
-            depth -= 1;
         }
         if opens {
             depth += 1;
@@ -1343,16 +1696,31 @@ fn degraded_recovered_text(
     errors: &[SyntaxError],
 ) -> generated::generated_model::recovered::TextSyntax {
     let mut tree = empty_recovered_text();
-    let item = directives.first().map_or_else(
-        || fallback_recovery_item(tokens, source, 0, &errors[0]),
-        |directive| {
-            skipped_recovery_item(directive.error_index, tokens, directive).unwrap_or_else(|| {
-                missing_recovery_item(directive.error_index, tokens, source, directive)
-            })
-        },
-    );
+    let item = if directives.is_empty() {
+        all_tokens_recovery_item(0, tokens)
+            .unwrap_or_else(|| fallback_recovery_item(tokens, source, 0, &errors[0]))
+    } else {
+        directives.first().map_or_else(
+            || fallback_recovery_item(tokens, source, 0, &errors[0]),
+            |directive| {
+                skipped_recovery_item(directive.error_index, tokens, directive).unwrap_or_else(
+                    || missing_recovery_item(directive.error_index, tokens, source, directive),
+                )
+            },
+        )
+    };
     insert_leading_recovery_item(&mut tree, item);
     tree
+}
+
+#[requires(error_index < usize::MAX)]
+#[ensures(ret.as_ref().is_none_or(|item| item.recovery_error_index() == Some(error_index)))]
+fn all_tokens_recovery_item(error_index: usize, tokens: &[Token]) -> Option<SyntaxRecoveryItem> {
+    let skipped = Vec1::try_from_vec(tokens.to_vec()).ok()?;
+    Some(new!(SyntaxRecoveryItem::SkippedTokens {
+        error_index,
+        tokens: skipped,
+    }))
 }
 
 #[requires(error_index < usize::MAX)]
@@ -1368,13 +1736,12 @@ fn fallback_recovery_item(
         "text",
         0,
         fail_token_index,
-        tokens.len(),
+        fail_token_index,
         usize::MAX,
         error_index,
         error.clone(),
     );
-    skipped_recovery_item(error_index, tokens, &directive)
-        .unwrap_or_else(|| missing_recovery_item(error_index, tokens, source, &directive))
+    missing_recovery_item(error_index, tokens, source, &directive)
 }
 
 #[requires(true)]

@@ -118,6 +118,7 @@ fn push_expectations_toml(
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }
+            push_optional_field(output, "tree", &recovered.tree)?;
         }
     }
     if let Some(jvozba) = &expectations.jvozba {

@@ -261,7 +261,7 @@ impl<'tree> TreeVisitor<'tree> for RecoveredSyntaxErrorIndexVisitor {
         &mut self,
         item: &'tree E,
     ) {
-        let Some(error_index) = recovered_error_index(item) else {
+        let Some(error_index) = item.recovery_error_index() else {
             self.indices_in_range = false;
             return;
         };
@@ -269,16 +269,6 @@ impl<'tree> TreeVisitor<'tree> for RecoveredSyntaxErrorIndexVisitor {
             self.indices_in_range = false;
         }
     }
-}
-
-#[requires(true)]
-#[ensures(ret.is_none_or(|index| index < usize::MAX))]
-fn recovered_error_index<E: Serialize>(item: &E) -> Option<usize> {
-    let value = serde_json::to_value(item).ok()?;
-    value
-        .get("error_index")
-        .and_then(Value::as_u64)
-        .and_then(|index| usize::try_from(index).ok())
 }
 
 #[requires(true)]
@@ -3619,6 +3609,91 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_syntax_quote_internal_error_terminates() {
+        let source = "lu mi ku i do li'u i mi klama".to_owned();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let probe = recovered_syntax_probe(&source);
+            let _ = sender.send(probe);
+        });
+
+        let probe = receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("recovered syntax parse should terminate for quote-contained syntax errors");
+        assert_eq!(probe.error_count, 1);
+        assert_eq!(
+            probe.valid_tokens,
+            ["lu", "mi", "i", "do", "li'u", "i", "mi", "kláma"]
+        );
+        assert_eq!(probe.recovery_spans, [(6, 8)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_quote_internal_error_without_inner_anchor_closes_quote() {
+        let probe = recovered_syntax_probe("lu mi ku do li'u i mi klama");
+
+        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.valid_tokens, ["lu", "mi", "li'u", "i", "mi", "kláma"]);
+        assert_eq!(probe.recovery_spans, [(6, 8), (9, 11)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_degraded_fallback_accounts_for_input_tokens() {
+        let probe = recovered_syntax_probe("ge mi ku gi do");
+
+        assert_eq!(probe.error_count, 1);
+        assert!(
+            probe.valid_tokens.is_empty(),
+            "FieldFirst-only gi recovery should remain degraded in v1, got {:?}",
+            probe.valid_tokens
+        );
+        assert_eq!(
+            probe.recovery_spans,
+            [(0, 2), (3, 5), (6, 8), (9, 11), (12, 14)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_eof_error_preserves_prefix_tree() {
+        let probe = recovered_syntax_probe("mi viska lo");
+
+        assert_eq!(probe.error_count, 1);
+        assert!(
+            probe.valid_tokens.iter().any(|token| token == "mi")
+                && probe.valid_tokens.iter().any(|token| token.contains("ska"))
+                && probe.valid_tokens.iter().any(|token| token == "lo"),
+            "EOF recovery should preserve the valid statement prefix, got {:?}",
+            probe.valid_tokens
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_literal_run_anchors_keep_tree_content() {
+        for source in ["le ku do"] {
+            let probe = recovered_syntax_probe(source);
+            assert_eq!(probe.error_count, 1, "{source:?}");
+            assert!(
+                !probe.valid_tokens.is_empty(),
+                "literal-run recovery for {source:?} should not degrade to an empty tree"
+            );
+            assert!(
+                !probe.recovery_spans.is_empty(),
+                "literal-run recovery for {source:?} should include a recovery slot"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn syntax_tree_span_equality_ignores_source_offsets_only() {
         let left = syntax_tree_for_source("mi klama");
         let same_tree_different_spans = syntax_tree_for_source("mi  klama");
@@ -3645,6 +3720,38 @@ mod tests {
     struct RecoveredTokenAndErrorVisitor {
         valid_tokens: Vec<String>,
         recovery_spans: Vec<(usize, usize)>,
+    }
+
+    #[invariant(valid_tokens.iter().all(|token| !token.is_empty()))]
+    #[invariant(*error_count == 0 -> recovery_spans.is_empty())]
+    #[invariant(recovery_spans.iter().all(|(start, end)| start <= end))]
+    #[derive(Debug)]
+    struct RecoveredSyntaxProbe {
+        error_count: usize,
+        valid_tokens: Vec<String>,
+        recovery_spans: Vec<(usize, usize)>,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_probe(source: &str) -> RecoveredSyntaxProbe {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+        new!(RecoveredSyntaxProbe {
+            error_count: recovered.errors.len(),
+            valid_tokens: visitor.valid_tokens,
+            recovery_spans: visitor.recovery_spans,
+        })
     }
 
     impl<'tree> TreeVisitor<'tree> for RecoveredTokenAndErrorVisitor {

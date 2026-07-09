@@ -59,6 +59,17 @@ impl jbotci_tree::RecoveryItemState for SyntaxRecoveryItem {
             data!(SyntaxRecoveryItem::MissingRequiredField { span, .. }) => visitor(span),
         }
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_index(&self) -> Option<usize> {
+        match self.as_data() {
+            data!(SyntaxRecoveryItem::SkippedTokens { error_index, .. }) => Some(*error_index),
+            data!(SyntaxRecoveryItem::MissingRequiredField { error_index, .. }) => {
+                Some(*error_index)
+            }
+        }
+    }
 }
 
 #[requires(true)]

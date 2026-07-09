@@ -9,3 +9,10 @@ diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span
 [expectations.syntax.recovered]
 status = "failure"
 diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered.tree]
+valid-tokens = ["mi", "cu"]
+recovery-items = [
+    { kind = "invalid", error-index = 0, byte-spans = [[6, 8]] },
+    { kind = "missing", error-index = 0, byte-spans = [[6, 6]] },
+]
