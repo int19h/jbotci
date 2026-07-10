@@ -1,0 +1,19 @@
+id = "adhoc.recovery.syntax.eof-error"
+lojban = "mi viska lo"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [11, 11], source-text = "", message = "incomplete sumti" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [11, 11], source-text = "", message = "incomplete sumti" }]
+
+[expectations.syntax.recovered.tree]
+valid-tokens = ["mi", "víska", "lo"]
+recovery-items = [
+    { kind = "missing", error-index = 0, byte-spans = [[11, 11]] },
+    { kind = "missing", error-index = 0, byte-spans = [[11, 11]] },
+    { kind = "missing", error-index = 0, byte-spans = [[11, 11]] },
+]

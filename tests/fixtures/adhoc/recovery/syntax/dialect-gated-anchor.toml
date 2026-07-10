@@ -1,0 +1,16 @@
+id = "adhoc.recovery.syntax.dialect-gated-anchor"
+lojban = "mi ku ke broda ke'e i do"
+dialect = "(zantufa)"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [
+    { severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" },
+    { severity = "warning", code = "syntax.warning.experimental-zantufa-grouped-bridi-tail", byte-span = [6, 8], source-text = "ke", message = "experimental syntax: Zantufa KE bridi-tail grouping", word-index = 2 },
+]
+tree = { valid-tokens = ["mi", "ke", "bróda", "ke'e", "i", "do"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 5]] }] }

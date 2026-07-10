@@ -1176,6 +1176,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecoveredParserGeneration",
+        "recovered parser generation state is built by fallible grammar analysis before code emission",
+    ),
+    (
         "crates/jbotci-syntax-macros/src/lib.rs:StrictParserGeneration",
         "strict parser generation state is built by fallible grammar analysis before code emission",
     ),
@@ -1230,6 +1234,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/lib.rs:ParseOptions",
         "parse options are independent caller-selected controls",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredSyntaxErrorIndexVisitor",
+        "recovered syntax error-index visitor carries independent traversal state and error count",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredSyntaxParseAttempt",
+        "recovered parse attempt combines parser result with optional trace report without extra cross-field constraints",
+    ),
+    (
+        "crates/jbotci-syntax/src/lib.rs:RecoveredTokenAndErrorVisitor",
+        "test visitor is mutable traversal accumulator state checked by the enclosing recovery assertions",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:SyntaxConstructMetadata",
@@ -1766,6 +1782,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "tests/fixture_suite.rs:FakeBackend",
         "fixture test backend stores scripted outputs and captured invocations",
+    ),
+    (
+        "tests/fixture_suite.rs:RecoveredSyntaxTreeExpectationVisitor",
+        "fixture test visitor is transient mutable accumulator state converted into validated recovered tree expectations",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:CllSelector",

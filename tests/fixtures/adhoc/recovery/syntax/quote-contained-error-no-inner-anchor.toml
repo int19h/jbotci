@@ -1,0 +1,12 @@
+id = "adhoc.recovery.syntax.quote-contained-error-no-inner-anchor"
+lojban = "lu mi ku do li'u i mi klama"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["lu", "mi", "li'u", "i", "mi", "kláma"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[6, 8], [9, 11]] }] }

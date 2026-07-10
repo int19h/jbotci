@@ -88,6 +88,12 @@ pub trait RecoveryItemState {
     fn visit_source_spans(&self, _visitor: &mut dyn FnMut(&jbotci_source::SourceSpan)) {}
 
     #[requires(true)]
+    #[ensures(true)]
+    fn recovery_error_index(&self) -> Option<usize> {
+        None
+    }
+
+    #[requires(true)]
     #[ensures(ret == (self.recovery_item_kind() == RecoveryItemKind::Missing))]
     fn is_unconsumed_missing_error(&self) -> bool {
         self.recovery_item_kind() == RecoveryItemKind::Missing

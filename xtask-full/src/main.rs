@@ -42,7 +42,7 @@ use jbotci_source::SourceId;
 use jbotci_syntax::{
     ParseOptions, SyntaxError, SyntaxWarning,
     parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_with_source_and_options,
+    parse_syntax_tree_recovered_with_source_and_options, parse_syntax_tree_with_source_and_options,
 };
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -5745,6 +5745,7 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
                     status: ExpectationStatus::Success,
                     raw: None,
                     diagnostics: vec![],
+                    recovered: None,
                     xfail: None,
                 }),
                 ..Expectations::default()
@@ -11750,7 +11751,7 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
         }
     };
 
-    match parse_syntax_tree_with_source_and_options(
+    let strict_result = match parse_syntax_tree_with_source_and_options(
         &words,
         &fixture.test_case.lojban,
         &syntax_options,
@@ -11864,7 +11865,185 @@ fn run_syntax_fixture(fixture: &LoadedTestCase) -> FacetResult {
                 FacetResult::skipped(format!("syntax expectation is {:?}", expectation.status))
             }
         },
+    };
+    if strict_result.status != fixtures::FacetStatus::Passed {
+        return strict_result;
     }
+    if let Some(recovered) = &expectation.recovered {
+        run_recovered_syntax_fixture(fixture, recovered)
+    } else {
+        strict_result
+    }
+}
+
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[ensures(ret.is_valid())]
+fn run_recovered_syntax_fixture(
+    fixture: &LoadedTestCase,
+    expectation: &fixtures::RecoveredExpectation,
+) -> FacetResult {
+    let dialect = match fixture.test_case.dialect_definition() {
+        Ok(dialect) => dialect,
+        Err(error) => return FacetResult::failed(format!("dialect error: {error}")),
+    };
+    let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+    let mut syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
+    if let Some(max_errors) = expectation.max_errors {
+        syntax_options = syntax_options.with_max_recovery_errors(max_errors);
+    }
+    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+        &fixture.test_case.lojban,
+        &morphology_options,
+        Some(SourceId("<fixture>".to_owned())),
+    );
+    let attempt = attempt.into_data();
+    let words = match attempt.result {
+        Ok(words) => words,
+        Err(error) => {
+            return FacetResult::failed(format!(
+                "recovered syntax blocked by morphology error: {error}"
+            ));
+        }
+    };
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(
+        &words,
+        &fixture.test_case.lojban,
+        &syntax_options,
+    );
+    let actual_status = if recovered.errors.is_empty() {
+        ExpectationStatus::Success
+    } else {
+        ExpectationStatus::Failure
+    };
+    if expectation.status != actual_status {
+        return FacetResult::failed(format!(
+            "recovered syntax status mismatch: expected {:?}, got {:?}",
+            expectation.status, actual_status
+        ));
+    }
+    let mut diagnostics = morphology_warning_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &attempt.warnings,
+    );
+    diagnostics.extend(recovered_syntax_diagnostic_expectation_items(
+        &fixture.test_case.lojban,
+        &recovered,
+    ));
+    diagnostics.sort_by_key(|diagnostic| {
+        (
+            diagnostic.byte_span[0],
+            diagnostic.byte_span[1],
+            diagnostic.code.clone(),
+        )
+    });
+    if expectation.diagnostics != diagnostics {
+        return FacetResult::failed(format!(
+            "recovered syntax diagnostics mismatch: expected {:?}, got {diagnostics:?}",
+            expectation.diagnostics
+        ));
+    }
+    if let Some(expected_tree) = &expectation.tree {
+        let actual_tree = recovered_syntax_tree_expectation(&recovered);
+        if *expected_tree != actual_tree {
+            return FacetResult::failed(format!(
+                "recovered syntax tree mismatch: expected {expected_tree:?}, got {actual_tree:?}",
+            ));
+        }
+    }
+    FacetResult::passed()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_tree_expectation(
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+) -> fixtures::RecoveredTreeExpectation {
+    let mut visitor = RecoveredSyntaxTreeExpectationVisitor::default();
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    new!(fixtures::RecoveredTreeExpectation {
+        valid_tokens: visitor.valid_tokens,
+        recovery_items: visitor.recovery_items,
+    })
+}
+
+#[derive(Default)]
+#[invariant(true)]
+struct RecoveredSyntaxTreeExpectationVisitor {
+    valid_tokens: Vec<String>,
+    recovery_items: Vec<fixtures::RecoveredTreeRecoveryItemExpectation>,
+}
+
+impl<'tree> jbotci_tree::TreeVisitor<'tree> for RecoveredSyntaxTreeExpectationVisitor {
+    type Node = jbotci_syntax::generated_model::recovered::NodeRef<'tree>;
+    type Atom = jbotci_syntax::generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        let jbotci_syntax::generated_model::recovered::AtomRef::Token(token) = atom;
+        let token = token.core_word().to_string();
+        let token = token
+            .split_once(':')
+            .map_or(token.as_str(), |(_kind, text)| text)
+            .to_owned();
+        self.valid_tokens.push(token);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E>(&mut self, item: &'tree E)
+    where
+        E: jbotci_tree::RecoveryItemState + serde::Serialize,
+    {
+        let mut byte_spans = Vec::new();
+        item.visit_source_spans(&mut |span| {
+            byte_spans.push([span.byte_start, span.byte_end]);
+        });
+        self.recovery_items
+            .push(new!(fixtures::RecoveredTreeRecoveryItemExpectation {
+                kind: recovered_tree_item_kind(item.recovery_item_kind()),
+                error_index: item.recovery_error_index(),
+                byte_spans,
+            }));
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_tree_item_kind(
+    kind: jbotci_tree::RecoveryItemKind,
+) -> fixtures::RecoveredTreeRecoveryItemKindExpectation {
+    match kind {
+        jbotci_tree::RecoveryItemKind::Invalid => {
+            fixtures::RecoveredTreeRecoveryItemKindExpectation::Invalid
+        }
+        jbotci_tree::RecoveryItemKind::Missing => {
+            fixtures::RecoveredTreeRecoveryItemKindExpectation::Missing
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_diagnostic_expectation_items(
+    source: &str,
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+) -> Vec<fixtures::DiagnosticExpectation> {
+    recovered
+        .warnings
+        .iter()
+        .map(|warning| {
+            let diagnostic = warning.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        })
+        .chain(recovered.errors.iter().map(|error| {
+            let diagnostic = error.to_diagnostic(Some(SourceId("<fixture>".to_owned())), source);
+            fixtures::DiagnosticExpectation::from_diagnostic(source, &diagnostic)
+        }))
+        .collect()
 }
 
 #[requires(true)]

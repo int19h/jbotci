@@ -130,6 +130,35 @@ impl SyntaxGrammar {
         } else {
             Vec::new()
         };
+        let recovered_parser_functions = if self.generate_parsers && self.generate_model {
+            match self
+                .rules
+                .iter()
+                .filter(|rule| {
+                    !self.generate_model
+                        || rule
+                            .output(&type_env)
+                            .is_some_and(|output| self.rule_has_local_parser(output))
+                })
+                .map(|rule| {
+                    rule.expand_recovered_parser(
+                        &type_env,
+                        &model_outputs,
+                        model_all_rules_local,
+                        self.model_path.as_ref(),
+                        &recovered_module,
+                        rule.output(&type_env)
+                            .is_some_and(|output| self.generates_model_output(output)),
+                    )
+                })
+                .collect::<Result<Vec<_>>>()
+            {
+                Ok(functions) => functions,
+                Err(error) => return error.into_compile_error(),
+            }
+        } else {
+            Vec::new()
+        };
         let partial_valid_parser_functions = if self.generate_partial_valid_parsers {
             match self
                 .rules
@@ -145,6 +174,14 @@ impl SyntaxGrammar {
         };
         let recursive_family = if self.generate_parsers {
             match self.expand_strict_recursive_family() {
+                Ok(family) => family,
+                Err(error) => return error.into_compile_error(),
+            }
+        } else {
+            None
+        };
+        let recovered_recursive_family = if self.generate_parsers && self.generate_model {
+            match self.expand_recovered_recursive_family(&recovered_module) {
                 Ok(family) => family,
                 Err(error) => return error.into_compile_error(),
             }
@@ -286,8 +323,10 @@ impl SyntaxGrammar {
 
             pub(crate) const SYNTAX_GRAMMAR_ENV: &str = #env;
             #(#parser_functions)*
+            #(#recovered_parser_functions)*
             #(#partial_valid_parser_functions)*
             #recursive_family
+            #recovered_recursive_family
             #(#recursive_partial_valid)*
 
             pub(crate) const SYNTAX_GRAMMAR_RECURSIVE_RULES: &[SyntaxGrammarRecursiveRule] = &[
@@ -1315,7 +1354,7 @@ impl SyntaxGrammar {
     #[ensures(true)]
     fn recovered_module_tokens(&self) -> TokenStream2 {
         self.recovered_module.as_ref().map_or_else(
-            || quote!(crate::tree::recovered),
+            || quote!(self::recovered),
             |recovered_module| quote!(#recovered_module),
         )
     }
@@ -1425,6 +1464,125 @@ impl SyntaxGrammar {
 
             #[allow(dead_code)]
             pub(crate) fn strict_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
+                #(#declarations)*
+                #(#definitions)*
+                #family_ident {
+                    #(#outputs,)*
+                }
+            }
+
+            #(#root_functions)*
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_recovered_recursive_family(
+        &self,
+        recovered_module: &TokenStream2,
+    ) -> Result<Option<TokenStream2>> {
+        if self.recursive.is_empty() {
+            return Ok(None);
+        }
+        let all_recursive_names = self
+            .recursive
+            .iter()
+            .map(|rule| rule.name.to_string())
+            .collect::<BTreeSet<_>>();
+        let recursive_rules = self
+            .recursive
+            .iter()
+            .filter(|rule| !self.generate_model || self.rule_has_local_parser(&rule.output))
+            .collect::<Vec<_>>();
+        if recursive_rules.is_empty() {
+            return Ok(None);
+        }
+        let local_recursive_names = recursive_rules
+            .iter()
+            .map(|rule| rule.name.to_string())
+            .collect::<BTreeSet<_>>();
+        let family_ident = format_ident!("RecoveredGeneratedParserFamily");
+        let fields = recursive_rules.iter().map(|rule| {
+            let name = &rule.name;
+            let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
+            quote!(#name: BoxedParser<'tokens, #output>)
+        });
+        let declarations = recursive_rules.iter().map(|rule| {
+            let name = &rule.name;
+            quote!(let mut #name = Recursive::declare();)
+        });
+        let definitions = recursive_rules
+            .iter()
+            .map(|recursive| {
+                let rule = self
+                    .rules
+                    .iter()
+                    .find(|rule| rule.name().to_string() == recursive.name.to_string())
+                    .ok_or_else(|| {
+                        syn::Error::new_spanned(
+                            &recursive.name,
+                            "recursive parser declaration has no matching rule",
+                        )
+                    })?;
+                let parser_name = format_ident!("recovered_{}_parser", rule.name());
+                let parser_arguments = rule
+                    .arguments()
+                    .iter()
+                    .map(|argument| {
+                        let argument_name = argument.to_string();
+                        if local_recursive_names.contains(&argument_name) {
+                            Ok(quote!(#argument.clone()))
+                        } else if all_recursive_names.contains(&argument_name) {
+                            Ok(quote!(super::recovered_generated_parser_family().#argument))
+                        } else {
+                            Err(syn::Error::new_spanned(
+                                argument,
+                                "recursive parser argument is not declared in the recursive block",
+                            ))
+                        }
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let hidden_free_modifier = if local_recursive_names.contains("free_modifier") {
+                    let free_modifier = format_ident!("free_modifier");
+                    quote!(#free_modifier.clone().boxed())
+                } else if all_recursive_names.contains("free_modifier") {
+                    quote!(super::recovered_generated_parser_family().free_modifier)
+                } else {
+                    quote!(generated_runtime::recovered_empty_free_modifier_parser())
+                };
+                let name = &recursive.name;
+                Ok(quote! {
+                    #name.define(#parser_name(
+                        #(#parser_arguments,)*
+                        #hidden_free_modifier,
+                    ));
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let outputs = recursive_rules.iter().map(|rule| {
+            let name = &rule.name;
+            quote!(#name: #name.boxed())
+        });
+        let root_functions = recursive_rules.iter().map(|rule| {
+            let root_name = &rule.name;
+            let function = format_ident!("recovered_generated_{}_parser", root_name);
+            let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
+            quote! {
+                #[allow(dead_code, unused_variables)]
+                pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
+                    recovered_generated_parser_family().#root_name
+                }
+            }
+        });
+        Ok(Some(quote! {
+            #[allow(dead_code)]
+            #[bityzba::invariant(true)]
+            struct #family_ident<'tokens> {
+                #(#fields,)*
+            }
+
+            #[allow(dead_code)]
+            pub(crate) fn recovered_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
                 #(#declarations)*
                 #(#definitions)*
                 #family_ident {
@@ -1937,6 +2095,44 @@ impl Rule {
 
     #[requires(true)]
     #[ensures(true)]
+    fn expand_recovered_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
+        model_path: Option<&Path>,
+        recovered_module: &TokenStream2,
+        use_model_construction: bool,
+    ) -> Result<TokenStream2> {
+        match self {
+            Rule::Alias(rule) => rule.expand_recovered_parser(
+                type_env,
+                model_outputs,
+                model_all_rules_local,
+                model_path,
+                recovered_module,
+            ),
+            Rule::Struct(rule) => rule.expand_recovered_parser(
+                type_env,
+                model_outputs,
+                model_all_rules_local,
+                model_path,
+                recovered_module,
+                use_model_construction,
+            ),
+            Rule::Enum(rule) => rule.expand_recovered_parser(
+                type_env,
+                model_outputs,
+                model_all_rules_local,
+                model_path,
+                recovered_module,
+                use_model_construction,
+            ),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2058,6 +2254,82 @@ impl AliasRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens();
+        let rule_name = self.name.to_string();
+        let context = self.context.as_ref().map_or_else(
+            || quote!(None),
+            |context| {
+                let context = context.value();
+                quote!(Some(#context))
+            },
+        );
+        Ok(quote! {
+            #[allow(dead_code, unused_variables)]
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
+                #(#argument_params,)*
+                #hidden_free_modifier
+            ) -> BoxedParser<'tokens, #output>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
+                    #rule_name,
+                    #context,
+                    #parser
+                )
+            }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_recovered_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
+        model_path: Option<&Path>,
+        recovered_module: &TokenStream2,
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate recovered alias parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let output = type_env.rules.get(&self.name.to_string()).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate recovered alias parser because its output type cannot be inferred",
+            )
+        })?;
+        let argument_names = self.argument_name_set();
+        let free_modifier_parser = format_ident!("__generated_free_modifier");
+        let generation = RecoveredParserGeneration {
+            type_env,
+            model_outputs,
+            model_all_rules_local,
+            recovered_module,
+        };
+        let parser = recovered_parser_expr_tokens(
+            &self.parser,
+            &argument_names,
+            &generation,
+            &free_modifier_parser,
+            RecoveredParserCallMode::Local,
+        )?;
+        let name = format_ident!("recovered_{}_parser", self.name);
+        let output =
+            recovered_parser_value_type_tokens(output, model_outputs, model_path, recovered_module);
+        let argument_tokens = recovered_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            model_outputs,
+            model_path,
+            recovered_module,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
+        let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
         let rule_name = self.name.to_string();
         let context = self.context.as_ref().map_or_else(
             || quote!(None),
@@ -2355,6 +2627,137 @@ impl EnumRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = strict_free_modifier_param_tokens();
+        let rule_name = self.name.to_string();
+        let context = self.context.value();
+        Ok(quote! {
+            #[allow(dead_code, unused_variables)]
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
+                #(#argument_params,)*
+                #hidden_free_modifier
+            ) -> BoxedParser<'tokens, #output_tokens>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
+                    #rule_name,
+                    Some(#context),
+                    #parser
+                )
+            }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_recovered_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
+        model_path: Option<&Path>,
+        recovered_module: &TokenStream2,
+        use_model_construction: bool,
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate recovered enum parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let argument_names = self.argument_name_set();
+        let free_modifier_parser = format_ident!("__generated_free_modifier");
+        let generation = RecoveredParserGeneration {
+            type_env,
+            model_outputs,
+            model_all_rules_local,
+            recovered_module,
+        };
+        let output_tokens = recovered_rule_function_output_tokens(&self.output, recovered_module);
+        let alternatives = self
+            .branches
+            .iter()
+            .map(|branch| {
+                let branch_name = branch.name.to_string();
+                let branch_is_argument = argument_names.contains(&branch_name);
+                let branch_output = if branch_is_argument {
+                    argument_types.get(&branch_name).ok_or_else(|| {
+                        syn::Error::new_spanned(
+                            &branch.name,
+                            "enum branch argument is not declared for this rule",
+                        )
+                    })?
+                } else {
+                    type_env
+                        .rules
+                        .get(&branch_name)
+                        .or_else(|| type_env.recursive.get(&branch_name))
+                        .ok_or_else(|| {
+                            syn::Error::new_spanned(
+                                &branch.name,
+                                "enum branch does not name a rule, recursive parser, or rule argument",
+                            )
+                        })?
+                };
+                let variant = enum_variant_ident_for_output(branch_output, &branch.name);
+                let field = &branch.name;
+                let branch_parser = if branch_is_argument {
+                    recovered_argument_parser_tokens(
+                        &branch_name,
+                        &argument_names,
+                        &generation,
+                        RecoveredParserCallMode::Local,
+                        true,
+                    )?
+                } else if type_env.rules.contains_key(&branch_name) {
+                    recovered_rule_call_by_argument_names(
+                        &branch.name,
+                        type_env.rule_arguments_for_call(&branch_name).ok_or_else(|| {
+                            syn::Error::new_spanned(
+                                &branch.name,
+                                "cannot find argument list for enum branch rule",
+                            )
+                        })?,
+                        &argument_names,
+                        &generation,
+                        &free_modifier_parser,
+                        RecoveredParserCallMode::Local,
+                    )?
+                } else {
+                    recovered_argument_parser_tokens(
+                        &branch_name,
+                        &argument_names,
+                        &generation,
+                        RecoveredParserCallMode::Local,
+                        true,
+                    )?
+                };
+                let branch_parser = branch
+                    .conditions
+                    .iter()
+                    .rev()
+                    .fold(branch_parser, |parser, condition| {
+                        condition.expand_strict_gate(parser)
+                    });
+                let body = if use_model_construction {
+                    quote!(#output_tokens::#variant(#field))
+                } else {
+                    quote!(bityzba::new!(#output_tokens::#variant { #field }))
+                };
+                Ok(quote!(#branch_parser.map(|#field| #body)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let parser = strict_choice_chain(alternatives, &self.name)?;
+        let name = format_ident!("recovered_{}_parser", self.name);
+        let argument_tokens = recovered_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            model_outputs,
+            model_path,
+            recovered_module,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
+        let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
         let rule_name = self.name.to_string();
         let context = self.context.value();
         Ok(quote! {
@@ -2692,6 +3095,147 @@ impl NodeRule {
 
     #[requires(true)]
     #[ensures(true)]
+    fn expand_recovered_parser(
+        &self,
+        type_env: &GrammarTypeEnv,
+        model_outputs: &Option<BTreeSet<String>>,
+        model_all_rules_local: bool,
+        model_path: Option<&Path>,
+        recovered_module: &TokenStream2,
+        use_model_construction: bool,
+    ) -> Result<TokenStream2> {
+        let argument_types = self.argument_types(type_env).ok_or_else(|| {
+            syn::Error::new_spanned(
+                &self.name,
+                "cannot generate recovered struct parser because an argument is not a declared recursive rule",
+            )
+        })?;
+        let argument_names = self.argument_name_set();
+        let sequence_items = self
+            .fields
+            .iter()
+            .filter(|field| matches!(field.kind, FieldKind::Field | FieldKind::Require))
+            .collect::<Vec<_>>();
+        let free_modifier_parser = format_ident!("__generated_free_modifier");
+        let generation = RecoveredParserGeneration {
+            type_env,
+            model_outputs,
+            model_all_rules_local,
+            recovered_module,
+        };
+        let (parser, pattern) = recovered_sequence_parser_tokens(
+            &self.name.to_string(),
+            &sequence_items,
+            &argument_names,
+            &generation,
+            &free_modifier_parser,
+            RecoveredParserCallMode::Local,
+        )?;
+        let name = format_ident!("recovered_{}_parser", self.name);
+        let output = &self.output;
+        let output_tokens = recovered_rule_function_output_tokens(output, recovered_module);
+        let argument_tokens = recovered_parser_argument_tokens(
+            &self.arguments,
+            &argument_types,
+            model_outputs,
+            model_path,
+            recovered_module,
+        );
+        let argument_generic_params = &argument_tokens.generic_params;
+        let argument_params = &argument_tokens.params;
+        let argument_where_clause = &argument_tokens.where_clause;
+        let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
+        let let_bindings = self.fields.iter().filter_map(|field| {
+            matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
+                let name = field.name.as_ref().expect("let field items have names");
+                let value = field.parser.rust_tokens();
+                quote!(let #name = #value;)
+            })
+        });
+        let body = if is_unit_type(output) {
+            quote!({
+                #(#let_bindings)*
+                ()
+            })
+        } else if use_model_construction && matches!(output, Type::Tuple(_)) {
+            let values = self.fields.iter().filter_map(|field| {
+                let name = field.name.as_ref()?;
+                match field.kind {
+                    FieldKind::Field | FieldKind::Computed => Some(quote!(#name)),
+                    FieldKind::TempLet | FieldKind::Require => None,
+                }
+            });
+            quote!({
+                #(#let_bindings)*
+                (#(#values,)*)
+            })
+        } else if is_path_type(output) {
+            let constructed_fields = self
+                .fields
+                .iter()
+                .filter_map(|field| {
+                    let name = field.name.as_ref()?;
+                    match field.kind {
+                        FieldKind::Field | FieldKind::Computed => Some(name),
+                        FieldKind::TempLet | FieldKind::Require => None,
+                    }
+                })
+                .collect::<Vec<_>>();
+            if use_model_construction {
+                if constructed_fields.len() == 1 {
+                    let field = constructed_fields[0];
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens(#field)
+                    })
+                } else {
+                    let assignments = constructed_fields.iter().map(|name| quote!(#name,));
+                    quote!({
+                        #(#let_bindings)*
+                        #output_tokens { #(#assignments)* }
+                    })
+                }
+            } else {
+                let assignments = constructed_fields.iter().map(|name| quote!(#name,));
+                quote!({
+                    #(#let_bindings)*
+                    bityzba::new!(#output_tokens { #(#assignments)* })
+                })
+            }
+        } else {
+            return Err(syn::Error::new_spanned(
+                &self.output,
+                "recovered parser generation supports unit, tuple, and path output types",
+            ));
+        };
+        let rule_name = self.name.to_string();
+        let parser_body = quote!(#parser.map(|#pattern| #body));
+        let context = self.context.as_ref().map_or_else(
+            || quote!(None),
+            |context| {
+                let context = context.value();
+                quote!(Some(#context))
+            },
+        );
+        Ok(quote! {
+            #[allow(dead_code, unused_variables)]
+            pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
+                #(#argument_params,)*
+                #hidden_free_modifier
+            ) -> BoxedParser<'tokens, #output_tokens>
+            #argument_where_clause
+            {
+                generated_runtime::rule_wrapper(
+                    #rule_name,
+                    #context,
+                    #parser_body
+                )
+            }
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn expand_partial_valid_parser(
         &self,
         type_env: &GrammarTypeEnv,
@@ -2778,6 +3322,13 @@ enum StrictParserCallMode {
 }
 
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecoveredParserCallMode {
+    Local,
+    External,
+}
+
+#[invariant(true)]
 struct StrictParserGeneration<'a> {
     type_env: &'a GrammarTypeEnv,
     generate_model: bool,
@@ -2818,6 +3369,63 @@ impl StrictParserGeneration<'_> {
     #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
         quote!(super::strict_generated_parser_family().#name)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_free_modifier_parser(&self) -> TokenStream2 {
+        let name = format_ident!("free_modifier");
+        if self.recursive_has_local_parser("free_modifier") {
+            self.external_recursive_parser(&name)
+        } else {
+            quote!(__generated_free_modifier.clone())
+        }
+    }
+}
+
+#[invariant(true)]
+struct RecoveredParserGeneration<'a> {
+    type_env: &'a GrammarTypeEnv,
+    model_outputs: &'a Option<BTreeSet<String>>,
+    model_all_rules_local: bool,
+    recovered_module: &'a TokenStream2,
+}
+
+impl RecoveredParserGeneration<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_has_local_parser(&self, name: &str) -> bool {
+        self.model_all_rules_local || self.rule_is_generated_model(name)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rule_is_generated_model(&self, name: &str) -> bool {
+        self.type_env
+            .rules
+            .get(name)
+            .is_some_and(|output| output_is_generated_model(true, self.model_outputs, output))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_has_local_parser(&self, name: &str) -> bool {
+        self.model_all_rules_local || self.recursive_is_generated_model(name)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recursive_is_generated_model(&self, name: &str) -> bool {
+        self.type_env
+            .recursive
+            .get(name)
+            .is_some_and(|output| output_is_generated_model(true, self.model_outputs, output))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
+        quote!(super::recovered_generated_parser_family().#name)
     }
 
     #[requires(true)]
@@ -3011,6 +3619,52 @@ fn strict_parser_argument_tokens(
 
 #[requires(true)]
 #[ensures(true)]
+fn recovered_free_modifier_param_tokens(recovered_module: &TokenStream2) -> TokenStream2 {
+    quote!(__generated_free_modifier: BoxedParser<'tokens, #recovered_module::FreeModifierSyntax>,)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_parser_argument_tokens(
+    arguments: &[Ident],
+    argument_types: &BTreeMap<String, Type>,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+    recovered_module: &TokenStream2,
+) -> StrictParserArgumentTokens {
+    let mut generic_params = Vec::new();
+    let mut params = Vec::new();
+    let mut where_predicates = Vec::new();
+    for (index, argument) in arguments.iter().enumerate() {
+        let generic = format_ident!("__Argument{index}RecoveredParser");
+        let ty = argument_types
+            .get(&argument.to_string())
+            .expect("argument types are populated from recursive declarations");
+        let ty = if output_is_generated_model(true, model_outputs, ty) {
+            recovered_rule_function_output_tokens(ty, recovered_module)
+        } else {
+            recovered_parser_value_type_tokens(ty, model_outputs, model_path, recovered_module)
+        };
+        generic_params.push(generic.clone());
+        params.push(quote!(#argument: #generic));
+        where_predicates.push(quote!(
+            #generic: Parser<'tokens, ParserInput<'tokens>, #ty, ParseExtra<'tokens>> + Clone + 'tokens
+        ));
+    }
+    let where_clause = if where_predicates.is_empty() {
+        quote!()
+    } else {
+        quote!(where #(#where_predicates,)*)
+    };
+    new!(StrictParserArgumentTokens {
+        generic_params,
+        params,
+        where_clause,
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn strict_sequence_parser_tokens(
     fields: &[&FieldItem],
     arguments: &BTreeSet<String>,
@@ -3042,6 +3696,184 @@ fn strict_sequence_parser_tokens(
         pattern = quote!((#pattern, #name));
     }
     Ok((parser, pattern))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_sequence_parser_tokens(
+    rule_name: &str,
+    fields: &[&FieldItem],
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<(TokenStream2, TokenStream2)> {
+    let Some(first) = fields.first() else {
+        return Ok((quote!(generated_runtime::empty()), quote!(())));
+    };
+    let mut parser = if matches!(first.kind, FieldKind::Field) {
+        recovered_field_parser_expr_tokens(
+            rule_name,
+            0usize,
+            &first.parser,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?
+    } else {
+        recovered_parser_expr_tokens(
+            &first.parser,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?
+    };
+    let mut pattern = sequence_item_pattern(first);
+    for (field_index, field) in fields.iter().enumerate().skip(1) {
+        let next = if matches!(field.kind, FieldKind::Field) {
+            recovered_field_parser_expr_tokens(
+                rule_name,
+                field_index,
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
+        } else {
+            recovered_parser_expr_tokens(
+                &field.parser,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?
+        };
+        let name = sequence_item_pattern(field);
+        parser = quote!(#parser.then(#next));
+        pattern = quote!((#pattern, #name));
+    }
+    Ok((parser, pattern))
+}
+
+#[requires(!rule_name.is_empty())]
+#[ensures(true)]
+fn recovered_field_parser_expr_tokens(
+    rule_name: &str,
+    field_index: usize,
+    parser: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if let ParserExpr::Vector(vector) = parser {
+        if let [item] = vector.items.as_slice() {
+            let repeated = match item {
+                VectorItem::ZeroOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                    })
+                }
+                VectorItem::ZeroOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            0usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            __items
+                        })
+                    })
+                }
+                VectorItem::OneOrMore(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__items| {
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered non-empty vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::OneOrMoreSpread(expr) => {
+                    let inner = recovered_parser_expr_tokens(
+                        expr,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )?;
+                    Some(quote! {
+                        generated_runtime::recovered_greedy_many_field_parser(
+                            #rule_name,
+                            #field_index,
+                            1usize,
+                            #inner.boxed()
+                        )
+                        .map(|__chunks| {
+                            let mut __items = Vec::new();
+                            for __chunk in __chunks {
+                                __items.extend(__chunk);
+                            }
+                            vec1::Vec1::try_from_vec(__items)
+                                .expect("recovered non-empty spread vector parser preserves cardinality")
+                        })
+                    })
+                }
+                VectorItem::One(_) | VectorItem::Spread(_) | VectorItem::Assert { .. } => None,
+            };
+            if let Some(repeated) = repeated {
+                return Ok(repeated);
+            }
+        }
+    }
+
+    let inner =
+        recovered_parser_expr_tokens(parser, arguments, generation, free_modifier_parser, mode)?;
+    Ok(quote!(generated_runtime::recovered_field_parser(
+        #rule_name,
+        #field_index,
+        #inner
+    )))
 }
 
 #[requires(true)]
@@ -3315,6 +4147,294 @@ fn strict_vector_parser_expr_tokens(
             syn::Error::new_spanned(
                 expr.to_token_stream(),
                 "cannot infer vector parser output type during strict parser generation",
+            )
+        })?;
+    let finish = if returns_vec1 {
+        quote! {
+            vec1::Vec1::try_from_vec(__items)
+                .expect("vector parser expression has statically non-zero cardinality")
+        }
+    } else {
+        quote!(__items)
+    };
+    Ok(quote! {
+        #parser.map(|#pattern| {
+            let mut __items = Vec::new();
+            #(#statements)*
+            #finish
+        })
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_parser_expr_tokens(
+    expr: &ParserExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    match expr {
+        ParserExpr::Rust(expr) => recovered_rust_parser_expr_tokens(
+            expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        ParserExpr::Vector(expr) => recovered_vector_parser_expr_tokens(
+            expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        ParserExpr::Chain(expr) => recovered_chain_parser_expr_tokens(
+            expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        ParserExpr::Postfix {
+            receiver,
+            method,
+            args,
+        } => recovered_postfix_parser_expr_tokens(
+            receiver,
+            method,
+            args,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_chain_parser_expr_tokens(
+    expr: &ChainExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let first = recovered_parser_expr_tokens(
+        &expr.first,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )?;
+    let link = recovered_parser_expr_tokens(
+        &expr.links,
+        arguments,
+        generation,
+        free_modifier_parser,
+        mode,
+    )?;
+    let links = match expr.links_kind {
+        ChainLinksKind::ZeroOrMore => quote!(generated_runtime::strict_greedy_many_parser(
+            #link.boxed()
+        )),
+        ChainLinksKind::OneOrMore => quote! {
+            generated_runtime::strict_greedy_many1_parser(#link.boxed()).map(|__links| {
+                vec1::Vec1::try_from_vec(__links)
+                    .expect("chain parser expression has statically non-zero link cardinality")
+            })
+        },
+    };
+    Ok(quote! {
+        #first
+            .then(#links)
+            .map(|(first, links)| ::jbotci_tree::Chain::new(first, links))
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_postfix_parser_expr_tokens(
+    receiver: &ParserExpr,
+    method: &Ident,
+    args: &[Expr],
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let inner =
+        recovered_parser_expr_tokens(receiver, arguments, generation, free_modifier_parser, mode)?;
+    match (method.to_string().as_str(), args.len()) {
+        ("elidable_terminator", 1) => Ok(inner),
+        ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
+        ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
+        ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
+        ("ignore_then", 1) => {
+            let parser = recovered_rust_parser_expr_tokens(
+                args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(#inner.ignore_then(#parser)))
+        }
+        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+            let free_modifier =
+                recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            let free_modifier_list = if method == "prohibited_wf" {
+                quote!(generated_runtime::recovered_cll_prohibited_free_modifier_list_parser(
+                    #free_modifier
+                ))
+            } else {
+                quote!(generated_runtime::recovered_free_modifier_list_parser(#free_modifier))
+            };
+            let recovered_module = generation.recovered_module;
+            Ok(quote! {
+                #inner
+                    .then(#free_modifier_list)
+                    .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
+                        value,
+                        free_modifiers,
+                    })
+            })
+        }
+        _ => Err(syn::Error::new_spanned(
+            method,
+            "unsupported parser postfix method in recovered parser generation",
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_vector_parser_expr_tokens(
+    expr: &VectorExpr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let mut parsers = Vec::new();
+    let mut bindings = Vec::new();
+    let mut statements = Vec::new();
+    for (index, item) in expr.items.iter().enumerate() {
+        let binding = format_ident!("__vector_item_{index}");
+        match item {
+            VectorItem::One(expr) => {
+                parsers.push(recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?);
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.push(#binding);));
+            }
+            VectorItem::Spread(expr) => {
+                parsers.push(recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?);
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::ZeroOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::ZeroOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote! {
+                    for __chunk in #binding {
+                        __items.extend(__chunk);
+                    }
+                });
+            }
+            VectorItem::OneOrMore(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote!(__items.extend(#binding);));
+            }
+            VectorItem::OneOrMoreSpread(expr) => {
+                let inner = recovered_parser_expr_tokens(
+                    expr,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                parsers.push(quote!(generated_runtime::strict_greedy_many1_parser(
+                    #inner.boxed()
+                )));
+                bindings.push(quote!(#binding));
+                statements.push(quote! {
+                    for __chunk in #binding {
+                        __items.extend(__chunk);
+                    }
+                });
+            }
+            VectorItem::Assert { negated, parser } => {
+                let parser = recovered_parser_expr_tokens(
+                    parser,
+                    arguments,
+                    generation,
+                    free_modifier_parser,
+                    mode,
+                )?;
+                let parser = if *negated {
+                    quote!(generated_runtime::not(#parser))
+                } else {
+                    quote!(generated_runtime::lookahead(#parser).map(|_| ()))
+                };
+                parsers.push(parser);
+                bindings.push(quote!(_));
+            }
+        }
+    }
+    let parser = strict_sequence_expr_chain(parsers)?;
+    let pattern = nested_sequence_pattern(bindings);
+    let returns_vec1 =
+        vector_output_is_vec1(expr, generation.type_env, arguments).ok_or_else(|| {
+            syn::Error::new_spanned(
+                expr.to_token_stream(),
+                "cannot infer vector parser output type during recovered parser generation",
             )
         })?;
     let finish = if returns_vec1 {
@@ -4158,6 +5278,839 @@ fn strict_choice_chain(
 
 #[requires(true)]
 #[ensures(true)]
+fn recovered_rust_parser_expr_tokens(
+    expr: &Expr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    match expr {
+        Expr::Call(call) => recovered_call_parser_expr_tokens(
+            call,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        Expr::MethodCall(method) => recovered_method_parser_expr_tokens(
+            method,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        Expr::Path(path) => recovered_path_parser_expr_tokens(
+            path,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        Expr::Tuple(tuple) => recovered_tuple_parser_expr_tokens(
+            tuple,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        Expr::Array(array) => recovered_vector_parser_expr_tokens(
+            &array_vector_expr(array).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    array,
+                    "recovered parser generation cannot infer an empty vector parser expression",
+                )
+            })?,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        ),
+        _ => Err(syn::Error::new_spanned(
+            expr,
+            "unsupported parser expression in recovered parser generation",
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_method_parser_expr_tokens(
+    method: &ExprMethodCall,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if method.method == "elidable_terminator" && method.args.len() == 1 {
+        recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )
+    } else if method.method == "warn" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let construct = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "warn() requires a generated construct path",
+        )?;
+        let construct = format_ident!("{construct}");
+        let recovered_module = generation.recovered_module;
+        Ok(quote! {
+            #inner.map_with(
+                |value, extra: &mut chumsky::input::MapExtra<'tokens, '_, ParserInput<'tokens>, ParseExtra<'tokens>>| {
+                    if let #recovered_module::Recovered::Valid(token) = &value {
+                        extra.state().warn(ExperimentalConstruct::#construct, token.as_ref());
+                    }
+                    value
+                },
+            )
+        })
+    } else if method.method == "not_next_selmaho" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let selmaho = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "not_next_selmaho() requires a selma'o path",
+        )?;
+        let selmaho = format_ident!("{selmaho}");
+        Ok(quote! {
+            #inner
+                .then(generated_runtime::not_next_selmaho(Selmaho::#selmaho))
+                .map(|(value, _)| value)
+        })
+    } else if method.method == "not_next_token" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let predicate = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "not_next_token() requires a token predicate path",
+        )?;
+        let predicate = format_ident!("{predicate}");
+        Ok(quote! {
+            #inner
+                .then(generated_runtime::not_next_token(SyntaxGrammarTokenPredicate::#predicate))
+                .map(|(value, _)| value)
+        })
+    } else if method.method == "followed_by" && method.args.len() == 1 {
+        let guard_expr = method.args.first().expect("length checked");
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let guard = recovered_rust_parser_expr_tokens(
+            guard_expr,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(generated_runtime::followed_by(#inner, #guard)))
+    } else if method.method == "complete_statement_item" && method.args.is_empty() {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(generated_runtime::complete_statement_item(
+            #inner,
+            "complete statement item",
+        )))
+    } else if method.method == "complete_before_selmaho" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let selmaho = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "complete_before_selmaho() requires a selma'o path",
+        )?;
+        let selmaho = format_ident!("{selmaho}");
+        Ok(quote!(generated_runtime::complete_before_selmaho(
+            #inner,
+            Selmaho::#selmaho,
+            "complete form before selma'o",
+        )))
+    } else if method.method == "lookahead" && method.args.is_empty() {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(generated_runtime::lookahead(#inner)))
+    } else if method.method == "not" && method.args.is_empty() {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(generated_runtime::not(#inner)))
+    } else if method.method == "ignored" && method.args.is_empty() {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(#inner.map(|_| ())))
+    } else if method.method == "ignore_then" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let parser = recovered_rust_parser_expr_tokens(
+            method.args.first().expect("length checked"),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        Ok(quote!(#inner.ignore_then(#parser)))
+    } else if (method.method == "wf"
+        || method.method == "with_free_modifiers"
+        || method.method == "prohibited_wf")
+        && method.args.is_empty()
+    {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let free_modifier =
+            recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+        let free_modifier_list = if method.method == "prohibited_wf" {
+            quote!(generated_runtime::recovered_cll_prohibited_free_modifier_list_parser(
+                #free_modifier
+            ))
+        } else {
+            quote!(generated_runtime::recovered_free_modifier_list_parser(#free_modifier))
+        };
+        let recovered_module = generation.recovered_module;
+        Ok(quote! {
+            #inner
+                .then(#free_modifier_list)
+                .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
+                    value,
+                    free_modifiers,
+                })
+        })
+    } else {
+        Err(syn::Error::new_spanned(
+            method,
+            "unsupported parser method in recovered parser generation",
+        ))
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_call_parser_expr_tokens(
+    call: &ExprCall,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let function = call_name(call).ok_or_else(|| {
+        syn::Error::new_spanned(call, "recovered parser calls must use a named function")
+    })?;
+    if generation.type_env.rules.contains_key(&function) {
+        return recovered_rule_call_parser_tokens(
+            &function,
+            call.args.iter(),
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+            true,
+        );
+    }
+    let recovered_module = generation.recovered_module;
+    match (function.as_str(), call.args.len()) {
+        ("cmavo", 1) => {
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "cmavo() requires a cmavo path",
+            )?;
+            let cmavo = format_ident!("{cmavo}");
+            Ok(quote!(cmavo(Cmavo::#cmavo).map(#recovered_module::Recovered::valid)))
+        }
+        ("selmaho", 1) => {
+            let selmaho = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "selmaho() requires a selma'o path",
+            )?;
+            let selmaho = format_ident!("{selmaho}");
+            Ok(quote!(selmaho(Selmaho::#selmaho).map(#recovered_module::Recovered::valid)))
+        }
+        ("word_category", 1) => {
+            let category = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "word_category() requires a word category path",
+            )?;
+            let category = format_ident!("{category}");
+            Ok(
+                quote!(generated_runtime::word_category(SyntaxWordCategory::#category).map(#recovered_module::Recovered::valid)),
+            )
+        }
+        ("quote_marker", 1) => {
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "quote_marker() requires a cmavo path",
+            )?;
+            let cmavo = format_ident!("{cmavo}");
+            Ok(
+                quote!(generated_runtime::quote_marker(Cmavo::#cmavo).map(#recovered_module::Recovered::valid)),
+            )
+        }
+        ("delimited_quote_marker", 1) => {
+            let cmavo = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "delimited_quote_marker() requires a cmavo path",
+            )?;
+            let cmavo = format_ident!("{cmavo}");
+            Ok(
+                quote!(generated_runtime::delimited_quote_marker(Cmavo::#cmavo).map(#recovered_module::Recovered::valid)),
+            )
+        }
+        ("word_not_cmavo", _) if !call.args.is_empty() => {
+            let terminators = call
+                .args
+                .iter()
+                .map(|argument| {
+                    let cmavo = required_path_expr_last_segment(
+                        argument,
+                        "word_not_cmavo() requires cmavo paths",
+                    )?;
+                    let cmavo = format_ident!("{cmavo}");
+                    Ok(quote!(Cmavo::#cmavo))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(
+                quote!(generated_runtime::word_not_cmavo(&[#(#terminators),*]).map(#recovered_module::Recovered::valid)),
+            )
+        }
+        ("feature", 2) => {
+            let feature = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "feature() requires a feature path",
+            )?;
+            let feature = format_ident!("{feature}");
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(generated_runtime::feature_gate(
+                generated_runtime::SyntaxGrammarFeature::#feature,
+                #inner,
+            )))
+        }
+        ("feature", 1) => {
+            let feature = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "feature() requires a feature path",
+            )?;
+            let feature = format_ident!("{feature}");
+            Ok(quote!(generated_runtime::feature_gate(
+                generated_runtime::SyntaxGrammarFeature::#feature,
+                generated_runtime::empty(),
+            )))
+        }
+        ("policy", 2) => {
+            let policy = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "policy() requires a policy path",
+            )?;
+            let policy = format_ident!("{policy}");
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(generated_runtime::policy_gate(
+                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
+                #inner,
+            )))
+        }
+        ("policy", 1) => {
+            let policy = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "policy() requires a policy path",
+            )?;
+            let policy = format_ident!("{policy}");
+            Ok(quote!(generated_runtime::policy_gate(
+                generated_runtime::SyntaxGrammarPolicyFlag::#policy,
+                generated_runtime::empty(),
+            )))
+        }
+        ("relation_word", 0) => {
+            Ok(quote!(relation_word().map(#recovered_module::Recovered::valid)))
+        }
+        ("tanru_unit_relation_word", 0) => Ok(
+            quote!(generated_runtime::tanru_unit_relation_word().map(#recovered_module::Recovered::valid)),
+        ),
+        ("text_leading_cmevla_word", 0) => Ok(
+            quote!(generated_runtime::text_leading_cmevla_word().map(#recovered_module::Recovered::valid)),
+        ),
+        ("cmevla_word", 0) => Ok(quote!(cmevla_word().map(#recovered_module::Recovered::valid))),
+        ("pa_word", 0) => Ok(quote!(pa_word().map(#recovered_module::Recovered::valid))),
+        ("opt", 1) => {
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(generated_runtime::strict_optional(#inner)))
+        }
+        ("boxed", 1) => {
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(#inner.map(Box::new)))
+        }
+        ("arc", 1) => {
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.first().expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(#inner.map(std::sync::Arc::new)))
+        }
+        ("choice", 1) => {
+            let alternatives = call
+                .args
+                .first()
+                .map(choice_alternative_exprs)
+                .map(|exprs| {
+                    recovered_choice_alternative_parser_tokens(
+                        exprs,
+                        arguments,
+                        generation,
+                        free_modifier_parser,
+                        mode,
+                    )
+                })
+                .expect("length checked")?;
+            strict_choice_chain(alternatives, call)
+        }
+        ("choice", _) => {
+            let alternatives = recovered_choice_alternative_parser_tokens(
+                call.args.iter().collect(),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            strict_choice_chain(alternatives, call)
+        }
+        ("empty", 0) => Ok(quote!(generated_runtime::empty())),
+        ("eof", 0) => Ok(quote!(generated_runtime::eof())),
+        _ => Err(syn::Error::new_spanned(
+            call,
+            "unsupported parser call in recovered parser generation",
+        )),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_path_parser_expr_tokens(
+    path: &ExprPath,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if path.qself.is_none()
+        && path.path.segments.len() == 1
+        && let Some(segment) = path.path.segments.first()
+    {
+        let name = segment.ident.to_string();
+        if arguments.contains(&name) {
+            return recovered_argument_parser_tokens(&name, arguments, generation, mode, true);
+        }
+        if generation.type_env.rules.contains_key(&name) {
+            return recovered_rule_call_parser_tokens(
+                &name,
+                std::iter::empty(),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+                true,
+            );
+        }
+    }
+    Err(syn::Error::new_spanned(
+        path,
+        "unknown parser rule or argument in recovered parser generation",
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_tuple_parser_expr_tokens(
+    tuple: &ExprTuple,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let parts = tuple
+        .elems
+        .iter()
+        .map(|expr| {
+            recovered_rust_parser_expr_tokens(
+                expr,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    strict_sequence_expr_chain(parts)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_rule_argument_expr_tokens(
+    expr: &Expr,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    if let Expr::Path(path) = expr
+        && path.qself.is_none()
+        && path.path.segments.len() == 1
+        && let Some(segment) = path.path.segments.first()
+    {
+        let name = segment.ident.to_string();
+        if arguments.contains(&name) {
+            return recovered_argument_parser_tokens(&name, arguments, generation, mode, false);
+        }
+        if generation.type_env.rules.contains_key(&name) {
+            return recovered_rule_call_parser_tokens(
+                &name,
+                std::iter::empty(),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+                false,
+            );
+        }
+    }
+    if let Expr::Call(call) = expr {
+        let Some(function) = call_name(call) else {
+            return recovered_rust_parser_expr_tokens(
+                expr,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            );
+        };
+        if generation.type_env.rules.contains_key(&function) {
+            return recovered_rule_call_parser_tokens(
+                &function,
+                call.args.iter(),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+                false,
+            );
+        }
+    }
+    recovered_rust_parser_expr_tokens(expr, arguments, generation, free_modifier_parser, mode)
+}
+
+#[requires(!function.is_empty())]
+#[ensures(true)]
+fn recovered_rule_call_parser_tokens<'a>(
+    function: &str,
+    argument_exprs: impl Iterator<Item = &'a Expr>,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+    wrap_generated_model_output: bool,
+) -> Result<TokenStream2> {
+    if !generation.type_env.rules.contains_key(function) {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("unknown grammar rule `{function}` in recovered parser generation"),
+        ));
+    }
+    let call_mode = if mode == RecoveredParserCallMode::External
+        || !generation.rule_has_local_parser(function)
+    {
+        RecoveredParserCallMode::External
+    } else {
+        RecoveredParserCallMode::Local
+    };
+    let parser_arguments = argument_exprs
+        .map(|argument| {
+            recovered_rule_argument_expr_tokens(
+                argument,
+                arguments,
+                generation,
+                free_modifier_parser,
+                call_mode,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(recovered_rule_call_tokens(
+        function,
+        parser_arguments,
+        generation,
+        free_modifier_parser,
+        call_mode,
+        wrap_generated_model_output,
+    ))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_rule_call_by_argument_names(
+    function: &Ident,
+    argument_names: &[String],
+    available_arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<TokenStream2> {
+    let function_name = function.to_string();
+    if !generation.type_env.rules.contains_key(&function_name) {
+        return Err(syn::Error::new_spanned(
+            function,
+            "unknown grammar rule in recovered parser generation",
+        ));
+    }
+    let call_mode = if mode == RecoveredParserCallMode::External
+        || !generation.rule_has_local_parser(&function_name)
+    {
+        RecoveredParserCallMode::External
+    } else {
+        RecoveredParserCallMode::Local
+    };
+    let parser_arguments = argument_names
+        .iter()
+        .map(|argument| {
+            recovered_argument_parser_tokens(
+                argument,
+                available_arguments,
+                generation,
+                call_mode,
+                false,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(recovered_rule_call_tokens(
+        &function_name,
+        parser_arguments,
+        generation,
+        free_modifier_parser,
+        call_mode,
+        true,
+    ))
+}
+
+#[requires(!function.is_empty())]
+#[ensures(true)]
+fn recovered_rule_call_tokens(
+    function: &str,
+    parser_arguments: Vec<TokenStream2>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    call_mode: RecoveredParserCallMode,
+    wrap_generated_model_output: bool,
+) -> TokenStream2 {
+    let parser_name = format_ident!("recovered_{}_parser", function);
+    let parser_name = if call_mode == RecoveredParserCallMode::External {
+        quote!(super::#parser_name)
+    } else {
+        quote!(#parser_name)
+    };
+    let free_modifier =
+        recovered_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
+    let parser = quote!(#parser_name(
+        #(#parser_arguments,)*
+        #free_modifier
+    ));
+    if wrap_generated_model_output && generation.rule_is_generated_model(function) {
+        let recovered_module = generation.recovered_module;
+        quote!(#parser.map(#recovered_module::Recovered::valid))
+    } else {
+        parser
+    }
+}
+
+#[requires(!argument.is_empty())]
+#[ensures(true)]
+fn recovered_argument_parser_tokens(
+    argument: &str,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    mode: RecoveredParserCallMode,
+    wrap_generated_model_output: bool,
+) -> Result<TokenStream2> {
+    if !arguments.contains(argument) {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            format!("parser argument `{argument}` is not available in this recovered parser"),
+        ));
+    }
+    let argument = format_ident!("{argument}");
+    let parser = if mode == RecoveredParserCallMode::External
+        && generation.recursive_has_local_parser(&argument.to_string())
+    {
+        generation.external_recursive_parser(&argument)
+    } else {
+        quote!(#argument.clone())
+    };
+    if wrap_generated_model_output && generation.recursive_is_generated_model(&argument.to_string())
+    {
+        let recovered_module = generation.recovered_module;
+        Ok(quote!(#parser.map(#recovered_module::Recovered::valid)))
+    } else {
+        Ok(parser)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_free_modifier_argument_tokens(
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> TokenStream2 {
+    if mode == RecoveredParserCallMode::External {
+        generation.external_free_modifier_parser()
+    } else {
+        quote!(#free_modifier_parser.clone())
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_choice_alternative_parser_tokens(
+    exprs: Vec<&Expr>,
+    arguments: &BTreeSet<String>,
+    generation: &RecoveredParserGeneration<'_>,
+    free_modifier_parser: &Ident,
+    mode: RecoveredParserCallMode,
+) -> Result<Vec<TokenStream2>> {
+    let Some(first_expr) = exprs.first() else {
+        return Ok(Vec::new());
+    };
+    let argument_types = argument_type_map(arguments, generation.type_env).ok_or_else(|| {
+        syn::Error::new_spanned(
+            *first_expr,
+            "cannot infer parser argument types during recovered choice generation",
+        )
+    })?;
+    let outputs = exprs
+        .iter()
+        .map(|expr| {
+            rust_parser_output_type(expr, generation.type_env, &argument_types)
+                .and_then(|ty| syn::parse2::<Type>(ty).ok())
+                .map(|ty| {
+                    recovered_field_type_tokens(
+                        &ty,
+                        generation.model_outputs,
+                        None,
+                        generation.recovered_module,
+                    )
+                })
+                .ok_or_else(|| {
+                    syn::Error::new_spanned(
+                        *expr,
+                        "cannot infer choice alternative output type during recovered parser generation",
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let target_output = common_choice_output_type(&outputs).ok_or_else(|| {
+        syn::Error::new_spanned(
+            *first_expr,
+            "choice alternatives have incompatible output types during recovered parser generation",
+        )
+    })?;
+    exprs
+        .iter()
+        .zip(outputs.iter())
+        .map(|(expr, output)| {
+            let parser = recovered_rust_parser_expr_tokens(
+                expr,
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            coerce_choice_parser_output(parser, output, &target_output).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    *expr,
+                    "choice alternative output cannot be coerced to the common recovered output type",
+                )
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn parser_output_type(
     expr: &ParserExpr,
     type_env: &GrammarTypeEnv,
@@ -4651,6 +6604,190 @@ fn parser_type_tokens(
         )
     } else {
         quote!(#output)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_rule_function_output_tokens(
+    output: &Type,
+    recovered_module: &TokenStream2,
+) -> TokenStream2 {
+    if let Some(output_ident) = simple_type_ident(output) {
+        quote!(#recovered_module::#output_ident)
+    } else {
+        recovered_parser_value_type_tokens(output, &None, None, recovered_module)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_parser_value_type_tokens(
+    output: &Type,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+    recovered_module: &TokenStream2,
+) -> TokenStream2 {
+    if output_is_generated_model(true, model_outputs, output)
+        && let Some(output_ident) = simple_type_ident(output)
+    {
+        let _ = model_path;
+        return quote!(#recovered_module::#output_ident);
+    }
+    recovered_field_type_tokens(output, model_outputs, model_path, recovered_module)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_field_type_tokens(
+    ty: &Type,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+    recovered_module: &TokenStream2,
+) -> TokenStream2 {
+    match ty {
+        Type::Path(path) if path.qself.is_none() => {
+            let Some(segment) = path.path.segments.last() else {
+                return quote!(#recovered_module::Recovered<#ty>);
+            };
+            if is_wrapper_ident(&segment.ident) {
+                return recovered_wrapper_type_tokens(
+                    &segment.ident,
+                    &segment.arguments,
+                    model_outputs,
+                    model_path,
+                    recovered_module,
+                );
+            }
+            if output_is_generated_model(true, model_outputs, ty)
+                && let Some(output_ident) = simple_type_ident(ty)
+            {
+                return quote!(#recovered_module::Recovered<#recovered_module::#output_ident>);
+            }
+            quote!(#recovered_module::Recovered<#ty>)
+        }
+        Type::Tuple(tuple) => {
+            let elems = tuple.elems.iter().map(|elem| {
+                recovered_field_type_tokens(elem, model_outputs, model_path, recovered_module)
+            });
+            quote!((#(#elems,)*))
+        }
+        Type::Array(array) => {
+            let elem = recovered_field_type_tokens(
+                &array.elem,
+                model_outputs,
+                model_path,
+                recovered_module,
+            );
+            let len = &array.len;
+            quote!([#elem; #len])
+        }
+        _ => quote!(#recovered_module::Recovered<#ty>),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_wrapper_ident(ident: &Ident) -> bool {
+    matches!(
+        ident.to_string().as_str(),
+        "Arc"
+            | "Box"
+            | "Chain"
+            | "Option"
+            | "SmallVec"
+            | "SmallVec1"
+            | "Vec"
+            | "Vec1"
+            | "WithFreeModifiers"
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn first_type_argument(arguments: &PathArguments) -> Option<&Type> {
+    nth_type_argument(arguments, 0)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn nth_type_argument(arguments: &PathArguments, index: usize) -> Option<&Type> {
+    let PathArguments::AngleBracketed(arguments) = arguments else {
+        return None;
+    };
+    arguments
+        .args
+        .iter()
+        .filter_map(|argument| match argument {
+            GenericArgument::Type(ty) => Some(ty),
+            _ => None,
+        })
+        .nth(index)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_wrapper_type_tokens(
+    wrapper: &Ident,
+    arguments: &PathArguments,
+    model_outputs: &Option<BTreeSet<String>>,
+    model_path: Option<&Path>,
+    recovered_module: &TokenStream2,
+) -> TokenStream2 {
+    let Some(inner) = first_type_argument(arguments) else {
+        return quote!(#wrapper);
+    };
+    let wrapper_name = wrapper.to_string();
+    match wrapper_name.as_str() {
+        "Box" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(Box<#inner>)
+        }
+        "Arc" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(std::sync::Arc<#inner>)
+        }
+        "Option" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(Option<#inner>)
+        }
+        "Vec" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(Vec<#inner>)
+        }
+        "Vec1" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(vec1::Vec1<#inner>)
+        }
+        "SmallVec" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(smallvec::SmallVec<#inner>)
+        }
+        "SmallVec1" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(vec1::smallvec_v1::SmallVec1<#inner>)
+        }
+        "WithFreeModifiers" => {
+            let inner =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            quote!(#recovered_module::WithFreeModifiers<#inner>)
+        }
+        "Chain" => {
+            let links = nth_type_argument(arguments, 1).unwrap_or(inner);
+            let first =
+                recovered_field_type_tokens(inner, model_outputs, model_path, recovered_module);
+            let links =
+                recovered_field_type_tokens(links, model_outputs, model_path, recovered_module);
+            quote!(::jbotci_tree::Chain<#first, #links>)
+        }
+        _ => quote!(#recovered_module::Recovered<#wrapper>),
     }
 }
 

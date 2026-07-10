@@ -671,8 +671,51 @@ pub struct MorphologyExpectation {
 #[serde(deny_unknown_fields)]
 pub struct RecoveredExpectation {
     pub status: ExpectationStatus,
+    #[serde(
+        default,
+        rename = "max-errors",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_errors: Option<usize>,
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tree: Option<RecoveredTreeExpectation>,
+}
+
+#[invariant(valid_tokens.iter().all(|token| !token.is_empty()))]
+#[invariant(recovery_items.iter().all(|item| item.byte_spans.iter().all(|span| span[0] <= span[1])))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveredTreeExpectation {
+    #[serde(default, rename = "valid-tokens")]
+    pub valid_tokens: Vec<String>,
+    #[serde(default, rename = "recovery-items")]
+    pub recovery_items: Vec<RecoveredTreeRecoveryItemExpectation>,
+}
+
+#[invariant(byte_spans.iter().all(|span| span[0] <= span[1]))]
+#[invariant(matches!(*kind, RecoveredTreeRecoveryItemKindExpectation::Missing) -> byte_spans.iter().all(|span| span[0] == span[1]))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveredTreeRecoveryItemExpectation {
+    pub kind: RecoveredTreeRecoveryItemKindExpectation,
+    #[serde(
+        default,
+        rename = "error-index",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub error_index: Option<usize>,
+    #[serde(default, rename = "byte-spans")]
+    pub byte_spans: Vec<[usize; 2]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[invariant(true)]
+pub enum RecoveredTreeRecoveryItemKindExpectation {
+    Invalid,
+    Missing,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -743,6 +786,8 @@ pub struct SyntaxExpectation {
     pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default)]
+    pub recovered: Option<RecoveredExpectation>,
     #[serde(default)]
     pub xfail: Option<XfailExpectation>,
 }

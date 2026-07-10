@@ -183,6 +183,7 @@ pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
     pub error_context_depth: usize,
+    pub max_recovery_errors: usize,
 }
 
 impl Default for ParseOptions {
@@ -193,6 +194,7 @@ impl Default for ParseOptions {
             trace: TraceOptions::default(),
             dialect: DialectDefinition::default(),
             error_context_depth: 1,
+            max_recovery_errors: 20,
         }
     }
 }
@@ -202,6 +204,80 @@ impl Default for ParseOptions {
 pub struct SyntaxParseAttempt {
     pub result: Result<SyntaxParse, SyntaxError>,
     pub trace: Option<TraceReport>,
+}
+
+#[invariant(errors.windows(2).all(|window| syntax_error_byte_start(&window[0]) <= syntax_error_byte_start(&window[1])))]
+#[expensive_invariant(errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&parse_tree))]
+#[expensive_invariant(recovered_syntax_error_indices_in_range(&parse_tree, errors.len()))]
+#[derive(Debug, Clone)]
+pub struct RecoveredSyntaxParse {
+    pub parse_tree: Box<generated_model::recovered::TextSyntax>,
+    pub errors: Vec<SyntaxError>,
+    pub warnings: Vec<SyntaxWarning>,
+}
+
+#[derive(Debug, Clone)]
+#[invariant(true)]
+pub struct RecoveredSyntaxParseAttempt {
+    pub result: RecoveredSyntaxParse,
+    pub trace: Option<TraceReport>,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_tree_has_no_error_slots(
+    parse_tree: &generated_model::recovered::TextSyntax,
+) -> bool {
+    jbotci_tree::RecoveredFieldState::recovery_error_slots(parse_tree) == 0
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_syntax_error_indices_in_range(
+    parse_tree: &generated_model::recovered::TextSyntax,
+    error_count: usize,
+) -> bool {
+    let mut visitor = RecoveredSyntaxErrorIndexVisitor {
+        error_count,
+        indices_in_range: true,
+    };
+    generated_model::recovered::TreeNode::visit_in_order(parse_tree, &mut visitor);
+    visitor.indices_in_range
+}
+
+#[invariant(true)]
+struct RecoveredSyntaxErrorIndexVisitor {
+    error_count: usize,
+    indices_in_range: bool,
+}
+
+impl<'tree> TreeVisitor<'tree> for RecoveredSyntaxErrorIndexVisitor {
+    type Node = generated_model::recovered::NodeRef<'tree>;
+    type Atom = generated_model::recovered::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: jbotci_tree::RecoveryItemState + Serialize>(
+        &mut self,
+        item: &'tree E,
+    ) {
+        let Some(error_index) = item.recovery_error_index() else {
+            self.indices_in_range = false;
+            return;
+        };
+        if error_index >= self.error_count {
+            self.indices_in_range = false;
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn syntax_error_byte_start(error: &SyntaxError) -> usize {
+    match error {
+        SyntaxError::Parse { byte_start, .. } => *byte_start,
+        SyntaxError::NotImplemented => 0,
+    }
 }
 
 impl ParseOptions {
@@ -223,6 +299,13 @@ impl ParseOptions {
     #[ensures(ret.error_context_depth == depth)]
     pub fn with_error_context_depth(mut self, depth: usize) -> Self {
         self.error_context_depth = depth;
+        self
+    }
+
+    #[requires(true)]
+    #[ensures(ret.max_recovery_errors == max_recovery_errors)]
+    pub fn with_max_recovery_errors(mut self, max_recovery_errors: usize) -> Self {
+        self.max_recovery_errors = max_recovery_errors;
         self
     }
 }
@@ -2829,6 +2912,32 @@ fn parse_syntax_tree_with_source_and_options_attempt_inner(
     grammar::parse_generated_model_syntax_tree_with_source_attempt(words, source, options)
 }
 
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.parse_tree))]
+pub fn parse_syntax_tree_recovered_with_source_and_options(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> RecoveredSyntaxParse {
+    parse_syntax_tree_recovered_with_source_and_options_attempt(words, source, options).result
+}
+
+#[requires(true)]
+#[ensures(true)]
+#[expensive_ensures(ret.result.errors.is_empty() == recovered_syntax_tree_has_no_error_slots(&ret.result.parse_tree))]
+pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> RecoveredSyntaxParseAttempt {
+    grammar::parse_recovered_generated_model_syntax_tree_with_source_attempt(
+        words,
+        Some(source),
+        options,
+    )
+}
+
 #[doc(hidden)]
 #[requires(true)]
 #[ensures(true)]
@@ -3443,6 +3552,148 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_syntax_strict_success_round_trips_to_valid_tree() {
+        let source = "mi klama";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let options = ParseOptions::default();
+
+        let strict =
+            parse_syntax_tree_generated_model_with_source_and_options(&words, source, &options)
+                .expect("strict parse succeeds");
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+
+        assert!(recovered.errors.is_empty());
+        assert_eq!(recovered.parse_tree.clone().try_into_valid(), Ok(*strict));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_mi_ku_i_do_keeps_strict_error_and_skipped_slot() {
+        let source = "mi ku i do";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let options = ParseOptions::default();
+        let strict_error = parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect_err("strict syntax rejects stray ku");
+
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+
+        assert_eq!(recovered.errors, vec![strict_error]);
+        assert!(matches!(
+            recovered.errors[0],
+            SyntaxError::Parse {
+                kind: SyntaxErrorKind::UnexpectedCmavo,
+                byte_start: 3,
+                byte_end: 5,
+                ..
+            }
+        ));
+        assert_eq!(
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
+            1
+        );
+
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+        assert_eq!(visitor.recovery_spans, vec![(3, 5)]);
+        assert_eq!(visitor.valid_tokens, vec!["mi", "i", "do"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_quote_internal_error_terminates() {
+        let source = "lu mi ku i do li'u i mi klama".to_owned();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let probe = recovered_syntax_probe(&source);
+            let _ = sender.send(probe);
+        });
+
+        let probe = receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("recovered syntax parse should terminate for quote-contained syntax errors");
+        assert_eq!(probe.error_count, 1);
+        assert_eq!(
+            probe.valid_tokens,
+            ["lu", "mi", "i", "do", "li'u", "i", "mi", "kláma"]
+        );
+        assert_eq!(probe.recovery_spans, [(6, 8)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_quote_internal_error_without_inner_anchor_closes_quote() {
+        let probe = recovered_syntax_probe("lu mi ku do li'u i mi klama");
+
+        assert_eq!(probe.error_count, 1);
+        assert_eq!(probe.valid_tokens, ["lu", "mi", "li'u", "i", "mi", "kláma"]);
+        assert_eq!(probe.recovery_spans, [(6, 8), (9, 11)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_degraded_fallback_accounts_for_input_tokens() {
+        let probe = recovered_syntax_probe("ge mi ku gi do");
+
+        assert_eq!(probe.error_count, 1);
+        assert!(
+            probe.valid_tokens.is_empty(),
+            "FieldFirst-only gi recovery should remain degraded in v1, got {:?}",
+            probe.valid_tokens
+        );
+        assert_eq!(
+            probe.recovery_spans,
+            [(0, 2), (3, 5), (6, 8), (9, 11), (12, 14)]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_eof_error_preserves_prefix_tree() {
+        let probe = recovered_syntax_probe("mi viska lo");
+
+        assert_eq!(probe.error_count, 1);
+        assert!(
+            probe.valid_tokens.iter().any(|token| token == "mi")
+                && probe.valid_tokens.iter().any(|token| token.contains("ska"))
+                && probe.valid_tokens.iter().any(|token| token == "lo"),
+            "EOF recovery should preserve the valid statement prefix, got {:?}",
+            probe.valid_tokens
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_literal_run_anchors_keep_tree_content() {
+        for source in ["le ku do"] {
+            let probe = recovered_syntax_probe(source);
+            assert_eq!(probe.error_count, 1, "{source:?}");
+            assert!(
+                !probe.valid_tokens.is_empty(),
+                "literal-run recovery for {source:?} should not degrade to an empty tree"
+            );
+            assert!(
+                !probe.recovery_spans.is_empty(),
+                "literal-run recovery for {source:?} should include a recovery slot"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn syntax_tree_span_equality_ignores_source_offsets_only() {
         let left = syntax_tree_for_source("mi klama");
         let same_tree_different_spans = syntax_tree_for_source("mi  klama");
@@ -3462,6 +3713,73 @@ mod tests {
             .iter()
             .map(|segment| segment.text.as_str())
             .collect::<String>()
+    }
+
+    #[derive(Default)]
+    #[invariant(true)]
+    struct RecoveredTokenAndErrorVisitor {
+        valid_tokens: Vec<String>,
+        recovery_spans: Vec<(usize, usize)>,
+    }
+
+    #[invariant(valid_tokens.iter().all(|token| !token.is_empty()))]
+    #[invariant(*error_count == 0 -> recovery_spans.is_empty())]
+    #[invariant(recovery_spans.iter().all(|(start, end)| start <= end))]
+    #[derive(Debug)]
+    struct RecoveredSyntaxProbe {
+        error_count: usize,
+        valid_tokens: Vec<String>,
+        recovery_spans: Vec<(usize, usize)>,
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_syntax_probe(source: &str) -> RecoveredSyntaxProbe {
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let recovered = parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &ParseOptions::default(),
+        );
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+        new!(RecoveredSyntaxProbe {
+            error_count: recovered.errors.len(),
+            valid_tokens: visitor.valid_tokens,
+            recovery_spans: visitor.recovery_spans,
+        })
+    }
+
+    impl<'tree> TreeVisitor<'tree> for RecoveredTokenAndErrorVisitor {
+        type Node = generated_model::recovered::NodeRef<'tree>;
+        type Atom = generated_model::recovered::AtomRef<'tree>;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_atom(&mut self, atom: Self::Atom) {
+            let generated_model::recovered::AtomRef::Token(token) = atom;
+            let token = token.core_word().to_string();
+            let token = token
+                .split_once(':')
+                .map_or(token.as_str(), |(_kind, text)| text)
+                .to_owned();
+            self.valid_tokens.push(token);
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_recovered_error<E>(&mut self, item: &'tree E)
+        where
+            E: jbotci_tree::RecoveryItemState + serde::Serialize,
+        {
+            item.visit_source_spans(&mut |span| {
+                self.recovery_spans.push((span.byte_start, span.byte_end));
+            });
+        }
     }
 
     #[requires(true)]

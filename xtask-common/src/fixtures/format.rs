@@ -118,6 +118,7 @@ fn push_expectations_toml(
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }
+            push_optional_field(output, "tree", &recovered.tree)?;
         }
     }
     if let Some(jvozba) = &expectations.jvozba {
@@ -136,6 +137,13 @@ fn push_expectations_toml(
             push_field(output, "diagnostics", &syntax.diagnostics)?;
         }
         push_optional_field(output, "xfail", &syntax.xfail)?;
+        if let Some(recovered) = &syntax.recovered {
+            output.push_str("\n[expectations.syntax.recovered]\n");
+            push_field(output, "status", &recovered.status)?;
+            if !recovered.diagnostics.is_empty() {
+                push_field(output, "diagnostics", &recovered.diagnostics)?;
+            }
+        }
     }
     if let Some(semantics) = &expectations.semantics
         && let Some(refs) = &semantics.refs

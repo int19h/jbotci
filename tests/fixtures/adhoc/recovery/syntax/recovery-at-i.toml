@@ -1,0 +1,12 @@
+id = "adhoc.recovery.syntax.recovery-at-i"
+lojban = "mi ku i do"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "i", "do"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[3, 5]] }] }

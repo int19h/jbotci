@@ -1,0 +1,19 @@
+id = "adhoc.recovery.syntax.zero-width-recovery"
+lojban = "le ku do"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [3, 5], source-text = "ku", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered.tree]
+valid-tokens = ["le", "ku", "do"]
+recovery-items = [
+    { kind = "missing", error-index = 0, byte-spans = [[3, 3]] },
+    { kind = "missing", error-index = 0, byte-spans = [[3, 3]] },
+    { kind = "missing", error-index = 0, byte-spans = [[3, 3]] },
+]
