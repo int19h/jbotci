@@ -35,10 +35,8 @@ mod kw {
     syn::custom_keyword!(model);
     syn::custom_keyword!(model_path);
     syn::custom_keyword!(policy);
-    syn::custom_keyword!(recovered);
     syn::custom_keyword!(recursive);
     syn::custom_keyword!(rule);
-    syn::custom_keyword!(parsers);
     syn::custom_keyword!(strict_parsers);
     syn::custom_keyword!(tree_model);
     syn::custom_keyword!(when);
@@ -54,9 +52,7 @@ struct SyntaxGrammar {
     model_outputs: Option<BTreeSet<String>>,
     model_path: Option<Path>,
     env: Option<Type>,
-    recovered_module: Option<Path>,
     generate_parsers: bool,
-    generate_partial_valid_parsers: bool,
     recursive: Vec<RecursiveRule>,
     rules: Vec<Rule>,
 }
@@ -82,7 +78,7 @@ impl SyntaxGrammar {
             };
         };
         let env = compact_tokens(env);
-        let recovered_module = self.recovered_module_tokens();
+        let recovered_module = quote!(self::recovered);
         let recursive = self.recursive.iter().map(RecursiveRule::expand);
         let rules = match self
             .rules
@@ -159,19 +155,6 @@ impl SyntaxGrammar {
         } else {
             Vec::new()
         };
-        let partial_valid_parser_functions = if self.generate_partial_valid_parsers {
-            match self
-                .rules
-                .iter()
-                .map(|rule| rule.expand_partial_valid_parser(&type_env, &recovered_module))
-                .collect::<Result<Vec<_>>>()
-            {
-                Ok(functions) => functions,
-                Err(error) => return error.into_compile_error(),
-            }
-        } else {
-            Vec::new()
-        };
         let recursive_family = if self.generate_parsers {
             match self.expand_strict_recursive_family() {
                 Ok(family) => family,
@@ -188,15 +171,6 @@ impl SyntaxGrammar {
         } else {
             None
         };
-        let recursive_partial_valid = if self.generate_partial_valid_parsers {
-            match self.expand_partial_valid_recursive_roots(&recovered_module) {
-                Ok(roots) => roots,
-                Err(error) => return error.into_compile_error(),
-            }
-        } else {
-            Vec::new()
-        };
-
         quote! {
             #tree_model
 
@@ -324,10 +298,8 @@ impl SyntaxGrammar {
             pub(crate) const SYNTAX_GRAMMAR_ENV: &str = #env;
             #(#parser_functions)*
             #(#recovered_parser_functions)*
-            #(#partial_valid_parser_functions)*
             #recursive_family
             #recovered_recursive_family
-            #(#recursive_partial_valid)*
 
             pub(crate) const SYNTAX_GRAMMAR_RECURSIVE_RULES: &[SyntaxGrammarRecursiveRule] = &[
                 #(#recursive),*
@@ -390,27 +362,13 @@ impl Parse for SyntaxGrammar {
             None
         };
 
-        let recovered_module = if input.peek(kw::recovered) {
-            input.parse::<kw::recovered>()?;
-            let path = input.parse()?;
+        let generate_parsers = if env.is_some() && input.peek(kw::strict_parsers) {
+            input.parse::<kw::strict_parsers>()?;
             input.parse::<Token![;]>()?;
-            Some(path)
+            true
         } else {
-            None
+            false
         };
-
-        let (generate_parsers, generate_partial_valid_parsers) =
-            if env.is_some() && input.peek(kw::parsers) {
-                input.parse::<kw::parsers>()?;
-                input.parse::<Token![;]>()?;
-                (true, true)
-            } else if env.is_some() && input.peek(kw::strict_parsers) {
-                input.parse::<kw::strict_parsers>()?;
-                input.parse::<Token![;]>()?;
-                (true, false)
-            } else {
-                (false, false)
-            };
 
         let mut recursive = Vec::new();
         let mut rules = Vec::new();
@@ -437,9 +395,7 @@ impl Parse for SyntaxGrammar {
             model_outputs,
             model_path,
             env,
-            recovered_module,
             generate_parsers,
-            generate_partial_valid_parsers,
             recursive,
             rules,
         })
@@ -1352,15 +1308,6 @@ impl GeneratedFieldModel {
 impl SyntaxGrammar {
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_module_tokens(&self) -> TokenStream2 {
-        self.recovered_module.as_ref().map_or_else(
-            || quote!(self::recovered),
-            |recovered_module| quote!(#recovered_module),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn expand_strict_recursive_family(&self) -> Result<Option<TokenStream2>> {
         if self.recursive.is_empty() {
             return Ok(None);
@@ -1592,36 +1539,6 @@ impl SyntaxGrammar {
 
             #(#root_functions)*
         }))
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_partial_valid_recursive_roots(
-        &self,
-        recovered_module: &TokenStream2,
-    ) -> Result<Vec<TokenStream2>> {
-        self.recursive
-            .iter()
-            .map(|rule| {
-                let output = simple_type_ident(&rule.output).ok_or_else(|| {
-                    syn::Error::new_spanned(
-                        &rule.output,
-                        "partial-valid recursive parser generation requires a simple path output type",
-                    )
-                })?;
-                let function = format_ident!("partial_valid_generated_{}_parser", rule.name);
-                let strict_function = format_ident!("strict_generated_{}_parser", rule.name);
-                let recovered_output = quote!(#recovered_module::#output);
-                Ok(quote! {
-                    #[allow(dead_code)]
-                    pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #recovered_output> {
-                        #strict_function()
-                            .map(#recovered_output::from_valid)
-                            .boxed()
-                    }
-                })
-            })
-            .collect()
     }
 }
 
@@ -2130,20 +2047,6 @@ impl Rule {
             ),
         }
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_partial_valid_parser(
-        &self,
-        type_env: &GrammarTypeEnv,
-        recovered_module: &TokenStream2,
-    ) -> Result<TokenStream2> {
-        match self {
-            Rule::Alias(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
-            Rule::Struct(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
-            Rule::Enum(rule) => rule.expand_partial_valid_parser(type_env, recovered_module),
-        }
-    }
 }
 
 #[invariant(true)]
@@ -2351,58 +2254,6 @@ impl AliasRule {
                     #context,
                     #parser
                 )
-            }
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_partial_valid_parser(
-        &self,
-        type_env: &GrammarTypeEnv,
-        recovered_module: &TokenStream2,
-    ) -> Result<TokenStream2> {
-        let argument_types = self.argument_types(type_env).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.name,
-                "cannot generate partial-valid alias parser because an argument is not a declared recursive rule",
-            )
-        })?;
-        let output = type_env.rules.get(&self.name.to_string()).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.name,
-                "cannot generate partial-valid alias parser because its output type cannot be inferred",
-            )
-        })?;
-        let output = simple_type_ident(output).ok_or_else(|| {
-            syn::Error::new_spanned(
-                output,
-                "partial-valid alias parser generation requires a simple path output type",
-            )
-        })?;
-        let name = format_ident!("partial_valid_{}_parser", self.name);
-        let strict_name = format_ident!("strict_{}_parser", self.name);
-        let recovered_output = quote!(#recovered_module::#output);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
-        let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
-        let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Ok(quote! {
-            #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
-                #(#argument_params,)*
-                #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #recovered_output> {
-                #strict_name(
-                    #(#parser_arguments,)*
-                    __generated_free_modifier,
-                )
-                .map(#recovered_output::from_valid)
-                .boxed()
             }
         })
     }
@@ -2773,52 +2624,6 @@ impl EnumRule {
                     Some(#context),
                     #parser
                 )
-            }
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_partial_valid_parser(
-        &self,
-        type_env: &GrammarTypeEnv,
-        recovered_module: &TokenStream2,
-    ) -> Result<TokenStream2> {
-        let argument_types = self.argument_types(type_env).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.name,
-                "cannot generate partial-valid enum parser because an argument is not a declared recursive rule",
-            )
-        })?;
-        let output = simple_type_ident(&self.output).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.output,
-                "partial-valid enum parser generation requires a simple path output type",
-            )
-        })?;
-        let name = format_ident!("partial_valid_{}_parser", self.name);
-        let strict_name = format_ident!("strict_{}_parser", self.name);
-        let recovered_output = quote!(#recovered_module::#output);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
-        let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
-        let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Ok(quote! {
-            #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
-                #(#argument_params,)*
-                #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #recovered_output> {
-                #strict_name(
-                    #(#parser_arguments,)*
-                    __generated_free_modifier,
-                )
-                .map(#recovered_output::from_valid)
-                .boxed()
             }
         })
     }
@@ -3230,58 +3035,6 @@ impl NodeRule {
                     #context,
                     #parser_body
                 )
-            }
-        })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn expand_partial_valid_parser(
-        &self,
-        type_env: &GrammarTypeEnv,
-        recovered_module: &TokenStream2,
-    ) -> Result<TokenStream2> {
-        if !is_path_type(&self.output) {
-            return Err(syn::Error::new_spanned(
-                &self.output,
-                "partial-valid struct parser generation requires a path output type",
-            ));
-        }
-        let argument_types = self.argument_types(type_env).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.name,
-                "cannot generate partial-valid struct parser because an argument is not a declared recursive rule",
-            )
-        })?;
-        let output = simple_type_ident(&self.output).ok_or_else(|| {
-            syn::Error::new_spanned(
-                &self.output,
-                "partial-valid struct parser generation requires a simple path output type",
-            )
-        })?;
-        let name = format_ident!("partial_valid_{}_parser", self.name);
-        let strict_name = format_ident!("strict_{}_parser", self.name);
-        let recovered_output = quote!(#recovered_module::#output);
-        let argument_params = self.arguments.iter().map(|argument| {
-            let ty = argument_types
-                .get(&argument.to_string())
-                .expect("argument types are populated from recursive declarations");
-            quote!(#argument: BoxedParser<'tokens, #ty>)
-        });
-        let parser_arguments = self.arguments.iter().map(|argument| quote!(#argument));
-        let hidden_free_modifier = strict_free_modifier_param_tokens();
-        Ok(quote! {
-            #[allow(dead_code, unused_variables)]
-            pub(crate) fn #name<'tokens>(
-                #(#argument_params,)*
-                #hidden_free_modifier
-            ) -> BoxedParser<'tokens, #recovered_output> {
-                #strict_name(
-                    #(#parser_arguments,)*
-                    __generated_free_modifier,
-                )
-                .map(#recovered_output::from_valid)
-                .boxed()
             }
         })
     }
@@ -9283,29 +9036,6 @@ mod tests {
             expanded.contains("compile_error")
                 && expanded.contains("recursive parser declaration has no matching rule"),
             "missing recursive root rules should be reported: {expanded}"
-        );
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    #[test]
-    fn partial_valid_alias_requires_simple_output_type() {
-        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
-            env generated_runtime::SyntaxGrammarEnv;
-            recovered recovered_syntax;
-            parsers;
-
-            alias "pair" pair = (cmavo(Be), cmavo(Bo));
-        })
-        .expect("grammar parses before partial-valid parser generation");
-
-        let expanded = grammar.expand().to_string();
-        assert!(
-            expanded.contains("compile_error")
-                && expanded.contains(
-                    "partial-valid alias parser generation requires a simple path output type"
-                ),
-            "unnamed partial-valid parser outputs should be reported: {expanded}"
         );
     }
 }

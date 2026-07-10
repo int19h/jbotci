@@ -51,40 +51,45 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     let dialect = input.dialect_definition()?;
     let morphology_options = MorphologyOptions::default()
         .with_dialect_definition(&dialect)
+        .with_max_recovery_errors(input.max_errors.get())
         .with_trace_options(morphology_trace_options);
-    let attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
+    let attempt = segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
         &text,
         &morphology_options,
         Some(SourceId(source_label.clone())),
     );
     let attempt = attempt.into_data();
     let trace_stderr = render_cli_trace(attempt.trace.as_ref(), color_policy.stderr);
-    let words = match attempt.result {
-        Ok(words) => words,
-        Err(error) => {
-            stderr.write_all(trace_stderr.as_bytes())?;
-            let mut diagnostics = morphology_warning_diagnostics(
-                &attempt.warnings,
-                Some(SourceId(source_label.clone())),
-                &text,
-            );
-            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-            write_source_diagnostics(
-                stderr,
-                &source_label,
-                &text,
-                &diagnostics,
-                color_policy.stderr,
-                diagnostic_detail,
-                glyphs,
-                diagnostic_terminal_width,
-            )?;
-            return Ok(CliStatus::Failure);
-        }
-    };
+    let morphology = attempt.result.into_data();
+    if !morphology.errors.is_empty() {
+        stderr.write_all(trace_stderr.as_bytes())?;
+        let mut diagnostics = morphology_warning_diagnostics(
+            &morphology.warnings,
+            Some(SourceId(source_label.clone())),
+            &text,
+        );
+        diagnostics.extend(
+            morphology
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+        );
+        write_source_diagnostics(
+            stderr,
+            &source_label,
+            &text,
+            &diagnostics,
+            color_policy.stderr,
+            diagnostic_detail,
+            glyphs,
+            diagnostic_terminal_width,
+        )?;
+        return Ok(CliStatus::Failure);
+    }
+    let words = morphology.words;
     stderr.write_all(trace_stderr.as_bytes())?;
     let diagnostics = morphology_warning_diagnostics(
-        &attempt.warnings,
+        &morphology.warnings,
         Some(SourceId(source_label.clone())),
         &text,
     );

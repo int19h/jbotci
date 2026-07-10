@@ -10,7 +10,7 @@ mod surface;
 mod syntax_eq;
 pub mod tree;
 
-use std::{fmt, sync::Arc};
+use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use bityzba::{data, invariant, new, requires, try_new};
 use jbotci_diagnostics::{
@@ -86,6 +86,7 @@ pub struct MorphologyOptions {
     pub compiled_dialect: CompiledDialectDefinition,
     pub cmevla_as_relation_words: bool,
     pub uppercase_marks_stress: bool,
+    pub max_recovery_errors: NonZeroUsize,
     #[serde(default)]
     pub trace: TraceOptions,
 }
@@ -101,6 +102,8 @@ impl Default for MorphologyOptions {
             compiled_dialect: CompiledDialectDefinition::default(),
             cmevla_as_relation_words: false,
             uppercase_marks_stress: true,
+            max_recovery_errors: NonZeroUsize::new(20)
+                .expect("the default recovery error cap is non-zero"),
             trace: TraceOptions::disabled(),
         }
     }
@@ -141,6 +144,16 @@ impl MorphologyOptions {
     #[ensures(true)]
     pub fn with_trace_options(self, trace: TraceOptions) -> Self {
         MorphologyOptions { trace, ..self }
+    }
+
+    #[requires(max_recovery_errors > 0)]
+    #[ensures(ret.max_recovery_errors.get() == max_recovery_errors)]
+    pub fn with_max_recovery_errors(self, max_recovery_errors: usize) -> Self {
+        MorphologyOptions {
+            max_recovery_errors: NonZeroUsize::new(max_recovery_errors)
+                .expect("the recovery error cap precondition excludes zero"),
+            ..self
+        }
     }
 }
 

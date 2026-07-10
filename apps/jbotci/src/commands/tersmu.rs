@@ -44,74 +44,90 @@ fn render_tersmu(
     let dialect = input.dialect_definition()?;
     let morphology_options = MorphologyOptions::default()
         .with_dialect_definition(&dialect)
+        .with_max_recovery_errors(input.max_errors.get())
         .with_trace_options(morphology_trace_options);
-    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
-        &text,
-        &morphology_options,
-        Some(SourceId(source_label.clone())),
-    );
+    let morphology_attempt =
+        segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+            &text,
+            &morphology_options,
+            Some(SourceId(source_label.clone())),
+        );
     let morphology_attempt = morphology_attempt.into_data();
     let morphology_trace_stderr =
         render_cli_trace(morphology_attempt.trace.as_ref(), color_policy.stderr);
+    let morphology = morphology_attempt.result.into_data();
     let morphology_diagnostics = morphology_warning_diagnostics(
-        &morphology_attempt.warnings,
+        &morphology.warnings,
         Some(SourceId(source_label.clone())),
         &text,
     );
-    let words = match morphology_attempt.result {
-        Ok(words) => words,
-        Err(error) => {
-            let mut diagnostics = morphology_diagnostics;
-            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-            let mut stderr = morphology_trace_stderr;
-            stderr.push_str(&render_source_diagnostics(
-                &source_label,
-                &text,
-                &diagnostics,
-                color_policy.stderr,
-                diagnostic_detail,
-                glyphs,
-                diagnostic_terminal_width,
-            )?);
-            return Ok(new!(TersmuRendered {
-                status: CliStatus::Failure,
-                stdout: Vec::new(),
-                stderr,
-            }));
-        }
-    };
+    if !morphology.errors.is_empty() {
+        let mut diagnostics = morphology_diagnostics;
+        diagnostics.extend(
+            morphology
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(Some(SourceId(source_label.clone())), &text)),
+        );
+        let mut stderr = morphology_trace_stderr;
+        stderr.push_str(&render_source_diagnostics(
+            &source_label,
+            &text,
+            &diagnostics,
+            color_policy.stderr,
+            diagnostic_detail,
+            glyphs,
+            diagnostic_terminal_width,
+        )?);
+        return Ok(new!(TersmuRendered {
+            status: CliStatus::Failure,
+            stdout: Vec::new(),
+            stderr,
+        }));
+    }
+    let words = morphology.words;
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
-        .with_trace_options(syntax_trace_options);
-    let parsed = parse_syntax_tree_generated_model_with_source_and_options_attempt(
+        .with_trace_options(syntax_trace_options)
+        .with_max_recovery_errors(input.max_errors.get());
+    let parsed = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
         &words,
         &text,
         &parse_options,
     );
     let trace_stderr = render_cli_trace(parsed.trace.as_ref(), color_policy.stderr);
-    let parsed = match parsed.result {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            let mut diagnostics = morphology_diagnostics;
-            diagnostics.push(error.to_diagnostic(Some(SourceId(source_label.clone())), &text));
-            let mut stderr = morphology_trace_stderr;
-            stderr.push_str(&trace_stderr);
-            stderr.push_str(&render_source_diagnostics(
-                &source_label,
-                &text,
-                &diagnostics,
-                color_policy.stderr,
-                diagnostic_detail,
-                glyphs,
-                diagnostic_terminal_width,
-            )?);
-            return Ok(new!(TersmuRendered {
-                status: CliStatus::Failure,
-                stdout: Vec::new(),
-                stderr,
-            }));
-        }
-    };
+    let parsed =
+        match parsed.result.into_data() {
+            data!(SyntaxRecoveryParse::Valid { parse }) => parse.into_data(),
+            data!(SyntaxRecoveryParse::Recovered { parse }) => {
+                let parsed = parse.into_data();
+                let mut diagnostics = morphology_diagnostics;
+                diagnostics.extend(
+                    parsed.errors.iter().map(|error| {
+                        error.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                    }),
+                );
+                diagnostics.extend(parsed.warnings.iter().map(|warning| {
+                    warning.to_diagnostic(Some(SourceId(source_label.clone())), &text)
+                }));
+                let mut stderr = morphology_trace_stderr;
+                stderr.push_str(&trace_stderr);
+                stderr.push_str(&render_source_diagnostics(
+                    &source_label,
+                    &text,
+                    &diagnostics,
+                    color_policy.stderr,
+                    diagnostic_detail,
+                    glyphs,
+                    diagnostic_terminal_width,
+                )?);
+                return Ok(new!(TersmuRendered {
+                    status: CliStatus::Failure,
+                    stdout: Vec::new(),
+                    stderr,
+                }));
+            }
+        };
     let mut diagnostics = morphology_diagnostics;
     diagnostics.extend(
         parsed

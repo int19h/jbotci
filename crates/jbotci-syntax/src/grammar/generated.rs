@@ -3141,6 +3141,23 @@ pub mod generated_model {
         words: &[Token],
         options: &ParseOptions,
     ) -> GeneratedParsedTextDetailedAttempt {
+        let strict_attempt = parse_text_attempt(words, options);
+        if let Ok(parsed) = strict_attempt.result {
+            return GeneratedParsedTextDetailedAttempt {
+                result: Ok(parsed),
+                trace: strict_attempt.trace,
+            };
+        }
+
+        parse_text_detailed_tracked_attempt(words, options)
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    pub(crate) fn parse_text_detailed_tracked_attempt(
+        words: &[Token],
+        options: &ParseOptions,
+    ) -> GeneratedParsedTextDetailedAttempt {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new_with_recovery_branches(words, options);

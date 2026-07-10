@@ -28,8 +28,9 @@ use vec1::Vec1;
 use crate::tree::{SyntaxRecoveryItem, SyntaxRecoveryItemData};
 use crate::{
     ExperimentalConstruct, ParseOptions, RecoveredSyntaxParse, RecoveredSyntaxParseAttempt,
-    SyntaxError, SyntaxParse, SyntaxParseAttempt, SyntaxWarning, Token, WithIndicators,
-    WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
+    SyntaxError, SyntaxParse, SyntaxParseAttempt, SyntaxRecoveryParse, SyntaxRecoveryParseAttempt,
+    SyntaxRecoveryParseData, SyntaxWarning, Token, WithIndicators, WithIndicatorsData,
+    syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
 mod generated;
@@ -1208,27 +1209,78 @@ pub(crate) fn parse_recovered_generated_model_syntax_tree_with_source_attempt(
     source: Option<&str>,
     options: &ParseOptions,
 ) -> RecoveredSyntaxParseAttempt {
-    let tokens = syntax_tokens(words, options);
-    let strict_attempt = generated::generated_model::parse_text_detailed_attempt(&tokens, options);
-    let failure = match strict_attempt.result {
-        Ok(parsed) => {
-            let mut warnings = parsed.warnings;
-            add_generated_construct_warnings(&parsed.text, &tokens, &mut warnings);
-            return RecoveredSyntaxParseAttempt {
-                result: new!(RecoveredSyntaxParse {
-                    parse_tree: Box::new(
-                        generated::generated_model::recovered::TextSyntax::from_valid(parsed.text),
+    let attempt = parse_generated_model_syntax_tree_with_recovery_attempt(words, source, options);
+    let result = match attempt.result.into_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => {
+            let parse = parse.into_data();
+            new!(RecoveredSyntaxParse {
+                parse_tree: Box::new(
+                    generated::generated_model::recovered::TextSyntax::from_valid(
+                        *parse.parse_tree,
                     ),
-                    errors: Vec::new(),
-                    warnings,
-                }),
-                trace: strict_attempt.trace,
-            };
+                ),
+                errors: Vec::new(),
+                warnings: parse.warnings,
+            })
+        }
+        data!(SyntaxRecoveryParse::Recovered { parse }) => parse,
+    };
+    RecoveredSyntaxParseAttempt {
+        result,
+        trace: attempt.trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn parse_generated_model_syntax_tree_with_recovery_attempt(
+    words: &[WordLike],
+    source: Option<&str>,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    let tokens = syntax_tokens(words, options);
+    let strict_attempt = generated::generated_model::parse_text_attempt(&tokens, options);
+    if let Ok(parsed) = strict_attempt.result {
+        return valid_syntax_recovery_attempt(parsed, &tokens, strict_attempt.trace);
+    }
+
+    let tracked_attempt =
+        generated::generated_model::parse_text_detailed_tracked_attempt(&tokens, options);
+    let failure = match tracked_attempt.result {
+        Ok(parsed) => {
+            return valid_syntax_recovery_attempt(parsed, &tokens, tracked_attempt.trace);
         }
         Err(failure) => failure,
     };
 
-    recover_after_strict_failure(tokens, source, options, failure, strict_attempt.trace)
+    let recovered =
+        recover_after_strict_failure(tokens, source, options, failure, tracked_attempt.trace);
+    SyntaxRecoveryParseAttempt {
+        result: new!(SyntaxRecoveryParse::Recovered {
+            parse: recovered.result,
+        }),
+        trace: recovered.trace,
+    }
+}
+
+#[requires(true)]
+#[ensures(matches!(ret.result.as_data(), SyntaxRecoveryParseData::Valid { .. }))]
+fn valid_syntax_recovery_attempt(
+    parsed: generated::generated_model::GeneratedParsedText,
+    tokens: &[Token],
+    trace: Option<TraceReport>,
+) -> SyntaxRecoveryParseAttempt {
+    let mut warnings = parsed.warnings;
+    add_generated_construct_warnings(&parsed.text, tokens, &mut warnings);
+    SyntaxRecoveryParseAttempt {
+        result: new!(SyntaxRecoveryParse::Valid {
+            parse: new!(SyntaxParse {
+                parse_tree: Box::new(parsed.text),
+                warnings,
+            }),
+        }),
+        trace,
+    }
 }
 
 #[requires(true)]
@@ -1240,7 +1292,7 @@ fn recover_after_strict_failure(
     mut failure: generated::generated_model::GeneratedParseFailure,
     mut trace: Option<TraceReport>,
 ) -> RecoveredSyntaxParseAttempt {
-    let cap = options.max_recovery_errors.max(1);
+    let cap = options.max_recovery_errors.get();
     let mut errors = vec![failure.public_error.clone()];
     let mut directives = Vec::new();
 

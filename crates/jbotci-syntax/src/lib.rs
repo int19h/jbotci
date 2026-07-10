@@ -12,7 +12,7 @@ mod grammar;
 
 extern crate self as jbotci_syntax;
 
-use std::cmp::Ordering;
+use std::{cmp::Ordering, num::NonZeroUsize};
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
@@ -183,7 +183,7 @@ pub struct ParseOptions {
     pub trace: TraceOptions,
     pub dialect: DialectDefinition,
     pub error_context_depth: usize,
-    pub max_recovery_errors: usize,
+    pub max_recovery_errors: NonZeroUsize,
 }
 
 impl Default for ParseOptions {
@@ -194,7 +194,8 @@ impl Default for ParseOptions {
             trace: TraceOptions::default(),
             dialect: DialectDefinition::default(),
             error_context_depth: 1,
-            max_recovery_errors: 20,
+            max_recovery_errors: NonZeroUsize::new(20)
+                .expect("the default recovery error cap is non-zero"),
         }
     }
 }
@@ -220,6 +221,21 @@ pub struct RecoveredSyntaxParse {
 #[invariant(true)]
 pub struct RecoveredSyntaxParseAttempt {
     pub result: RecoveredSyntaxParse,
+    pub trace: Option<TraceReport>,
+}
+
+#[invariant(::Valid => parse.warnings.iter().all(|warning| !warning.anchor.source_spans().is_empty()))]
+#[invariant(::Recovered => !parse.errors.is_empty())]
+#[derive(Debug, Clone)]
+pub enum SyntaxRecoveryParse {
+    Valid { parse: SyntaxParse },
+    Recovered { parse: RecoveredSyntaxParse },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone)]
+pub struct SyntaxRecoveryParseAttempt {
+    pub result: SyntaxRecoveryParse,
     pub trace: Option<TraceReport>,
 }
 
@@ -302,10 +318,11 @@ impl ParseOptions {
         self
     }
 
-    #[requires(true)]
-    #[ensures(ret.max_recovery_errors == max_recovery_errors)]
+    #[requires(max_recovery_errors > 0)]
+    #[ensures(ret.max_recovery_errors.get() == max_recovery_errors)]
     pub fn with_max_recovery_errors(mut self, max_recovery_errors: usize) -> Self {
-        self.max_recovery_errors = max_recovery_errors;
+        self.max_recovery_errors = NonZeroUsize::new(max_recovery_errors)
+            .expect("the recovery error cap precondition excludes zero");
         self
     }
 }
@@ -2938,6 +2955,16 @@ pub fn parse_syntax_tree_recovered_with_source_and_options_attempt(
     )
 }
 
+#[requires(true)]
+#[ensures(true)]
+pub fn parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+    words: &[WordLike],
+    source: &str,
+    options: &ParseOptions,
+) -> SyntaxRecoveryParseAttempt {
+    grammar::parse_generated_model_syntax_tree_with_recovery_attempt(words, Some(source), options)
+}
+
 #[doc(hidden)]
 #[requires(true)]
 #[ensures(true)]
@@ -3566,6 +3593,31 @@ mod tests {
 
         assert!(recovered.errors.is_empty());
         assert_eq!(recovered.parse_tree.clone().try_into_valid(), Ok(*strict));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_recovery_attempt_preserves_the_strict_tree_on_valid_input() {
+        let source = "mi klama";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let options = ParseOptions::default();
+        let strict =
+            parse_syntax_tree_generated_model_with_source_and_options(&words, source, &options)
+                .expect("strict parse succeeds");
+
+        let attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
+            &words, source, &options,
+        );
+        match attempt.result.into_data() {
+            data!(SyntaxRecoveryParse::Valid { parse }) => {
+                assert_eq!(parse.parse_tree.as_ref(), strict.as_ref());
+            }
+            data!(SyntaxRecoveryParse::Recovered { .. }) => {
+                panic!("valid input must use the zero-conversion strict outcome")
+            }
+        }
     }
 
     #[test]

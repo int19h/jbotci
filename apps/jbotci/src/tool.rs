@@ -262,6 +262,7 @@ impl From<ToolGentufaRequest> for Command {
             ascii: false,
             detailed_errors: true,
             error_context: 1,
+            max_errors: DEFAULT_MAX_ERRORS,
             trace_phase: None,
             trace_limit: None,
             trace_list: false,
@@ -375,6 +376,7 @@ impl From<ToolVlaseiRequest> for Command {
             file: None,
             ascii: false,
             detailed_errors: true,
+            max_errors: DEFAULT_MAX_ERRORS,
             trace_phase: None,
             trace_limit: None,
             trace_list: false,
@@ -1097,6 +1099,7 @@ impl From<ToolTersmuRequest> for Command {
         Self::Tersmu(TersmuInput {
             file: None,
             format: TersmuFormat::Json,
+            max_errors: DEFAULT_MAX_ERRORS,
             trace: None,
             dialect: request.dialect,
             story_time: request.story_time,

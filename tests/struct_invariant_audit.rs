@@ -1256,6 +1256,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "parse attempt combines parser result with optional trace report without extra cross-field constraints",
     ),
     (
+        "crates/jbotci-syntax/src/lib.rs:SyntaxRecoveryParseAttempt",
+        "recovery parse attempt combines a validated strict-or-recovered outcome with an independent optional trace report",
+    ),
+    (
         "crates/jbotci-syntax/src/tree.rs:WithFreeModifiers",
         "generic wrapper delegates validity to its payload and FreeModifierSyntax",
     ),
