@@ -50,7 +50,10 @@ pub(crate) fn morphology_json_value(words: &[WordLike], phonemes: PhonemeRenderO
 
 #[requires(true)]
 #[ensures(true)]
-fn morphology_word_like_value(word_like: &WordLike, phonemes: PhonemeRenderOptions) -> Value {
+pub(crate) fn morphology_word_like_value(
+    word_like: &WordLike,
+    phonemes: PhonemeRenderOptions,
+) -> Value {
     let mut builder = MorphologyJsonBuilder::new(phonemes);
     word_like.visit_in_order(&mut builder);
     builder.finish()
@@ -349,7 +352,7 @@ fn word_fields(entries: Vec<JsonEntry>) -> Map<String, Value> {
 
 #[requires(true)]
 #[ensures(true)]
-fn constructor_value(constructor: &str, payload: Value) -> Value {
+pub(crate) fn constructor_value(constructor: &str, payload: Value) -> Value {
     Value::Object([(constructor.to_owned(), payload)].into_iter().collect())
 }
 

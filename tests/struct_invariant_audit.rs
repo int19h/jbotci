@@ -752,6 +752,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word labels are copied from already rendered tree word values",
     ),
     (
+        "crates/jbotci-output/src/recovered.rs:RecoveredBracketBuilder",
+        "mutable visitor state is governed by enter and exit method contracts during traversal",
+    ),
+    (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -778,6 +782,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:RawGeneratedSyntaxRenderModel",
         "generated syntax render model is a zero-sized marker type with no state to validate",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:RecoveredSyntaxRenderModel",
+        "recovered syntax render model is a zero-sized marker type with no state to validate",
     ),
     (
         "crates/jbotci-output/src/tree.rs:RenderedPosition",

@@ -19,8 +19,8 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 #[invariant(true)]
-struct BracketContext {
-    options: BracketRenderOptions,
+pub(crate) struct BracketContext {
+    pub(crate) options: BracketRenderOptions,
 }
 
 #[requires(true)]
@@ -215,7 +215,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBracketVisitor<'_> {
 
 #[requires(true)]
 #[ensures(true)]
-fn word(word: &Token, source: &BracketContext) -> sexpr::SExpr {
+pub(crate) fn word(word: &Token, source: &BracketContext) -> sexpr::SExpr {
     with_indicators_brackets(word.as_indicators(), source)
 }
 
@@ -258,7 +258,7 @@ fn with_indicators_brackets(
 
 #[requires(true)]
 #[ensures(true)]
-fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::SExpr {
+pub(crate) fn word_like_brackets(word_like: &WordLike, source: &BracketContext) -> sexpr::SExpr {
     word_like_brackets_in_context(word_like, source, LeadingPauseContext::IndependentWord)
 }
 
