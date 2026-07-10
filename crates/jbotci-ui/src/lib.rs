@@ -114,8 +114,9 @@ mod f2llm_webgpu_runtime;
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 // These worker module assets must keep stable public URLs because index.html,
 // worker constructors, and wasm-bindgen imports refer to them by literal path.
-// The worker client adds app-bundle URL versioning for Worker construction, and
-// the server/service worker must not serve these literal paths as immutable.
+// The worker client and workers add app-bundle URL versioning when loading these
+// modules. The server/service worker must not serve either the literal paths or
+// wasm-bindgen snippet copies of the helper modules as immutable.
 const COMPUTE_WORKER_JS: Asset = asset!(
     "/assets/compute-worker.js",
     AssetOptions::js().with_module(true).with_hash_suffix(false)

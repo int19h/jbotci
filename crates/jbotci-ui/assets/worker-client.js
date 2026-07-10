@@ -32,12 +32,8 @@ export function createWorkerClient(options) {
   }
 
   function workerVersionFromAppModuleUrl(mainModuleUrlHref) {
-    try {
-      const url = new URL(mainModuleUrlHref, globalThis.location.href);
-      return url.pathname.split("/").pop() || url.href;
-    } catch (_) {
-      return String(mainModuleUrlHref);
-    }
+    const url = new URL(mainModuleUrlHref, globalThis.location.href);
+    return url.pathname.split("/").pop() || url.href;
   }
 
   function workerConfig() {
@@ -282,7 +278,8 @@ export function createWorkerClient(options) {
 
   function releaseWorker(entry) {
     entry.activeRequestId = null;
-    if (entry.workerUrlHref !== workerUrl().href || entry.mainModuleUrl !== appModuleUrl().href) {
+    const context = currentWorkerContext();
+    if (entry.workerUrlHref !== context.workerUrlHref || entry.mainModuleUrl !== context.mainModuleUrl) {
       terminateWorkerEntry(entry, `${label} worker URL changed`);
       ensureWarmSpare();
       return;
