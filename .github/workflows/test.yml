@@ -52,18 +52,46 @@ jobs:
           node --version
           npm --version
 
-      - name: Restore cargo cache
-        id: cargo-cache
+      - name: Capture Rust version
+        id: rustc
+        run: |
+          rustc_version="$(rustc --version | sed 's/[^A-Za-z0-9._-]/_/g')"
+          echo "version=${rustc_version}" >> "${GITHUB_OUTPUT}"
+          echo "Rust cache version: ${rustc_version}"
+
+      - name: Restore cargo home cache
+        id: cargo-home-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/cargo
+          key: jbotci-cargo-home-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            jbotci-cargo-home-${{ runner.os }}-
+
+      - name: Restore Dioxus CLI cache
+        id: dioxus-cli-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          key: jbotci-dx-${{ runner.os }}-${{ env.DIOXUS_CLI_VERSION }}-${{ steps.rustc.outputs.version }}
+
+      - name: Restore test target cache
+        id: target-cache
         uses: actions/cache/restore@v5
         with:
           path: |
-            .github-cache/cargo
             .github-cache/cargo-target/test
-            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
-            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
-          key: jbotci-test-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+            .github-cache/home/.dx
+          key: jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            jbotci-test-${{ runner.os }}-
+            jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}-
+            jbotci-test-target-${{ runner.os }}-${{ steps.rustc.outputs.version }}-
+
+      - name: Normalize test target cache mtimes
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: restore
+          target-dir: .github-cache/cargo-target/test
 
       - name: Install wasm target
         run: rustup target add wasm32-unknown-unknown
@@ -100,13 +128,32 @@ jobs:
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
 
-      - name: Save cargo cache
-        if: success() && steps.cargo-cache.outputs.cache-hit != 'true'
+      - name: Stamp test target cache
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: ./.github/actions/cargo-cache-mtimes
+        with:
+          mode: stamp
+          target-dir: .github-cache/cargo-target/test
+
+      - name: Save cargo home cache
+        if: ${{ github.event_name != 'pull_request' && steps.cargo-home-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/cargo
+          key: ${{ steps.cargo-home-cache.outputs.cache-primary-key }}
+
+      - name: Save Dioxus CLI cache
+        if: ${{ github.event_name != 'pull_request' && steps.dioxus-cli-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
+          key: ${{ steps.dioxus-cli-cache.outputs.cache-primary-key }}
+
+      - name: Save test target cache
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
         uses: actions/cache/save@v5
         with:
           path: |
-            .github-cache/cargo
             .github-cache/cargo-target/test
-            .github-cache/cargo-target/dioxus-cli-${{ env.DIOXUS_CLI_VERSION }}
-            .github-cache/dioxus-cli/${{ env.DIOXUS_CLI_VERSION }}
-          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+            .github-cache/home/.dx
+          key: ${{ steps.target-cache.outputs.cache-primary-key }}
