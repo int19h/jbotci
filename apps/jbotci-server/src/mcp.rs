@@ -245,7 +245,8 @@ fn mcp_tools() -> Vec<Value> {
             "Lojban morphology",
             "Split Lojban text into words and classify each one (gismu, cmavo, lujvo, cmevla, \
              fu'ivla, …). This is word-level analysis — for the grammar of a whole sentence use \
-             `gentufa`, and for its meaning use `tersmu`. Defaults to a readable tree.",
+             `gentufa`, and for its meaning use `tersmu`. Recoverable errors return marked partial \
+             output plus diagnostics. Defaults to a readable tree.",
             tool_request_schema::<ToolVlaseiRequest>(),
         ),
         tool_definition(
@@ -253,8 +254,8 @@ fn mcp_tools() -> Vec<Value> {
             "Parse Lojban grammar",
             "Parse Lojban text into its grammar (syntax) tree — the authoritative way to see how a \
              sentence is structured and which word fills each role. For word-level analysis only use \
-             `vlasei`; for logical meaning use `tersmu`. Defaults to a readable tree with place \
-             references.",
+             `vlasei`; for logical meaning use `tersmu`. Recoverable errors return a marked partial \
+             tree plus diagnostics. Defaults to a readable tree with place references.",
             tool_request_schema::<ToolGentufaRequest>(),
         ),
         tool_definition(
@@ -512,13 +513,17 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn tool_error_text(output: &ToolRenderedOutput) -> String {
-    if !output.stderr.is_empty() {
-        return output.stderr.clone();
-    }
+    let mut text = output.stderr.clone();
     if let Ok(stdout) = output.stdout_text()
         && !stdout.trim().is_empty()
     {
-        return stdout.to_owned();
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(stdout);
+    }
+    if !text.is_empty() {
+        return text;
     }
     format!("tool failed with status {:?}", output.status)
 }
@@ -601,4 +606,29 @@ fn origin_is_allowed(headers: &HeaderMap) -> bool {
         return false;
     };
     origin == format!("https://{host}") || origin == format!("http://{host}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failure_text_preserves_diagnostics_and_recovered_output() {
+        let output = ToolRenderedOutput {
+            status: ToolStatus::Failure,
+            stdout: "([mi ‼ku‼] [.i do])\n".as_bytes().to_vec(),
+            stderr: "error[syntax.unexpected-cmavo]: unexpected cmavo\n".to_owned(),
+            content_type: Some("text/plain; charset=utf-8".to_owned()),
+        };
+
+        let result = tool_output_result(output);
+
+        assert_eq!(result["isError"], true);
+        assert_eq!(
+            result["content"][0]["text"],
+            "error[syntax.unexpected-cmavo]: unexpected cmavo\n([mi ‼ku‼] [.i do])\n"
+        );
+    }
 }

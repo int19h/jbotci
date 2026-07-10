@@ -60,8 +60,19 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
     );
     let attempt = attempt.into_data();
     let trace_stderr = render_cli_trace(attempt.trace.as_ref(), color_policy.stderr);
-    let morphology = attempt.result.into_data();
+    let morphology = attempt.result;
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     if !morphology.errors.is_empty() {
+        if let Some(rendered) = render_recovered_vlasei_output(
+            &morphology,
+            &text,
+            &input,
+            color_policy.stdout,
+            glyphs,
+            phoneme_options,
+        )? {
+            stdout.write_all(rendered.as_bytes())?;
+        }
         stderr.write_all(trace_stderr.as_bytes())?;
         let mut diagnostics = morphology_warning_diagnostics(
             &morphology.warnings,
@@ -86,6 +97,7 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
         )?;
         return Ok(CliStatus::Failure);
     }
+    let morphology = morphology.into_data();
     let words = morphology.words;
     stderr.write_all(trace_stderr.as_bytes())?;
     let diagnostics = morphology_warning_diagnostics(
@@ -103,7 +115,6 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
         glyphs,
         diagnostic_terminal_width,
     )?;
-    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     match input.format {
         VlaseiFormat::Json => {
             let rendered = compact_morphology_json_string_with_options(
@@ -158,4 +169,62 @@ pub(crate) fn run_vlasei<WOut: Write, WErr: Write>(
         VlaseiFormat::Raw => write_debug_output(stdout, &words, input.indent)?,
     }
     Ok(CliStatus::Success)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_recovered_vlasei_output(
+    recovered: &jbotci_morphology::RecoveredMorphologySegmentation,
+    source: &str,
+    input: &VlaseiInput,
+    color: bool,
+    glyphs: GlyphStyle,
+    phonemes: PhonemeRenderOptions,
+) -> Result<Option<String>> {
+    let rendered = match input.format {
+        VlaseiFormat::Ipa => return Ok(None),
+        VlaseiFormat::Json => compact_recovered_morphology_json_string_with_options(
+            recovered,
+            source,
+            JsonRenderOptions {
+                indent: input.indent.unwrap_or(2),
+                phonemes,
+                show_elided: false,
+                color,
+            },
+        )?,
+        VlaseiFormat::Brackets => pretty_recovered_morphology_brackets_with_options(
+            recovered,
+            source,
+            BracketRenderOptions {
+                color,
+                phonemes,
+                script: LojbanScript::Latin,
+                glyphs,
+                decompose_lujvo: input.decompose_lujvo,
+                insert_hair_space: false,
+                show_elided: false,
+            },
+        )?,
+        VlaseiFormat::Tree => pretty_recovered_morphology_tree_with_options(
+            recovered,
+            source,
+            TreeRenderOptions {
+                color,
+                indent: input.indent.unwrap_or(2),
+                phonemes,
+                glyphs,
+                show_spans: input.show_spans,
+                show_refs: false,
+                decompose_lujvo: input.decompose_lujvo,
+                show_elided: false,
+            },
+        )?,
+        VlaseiFormat::Raw => pretty_recovered_morphology_raw(recovered, source, input.indent)?,
+    };
+    if matches!(input.format, VlaseiFormat::Raw) {
+        Ok(Some(rendered))
+    } else {
+        Ok(Some(format!("{rendered}\n")))
+    }
 }

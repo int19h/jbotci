@@ -1384,7 +1384,7 @@ fn vlasei_detailed_error_reports_xlaglymlu_lujvo_progress() {
     );
 
     assert_eq!(run.status, CliStatus::Failure);
-    assert!(run.stdout.is_empty());
+    assert!(run.stdout.contains('‼'), "{}", run.stdout);
     assert!(run.stderr.contains("morphology.slinkuhi"));
     assert!(run.stderr.contains("slinku'i"));
     assert!(run.stderr.contains("{xlaglymlu}"));
@@ -1402,7 +1402,7 @@ fn vlasei_detailed_error_reports_zoi_delimiter_reason() {
     let run = run_cli_capture(&["jbotci", "vlasei", "--detailed-errors", "zoi"], false);
 
     assert_eq!(run.status, CliStatus::Failure);
-    assert!(run.stdout.is_empty());
+    assert!(run.stdout.contains('‼'), "{}", run.stdout);
     assert!(run.stderr.contains("morphology.invalid-zoi-delimiter"));
     assert!(run.stderr.contains("ZOI requires an"));
     let compact_stderr = run.stderr.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -1498,7 +1498,8 @@ fn vlasei_morphology_errors_go_to_stderr() {
     let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
 
     assert_eq!(status, CliStatus::Failure);
-    assert!(output.is_empty());
+    let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+    assert!(stdout.contains('‼'), "{stdout}");
     let stderr = String::from_utf8(error).expect("stderr utf8");
     assert!(stderr.contains("morphology.vowel-hiatus"));
     assert!(stderr.contains("vowels in hiatus are not allowed"));
@@ -1924,7 +1925,8 @@ fn gentufa_syntax_errors_go_to_stderr() {
         let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
         assert!(stderr.contains("unexpected cmavo"));
@@ -1967,7 +1969,8 @@ fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         .expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("expected: free modifier, terms"));
         assert!(stderr.contains("bridi tail"));
@@ -2000,7 +2003,8 @@ fn gentufa_detailed_syntax_errors_use_specific_codes() {
             let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
             assert_eq!(status, CliStatus::Failure);
-            assert!(output.is_empty());
+            let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+            assert!(stdout.contains('‼'), "{stdout}");
             let stderr = String::from_utf8(error).expect("stderr utf8");
             assert!(stderr.contains(code), "{stderr}");
             assert!(stderr.contains(message), "{stderr}");
@@ -2022,7 +2026,8 @@ fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
         let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("needs one of:"));
         assert!(stderr.contains("replacement phrase"));
@@ -2050,7 +2055,8 @@ fn gentufa_syntax_error_labels_unique_current_construct() {
         let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("mi cu"), "{stderr}");
         assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
@@ -2151,7 +2157,8 @@ fn bare_trace_before_text_uses_default_trace_level() {
         let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("trace[syntax]"), "{stderr}");
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
@@ -2183,7 +2190,8 @@ fn trace_color_policy_controls_ansi() {
         let status =
             run_cli(always_cli, &mut output, &mut error, false).expect("always color trace run");
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("\x1b["), "{stderr}");
 
@@ -2205,7 +2213,8 @@ fn trace_color_policy_controls_ansi() {
         let status =
             run_cli(never_cli, &mut output, &mut error, true).expect("never color trace run");
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("trace[syntax]"), "{stderr}");
         assert!(!stderr.contains("\x1b["), "{stderr}");
@@ -2231,7 +2240,8 @@ fn detailed_syntax_error_color_controls_word_braces() {
         let status = run_cli(cli, &mut output, &mut error, false).expect("gentufa run");
 
         assert_eq!(status, CliStatus::Failure);
-        assert!(output.is_empty());
+        let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+        assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("\x1b["));
         assert!(stderr.contains("lo'ai"));
@@ -2250,7 +2260,8 @@ fn vlasei_detailed_morphology_errors_show_detail_note() {
     let status = run_cli(cli, &mut output, &mut error, false).expect("vlasei run");
 
     assert_eq!(status, CliStatus::Failure);
-    assert!(output.is_empty());
+    let stdout = std::str::from_utf8(&output).expect("stdout utf8");
+    assert!(stdout.contains('‼'), "{stdout}");
     let stderr = String::from_utf8(error).expect("stderr utf8");
     assert!(stderr.contains("morphology detail:"));
     assert!(stderr.contains("vowels in hiatus are not allowed"));
