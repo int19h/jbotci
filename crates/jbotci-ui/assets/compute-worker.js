@@ -1,8 +1,7 @@
-import { waitForAppModuleReady } from "./app-module-ready.js";
-
 let computeHandle = null;
 let initModuleUrl = null;
 let initPromise = null;
+let appModuleReadyModulePromise = null;
 
 function initCompute(mainModuleUrl) {
   if (typeof mainModuleUrl !== "string" || mainModuleUrl.length === 0) {
@@ -14,14 +13,36 @@ function initCompute(mainModuleUrl) {
   }
   initModuleUrl = moduleUrl;
   computeHandle = null;
+  appModuleReadyModulePromise = null;
   initPromise = import(moduleUrl).then(async (appModule) => {
     if (typeof appModule.jbotciComputeHandle !== "function") {
       throw new Error("Dioxus app module does not export jbotciComputeHandle");
     }
+    const { waitForAppModuleReady } = await appModuleReadyModule();
     await waitForAppModuleReady(appModule);
     computeHandle = appModule.jbotciComputeHandle;
   });
   return initPromise;
+}
+
+function appModuleReadyModule() {
+  if (appModuleReadyModulePromise === null) {
+    appModuleReadyModulePromise = import(versionedSiblingModuleUrl(
+      "app-module-ready.js",
+      initModuleUrl,
+    ));
+  }
+  return appModuleReadyModulePromise;
+}
+
+function versionedSiblingModuleUrl(moduleName, versionSourceUrl) {
+  const url = new URL(moduleName, import.meta.url);
+  const versionSource = new URL(versionSourceUrl, self.location.href);
+  url.searchParams.set(
+    "jbotci-app",
+    versionSource.pathname.split("/").pop() || versionSource.href,
+  );
+  return url.href;
 }
 
 self.onmessage = async (event) => {

@@ -1493,8 +1493,13 @@ mod tests {
     const JBOTCI_UI_LIB: &str = include_str!("../../crates/jbotci-ui/src/lib.rs");
     const JBOTCI_UI_LAYOUT: &str = include_str!("../../crates/jbotci-ui/src/layout.rs");
     const JBOTCI_UI_PLATFORM: &str = include_str!("../../crates/jbotci-ui/src/platform.rs");
+    const JBOTCI_SERVER_LIB: &str = include_str!("../../apps/jbotci-server/src/lib.rs");
     const APP_MODULE_READY_JS: &str =
         include_str!("../../crates/jbotci-ui/assets/app-module-ready.js");
+    const COMPUTE_WORKER_JS: &str = include_str!("../../crates/jbotci-ui/assets/compute-worker.js");
+    const EMBEDDING_WORKER_JS: &str =
+        include_str!("../../crates/jbotci-ui/assets/embedding-worker.js");
+    const WORKER_CLIENT_JS: &str = include_str!("../../crates/jbotci-ui/assets/worker-client.js");
     const MODEL_CATALOG_JS: &str = include_str!("../../crates/jbotci-ui/assets/model-catalog.js");
 
     #[requires(true)]
@@ -1674,12 +1679,89 @@ mod tests {
         }
 
         assert!(JBOTCI_UI_LIB.contains("literal path"));
-        assert!(JBOTCI_UI_LIB.contains("add explicit URL versioning"));
+        assert!(JBOTCI_UI_LIB.contains("app-bundle URL versioning"));
+        assert!(JBOTCI_UI_LIB.contains("snippet copies"));
+        assert!(JBOTCI_UI_LIB.contains("must not serve either the literal paths"));
         assert!(
             JBOTCI_UI_LAYOUT.contains("#[wasm_bindgen(module = \"/assets/model-catalog.js\")]")
         );
         assert!(JBOTCI_UI_LAYOUT.contains("jbotciModelCatalogAssetPin"));
         assert!(MODEL_CATALOG_JS.contains("export function jbotciModelCatalogAssetPin() {}"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_worker_client_versions_stable_worker_urls_by_app_bundle() {
+        assert!(
+            WORKER_CLIENT_JS.contains(
+                "const workerUrlHref = versionedWorkerUrl(workerUrl(), mainModuleUrl).href"
+            )
+        );
+        assert!(WORKER_CLIENT_JS.contains("const context = currentWorkerContext();"));
+        assert!(
+            WORKER_CLIENT_JS.contains(
+                "entry.workerUrlHref !== context.workerUrlHref || entry.mainModuleUrl !== context.mainModuleUrl"
+            )
+        );
+        assert!(WORKER_CLIENT_JS.contains("url.searchParams.set(\"jbotci-app\""));
+        assert!(WORKER_CLIENT_JS.contains("workerVersionFromAppModuleUrl(mainModuleUrlHref)"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_worker_helpers_use_app_bundle_versioned_dynamic_imports() {
+        assert!(!COMPUTE_WORKER_JS.contains("from \"./app-module-ready.js\""));
+        assert!(!EMBEDDING_WORKER_JS.contains("from \"./app-module-ready.js\""));
+        assert!(!EMBEDDING_WORKER_JS.contains("from \"./model-catalog.js\""));
+        assert!(COMPUTE_WORKER_JS.contains("versionedSiblingModuleUrl("));
+        assert!(COMPUTE_WORKER_JS.contains("\"app-module-ready.js\""));
+        assert!(EMBEDDING_WORKER_JS.contains("versionedSiblingModuleUrl(\"app-module-ready.js\")"));
+        assert!(EMBEDDING_WORKER_JS.contains("versionedSiblingModuleUrl(\"model-catalog.js\")"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn web_stable_module_cache_policy_covers_direct_and_snippet_paths() {
+        for asset_path in [
+            "assets/app-module-ready.js",
+            "assets/compute-worker.js",
+            "assets/embedding-worker.js",
+            "assets/model-catalog.js",
+        ] {
+            assert!(
+                RELEASE_SERVICE_WORKER_TEMPLATE.contains(asset_path),
+                "service worker reload list should include {asset_path}"
+            );
+            assert!(
+                JBOTCI_SERVER_LIB.contains(&format!("/{asset_path}")),
+                "server no-cache list should include /{asset_path}"
+            );
+        }
+
+        for asset_name in [
+            "app-module-ready.js",
+            "compute.js",
+            "embeddings.js",
+            "model-catalog.js",
+            "worker-client.js",
+        ] {
+            assert!(
+                RELEASE_SERVICE_WORKER_TEMPLATE.contains(asset_name),
+                "service worker snippet reload list should include {asset_name}"
+            );
+            assert!(
+                JBOTCI_SERVER_LIB.contains(asset_name),
+                "server snippet no-cache list should include {asset_name}"
+            );
+        }
+
+        assert!(RELEASE_SERVICE_WORKER_TEMPLATE.contains("PRECACHE_PATHS_SET.has(relativePath)"));
+        assert!(RELEASE_SERVICE_WORKER_TEMPLATE.contains("ignoreSearch: true"));
+        assert!(RELEASE_SERVICE_WORKER_TEMPLATE.contains("isWasmBindgenStableModuleAsset"));
+        assert!(JBOTCI_SERVER_LIB.contains("is_unhashed_wasm_bindgen_web_module_asset"));
     }
 
     #[test]

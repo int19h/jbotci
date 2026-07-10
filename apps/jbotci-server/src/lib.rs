@@ -87,6 +87,20 @@ pub(crate) struct AppState {
     tool_services: ToolServices,
 }
 
+const UNHASHED_WEB_MODULE_ASSET_PATHS: &[&str] = &[
+    "/assets/app-module-ready.js",
+    "/assets/compute-worker.js",
+    "/assets/embedding-worker.js",
+    "/assets/model-catalog.js",
+];
+const WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES: &[&str] = &[
+    "app-module-ready.js",
+    "compute.js",
+    "embeddings.js",
+    "model-catalog.js",
+    "worker-client.js",
+];
+
 impl AppState {
     #[requires(true)]
     #[ensures(ret.base_path.starts_with('/'))]
@@ -922,11 +936,34 @@ fn cache_control_for_path(path: &str) -> &'static str {
         || path == MANIFEST_ASSET_PATH
         || path == SERVICE_WORKER_ASSET_PATH
         || path == "/assets/embeddings/web/v1/catalog.json"
+        || is_unhashed_web_module_asset(path)
     {
         "no-cache"
     } else {
         "public, max-age=31536000, immutable"
     }
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_unhashed_web_module_asset(path: &str) -> bool {
+    UNHASHED_WEB_MODULE_ASSET_PATHS.contains(&path)
+        || is_unhashed_wasm_bindgen_web_module_asset(path)
+}
+
+#[requires(path.starts_with('/'))]
+#[ensures(true)]
+fn is_unhashed_wasm_bindgen_web_module_asset(path: &str) -> bool {
+    let Some(relative_path) = path.strip_prefix("/wasm/snippets/") else {
+        return false;
+    };
+    let Some((snippet_dir, asset_path)) = relative_path.split_once("/assets/") else {
+        return false;
+    };
+    snippet_dir.starts_with("jbotci-ui-")
+        && !snippet_dir.contains('/')
+        && !asset_path.contains('/')
+        && WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES.contains(&asset_path)
 }
 
 #[requires(!location.is_empty())]
@@ -1415,6 +1452,32 @@ mod tests {
             "no-cache"
         );
         assert_eq!(cache_control_for_path("/service-worker.js"), "no-cache");
+        assert_eq!(
+            cache_control_for_path("/assets/embedding-worker.js"),
+            "no-cache"
+        );
+        assert_eq!(
+            cache_control_for_path("/assets/app-module-ready.js"),
+            "no-cache"
+        );
+        assert_eq!(
+            cache_control_for_path(
+                "/wasm/snippets/jbotci-ui-b86b7932992b1bcb/assets/worker-client.js"
+            ),
+            "no-cache"
+        );
+        assert_eq!(
+            cache_control_for_path(
+                "/wasm/snippets/jbotci-ui-b86b7932992b1bcb/assets/model-catalog.js"
+            ),
+            "no-cache"
+        );
+        assert_eq!(
+            cache_control_for_path(
+                "/wasm/snippets/other-crate-b86b7932992b1bcb/assets/worker-client.js"
+            ),
+            "public, max-age=31536000, immutable"
+        );
         assert_eq!(
             cache_control_for_path("/assets/icons/jbotci-icon-192.png"),
             "public, max-age=31536000, immutable"

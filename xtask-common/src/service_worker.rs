@@ -5,6 +5,20 @@ const STATIC_CACHE_NAME = `jbotci-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE_NAME = `jbotci-runtime-${CACHE_VERSION}`;
 const CURRENT_CACHE_NAMES = new Set([STATIC_CACHE_NAME, RUNTIME_CACHE_NAME]);
 const PRECACHE_PATHS = __PRECACHE_PATHS_JSON__;
+const PRECACHE_PATHS_SET = new Set(PRECACHE_PATHS);
+const HTTP_CACHE_RELOAD_PATHS = new Set([
+  "assets/app-module-ready.js",
+  "assets/compute-worker.js",
+  "assets/embedding-worker.js",
+  "assets/model-catalog.js",
+]);
+const WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES = new Set([
+  "app-module-ready.js",
+  "compute.js",
+  "embeddings.js",
+  "model-catalog.js",
+  "worker-client.js",
+]);
 
 const SCOPE_URL = new URL(self.registration.scope);
 if (!SCOPE_URL.pathname.endsWith("/")) {
@@ -20,7 +34,7 @@ self.addEventListener("install", (event) => {
     const cache = await caches.open(STATIC_CACHE_NAME);
     await cache.addAll(
       PRECACHE_PATHS.map((path) => new Request(new URL(path, SCOPE_URL), {
-        cache: "default",
+        cache: shouldBypassHttpCache(path) ? "reload" : "default",
       })),
     );
     await self.skipWaiting();
@@ -70,8 +84,16 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (PRECACHE_URLS.has(url.href)) {
-    event.respondWith(networkFirst(request, STATIC_CACHE_NAME, null));
+  if (PRECACHE_URLS.has(url.href) || PRECACHE_PATHS_SET.has(relativePath)) {
+    event.respondWith(networkFirst(
+      request,
+      STATIC_CACHE_NAME,
+      null,
+      {
+        bypassHttpCache: shouldBypassHttpCache(relativePath),
+        ignoreSearchFallback: PRECACHE_PATHS_SET.has(relativePath),
+      },
+    ));
     return;
   }
 
@@ -103,16 +125,39 @@ function isStaticOrCoreRequest(relativePath) {
     || relativePath.startsWith("assets/");
 }
 
-async function networkFirst(request, cacheName, fallbackUrl) {
+function shouldBypassHttpCache(relativePath) {
+  return HTTP_CACHE_RELOAD_PATHS.has(relativePath)
+    || isWasmBindgenStableModuleAsset(relativePath);
+}
+
+function isWasmBindgenStableModuleAsset(relativePath) {
+  if (!relativePath.startsWith("wasm/snippets/")) {
+    return false;
+  }
+  const parts = relativePath.slice("wasm/snippets/".length).split("/");
+  return parts.length === 3
+    && parts[0].startsWith("jbotci-ui-")
+    && parts[1] === "assets"
+    && WASM_BINDGEN_STABLE_MODULE_ASSET_NAMES.has(parts[2]);
+}
+
+async function networkFirst(request, cacheName, fallbackUrl, options = {}) {
+  const bypassHttpCache = options.bypassHttpCache === true;
+  const ignoreSearchFallback = options.ignoreSearchFallback === true;
   const cache = await caches.open(cacheName);
   try {
-    const response = await fetch(request);
+    const networkRequest = bypassHttpCache
+      ? new Request(request, { cache: "reload" })
+      : request;
+    const response = await fetch(networkRequest);
     if (response.ok && response.type !== "opaque") {
       await cache.put(request, response.clone());
     }
     return response;
   } catch (error) {
-    const cached = await caches.match(request);
+    const cached = ignoreSearchFallback
+      ? await caches.match(request, { ignoreSearch: true })
+      : await caches.match(request);
     if (cached) {
       return cached;
     }

@@ -1,6 +1,3 @@
-import { waitForAppModuleReady } from "./app-module-ready.js";
-import { validateModelCatalog } from "./model-catalog.js";
-
 const MODEL_CACHE_NAME = "jbotci-f2llm-models-v1";
 const DEFAULT_ORT_MODULE_URL = new URL("./ort/ort.wasm.min.mjs", import.meta.url).href;
 const DEFAULT_ORT_WASM_MJS_URL = new URL("./ort/ort-wasm-simd-threaded.mjs", import.meta.url).href;
@@ -30,6 +27,8 @@ let selectedModelKey = null;
 let activeModelKey = null;
 let activeRuntimeMode = "webgpu";
 let lastWebGpuAvailable = null;
+let appModuleReadyModulePromise = null;
+let modelCatalogModulePromise = null;
 let modelLoadPromise = null;
 let modelRuntime = null;
 let dbPromise = null;
@@ -68,7 +67,7 @@ self.onmessage = async (event) => {
   const { kind, id, type, payload, mainModuleUrl: warmMainModuleUrl } = event.data || {};
   const forceWasm = payload?.forceWasm === true;
   try {
-    configureWorkerContext(payload, warmMainModuleUrl);
+    await configureWorkerContext(payload, warmMainModuleUrl);
     if (kind === "warm") {
       self.postMessage({ kind: "ready", ok: true });
       return;
@@ -119,10 +118,10 @@ self.onmessage = async (event) => {
   }
 };
 
-function configureWorkerContext(payload, fallbackMainModuleUrl = null) {
+async function configureWorkerContext(payload, fallbackMainModuleUrl = null) {
   setDebugLogging(payload?.debug === true);
-  setModelCatalog(payload?.modelCatalog);
   setMainModuleUrl(payload?.mainModuleUrl || fallbackMainModuleUrl);
+  await setModelCatalog(payload?.modelCatalog);
   setOrtAssets(payload?.ortModuleUrl, payload?.ortWasmMjsUrl, payload?.ortWasmUrl);
   setSelectedModel(payload?.modelKey);
 }
@@ -166,7 +165,8 @@ function setDebugLogging(enabled) {
   debugLoggingEnabled = enabled === true;
 }
 
-function setModelCatalog(catalog) {
+async function setModelCatalog(catalog) {
+  const { validateModelCatalog } = await modelCatalogModule();
   const normalized = validateModelCatalog(catalog, "embedding worker modelCatalog");
   if (modelCatalog !== null && JSON.stringify(modelCatalog) === JSON.stringify(normalized)) {
     return;
@@ -244,11 +244,40 @@ function setMainModuleUrl(moduleUrl) {
     throw new Error("cannot change embedding app module URL while setup is active");
   }
   mainModuleUrl = nextUrl;
+  appModuleReadyModulePromise = null;
+  modelCatalogModulePromise = null;
   mainModulePromise = null;
   modelLoadPromise = null;
   modelRuntime = null;
   vectorCache.clear();
   logInfo("configured embedding app module", { mainModuleUrl });
+}
+
+function appModuleReadyModule() {
+  if (appModuleReadyModulePromise === null) {
+    appModuleReadyModulePromise = import(versionedSiblingModuleUrl("app-module-ready.js"));
+  }
+  return appModuleReadyModulePromise;
+}
+
+function modelCatalogModule() {
+  if (modelCatalogModulePromise === null) {
+    modelCatalogModulePromise = import(versionedSiblingModuleUrl("model-catalog.js"));
+  }
+  return modelCatalogModulePromise;
+}
+
+function versionedSiblingModuleUrl(moduleName) {
+  if (mainModuleUrl === null) {
+    throw new Error("embedding worker did not receive the app module URL");
+  }
+  const url = new URL(moduleName, import.meta.url);
+  const versionSource = new URL(mainModuleUrl, self.location.href);
+  url.searchParams.set(
+    "jbotci-app",
+    versionSource.pathname.split("/").pop() || versionSource.href,
+  );
+  return url.href;
 }
 
 function setOrtAssets(moduleUrl, wasmMjsUrl, wasmUrl) {
@@ -673,6 +702,7 @@ async function f2llmRuntimeModule() {
       if (typeof appModule.jbotciF2LlmTokenizerLoad !== "function") {
         throw new Error("Dioxus app module does not export jbotciF2LlmTokenizerLoad");
       }
+      const { waitForAppModuleReady } = await appModuleReadyModule();
       await waitForAppModuleReady(appModule);
       return appModule;
     });

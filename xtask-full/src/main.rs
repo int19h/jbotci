@@ -13350,6 +13350,7 @@ brackets = "not a real key"
     #[ensures(true)]
     fn release_service_worker_script_uses_network_first_and_jbotci_cache_prefix() {
         let paths = vec![
+            "assets/app-module-ready.js".to_owned(),
             "assets/manifest.webmanifest".to_owned(),
             "index.html".to_owned(),
         ];
@@ -13357,6 +13358,12 @@ brackets = "not a real key"
 
         assert!(script.contains("const CACHE_VERSION = \"abc123\";"));
         assert!(script.contains("networkFirst(request, RUNTIME_CACHE_NAME, APP_SHELL_URL)"));
+        assert!(script.contains("\"assets/app-module-ready.js\""));
+        assert!(script.contains("shouldBypassHttpCache(path) ? \"reload\" : \"default\""));
+        assert!(script.contains("PRECACHE_PATHS_SET.has(relativePath)"));
+        assert!(script.contains("new Request(request, { cache: \"reload\" })"));
+        assert!(script.contains("ignoreSearch: true"));
+        assert!(script.contains("isWasmBindgenStableModuleAsset"));
         assert!(script.contains("name.startsWith(\"jbotci-\")"));
         assert!(script.contains("\"assets/manifest.webmanifest\""));
     }
