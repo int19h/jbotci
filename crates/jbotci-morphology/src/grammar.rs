@@ -360,7 +360,9 @@ impl<'a> Segmenter<'a> {
 
     #[requires(checkpoint.index <= self.chars.len())]
     #[requires(checkpoint.word_snapshot.as_ref().is_none_or(|snapshot| snapshot.len() == checkpoint.word_count))]
+    #[requires(errors.len() < self.options.max_recovery_errors.get())]
     #[ensures(self.index <= self.chars.len())]
+    #[ensures(errors.len() <= self.options.max_recovery_errors.get())]
     fn record_recovered_error(
         &mut self,
         checkpoint: RecoveryCheckpoint,
@@ -413,7 +415,7 @@ impl<'a> Segmenter<'a> {
         error_regions.push(self.recovery_source_span(region_start, region_end));
         errors.push(error);
         self.index = region_end;
-        should_continue
+        should_continue && errors.len() < self.options.max_recovery_errors.get()
     }
 
     #[requires(error_start <= self.chars.len())]

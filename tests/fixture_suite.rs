@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, ensures, invariant, new, requires};
+use jbotci_diagnostics::Diagnostic;
 use jbotci_source::SourceId;
 use support::fixtures::{
     BracketExpectations, CllSelector, CommandOutputExpectation, DiagnosticExpectation,
@@ -57,6 +58,7 @@ fn recovered_morphology_preserves_strict_first_error_for_failure_fixtures() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let fixtures = load_fixture_tree(&root).expect("fixtures should load");
     let mut checked = 0usize;
+    let mut rendered_checked = 0usize;
     for fixture in fixtures {
         let Some(expectation) = &fixture.test_case.expectations.morphology else {
             continue;
@@ -71,27 +73,83 @@ fn recovered_morphology_preserves_strict_first_error_for_failure_fixtures() {
         let options =
             jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
         let source_id = Some(SourceId("<fixture>".to_owned()));
-        let strict = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+        let strict =
+            jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                &fixture.test_case.lojban,
+                &options,
+                source_id.clone(),
+            )
+            .into_data();
+        let strict_error = strict.result.unwrap_err();
+        let recovered = jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
             &fixture.test_case.lojban,
             &options,
             source_id.clone(),
         )
-        .unwrap_err();
-        let recovered =
-            jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id(
-                &fixture.test_case.lojban,
-                &options,
-                source_id,
-            );
+        .into_data()
+        .result
+        .into_data();
         assert_eq!(
             recovered.errors.first(),
-            Some(&strict),
+            Some(&strict_error),
             "{}",
             fixture.test_case.id
         );
+        let capped = jbotci_morphology::segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+            &fixture.test_case.lojban,
+            &options.clone().with_max_recovery_errors(1),
+            source_id.clone(),
+        )
+        .into_data()
+        .result
+        .into_data();
+        let mut old_diagnostics = strict
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .collect::<Vec<_>>();
+        old_diagnostics
+            .push(strict_error.to_diagnostic(source_id.clone(), &fixture.test_case.lojban));
+        let mut new_diagnostics = capped
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .collect::<Vec<_>>();
+        new_diagnostics.extend(
+            capped
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(source_id.clone(), &fixture.test_case.lojban)),
+        );
+        assert_eq!(
+            render_fixture_diagnostics(&fixture.test_case.lojban, &new_diagnostics),
+            render_fixture_diagnostics(&fixture.test_case.lojban, &old_diagnostics),
+            "--max-errors 1 morphology stderr changed for fixture {}",
+            fixture.test_case.id,
+        );
+        rendered_checked += 1;
         checked += 1;
     }
     assert!(checked > 0);
+    assert!(rendered_checked > 0);
+}
+
+#[requires(true)]
+#[ensures(diagnostics.is_empty() -> ret.is_empty())]
+#[ensures(!diagnostics.is_empty() -> !ret.is_empty())]
+fn render_fixture_diagnostics(source: &str, diagnostics: &[Diagnostic]) -> String {
+    jbotci_output::render_diagnostics(
+        "<fixture>",
+        source,
+        diagnostics,
+        new!(jbotci_output::DiagnosticRenderOptions {
+            color: false,
+            detail: jbotci_output::DiagnosticDetailMode::Summary,
+            glyphs: jbotci_output::GlyphStyle::Unicode,
+            terminal_width: jbotci_output::DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        }),
+    )
+    .expect("fixture diagnostics should render")
 }
 
 #[cfg(feature = "expensive_contracts")]
@@ -714,16 +772,19 @@ fn recovered_syntax_first_error_fixture_range(
             .expect("fixture dialect should parse");
         let morphology_options =
             jbotci_morphology::MorphologyOptions::default().with_dialect_definition(&dialect);
-        let syntax_options = jbotci_syntax::ParseOptions::default()
-            .with_dialect_definition(&dialect)
-            .with_max_recovery_errors(1);
-        let Ok(words) = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
-            &fixture.test_case.lojban,
-            &morphology_options,
-            Some(SourceId("<fixture>".to_owned())),
-        ) else {
+        let source_id = Some(SourceId("<fixture>".to_owned()));
+        let morphology =
+            jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                &fixture.test_case.lojban,
+                &morphology_options,
+                source_id.clone(),
+            )
+            .into_data();
+        let Ok(words) = morphology.result else {
             continue;
         };
+        let syntax_options =
+            jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
         let strict = match jbotci_syntax::parse_syntax_tree_with_source_and_options(
             &words,
             &fixture.test_case.lojban,
@@ -732,15 +793,45 @@ fn recovered_syntax_first_error_fixture_range(
             Ok(_) => continue,
             Err(error) => error,
         };
+        let capped_options = syntax_options.clone().with_max_recovery_errors(1);
         let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
             &words,
             &fixture.test_case.lojban,
-            &syntax_options,
+            &capped_options,
         );
         assert_eq!(
             recovered.errors.first(),
             Some(&strict),
             "first recovered syntax error differs for fixture {}",
+            fixture.test_case.id,
+        );
+        let mut old_diagnostics = morphology
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .collect::<Vec<_>>();
+        old_diagnostics.push(strict.to_diagnostic(source_id.clone(), &fixture.test_case.lojban));
+        let mut new_diagnostics = morphology
+            .warnings
+            .iter()
+            .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban))
+            .collect::<Vec<_>>();
+        new_diagnostics.extend(
+            recovered
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(source_id.clone(), &fixture.test_case.lojban)),
+        );
+        new_diagnostics.extend(
+            recovered
+                .warnings
+                .iter()
+                .map(|warning| warning.to_diagnostic(source_id.clone(), &fixture.test_case.lojban)),
+        );
+        assert_eq!(
+            render_fixture_diagnostics(&fixture.test_case.lojban, &new_diagnostics),
+            render_fixture_diagnostics(&fixture.test_case.lojban, &old_diagnostics),
+            "--max-errors 1 syntax stderr changed for fixture {}",
             fixture.test_case.id,
         );
         checked += 1;

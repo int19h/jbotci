@@ -156,7 +156,7 @@ use jbotci_morphology::{
     PlainWordClassification, ValsiAnalysis, ValsiAnalysisStatus, ValsiClassification,
     ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind,
     ValsiLujvoRafsiKind, WordKind, WordLike, analyze_valsi_with_options_and_source_id,
-    segment_words_with_modifiers_with_options_and_source_id_attempt,
+    segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
     BracketRenderOptions, DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, DiagnosticDetailMode,
@@ -181,11 +181,12 @@ use jbotci_semantics::{
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SYNTAX_TRACE_FILTERS, parse_syntax_tree_generated_model_with_source_and_options,
-    parse_syntax_tree_generated_model_with_source_and_options_attempt,
+    ParseOptions, SYNTAX_TRACE_FILTERS, SyntaxRecoveryParseData,
+    parse_syntax_tree_with_recovery_with_source_and_options_attempt,
 };
 use unicode_width::UnicodeWidthStr;
 
+const DEFAULT_MAX_ERRORS: NonZeroUsize = NonZeroUsize::new(20).unwrap();
 const VLACKU_DETAIL_INDENT: &str = "    ";
 
 #[derive(Debug, Clone, Parser)]
@@ -479,6 +480,8 @@ pub struct VlaseiInput {
     pub ascii: bool,
     #[arg(long = "detailed-errors")]
     pub detailed_errors: bool,
+    #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]
+    pub max_errors: NonZeroUsize,
     #[arg(long = "trace-phase", value_enum)]
     pub trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]
@@ -622,6 +625,8 @@ pub struct TersmuInput {
         value_enum
     )]
     pub format: TersmuFormat,
+    #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]
+    pub max_errors: NonZeroUsize,
     #[arg(
         long = "trace",
         alias = "plivei",
@@ -665,6 +670,8 @@ pub struct GentufaInput {
     pub detailed_errors: bool,
     #[arg(long = "error-context", default_value_t = 1)]
     pub error_context: usize,
+    #[arg(long = "max-errors", default_value_t = DEFAULT_MAX_ERRORS)]
+    pub max_errors: NonZeroUsize,
     #[arg(long = "trace-phase", value_enum)]
     pub trace_phase: Option<CliTracePhase>,
     #[arg(long = "trace-limit")]
