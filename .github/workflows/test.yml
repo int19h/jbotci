@@ -129,7 +129,7 @@ jobs:
         run: cargo run -r -p xtask-full -- fixture-test --profile all
 
       - name: Stamp test target cache
-        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        if: ${{ success() && github.event_name != 'pull_request' }}
         uses: ./.github/actions/cargo-cache-mtimes
         with:
           mode: stamp

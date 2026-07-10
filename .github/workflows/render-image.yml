@@ -150,7 +150,7 @@ jobs:
           retention-days: 7
 
       - name: Stamp render target cache
-        if: ${{ !cancelled() }}
+        if: ${{ success() }}
         uses: ./.github/actions/cargo-cache-mtimes
         with:
           mode: stamp

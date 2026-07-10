@@ -42,16 +42,30 @@ runs:
 
         target_dir="${TARGET_DIR%/}"
         stamp_path="${target_dir}/${STAMP_FILE}"
+        declare -a SUBMODULE_PATHS=()
 
-        add_submodule_safe_directories() {
-          git submodule foreach --quiet --recursive '
-            path="${toplevel}/${sm_path}"
-            physical_path="$(cd "${path}" && pwd -P)"
-            git config --global --add safe.directory "${path}" || true
-            git config --global --add safe.directory "${physical_path}" || true
-          ' || true
+        load_submodule_paths() {
+          local submodule_path
+          while IFS= read -r -d '' submodule_path; do
+            SUBMODULE_PATHS+=("${submodule_path}")
+          done < <(git submodule foreach --quiet --recursive 'printf "%s\0" "$displaypath"')
         }
 
+        add_submodule_safe_directories() {
+          local submodule_path
+          local physical_path
+
+          for submodule_path in "${SUBMODULE_PATHS[@]}"; do
+            if [[ ! -d "${submodule_path}" ]]; then
+              continue
+            fi
+            physical_path="$(cd "${submodule_path}" && pwd -P)"
+            git config --global --add safe.directory "${repo_root}/${submodule_path}" || true
+            git config --global --add safe.directory "${physical_path}" || true
+          done
+        }
+
+        load_submodule_paths
         add_submodule_safe_directories
 
         touch_one() {
@@ -215,7 +229,9 @@ runs:
         }
 
         each_submodule_path() {
-          git submodule foreach --quiet --recursive 'printf "%s\0" "$displaypath"'
+          if ((${#SUBMODULE_PATHS[@]} > 0)); then
+            printf "%s\0" "${SUBMODULE_PATHS[@]}"
+          fi
         }
 
         touch_all_tracked_files() {
@@ -265,11 +281,11 @@ runs:
           local candidate="$1"
           local submodule_path
 
-          while IFS= read -r -d '' submodule_path; do
+          for submodule_path in "${SUBMODULE_PATHS[@]}"; do
             if [[ "${candidate}" == "${submodule_path}" ]]; then
               return 0
             fi
-          done < <(each_submodule_path)
+          done
 
           return 1
         }
@@ -295,7 +311,7 @@ runs:
 
             touch_one now "${path}" || status=1
             touch_parent_directories_now "${path}" || status=1
-          done < <(git diff --name-only -z "${base_sha}" HEAD --)
+          done < <(git diff --no-renames --name-only -z "${base_sha}" HEAD --)
 
           echo "Touched ${changed_count} changed path(s) to current time."
           return "${status}"
@@ -335,7 +351,7 @@ runs:
               exit 0
             fi
 
-            if ! git diff --name-only -z "${stamp_sha}" HEAD -- >/dev/null; then
+            if ! git diff --no-renames --name-only -z "${stamp_sha}" HEAD -- >/dev/null; then
               touch_everything_now_fallback "Could not diff stamped commit ${stamp_sha} against HEAD"
               exit 0
             fi
