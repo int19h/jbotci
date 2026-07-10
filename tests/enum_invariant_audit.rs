@@ -1068,6 +1068,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "empty render nodes are meaningful intermediate values",
     ),
     (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Elided",
+        "unit leaf role is a closed renderer style selector with no payload",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Error",
+        "unit leaf role is a closed renderer style selector with no payload",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Normal",
+        "unit leaf role is a closed renderer style selector with no payload",
+    ),
+    (
         "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
         "display spans are private renderer ranges produced from validated word spans before source-bound clipping",
     ),

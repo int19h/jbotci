@@ -1701,9 +1701,10 @@ mod tests {
 
         let colorized_brackets = render_brackets_with_elided_and_color("to coi");
         assert!(
-            colorized_brackets.contains("\x1b[9mtoi\x1b[29m"),
+            colorized_brackets.contains("\x1b[3mtoi\x1b[23m"),
             "{colorized_brackets:?}"
         );
+        assert!(!colorized_brackets.contains("\x1b[9m"));
     }
 
     #[test]
