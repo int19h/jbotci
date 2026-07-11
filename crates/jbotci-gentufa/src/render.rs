@@ -15,7 +15,7 @@ use crate::{
     ReferenceMarkerRole, math_alphanumeric_stem, reference_slot_display_text,
 };
 #[cfg(test)]
-use crate::{ReferenceMarkerKind, ReferenceSlotLabel};
+use crate::{GentufaBlockRole, ReferenceMarkerKind, ReferenceSlotLabel};
 
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const OUTER_PADDING: f32 = 12.0;
@@ -31,6 +31,10 @@ const ROW_COMPACT_HEIGHT: f32 = 32.0;
 const GLOSS_ROW_HEIGHT: f32 = 55.2;
 const MIN_COLUMN_WIDTH: f32 = 44.0;
 const INK: &str = "#231b15";
+const ERROR_INK: &str = "#991b1b";
+const ERROR_FILL: &str = "#fee2e2";
+const ERROR_STROKE: &str = "#dc2626";
+const ERROR_STROKE_WIDTH: f32 = 2.4;
 const GLOSS_INK: &str = "#6f6257";
 const GLOSS_BG: &str = "#ece3d7";
 pub const DEFAULT_GENTUFA_PNG_SCALE: f32 = 2.0;
@@ -940,12 +944,32 @@ fn block_element<Tooltip, ReferenceTooltip>(
     let height = positioned.span_height(block.row, block.row_span);
     let mut group = SvgElement::new(SvgTag::G);
     group.attr("id", &block.block_id);
+    if block.role.is_error() {
+        group.attr("data-role", "error");
+        group.attr(
+            "data-error-index",
+            &block
+                .error_index
+                .expect("error blocks carry a diagnostic index")
+                .to_string(),
+        );
+        if let Some(span) = block.span {
+            group.attr("data-byte-start", &span.byte_start.to_string());
+            group.attr("data-byte-end", &span.byte_end.to_string());
+        }
+    }
     let mut rect = SvgElement::new(SvgTag::Rect);
     rect.attr("x", &format_float(x));
     rect.attr("y", &format_float(y));
     rect.attr("width", &format_float(width));
     rect.attr("height", &format_float(height));
-    rect.attr("fill", &block.color);
+    if block.role.is_error() {
+        rect.attr("fill", ERROR_FILL);
+        rect.attr("stroke", ERROR_STROKE);
+        rect.attr("stroke-width", &format_float(ERROR_STROKE_WIDTH));
+    } else {
+        rect.attr("fill", &block.color);
+    }
     group.child(rect);
     add_referent_text(block, options, &mut group, x, y);
     add_block_label(block, options, &mut group, x, y, width, height);
@@ -981,8 +1005,15 @@ fn add_block_label<Tooltip, ReferenceTooltip>(
     text.attr("x", &format_float(x + width / 2.0));
     text.attr("y", &format_float(baseline_y));
     text.attr("text-anchor", "middle");
-    text.attr("fill", INK);
-    if block.is_elided {
+    text.attr(
+        "fill",
+        if block.role.is_error() {
+            ERROR_INK
+        } else {
+            INK
+        },
+    );
+    if block.role.is_elided() || block.role.is_error() {
         text.attr("text-decoration", "line-through");
         text.attr("text-decoration-thickness", "0.12em");
     }
@@ -1696,7 +1727,8 @@ mod tests {
                 node_ids: vec![1],
                 label: "mi".to_owned(),
                 is_leaf: true,
-                is_elided: false,
+                role: GentufaBlockRole::Normal,
+                error_index: None,
                 token_kind: Some(WordKind::Cmavo),
                 ref_markers: Vec::new(),
                 span: None,
@@ -1752,7 +1784,8 @@ mod tests {
             node_ids: Vec::new(),
             label: "ny".to_owned(),
             is_leaf: true,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: Some(WordKind::Cmavo),
             ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
             span: None,
@@ -1786,7 +1819,8 @@ mod tests {
             node_ids: Vec::new(),
             label: "Cei".to_owned(),
             is_leaf: false,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: None,
             ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
             span: None,

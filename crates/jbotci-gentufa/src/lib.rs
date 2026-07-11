@@ -25,13 +25,17 @@ use jbotci_output::{
 };
 use jbotci_semantics::references::{GeneratedSyntaxIndex, RawSyntaxNodeId};
 use jbotci_source::SourceSpan;
+use jbotci_syntax::generated_model::recovered::{
+    AtomRef as RecoveredSyntaxAtomRef, NodeRef as RecoveredSyntaxNodeRef,
+    TextSyntax as RecoveredTextSyntax, TreeNode as RecoveredSyntaxTreeNode,
+};
 use jbotci_syntax::generated_model::{
     self, AtomRef as GeneratedSyntaxAtomRef, NodeRef as GeneratedSyntaxNodeRef,
     TextSyntax as GeneratedTextSyntax, TreeNode as GeneratedSyntaxTreeNode,
 };
 use jbotci_syntax::tree::Token;
 use jbotci_syntax::{WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref};
-use jbotci_tree::TreeVisitor;
+use jbotci_tree::{RecoveryItemState, TreeVisitor};
 use serde::{Deserialize, Serialize};
 
 pub use render::{
@@ -151,6 +155,10 @@ pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
     }),
     "all blocks must fit inside the declared layout grid"
 )]
+#[expensive_invariant(
+    blocks.iter().all(|block| block.role.is_error() == block.error_index.is_some()),
+    "only recovered error blocks carry diagnostic indices"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
@@ -161,6 +169,28 @@ pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
 
 #[invariant(*col_span > 0, "block column span must be positive")]
 #[invariant(*row_span > 0, "block row span must be positive")]
+#[invariant(
+    span.as_ref().is_none_or(|span| {
+        span.byte_start <= span.byte_end && span.char_start <= span.char_end
+    }),
+    "block source ranges must be ordered"
+)]
+#[invariant(
+    role.is_error() == error_index.is_some(),
+    "error blocks must carry exactly one diagnostic index"
+)]
+#[invariant(
+    !role.is_error() || *is_leaf,
+    "error blocks must be layout leaves"
+)]
+#[invariant(
+    !role.is_error()
+        || !raw_text.is_empty()
+        || span.as_ref().is_some_and(|span| {
+            span.byte_start == span.byte_end && span.char_start == span.char_end
+        }),
+    "empty error markers must have zero-width source ranges"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
@@ -168,7 +198,10 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub node_ids: Vec<usize>,
     pub label: String,
     pub is_leaf: bool,
-    pub is_elided: bool,
+    #[serde(default, skip_serializing_if = "GentufaBlockRole::is_normal")]
+    pub role: GentufaBlockRole,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_index: Option<usize>,
     pub token_kind: Option<WordKind>,
     pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
     pub span: Option<WebSourceRange>,
@@ -185,6 +218,46 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub definition: Option<String>,
     pub computed_gloss: Option<String>,
     pub tooltip: Option<Tooltip>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GentufaBlockRole {
+    #[default]
+    Normal,
+    Elided,
+    Error,
+}
+
+impl GentufaBlockRole {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Normal))]
+    pub const fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Elided))]
+    pub const fn is_elided(self) -> bool {
+        matches!(self, Self::Elided)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Error))]
+    pub const fn is_error(self) -> bool {
+        matches!(self, Self::Error)
+    }
+
+    #[requires(true)]
+    #[ensures(ret <= 2)]
+    const fn sort_key(self) -> usize {
+        match self {
+            Self::Normal => 0,
+            Self::Error => 1,
+            Self::Elided => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -308,8 +381,34 @@ pub fn generated_model_blocks_layout_with_references<Tooltip: Clone>(
     options: &GentufaBlockOptions,
 ) -> GentufaBlocksLayout<Tooltip> {
     let mut collector =
-        GeneratedBlockCollector::new(source, options, syntax_index, reference_model);
+        GeneratedBlockCollector::<false>::new(source, options, syntax_index, reference_model);
     syntax.visit_in_order(&mut collector);
+    finish_blocks_layout(collector, annotations)
+}
+
+#[requires(true)]
+#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+#[ensures(ret.blocks.iter().all(|block| {
+    block.error_index.is_none_or(|error_index| error_index < error_count)
+}))]
+pub fn recovered_generated_model_blocks_layout<Tooltip: Clone>(
+    syntax: &RecoveredTextSyntax,
+    source: &str,
+    error_count: usize,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+    options: &GentufaBlockOptions,
+) -> GentufaBlocksLayout<Tooltip> {
+    let mut collector = GeneratedBlockCollector::<true>::new(source, options, None, None);
+    syntax.visit_in_order(&mut collector);
+    finish_blocks_layout(collector, annotations)
+}
+
+#[requires(true)]
+#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+fn finish_blocks_layout<Tooltip: Clone, const RECOVERED: bool>(
+    collector: GeneratedBlockCollector<'_, '_, '_, '_, RECOVERED>,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+) -> GentufaBlocksLayout<Tooltip> {
     let Some(root) = collector.finish() else {
         return new!(GentufaBlocksLayout {
             blocks: Vec::new(),
@@ -491,7 +590,7 @@ impl GeneratedBlockFrame {
 
 #[derive(Debug)]
 #[invariant(true)]
-struct GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
+struct GeneratedBlockCollector<'source, 'options, 'index, 'tree, const RECOVERED: bool> {
     source: &'source str,
     options: &'options GentufaBlockOptions,
     syntax_index: Option<&'index GeneratedSyntaxIndex<'tree>>,
@@ -502,7 +601,9 @@ struct GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
     last_token_end_range: Option<WebSourceRange>,
 }
 
-impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options, 'index, 'tree> {
+impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
+    GeneratedBlockCollector<'source, 'options, 'index, 'tree, RECOVERED>
+{
     #[requires(true)]
     #[ensures(ret.source == source)]
     fn new(
@@ -555,6 +656,98 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             .unwrap_or_default()
     }
 
+    #[requires(!label.is_empty())]
+    #[ensures(self.stack.len() == old(self.stack.len()) + 1)]
+    fn enter_node_frame(
+        &mut self,
+        id: RawSyntaxNodeId,
+        label: String,
+        ref_markers: Vec<ReferenceMarker>,
+    ) {
+        self.stack
+            .push(GeneratedBlockFrame::Node(GeneratedNodeFrame {
+                id,
+                label,
+                ref_markers,
+                payload: GeneratedBlockPayload::default(),
+            }));
+    }
+
+    #[requires(matches!(self.stack.last(), Some(GeneratedBlockFrame::Node(_))))]
+    #[ensures(self.stack.len() + 1 == old(self.stack.len()))]
+    fn exit_node_frame(&mut self) {
+        let Some(GeneratedBlockFrame::Node(frame)) = self.stack.pop() else {
+            panic!("generated block collector exited a node without entering it");
+        };
+        let node = generated_block_tree_node_from_frame(frame, self.source);
+        if let Some(node) = node {
+            self.push_node(node);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.stack.len() == old(self.stack.len()) + 1)]
+    fn enter_field_frame(&mut self, field: jbotci_tree::FieldRef) {
+        self.stack
+            .push(GeneratedBlockFrame::Field(GeneratedFieldFrame {
+                name: field.name,
+                payload: GeneratedBlockPayload::default(),
+            }));
+    }
+
+    #[requires(matches!(self.stack.last(), Some(GeneratedBlockFrame::Field(_))))]
+    #[ensures(self.stack.len() + 1 == old(self.stack.len()))]
+    fn exit_field_frame(&mut self) {
+        let Some(GeneratedBlockFrame::Field(frame)) = self.stack.pop() else {
+            panic!("generated block collector exited a field without entering it");
+        };
+        let mut payload = frame.payload;
+        if let Some(name) = frame.name {
+            payload.children = payload
+                .children
+                .into_iter()
+                .map(|child| child.with_data(data! { field_label: Some(name) }))
+                .collect();
+        }
+        self.push_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(self.stack.len() == old(self.stack.len()) + 1)]
+    fn enter_sequence_frame(&mut self) {
+        self.stack.push(GeneratedBlockFrame::Collection(
+            GeneratedBlockPayload::default(),
+        ));
+    }
+
+    #[requires(matches!(self.stack.last(), Some(GeneratedBlockFrame::Collection(_))))]
+    #[ensures(self.stack.len() + 1 == old(self.stack.len()))]
+    fn exit_sequence_frame(&mut self) {
+        let Some(GeneratedBlockFrame::Collection(payload)) = self.stack.pop() else {
+            panic!("generated block collector exited a sequence without entering it");
+        };
+        self.push_payload(payload);
+    }
+
+    #[requires(true)]
+    #[ensures(self.stack.len() == old(self.stack.len()) + 1)]
+    fn enter_chain_frame(&mut self) {
+        self.stack
+            .push(GeneratedBlockFrame::Chain(GeneratedBlockPayload::default()));
+    }
+
+    #[requires(matches!(self.stack.last(), Some(GeneratedBlockFrame::Chain(_))))]
+    #[ensures(self.stack.len() + 1 == old(self.stack.len()))]
+    fn exit_chain_frame(&mut self) {
+        let Some(GeneratedBlockFrame::Chain(mut payload)) = self.stack.pop() else {
+            panic!("generated block collector exited a chain without entering it");
+        };
+        payload.children =
+            flatten_generated_chain_block_nodes(payload.children, self.source, &mut self.next_id);
+        payload.source_range = generated_block_source_range(&payload.children, &payload.leaf_parts);
+        self.push_payload(payload);
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn push_payload(&mut self, payload: GeneratedBlockPayload) {
@@ -591,7 +784,8 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             None,
             vec![id],
             "GeneratedSyntaxRoot".to_owned(),
-            false,
+            GentufaBlockRole::Normal,
+            None,
             None,
             Vec::new(),
             vec!["GeneratedSyntaxRoot".to_owned()],
@@ -676,7 +870,8 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: word_like.bare_word().map(Word::kind),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word_like(word_like, self.source, self.options),
@@ -693,7 +888,8 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: Some(word.kind()),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word(word, self.options),
@@ -716,15 +912,46 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: true,
+            role: GentufaBlockRole::Elided,
+            error_index: None,
             token_kind: Some(WordKind::Cmavo),
             raw_text: String::new(),
             display_text: render_elided_cmavo(cmavo, self.options),
         }));
     }
+
+    #[requires(item.recovery_error_index().is_some())]
+    #[ensures(true)]
+    fn push_recovered_error<E: RecoveryItemState>(&mut self, item: &E) {
+        let mut spans = Vec::new();
+        item.visit_source_spans(&mut |span| spans.push(span.clone()));
+        let Some(range) = range_from_spans(&spans) else {
+            panic!("syntax recovery items must carry a source position");
+        };
+        let error_index = item
+            .recovery_error_index()
+            .expect("the recovery-item contract requires a diagnostic index");
+        let raw_text = source_text_for_range(self.source, Some(range));
+        self.last_token_end_range = Some(new!(WebSourceRange {
+            byte_start: range.byte_end,
+            byte_end: range.byte_end,
+            char_start: range.char_end,
+            char_end: range.char_end,
+        }));
+        let id = self.allocate_id();
+        self.push_leaf_part(new!(BlockLeafPart {
+            id,
+            range,
+            role: GentufaBlockRole::Error,
+            error_index: Some(error_index),
+            token_kind: None,
+            raw_text: raw_text.clone(),
+            display_text: raw_text,
+        }));
+    }
 }
 
-impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
+impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree, false> {
     type Node = GeneratedSyntaxNodeRef<'tree>;
     type Atom = GeneratedSyntaxAtomRef<'tree>;
 
@@ -733,88 +960,53 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
     fn enter_node(&mut self, node: Self::Node) {
         let id = self.id_for_node(node);
         let ref_markers = self.reference_markers_for_id(id);
-        self.stack
-            .push(GeneratedBlockFrame::Node(GeneratedNodeFrame {
-                id,
-                label: syntax_constructor_name(node.constructor_name()).to_owned(),
-                ref_markers,
-                payload: GeneratedBlockPayload::default(),
-            }));
+        self.enter_node_frame(
+            id,
+            syntax_constructor_name(node.constructor_name()).to_owned(),
+            ref_markers,
+        );
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_node(&mut self, _node: Self::Node) {
-        let Some(GeneratedBlockFrame::Node(frame)) = self.stack.pop() else {
-            panic!("generated block collector exited a node without entering it");
-        };
-        let node = generated_block_tree_node_from_frame(frame, self.source);
-        if let Some(node) = node {
-            self.push_node(node);
-        }
+        self.exit_node_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_field(&mut self, field: jbotci_tree::FieldRef) {
-        self.stack
-            .push(GeneratedBlockFrame::Field(GeneratedFieldFrame {
-                name: field.name,
-                payload: GeneratedBlockPayload::default(),
-            }));
+        self.enter_field_frame(field);
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_field(&mut self, _field: jbotci_tree::FieldRef) {
-        let Some(GeneratedBlockFrame::Field(frame)) = self.stack.pop() else {
-            panic!("generated block collector exited a field without entering it");
-        };
-        let mut payload = frame.payload;
-        if let Some(name) = frame.name {
-            payload.children = payload
-                .children
-                .into_iter()
-                .map(|child| child.with_data(data! { field_label: Some(name) }))
-                .collect();
-        }
-        self.push_payload(payload);
+        self.exit_field_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_sequence(&mut self) {
-        self.stack.push(GeneratedBlockFrame::Collection(
-            GeneratedBlockPayload::default(),
-        ));
+        self.enter_sequence_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_sequence(&mut self) {
-        let Some(GeneratedBlockFrame::Collection(payload)) = self.stack.pop() else {
-            panic!("generated block collector exited a sequence without entering it");
-        };
-        self.push_payload(payload);
+        self.exit_sequence_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn enter_chain(&mut self) {
-        self.stack
-            .push(GeneratedBlockFrame::Chain(GeneratedBlockPayload::default()));
+        self.enter_chain_frame();
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn exit_chain(&mut self) {
-        let Some(GeneratedBlockFrame::Chain(mut payload)) = self.stack.pop() else {
-            panic!("generated block collector exited a chain without entering it");
-        };
-        payload.children =
-            flatten_generated_chain_block_nodes(payload.children, self.source, &mut self.next_id);
-        payload.source_range = generated_block_source_range(&payload.children, &payload.leaf_parts);
-        self.push_payload(payload);
+        self.exit_chain_frame();
     }
 
     #[requires(true)]
@@ -829,6 +1021,84 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree> {
     #[ensures(true)]
     fn visit_absent_optional_field(&mut self, field: jbotci_tree::FieldRef) {
         self.push_elided_terminator(field);
+    }
+}
+
+impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree, true> {
+    type Node = RecoveredSyntaxNodeRef<'tree>;
+    type Atom = RecoveredSyntaxAtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        let id = self.allocate_id();
+        self.enter_node_frame(
+            id,
+            syntax_constructor_name(node.constructor_name()).to_owned(),
+            Vec::new(),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, _node: Self::Node) {
+        self.exit_node_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_field(&mut self, field: jbotci_tree::FieldRef) {
+        self.enter_field_frame(field);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_field(&mut self, _field: jbotci_tree::FieldRef) {
+        self.exit_field_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_sequence(&mut self) {
+        self.enter_sequence_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_sequence(&mut self) {
+        self.exit_sequence_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_chain(&mut self) {
+        self.enter_chain_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_chain(&mut self) {
+        self.exit_chain_frame();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        match atom {
+            RecoveredSyntaxAtomRef::Token(token) => self.push_token(token),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_absent_optional_field(&mut self, field: jbotci_tree::FieldRef) {
+        self.push_elided_terminator(field);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: RecoveryItemState + Serialize>(&mut self, item: &'tree E) {
+        self.push_recovered_error(item);
     }
 }
 
@@ -849,7 +1119,8 @@ fn generated_block_tree_node_from_frame(
         None,
         vec![id],
         label.clone(),
-        false,
+        GentufaBlockRole::Normal,
+        None,
         None,
         ref_markers,
         vec![label],
@@ -867,7 +1138,8 @@ fn generated_block_tree_node_from_parts(
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
+    error_index: Option<usize>,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     node_types: Vec<String>,
@@ -876,7 +1148,7 @@ fn generated_block_tree_node_from_parts(
     source: &str,
     computed_gloss: Option<String>,
 ) -> Option<BlockTreeNode> {
-    leaf_parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
+    leaf_parts.sort_by_key(|part| (part.range.byte_start, part.role.sort_key()));
     let span = generated_block_source_range(&children, &leaf_parts);
     if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
         return None;
@@ -902,7 +1174,8 @@ fn generated_block_tree_node_from_parts(
         field_label,
         node_ids,
         label,
-        is_elided,
+        role,
+        error_index,
         token_kind: leaf_token_kind.or(token_kind),
         ref_markers,
         span,
@@ -985,7 +1258,8 @@ fn split_generated_chain_link_block_node(
         field_label: node_data.field_label,
         node_ids: node_data.node_ids,
         label: node_data.label,
-        is_elided: node_data.is_elided,
+        role: node_data.role,
+        error_index: node_data.error_index,
         token_kind: node_data.token_kind,
         ref_markers: node_data.ref_markers,
         node_types: node_data.node_types,
@@ -1060,7 +1334,8 @@ struct GeneratedChainLinkFragmentSource {
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
+    error_index: Option<usize>,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     node_types: Vec<String>,
@@ -1097,7 +1372,8 @@ fn generated_chain_link_fragment_node(
         original.field_label,
         node_ids,
         original.label.clone(),
-        original.is_elided,
+        original.role,
+        original.error_index,
         original.token_kind.clone(),
         ref_markers,
         original.node_types.clone(),
@@ -1132,13 +1408,18 @@ fn generated_chain_link_element_field(constructor: &str) -> Option<&'static str>
     field_label.as_ref().is_none_or(|label| !label.is_empty()),
     "field labels must not be empty when present"
 )]
+#[invariant(
+    role.is_error() == error_index.is_some(),
+    "error block tree nodes must carry exactly one diagnostic index"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BlockTreeNode {
     id: RawSyntaxNodeId,
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
+    error_index: Option<usize>,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
@@ -1152,13 +1433,30 @@ struct BlockTreeNode {
     children: Vec<BlockTreeNode>,
 }
 
-#[invariant(!display_text.is_empty(), "leaf parts must have display text")]
-#[invariant(*is_elided || !raw_text.is_empty(), "non-elided leaf parts must have source text")]
+#[invariant(
+    role.is_error() || !display_text.is_empty(),
+    "non-error leaf parts must have display text"
+)]
+#[invariant(
+    role.is_elided() || role.is_error() || !raw_text.is_empty(),
+    "ordinary leaf parts must have source text"
+)]
+#[invariant(
+    role.is_error() == error_index.is_some(),
+    "error leaf parts must carry exactly one diagnostic index"
+)]
+#[invariant(
+    !role.is_error()
+        || !raw_text.is_empty()
+        || (range.byte_start == range.byte_end && range.char_start == range.char_end),
+    "empty error markers must have zero-width source ranges"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BlockLeafPart {
     id: RawSyntaxNodeId,
     range: WebSourceRange,
-    is_elided: bool,
+    role: GentufaBlockRole,
+    error_index: Option<usize>,
     token_kind: Option<WordKind>,
     raw_text: String,
     display_text: String,
@@ -1259,7 +1557,7 @@ fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
 fn can_collapse_single_child(parent: &BlockTreeNode, child: &BlockTreeNode) -> bool {
     parent.leaf_word.is_none()
         && parent.token_kind.is_none()
-        && !parent.leaf_parts.iter().any(|part| part.is_elided)
+        && parent.leaf_parts.iter().all(|part| part.role.is_normal())
         && spans_compatible(parent.span, child.span)
 }
 
@@ -1299,7 +1597,10 @@ fn merge_parent_into_child(parent: BlockTreeNode, child: BlockTreeNode) -> Block
     child.leaf_word = child.leaf_word.or(parent.leaf_word);
     child.token_kind = child.token_kind.or(parent.token_kind);
     child.computed_gloss = child.computed_gloss.or(parent.computed_gloss);
-    child.is_elided = child.is_elided || parent.is_elided;
+    if child.role.is_normal() {
+        child.role = parent.role;
+        child.error_index = parent.error_index;
+    }
     BlockTreeNode::from_data(child)
 }
 
@@ -1511,7 +1812,7 @@ fn has_uncovered_leaf_parts(node: &BlockTreeNode) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn leaf_part_is_uncovered_by_children(children: &[BlockTreeNode], part: &BlockLeafPart) -> bool {
-    part.is_elided || !children.iter().any(|child| child_covers_part(child, part))
+    !part.role.is_normal() || !children.iter().any(|child| child_covers_part(child, part))
 }
 
 #[requires(true)]
@@ -1584,7 +1885,8 @@ fn synthetic_leaf_block<Tooltip>(
         node_ids: node.node_ids.iter().map(|id| id.0).collect(),
         label: part.display_text.clone(),
         is_leaf: true,
-        is_elided: part.is_elided,
+        role: part.role,
+        error_index: part.error_index,
         token_kind: part.token_kind,
         ref_markers: Vec::new(),
         span: Some(part.range),
@@ -1622,7 +1924,7 @@ fn push_leaf_or_structural_block<Tooltip>(
     blocks: &mut Vec<BlockTemp<Tooltip>>,
 ) {
     if let [part] = node.leaf_parts.as_slice()
-        && part.is_elided
+        && !part.role.is_normal()
     {
         blocks.push(BlockTemp {
             id: part.id,
@@ -1687,7 +1989,8 @@ fn block_from_tree_node<Tooltip>(
             syntax_constructor_display_label(&node.label).to_owned()
         },
         is_leaf,
-        is_elided: node.is_elided,
+        role: node.role,
+        error_index: node.error_index,
         token_kind: node.token_kind,
         ref_markers: node.ref_markers.clone(),
         span: node.span,
@@ -1775,7 +2078,7 @@ fn annotate_blocks<Tooltip: Clone>(
     blocks
         .into_iter()
         .map(|block| {
-            let annotation = if block.is_elided {
+            let annotation = if block.role.is_elided() {
                 annotation_for_range_and_text(annotations, block.span, Some(&block.display_text))
             } else {
                 annotation_for_range_and_text(annotations, block.span, None)
@@ -2372,7 +2675,8 @@ mod tests {
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(1)],
             label: "BridiTailContinuation".to_owned(),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: None,
             ref_markers: Vec::new(),
             span: Some(test_range(0, 3)),
@@ -2409,9 +2713,113 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_layout_keeps_valid_statements_around_skipped_slot() {
+        let (layout, errors) = recovered_test_blocks_layout("mi ku i do");
+        assert_eq!(errors.len(), 1);
+
+        let mi = normal_leaf_for_raw_text(&layout, "mi");
+        let error = only_error_block(&layout);
+        let separator = normal_leaf_for_raw_text(&layout, "i");
+        let do_block = normal_leaf_for_raw_text(&layout, "do");
+
+        assert_eq!(block_byte_range(mi), (0, 2));
+        assert_eq!(block_byte_range(error), (3, 5));
+        assert_eq!(error.raw_text, "ku");
+        assert_eq!(error.display_text, "ku");
+        assert_eq!(error.error_index, Some(0));
+        assert_eq!(syntax_error_byte_range(&errors[0]), (3, 5));
+        assert_eq!(block_byte_range(do_block), (8, 10));
+
+        assert_eq!(mi.col + mi.col_span, error.col);
+        assert_eq!(error.col + error.col_span, separator.col);
+        assert_eq!(separator.col + separator.col_span, do_block.col);
+        assert_eq!(mi.row, error.row);
+        assert!(do_block.row > error.row);
+        assert_eq!(mi.ancestors, error.ancestors);
+        assert!(
+            do_block
+                .ancestors
+                .iter()
+                .any(|ancestor| ancestor == "FollowingParagraphStatement")
+        );
+        assert!(
+            error
+                .ancestors
+                .iter()
+                .all(|ancestor| ancestor != "FollowingParagraphStatement")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_layout_attaches_missing_slot_markers_after_prefix() {
+        let (layout, errors) = recovered_test_blocks_layout("mi viska lo");
+        assert_eq!(errors.len(), 1);
+
+        let mi = normal_leaf_for_raw_text(&layout, "mi");
+        let viska = normal_leaf_for_raw_text(&layout, "viska");
+        let lo = normal_leaf_for_raw_text(&layout, "lo");
+        let markers = error_blocks(&layout);
+
+        assert_eq!(block_byte_range(mi), (0, 2));
+        assert_eq!(block_byte_range(viska), (3, 8));
+        assert_eq!(block_byte_range(lo), (9, 11));
+        assert_eq!(
+            markers.len(),
+            3,
+            "the recovered model carries three missing slots"
+        );
+        assert_eq!(lo.col + lo.col_span, markers[0].col);
+        assert!(viska.col < lo.col);
+        for (offset, marker) in markers.iter().enumerate() {
+            assert_eq!(block_byte_range(marker), (11, 11));
+            assert!(marker.raw_text.is_empty());
+            assert!(marker.display_text.is_empty());
+            assert_eq!(marker.error_index, Some(0));
+            assert_eq!(marker.row, lo.row);
+            assert_eq!(marker.col, markers[0].col + offset);
+            assert_eq!(marker.ancestors, lo.ancestors);
+            assert_eq!(
+                syntax_error_byte_range(&errors[0]),
+                block_byte_range(marker)
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_layout_links_each_skipped_block_to_matching_diagnostic() {
+        let source = "mi ku i do ku i mi klama";
+        let (layout, errors) = recovered_test_blocks_layout(source);
+        let error_blocks = error_blocks(&layout);
+
+        assert_eq!(errors.len(), 2);
+        assert_eq!(error_blocks.len(), 2);
+        assert_eq!(block_byte_range(error_blocks[0]), (3, 5));
+        assert_eq!(block_byte_range(error_blocks[1]), (11, 13));
+        assert_eq!(error_blocks[0].raw_text, "ku");
+        assert_eq!(error_blocks[1].raw_text, "ku");
+        for block in error_blocks {
+            let error_index = block.error_index.expect("error block index");
+            assert_eq!(
+                block_byte_range(block),
+                syntax_error_byte_range(&errors[error_index])
+            );
+        }
+
+        let do_block = normal_leaf_for_raw_text(&layout, "do");
+        let klama = normal_leaf_for_raw_text(&layout, "klama");
+        assert!(error_blocks_between(&layout, do_block, klama));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn top_level_payload_synthesizes_root_for_multiple_children() {
         let options = GentufaBlockOptions::default();
-        let mut collector = GeneratedBlockCollector::new("mi do", &options, None, None);
+        let mut collector = GeneratedBlockCollector::<false>::new("mi do", &options, None, None);
         let mut payload = GeneratedBlockPayload::default();
         payload.push_node(test_generated_block_node(
             1,
@@ -2444,7 +2852,8 @@ mod tests {
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(depth)],
             label: format!("node-{depth}"),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: None,
             ref_markers: Vec::new(),
             span: None,
@@ -2472,7 +2881,8 @@ mod tests {
                         char_start: index,
                         char_end: index + 1,
                     }),
-                    is_elided: false,
+                    role: GentufaBlockRole::Normal,
+                    error_index: None,
                     token_kind: token_kind_for_text(&format!("w{index}")),
                     raw_text: format!("w{index}"),
                     display_text: format!("w{index}"),
@@ -2501,12 +2911,105 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret.0.blocks.iter().all(|block| {
+        block.error_index.is_none_or(|error_index| error_index < ret.1.len())
+    }))]
+    fn recovered_test_blocks_layout(
+        source: &str,
+    ) -> (GentufaBlocksLayout, Vec<jbotci_syntax::SyntaxError>) {
+        let words = segment_words_with_modifiers(source).expect("test source has valid morphology");
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &jbotci_syntax::ParseOptions::default(),
+        );
+        let layout = recovered_generated_model_blocks_layout(
+            recovered.parse_tree.as_ref(),
+            source,
+            recovered.errors.len(),
+            &Vec::<GentufaBlockAnnotation<()>>::new(),
+            &GentufaBlockOptions::default(),
+        );
+        (layout, recovered.errors.clone())
+    }
+
+    #[requires(!raw_text.is_empty())]
+    #[ensures(ret.is_leaf)]
+    #[ensures(ret.role == GentufaBlockRole::Normal)]
+    fn normal_leaf_for_raw_text<'layout>(
+        layout: &'layout GentufaBlocksLayout,
+        raw_text: &str,
+    ) -> &'layout GentufaBlock {
+        layout
+            .blocks
+            .iter()
+            .find(|block| {
+                block.is_leaf
+                    && block.role == GentufaBlockRole::Normal
+                    && block.raw_text == raw_text
+            })
+            .unwrap_or_else(|| panic!("missing normal leaf for {raw_text:?}: {layout:#?}"))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.role == GentufaBlockRole::Error)]
+    fn only_error_block(layout: &GentufaBlocksLayout) -> &GentufaBlock {
+        let blocks = error_blocks(layout);
+        assert_eq!(blocks.len(), 1, "{blocks:#?}");
+        blocks[0]
+    }
+
+    #[requires(true)]
+    #[ensures(ret.iter().all(|block| block.role == GentufaBlockRole::Error))]
+    fn error_blocks(layout: &GentufaBlocksLayout) -> Vec<&GentufaBlock> {
+        let mut blocks = layout
+            .blocks
+            .iter()
+            .filter(|block| block.role == GentufaBlockRole::Error)
+            .collect::<Vec<_>>();
+        blocks.sort_by_key(|block| (block.col, block.row));
+        blocks
+    }
+
+    #[requires(block.span.is_some())]
+    #[ensures(ret.0 <= ret.1)]
+    fn block_byte_range(block: &GentufaBlock) -> (usize, usize) {
+        let span = block.span.expect("block source range");
+        (span.byte_start, span.byte_end)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.0 <= ret.1)]
+    fn syntax_error_byte_range(error: &jbotci_syntax::SyntaxError) -> (usize, usize) {
+        match error {
+            jbotci_syntax::SyntaxError::Parse {
+                byte_start,
+                byte_end,
+                ..
+            } => (*byte_start, *byte_end),
+            jbotci_syntax::SyntaxError::NotImplemented => (0, 0),
+        }
+    }
+
+    #[requires(left.col + left.col_span <= right.col)]
+    #[ensures(true)]
+    fn error_blocks_between(
+        layout: &GentufaBlocksLayout,
+        left: &GentufaBlock,
+        right: &GentufaBlock,
+    ) -> bool {
+        error_blocks(layout).iter().any(|block| {
+            left.col + left.col_span <= block.col && block.col + block.col_span <= right.col
+        })
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     fn generated_leaf_display_texts(layout: &GentufaBlocksLayout) -> Vec<String> {
         layout
             .blocks
             .iter()
-            .filter(|block| block.is_leaf && !block.is_elided)
+            .filter(|block| block.is_leaf && !block.role.is_elided())
             .map(|block| block.display_text.clone())
             .collect()
     }
@@ -2529,7 +3032,8 @@ mod tests {
         new!(BlockLeafPart {
             id: RawSyntaxNodeId(id),
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: token_kind_for_text(display_text),
             raw_text: display_text.to_owned(),
             display_text: display_text.to_owned(),
@@ -2551,7 +3055,8 @@ mod tests {
             field_label,
             node_ids: vec![RawSyntaxNodeId(id)],
             label: label.to_owned(),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
+            error_index: None,
             token_kind: token_kind_for_text(display_text),
             ref_markers: Vec::new(),
             span: Some(range),

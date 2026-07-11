@@ -165,6 +165,42 @@ fn morphology_errors_suppress_syntax_in_every_syntax_command() {
         assert_eq!(run.stderr, expected_morphology_stderr(2), "{command}");
         assert!(!run.stderr.contains("syntax."), "{command}");
     }
+
+    let blocks = capture_cli(&[
+        "jbotci",
+        "gentufa",
+        "--turtai",
+        "blocks",
+        "--output-type",
+        "svg",
+        MORPHOLOGY_MULTI_ERROR_SOURCE,
+    ]);
+    assert_eq!(blocks.status, CliStatus::Failure);
+    assert!(blocks.stdout.is_empty());
+    assert_eq!(blocks.stderr, expected_morphology_stderr(2));
+    assert!(!blocks.stderr.contains("syntax."));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_blocks_svg_renders_recovered_regions_without_changing_diagnostics() {
+    let run = capture_cli(&[
+        "jbotci",
+        "gentufa",
+        "--turtai",
+        "blocks",
+        "--output-type",
+        "svg",
+        SYNTAX_MULTI_ERROR_SOURCE,
+    ]);
+
+    assert_eq!(run.status, CliStatus::Failure);
+    assert_recovered_blocks_svg(&run.stdout);
+    assert_eq!(
+        run.stderr,
+        expected_syntax_stderr(DiagnosticDetailMode::Summary, 2)
+    );
 }
 
 #[test]
@@ -301,23 +337,61 @@ fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_format
         assert_eq!(output.stderr, expected, "{format:?}");
     }
 
-    for format in [ToolGentufaFormat::Svg, ToolGentufaFormat::Png] {
-        let output = run_tool_gentufa(ToolGentufaRequest {
-            text: SYNTAX_MULTI_ERROR_SOURCE.to_owned(),
-            format,
-            dialect: None,
-            show_defs: false,
-            show_spans: false,
-            show_refs: Some(false),
-            show_elided: false,
-            decompose_lujvo: false,
-            indent: None,
-        })
-        .expect("gentufa image tool call should run");
-        assert_eq!(output.status, ToolStatus::Failure, "{format:?}");
-        assert!(output.stdout.is_empty(), "{format:?}");
-        assert_eq!(output.stderr, expected, "{format:?}");
-    }
+    let svg = run_tool_gentufa(ToolGentufaRequest {
+        text: SYNTAX_MULTI_ERROR_SOURCE.to_owned(),
+        format: ToolGentufaFormat::Svg,
+        dialect: None,
+        show_defs: false,
+        show_spans: false,
+        show_refs: Some(false),
+        show_elided: false,
+        decompose_lujvo: false,
+        indent: None,
+    })
+    .expect("gentufa SVG tool call should run");
+    assert_eq!(svg.status, ToolStatus::Failure);
+    assert_recovered_blocks_svg(svg.stdout_text().expect("SVG output is UTF-8"));
+    assert_eq!(svg.stderr, expected);
+
+    let png = run_tool_gentufa(ToolGentufaRequest {
+        text: SYNTAX_MULTI_ERROR_SOURCE.to_owned(),
+        format: ToolGentufaFormat::Png,
+        dialect: None,
+        show_defs: false,
+        show_spans: false,
+        show_refs: Some(false),
+        show_elided: false,
+        decompose_lujvo: false,
+        indent: None,
+    })
+    .expect("gentufa PNG tool call should run");
+    assert_eq!(png.status, ToolStatus::Failure);
+    assert!(png.stdout.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert_eq!(png.stderr, expected);
+}
+
+#[requires(!svg.is_empty())]
+#[ensures(true)]
+fn assert_recovered_blocks_svg(svg: &str) {
+    assert!(svg.starts_with("<svg "), "{svg}");
+    assert_eq!(svg.matches("data-role=\"error\"").count(), 2, "{svg}");
+    assert!(
+        svg.contains(
+            "data-role=\"error\" data-error-index=\"0\" data-byte-start=\"3\" data-byte-end=\"5\""
+        ),
+        "{svg}"
+    );
+    assert!(
+        svg.contains(
+            "data-role=\"error\" data-error-index=\"1\" data-byte-start=\"11\" data-byte-end=\"13\""
+        ),
+        "{svg}"
+    );
+    assert_eq!(svg.matches(">ku</text>").count(), 2, "{svg}");
+    assert!(svg.contains(">do</text>"), "{svg}");
+    assert!(svg.contains(">kláma</text>"), "{svg}");
+    assert!(svg.contains("fill=\"#fee2e2\""), "{svg}");
+    assert!(svg.contains("text-decoration=\"line-through\""), "{svg}");
 }
 
 #[requires(true)]

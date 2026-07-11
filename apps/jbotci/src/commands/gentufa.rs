@@ -118,6 +118,7 @@ fn render_gentufa(
                 let stdout = render_recovered_gentufa_output(
                     &parse,
                     &text,
+                    words.as_slice(),
                     &input,
                     color_policy.stdout,
                     glyphs,
@@ -261,13 +262,23 @@ fn render_gentufa(
 fn render_recovered_gentufa_output(
     recovered: &jbotci_syntax::RecoveredSyntaxParse,
     source: &str,
+    words: &[WordLike],
     input: &GentufaInput,
     color: bool,
     glyphs: GlyphStyle,
     phonemes: PhonemeRenderOptions,
 ) -> Result<Vec<u8>> {
     let rendered = match input.format {
-        GentufaFormat::Blocks => return Ok(Vec::new()),
+        GentufaFormat::Blocks => {
+            let output_type = resolve_gentufa_blocks_output_type(input)?;
+            return render_gentufa_recovered_blocks_output(
+                recovered,
+                source,
+                words,
+                phonemes,
+                output_type,
+            );
+        }
         GentufaFormat::Brackets => {
             let mut rendered = pretty_recovered_syntax_brackets_with_options(
                 recovered,
@@ -322,6 +333,31 @@ fn render_recovered_gentufa_output(
     Ok(rendered.into_bytes())
 }
 
+#[requires(!recovered.errors.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gentufa_recovered_blocks_output(
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+    source: &str,
+    words: &[WordLike],
+    phoneme_options: PhonemeRenderOptions,
+    output_type: GentufaImageOutputType,
+) -> Result<Vec<u8>> {
+    let block_options = GentufaBlockOptions {
+        script: GentufaScript::Latin,
+        show_elided: false,
+        phonemes: phoneme_options,
+    };
+    let annotations = gentufa_block_annotations(words);
+    let layout = recovered_generated_model_blocks_layout(
+        recovered.parse_tree.as_ref(),
+        source,
+        recovered.errors.len(),
+        &annotations,
+        &block_options,
+    );
+    render_gentufa_blocks_output(&layout, output_type, "jbotci gentufa recovered syntax")
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
 fn render_gentufa_generated_blocks_output(
@@ -359,10 +395,20 @@ fn render_gentufa_generated_blocks_output(
         &annotations,
         &block_options,
     );
+    render_gentufa_blocks_output(&layout, output_type, "jbotci gentufa generated syntax")
+}
+
+#[requires(!title.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|output| !output.is_empty()) || ret.is_err())]
+fn render_gentufa_blocks_output<Tooltip, ReferenceTooltip>(
+    layout: &jbotci_gentufa::GentufaBlocksLayout<Tooltip, ReferenceTooltip>,
+    output_type: GentufaImageOutputType,
+    title: &str,
+) -> Result<Vec<u8>> {
     let svg_options = GentufaSvgOptions {
         show_glosses: false,
         script: GentufaScript::Latin,
-        title: "jbotci gentufa generated syntax".to_owned(),
+        title: title.to_owned(),
     };
     let fonts = EmbeddedGentufaFonts::get();
     match output_type {

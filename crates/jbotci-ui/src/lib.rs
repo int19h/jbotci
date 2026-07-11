@@ -25,8 +25,6 @@ use jbotci_output::{
     render_lojban_text_for_script,
 };
 use jbotci_web_core::CollisionScope;
-#[cfg(test)]
-use jbotci_web_core::ReferenceSlotLabel;
 use jbotci_web_core::{
     APPLE_TOUCH_ICON_ASSET_PATH, CUKTA_WEB_DEFAULT_COUNT, CUKTA_WEB_MAX_COUNT, CuktaModeOption,
     CuktaPageData, CuktaPageKind, CuktaSearchResultCard, CuktaSearchTarget, CuktaSemanticSearchHit,
@@ -52,6 +50,8 @@ use jbotci_web_core::{
     toggle_cukta_target_selection, toggle_vlacku_word_type_selection,
     vlacku_brivla_filter_indeterminate, vlacku_web_url, vlacku_word_type_options, web_route_url,
 };
+#[cfg(test)]
+use jbotci_web_core::{GentufaBlockRole, ReferenceSlotLabel};
 
 #[cfg(target_arch = "wasm32")]
 use jbotci_web_core::build_page_head;

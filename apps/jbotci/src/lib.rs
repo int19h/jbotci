@@ -138,8 +138,8 @@ use jbotci_embeddings::{
 use jbotci_gentufa::{
     EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
     GentufaScript, GentufaSvgOptions, WebSourceRange,
-    generated_model_blocks_layout_with_references, render_gentufa_blocks_png,
-    render_gentufa_blocks_svg,
+    generated_model_blocks_layout_with_references, recovered_generated_model_blocks_layout,
+    render_gentufa_blocks_png, render_gentufa_blocks_svg,
 };
 use jbotci_gimfihi::{
     CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
