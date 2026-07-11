@@ -22,9 +22,9 @@ use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
 pub use jbotci_gentufa::{
-    DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaScript,
-    ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource, ReferenceMarkerSourceData,
-    ReferenceSlotLabel, WebSourceRange, reference_slot_display_text,
+    DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaBlockRole,
+    GentufaScript, ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource,
+    ReferenceMarkerSourceData, ReferenceSlotLabel, WebSourceRange, reference_slot_display_text,
 };
 use jbotci_gentufa::{
     generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
@@ -255,7 +255,8 @@ impl Default for WebFeatureAvailability {
 pub enum GentufaBracketFragment {
     Text {
         text: String,
-        elided: bool,
+        #[serde(default, skip_serializing_if = "GentufaBlockRole::is_normal")]
+        role: GentufaBlockRole,
     },
     Span {
         color: Option<String>,
@@ -376,7 +377,8 @@ pub struct GentufaCell {
     pub is_word: bool,
     pub quoted: bool,
     pub tooltip: Option<String>,
-    pub is_elided: bool,
+    #[serde(default, skip_serializing_if = "GentufaBlockRole::is_normal")]
+    pub role: GentufaBlockRole,
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -609,7 +611,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
                 is_word: block.is_leaf,
                 quoted: false,
                 tooltip: None,
-                is_elided: block.is_elided,
+                role: block.role,
             }],
             computed_gloss: block.computed_gloss.clone(),
             ref_markers: block.ref_markers.clone(),
@@ -706,14 +708,17 @@ fn attach_generated_reference_tooltips_to_block(
     let dictionary_annotation = annotation_for_range_and_text(
         dictionary_annotations,
         block.span,
-        block.is_elided.then_some(block.display_text.as_str()),
+        block
+            .role
+            .is_elided()
+            .then_some(block.display_text.as_str()),
     );
     new!(GentufaBlock {
         block_id: block.block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
-        is_elided: block.is_elided,
+        role: block.role,
         token_kind: block.token_kind,
         ref_markers: attach_generated_reference_tooltips_to_markers(
             block.ref_markers,
@@ -4466,7 +4471,7 @@ fn dictionary_annotations_for_elided_blocks(
 ) -> Vec<GentufaBlockAnnotation<DictionaryTooltipCard>> {
     blocks
         .iter()
-        .filter(|block| block.is_leaf && block.is_elided)
+        .filter(|block| block.is_leaf && block.role.is_elided())
         .filter_map(|block| {
             let range = block.span?;
             let card = dictionary_tooltip_for_word(base_path, &block.display_text)?;
@@ -4741,7 +4746,11 @@ fn append_gentufa_bracket_fragments_from_source(
                 output.extend(decorated_bracket_fragment(
                     vec![GentufaBracketFragment::Text {
                         text: text.clone(),
-                        elided: *elided,
+                        role: if *elided {
+                            GentufaBlockRole::Elided
+                        } else {
+                            GentufaBlockRole::Normal
+                        },
                     }],
                     bracket_source_range_to_web(*range),
                     Some(text),
@@ -6085,14 +6094,14 @@ mod tests {
                 .blocks_layout
                 .blocks
                 .iter()
-                .all(|block| !block.is_elided)
+                .all(|block| !block.role.is_elided())
         );
         assert!(
             hidden
                 .tree_rows
                 .iter()
                 .flat_map(|row| row.cells.iter())
-                .all(|cell| !cell.is_elided)
+                .all(|cell| !cell.role.is_elided())
         );
 
         let request = GentufaWebRequest {
@@ -6108,7 +6117,7 @@ mod tests {
         assert!(shown.tree_rows.iter().any(|row| {
             row.cells
                 .iter()
-                .any(|cell| cell.is_word && cell.is_elided && cell.text == "vau")
+                .any(|cell| cell.is_word && cell.role.is_elided() && cell.text == "vau")
                 && !row.glosses.is_empty()
                 && row.definition.is_some()
         }));
@@ -6121,7 +6130,7 @@ mod tests {
             .blocks_layout
             .blocks
             .iter()
-            .filter(|block| block.is_leaf && block.is_elided)
+            .filter(|block| block.is_leaf && block.role.is_elided())
             .map(|block| block.label.clone())
             .collect::<Vec<_>>();
         assert!(
@@ -6132,7 +6141,7 @@ mod tests {
             .blocks_layout
             .blocks
             .iter()
-            .find(|block| block.is_leaf && block.is_elided && block.label == "vau")
+            .find(|block| block.is_leaf && block.role.is_elided() && block.label == "vau")
             .expect("vau elided block");
         assert!(!vau_block.glosses.is_empty());
         assert!(vau_block.definition.is_some());
@@ -6162,7 +6171,7 @@ mod tests {
                         row.label.as_str(),
                         row.cells
                             .iter()
-                            .map(|cell| (cell.text.as_str(), cell.is_elided))
+                            .map(|cell| (cell.text.as_str(), cell.role.is_elided()))
                             .collect::<Vec<_>>(),
                     )
                 })
@@ -6174,7 +6183,7 @@ mod tests {
             .position(|row| {
                 row.cells
                     .iter()
-                    .any(|cell| !cell.is_elided && cell.text == "cádga")
+                    .any(|cell| !cell.role.is_elided() && cell.text == "cádga")
             })
             .unwrap_or_else(|| panic!("{:?}", rows_for_failure()));
         let first_elided_vau_row = success
@@ -6183,7 +6192,7 @@ mod tests {
             .position(|row| {
                 row.cells
                     .iter()
-                    .any(|cell| cell.is_elided && cell.text == "vau")
+                    .any(|cell| cell.role.is_elided() && cell.text == "vau")
             })
             .expect("elided vau row");
 
@@ -6209,7 +6218,7 @@ mod tests {
             .blocks_layout
             .blocks
             .iter()
-            .filter(|block| block.is_leaf && block.is_elided)
+            .filter(|block| block.is_leaf && block.role.is_elided())
             .collect::<Vec<_>>();
         assert!(
             !elided_blocks.is_empty(),
@@ -6217,7 +6226,7 @@ mod tests {
             success.blocks_layout.blocks
         );
         assert!(
-            elided_blocks.iter().all(|block| block.is_elided),
+            elided_blocks.iter().all(|block| block.role.is_elided()),
             "{elided_blocks:?}"
         );
         assert!(

@@ -371,8 +371,8 @@ pub(super) fn render_bracket_fragment(
     page_find: &PageFindContext,
 ) -> Element {
     match fragment {
-        GentufaBracketFragment::Text { text, elided } => {
-            if *elided {
+        GentufaBracketFragment::Text { text, role } => {
+            if role.is_elided() {
                 rsx! { s { { render_page_find_text(page_find, text) } } }
             } else {
                 render_page_find_text(page_find, text)
@@ -816,13 +816,13 @@ pub(super) fn render_block(
                                 if let Some(route) = jbotci_route_from_href(&base_path, &card.href) {
                                     Link { class: "block-label-link", to: route,
                                         span { class: "block-label-text",
-                                            { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
+                                            { render_elidable_page_find_text(page_find, &block.label, block.role.is_elided()) }
                                         }
                                     }
                                 } else {
                                     a { class: "block-label-link", href: "{card.href}",
                                         span { class: "block-label-text",
-                                            { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
+                                            { render_elidable_page_find_text(page_find, &block.label, block.role.is_elided()) }
                                         }
                                     }
                                 }
@@ -834,7 +834,7 @@ pub(super) fn render_block(
             } else {
                 span { class: "block-label", title: "{native_title}",
                     span { class: "block-label-text",
-                        { render_elidable_page_find_text(page_find, &block.label, block.is_elided) }
+                        { render_elidable_page_find_text(page_find, &block.label, block.role.is_elided()) }
                     }
                 }
             }
@@ -1416,7 +1416,7 @@ pub(super) fn render_tree_outgoing_edges(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_tree_cell(cell: &GentufaCell, page_find: &PageFindContext) -> Element {
-    let class = if cell.is_elided {
+    let class = if cell.role.is_elided() {
         "token is-elided"
     } else {
         "token"
@@ -1424,7 +1424,7 @@ pub(super) fn render_tree_cell(cell: &GentufaCell, page_find: &PageFindContext) 
     rsx! {
         span { class: "{class}",
             span { class: "token-raw lojban-text",
-                { render_elidable_page_find_text(page_find, &cell.text, cell.is_elided) }
+                { render_elidable_page_find_text(page_find, &cell.text, cell.role.is_elided()) }
             }
         }
     }

@@ -640,7 +640,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         brackets_text: "bracket visible".to_owned(),
         bracket_fragments: vec![GentufaBracketFragment::Text {
             text: "bracket visible".to_owned(),
-            elided: false,
+            role: GentufaBlockRole::Normal,
         }],
         blocks_layout: new!(GentufaBlocksLayout {
             blocks: vec![new!(GentufaBlock {
@@ -648,7 +648,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
                 node_ids: vec![1],
                 label: "block label".to_owned(),
                 is_leaf: true,
-                is_elided: false,
+                role: GentufaBlockRole::Normal,
                 token_kind: None,
                 ref_markers: Vec::new(),
                 span: None,
@@ -682,7 +682,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
                 is_word: true,
                 quoted: false,
                 tooltip: None,
-                is_elided: false,
+                role: GentufaBlockRole::Normal,
             }],
             computed_gloss: None,
             ref_markers: vec![edge_marker],
@@ -3147,7 +3147,7 @@ fn test_gentufa_block(
         node_ids: Vec::new(),
         label: "test".to_owned(),
         is_leaf: true,
-        is_elided: false,
+        role: GentufaBlockRole::Normal,
         token_kind: None,
         ref_markers: marker_roles
             .iter()

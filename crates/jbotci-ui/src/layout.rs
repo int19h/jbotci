@@ -2689,7 +2689,7 @@ pub(super) fn repeated_parse_tree_template(count: usize) -> String {
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn tree_row_is_elided(row: &GentufaTreeRow) -> bool {
-    !row.cells.is_empty() && row.cells.iter().all(|cell| cell.is_elided)
+    !row.cells.is_empty() && row.cells.iter().all(|cell| cell.role.is_elided())
 }
 
 #[requires(true)]
@@ -2700,7 +2700,7 @@ pub(super) fn block_class(block: &GentufaBlock) -> String {
     } else {
         "block block-nonleaf".to_owned()
     };
-    if block.is_elided {
+    if block.role.is_elided() {
         class.push_str(" block-elided");
     }
     class

@@ -161,6 +161,12 @@ pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
 
 #[invariant(*col_span > 0, "block column span must be positive")]
 #[invariant(*row_span > 0, "block row span must be positive")]
+#[invariant(
+    span.as_ref().is_none_or(|span| {
+        span.byte_start <= span.byte_end && span.char_start <= span.char_end
+    }),
+    "block source ranges must be ordered"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
@@ -168,7 +174,8 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub node_ids: Vec<usize>,
     pub label: String,
     pub is_leaf: bool,
-    pub is_elided: bool,
+    #[serde(default, skip_serializing_if = "GentufaBlockRole::is_normal")]
+    pub role: GentufaBlockRole,
     pub token_kind: Option<WordKind>,
     pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
     pub span: Option<WebSourceRange>,
@@ -185,6 +192,46 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub definition: Option<String>,
     pub computed_gloss: Option<String>,
     pub tooltip: Option<Tooltip>,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GentufaBlockRole {
+    #[default]
+    Normal,
+    Elided,
+    Error,
+}
+
+impl GentufaBlockRole {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Normal))]
+    pub const fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Elided))]
+    pub const fn is_elided(self) -> bool {
+        matches!(self, Self::Elided)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Error))]
+    pub const fn is_error(self) -> bool {
+        matches!(self, Self::Error)
+    }
+
+    #[requires(true)]
+    #[ensures(ret <= 2)]
+    const fn sort_key(self) -> usize {
+        match self {
+            Self::Normal => 0,
+            Self::Error => 1,
+            Self::Elided => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -591,7 +638,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
             None,
             vec![id],
             "GeneratedSyntaxRoot".to_owned(),
-            false,
+            GentufaBlockRole::Normal,
             None,
             Vec::new(),
             vec!["GeneratedSyntaxRoot".to_owned()],
@@ -676,7 +723,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: word_like.bare_word().map(Word::kind),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word_like(word_like, self.source, self.options),
@@ -693,7 +740,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: Some(word.kind()),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word(word, self.options),
@@ -716,7 +763,7 @@ impl<'source, 'options, 'index, 'tree> GeneratedBlockCollector<'source, 'options
         self.push_leaf_part(new!(BlockLeafPart {
             id,
             range,
-            is_elided: true,
+            role: GentufaBlockRole::Elided,
             token_kind: Some(WordKind::Cmavo),
             raw_text: String::new(),
             display_text: render_elided_cmavo(cmavo, self.options),
@@ -849,7 +896,7 @@ fn generated_block_tree_node_from_frame(
         None,
         vec![id],
         label.clone(),
-        false,
+        GentufaBlockRole::Normal,
         None,
         ref_markers,
         vec![label],
@@ -867,7 +914,7 @@ fn generated_block_tree_node_from_parts(
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     node_types: Vec<String>,
@@ -876,7 +923,7 @@ fn generated_block_tree_node_from_parts(
     source: &str,
     computed_gloss: Option<String>,
 ) -> Option<BlockTreeNode> {
-    leaf_parts.sort_by_key(|part| (part.range.byte_start, usize::from(part.is_elided)));
+    leaf_parts.sort_by_key(|part| (part.range.byte_start, part.role.sort_key()));
     let span = generated_block_source_range(&children, &leaf_parts);
     if span.is_none() && children.is_empty() && leaf_parts.is_empty() {
         return None;
@@ -902,7 +949,7 @@ fn generated_block_tree_node_from_parts(
         field_label,
         node_ids,
         label,
-        is_elided,
+        role,
         token_kind: leaf_token_kind.or(token_kind),
         ref_markers,
         span,
@@ -985,7 +1032,7 @@ fn split_generated_chain_link_block_node(
         field_label: node_data.field_label,
         node_ids: node_data.node_ids,
         label: node_data.label,
-        is_elided: node_data.is_elided,
+        role: node_data.role,
         token_kind: node_data.token_kind,
         ref_markers: node_data.ref_markers,
         node_types: node_data.node_types,
@@ -1060,7 +1107,7 @@ struct GeneratedChainLinkFragmentSource {
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     node_types: Vec<String>,
@@ -1097,7 +1144,7 @@ fn generated_chain_link_fragment_node(
         original.field_label,
         node_ids,
         original.label.clone(),
-        original.is_elided,
+        original.role,
         original.token_kind.clone(),
         ref_markers,
         original.node_types.clone(),
@@ -1138,7 +1185,7 @@ struct BlockTreeNode {
     field_label: Option<&'static str>,
     node_ids: Vec<RawSyntaxNodeId>,
     label: String,
-    is_elided: bool,
+    role: GentufaBlockRole,
     token_kind: Option<WordKind>,
     ref_markers: Vec<ReferenceMarker>,
     span: Option<WebSourceRange>,
@@ -1153,12 +1200,15 @@ struct BlockTreeNode {
 }
 
 #[invariant(!display_text.is_empty(), "leaf parts must have display text")]
-#[invariant(*is_elided || !raw_text.is_empty(), "non-elided leaf parts must have source text")]
+#[invariant(
+    role.is_elided() || !raw_text.is_empty(),
+    "non-elided leaf parts must have source text"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BlockLeafPart {
     id: RawSyntaxNodeId,
     range: WebSourceRange,
-    is_elided: bool,
+    role: GentufaBlockRole,
     token_kind: Option<WordKind>,
     raw_text: String,
     display_text: String,
@@ -1259,7 +1309,7 @@ fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
 fn can_collapse_single_child(parent: &BlockTreeNode, child: &BlockTreeNode) -> bool {
     parent.leaf_word.is_none()
         && parent.token_kind.is_none()
-        && !parent.leaf_parts.iter().any(|part| part.is_elided)
+        && !parent.leaf_parts.iter().any(|part| part.role.is_elided())
         && spans_compatible(parent.span, child.span)
 }
 
@@ -1299,7 +1349,9 @@ fn merge_parent_into_child(parent: BlockTreeNode, child: BlockTreeNode) -> Block
     child.leaf_word = child.leaf_word.or(parent.leaf_word);
     child.token_kind = child.token_kind.or(parent.token_kind);
     child.computed_gloss = child.computed_gloss.or(parent.computed_gloss);
-    child.is_elided = child.is_elided || parent.is_elided;
+    if child.role.is_normal() {
+        child.role = parent.role;
+    }
     BlockTreeNode::from_data(child)
 }
 
@@ -1511,7 +1563,7 @@ fn has_uncovered_leaf_parts(node: &BlockTreeNode) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn leaf_part_is_uncovered_by_children(children: &[BlockTreeNode], part: &BlockLeafPart) -> bool {
-    part.is_elided || !children.iter().any(|child| child_covers_part(child, part))
+    part.role.is_elided() || !children.iter().any(|child| child_covers_part(child, part))
 }
 
 #[requires(true)]
@@ -1584,7 +1636,7 @@ fn synthetic_leaf_block<Tooltip>(
         node_ids: node.node_ids.iter().map(|id| id.0).collect(),
         label: part.display_text.clone(),
         is_leaf: true,
-        is_elided: part.is_elided,
+        role: part.role,
         token_kind: part.token_kind,
         ref_markers: Vec::new(),
         span: Some(part.range),
@@ -1622,7 +1674,7 @@ fn push_leaf_or_structural_block<Tooltip>(
     blocks: &mut Vec<BlockTemp<Tooltip>>,
 ) {
     if let [part] = node.leaf_parts.as_slice()
-        && part.is_elided
+        && part.role.is_elided()
     {
         blocks.push(BlockTemp {
             id: part.id,
@@ -1687,7 +1739,7 @@ fn block_from_tree_node<Tooltip>(
             syntax_constructor_display_label(&node.label).to_owned()
         },
         is_leaf,
-        is_elided: node.is_elided,
+        role: node.role,
         token_kind: node.token_kind,
         ref_markers: node.ref_markers.clone(),
         span: node.span,
@@ -1775,7 +1827,7 @@ fn annotate_blocks<Tooltip: Clone>(
     blocks
         .into_iter()
         .map(|block| {
-            let annotation = if block.is_elided {
+            let annotation = if block.role.is_elided() {
                 annotation_for_range_and_text(annotations, block.span, Some(&block.display_text))
             } else {
                 annotation_for_range_and_text(annotations, block.span, None)
@@ -2372,7 +2424,7 @@ mod tests {
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(1)],
             label: "BridiTailContinuation".to_owned(),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: None,
             ref_markers: Vec::new(),
             span: Some(test_range(0, 3)),
@@ -2444,7 +2496,7 @@ mod tests {
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(depth)],
             label: format!("node-{depth}"),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: None,
             ref_markers: Vec::new(),
             span: None,
@@ -2472,7 +2524,7 @@ mod tests {
                         char_start: index,
                         char_end: index + 1,
                     }),
-                    is_elided: false,
+                    role: GentufaBlockRole::Normal,
                     token_kind: token_kind_for_text(&format!("w{index}")),
                     raw_text: format!("w{index}"),
                     display_text: format!("w{index}"),
@@ -2506,7 +2558,7 @@ mod tests {
         layout
             .blocks
             .iter()
-            .filter(|block| block.is_leaf && !block.is_elided)
+            .filter(|block| block.is_leaf && !block.role.is_elided())
             .map(|block| block.display_text.clone())
             .collect()
     }
@@ -2529,7 +2581,7 @@ mod tests {
         new!(BlockLeafPart {
             id: RawSyntaxNodeId(id),
             range,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: token_kind_for_text(display_text),
             raw_text: display_text.to_owned(),
             display_text: display_text.to_owned(),
@@ -2551,7 +2603,7 @@ mod tests {
             field_label,
             node_ids: vec![RawSyntaxNodeId(id)],
             label: label.to_owned(),
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: token_kind_for_text(display_text),
             ref_markers: Vec::new(),
             span: Some(range),

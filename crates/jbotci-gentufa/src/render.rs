@@ -15,7 +15,7 @@ use crate::{
     ReferenceMarkerRole, math_alphanumeric_stem, reference_slot_display_text,
 };
 #[cfg(test)]
-use crate::{ReferenceMarkerKind, ReferenceSlotLabel};
+use crate::{GentufaBlockRole, ReferenceMarkerKind, ReferenceSlotLabel};
 
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const OUTER_PADDING: f32 = 12.0;
@@ -982,7 +982,7 @@ fn add_block_label<Tooltip, ReferenceTooltip>(
     text.attr("y", &format_float(baseline_y));
     text.attr("text-anchor", "middle");
     text.attr("fill", INK);
-    if block.is_elided {
+    if block.role.is_elided() {
         text.attr("text-decoration", "line-through");
         text.attr("text-decoration-thickness", "0.12em");
     }
@@ -1696,7 +1696,7 @@ mod tests {
                 node_ids: vec![1],
                 label: "mi".to_owned(),
                 is_leaf: true,
-                is_elided: false,
+                role: GentufaBlockRole::Normal,
                 token_kind: Some(WordKind::Cmavo),
                 ref_markers: Vec::new(),
                 span: None,
@@ -1752,7 +1752,7 @@ mod tests {
             node_ids: Vec::new(),
             label: "ny".to_owned(),
             is_leaf: true,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: Some(WordKind::Cmavo),
             ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
             span: None,
@@ -1786,7 +1786,7 @@ mod tests {
             node_ids: Vec::new(),
             label: "Cei".to_owned(),
             is_leaf: false,
-            is_elided: false,
+            role: GentufaBlockRole::Normal,
             token_kind: None,
             ref_markers: (0..incoming_count).map(test_reference_marker).collect(),
             span: None,
