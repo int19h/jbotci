@@ -1480,7 +1480,9 @@ impl SyntaxGrammar {
                         if local_recursive_names.contains(&argument_name) {
                             Ok(quote!(#argument.clone()))
                         } else if all_recursive_names.contains(&argument_name) {
-                            Ok(quote!(super::recovered_generated_parser_family().#argument))
+                            Ok(quote!(super::recovered_generated_parser_family(
+                                __generated_recovery_rules.clone()
+                            ).#argument))
                         } else {
                             Err(syn::Error::new_spanned(
                                 argument,
@@ -1493,7 +1495,12 @@ impl SyntaxGrammar {
                     let free_modifier = format_ident!("free_modifier");
                     quote!(#free_modifier.clone().boxed())
                 } else if all_recursive_names.contains("free_modifier") {
-                    quote!(super::recovered_generated_parser_family().free_modifier)
+                    quote!(
+                        super::recovered_generated_parser_family(
+                            __generated_recovery_rules.clone()
+                        )
+                        .free_modifier
+                    )
                 } else {
                     quote!(generated_runtime::recovered_empty_free_modifier_parser())
                 };
@@ -1502,6 +1509,7 @@ impl SyntaxGrammar {
                     #name.define(#parser_name(
                         #(#parser_arguments,)*
                         #hidden_free_modifier,
+                        __generated_recovery_rules.clone(),
                     ));
                 })
             })
@@ -1516,8 +1524,10 @@ impl SyntaxGrammar {
             let output = recovered_rule_function_output_tokens(&rule.output, recovered_module);
             quote! {
                 #[allow(dead_code, unused_variables)]
-                pub(crate) fn #function<'tokens>() -> BoxedParser<'tokens, #output> {
-                    recovered_generated_parser_family().#root_name
+                pub(crate) fn #function<'tokens>(
+                    __generated_recovery_rules: std::sync::Arc<[&'static str]>,
+                ) -> BoxedParser<'tokens, #output> {
+                    recovered_generated_parser_family(__generated_recovery_rules).#root_name
                 }
             }
         });
@@ -1529,7 +1539,9 @@ impl SyntaxGrammar {
             }
 
             #[allow(dead_code)]
-            pub(crate) fn recovered_generated_parser_family<'tokens>() -> #family_ident<'tokens> {
+            pub(crate) fn recovered_generated_parser_family<'tokens>(
+                __generated_recovery_rules: std::sync::Arc<[&'static str]>,
+            ) -> #family_ident<'tokens> {
                 #(#declarations)*
                 #(#definitions)*
                 #family_ident {
@@ -2233,6 +2245,7 @@ impl AliasRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
+        let hidden_recovery_rules = recovered_rules_param_tokens();
         let rule_name = self.name.to_string();
         let context = self.context.as_ref().map_or_else(
             || quote!(None),
@@ -2246,6 +2259,7 @@ impl AliasRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
+                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, #output>
             #argument_where_clause
             {
@@ -2609,6 +2623,7 @@ impl EnumRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
+        let hidden_recovery_rules = recovered_rules_param_tokens();
         let rule_name = self.name.to_string();
         let context = self.context.value();
         Ok(quote! {
@@ -2616,6 +2631,7 @@ impl EnumRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
+                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, #output_tokens>
             #argument_where_clause
             {
@@ -2935,6 +2951,16 @@ impl NodeRule {
             &generation,
             &free_modifier_parser,
             RecoveredParserCallMode::Local,
+            true,
+        )?;
+        let (plain_parser, plain_pattern) = recovered_sequence_parser_tokens(
+            &self.name.to_string(),
+            &sequence_items,
+            &argument_names,
+            &generation,
+            &free_modifier_parser,
+            RecoveredParserCallMode::Local,
+            false,
         )?;
         let name = format_ident!("recovered_{}_parser", self.name);
         let output = &self.output;
@@ -2950,6 +2976,7 @@ impl NodeRule {
         let argument_params = &argument_tokens.params;
         let argument_where_clause = &argument_tokens.where_clause;
         let hidden_free_modifier = recovered_free_modifier_param_tokens(recovered_module);
+        let hidden_recovery_rules = recovered_rules_param_tokens();
         let let_bindings = self.fields.iter().filter_map(|field| {
             matches!(field.kind, FieldKind::Computed | FieldKind::TempLet).then(|| {
                 let name = field.name.as_ref().expect("let field items have names");
@@ -3014,7 +3041,17 @@ impl NodeRule {
             ));
         };
         let rule_name = self.name.to_string();
-        let parser_body = quote!(#parser.map(|#pattern| #body));
+        // A recovery directive can only act at fields of its owning rule. Keeping
+        // ordinary recovered rules on the uninstrumented typed parser avoids one
+        // dynamic parser frame per field, which is material for deeply nested WASM
+        // parses, without changing the recovered model they produce.
+        let parser_body = quote! {
+            if __generated_recovery_rules.iter().any(|rule| *rule == #rule_name) {
+                #parser.map(|#pattern| #body).boxed()
+            } else {
+                #plain_parser.map(|#plain_pattern| #body).boxed()
+            }
+        };
         let context = self.context.as_ref().map_or_else(
             || quote!(None),
             |context| {
@@ -3027,6 +3064,7 @@ impl NodeRule {
             pub(crate) fn #name<'tokens #(, #argument_generic_params)*>(
                 #(#argument_params,)*
                 #hidden_free_modifier
+                #hidden_recovery_rules
             ) -> BoxedParser<'tokens, #output_tokens>
             #argument_where_clause
             {
@@ -3178,7 +3216,9 @@ impl RecoveredParserGeneration<'_> {
     #[requires(true)]
     #[ensures(true)]
     fn external_recursive_parser(&self, name: &Ident) -> TokenStream2 {
-        quote!(super::recovered_generated_parser_family().#name)
+        quote!(super::recovered_generated_parser_family(
+            __generated_recovery_rules.clone()
+        ).#name)
     }
 
     #[requires(true)]
@@ -3378,6 +3418,12 @@ fn recovered_free_modifier_param_tokens(recovered_module: &TokenStream2) -> Toke
 
 #[requires(true)]
 #[ensures(true)]
+fn recovered_rules_param_tokens() -> TokenStream2 {
+    quote!(__generated_recovery_rules: std::sync::Arc<[&'static str]>,)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn recovered_parser_argument_tokens(
     arguments: &[Ident],
     argument_types: &BTreeMap<String, Type>,
@@ -3460,11 +3506,12 @@ fn recovered_sequence_parser_tokens(
     generation: &RecoveredParserGeneration<'_>,
     free_modifier_parser: &Ident,
     mode: RecoveredParserCallMode,
+    instrument_fields: bool,
 ) -> Result<(TokenStream2, TokenStream2)> {
     let Some(first) = fields.first() else {
         return Ok((quote!(generated_runtime::empty()), quote!(())));
     };
-    let mut parser = if matches!(first.kind, FieldKind::Field) {
+    let mut parser = if instrument_fields && matches!(first.kind, FieldKind::Field) {
         recovered_field_parser_expr_tokens(
             rule_name,
             0usize,
@@ -3485,7 +3532,7 @@ fn recovered_sequence_parser_tokens(
     };
     let mut pattern = sequence_item_pattern(first);
     for (field_index, field) in fields.iter().enumerate().skip(1) {
-        let next = if matches!(field.kind, FieldKind::Field) {
+        let next = if instrument_fields && matches!(field.kind, FieldKind::Field) {
             recovered_field_parser_expr_tokens(
                 rule_name,
                 field_index,
@@ -5740,7 +5787,8 @@ fn recovered_rule_call_tokens(
         recovered_free_modifier_argument_tokens(generation, free_modifier_parser, call_mode);
     let parser = quote!(#parser_name(
         #(#parser_arguments,)*
-        #free_modifier
+        #free_modifier,
+        __generated_recovery_rules.clone()
     ));
     if wrap_generated_model_output && generation.rule_is_generated_model(function) {
         let recovered_module = generation.recovered_module;

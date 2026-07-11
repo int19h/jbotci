@@ -30,8 +30,10 @@ pub use recovered::{
     compact_recovered_morphology_json_string_with_options,
     compact_recovered_syntax_json_string_with_options,
     pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
-    pretty_recovered_morphology_tree_with_options, pretty_recovered_syntax_brackets_with_options,
-    pretty_recovered_syntax_raw, pretty_recovered_syntax_tree_with_options,
+    pretty_recovered_morphology_tree_with_options,
+    pretty_recovered_syntax_bracket_source_fragments_with_options,
+    pretty_recovered_syntax_brackets_with_options, pretty_recovered_syntax_raw,
+    pretty_recovered_syntax_tree_with_options,
 };
 pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
@@ -66,12 +68,30 @@ pub enum BracketSourceFragment {
     Text {
         text: String,
         range: Option<BracketSourceRange>,
-        elided: bool,
+        role: BracketSourceFragmentRole,
     },
     Span {
         range: Option<BracketSourceRange>,
         children: Vec<BracketSourceFragment>,
     },
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BracketSourceFragmentRole {
+    #[default]
+    Normal,
+    Elided,
+    Error,
+}
+
+impl BracketSourceFragmentRole {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Normal))]
+    pub fn is_normal(self) -> bool {
+        matches!(self, Self::Normal)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

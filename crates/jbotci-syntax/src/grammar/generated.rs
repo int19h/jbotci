@@ -3213,7 +3213,16 @@ pub mod generated_model {
         let tokens = spanned_tokens(words);
         let eoi_offset = tokens.last().map_or(0, |token| token.span.end);
         let mut state = ParserState::new_with_recovery(words, source, options, directives);
-        let result = recovered_generated_text_parser_with_eof()
+        // Field-boundary recovery checks are only relevant to rules that own a
+        // directive. The generated parser uses this set to leave all other typed
+        // recovered rules on their lower-stack ordinary path.
+        let mut recovery_rules = directives
+            .iter()
+            .map(|directive| directive.rule)
+            .collect::<Vec<_>>();
+        recovery_rules.sort_unstable();
+        recovery_rules.dedup();
+        let result = recovered_generated_text_parser_with_eof(recovery_rules.into())
             .parse_with_state(
                 tokens
                     .as_slice()
@@ -3291,10 +3300,11 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
-    fn recovered_generated_text_parser_with_eof<'tokens>()
-    -> BoxedParser<'tokens, recovered::TextSyntax> {
+    fn recovered_generated_text_parser_with_eof<'tokens>(
+        recovery_rules: std::sync::Arc<[&'static str]>,
+    ) -> BoxedParser<'tokens, recovered::TextSyntax> {
         custom::<_, ParserInput<'tokens>, _, ParseExtra<'tokens>>(move |input| {
-            let text = input.parse(&recovered_generated_text_parser())?;
+            let text = input.parse(&recovered_generated_text_parser(recovery_rules.clone()))?;
             input.parse(end()).map(|()| text)
         })
         .boxed()

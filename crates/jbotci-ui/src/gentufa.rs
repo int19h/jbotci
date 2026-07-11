@@ -371,13 +371,15 @@ pub(super) fn render_bracket_fragment(
     page_find: &PageFindContext,
 ) -> Element {
     match fragment {
-        GentufaBracketFragment::Text { text, role } => {
-            if role.is_elided() {
+        GentufaBracketFragment::Text { text, role } => match role {
+            GentufaBlockRole::Normal => render_page_find_text(page_find, text),
+            GentufaBlockRole::Elided => {
                 rsx! { s { { render_page_find_text(page_find, text) } } }
-            } else {
-                render_page_find_text(page_find, text)
             }
-        }
+            GentufaBlockRole::Error => {
+                rsx! { span { class: "bracket-error", { render_page_find_text(page_find, text) } } }
+            }
+        },
         GentufaBracketFragment::Span {
             color,
             href,
@@ -602,7 +604,7 @@ pub(super) fn render_blocks(
                             }
                             for block in success.blocks_layout.blocks.iter() {
                                 { render_block_reference_height_sizer(block) }
-                                { render_block(block, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task, page_find) }
+                                { render_block(block, &success.diagnostics, reference_hover, reference_tooltip_open, export_anchor_id, &success.blocks_layout, show_glosses, script, activity, export_task, page_find) }
                             }
                             if show_glosses {
                                 for block in success.blocks_layout.blocks.iter().filter(|block| block.is_leaf) {
@@ -745,6 +747,7 @@ pub(super) fn render_block_reference_height_sizer(block: &GentufaBlock) -> Eleme
 #[ensures(true)]
 pub(super) fn render_block(
     block: &GentufaBlock,
+    diagnostics: &[Diagnostic],
     reference_hover: Signal<ReferenceHoverState>,
     reference_tooltip_open: Signal<Option<HoveredReference>>,
     export_anchor_id: Option<&str>,
@@ -774,7 +777,7 @@ pub(super) fn render_block(
         "grid-row: {row} / span {}; grid-column: {col} / span {}; --block-color: {}; background-color: {};",
         block.row_span, block.col_span, block.color, block.color
     );
-    let native_title = block_native_title(block, export_script);
+    let native_title = block_native_title(block, diagnostics, export_script);
     let is_export_anchor = export_anchor_id == Some(block.block_id.as_str());
     let export_controls =
         is_export_anchor.then(|| (export_layout.clone(), export_show_glosses, export_script));
@@ -796,6 +799,7 @@ pub(super) fn render_block(
             "data-token-kind": "{token_kind}",
             "data-raw-text": "{block.raw_text}",
             "data-label": "{block.label}",
+            "data-error-index": block.error_index.map(|index| index.to_string()),
             "data-node-type": "{block.node_types.join(\" \")}",
             if block.ref_markers.iter().any(|marker| marker.role == ReferenceMarkerRole::Referent) {
                 span { class: "{incoming_class}",
@@ -891,8 +895,20 @@ pub(super) fn render_block(
 }
 
 #[requires(true)]
-#[ensures(matches!(script, GentufaScript::Zbalermorna) -> ret.is_empty())]
-pub(super) fn block_native_title(block: &GentufaBlock, script: GentufaScript) -> &str {
+#[ensures(block.role.is_error() && block.error_index.is_some_and(|index| index < diagnostics.len()) -> !ret.is_empty())]
+#[ensures(!block.role.is_error() && matches!(script, GentufaScript::Zbalermorna) -> ret.is_empty())]
+pub(super) fn block_native_title<'a>(
+    block: &'a GentufaBlock,
+    diagnostics: &'a [Diagnostic],
+    script: GentufaScript,
+) -> &'a str {
+    if block.role.is_error()
+        && let Some(diagnostic) = block
+            .error_index
+            .and_then(|error_index| diagnostics.get(error_index))
+    {
+        return &diagnostic.message;
+    }
     if matches!(script, GentufaScript::Zbalermorna) {
         ""
     } else {
@@ -1416,10 +1432,10 @@ pub(super) fn render_tree_outgoing_edges(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_tree_cell(cell: &GentufaCell, page_find: &PageFindContext) -> Element {
-    let class = if cell.role.is_elided() {
-        "token is-elided"
-    } else {
-        "token"
+    let class = match cell.role {
+        GentufaBlockRole::Normal => "token",
+        GentufaBlockRole::Elided => "token is-elided",
+        GentufaBlockRole::Error => "token is-error",
     };
     rsx! {
         span { class: "{class}",

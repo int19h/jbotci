@@ -505,6 +505,27 @@ pub fn pretty_recovered_syntax_brackets_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_syntax_bracket_source_fragments_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<Vec<crate::BracketSourceFragment>, OutputError> {
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return crate::pretty_bracket_source_fragments_with_options(&valid, source, options);
+    }
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    let value = sexpr::flatten(visitor.finish()?);
+    Ok(sexpr::render_bracketed_source_fragments_with_options(
+        &value, options,
+    ))
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn pretty_recovered_syntax_tree_with_options(
     recovered: &RecoveredSyntaxParse,

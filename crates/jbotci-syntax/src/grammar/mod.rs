@@ -283,6 +283,9 @@ pub(super) struct ParserState<'tokens> {
     syntax_memo: HashMap<StrictSyntaxMemoKey, SyntaxMemoSuccess>,
     syntax_recovery_memo: HashMap<RecoverySyntaxMemoKey, SyntaxMemoSuccess>,
     syntax_failure_memo: HashMap<StrictSyntaxMemoKey, SyntaxParseError<'tokens>>,
+    // Failed recovered rules depend on the same directive-consumption index as
+    // successful recovered rules; caching them prevents exponential retries.
+    syntax_recovery_failure_memo: HashMap<RecoverySyntaxMemoKey, SyntaxParseError<'tokens>>,
     syntax_memo_in_progress: HashSet<StrictSyntaxMemoKey>,
     syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoKey>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
@@ -321,6 +324,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_memo: HashMap::new(),
             syntax_recovery_memo: HashMap::new(),
             syntax_failure_memo: HashMap::new(),
+            syntax_recovery_failure_memo: HashMap::new(),
             syntax_memo_in_progress: HashSet::new(),
             syntax_recovery_memo_in_progress: HashSet::new(),
             diagnostic_candidates: Vec::new(),
@@ -446,7 +450,10 @@ impl<'tokens> ParserState<'tokens> {
         recovery_index: usize,
     ) -> Option<SyntaxParseError<'tokens>> {
         if self.recovery_enabled() {
-            return None;
+            return self
+                .syntax_recovery_failure_memo
+                .get(&(rule_name, start_location, recovery_index))
+                .cloned();
         }
         let _ = recovery_index;
         self.syntax_failure_memo
@@ -491,6 +498,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!rule_name.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(!self.recovery_enabled() || self.syntax_recovery_failure_memo.contains_key(&(rule_name, start_location, recovery_index)))]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,
@@ -499,6 +507,8 @@ impl<'tokens> ParserState<'tokens> {
         error: SyntaxParseError<'tokens>,
     ) {
         if self.recovery_enabled() {
+            self.syntax_recovery_failure_memo
+                .insert((rule_name, start_location, recovery_index), error);
             return;
         }
         let _ = recovery_index;
