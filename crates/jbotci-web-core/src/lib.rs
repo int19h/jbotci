@@ -6398,6 +6398,51 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn recovered_nested_statement_result_stays_bounded() {
+        let success = parse_success(
+            "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli",
+        );
+        let (fragment_count, fragment_depth) = bracket_fragment_stats(&success.bracket_fragments);
+        let serialized_len = serde_json::to_vec(&success)
+            .expect("serialize recovered web result")
+            .len();
+
+        assert_eq!(recovered_error_blocks(&success).len(), 1);
+        assert!(success.blocks_layout.blocks.len() < 200);
+        assert!(success.tree_rows.len() < 200);
+        assert!(success.blocks_layout.max_row < 64);
+        assert!(success.blocks_layout.max_col < 128);
+        assert!(
+            success
+                .blocks_layout
+                .blocks
+                .iter()
+                .map(|block| block.row_span)
+                .max()
+                .unwrap_or(0)
+                < 64
+        );
+        assert!(
+            success
+                .blocks_layout
+                .blocks
+                .iter()
+                .map(|block| block.col_span)
+                .max()
+                .unwrap_or(0)
+                < 128
+        );
+        assert!(fragment_count < 500, "fragment count: {fragment_count}");
+        assert!(fragment_depth < 64, "fragment depth: {fragment_depth}");
+        assert!(
+            serialized_len < 200_000,
+            "serialized bytes: {serialized_len}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn morphology_errors_return_complete_list_and_suppress_syntax() {
         let request = GentufaWebRequest {
             text: "mi @@@ do ### mi".to_owned(),
