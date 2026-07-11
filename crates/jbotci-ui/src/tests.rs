@@ -649,6 +649,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
                 label: "block label".to_owned(),
                 is_leaf: true,
                 role: GentufaBlockRole::Normal,
+                error_index: None,
                 token_kind: None,
                 ref_markers: Vec::new(),
                 span: None,
@@ -3148,6 +3149,7 @@ fn test_gentufa_block(
         label: "test".to_owned(),
         is_leaf: true,
         role: GentufaBlockRole::Normal,
+        error_index: None,
         token_kind: None,
         ref_markers: marker_roles
             .iter()

@@ -719,6 +719,7 @@ fn attach_generated_reference_tooltips_to_block(
         label: block.label,
         is_leaf: block.is_leaf,
         role: block.role,
+        error_index: block.error_index,
         token_kind: block.token_kind,
         ref_markers: attach_generated_reference_tooltips_to_markers(
             block.ref_markers,
