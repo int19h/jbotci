@@ -229,7 +229,7 @@ fn discord_command_options() -> Vec<Value> {
     vec![
         json!({
             "name": "gentufa",
-            "description": "Parse Lojban syntax",
+            "description": "Parse Lojban syntax with partial recovery",
             "type": 1,
             "options": [
                 string_option("text", "Lojban text to parse", true),
@@ -240,7 +240,7 @@ fn discord_command_options() -> Vec<Value> {
         }),
         json!({
             "name": "vlasei",
-            "description": "Segment Lojban morphology",
+            "description": "Segment Lojban morphology with recovery",
             "type": 1,
             "options": [
                 string_option("text", "Lojban text to segment", true),

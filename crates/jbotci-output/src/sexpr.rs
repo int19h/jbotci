@@ -2,6 +2,17 @@ use bityzba::{invariant, new, requires};
 
 use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Normal => true)]
+#[invariant(::Elided => true)]
+#[invariant(::Error => true)]
+pub(crate) enum LeafRole {
+    Normal,
+    Elided,
+    Error,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Leaf { .. } => true)]
@@ -10,7 +21,7 @@ pub(crate) enum SExpr {
     Leaf {
         text: String,
         range: Option<BracketSourceRange>,
-        elided: bool,
+        role: LeafRole,
     },
     Node {
         children: Vec<SExpr>,
@@ -53,30 +64,36 @@ pub(crate) fn leaf(text: String) -> SExpr {
 #[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
 #[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
 pub(crate) fn leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
-    leaf_with_range_and_elided(text, range, false)
+    leaf_with_range_and_role(text, range, LeafRole::Normal)
 }
 
 #[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
 #[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
 pub(crate) fn elided_leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
-    leaf_with_range_and_elided(text, range, true)
+    leaf_with_range_and_role(text, range, LeafRole::Elided)
+}
+
+#[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
+#[ensures(matches!(&ret, SExpr::Leaf { role: LeafRole::Error, .. }))]
+pub(crate) fn error_leaf_with_range(text: String, range: Option<BracketSourceRange>) -> SExpr {
+    SExpr::Leaf {
+        text,
+        range,
+        role: LeafRole::Error,
+    }
 }
 
 #[requires(range.is_none_or(|range| range.byte_start <= range.byte_end))]
 #[ensures(matches!(&ret, SExpr::Leaf { .. }) || is_empty(&ret))]
-fn leaf_with_range_and_elided(
+fn leaf_with_range_and_role(
     text: String,
     range: Option<BracketSourceRange>,
-    elided: bool,
+    role: LeafRole,
 ) -> SExpr {
     if text.is_empty() {
         empty_node()
     } else {
-        SExpr::Leaf {
-            text,
-            range,
-            elided,
-        }
+        SExpr::Leaf { text, range, role }
     }
 }
 
@@ -84,7 +101,7 @@ fn leaf_with_range_and_elided(
 #[ensures(true)]
 pub(crate) fn is_empty(expr: &SExpr) -> bool {
     match expr {
-        SExpr::Leaf { text, .. } => text.is_empty(),
+        SExpr::Leaf { text, role, .. } => *role != LeafRole::Error && text.is_empty(),
         SExpr::Node { children, .. } => children.is_empty(),
     }
 }
@@ -105,16 +122,8 @@ pub(crate) fn flatten(expr: SExpr) -> SExpr {
     loop {
         if let Some(expr) = next.take() {
             match expr {
-                SExpr::Leaf {
-                    text,
-                    range,
-                    elided,
-                } => {
-                    completed = Some(SExpr::Leaf {
-                        text,
-                        range,
-                        elided,
-                    });
+                SExpr::Leaf { text, range, role } => {
+                    completed = Some(SExpr::Leaf { text, range, role });
                 }
                 SExpr::Node {
                     mut children,
@@ -193,7 +202,7 @@ pub(crate) fn render_bracketed_source_fragments_with_options(
 #[ensures(true)]
 fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
     match expr {
-        SExpr::Leaf { text, elided, .. } => style_at_depth(depth, text.clone(), options, *elided),
+        SExpr::Leaf { text, role, .. } => style_at_depth(depth, text.clone(), options, *role),
         SExpr::Node { children, .. } => {
             let rendered = children
                 .iter()
@@ -217,7 +226,7 @@ fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderO
                             rendered.join(" ")
                         ),
                         options,
-                        false,
+                        LeafRole::Normal,
                     )
                 }
             }
@@ -233,14 +242,14 @@ fn render_source_fragments_at_depth(
     options: BracketRenderOptions,
 ) -> Vec<BracketSourceFragment> {
     match expr {
-        SExpr::Leaf {
-            text,
-            range,
-            elided,
-        } => vec![BracketSourceFragment::Text {
-            text: text.clone(),
+        SExpr::Leaf { text, range, role } => vec![BracketSourceFragment::Text {
+            text: if *role == LeafRole::Error {
+                format!("‼{text}‼")
+            } else {
+                text.clone()
+            },
             range: *range,
-            elided: *elided,
+            elided: *role == LeafRole::Elided,
         }],
         SExpr::Node { children, range } => {
             let rendered = children
@@ -317,7 +326,7 @@ fn union_child_ranges(children: &[SExpr]) -> Option<BracketSourceRange> {
 
 #[requires(true)]
 #[ensures(ret.is_none_or(|range| range.byte_start <= range.byte_end))]
-fn expr_range(expr: &SExpr) -> Option<BracketSourceRange> {
+pub(crate) fn expr_range(expr: &SExpr) -> Option<BracketSourceRange> {
     match expr {
         SExpr::Leaf { range, .. } | SExpr::Node { range, .. } => *range,
     }
@@ -334,18 +343,29 @@ fn bracket_pair(depth: usize) -> (&'static str, &'static str) {
 }
 
 #[requires(true)]
-#[ensures(!options.color -> ret == old(text.clone()))]
-#[ensures(options.color && !old(text.is_empty()) -> ret.starts_with(ansi_color_for_depth(depth)))]
+#[ensures(!options.color && role != LeafRole::Error -> ret == old(text.clone()))]
+#[ensures(!options.color && role == LeafRole::Error -> ret.starts_with('‼') && ret.ends_with('‼'))]
+#[ensures(options.color && role != LeafRole::Error && !old(text.is_empty()) -> ret.starts_with(ansi_color_for_depth(depth)))]
+#[ensures(options.color && role == LeafRole::Error -> ret.starts_with("\x1b[91m‼"))]
 fn style_at_depth(
     depth: usize,
     text: String,
     options: BracketRenderOptions,
-    elided: bool,
+    role: LeafRole,
 ) -> String {
+    if role == LeafRole::Error {
+        if !options.color {
+            return format!("‼{text}‼");
+        }
+        return format!(
+            "\x1b[91m‼\x1b[9m{text}\x1b[29m‼{}",
+            ansi_parent_color_for_depth(depth)
+        );
+    }
     if options.color && !text.is_empty() {
-        if elided {
+        if role == LeafRole::Elided {
             format!(
-                "{}\x1b[9m{}\x1b[29m{}",
+                "{}\x1b[3m{}\x1b[23m{}",
                 ansi_color_for_depth(depth),
                 text,
                 ansi_parent_color_for_depth(depth)
@@ -437,20 +457,28 @@ mod tests {
         };
 
         assert_eq!(
-            style_at_depth(0, String::from("foo"), options, false),
+            style_at_depth(0, String::from("foo"), options, LeafRole::Normal),
             "\x1b[35mfoo\x1b[0m"
         );
         assert_eq!(
-            style_at_depth(2, String::from("foo"), options, false),
+            style_at_depth(2, String::from("foo"), options, LeafRole::Normal),
             "\x1b[32mfoo\x1b[94m"
         );
         assert_eq!(
-            style_at_depth(6, String::from("foo"), options, false),
+            style_at_depth(6, String::from("foo"), options, LeafRole::Normal),
             "\x1b[35mfoo\x1b[96m"
         );
         assert_eq!(
-            style_at_depth(1, String::from("foo"), options, true),
-            "\x1b[94m\x1b[9mfoo\x1b[29m\x1b[35m"
+            style_at_depth(1, String::from("foo"), options, LeafRole::Elided),
+            "\x1b[94m\x1b[3mfoo\x1b[23m\x1b[35m"
+        );
+        assert_eq!(
+            style_at_depth(2, String::from("ku"), options, LeafRole::Error),
+            "\x1b[91m‼\x1b[9mku\x1b[29m‼\x1b[94m"
+        );
+        assert_eq!(
+            style_at_depth(2, String::new(), options, LeafRole::Error),
+            "\x1b[91m‼\x1b[9m\x1b[29m‼\x1b[94m"
         );
     }
 }

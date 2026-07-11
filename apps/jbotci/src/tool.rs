@@ -153,7 +153,8 @@ impl Default for ToolGentufaFormat {
 /// Parse Lojban text into a syntax (grammar) tree. This runs the full grammar
 /// parser, so it is the authoritative way to see how a sentence is structured
 /// and where each word fits. For word-level (morphology) analysis only, use
-/// `vlasei` instead.
+/// `vlasei` instead. Recoverable syntax failures return the partial tree in
+/// `tree`, `brackets`, `raw`, and `json` formats alongside diagnostics.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -319,7 +320,9 @@ impl Default for ToolVlaseiFormat {
 /// Run Lojban morphology: split text into words and classify each one
 /// (gismu, cmavo, lujvo, cmevla, fu'ivla, …). Word boundaries in Lojban cannot
 /// be found reliably from spaces alone — this runs the real morphology parser.
-/// For full sentence grammar, use `gentufa` instead.
+/// For full sentence grammar, use `gentufa` instead. Recoverable morphology
+/// failures mark skipped regions in `tree`, `brackets`, `raw`, and `json`
+/// output alongside diagnostics.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]

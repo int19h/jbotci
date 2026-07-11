@@ -1044,6 +1044,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wrapper carries reference analysis diagnostics",
     ),
     (
+        "crates/jbotci-output/src/lib.rs:OutputError::Recovery",
+        "error wrapper carries recovery renderer diagnostics",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredMorphologySequenceItem::Valid",
+        "valid sequence items delegate source and morphology validity to the wrapped WordLike",
+    ),
+    (
         "crates/jbotci-output/src/references.rs:ReferenceSlotName::Fai",
         "unit slot marker carries no payload beyond the selected variant",
     ),
@@ -1066,6 +1074,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/sexpr.rs:SExpr::Node",
         "empty render nodes are meaningful intermediate values",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Elided",
+        "unit leaf role is a closed renderer style selector with no payload",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Error",
+        "unit leaf role is a closed renderer style selector with no payload",
+    ),
+    (
+        "crates/jbotci-output/src/sexpr.rs:LeafRole::Normal",
+        "unit leaf role is a closed renderer style selector with no payload",
     ),
     (
         "crates/jbotci-output/src/surface.rs:DisplaySpan::LojbanWord",
@@ -1102,6 +1122,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/tree.rs:TreeValue::Collection",
         "empty render collections are valid intermediate output",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:TreeValue::Error",
+        "recovery error validity is enforced by the validated RecoveryTreeError payload",
     ),
     (
         "crates/jbotci-output/src/tree.rs:TreeValue::Node",

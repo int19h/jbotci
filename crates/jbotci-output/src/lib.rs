@@ -5,6 +5,7 @@ mod diagnostics;
 mod json;
 mod places;
 pub mod qr_code;
+mod recovered;
 mod references;
 mod sexpr;
 mod surface;
@@ -24,6 +25,13 @@ use owo_colors::OwoColorize;
 pub use places::{
     IndexedPlaceSpan, format_definition_or_notes_line_with_indexed_places,
     indexed_place_spans_for_definition_or_notes_line,
+};
+pub use recovered::{
+    compact_recovered_morphology_json_string_with_options,
+    compact_recovered_syntax_json_string_with_options,
+    pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
+    pretty_recovered_morphology_tree_with_options, pretty_recovered_syntax_brackets_with_options,
+    pretty_recovered_syntax_raw, pretty_recovered_syntax_tree_with_options,
 };
 pub use references::{
     ReferenceAnnotationSource, ReferenceAnnotationSourceData, ReferenceAnnotations,
@@ -121,6 +129,7 @@ impl Default for OutputFormat {
 #[invariant(::Json(..) => true)]
 #[invariant(::Ipa(..) => true)]
 #[invariant(::References(..) => true)]
+#[invariant(::Recovery(..) => true)]
 pub enum OutputError {
     #[error("output rendering is not implemented yet")]
     NotImplemented,
@@ -132,6 +141,8 @@ pub enum OutputError {
     Ipa(String),
     #[error("failed to analyze semantic references: {0}")]
     References(String),
+    #[error("failed to render recovered parse: {0}")]
+    Recovery(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -1701,9 +1712,10 @@ mod tests {
 
         let colorized_brackets = render_brackets_with_elided_and_color("to coi");
         assert!(
-            colorized_brackets.contains("\x1b[9mtoi\x1b[29m"),
+            colorized_brackets.contains("\x1b[3mtoi\x1b[23m"),
             "{colorized_brackets:?}"
         );
+        assert!(!colorized_brackets.contains("\x1b[9m"));
     }
 
     #[test]

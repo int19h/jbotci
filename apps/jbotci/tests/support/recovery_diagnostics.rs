@@ -146,7 +146,7 @@ fn gentufa_renders_both_syntax_errors_exactly() {
     let run = capture_cli(&["jbotci", "gentufa", SYNTAX_MULTI_ERROR_SOURCE]);
 
     assert_eq!(run.status, CliStatus::Failure);
-    assert!(run.stdout.is_empty());
+    assert_eq!(run.stdout, "([mi ‼ku‼] [{.i do} ‼ku‼ {.i (mi kláma)}])\n");
     assert_eq!(
         run.stderr,
         expected_syntax_stderr(DiagnosticDetailMode::Summary, 2)
@@ -192,7 +192,7 @@ fn vlasei_preserves_valid_output_and_reports_all_failure_diagnostics() {
 
     let invalid = capture_cli(&["jbotci", "vlasei", MORPHOLOGY_MULTI_ERROR_SOURCE]);
     assert_eq!(invalid.status, CliStatus::Failure);
-    assert!(invalid.stdout.is_empty());
+    assert_eq!(invalid.stdout, "(mi ‼@@@ ‼ do ‼### ‼ mi)\n");
     assert_eq!(invalid.stderr, expected_morphology_stderr(2));
 }
 
@@ -208,7 +208,8 @@ fn max_errors_one_caps_both_recovery_phases_at_the_first_diagnostic() {
         SYNTAX_MULTI_ERROR_SOURCE,
     ]);
     assert_eq!(syntax.status, CliStatus::Failure);
-    assert!(syntax.stdout.is_empty());
+    assert!(!syntax.stdout.is_empty());
+    assert_eq!(syntax.stdout.matches('‼').count(), 2);
     assert_eq!(
         syntax.stderr,
         expected_syntax_stderr(DiagnosticDetailMode::Summary, 1)
@@ -222,7 +223,8 @@ fn max_errors_one_caps_both_recovery_phases_at_the_first_diagnostic() {
         MORPHOLOGY_MULTI_ERROR_SOURCE,
     ]);
     assert_eq!(morphology.status, CliStatus::Failure);
-    assert!(morphology.stdout.is_empty());
+    assert!(!morphology.stdout.is_empty());
+    assert_eq!(morphology.stdout.matches('‼').count(), 2);
     assert_eq!(morphology.stderr, expected_morphology_stderr(1));
 }
 
@@ -271,16 +273,35 @@ fn max_errors_defaults_to_twenty_and_rejects_zero_for_every_parsing_command() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn run_tool_gentufa_returns_both_diagnostics_and_empty_output_for_every_format() {
+fn run_tool_gentufa_returns_partial_stdout_and_full_stderr_for_structural_formats() {
     let expected = expected_syntax_stderr(DiagnosticDetailMode::Detailed, 2);
     for format in [
         ToolGentufaFormat::Tree,
         ToolGentufaFormat::Brackets,
         ToolGentufaFormat::Raw,
         ToolGentufaFormat::Json,
-        ToolGentufaFormat::Svg,
-        ToolGentufaFormat::Png,
     ] {
+        let output = run_tool_gentufa(ToolGentufaRequest {
+            text: SYNTAX_MULTI_ERROR_SOURCE.to_owned(),
+            format,
+            dialect: None,
+            show_defs: false,
+            show_spans: false,
+            show_refs: Some(false),
+            show_elided: false,
+            decompose_lujvo: false,
+            indent: (format == ToolGentufaFormat::Raw).then_some(0),
+        })
+        .expect("gentufa tool call should run");
+
+        assert_eq!(output.status, ToolStatus::Failure, "{format:?}");
+        let stdout = output.stdout_text().expect("structural output is UTF-8");
+        assert!(!stdout.is_empty(), "{format:?}");
+        assert_recovered_tool_stdout(format, stdout);
+        assert_eq!(output.stderr, expected, "{format:?}");
+    }
+
+    for format in [ToolGentufaFormat::Svg, ToolGentufaFormat::Png] {
         let output = run_tool_gentufa(ToolGentufaRequest {
             text: SYNTAX_MULTI_ERROR_SOURCE.to_owned(),
             format,
@@ -292,10 +313,85 @@ fn run_tool_gentufa_returns_both_diagnostics_and_empty_output_for_every_format()
             decompose_lujvo: false,
             indent: None,
         })
-        .expect("gentufa tool call should run");
-
+        .expect("gentufa image tool call should run");
         assert_eq!(output.status, ToolStatus::Failure, "{format:?}");
         assert!(output.stdout.is_empty(), "{format:?}");
         assert_eq!(output.stderr, expected, "{format:?}");
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn assert_recovered_tool_stdout(format: ToolGentufaFormat, stdout: &str) {
+    match format {
+        ToolGentufaFormat::Brackets => {
+            assert_eq!(stdout, "([mi ‼ku‼] [{.i do} ‼ku‼ {.i (mi kláma)}])\n")
+        }
+        ToolGentufaFormat::Tree => {
+            assert!(stdout.starts_with("ParagraphStatementSequence"), "{stdout}");
+            assert_eq!(stdout.matches("Error \"ku\"").count(), 2, "{stdout}");
+            assert!(stdout.contains("Cmavo \"do\""), "{stdout}");
+            assert!(stdout.contains("Gismu \"kláma\""), "{stdout}");
+        }
+        ToolGentufaFormat::Raw => {
+            assert!(
+                stdout.contains("SkippedTokens { error_index: 0"),
+                "{stdout}"
+            );
+            assert!(
+                stdout.contains("SkippedTokens { error_index: 1"),
+                "{stdout}"
+            );
+            assert!(stdout.contains("text: \"do\""), "{stdout}");
+            assert!(stdout.contains("text: \"kláma\""), "{stdout}");
+        }
+        ToolGentufaFormat::Json => {
+            let value: serde_json::Value = serde_json::from_str(stdout).expect("tool JSON");
+            let mut errors = Vec::new();
+            collect_json_errors(&value, &mut errors);
+            assert_eq!(errors.len(), 2);
+            assert_eq!(errors[0]["error_index"], 0);
+            assert_eq!(errors[0]["span"], serde_json::json!([3, 5]));
+            assert_eq!(errors[0]["diagnostic_code"], "syntax.unexpected-cmavo");
+            assert_eq!(errors[1]["error_index"], 1);
+            assert_eq!(errors[1]["span"], serde_json::json!([11, 13]));
+            assert_eq!(errors[1]["diagnostic_code"], "syntax.unexpected-cmavo");
+            assert_eq!(
+                value["ParagraphStatementSequence"]["following"][2]["ParagraphStatement"]["value"]
+                    ["BridiWithLeadingTerms"]["bridi_tail"]["Gismu"]["phonemes"],
+                "kláma"
+            );
+        }
+        ToolGentufaFormat::Svg | ToolGentufaFormat::Png => {
+            panic!("image formats have no recovered structural output")
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_json_errors<'value>(
+    value: &'value serde_json::Value,
+    errors: &mut Vec<&'value serde_json::Map<String, serde_json::Value>>,
+) {
+    match value {
+        serde_json::Value::Object(object) => {
+            if let Some(serde_json::Value::Object(error)) = object.get("Error") {
+                errors.push(error);
+            } else {
+                for child in object.values() {
+                    collect_json_errors(child, errors);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_json_errors(item, errors);
+            }
+        }
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
     }
 }

@@ -110,10 +110,19 @@ fn render_gentufa(
         &text,
         &parse_options,
     );
+    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let generated_model =
         match parsed.result.into_data() {
             data!(SyntaxRecoveryParse::Valid { parse }) => parse.into_data().parse_tree,
             data!(SyntaxRecoveryParse::Recovered { parse }) => {
+                let stdout = render_recovered_gentufa_output(
+                    &parse,
+                    &text,
+                    &input,
+                    color_policy.stdout,
+                    glyphs,
+                    phoneme_options,
+                )?;
                 let parsed = parse.into_data();
                 let mut diagnostics = morphology_diagnostics;
                 diagnostics.extend(
@@ -136,7 +145,7 @@ fn render_gentufa(
                 )?);
                 return Ok(new!(GentufaRendered {
                     status: CliStatus::Failure,
-                    stdout: Vec::new(),
+                    stdout,
                     stderr,
                 }));
             }
@@ -152,7 +161,6 @@ fn render_gentufa(
         glyphs,
         diagnostic_terminal_width,
     )?);
-    let phoneme_options = phoneme_render_options(input.mark_stress, input.mark_glides, glyphs);
     let mut stdout = String::new();
     if input.show_defs {
         let cards =
@@ -246,6 +254,72 @@ fn render_gentufa(
         stdout,
         stderr,
     }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn render_recovered_gentufa_output(
+    recovered: &jbotci_syntax::RecoveredSyntaxParse,
+    source: &str,
+    input: &GentufaInput,
+    color: bool,
+    glyphs: GlyphStyle,
+    phonemes: PhonemeRenderOptions,
+) -> Result<Vec<u8>> {
+    let rendered = match input.format {
+        GentufaFormat::Blocks => return Ok(Vec::new()),
+        GentufaFormat::Brackets => {
+            let mut rendered = pretty_recovered_syntax_brackets_with_options(
+                recovered,
+                source,
+                BracketRenderOptions {
+                    color,
+                    phonemes,
+                    script: LojbanScript::Latin,
+                    glyphs,
+                    decompose_lujvo: input.decompose_lujvo,
+                    insert_hair_space: false,
+                    show_elided: false,
+                },
+            )?;
+            rendered.push('\n');
+            rendered
+        }
+        GentufaFormat::Raw => pretty_recovered_syntax_raw(recovered, input.indent),
+        GentufaFormat::Tree => {
+            let mut rendered = pretty_recovered_syntax_tree_with_options(
+                recovered,
+                source,
+                TreeRenderOptions {
+                    color,
+                    indent: input.indent.unwrap_or(2),
+                    phonemes,
+                    glyphs,
+                    show_spans: input.show_spans,
+                    show_refs: input.show_refs,
+                    decompose_lujvo: input.decompose_lujvo,
+                    show_elided: false,
+                },
+            )?;
+            rendered.push('\n');
+            rendered
+        }
+        GentufaFormat::Json => {
+            let mut rendered = compact_recovered_syntax_json_string_with_options(
+                recovered,
+                source,
+                JsonRenderOptions {
+                    indent: input.indent.unwrap_or(2),
+                    phonemes,
+                    show_elided: false,
+                    color,
+                },
+            )?;
+            rendered.push('\n');
+            rendered
+        }
+    };
+    Ok(rendered.into_bytes())
 }
 
 #[requires(true)]

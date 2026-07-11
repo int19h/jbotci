@@ -1,7 +1,7 @@
 //! Renderer for the source-backed syntax tree output format.
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, expensive_ensures, invariant, new, requires};
 use jbotci_morphology::{
     Cmavo, Phonemes, TreeNode as MorphologyTreeNode, Word, WordKind, WordLike,
 };
@@ -9,6 +9,10 @@ use jbotci_semantics::references::{
     GeneratedReferenceAnalysis, GeneratedSyntaxIndex, RawSyntaxNodeId,
 };
 use jbotci_source::SourceSpan;
+use jbotci_syntax::generated_model::recovered::{
+    AtomRef as RecoveredSyntaxAtomRef, NodeRef as RecoveredSyntaxNodeRef,
+    TreeNode as RecoveredSyntaxAstTreeNode,
+};
 use jbotci_syntax::generated_model::{
     self, AtomRef as GeneratedSyntaxAtomRef,
     IStatementConnectionTailSyntax as GeneratedIStatementConnectionTailSyntax,
@@ -16,10 +20,11 @@ use jbotci_syntax::generated_model::{
     TreeNode as GeneratedSyntaxAstTreeNode,
 };
 use jbotci_syntax::{
-    Token, WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref,
-    tree::WithFreeModifiers,
+    RecoveredSyntaxParse, SyntaxError, Token, WithIndicators, WithIndicatorsData,
+    elidable_terminator_for_absent_field_ref, tree::WithFreeModifiers,
 };
-use jbotci_tree::{FieldRef, TreeVisitor};
+use jbotci_tree::{FieldRef, RecoveryItemState, TreeVisitor};
+use serde::Serialize;
 
 use crate::references::ReferenceDisplayModel;
 use crate::{GlyphStyle, OutputError, TreeRenderOptions};
@@ -44,6 +49,20 @@ pub(crate) struct TreeNode {
     pub(crate) entries: Vec<TreeEntry>,
 }
 
+#[invariant(error_index < diagnostic_count, "recovery error indices must resolve to a diagnostic")]
+#[invariant(!diagnostic_code.is_empty(), "recovery errors must identify their diagnostic")]
+#[invariant(!expected.is_empty(), "recovery errors must describe what was expected")]
+#[invariant(span.is_some_and(|(start, end)| start <= end && (start == end) == text.is_empty()), "zero-width recovery markers have no source text")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RecoveryTreeError {
+    pub(crate) text: String,
+    pub(crate) span: Option<(usize, usize)>,
+    pub(crate) error_index: usize,
+    pub(crate) diagnostic_count: usize,
+    pub(crate) diagnostic_code: String,
+    pub(crate) expected: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Node(..) => true)]
@@ -51,6 +70,7 @@ pub(crate) struct TreeNode {
 #[invariant(::Syntax { .. } => true)]
 #[invariant(::Word => true)]
 #[invariant(::Verbatim => true)]
+#[invariant(::Error { .. } => true)]
 #[invariant(::Text(..) => true)]
 #[invariant(::Span => true)]
 pub(crate) enum TreeValue {
@@ -69,6 +89,9 @@ pub(crate) enum TreeValue {
     Verbatim {
         text: String,
         span: Option<(usize, usize)>,
+    },
+    Error {
+        error: RecoveryTreeError,
     },
     Text(String),
     Span {
@@ -210,6 +233,7 @@ fn generated_singular_text_field_projection(value: TreeValue) -> TreeValue {
         }
         TreeValue::Word { .. }
         | TreeValue::Verbatim { .. }
+        | TreeValue::Error { .. }
         | TreeValue::Text(..)
         | TreeValue::Span { .. } => value,
     }
@@ -241,6 +265,36 @@ pub(crate) fn pretty_generated_model_raw_tree_with_options(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub(crate) fn pretty_recovered_generated_model_tree_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<String, OutputError> {
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return pretty_generated_model_tree_with_options(&valid, source, options);
+    }
+    let value = recovered_generated_model_tree_value(recovered, source, options)?;
+    Ok(render_tree_value_with_options(&value, options, None))
+}
+
+#[requires(!recovered.errors.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub(crate) fn recovered_generated_model_tree_value(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: TreeRenderOptions,
+) -> Result<TreeValue, OutputError> {
+    let mut visitor = SyntaxTreeBuilder::<RecoveredSyntaxRenderModel>::new_recovered(
+        source,
+        options,
+        &recovered.errors,
+    );
+    recovered.parse_tree.visit_in_order(&mut visitor);
+    Ok(collapse_value(visitor.finish_recovered()?))
+}
+
+#[requires(true)]
 #[ensures(true)]
 pub(crate) fn pretty_morphology_tree_with_options(
     words: &[WordLike],
@@ -258,7 +312,7 @@ pub(crate) fn pretty_morphology_tree_with_options(
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn render_tree_value_with_options(
+pub(crate) fn render_tree_value_with_options(
     value: &TreeValue,
     options: TreeRenderOptions,
     references: Option<&ReferenceDisplayModel>,
@@ -277,7 +331,7 @@ fn render_tree_value_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn with_indicators_tree_value(
+pub(crate) fn with_indicators_tree_value(
     word: &WithIndicators<WordLike>,
     source: &str,
     options: TreeRenderOptions,
@@ -385,7 +439,7 @@ fn modified_word_tree_value(
 
 #[requires(true)]
 #[ensures(true)]
-fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> TreeValue {
+pub(crate) fn word_tree_value(word: &Word, source: &str, options: TreeRenderOptions) -> TreeValue {
     morphology_tree_value(&WordLike::bare(word.clone()), source, options)
 }
 
@@ -484,30 +538,7 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
     type Index<'tree> = GeneratedSyntaxIndex<'tree>;
 
     fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
-        let constructor = node.constructor_name();
-        let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
-        match constructor {
-            "ExplicitXauhaLohoi" | "Regular" => "TextSyntax",
-            "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
-            "FollowingParagraphStatement"
-            | "IParagraphStatement"
-            | "InitialParagraphStatement"
-            | "TrailingIjekParagraphStatement" => "ParagraphStatementSyntax",
-            "PrenexFragment" => "Prenex",
-            "DescriptionHeadConnective" | "EkConnective" | "JehiConnective" => "Afterthought",
-            "JekConnective" | "ParagraphJekConnective" => "Selbri",
-            "GihekConnective" => "BridiTail",
-            "CeheConnective"
-            | "JoiConnective"
-            | "ParagraphJoiConnective"
-            | "VuhuNonlogicalConnective" => "NonLogical",
-            "ClosedIntervalConnective"
-            | "ParagraphClosedIntervalConnective"
-            | "ParagraphSimpleIntervalConnective"
-            | "SimpleIntervalConnective" => "Interval",
-            "GaForethoughtConnective" | "GikConnective" | "GuhekConnective" => "Forethought",
-            constructor => constructor,
-        }
+        generated_syntax_constructor_name(node.constructor_name())
     }
 
     fn syntax_id<'tree>(
@@ -591,6 +622,34 @@ impl SyntaxRenderModel for GeneratedSyntaxRenderModel {
     }
 }
 
+#[requires(!constructor.is_empty())]
+#[ensures(!ret.is_empty())]
+fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str {
+    let constructor = constructor.strip_suffix("Syntax").unwrap_or(constructor);
+    match constructor {
+        "ExplicitXauhaLohoi" | "Regular" => "TextSyntax",
+        "INihoParagraph" | "NihoParagraph" | "SimpleParagraph" => "ParagraphSyntax",
+        "FollowingParagraphStatement"
+        | "IParagraphStatement"
+        | "InitialParagraphStatement"
+        | "TrailingIjekParagraphStatement" => "ParagraphStatementSyntax",
+        "PrenexFragment" => "Prenex",
+        "DescriptionHeadConnective" | "EkConnective" | "JehiConnective" => "Afterthought",
+        "JekConnective" | "ParagraphJekConnective" => "Selbri",
+        "GihekConnective" => "BridiTail",
+        "CeheConnective"
+        | "JoiConnective"
+        | "ParagraphJoiConnective"
+        | "VuhuNonlogicalConnective" => "NonLogical",
+        "ClosedIntervalConnective"
+        | "ParagraphClosedIntervalConnective"
+        | "ParagraphSimpleIntervalConnective"
+        | "SimpleIntervalConnective" => "Interval",
+        "GaForethoughtConnective" | "GikConnective" | "GuhekConnective" => "Forethought",
+        constructor => constructor,
+    }
+}
+
 #[invariant(true)]
 struct RawGeneratedSyntaxRenderModel;
 
@@ -640,6 +699,67 @@ impl SyntaxRenderModel for RawGeneratedSyntaxRenderModel {
         false
     }
 }
+
+#[invariant(true)]
+struct RecoveredSyntaxRenderModel;
+
+#[contract_trait]
+impl SyntaxRenderModel for RecoveredSyntaxRenderModel {
+    type Node<'tree> = RecoveredSyntaxNodeRef<'tree>;
+    type Atom<'tree> = RecoveredSyntaxAtomRef<'tree>;
+    type Index<'tree> = ();
+
+    fn constructor_name<'tree>(node: Self::Node<'tree>) -> &'static str {
+        generated_syntax_constructor_name(node.constructor_name())
+    }
+
+    fn syntax_id<'tree>(
+        _node: Self::Node<'tree>,
+        _syntax_index: Option<&Self::Index<'tree>>,
+    ) -> Option<RawSyntaxNodeId> {
+        None
+    }
+
+    fn atom_tree_value<'tree>(
+        atom: Self::Atom<'tree>,
+        source: &str,
+        options: TreeRenderOptions,
+    ) -> TreeValue {
+        let RecoveredSyntaxAtomRef::Token(token) = atom;
+        with_indicators_tree_value(token.as_indicators(), source, options)
+    }
+
+    fn atom_end_position<'tree>(atom: Self::Atom<'tree>) -> Option<RenderedPosition> {
+        let RecoveredSyntaxAtomRef::Token(token) = atom;
+        token
+            .source_spans()
+            .into_iter()
+            .last()
+            .map(span_end_position)
+    }
+
+    fn elidable_terminator<'tree>(_node: Self::Node<'tree>, field: FieldRef) -> Option<Cmavo> {
+        elidable_terminator_for_absent_field_ref(field)
+    }
+
+    fn custom_node_tree_value<'tree>(
+        _node: Self::Node<'tree>,
+        _source: &str,
+        _options: TreeRenderOptions,
+        _syntax_index: Option<&Self::Index<'tree>>,
+    ) -> Option<TreeValue> {
+        None
+    }
+
+    fn chain_link_element_field(constructor: &'static str, label: &'static str) -> bool {
+        generated_model::GENERATED_MODEL_CHAIN_LINK_TREE_ELEMENT_FIELDS
+            .iter()
+            .any(|(link_constructor, element_label)| {
+                *link_constructor == constructor && *element_label == label
+            })
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn generated_syntax_subtree_value<T>(
@@ -2395,9 +2515,11 @@ struct SyntaxTreeBuilder<'source, 'index, 'tree, M: SyntaxRenderModel> {
     source: &'source str,
     options: TreeRenderOptions,
     syntax_index: Option<&'index M::Index<'tree>>,
+    recovery_errors: Option<&'index [SyntaxError]>,
     stack: Vec<SyntaxFrame<'tree, M>>,
     last_position: Option<RenderedPosition>,
     root: Option<TreeValue>,
+    render_error: Option<OutputError>,
     _model: std::marker::PhantomData<M>,
 }
 
@@ -2416,9 +2538,31 @@ where
             source,
             options,
             syntax_index,
+            recovery_errors: None,
             stack: Vec::new(),
             last_position: None,
             root: None,
+            render_error: None,
+            _model: std::marker::PhantomData,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.source == source)]
+    fn new_recovered(
+        source: &'source str,
+        options: TreeRenderOptions,
+        recovery_errors: &'index [SyntaxError],
+    ) -> Self {
+        Self {
+            source,
+            options,
+            syntax_index: None,
+            recovery_errors: Some(recovery_errors),
+            stack: Vec::new(),
+            last_position: None,
+            root: None,
+            render_error: None,
             _model: std::marker::PhantomData,
         }
     }
@@ -2433,6 +2577,17 @@ where
     #[ensures(true)]
     fn finish_optional(self) -> Option<TreeValue> {
         self.root
+    }
+
+    #[requires(self.recovery_errors.is_some())]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn finish_recovered(self) -> Result<TreeValue, OutputError> {
+        if let Some(error) = self.render_error {
+            return Err(error);
+        }
+        self.root.ok_or_else(|| {
+            OutputError::Recovery("recovered syntax tree walk produced no root".to_owned())
+        })
     }
 
     #[requires(true)]
@@ -2548,11 +2703,14 @@ where
             node_ref,
             constructor,
             syntax_id,
-            entries,
+            mut entries,
         }) = self.stack.pop()
         else {
             panic!("syntax tree walker exited a node without entering it");
         };
+        if self.recovery_errors.is_some() {
+            sort_tree_entries_by_source(&mut entries);
+        }
         let value =
             M::custom_node_tree_value(node_ref, self.source, self.options, self.syntax_index)
                 .unwrap_or(TreeValue::Node(TreeNode {
@@ -2582,12 +2740,16 @@ where
         let Some(SyntaxFrame::Field {
             name,
             primary,
-            values,
-            nested_entries,
+            mut values,
+            mut nested_entries,
         }) = self.stack.pop()
         else {
             panic!("syntax tree walker exited a field without entering it");
         };
+        if self.recovery_errors.is_some() {
+            sort_tree_values_by_source(&mut values);
+            sort_tree_entries_by_source(&mut nested_entries);
+        }
         if values.is_empty() && nested_entries.is_empty() {
             return;
         }
@@ -2609,9 +2771,12 @@ where
     #[requires(matches!(self.stack.last(), Some(SyntaxFrame::Collection { .. })))]
     #[ensures(true)]
     fn exit_sequence(&mut self) {
-        let Some(SyntaxFrame::Collection { items }) = self.stack.pop() else {
+        let Some(SyntaxFrame::Collection { mut items }) = self.stack.pop() else {
             panic!("syntax tree walker exited a collection without entering it");
         };
+        if self.recovery_errors.is_some() {
+            sort_tree_values_by_source(&mut items);
+        }
         if !items.is_empty() {
             self.push_value(TreeValue::Collection(items));
         }
@@ -2626,9 +2791,12 @@ where
     #[requires(matches!(self.stack.last(), Some(SyntaxFrame::Chain { .. })))]
     #[ensures(true)]
     fn exit_chain(&mut self) {
-        let Some(SyntaxFrame::Chain { items }) = self.stack.pop() else {
+        let Some(SyntaxFrame::Chain { mut items }) = self.stack.pop() else {
             panic!("syntax tree walker exited a chain without entering it");
         };
+        if self.recovery_errors.is_some() {
+            sort_tree_values_by_source(&mut items);
+        }
         let items = flatten_chain_tree_items::<M>(items);
         if !items.is_empty() {
             self.push_value(TreeValue::Collection(items));
@@ -2658,6 +2826,27 @@ where
             return;
         };
         self.push_value(elided_cmavo_tree_value(cmavo, position, self.options));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_recovered_error<E: RecoveryItemState + Serialize>(&mut self, item: &'tree E) {
+        let Some(errors) = self.recovery_errors else {
+            return;
+        };
+        match crate::recovered::syntax_recovery_item(item, errors, self.source) {
+            Ok(item) => self.push_value(TreeValue::Error {
+                error: new!(RecoveryTreeError {
+                    text: item.text.clone(),
+                    span: Some((item.span.char_start, item.span.char_end)),
+                    error_index: item.error_index,
+                    diagnostic_count: item.diagnostic_count,
+                    diagnostic_code: item.diagnostic_code.clone(),
+                    expected: item.expected.clone(),
+                }),
+            }),
+            Err(error) => self.render_error = Some(error),
+        }
     }
 }
 
@@ -2847,7 +3036,7 @@ struct CollapseFrame {
 
 #[requires(true)]
 #[ensures(true)]
-fn collapse_value(value: TreeValue) -> TreeValue {
+pub(crate) fn collapse_value(value: TreeValue) -> TreeValue {
     let mut next = Some(TreeEntry { label: None, value });
     let mut frames = Vec::<CollapseFrame>::new();
     let mut completed = None;
@@ -2904,6 +3093,7 @@ fn collapse_value(value: TreeValue) -> TreeValue {
                 }
                 TreeValue::Word { .. }
                 | TreeValue::Verbatim { .. }
+                | TreeValue::Error { .. }
                 | TreeValue::Text(..)
                 | TreeValue::Span { .. } => completed = Some(entry),
             }
@@ -2991,6 +3181,7 @@ impl TreeRenderer<'_> {
                 elided,
             } => self.render_word(constructor, phonemes, *span, *elided),
             TreeValue::Verbatim { text, span } => self.render_verbatim(text, *span),
+            TreeValue::Error { error } => self.render_error(&error.text, error.span),
             TreeValue::Text(text) => self.output.push_str(&self.string_literal(text)),
             TreeValue::Span {
                 byte_start: _,
@@ -3061,6 +3252,15 @@ impl TreeRenderer<'_> {
         self.render_optional_node_span(span);
         self.output.push(' ');
         self.output.push_str(&self.string_literal(text));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn render_error(&mut self, text: &str, span: Option<(usize, usize)>) {
+        self.output.push_str(&self.error_constructor_token());
+        self.render_optional_node_span(span);
+        self.output.push(' ');
+        self.output.push_str(&self.error_string_literal(text));
     }
 
     #[requires(true)]
@@ -3175,6 +3375,16 @@ impl TreeRenderer<'_> {
         self.elided_color_token(&literal, ColorRole::String)
     }
 
+    #[requires(true)]
+    #[ensures(!self.color -> ret.starts_with('"'))]
+    fn error_string_literal(&self, text: &str) -> String {
+        let literal = serde_json::to_string(text).expect("serializing string literal cannot fail");
+        if !self.color {
+            return literal;
+        }
+        format!("\x1b[91m\x1b[9m{literal}\x1b[29m\x1b[39m")
+    }
+
     #[requires(char_start <= char_end)]
     #[ensures(!ret.is_empty())]
     fn span_literal(&self, char_start: usize, char_end: usize) -> String {
@@ -3240,6 +3450,15 @@ impl TreeRenderer<'_> {
     #[ensures(!ret.is_empty())]
     fn constructor_token(&self, text: &str) -> String {
         self.color_token(text, ColorRole::Constructor)
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn error_constructor_token(&self) -> String {
+        if !self.color {
+            return "Error".to_owned();
+        }
+        "\x1b[91m\x1b[1mError\x1b[22m\x1b[39m".to_owned()
     }
 
     #[requires(!text.is_empty())]
@@ -3323,6 +3542,22 @@ fn tree_node_span(node: &TreeNode) -> Option<(usize, usize)> {
 }
 
 #[requires(true)]
+#[expensive_ensures(values.windows(2).all(|pair| value_span(&pair[0]).map(|span| span.0).unwrap_or(usize::MAX) <= value_span(&pair[1]).map(|span| span.0).unwrap_or(usize::MAX)))]
+fn sort_tree_values_by_source(values: &mut [TreeValue]) {
+    values.sort_by_key(|value| value_span(value).map(|span| span.0).unwrap_or(usize::MAX));
+}
+
+#[requires(true)]
+#[expensive_ensures(entries.windows(2).all(|pair| value_span(&pair[0].value).map(|span| span.0).unwrap_or(usize::MAX) <= value_span(&pair[1].value).map(|span| span.0).unwrap_or(usize::MAX)))]
+fn sort_tree_entries_by_source(entries: &mut [TreeEntry]) {
+    entries.sort_by_key(|entry| {
+        value_span(&entry.value)
+            .map(|span| span.0)
+            .unwrap_or(usize::MAX)
+    });
+}
+
+#[requires(true)]
 #[ensures(ret.is_none_or(|(start, end)| start <= end))]
 fn value_span(value: &TreeValue) -> Option<(usize, usize)> {
     match value {
@@ -3330,6 +3565,7 @@ fn value_span(value: &TreeValue) -> Option<(usize, usize)> {
         TreeValue::Collection(items) => span_from_values(items.iter().filter_map(value_span)),
         TreeValue::Syntax { value, .. } => value_span(value),
         TreeValue::Word { span, .. } | TreeValue::Verbatim { span, .. } => *span,
+        TreeValue::Error { error } => error.span,
         TreeValue::Text(_) => None,
         TreeValue::Span {
             char_start,
