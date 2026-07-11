@@ -1105,6 +1105,90 @@ fn diagnostic_pane_title_counts_errors_and_warning_like_diagnostics() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn recovered_two_error_result_drives_blocks_cards_tooltips_and_overlay_spans() {
+    let source = "mi ku i do ku i mi klama";
+    let request = GentufaWebRequest {
+        text: source.to_owned(),
+        options: GentufaWebOptions::default(),
+    };
+    let GentufaWebResult::Success(success) = jbotci_web_core::parse_gentufa_for_web(&request)
+    else {
+        panic!("syntax recovery must produce a success-shaped web result");
+    };
+    let mut error_blocks = success
+        .blocks_layout
+        .blocks
+        .iter()
+        .filter(|block| block.role == GentufaBlockRole::Error)
+        .collect::<Vec<_>>();
+    error_blocks.sort_by_key(|block| block.span.map(|span| span.byte_start));
+
+    assert_eq!(error_blocks.len(), 2, "{error_blocks:#?}");
+    assert_eq!(success.diagnostics.len(), 2, "{:#?}", success.diagnostics);
+    assert_eq!(
+        diagnostic_pane_title(diagnostic_counts(&success.diagnostics, None)),
+        "Diagnostics: 2 errors, 0 warnings"
+    );
+    let card_classes = success
+        .diagnostics
+        .iter()
+        .map(diagnostic_card_class)
+        .collect::<Vec<_>>();
+    assert_eq!(card_classes.len(), 2);
+    assert!(
+        card_classes
+            .iter()
+            .all(|class| css_class_contains(class, "is-error"))
+    );
+
+    let overlay = diagnostic_overlay_fragments(source, &success.diagnostics, None);
+    for block in error_blocks {
+        let error_index = block.error_index.expect("error block diagnostic index");
+        let diagnostic = success
+            .diagnostics
+            .get(error_index)
+            .expect("error block resolves against diagnostics");
+        let block_span = block.span.expect("error block source span");
+        let diagnostic_span = &diagnostic.primary_label().span;
+        assert_eq!(
+            (block_span.byte_start, block_span.byte_end),
+            (diagnostic_span.byte_start, diagnostic_span.byte_end)
+        );
+        assert_eq!(
+            block_native_title(block, &success.diagnostics, GentufaScript::Latin),
+            diagnostic.message
+        );
+        assert!(css_class_contains(&block_class(block), "block-error"));
+        let overlay_text = overlay
+            .iter()
+            .filter(|fragment| fragment.diagnostic_index == Some(error_index))
+            .map(|fragment| fragment.text.as_str())
+            .collect::<String>();
+        assert_eq!(
+            overlay_text,
+            &source[diagnostic_span.byte_start..diagnostic_span.byte_end]
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn recovered_error_blocks_have_light_and_dark_theme_styles() {
+    let css = include_str!("../assets/main.css");
+    let error_rule = css_rule(css, ".parse-page .block-error");
+
+    assert!(error_rule.contains("var(--blocks-error-bg)"));
+    assert!(error_rule.contains("var(--blocks-error-border)"));
+    assert!(error_rule.contains("var(--blocks-error-text)"));
+    assert_eq!(css.matches("--blocks-error-bg:").count(), 3);
+    assert_eq!(css.matches("--blocks-error-border:").count(), 3);
+    assert_eq!(css.matches("--blocks-error-text:").count(), 3);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn stale_gentufa_input_disables_decorations() {
     let source = "coi";
     let diagnostic = test_diagnostic(
@@ -1781,9 +1865,18 @@ fn zbalermorna_linked_lojban_css_uses_lojban_font() {
 fn zbalermorna_block_native_titles_are_suppressed() {
     let block = test_gentufa_block(0, 1, &[]);
 
-    assert_eq!(block_native_title(&block, GentufaScript::Latin), "test");
-    assert_eq!(block_native_title(&block, GentufaScript::Cyrillic), "test");
-    assert_eq!(block_native_title(&block, GentufaScript::Zbalermorna), "");
+    assert_eq!(
+        block_native_title(&block, &[], GentufaScript::Latin),
+        "test"
+    );
+    assert_eq!(
+        block_native_title(&block, &[], GentufaScript::Cyrillic),
+        "test"
+    );
+    assert_eq!(
+        block_native_title(&block, &[], GentufaScript::Zbalermorna),
+        ""
+    );
 }
 
 #[test]

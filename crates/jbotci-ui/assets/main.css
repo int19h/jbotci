@@ -148,6 +148,9 @@ input:disabled {
   --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 82%, transparent);
   --blocks-ref-symbol: var(--blocks-label-color);
   --blocks-grid-line: var(--page-bg);
+  --blocks-error-bg: #fff4f2;
+  --blocks-error-border: #d92d20;
+  --blocks-error-text: #8b2018;
   --reference-place-highlight-bg: color-mix(in srgb, #f2c36b 42%, transparent);
   --reference-place-highlight-underline: color-mix(in srgb, #9f581e 64%, transparent);
   --reference-place-highlight-text: #5c3215;
@@ -267,6 +270,9 @@ body::-webkit-scrollbar-thumb:hover,
   --blocks-label-color: var(--blocks-ink);
   --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 78%, transparent);
   --blocks-ref-symbol: var(--blocks-label-color);
+  --blocks-error-bg: #421d19;
+  --blocks-error-border: #ff8a7a;
+  --blocks-error-text: #ffd0ca;
   --reference-place-highlight-bg: color-mix(in srgb, #f8c96e 34%, transparent);
   --reference-place-highlight-underline: color-mix(in srgb, #ffd178 72%, transparent);
   --reference-place-highlight-text: #ffe8b4;
@@ -341,6 +347,9 @@ body::-webkit-scrollbar-thumb:hover,
     --blocks-label-color: var(--blocks-ink);
     --blocks-ref-text: color-mix(in srgb, var(--blocks-label-color) 78%, transparent);
     --blocks-ref-symbol: var(--blocks-label-color);
+    --blocks-error-bg: #421d19;
+    --blocks-error-border: #ff8a7a;
+    --blocks-error-text: #ffd0ca;
     --reference-place-highlight-bg: color-mix(in srgb, #f8c96e 34%, transparent);
     --reference-place-highlight-underline: color-mix(in srgb, #ffd178 72%, transparent);
     --reference-place-highlight-text: #ffe8b4;
@@ -1857,6 +1866,25 @@ body::-webkit-scrollbar-thumb:hover,
 
 .parse-page .block-elided .block-label s {
   text-decoration-thickness: 0.12em;
+}
+
+.parse-page .block-error {
+  color: var(--blocks-error-text);
+  background-color: var(--blocks-error-bg) !important;
+  box-shadow: inset 0 0 0 3px var(--blocks-error-border);
+}
+
+.parse-page .block-error .block-label,
+.parse-page .block-error .block-label-link {
+  color: var(--blocks-error-text);
+}
+
+.parse-page .bracket-error,
+.parse-page .token.is-error {
+  border-radius: 2px;
+  color: var(--blocks-error-text);
+  background: var(--blocks-error-bg);
+  box-shadow: inset 0 -2px 0 var(--blocks-error-border);
 }
 
 .parse-page .block-nonleaf::after {

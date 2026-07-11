@@ -1,6 +1,8 @@
 use bityzba::{invariant, new, requires};
 
-use crate::{BracketRenderOptions, BracketSourceFragment, BracketSourceRange};
+use crate::{
+    BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[invariant(true)]
@@ -249,7 +251,11 @@ fn render_source_fragments_at_depth(
                 text.clone()
             },
             range: *range,
-            elided: *role == LeafRole::Elided,
+            role: match role {
+                LeafRole::Normal => BracketSourceFragmentRole::Normal,
+                LeafRole::Elided => BracketSourceFragmentRole::Elided,
+                LeafRole::Error => BracketSourceFragmentRole::Error,
+            },
         }],
         SExpr::Node { children, range } => {
             let rendered = children
@@ -271,14 +277,14 @@ fn render_source_fragments_at_depth(
                     children.push(BracketSourceFragment::Text {
                         text: format!("{open}{hair_space}"),
                         range: *range,
-                        elided: false,
+                        role: BracketSourceFragmentRole::Normal,
                     });
                     for (index, fragment) in rendered.into_iter().enumerate() {
                         if index > 0 {
                             children.push(BracketSourceFragment::Text {
                                 text: " ".to_owned(),
                                 range: None,
-                                elided: false,
+                                role: BracketSourceFragmentRole::Normal,
                             });
                         }
                         children.push(fragment);
@@ -286,7 +292,7 @@ fn render_source_fragments_at_depth(
                     children.push(BracketSourceFragment::Text {
                         text: format!("{hair_space}{close}"),
                         range: *range,
-                        elided: false,
+                        role: BracketSourceFragmentRole::Normal,
                     });
                     vec![BracketSourceFragment::Span {
                         range: *range,

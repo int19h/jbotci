@@ -28,7 +28,7 @@ pub use jbotci_gentufa::{
 };
 use jbotci_gentufa::{
     generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
-    reference_slot_label_from_output,
+    recovered_generated_model_blocks_layout, reference_slot_label_from_output,
 };
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
@@ -45,15 +45,18 @@ use jbotci_jvozba::{
 };
 use jbotci_morphology::{
     MorphologyOptions, PhonemeRenderOptions, WordLike, canonical_text_eq,
-    normalize_lojban_input_text, segment_words_with_modifiers_with_options_and_source_id_attempt,
+    normalize_lojban_input_text,
+    segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
-    BracketRenderOptions, BracketSourceFragment, BracketSourceRange, GlyphStyle, TreeRenderOptions,
-    format_definition_or_notes_line_with_indexed_places, generated_reference_display,
-    generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_or_notes_line,
-    ipa_morphology_text, phoneme_render_options_for_script,
-    pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
-    render_lojban_text_for_script_with_options,
+    BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
+    GlyphStyle, TreeRenderOptions, format_definition_or_notes_line_with_indexed_places,
+    generated_reference_display, generated_reference_slot_name_for_place_slot,
+    indexed_place_spans_for_definition_or_notes_line, ipa_morphology_text,
+    phoneme_render_options_for_script, pretty_bracket_source_fragments_with_options,
+    pretty_generated_model_brackets_with_options,
+    pretty_recovered_syntax_bracket_source_fragments_with_options,
+    pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
 };
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
@@ -67,7 +70,10 @@ use jbotci_semantics::references::{
     SumtiPlaceAssignmentId,
 };
 use jbotci_source::SourceId;
-use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+use jbotci_syntax::{
+    ParseOptions, RecoveredSyntaxParse, SyntaxRecoveryParseData,
+    parse_syntax_tree_with_recovery_with_source_and_options_attempt,
+};
 use math_core::{LatexToMathML, MathCoreConfig, MathDisplay};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -420,52 +426,92 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
                 });
             }
         };
-    let morphology_attempt = segment_words_with_modifiers_with_options_and_source_id_attempt(
-        source,
-        &morphology_options,
-        source_id.clone(),
-    )
-    .into_data();
-    let mut diagnostics = morphology_attempt
+    let morphology_attempt =
+        segment_words_with_modifiers_recovered_with_options_and_source_id_attempt(
+            source,
+            &morphology_options,
+            source_id.clone(),
+        )
+        .into_data();
+    let morphology = morphology_attempt.result.into_data();
+    let mut diagnostics = morphology
         .warnings
         .iter()
         .map(|warning| warning.to_diagnostic(source_id.clone(), source))
         .collect::<Vec<_>>();
-    let words = match morphology_attempt.result {
-        Ok(words) => words,
-        Err(error) => {
-            diagnostics.push(error.to_diagnostic(source_id, source));
-            return GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Morphology),
-                message: error.to_string(),
-                diagnostics,
-            });
-        }
-    };
+    diagnostics.extend(
+        morphology
+            .errors
+            .iter()
+            .map(|error| error.to_diagnostic(source_id.clone(), source)),
+    );
+    if let Some(error) = morphology.errors.first() {
+        return GentufaWebResult::Error(GentufaError {
+            phase: Some(DiagnosticPhase::Morphology),
+            message: error.to_string(),
+            diagnostics,
+        });
+    }
+    let words = morphology.words;
 
     let parse_options = ParseOptions::default()
         .with_dialect_definition(&dialect)
         .with_error_context_depth(request.options.error_context_depth);
-    let generated_model = match parse_syntax_tree_generated_model_with_source_and_options(
+    let syntax_attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
         &words,
         source,
         &parse_options,
-    ) {
-        Ok(parsed) => parsed,
-        Err(error) => {
-            diagnostics.push(error.to_diagnostic(source_id, source));
-            return GentufaWebResult::Error(GentufaError {
-                phase: Some(DiagnosticPhase::Syntax),
-                message: error.to_string(),
-                diagnostics,
-            });
+    );
+    let generated_model = match syntax_attempt.result.into_data() {
+        data!(SyntaxRecoveryParse::Valid { parse }) => parse.into_data().parse_tree,
+        data!(SyntaxRecoveryParse::Recovered { parse }) => {
+            let mut recovered_diagnostics = parse
+                .errors
+                .iter()
+                .map(|error| error.to_diagnostic(source_id.clone(), source))
+                .collect::<Vec<_>>();
+            recovered_diagnostics.append(&mut diagnostics);
+            recovered_diagnostics.extend(
+                parse
+                    .warnings
+                    .iter()
+                    .map(|warning| warning.to_diagnostic(source_id.clone(), source)),
+            );
+            return recovered_gentufa_success_for_web(
+                source,
+                &words,
+                &morphology_options,
+                &parse,
+                recovered_diagnostics,
+                &request.options,
+            );
         }
     };
-    let render_options = gentufa_render_options(&request.options);
+    valid_gentufa_result_for_web(
+        source,
+        &words,
+        &morphology_options,
+        generated_model,
+        diagnostics,
+        &request.options,
+    )
+}
+
+#[requires(true)]
+#[ensures(!matches!(ret, GentufaWebResult::Blank))]
+fn valid_gentufa_result_for_web(
+    source: &str,
+    words: &[WordLike],
+    morphology_options: &MorphologyOptions,
+    generated_model: Box<jbotci_syntax::generated_model::TextSyntax>,
+    diagnostics: Vec<Diagnostic>,
+    options: &GentufaWebOptions,
+) -> GentufaWebResult {
+    let render_options = gentufa_render_options(options);
     let surface_text = render_lojban_text_for_script_with_options(
         source,
         render_options.script,
-        &morphology_options,
+        morphology_options,
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
@@ -477,7 +523,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         show_spans: true,
         show_refs: true,
         decompose_lujvo: false,
-        show_elided: request.options.show_elided,
+        show_elided: options.show_elided,
     };
     let reference_display =
         match generated_reference_display(&generated_model, source, tree_options) {
@@ -519,9 +565,9 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
             });
         }
     };
-    let block_options = gentufa_block_options(&request.options);
+    let block_options = gentufa_block_options(options);
     let mut generated_annotations =
-        dictionary_annotations_for_words(jbotci_dictionary_data::english(), &words, "");
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
     let bare_blocks_layout = generated_syntax_blocks_layout_with_references(
         &generated_model,
         source,
@@ -548,7 +594,7 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         &generated_annotations,
     );
     let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
-    let ipa_text = ipa_morphology_text(&words, source).unwrap_or_else(|error| error.to_string());
+    let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
     let features = web_feature_availability_for_annotations(&generated_annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
@@ -560,6 +606,158 @@ pub fn parse_gentufa_for_web(request: &GentufaWebRequest) -> GentufaWebResult {
         tree_rows,
         diagnostics,
         features,
+    })
+}
+
+#[requires(!parse.errors.is_empty())]
+#[requires(diagnostics.len() >= parse.errors.len())]
+#[ensures(matches!(ret, GentufaWebResult::Success(_)))]
+fn recovered_gentufa_success_for_web(
+    source: &str,
+    words: &[WordLike],
+    morphology_options: &MorphologyOptions,
+    parse: &RecoveredSyntaxParse,
+    diagnostics: Vec<Diagnostic>,
+    options: &GentufaWebOptions,
+) -> GentufaWebResult {
+    let render_options = gentufa_render_options(options);
+    let surface_text = render_lojban_text_for_script_with_options(
+        source,
+        render_options.script,
+        morphology_options,
+        render_options.phonemes,
+    )
+    .unwrap_or_else(|_| source.to_owned());
+    let bracket_options = bracket_render_options(&render_options);
+    let brackets_text =
+        pretty_recovered_syntax_brackets_with_options(parse, source, bracket_options)
+            .unwrap_or_else(|error| error.to_string());
+    let block_options = gentufa_block_options(options);
+    let mut annotations =
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
+    let bare_blocks_layout = recovered_generated_model_blocks_layout(
+        parse.parse_tree.as_ref(),
+        source,
+        parse.errors.len(),
+        &annotations,
+        &block_options,
+    );
+    annotations.extend(dictionary_annotations_for_elided_blocks(
+        &bare_blocks_layout.blocks,
+        "",
+    ));
+    let bracket_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
+        parse,
+        source,
+        bracket_options,
+    )
+    .map(|fragments| {
+        gentufa_bracket_fragments_from_source(&fragments, &bare_blocks_layout, &annotations)
+    })
+    .unwrap_or_else(|_| {
+        vec![GentufaBracketFragment::Text {
+            text: brackets_text.clone(),
+            role: GentufaBlockRole::Normal,
+        }]
+    });
+    let blocks_layout =
+        attach_empty_reference_tooltips_to_blocks_layout(bare_blocks_layout, &annotations);
+    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
+    let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
+    let features = web_feature_availability_for_annotations(&annotations);
+
+    GentufaWebResult::Success(GentufaSuccess {
+        ipa_text,
+        surface_text,
+        brackets_text,
+        bracket_fragments,
+        blocks_layout,
+        tree_rows,
+        diagnostics,
+        features,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.max_col == old(layout.max_col))]
+#[ensures(ret.blocks.iter().all(|block| block.ref_markers.is_empty()))]
+fn attach_empty_reference_tooltips_to_blocks_layout(
+    layout: BareGentufaBlocksLayout,
+    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+) -> GentufaBlocksLayout {
+    let layout = layout.into_data();
+    new!(GentufaBlocksLayout {
+        blocks: layout
+            .blocks
+            .into_iter()
+            .map(|block| {
+                attach_empty_reference_tooltips_to_block(block, dictionary_annotations)
+            })
+            .collect(),
+        max_col: layout.max_col,
+        max_row: layout.max_row,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.ref_markers.is_empty())]
+#[ensures(ret.role.is_error() -> ret.tooltip.is_none())]
+fn attach_empty_reference_tooltips_to_block(
+    block: BareGentufaBlock,
+    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+) -> GentufaBlock {
+    let block = block.into_data();
+    let dictionary_annotation = (!block.role.is_error())
+        .then(|| {
+            annotation_for_range_and_text(
+                dictionary_annotations,
+                block.span,
+                block
+                    .role
+                    .is_elided()
+                    .then_some(block.display_text.as_str()),
+            )
+        })
+        .flatten();
+    new!(GentufaBlock {
+        block_id: block.block_id,
+        node_ids: block.node_ids,
+        label: block.label,
+        is_leaf: block.is_leaf,
+        role: block.role,
+        error_index: block.error_index,
+        token_kind: block.token_kind,
+        ref_markers: Vec::new(),
+        span: block.span,
+        node_types: block.node_types,
+        ancestors: block.ancestors,
+        col: block.col,
+        col_span: block.col_span,
+        row: block.row,
+        row_span: block.row_span,
+        color: block.color,
+        raw_text: block.raw_text,
+        display_text: block.display_text,
+        glosses: if block.role.is_error() {
+            Vec::new()
+        } else {
+            merge_block_glosses(block.glosses, dictionary_annotation)
+        },
+        definition: if block.role.is_error() {
+            None
+        } else {
+            block.definition.or_else(|| {
+                dictionary_annotation.and_then(|annotation| annotation.definition.clone())
+            })
+        },
+        computed_gloss: block.computed_gloss,
+        tooltip: if block.role.is_error() {
+            None
+        } else {
+            block
+                .tooltip
+                .or_else(|| dictionary_annotation.and_then(|annotation| annotation.tooltip.clone()))
+        },
     })
 }
 
@@ -602,7 +800,11 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             node_id,
             parent_id,
             depth: block.row,
-            label: block.label.clone(),
+            label: if block.role.is_error() {
+                "Error".to_owned()
+            } else {
+                block.label.clone()
+            },
             color: block.color.clone(),
             guides,
             has_children: false,
@@ -4736,21 +4938,17 @@ fn append_gentufa_bracket_fragments_from_source(
 ) {
     for fragment in fragments {
         match fragment {
-            BracketSourceFragment::Text {
-                text,
-                range,
-                elided,
-            } => {
+            BracketSourceFragment::Text { text, range, role } => {
                 if text.is_empty() {
                     continue;
                 }
                 output.extend(decorated_bracket_fragment(
                     vec![GentufaBracketFragment::Text {
                         text: text.clone(),
-                        role: if *elided {
-                            GentufaBlockRole::Elided
-                        } else {
-                            GentufaBlockRole::Normal
+                        role: match role {
+                            BracketSourceFragmentRole::Normal => GentufaBlockRole::Normal,
+                            BracketSourceFragmentRole::Elided => GentufaBlockRole::Elided,
+                            BracketSourceFragmentRole::Error => GentufaBlockRole::Error,
                         },
                     }],
                     bracket_source_range_to_web(*range),
@@ -5732,6 +5930,55 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(ret.iter().all(|block| block.role == GentufaBlockRole::Error))]
+    fn recovered_error_blocks(success: &GentufaSuccess) -> Vec<&GentufaBlock> {
+        let mut blocks = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.role == GentufaBlockRole::Error)
+            .collect::<Vec<_>>();
+        blocks.sort_by_key(|block| {
+            block
+                .span
+                .map(|span| (span.byte_start, span.byte_end, block.col, block.row))
+                .unwrap_or((usize::MAX, usize::MAX, block.col, block.row))
+        });
+        blocks
+    }
+
+    #[requires(block.span.is_some())]
+    #[ensures(ret.0 <= ret.1)]
+    fn web_block_byte_range(block: &GentufaBlock) -> (usize, usize) {
+        let span = block.span.expect("block has source span");
+        (span.byte_start, span.byte_end)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.0 <= ret.1)]
+    fn diagnostic_primary_byte_range(diagnostic: &Diagnostic) -> (usize, usize) {
+        let span = diagnostic.primary_label().span.as_data();
+        (span.byte_start, span.byte_end)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn bracket_fragments_contain_role(
+        fragments: &[GentufaBracketFragment],
+        role: GentufaBlockRole,
+    ) -> bool {
+        fragments.iter().any(|fragment| match fragment {
+            GentufaBracketFragment::Text {
+                role: fragment_role,
+                ..
+            } => *fragment_role == role,
+            GentufaBracketFragment::Span { children, .. } => {
+                bracket_fragments_contain_role(children, role)
+            }
+        })
+    }
+
+    #[requires(true)]
     #[ensures(true)]
     fn run_on_normal_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
         std::thread::scope(|scope| {
@@ -6022,6 +6269,237 @@ mod tests {
         assert!(!success.tree_rows.is_empty());
         assert!(success.ipa_text.contains("ˈkla.ma"));
         assert!(success.surface_text.contains("mi"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_web_blocks_keep_statements_around_exact_skipped_slot() {
+        let success = parse_success("mi ku i do");
+        let mi = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.role.is_normal() && block.raw_text == "mi")
+            .expect("mi statement leaf");
+        let do_block = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.role.is_normal() && block.raw_text == "do")
+            .expect("do statement leaf");
+        let errors = recovered_error_blocks(&success);
+
+        assert_eq!(errors.len(), 1, "{:#?}", success.blocks_layout);
+        assert_eq!(web_block_byte_range(mi), (0, 2));
+        assert_eq!(web_block_byte_range(errors[0]), (3, 5));
+        assert_eq!(errors[0].raw_text, "ku");
+        assert_eq!(errors[0].display_text, "ku");
+        assert_eq!(web_block_byte_range(do_block), (8, 10));
+        assert_eq!(mi.col + mi.col_span, errors[0].col);
+        assert!(do_block.col > errors[0].col);
+        assert!(
+            do_block
+                .ancestors
+                .iter()
+                .any(|ancestor| ancestor == "FollowingParagraphStatement")
+        );
+        assert_eq!(success.diagnostics.len(), 1);
+        assert_eq!(
+            diagnostic_primary_byte_range(&success.diagnostics[0]),
+            (3, 5)
+        );
+        assert!(bracket_fragments_contain_role(
+            &success.bracket_fragments,
+            GentufaBlockRole::Error
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_web_blocks_keep_prefix_before_zero_width_markers() {
+        let success = parse_success("mi viska lo");
+        let normal_ranges = success
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.is_leaf && block.role.is_normal())
+            .map(|block| {
+                (
+                    block.raw_text.as_str(),
+                    web_block_byte_range(block),
+                    block.col,
+                )
+            })
+            .collect::<Vec<_>>();
+        let markers = recovered_error_blocks(&success);
+
+        assert!(
+            normal_ranges
+                .iter()
+                .any(|entry| entry.0 == "mi" && entry.1 == (0, 2))
+        );
+        assert!(
+            normal_ranges
+                .iter()
+                .any(|entry| entry.0 == "viska" && entry.1 == (3, 8))
+        );
+        let lo = normal_ranges
+            .iter()
+            .find(|entry| entry.0 == "lo" && entry.1 == (9, 11))
+            .expect("lo prefix leaf");
+        assert_eq!(markers.len(), 3, "{markers:#?}");
+        assert!(markers.iter().all(|marker| {
+            web_block_byte_range(marker) == (11, 11)
+                && marker.raw_text.is_empty()
+                && marker.display_text.is_empty()
+                && marker.col >= lo.2 + 1
+        }));
+        assert_eq!(success.diagnostics.len(), 1);
+        assert_eq!(
+            diagnostic_primary_byte_range(&success.diagnostics[0]),
+            (11, 11)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_web_error_indexes_resolve_all_diagnostic_spans() {
+        let success = parse_success("mi ku i do ku i mi klama");
+        let errors = recovered_error_blocks(&success);
+
+        assert_eq!(errors.len(), 2, "{errors:#?}");
+        assert_eq!(success.diagnostics.len(), 2, "{:#?}", success.diagnostics);
+        assert_eq!(web_block_byte_range(errors[0]), (3, 5));
+        assert_eq!(web_block_byte_range(errors[1]), (11, 13));
+        for block in errors {
+            let error_index = block.error_index.expect("error block diagnostic index");
+            let diagnostic = success
+                .diagnostics
+                .get(error_index)
+                .expect("error index resolves in web diagnostics");
+            assert_eq!(diagnostic.severity, DiagnosticSeverity::Error);
+            assert_eq!(
+                web_block_byte_range(block),
+                diagnostic_primary_byte_range(diagnostic)
+            );
+        }
+        assert!(
+            success
+                .blocks_layout
+                .blocks
+                .iter()
+                .all(|block| block.ref_markers.is_empty())
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn morphology_errors_return_complete_list_and_suppress_syntax() {
+        let request = GentufaWebRequest {
+            text: "mi @@@ do ### mi".to_owned(),
+            options: GentufaWebOptions::default(),
+        };
+        let GentufaWebResult::Error(error) = parse_gentufa_for_web(&request) else {
+            panic!("morphology errors must not produce a recovered syntax result");
+        };
+        let diagnostics = error
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                (
+                    diagnostic.phase,
+                    diagnostic.code.as_str(),
+                    diagnostic_primary_byte_range(diagnostic),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(error.phase, Some(DiagnosticPhase::Morphology));
+        assert_eq!(
+            diagnostics,
+            vec![
+                (
+                    DiagnosticPhase::Morphology,
+                    "morphology.invalid-character",
+                    (3, 4),
+                ),
+                (
+                    DiagnosticPhase::Morphology,
+                    "morphology.invalid-character",
+                    (10, 11),
+                ),
+            ]
+        );
+        assert!(
+            error
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.phase != DiagnosticPhase::Syntax)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn strict_first_valid_results_are_byte_identical_to_strict_entry_results() {
+        let sources = [
+            "mi klama",
+            "lo mlatu cu viska lo gerku",
+            "mi viska lo mlatu ku",
+            "mi cusku lu mi'e .djan. li'u",
+            "mi klama le zarci i do klama ri",
+        ];
+        let options = GentufaWebOptions::default();
+        let dialect = DialectDefinition::default();
+        let morphology_options = MorphologyOptions::default().with_dialect_definition(&dialect);
+
+        for source in sources {
+            let source_id = Some(SourceId("<web-input>".to_owned()));
+            let morphology =
+                jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id_attempt(
+                    source,
+                    &morphology_options,
+                    source_id.clone(),
+                )
+                .into_data();
+            let diagnostics = morphology
+                .warnings
+                .iter()
+                .map(|warning| warning.to_diagnostic(source_id.clone(), source))
+                .collect::<Vec<_>>();
+            let words = morphology
+                .result
+                .expect("representative fixture has valid morphology");
+            let strict_tree =
+                jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+                    &words,
+                    source,
+                    &ParseOptions::default().with_dialect_definition(&dialect),
+                )
+                .expect("representative fixture has valid syntax");
+            let strict_result = valid_gentufa_result_for_web(
+                source,
+                &words,
+                &morphology_options,
+                strict_tree,
+                diagnostics,
+                &options,
+            );
+            let strict_first_result = parse_gentufa_for_web(&GentufaWebRequest {
+                text: source.to_owned(),
+                options: options.clone(),
+            });
+
+            assert_eq!(
+                serde_json::to_vec(&strict_first_result).expect("serialize strict-first result"),
+                serde_json::to_vec(&strict_result).expect("serialize strict-entry result"),
+                "serialized web result changed for {source:?}",
+            );
+        }
     }
 
     #[test]

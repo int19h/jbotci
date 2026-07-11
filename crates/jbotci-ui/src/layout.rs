@@ -2703,6 +2703,9 @@ pub(super) fn block_class(block: &GentufaBlock) -> String {
     if block.role.is_elided() {
         class.push_str(" block-elided");
     }
+    if block.role.is_error() {
+        class.push_str(" block-error");
+    }
     class
 }
 
