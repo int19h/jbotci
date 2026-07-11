@@ -215,8 +215,11 @@ bityzba = { workspace = true, features = ["contract_scanner"] }
 [profile.desktop-dev]
 inherits = "dev"
 
+# Full DWARF makes the emitted web module about 1.39 GB, exceeding V8's 1 GiB
+# WebAssembly module limit. Use CARGO_PROFILE_WASM_DEV_DEBUG=full when needed.
 [profile.wasm-dev]
 inherits = "dev"
+debug = "line-tables-only"
 
 [profile.dev.build-override]
 opt-level = 3

@@ -1152,9 +1152,9 @@ fn build_wasm_stack_test_bundle(profile: WasmStackProfile) -> Result<()> {
     match profile {
         WasmStackProfile::Debug => {
             let status = ProcessCommand::new("dx")
-                // The generated parser types make wasm-dev DWARF larger than V8's 1 GiB
-                // module limit. DWARF does not affect the stack behavior this probe tests,
-                // so omit it while preserving the wasm-dev optimization and stack settings.
+                // Normal wasm-dev builds keep line tables for browser diagnostics, but
+                // DWARF does not affect the stack behavior this probe tests. Omit it here
+                // while preserving the wasm-dev optimization and stack settings.
                 .env("CARGO_PROFILE_WASM_DEV_DEBUG", "0")
                 .args([
                     "build",
