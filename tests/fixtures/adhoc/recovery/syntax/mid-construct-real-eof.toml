@@ -1,0 +1,12 @@
+id = "adhoc.recovery.syntax.mid-construct-real-eof"
+lojban = "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti li ka ce'u xendo je cnikansa ro lo jmive ta'i lo racli"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [65, 67], source-text = "ka", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [65, 67], source-text = "ka", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["cádga", "fa", "lo", "nu", "ro", "lo", "prénu", "goĭ", "ko'a", "cu", "tróci", "lo", "nu", "ko'a", "tárti", "je", "cnikánsa", "ro", "lo", "jmíve", "ta'i", "lo", "rácli"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[62, 64], [65, 67], [68, 72], [73, 78]] }] }

@@ -1,0 +1,12 @@
+id = "adhoc.recovery.syntax.mid-construct-i-anchor"
+lojban = "mi tarti li ka broda i do"
+tags = ["adhoc", "recovery", "syntax"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ka", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "ka", message = "unexpected cmavo" }]
+tree = { valid-tokens = ["mi", "tárti", "i", "do"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 20]] }] }
