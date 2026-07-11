@@ -3094,6 +3094,7 @@ pub mod generated_model {
         pub result: Result<GeneratedRecoveredParsedText, GeneratedParseFailure>,
         pub trace: Option<TraceReport>,
         pub unconsumed_directives: usize,
+        pub recovery_directives: Vec<RecoveryDirective>,
     }
 
     #[bityzba::requires(true)]
@@ -3261,6 +3262,7 @@ pub mod generated_model {
             result,
             trace: finish.trace,
             unconsumed_directives: finish.unconsumed_recovery_directives,
+            recovery_directives: finish.recovery_directives,
         }
     }
 

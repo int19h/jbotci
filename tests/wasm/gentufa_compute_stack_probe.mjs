@@ -4,7 +4,12 @@ import { pathToFileURL } from "node:url";
 
 Error.stackTraceLimit = 100;
 
-const CASE_NAMES = ["default-input", "simple-valid", "recovered-input"];
+const CASE_NAMES = [
+  "default-input",
+  "simple-valid",
+  "recovered-input",
+  "natural-stop-recovered-input",
+];
 
 function casesFor(defaultText) {
   return new Map([
@@ -13,6 +18,10 @@ function casesFor(defaultText) {
     [
       "recovered-input",
       "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti lo lo ka ce'u xendo ije cnikansa ro lo jmive kei ta'i lo racli",
+    ],
+    [
+      "natural-stop-recovered-input",
+      "cadga fa lo nu ro lo prenu goi ko'a cu troci lo nu ko'a tarti li ka ce'u xendo ije cnikansa ro lo jmive ta'i lo racli",
     ],
   ]);
 }
@@ -149,13 +158,13 @@ function validateResponse(caseName, json) {
   if (parsed.type !== "gentufa-page") {
     throw new Error(`${caseName}: expected gentufa-page response, got ${parsed.type}`);
   }
-  if (caseName !== "recovered-input" && parsed.result?.status !== "success") {
+  if (!caseName.endsWith("recovered-input") && parsed.result?.status !== "success") {
     throw new Error(
       `${caseName}: expected successful gentufa result, got ${JSON.stringify(parsed.result ?? null)}`,
     );
   }
   if (
-    caseName === "recovered-input" &&
+    caseName.endsWith("recovered-input") &&
     !["success", "error"].includes(parsed.result?.status)
   ) {
     throw new Error(

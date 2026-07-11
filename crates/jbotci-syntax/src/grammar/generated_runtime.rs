@@ -1104,6 +1104,38 @@ where
                 }
                 Err(error) => {
                     input.rewind(checkpoint);
+                    let action = input.state().recovery_field_action_at_natural_stop(
+                        rule,
+                        instance_byte_start,
+                        field_index,
+                        start_location,
+                        values.len() >= min_count,
+                    );
+                    match action.map(super::RecoveryFieldAction::into_parts) {
+                        Some((super::RecoveryFieldActionKind::Abandon, item, _)) => {
+                            if let Some(item) = item {
+                                values.push(O::from_recovery_item(item));
+                            }
+                            if values.len() >= min_count {
+                                break;
+                            }
+                        }
+                        Some((
+                            super::RecoveryFieldActionKind::Resume,
+                            item,
+                            Some(resume_token_index),
+                        )) => {
+                            advance_to_location(input, resume_token_index);
+                            if let Some(item) = item {
+                                values.push(O::from_recovery_item(item));
+                            }
+                            continue;
+                        }
+                        Some((super::RecoveryFieldActionKind::Resume, _, None)) => {
+                            unreachable!("resume recovery actions carry a resume token index")
+                        }
+                        None => {}
+                    }
                     if values.len() >= min_count {
                         input.state().record_diagnostic_candidate(error);
                         break;
@@ -1111,6 +1143,9 @@ where
                     return Err(error);
                 }
             }
+        }
+        if values.len() < min_count {
+            return Err(expected_found_named_at_current(input, rule.to_owned()));
         }
         Ok(values)
     })
