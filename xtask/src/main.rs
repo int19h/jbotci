@@ -1488,6 +1488,7 @@ mod tests {
         include_str!("../../apps/jbotci-app/bundle/linux/jbotci.desktop.hbs");
     const WINDOWS_WIX_TEMPLATE: &str =
         include_str!("../../apps/jbotci-app/bundle/windows/jbotci.wxs.hbs");
+    const WORKSPACE_CARGO_MANIFEST: &str = include_str!("../../Cargo.toml");
     const DIOXUS_CONFIG: &str = include_str!("../../apps/jbotci-app/Dioxus.toml");
     const DIOXUS_INDEX_TEMPLATE: &str = include_str!("../../apps/jbotci-app/index.html");
     const JBOTCI_UI_LIB: &str = include_str!("../../crates/jbotci-ui/src/lib.rs");
@@ -1636,6 +1637,16 @@ mod tests {
                 .contains("desktop_template = \"apps/jbotci-app/bundle/linux/jbotci.desktop.hbs\"")
         );
         assert!(DIOXUS_CONFIG.contains("template = \"bundle/windows/jbotci.wxs.hbs\""));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn wasm_dev_profile_keeps_browser_safe_debug_info() {
+        assert!(
+            WORKSPACE_CARGO_MANIFEST
+                .contains("[profile.wasm-dev]\ninherits = \"dev\"\ndebug = \"line-tables-only\"")
+        );
     }
 
     #[test]
