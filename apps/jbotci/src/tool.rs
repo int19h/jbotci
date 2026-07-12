@@ -1,4 +1,6 @@
 use super::*;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 pub use jbotci_embeddings::native::NativeEmbeddingSearchService as ToolEmbeddingSearchService;
 pub const TOOL_DEFAULT_EMBEDDING_MODEL_KEY: &str = DEFAULT_MODEL_KEY;
@@ -823,9 +825,7 @@ impl From<ToolJvozbaRequest> for Command {
 /// Output format for `gimfihi` candidate gismu.
 #[invariant(::Table => true)]
 #[invariant(::Json => true)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiFormat {
     /// Compact ranked table (the default): one row per candidate with score and
@@ -839,17 +839,7 @@ pub enum ToolGimfihiFormat {
 /// Gismu candidate scoring algorithm. See `docs/gismu-phonetic-medoid.md`.
 #[invariant(::Classic => true)]
 #[invariant(::Phonetic => true)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiScorer {
     /// CLL §4.14 letter-overlap scorer (default; preserves historical output).
@@ -863,17 +853,7 @@ pub enum ToolGimfihiScorer {
 #[invariant(::SourceSide => true)]
 #[invariant(::CandidateSide => true)]
 #[invariant(::Symmetric => true)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolAlineNormalizer {
     /// Divide by source self-similarity (default coverage semantics).
@@ -1110,9 +1090,7 @@ impl Default for ToolGimfihiFormat {
 #[invariant(::All => true)]
 #[invariant(::Official => true)]
 #[invariant(::None => true)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCollisionScope {
     /// Check against every gismu, official and experimental (the default).
@@ -1146,9 +1124,7 @@ impl From<ToolCollisionScope> for CliCollisionScope {
 /// One source word feeding the gismu-composition algorithm: the word from a
 /// natural language, optionally with a custom blending weight.
 #[invariant(true)]
-#[derive(
-    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiSource {
     /// A short language code for this source (e.g. `eng`, `cmn`, `spa`). Each
