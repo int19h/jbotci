@@ -9,9 +9,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         head: SemanticObjectId,
     ) -> Result<(), SemanticsError> {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+        else {
             return Ok(());
         };
+        let object = object.into_data();
         if let Some(predication) = object.predication {
             self.fill_first_elided_generated_predication_argument(predication, head)?;
         }
@@ -35,9 +40,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         argument: &ArgumentValue,
     ) -> Result<(), SemanticsError> {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+        else {
             return Ok(());
         };
+        let object = object.into_data();
         if let Some(predication) = object.predication
             && self.fill_first_elided_generated_predication_argument_with_argument(
                 predication,
@@ -67,9 +77,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         parameter: SemanticObjectId,
         preferred_selbri: Option<&'tree SelbriSyntax>,
     ) -> Result<bool, SemanticsError> {
-        let Some(object) = self.objects.get(&formula).cloned() else {
+        let Some(object) = self
+            .objects
+            .get(&formula)
+            .and_then(SemanticObject::formula_traversal)
+        else {
             return Ok(false);
         };
+        let object = object.into_data();
         if let Some(predication) = object.predication
             && self.replace_first_elided_generated_predication_argument(
                 predication,
@@ -124,6 +139,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ))
         })?;
         let mut selected_place: Option<(usize, usize, PlaceIndex)> = None;
+        let object = object.as_predication().ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder expected {predication} to be a predication"
+            ))
+        })?;
         for (place, argument) in &object.arguments {
             if argument.kind != ArgumentValueKind::Elided {
                 continue;
@@ -150,10 +170,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find abstraction predication {predication}"
             ))
         })?;
-        if let Some(argument) = object.arguments.get_mut(&place) {
-            let source = argument.source.clone();
-            *argument = ArgumentValue::filled(parameter, source);
-        }
+        object.update_predication(|object| {
+            let data = object.into_data();
+            let mut arguments = data.arguments;
+            if let Some(argument) = arguments.get(&place) {
+                let source = argument.source.clone();
+                arguments.insert(place, ArgumentValue::filled(parameter, source));
+            }
+            PredicationNode::from_data(data!(PredicationNode {
+                arguments: arguments,
+                ..data
+            }))
+        });
         Ok(true)
     }
 
@@ -170,7 +198,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find relative-clause predication {predication}"
             ))
         })?;
-        let Some(place) = object
+        let object_data = object.as_predication().ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder expected {predication} to be a predication"
+            ))
+        })?;
+        let Some(place) = object_data
             .arguments
             .iter()
             .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
@@ -180,10 +213,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(());
         };
-        if let Some(argument) = object.arguments.get_mut(&place) {
-            let source = argument.source.clone();
-            *argument = ArgumentValue::filled(head, source);
-        }
+        object.update_predication(|object| {
+            let data = object.into_data();
+            let mut arguments = data.arguments;
+            if let Some(argument) = arguments.get(&place) {
+                let source = argument.source.clone();
+                arguments.insert(place, ArgumentValue::filled(head, source));
+            }
+            PredicationNode::from_data(data!(PredicationNode {
+                arguments: arguments,
+                ..data
+            }))
+        });
         Ok(())
     }
 
@@ -200,7 +241,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find shared-head predication {predication}"
             ))
         })?;
-        let Some(place) = object
+        let object_data = object.as_predication().ok_or_else(|| {
+            invalid_graph(format!(
+                "semantic builder expected {predication} to be a predication"
+            ))
+        })?;
+        let Some(place) = object_data
             .arguments
             .iter()
             .filter(|(_place, argument)| argument.kind == ArgumentValueKind::Elided)
@@ -210,7 +256,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         else {
             return Ok(false);
         };
-        object.arguments.insert(place, argument.clone());
+        let argument = argument.clone();
+        object.update_predication(|object| {
+            let data = object.into_data();
+            let mut arguments = data.arguments;
+            arguments.insert(place, argument);
+            PredicationNode::from_data(data!(PredicationNode {
+                arguments: arguments,
+                ..data
+            }))
+        });
         Ok(true)
     }
 }

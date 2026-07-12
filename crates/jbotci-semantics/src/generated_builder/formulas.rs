@@ -1267,7 +1267,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.modal_arguments = modal_arguments;
+        object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1413,20 +1413,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<(SemanticObjectId, Vec<SemanticObjectId>)> {
         let object = self.objects.get(&formula)?;
-        match object.operator.as_ref()?.as_data() {
-            SemanticOperatorData::Formula(FormulaOperator::Atom) => {
-                let predication = self.objects.get(&object.predication?)?;
+        match object.as_formula()?.as_data() {
+            data!(FormulaNode::Atom(formula)) => {
+                let predication = self.objects.get(&formula.predication)?.as_predication()?;
                 predication.arguments.values().find_map(|argument| {
                     let value = argument.value?;
                     self.generated_respectively_composite_members(value)
                         .map(|members| (value, members))
                 })
             }
-            SemanticOperatorData::Formula(_) => object
+            data!(FormulaNode::Connective(formula)) => formula
                 .children
                 .iter()
                 .find_map(|child| self.generated_first_respectively_composite_argument(*child)),
-            SemanticOperatorData::Math(_) => None,
+            data!(FormulaNode::Quantified(_))
+            | data!(FormulaNode::QuantifierBundle(_))
+            | data!(FormulaNode::RespectivelyDistribution(_)) => None,
         }
     }
 
@@ -1514,8 +1516,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1757,7 +1758,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.modal_arguments = modal_arguments;
+        object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1908,7 +1909,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             Vec::new(),
         );
-        object.modal_arguments = modal_arguments;
+        object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -1987,7 +1988,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
+        predication_object.set_predication_modal_arguments(modal_arguments);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -2273,8 +2274,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
         let formula = self.next_formula_id();
@@ -2481,8 +2481,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, terms)?;
         let formula = self.next_formula_id();
@@ -2917,7 +2916,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 QuantityScale::Count,
                 self.source_for_node(number, "quantity"),
             );
-            object.diagnostics = diagnostics;
+            object.replace_diagnostics(diagnostics);
             object
         })?;
         self.build_number_referent_with_quantity(
@@ -3122,8 +3121,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -3282,8 +3280,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -4667,8 +4664,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source.clone(),
                 diagnostics.clone(),
             );
-            predication_object.modal_arguments = modal_arguments;
-            predication_object.place_questions = place_questions.clone();
+            predication_object
+                .set_predication_attachments(modal_arguments, place_questions.clone());
             self.insert(predication, predication_object)?;
             self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
             self.record_generated_tense_modal_event_modifier(
@@ -5266,8 +5263,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         self.attach_generated_reciprocity_to_predication_for_terms(predication, &terms)?;
         let formula = self.next_formula_id();

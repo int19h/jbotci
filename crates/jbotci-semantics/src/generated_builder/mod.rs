@@ -89,20 +89,24 @@ use crate::model::{
     ArgumentValue, ArgumentValueData, ArgumentValueKind, Aspect, AssignedName, AssignedNameData,
     CommandTarget, Composition, CompositionOperator, Connector, Descriptor, DescriptorDefiniteness,
     DescriptorKind, DisplayedContentAssertionEffect, DisplayedContentFamily,
-    DisplayedContentModifier, DisplayedContentPolarity, DisplayedContentTargetFocus,
-    EventualityClass, EventualitySort, FormulaOperator, IndexicalKind, IntervalEndpointInclusion,
-    IntervalModifier, IntervalModifierData, LetteralUnit, LetteralUnitKind, MathLiteral,
-    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, ModalArgument,
-    ModalNegation, ModalNegationKind, NonlogicalConnection, ParameterRole, PlaceIndex,
-    PlaceQuestionBinding, PredicationMode, QuantifierBinding, QuantityForm, QuantityScale,
-    QuantityValue, QuestionKind, QuestionMode, QuestionSlot, QuestionSlotRole, Quotation,
-    RafsiBinding, ReciprocalExchange, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, RelationExpansion, RelationLabel, RelationLabelData,
-    RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind,
-    SelectionSource, SemanticGraph, SemanticObject, SemanticObjectId, SemanticOperatorData,
-    SemanticSort, SequenceRelation, SignKind, SourceByteSpan, SpaceInterval, SpatialMotion,
+    DisplayedContentModifier, DisplayedContentNode, DisplayedContentPolarity,
+    DisplayedContentTargetFocus, EventualityClass, EventualityNode, EventualityNodeData,
+    EventualitySort, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
+    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
+    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
+    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
+    MixedRadixComponent, ModalArgument, ModalNegation, ModalNegationKind, NonlogicalConnection,
+    ParameterRole, PlaceIndex, PlaceQuestionBinding, PredicationMode, PredicationNode,
+    PredicationNodeData, PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode,
+    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode,
+    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, Recurrence,
+    RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory, ReferentNode,
+    RelationExpansion, RelationLabel, RelationLabelData, RelativeClause, RelativeClauseKind,
+    RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource, SemanticGraph,
+    SemanticObject, SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode,
+    SequenceRelation, SignKind, SignNode, SourceByteSpan, SpaceInterval, SpatialMotion,
     SpatialMotionKind, Subscript, TanruLink, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce,
+    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
     argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
     source_from_spans,
 };
@@ -1519,7 +1523,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             Vec::new(),
         );
-        object.eventuality = eventuality;
+        object.set_scoped_formula_eventuality(eventuality);
         self.insert(formula, object)?;
         Ok(formula)
     }
@@ -1544,7 +1548,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(eventuality.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
-    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.as_ref().is_none_or(|eventuality| eventuality.object_type == crate::model::SemanticObjectKind::Referent)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|eventuality| eventuality.as_ref().is_none_or(|eventuality| generated_semantic_object_is_eventuality(eventuality))) || ret.is_err())]
     fn take_deferred_generated_eventuality_template(
         &mut self,
         eventuality: Option<SemanticObjectId>,
@@ -1558,9 +1562,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "missing generated eventuality template: {eventuality}"
             )));
         };
-        if object.object_type != crate::model::SemanticObjectKind::Referent
+        if object.object_kind() != crate::model::SemanticObjectKind::Referent
             || !object
-                .sort
+                .sort()
                 .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
         {
             return Err(invalid_graph(format!(
@@ -1574,7 +1578,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(Some(object))
     }
 
-    #[requires(template.is_none_or(|eventuality| eventuality.object_type == crate::model::SemanticObjectKind::Referent))]
+    #[requires(template.is_none_or(generated_semantic_object_is_eventuality))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))) || ret.is_err())]
     fn build_generated_branch_eventuality_from_template(
         &mut self,
@@ -1584,17 +1588,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut object = template
             .cloned()
             .unwrap_or_else(|| SemanticObject::eventuality(EventualityClass::Event, None, None));
-        if object.object_type != crate::model::SemanticObjectKind::Referent
+        if object.object_kind() != crate::model::SemanticObjectKind::Referent
             || !object
-                .sort
+                .sort()
                 .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
         {
             return Err(invalid_graph(
                 "cannot build branch event from non-eventuality template".to_owned(),
             ));
         }
-        object.source = source;
-        let sort = object.sort.unwrap_or_else(SemanticSort::eventuality);
+        object.replace_source(source);
+        let sort = object.sort().unwrap_or_else(SemanticSort::eventuality);
         let eventuality = self.next_referent_with_sort_id(sort);
         self.insert(eventuality, object)?;
         Ok(eventuality)
@@ -1639,11 +1643,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if !self.sticky_time_path.is_empty()
             && !(self.options.story_time && self.story_time_anchor.is_some())
         {
-            event.time_path = generated_inherited_temporal_path(&self.sticky_time_path);
+            let time_path = generated_inherited_temporal_path(&self.sticky_time_path);
+            event.update_eventuality(|event| {
+                event.with_data(data! {
+                    time_path: time_path,
+                })
+            });
             normalize_generated_event_time_path(event);
         }
         if !self.sticky_space_path.is_empty() {
-            event.space_path = generated_inherited_temporal_path(&self.sticky_space_path);
+            let space_path = generated_inherited_temporal_path(&self.sticky_space_path);
+            event.update_eventuality(|event| {
+                event.with_data(data! {
+                    space_path: space_path,
+                })
+            });
             normalize_generated_event_space_path(event);
         }
     }
@@ -1817,32 +1831,41 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         eventuality: SemanticObjectId,
     ) -> Result<(), SemanticsError> {
-        let Some(mut object) = self.objects.remove(&eventuality) else {
+        let Some(object) = self.objects.remove(&eventuality) else {
             return Err(invalid_graph(format!(
                 "missing generated eventuality {eventuality}"
             )));
         };
-        if !generated_semantic_object_is_eventuality(&object) {
-            self.objects.insert(eventuality, object);
-            return Err(invalid_graph(format!(
-                "cannot promote recurrence quantities on non-eventuality {eventuality}"
-            )));
-        }
+        let mut event = match object.into_data() {
+            data!(SemanticObject::Eventuality(event)) => event.into_data(),
+            data => {
+                self.objects
+                    .insert(eventuality, SemanticObject::from_data(data));
+                return Err(invalid_graph(format!(
+                    "cannot promote recurrence quantities on non-eventuality {eventuality}"
+                )));
+            }
+        };
         let mut quantity_cache = BTreeMap::new();
-        self.promote_generated_recurrence_quantities(&mut object.recurrence, &mut quantity_cache)?;
+        self.promote_generated_recurrence_quantities(&mut event.recurrence, &mut quantity_cache)?;
         self.promote_generated_recurrence_quantities(
-            &mut object.spatial_recurrence,
+            &mut event.spatial_recurrence,
             &mut quantity_cache,
         )?;
         self.promote_generated_interval_modifier_quantities(
-            &mut object.interval_modifiers,
+            &mut event.interval_modifiers,
             &mut quantity_cache,
         )?;
         self.promote_generated_interval_modifier_quantities(
-            &mut object.spatial_interval_modifiers,
+            &mut event.spatial_interval_modifiers,
             &mut quantity_cache,
         )?;
-        self.objects.insert(eventuality, object);
+        self.objects.insert(
+            eventuality,
+            new!(SemanticObject::Eventuality(EventualityNode::from_data(
+                event
+            ))),
+        );
         Ok(())
     }
 
@@ -1923,13 +1946,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         id: SemanticObjectId,
         mut object: SemanticObject,
     ) -> Result<(), SemanticsError> {
-        if object.object_kind() == crate::model::SemanticObjectKind::Predication
-            && let Some(eventuality) = object.eventuality
-        {
-            for modal_argument in &mut object.modal_arguments {
-                self.bind_generated_modal_argument_to_host_event(modal_argument, eventuality);
+        if let Some(predication) = object.as_predication() {
+            let eventuality = predication.eventuality;
+            let mode = predication.mode;
+            if let Some(eventuality) = eventuality {
+                object.update_predication(|predication| {
+                    let mut data = predication.into_data();
+                    for modal_argument in &mut data.modal_arguments {
+                        self.bind_generated_modal_argument_to_host_event(
+                            modal_argument,
+                            eventuality,
+                        );
+                    }
+                    PredicationNode::from_data(data)
+                });
+                self.finalize_generated_eventuality_for_predication_mode(eventuality, Some(mode))?;
             }
-            self.finalize_generated_eventuality_for_predication_mode(eventuality, object.mode)?;
         }
         if self.objects.insert(id, object).is_some() {
             return Err(SemanticsError {
@@ -1966,7 +1998,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     && !explicit_temporal
                 {
                     clear_generated_event_time_path(event);
-                    event.time = Some(new!(AnchorRelation {
+                    let time = new!(AnchorRelation {
                         relation: "after".to_owned(),
                         anchor,
                         sticky: false,
@@ -1975,7 +2007,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         magnitude: None,
                         scalar_negation: None,
                         motion: None,
-                    }));
+                    });
+                    event.update_eventuality(|node| node.with_data(data! { time: Some(time) }));
                 }
                 advance_story_time =
                     !explicit_temporal || sticky_temporal || story_anchor.is_none();
@@ -1998,7 +2031,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .objects
             .get_mut(&id)
             .ok_or_else(|| invalid_graph(format!("missing generated semantic object {id}")))?;
-        object.source = source;
+        object.replace_source(source);
         Ok(())
     }
 
@@ -6597,6 +6630,128 @@ fn replace_generated_relative_clause_formula_references(
     }
 }
 
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_generated_descriptor_formula_references(
+    descriptor: &mut Option<Descriptor>,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    if let Some(value) = descriptor.take() {
+        let mut data = value.into_data();
+        replace_generated_formula_option(&mut data.body, old_id, new_id);
+        replace_generated_relative_clause_formula_references(
+            &mut data.relative_clauses,
+            old_id,
+            new_id,
+        );
+        *descriptor = Some(Descriptor::from_data(data));
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_generated_predication_formula_references(
+    predication: &mut PredicationNodeData,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) {
+    for argument in predication.arguments.values_mut() {
+        replace_generated_argument_value_formula_references(argument, old_id, new_id);
+    }
+    for question in &mut predication.place_questions {
+        let mut argument = question.argument.clone();
+        replace_generated_argument_value_formula_references(&mut argument, old_id, new_id);
+        if argument != question.argument {
+            *question = question.clone().with_data(data! { argument: argument });
+        }
+    }
+    for modal_argument in &mut predication.modal_arguments {
+        let mut arguments = modal_argument.arguments.clone();
+        for argument in arguments.values_mut() {
+            replace_generated_argument_value_formula_references(argument, old_id, new_id);
+        }
+        let mut body = modal_argument.body;
+        replace_generated_formula_option(&mut body, old_id, new_id);
+        if arguments != modal_argument.arguments || body != modal_argument.body {
+            *modal_argument = modal_argument.clone().with_data(data! {
+                arguments: arguments,
+                body: body,
+            });
+        }
+    }
+    for exchange in &mut predication.reciprocity {
+        let mut left = exchange.left.clone();
+        let mut right = exchange.right.clone();
+        replace_generated_argument_value_formula_references(&mut left, old_id, new_id);
+        replace_generated_argument_value_formula_references(&mut right, old_id, new_id);
+        if left != exchange.left || right != exchange.right {
+            *exchange = exchange
+                .clone()
+                .with_data(data! { left: left, right: right });
+        }
+    }
+}
+
+#[requires(old_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[requires(new_id.object_kind() == crate::model::SemanticObjectKind::Formula)]
+#[ensures(true)]
+fn replace_generated_formula_node_references(
+    formula: FormulaNode,
+    old_id: SemanticObjectId,
+    new_id: SemanticObjectId,
+) -> FormulaNode {
+    match formula.into_data() {
+        data!(FormulaNode::Atom(node)) => new!(FormulaNode::Atom(node)),
+        data!(FormulaNode::Connective(node)) => {
+            let mut data = node.into_data();
+            replace_generated_formula_vec(&mut data.children, old_id, new_id);
+            new!(FormulaNode::Connective(
+                crate::model::ConnectiveFormulaNode::from_data(data)
+            ))
+        }
+        data!(FormulaNode::Quantified(node)) => {
+            let mut data = node.into_data();
+            replace_generated_formula_option(&mut data.restriction, old_id, new_id);
+            if data.body == old_id {
+                data.body = new_id;
+            }
+            new!(FormulaNode::Quantified(
+                crate::model::QuantifiedFormulaNode::from_data(data)
+            ))
+        }
+        data!(FormulaNode::QuantifierBundle(node)) => {
+            let mut data = node.into_data();
+            if data.body == old_id {
+                data.body = new_id;
+            }
+            for binding in &mut data.bindings {
+                let mut restriction = binding.restriction;
+                replace_generated_formula_option(&mut restriction, old_id, new_id);
+                if restriction != binding.restriction {
+                    *binding = binding
+                        .clone()
+                        .with_data(data! { restriction: restriction });
+                }
+            }
+            new!(FormulaNode::QuantifierBundle(
+                QuantifierBundleFormulaNode::from_data(data)
+            ))
+        }
+        data!(FormulaNode::RespectivelyDistribution(node)) => {
+            let mut data = node.into_data();
+            if data.body == old_id {
+                data.body = new_id;
+            }
+            new!(FormulaNode::RespectivelyDistribution(
+                crate::model::RespectivelyDistributionFormulaNode::from_data(data)
+            ))
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(ret.relative_clauses.len() >= old(argument.relative_clauses.len()))]
 fn append_generated_relative_clauses_to_argument(
@@ -6982,9 +7137,22 @@ fn generated_time_span_endpoint_from_tokens(
         scalar_negation,
     ))
 }
+#[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
+fn update_generated_eventuality_data(
+    event: &mut SemanticObject,
+    update: impl FnOnce(&mut EventualityNodeData),
+) {
+    event.update_eventuality(|event| {
+        let mut data = event.into_data();
+        update(&mut data);
+        EventualityNode::from_data(data)
+    });
+}
 
 #[requires(!introduced_by.is_empty())]
-#[ensures(true)]
+#[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn apply_generated_anchor_relation_to_event(
     event: &mut SemanticObject,
     domain: GeneratedAnchorDomain,
@@ -7008,55 +7176,61 @@ fn apply_generated_anchor_relation_to_event(
 }
 
 #[requires(!introduced_by.is_empty())]
-#[ensures(true)]
+#[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn apply_generated_time_relation_to_event(
     event: &mut SemanticObject,
     relation: AnchorRelation,
     introduced_by: String,
     explicit_anchor: bool,
 ) {
-    if let Some(time) = event.time.take() {
-        event
-            .time_path
-            .push(generated_temporal_path_step_from_anchor_relation(
-                time, None,
-            ));
-    }
-    let anchor =
-        (!explicit_anchor && !event.time_path.is_empty()).then(TemporalPathAnchor::previous);
-    event.time_path.push(
-        generated_temporal_path_step_from_anchor_relation_with_anchor(
-            relation,
-            Some(introduced_by),
-            anchor,
-        ),
-    );
+    update_generated_eventuality_data(event, |event| {
+        if let Some(time) = event.time.take() {
+            event
+                .time_path
+                .push(generated_temporal_path_step_from_anchor_relation(
+                    time, None,
+                ));
+        }
+        let anchor =
+            (!explicit_anchor && !event.time_path.is_empty()).then(TemporalPathAnchor::previous);
+        event.time_path.push(
+            generated_temporal_path_step_from_anchor_relation_with_anchor(
+                relation,
+                Some(introduced_by),
+                anchor,
+            ),
+        );
+    });
 }
 
 #[requires(!introduced_by.is_empty())]
-#[ensures(true)]
+#[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn apply_generated_space_relation_to_event(
     event: &mut SemanticObject,
     relation: AnchorRelation,
     introduced_by: String,
     explicit_anchor: bool,
 ) {
-    if let Some(space) = event.space.take() {
-        event
-            .space_path
-            .push(generated_temporal_path_step_from_anchor_relation(
-                space, None,
-            ));
-    }
-    let anchor =
-        (!explicit_anchor && !event.space_path.is_empty()).then(TemporalPathAnchor::previous);
-    event.space_path.push(
-        generated_temporal_path_step_from_anchor_relation_with_anchor(
-            relation,
-            Some(introduced_by),
-            anchor,
-        ),
-    );
+    update_generated_eventuality_data(event, |event| {
+        if let Some(space) = event.space.take() {
+            event
+                .space_path
+                .push(generated_temporal_path_step_from_anchor_relation(
+                    space, None,
+                ));
+        }
+        let anchor =
+            (!explicit_anchor && !event.space_path.is_empty()).then(TemporalPathAnchor::previous);
+        event.space_path.push(
+            generated_temporal_path_step_from_anchor_relation_with_anchor(
+                relation,
+                Some(introduced_by),
+                anchor,
+            ),
+        );
+    });
 }
 
 #[requires(introduced_by.as_ref().is_none_or(|introduced_by| !introduced_by.is_empty()))]
@@ -7106,9 +7280,9 @@ fn generated_temporal_path_step_from_anchor_relation_with_anchor(
     step
 }
 
-#[requires(generated_semantic_object_is_eventuality(event))]
+#[requires(true)]
 #[ensures(event.time.is_none() || event.time_path.is_empty())]
-fn normalize_generated_event_time_path(event: &mut SemanticObject) {
+fn normalize_generated_event_time_path_data(event: &mut EventualityNodeData) {
     if event.time_path.len() != 1 {
         if !event.time_path.is_empty() {
             event.time = None;
@@ -7152,8 +7326,14 @@ fn normalize_generated_event_time_path(event: &mut SemanticObject) {
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
+fn normalize_generated_event_time_path(event: &mut SemanticObject) {
+    update_generated_eventuality_data(event, normalize_generated_event_time_path_data);
+}
+
+#[requires(true)]
 #[ensures(event.space.is_none() || event.space_path.is_empty())]
-fn normalize_generated_event_space_path(event: &mut SemanticObject) {
+fn normalize_generated_event_space_path_data(event: &mut EventualityNodeData) {
     if event.space_path.len() != 1 {
         if !event.space_path.is_empty() {
             event.space = None;
@@ -7197,17 +7377,27 @@ fn normalize_generated_event_space_path(event: &mut SemanticObject) {
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(true)]
-fn clear_generated_event_time_path(event: &mut SemanticObject) {
-    event.time = None;
-    event.time_path.clear();
+#[ensures(generated_semantic_object_is_eventuality(event))]
+fn normalize_generated_event_space_path(event: &mut SemanticObject) {
+    update_generated_eventuality_data(event, normalize_generated_event_space_path_data);
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(true)]
+#[ensures(generated_semantic_object_is_eventuality(event))]
+fn clear_generated_event_time_path(event: &mut SemanticObject) {
+    update_generated_eventuality_data(event, |event| {
+        event.time = None;
+        event.time_path.clear();
+    });
+}
+
+#[requires(generated_semantic_object_is_eventuality(event))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn clear_generated_event_space_path(event: &mut SemanticObject) {
-    event.space = None;
-    event.space_path.clear();
+    update_generated_eventuality_data(event, |event| {
+        event.space = None;
+        event.space_path.clear();
+    });
 }
 
 #[requires(true)]
@@ -7225,6 +7415,9 @@ fn generated_temporal_path_step_is_inherited(step: &TemporalPathStep) -> bool {
 #[requires(generated_semantic_object_is_eventuality(event))]
 #[ensures(true)]
 fn generated_event_has_explicit_temporal_marker(event: &SemanticObject) -> bool {
+    let event = event
+        .as_eventuality()
+        .expect("eventuality precondition supplies an eventuality variant");
     event
         .time
         .as_ref()
@@ -7242,6 +7435,9 @@ fn generated_event_has_explicit_temporal_marker(event: &SemanticObject) -> bool 
 #[requires(generated_semantic_object_is_eventuality(event))]
 #[ensures(true)]
 fn generated_event_has_explicit_sticky_temporal_marker(event: &SemanticObject) -> bool {
+    let event = event
+        .as_eventuality()
+        .expect("eventuality precondition supplies an eventuality variant");
     event
         .time
         .as_ref()
@@ -7253,35 +7449,39 @@ fn generated_event_has_explicit_sticky_temporal_marker(event: &SemanticObject) -
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(event.time.as_ref().is_none_or(|time| !generated_anchor_relation_is_inherited(time)))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn clear_generated_inherited_event_time_path(event: &mut SemanticObject) {
-    if event
-        .time
-        .as_ref()
-        .is_some_and(generated_anchor_relation_is_inherited)
-    {
-        event.time = None;
-    }
-    event
-        .time_path
-        .retain(|step| !generated_temporal_path_step_is_inherited(step));
-    normalize_generated_event_time_path(event);
+    update_generated_eventuality_data(event, |event| {
+        if event
+            .time
+            .as_ref()
+            .is_some_and(generated_anchor_relation_is_inherited)
+        {
+            event.time = None;
+        }
+        event
+            .time_path
+            .retain(|step| !generated_temporal_path_step_is_inherited(step));
+        normalize_generated_event_time_path_data(event);
+    });
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(event.space.as_ref().is_none_or(|space| !generated_anchor_relation_is_inherited(space)))]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn clear_generated_inherited_event_space_path(event: &mut SemanticObject) {
-    if event
-        .space
-        .as_ref()
-        .is_some_and(generated_anchor_relation_is_inherited)
-    {
-        event.space = None;
-    }
-    event
-        .space_path
-        .retain(|step| !generated_temporal_path_step_is_inherited(step));
-    normalize_generated_event_space_path(event);
+    update_generated_eventuality_data(event, |event| {
+        if event
+            .space
+            .as_ref()
+            .is_some_and(generated_anchor_relation_is_inherited)
+        {
+            event.space = None;
+        }
+        event
+            .space_path
+            .retain(|step| !generated_temporal_path_step_is_inherited(step));
+        normalize_generated_event_space_path_data(event);
+    });
 }
 
 #[requires(true)]
@@ -7318,34 +7518,41 @@ fn mark_generated_temporal_path_step_sticky(
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(true)]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn mark_generated_event_time_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
-    if let Some(time) = event.time.take() {
-        event.time = Some(mark_generated_anchor_relation_sticky(time, inherited));
-    }
-    event.time_path = event
-        .time_path
-        .drain(..)
-        .map(|step| mark_generated_temporal_path_step_sticky(step, inherited))
-        .collect();
+    update_generated_eventuality_data(event, |event| {
+        if let Some(time) = event.time.take() {
+            event.time = Some(mark_generated_anchor_relation_sticky(time, inherited));
+        }
+        event.time_path = event
+            .time_path
+            .drain(..)
+            .map(|step| mark_generated_temporal_path_step_sticky(step, inherited))
+            .collect();
+    });
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
-#[ensures(true)]
+#[ensures(generated_semantic_object_is_eventuality(event))]
 fn mark_generated_event_space_sticky(event: &mut SemanticObject, inherited: Option<bool>) {
-    if let Some(space) = event.space.take() {
-        event.space = Some(mark_generated_anchor_relation_sticky(space, inherited));
-    }
-    event.space_path = event
-        .space_path
-        .drain(..)
-        .map(|step| mark_generated_temporal_path_step_sticky(step, inherited))
-        .collect();
+    update_generated_eventuality_data(event, |event| {
+        if let Some(space) = event.space.take() {
+            event.space = Some(mark_generated_anchor_relation_sticky(space, inherited));
+        }
+        event.space_path = event
+            .space_path
+            .drain(..)
+            .map(|step| mark_generated_temporal_path_step_sticky(step, inherited))
+            .collect();
+    });
 }
 
 #[requires(generated_semantic_object_is_eventuality(event))]
 #[ensures(ret.iter().all(|step| step.sticky))]
 fn generated_event_time_path_for_sticky_storage(event: &SemanticObject) -> Vec<TemporalPathStep> {
+    let event = event
+        .as_eventuality()
+        .expect("eventuality precondition supplies an eventuality variant");
     if !event.time_path.is_empty() {
         return event.time_path.clone();
     }
@@ -7360,6 +7567,9 @@ fn generated_event_time_path_for_sticky_storage(event: &SemanticObject) -> Vec<T
 #[requires(generated_semantic_object_is_eventuality(event))]
 #[ensures(ret.iter().all(|step| step.sticky))]
 fn generated_event_space_path_for_sticky_storage(event: &SemanticObject) -> Vec<TemporalPathStep> {
+    let event = event
+        .as_eventuality()
+        .expect("eventuality precondition supplies an eventuality variant");
     if !event.space_path.is_empty() {
         return event.space_path.clone();
     }
@@ -7393,11 +7603,11 @@ fn semantic_id_is_eventuality(id: SemanticObjectId) -> bool {
 }
 
 #[requires(true)]
-#[ensures(ret == (object.object_type == crate::model::SemanticObjectKind::Referent && object.sort.is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
+#[ensures(ret == (object.object_kind() == crate::model::SemanticObjectKind::Referent && object.sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
 fn generated_semantic_object_is_eventuality(object: &SemanticObject) -> bool {
-    object.object_type == crate::model::SemanticObjectKind::Referent
+    object.object_kind() == crate::model::SemanticObjectKind::Referent
         && object
-            .sort
+            .sort()
             .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
 }
 
@@ -7476,24 +7686,27 @@ mod tests {
             .objects
             .values()
             .find(|object| {
-                matches!(
-                    object.object_type,
-                    crate::model::SemanticObjectKind::Predication
-                ) && object.relation.as_deref().is_some_and(|relation| {
-                    relation.starts_with("cmavo:nu-") && relation.contains("-gismu:")
+                object.as_predication().is_some_and(|predication| {
+                    match predication.relation.as_data() {
+                        data!(crate::model::PredicationRelation::Named { relation }) => {
+                            relation.starts_with("cmavo:nu-") && relation.contains("-gismu:")
+                        }
+                        data!(crate::model::PredicationRelation::Parameter { .. }) => false,
+                    }
                 })
             })
             .expect("nu-initial ZEI compound relation should be present");
 
         let argument_places = compound_predication
-            .arguments
+            .predication_arguments()
+            .expect("compound object should be a predication")
             .keys()
             .map(|place| place.get())
             .collect::<Vec<_>>();
         assert_eq!(argument_places, vec![1]);
         assert!(
             compound_predication
-                .diagnostics
+                .diagnostics()
                 .iter()
                 .any(|diagnostic| diagnostic.message == UNKNOWN_PLACE_STRUCTURE_WARNING),
             "ZEI compound should not inherit the one-place nu abstraction structure",
@@ -7529,14 +7742,14 @@ mod tests {
             .objects
             .values()
             .find(|object| {
-                object.object_type == crate::model::SemanticObjectKind::Parameter
-                    && object.role == Some(ParameterRole::PropertySlot)
-                    && object.introduced_by.as_deref() == Some("implicit ce'u")
+                object.as_parameter().is_some_and(|parameter| {
+                    parameter.role == ParameterRole::PropertySlot
+                        && parameter.introduced_by == "implicit ce'u"
+                })
             })
             .expect("connected ka branch should synthesize an implicit property slot");
         let source = parameter
-            .source
-            .as_ref()
+            .source()
             .expect("implicit property slot should have source");
         assert_eq!(source.text.as_deref(), Some("ka broda"));
         assert_eq!(source.span.byte_start, 9);

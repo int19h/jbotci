@@ -168,8 +168,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         let predication = self.next_predication_id();
         self.insert(predication, predication_object)?;
         let formula = self.next_formula_id();
@@ -363,7 +362,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(relation) = generated_pro_bridi_target_relation_label(selbri)? else {
             return Ok(None);
         };
-        let relation = semantic_relation_label(relation);
+        let relation = semantic_relation_label(relation.to_owned());
         let predication = self.primary_predication_for_formula(formula)?;
         let object = self.objects.get(&predication).ok_or_else(|| {
             invalid_graph(format!(
@@ -372,9 +371,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         })?;
         let replay = generated_pro_bridi_replay_source_from_bridi(bridi)?;
         let place_count = relation_place_count(self.dictionary, &relation);
+        let arguments = object
+            .as_predication()
+            .ok_or_else(|| invalid_graph("pro-bridi template was not a predication".to_owned()))?
+            .arguments
+            .clone();
         Ok(Some(new!(GeneratedProBridiFrame {
             relation,
-            arguments: object.arguments.clone(),
+            arguments,
             place_count,
             event_tense: generated_pro_bridi_event_tense_from_selbri(selbri),
             quote_depth: self.current_quote_depth,
@@ -465,8 +469,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             predication_source,
             diagnostics,
         );
-        predication_object.modal_arguments = modal_arguments;
-        predication_object.place_questions = place_questions;
+        predication_object.set_predication_attachments(modal_arguments, place_questions);
         self.insert(predication, predication_object)?;
         if let Some(scalar_negation) = scalar_negation {
             self.set_scalar_negation(predication, scalar_negation)?;

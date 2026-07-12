@@ -247,9 +247,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             "missing generated fragment utterance {utterance_id}"
                         ))
                     })?;
-                    object
-                        .diagnostics
-                        .push(diagnostic("fragment has no truth-bearing semantic formula"));
+                    object.push_diagnostic(diagnostic(
+                        "fragment has no truth-bearing semantic formula",
+                    ));
                 }
                 self.add_generated_utterance_asides(utterance_id, asides);
                 Ok(utterance_id)
@@ -355,9 +355,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             "missing generated fragment utterance {utterance_id}"
                         ))
                     })?;
-                    object
-                        .diagnostics
-                        .push(diagnostic("fragment has no truth-bearing semantic formula"));
+                    object.push_diagnostic(diagnostic(
+                        "fragment has no truth-bearing semantic formula",
+                    ));
                 }
                 self.add_generated_utterance_asides(utterance_id, asides);
                 Ok(utterance_id)
@@ -772,7 +772,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find generated SOI predication {predication}"
             ))
         })?;
-        object.reciprocity.extend(exchanges);
+        object.update_predication(|node| {
+            let mut data = node.into_data();
+            data.reciprocity.extend(exchanges);
+            PredicationNode::from_data(data)
+        });
         Ok(())
     }
 
@@ -799,7 +803,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find generated SOI predication {predication}"
             ))
         })?;
-        object.reciprocity.extend(exchanges);
+        object.update_predication(|node| {
+            let mut data = node.into_data();
+            data.reciprocity.extend(exchanges);
+            PredicationNode::from_data(data)
+        });
         Ok(())
     }
 
@@ -1016,7 +1024,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<ArgumentValue, SemanticsError> {
         self.objects
             .get(&predication)
-            .and_then(|object| object.arguments.get(&argument_key(place)))
+            .and_then(|object| object.predication_arguments())
+            .and_then(|arguments| arguments.get(&argument_key(place)))
             .cloned()
             .ok_or_else(|| {
                 invalid_graph(format!(
@@ -1033,7 +1042,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         message: &str,
     ) {
         if let Some(object) = self.objects.get_mut(&object) {
-            object.diagnostics.push(diagnostic(message));
+            object.push_diagnostic(diagnostic(message));
         }
     }
 
@@ -1080,7 +1089,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let first_item = self
                     .objects
                     .get(&item)
-                    .and_then(|object| object.items.first().copied());
+                    .and_then(|object| object.as_sequence())
+                    .and_then(|sequence| sequence.items.first().copied());
                 if let Some(first_item) = first_item {
                     self.add_asides_to_generated_discourse_item(first_item, asides);
                 }
@@ -1098,7 +1108,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         asides: Vec<SemanticObjectId>,
     ) {
         if let Some(object) = self.objects.get_mut(&utterance) {
-            object.asides.extend(asides);
+            object.update_utterance(|node| {
+                let mut data = node.into_data();
+                data.asides.extend(asides);
+                UtteranceNode::from_data(data)
+            });
         }
     }
 
@@ -1117,7 +1131,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let first_item = self
                 .objects
                 .get(&item)
-                .and_then(|object| object.items.first().copied());
+                .and_then(|object| object.as_sequence())
+                .and_then(|sequence| sequence.items.first().copied());
             if let Some(first_item) = first_item {
                 self.attach_generated_leading_indicators_to_discourse_item(
                     first_item,
@@ -1177,7 +1192,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let first_item = self
                 .objects
                 .get(&item)
-                .and_then(|object| object.items.first().copied());
+                .and_then(|object| object.as_sequence())
+                .and_then(|sequence| sequence.items.first().copied());
             if let Some(first_item) = first_item {
                 self.attach_generated_statement_separator_indicators_to_discourse_item_with_target(
                     first_item,
@@ -1218,12 +1234,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         item: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&item)?;
-        let content = object.content?;
+        let content = match object.as_data() {
+            data!(SemanticObject::Utterance(node)) => node.content?,
+            data!(SemanticObject::Sequence(node)) => node.content?,
+            _ => return None,
+        };
         match content.object_kind() {
             crate::model::SemanticObjectKind::Formula => Some(content),
             crate::model::SemanticObjectKind::Sequence => self
                 .objects
                 .get(&content)
+                .and_then(|sequence| sequence.as_sequence())
                 .and_then(|sequence| sequence.content)
                 .filter(|content| {
                     content.object_kind() == crate::model::SemanticObjectKind::Formula
@@ -1231,7 +1252,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             crate::model::SemanticObjectKind::Question => self
                 .objects
                 .get(&content)
-                .and_then(|question| question.body),
+                .and_then(|question| question.as_question())
+                .map(|question| question.body),
             _ => None,
         }
     }
@@ -1243,28 +1265,37 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
-        if let Some(eventuality) = object.eventuality {
+        if let Some(eventuality) = object
+            .as_formula()
+            .and_then(|formula| match formula.as_data() {
+                data!(FormulaNode::Connective(node)) => node.eventuality,
+                _ => None,
+            })
+        {
             return Some(eventuality);
         }
-        match object.operator.as_ref()?.as_data() {
-            data!(SemanticOperator::Formula(FormulaOperator::Atom)) => {
-                let predication = self.objects.get(&object.predication?)?;
-                (predication.mode == Some(PredicationMode::Asserted))
-                    .then_some(predication.eventuality)
+        match object.formula_operator()? {
+            FormulaOperator::Atom => {
+                let predication = self.objects.get(&object.formula_predication()?)?;
+                (predication.predication_mode() == Some(PredicationMode::Asserted))
+                    .then(|| predication.predication_eventuality())
                     .flatten()
             }
-            data!(SemanticOperator::Formula(_))
-                if object
-                    .connector
-                    .as_ref()
-                    .is_some_and(|connector| connector.source == "tanru") =>
+            _ if object
+                .as_formula()
+                .and_then(|formula| match formula.as_data() {
+                    data!(FormulaNode::Connective(node)) => node.connector.as_ref(),
+                    _ => None,
+                })
+                .as_ref()
+                .is_some_and(|connector| connector.source == "tanru") =>
             {
                 object
-                    .children
+                    .formula_children()
                     .first()
                     .and_then(|child| self.primary_eventuality_for_generated_formula(*child))
             }
-            data!(SemanticOperator::Formula(_)) | data!(SemanticOperator::Math(_)) => None,
+            _ => None,
         }
     }
 
@@ -1303,30 +1334,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find formula {formula} for eventuality traversal"
             ))
         })?;
-        if let Some(predication) = object.predication
+        if let Some(predication) = object.formula_predication()
             && let Some(eventuality) = self
                 .objects
                 .get(&predication)
-                .and_then(|object| object.eventuality)
+                .and_then(SemanticObject::predication_eventuality)
             && seen.insert(eventuality)
         {
             eventualities.push(eventuality);
         }
-        for child in &object.children {
+        for child in object.formula_children() {
             self.collect_eventualities_for_generated_formula_predications(
                 *child,
                 eventualities,
                 seen,
             )?;
         }
-        if let Some(restriction) = object.restriction {
+        if let Some(restriction) = object.formula_restriction() {
             self.collect_eventualities_for_generated_formula_predications(
                 restriction,
                 eventualities,
                 seen,
             )?;
         }
-        if let Some(body) = object.body {
+        if let Some(body) = object.formula_body() {
             self.collect_eventualities_for_generated_formula_predications(
                 body,
                 eventualities,
@@ -1351,7 +1382,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let eventuality = self.next_eventuality_id();
         let mut event = SemanticObject::eventuality(EventualityClass::Event, None, source);
-        event.content = Some(content);
+        event.update_eventuality(|node| node.with_data(data! { content: Some(content) }));
         self.insert(eventuality, event)?;
         self.content_eventualities.insert(content, eventuality);
         Ok(eventuality)
@@ -1380,9 +1411,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         content: SemanticObjectId,
     ) {
         if let Some(object) = self.objects.get_mut(&eventuality)
-            && object.content.is_none()
+            && object
+                .as_eventuality()
+                .is_some_and(|node| node.content.is_none())
         {
-            object.content = Some(content);
+            object.update_eventuality(|node| node.with_data(data! { content: Some(content) }));
         }
     }
 
@@ -1397,7 +1430,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let object_kind = object.object_kind();
-        let content = object.content;
+        let content = object
+            .as_utterance()
+            .and_then(|utterance| utterance.content);
         match object_kind {
             crate::model::SemanticObjectKind::Sequence => self
                 .reified_eventuality_for_generated_content(item, source)
@@ -1417,7 +1452,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         let body = self
                             .objects
                             .get(&content)
-                            .and_then(|question| question.body);
+                            .and_then(|question| question.as_question())
+                            .map(|question| question.body);
                         match body {
                             Some(body) => self
                                 .modal_eventuality_argument_for_generated_formula(body, source)
@@ -1558,7 +1594,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Vec::new(),
         )?;
         if let Some(object) = self.objects.get_mut(&predication) {
-            object.introduced_by = Some(spec.introduced_by.clone());
+            object.update_predication(|node| {
+                node.with_data(data! { introduced_by: Some(spec.introduced_by.clone()) })
+            });
         }
         let formula = self.next_formula_id();
         self.insert(
@@ -1690,10 +1728,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         item: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&item)?;
-        let content = object.content.unwrap_or(item);
+        let content = object
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .unwrap_or(item);
         let content_object = self.objects.get(&content)?;
-        if content_object.object_type == crate::model::SemanticObjectKind::Question {
-            return content_object.body;
+        if content_object.object_kind() == crate::model::SemanticObjectKind::Question {
+            return content_object.as_question().map(|question| question.body);
         }
         Some(content)
     }
@@ -1782,10 +1823,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             Vec::new(),
         );
-        object.target_focus = target_focus;
-        object.intensity = draft.intensity;
-        object.phase = draft.phase;
-        object.modifiers = draft.modifiers;
+        object.update_displayed_content(|node| {
+            node.with_data(data! {
+                target_focus: target_focus,
+                intensity: draft.intensity,
+                phase: draft.phase,
+                modifiers: draft.modifiers,
+            })
+        });
         self.insert(id, object)?;
         if self.objects.contains_key(&anchor) {
             self.add_generated_utterance_asides(anchor, vec![id]);
@@ -1891,7 +1936,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         if let Some(object) = self.objects.get_mut(&utterance) {
-            object.vocative_kind = Some(vocative_kind.clone());
+            object.update_utterance(|node| {
+                node.with_data(data! { vocative_kind: Some(vocative_kind.clone()) })
+            });
         }
         if addressed_or_identified.object_kind() == crate::model::SemanticObjectKind::Referent {
             if vocative_kind == "selfIdentification" {
@@ -1961,14 +2008,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Vec::new(),
         );
         if let Some(relative_clauses) = &sumti.leading_relative_clauses {
-            object
-                .relative_clauses
-                .extend(self.lower_generated_relative_clause_list(relative_clauses, id)?);
+            let clauses = self.lower_generated_relative_clause_list(relative_clauses, id)?;
+            object.update_referent(|node| {
+                let mut data = node.into_data();
+                data.relative_clauses.extend(clauses);
+                ReferentNode::from_data(data)
+            });
         }
         if let Some(relative_clauses) = &sumti.trailing_relative_clauses {
-            object
-                .relative_clauses
-                .extend(self.lower_generated_relative_clause_list(relative_clauses, id)?);
+            let clauses = self.lower_generated_relative_clause_list(relative_clauses, id)?;
+            object.update_referent(|node| {
+                let mut data = node.into_data();
+                data.relative_clauses.extend(clauses);
+                ReferentNode::from_data(data)
+            });
         }
         self.insert(id, object)?;
         Ok(id)
@@ -2060,7 +2113,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         audience: SemanticObjectId,
     ) {
         if let Some(object) = self.objects.get_mut(&utterance) {
-            object.audience = Some(audience);
+            object.update_utterance(|node| node.with_data(data! { audience: audience }));
         }
     }
 
@@ -2073,7 +2126,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         target: SemanticObjectId,
     ) {
         if let Some(object) = self.objects.get_mut(&referent) {
-            object.target = Some(target);
+            match object.object_kind() {
+                crate::model::SemanticObjectKind::Referent => {
+                    if object.as_eventuality().is_some() {
+                        object.update_eventuality(|node| {
+                            node.with_data(data! { target: Some(target) })
+                        });
+                    } else if object.as_sign().is_some() {
+                        object.update_sign(|node| node.with_data(data! { target: Some(target) }));
+                    } else {
+                        object
+                            .update_referent(|node| node.with_data(data! { target: Some(target) }));
+                    }
+                }
+                _ => unreachable!("referent id must identify a referent variant"),
+            }
         }
     }
 
@@ -2310,9 +2377,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.next_index += 1;
         let slots = parameters
             .into_iter()
-            .map(|parameter| QuestionSlot {
-                parameter,
-                role: QuestionSlotRole::Answer,
+            .map(|parameter| {
+                new!(QuestionSlot {
+                    parameter,
+                    role: QuestionSlotRole::Answer,
+                })
             })
             .collect::<Vec<_>>();
         self.insert(
@@ -2413,8 +2482,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.current_audience(),
                 source,
             );
-            object.focus = Some(focus);
-            object.presupposed_answer = presupposed_answer;
+            object.update_question(|node| {
+                node.with_data(data! {
+                    focus: Some(focus),
+                    presupposed_answer: presupposed_answer,
+                })
+            });
             self.insert(id, object)?;
             questions.push(id);
         }
@@ -2496,7 +2569,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .unwrap_or(usize::MAX);
         if let Some(outer_order) = self.generated_quantifier_formula_source_order(body)
             && outer_order <= existential_order
-            && let Some(inner_body) = self.objects.get(&body).and_then(|object| object.body)
+            && let Some(inner_body) = self
+                .objects
+                .get(&body)
+                .and_then(SemanticObject::formula_body)
         {
             let wrapped_inner = self.wrap_formula_with_generated_implicit_existential_ordered(
                 inner_body,
@@ -2505,7 +2581,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if wrapped_inner != inner_body
                 && let Some(object) = self.objects.get_mut(&body)
             {
-                object.body = Some(wrapped_inner);
+                object.update_formula(|formula| match formula.into_data() {
+                    data!(FormulaNode::Quantified(node)) => new!(FormulaNode::Quantified(
+                        node.with_data(data! { body: wrapped_inner })
+                    )),
+                    data => FormulaNode::from_data(data),
+                });
             }
             return Ok(body);
         }
@@ -2549,20 +2630,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<usize> {
         let object = self.objects.get(&formula)?;
-        let is_quantifier = object.operator.as_ref().is_some_and(|operator| {
+        let is_quantifier = object.formula_operator().is_some_and(|operator| {
             matches!(
-                operator.as_data(),
-                SemanticOperatorData::Formula(
-                    FormulaOperator::Exists
-                        | FormulaOperator::Forall
-                        | FormulaOperator::None
-                        | FormulaOperator::Cardinality
-                        | FormulaOperator::PluralExists
-                        | FormulaOperator::PluralForall
-                )
+                operator,
+                FormulaOperator::Exists
+                    | FormulaOperator::Forall
+                    | FormulaOperator::None
+                    | FormulaOperator::Cardinality
+                    | FormulaOperator::PluralExists
+                    | FormulaOperator::PluralForall
             )
         });
-        is_quantifier.then(|| object.source.as_ref().map(|source| source.span.byte_start))?
+        is_quantifier.then(|| object.source().map(|source| source.span.byte_start))?
     }
 
     #[requires(item.object_kind() == crate::model::SemanticObjectKind::Utterance || item.object_kind() == crate::model::SemanticObjectKind::Sequence)]
@@ -2586,7 +2665,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if scopes.is_empty() {
             return Ok(());
         }
-        let Some(content) = self.objects.get(&item).and_then(|object| object.content) else {
+        let Some(content) = self
+            .objects
+            .get(&item)
+            .and_then(|object| match object.as_data() {
+                data!(SemanticObject::Utterance(node)) => node.content,
+                data!(SemanticObject::Sequence(node)) => node.content,
+                _ => None,
+            })
+        else {
             return Ok(());
         };
         let variables = generated_prenex_formula_scope_variables(&scopes);
@@ -2594,10 +2681,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.strip_generated_implicit_quantifiers_from_content(content, &variables)?;
         self.strip_generated_implicit_quantifiers_for_variables_everywhere(&variables)?;
         let wrapped = self.wrap_generated_content_with_prenex_scopes(content, scopes)?;
-        if let Some(object) = self.objects.get_mut(&item)
-            && object.content != Some(wrapped)
-        {
-            object.content = Some(wrapped);
+        if let Some(object) = self.objects.get_mut(&item) {
+            match object.object_kind() {
+                crate::model::SemanticObjectKind::Utterance => {
+                    object.update_utterance(|node| node.with_data(data! { content: Some(wrapped) }))
+                }
+                crate::model::SemanticObjectKind::Sequence => {
+                    object.update_sequence(|node| node.with_data(data! { content: Some(wrapped) }))
+                }
+                _ => {}
+            }
         }
         Ok(())
     }
@@ -2614,13 +2707,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.wrap_formula_with_generated_prenex_scopes(content, scopes)
             }
             crate::model::SemanticObjectKind::Question => {
-                let body = self.objects.get(&content).and_then(|object| object.body);
+                let body = self
+                    .objects
+                    .get(&content)
+                    .and_then(|object| object.as_question())
+                    .map(|question| question.body);
                 if let Some(body) = body {
                     let wrapped = self.wrap_formula_with_generated_prenex_scopes(body, scopes)?;
                     if wrapped != body
                         && let Some(object) = self.objects.get_mut(&content)
                     {
-                        object.body = Some(wrapped);
+                        object.update_question(|node| node.with_data(data! { body: wrapped }));
                     }
                 }
                 Ok(content)
@@ -2645,14 +2742,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.strip_generated_implicit_quantifiers_for_variables(content, variables)
             }
             crate::model::SemanticObjectKind::Question => {
-                let body = self.objects.get(&content).and_then(|object| object.body);
+                let body = self
+                    .objects
+                    .get(&content)
+                    .and_then(|object| object.as_question())
+                    .map(|question| question.body);
                 if let Some(body) = body {
                     let stripped =
                         self.strip_generated_implicit_quantifiers_for_variables(body, variables)?;
                     if stripped != body
                         && let Some(object) = self.objects.get_mut(&content)
                     {
-                        object.body = Some(stripped);
+                        object.update_question(|node| node.with_data(data! { body: stripped }));
                     }
                 }
                 Ok(content)
@@ -2675,28 +2776,35 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(object) = self.objects.get(&formula) else {
             return Ok(formula);
         };
-        let is_implicit_target = object.operator.as_ref().is_some_and(|operator| {
-            matches!(
-                operator.as_data(),
-                SemanticOperatorData::Formula(actual) if *actual == FormulaOperator::Exists
-            )
-        }) && object.quantity.is_none()
-            && object
-                .variable
-                .is_some_and(|variable| variables.contains(&variable));
-        if is_implicit_target && let Some(body) = object.body {
+        let quantified = object
+            .as_formula()
+            .and_then(|formula| match formula.as_data() {
+                data!(FormulaNode::Quantified(node)) => Some(node),
+                _ => None,
+            });
+        let is_implicit_target = quantified.is_some_and(|node| {
+            node.operator == FormulaOperator::Exists
+                && node.quantity.is_none()
+                && variables.contains(&node.variable)
+        });
+        if is_implicit_target && let Some(body) = object.formula_body() {
             let stripped =
                 self.strip_generated_implicit_quantifiers_for_variables(body, variables)?;
             self.replace_generated_formula_reference_everywhere(formula, stripped);
             self.objects.remove(&formula);
             return Ok(stripped);
         }
-        let body = object.body;
-        let restriction = object.restriction;
-        let children = object.children.clone();
+        let body = object.formula_body();
+        let restriction = object.formula_restriction();
+        let children = object.formula_children().to_vec();
         let binding_restrictions = object
-            .bindings
-            .iter()
+            .as_formula()
+            .and_then(|formula| match formula.as_data() {
+                data!(FormulaNode::QuantifierBundle(node)) => Some(&node.bindings),
+                _ => None,
+            })
+            .into_iter()
+            .flatten()
             .map(|binding| binding.restriction)
             .collect::<Vec<_>>();
         if let Some(body) = body {
@@ -2705,7 +2813,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if stripped != body
                 && let Some(object) = self.objects.get_mut(&formula)
             {
-                object.body = Some(stripped);
+                object.update_formula(|formula| match formula.into_data() {
+                    data!(FormulaNode::Quantified(node)) => new!(FormulaNode::Quantified(
+                        node.with_data(data! { body: stripped })
+                    )),
+                    data!(FormulaNode::QuantifierBundle(node)) => new!(
+                        FormulaNode::QuantifierBundle(node.with_data(data! { body: stripped }))
+                    ),
+                    data!(FormulaNode::RespectivelyDistribution(node)) => {
+                        new!(FormulaNode::RespectivelyDistribution(
+                            node.with_data(data! { body: stripped })
+                        ))
+                    }
+                    data => FormulaNode::from_data(data),
+                });
             }
         }
         if let Some(restriction) = restriction {
@@ -2714,7 +2835,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if stripped != restriction
                 && let Some(object) = self.objects.get_mut(&formula)
             {
-                object.restriction = Some(stripped);
+                object.update_formula(|formula| match formula.into_data() {
+                    data!(FormulaNode::Quantified(node)) => new!(FormulaNode::Quantified(
+                        node.with_data(data! { restriction: Some(stripped) })
+                    )),
+                    data => FormulaNode::from_data(data),
+                });
             }
         }
         if !binding_restrictions.is_empty() {
@@ -2731,15 +2857,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 stripped_restrictions.push(Some(stripped));
             }
             if changed && let Some(object) = self.objects.get_mut(&formula) {
-                for (binding, restriction) in object
-                    .bindings
-                    .iter_mut()
-                    .zip(stripped_restrictions.into_iter())
-                {
-                    *binding = binding
-                        .clone()
-                        .with_data(data! { restriction: restriction });
-                }
+                object.update_formula(|formula| match formula.into_data() {
+                    data!(FormulaNode::QuantifierBundle(node)) => {
+                        let mut node_data = node.into_data();
+                        for (binding, restriction) in
+                            node_data.bindings.iter_mut().zip(stripped_restrictions)
+                        {
+                            *binding = binding
+                                .clone()
+                                .with_data(data! { restriction: restriction });
+                        }
+                        new!(FormulaNode::QuantifierBundle(
+                            QuantifierBundleFormulaNode::from_data(node_data)
+                        ))
+                    }
+                    data => FormulaNode::from_data(data),
+                });
             }
         }
         if !children.is_empty() {
@@ -2752,7 +2885,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 stripped_children.push(stripped);
             }
             if changed && let Some(object) = self.objects.get_mut(&formula) {
-                object.children = stripped_children;
+                object.update_formula(|formula| match formula.into_data() {
+                    data!(FormulaNode::Connective(node)) => new!(FormulaNode::Connective(
+                        node.with_data(data! { children: stripped_children })
+                    )),
+                    data => FormulaNode::from_data(data),
+                });
             }
         }
         Ok(formula)
@@ -2797,75 +2935,94 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return;
         }
         for object in self.objects.values_mut() {
-            replace_generated_formula_option(&mut object.content, old_id, new_id);
-            replace_generated_formula_vec(&mut object.connection_claims, old_id, new_id);
-            if let Some(descriptor) = object.descriptor.take() {
-                let mut descriptor = descriptor.into_data();
-                replace_generated_formula_option(&mut descriptor.body, old_id, new_id);
-                replace_generated_relative_clause_formula_references(
-                    &mut descriptor.relative_clauses,
-                    old_id,
-                    new_id,
-                );
-                object.descriptor = Some(Descriptor::from_data(descriptor));
+            if object.as_utterance().is_some() {
+                object.update_utterance(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_formula_option(&mut data.content, old_id, new_id);
+                    UtteranceNode::from_data(data)
+                });
+            } else if object.as_sequence().is_some() {
+                object.update_sequence(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_formula_option(&mut data.content, old_id, new_id);
+                    replace_generated_formula_vec(&mut data.connection_claims, old_id, new_id);
+                    SequenceNode::from_data(data)
+                });
+            } else if object.as_eventuality().is_some() {
+                object.update_eventuality(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_descriptor_formula_references(
+                        &mut data.descriptor,
+                        old_id,
+                        new_id,
+                    );
+                    replace_generated_relative_clause_formula_references(
+                        &mut data.relative_clauses,
+                        old_id,
+                        new_id,
+                    );
+                    replace_generated_formula_option(&mut data.content, old_id, new_id);
+                    replace_generated_formula_option(&mut data.body, old_id, new_id);
+                    replace_generated_formula_option(&mut data.target, old_id, new_id);
+                    EventualityNode::from_data(data)
+                });
+            } else if object.as_referent().is_some() {
+                object.update_referent(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_descriptor_formula_references(
+                        &mut data.descriptor,
+                        old_id,
+                        new_id,
+                    );
+                    replace_generated_relative_clause_formula_references(
+                        &mut data.relative_clauses,
+                        old_id,
+                        new_id,
+                    );
+                    replace_generated_formula_option(&mut data.body, old_id, new_id);
+                    replace_generated_formula_option(&mut data.abstracted, old_id, new_id);
+                    replace_generated_formula_option(&mut data.target, old_id, new_id);
+                    ReferentNode::from_data(data)
+                });
+            } else if object.as_predication().is_some() {
+                object.update_predication(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_predication_formula_references(&mut data, old_id, new_id);
+                    PredicationNode::from_data(data)
+                });
+            } else if object.as_formula().is_some() {
+                object.update_formula(|formula| {
+                    replace_generated_formula_node_references(formula, old_id, new_id)
+                });
+            } else if object.as_sign().is_some() {
+                object.update_sign(|node| {
+                    let mut data = node.into_data();
+                    replace_generated_descriptor_formula_references(
+                        &mut data.descriptor,
+                        old_id,
+                        new_id,
+                    );
+                    replace_generated_formula_option(&mut data.target, old_id, new_id);
+                    SignNode::from_data(data)
+                });
+            } else if object.as_displayed_content().is_some() {
+                object.update_displayed_content(|node| {
+                    let mut data = node.into_data();
+                    if data.target == old_id {
+                        data.target = new_id;
+                    }
+                    DisplayedContentNode::from_data(data)
+                });
+            } else if object.as_question().is_some() {
+                object.update_question(|node| {
+                    let mut data = node.into_data();
+                    if data.body == old_id {
+                        data.body = new_id;
+                    }
+                    replace_generated_formula_option(&mut data.presupposed_answer, old_id, new_id);
+                    QuestionNode::from_data(data)
+                });
             }
-            replace_generated_relative_clause_formula_references(
-                &mut object.relative_clauses,
-                old_id,
-                new_id,
-            );
-            for argument in object.arguments.values_mut() {
-                replace_generated_argument_value_formula_references(argument, old_id, new_id);
-            }
-            for question in &mut object.place_questions {
-                let mut argument = question.argument.clone();
-                replace_generated_argument_value_formula_references(&mut argument, old_id, new_id);
-                if argument != question.argument {
-                    *question = question.clone().with_data(data! { argument: argument });
-                }
-            }
-            for modal_argument in &mut object.modal_arguments {
-                let mut arguments = modal_argument.arguments.clone();
-                for argument in arguments.values_mut() {
-                    replace_generated_argument_value_formula_references(argument, old_id, new_id);
-                }
-                let mut body = modal_argument.body;
-                replace_generated_formula_option(&mut body, old_id, new_id);
-                if arguments != modal_argument.arguments || body != modal_argument.body {
-                    *modal_argument = modal_argument.clone().with_data(data! {
-                        arguments: arguments,
-                        body: body,
-                    });
-                }
-            }
-            for exchange in &mut object.reciprocity {
-                let mut left = exchange.left.clone();
-                let mut right = exchange.right.clone();
-                replace_generated_argument_value_formula_references(&mut left, old_id, new_id);
-                replace_generated_argument_value_formula_references(&mut right, old_id, new_id);
-                if left != exchange.left || right != exchange.right {
-                    *exchange = exchange.clone().with_data(data! {
-                        left: left,
-                        right: right,
-                    });
-                }
-            }
-            replace_generated_formula_option(&mut object.predication, old_id, new_id);
-            replace_generated_formula_vec(&mut object.children, old_id, new_id);
-            replace_generated_formula_option(&mut object.restriction, old_id, new_id);
-            replace_generated_formula_option(&mut object.body, old_id, new_id);
-            for binding in &mut object.bindings {
-                let mut restriction = binding.restriction;
-                replace_generated_formula_option(&mut restriction, old_id, new_id);
-                if restriction != binding.restriction {
-                    *binding = binding
-                        .clone()
-                        .with_data(data! { restriction: restriction });
-                }
-            }
-            replace_generated_formula_option(&mut object.abstracted, old_id, new_id);
-            replace_generated_formula_option(&mut object.target, old_id, new_id);
-            replace_generated_formula_option(&mut object.presupposed_answer, old_id, new_id);
         }
     }
 
@@ -2881,26 +3038,57 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return;
         }
         for object in self.objects.values_mut() {
-            if object.eventuality == Some(old_id) {
-                object.eventuality = Some(new_id);
-            }
-            if object
-                .deictic_ground
-                .as_ref()
-                .is_some_and(|ground| ground.time == old_id)
-            {
-                object.deictic_ground = object.deictic_ground.map(|mut ground| {
-                    ground.time = new_id;
-                    ground
+            if object.as_utterance().is_some() {
+                object.update_utterance(|node| {
+                    let mut data = node.into_data();
+                    if data.eventuality == old_id {
+                        data.eventuality = new_id;
+                    }
+                    if data.deictic_ground.time == old_id {
+                        data.deictic_ground.time = new_id;
+                    }
+                    UtteranceNode::from_data(data)
                 });
-            }
-            if let Some(time) = object.time.as_mut()
-                && time.anchor == old_id
-            {
-                *time = time.clone().with_data(data! { anchor: new_id });
-            }
-            if object.anchor == Some(old_id) {
-                object.anchor = Some(new_id);
+            } else if object.as_predication().is_some() {
+                object.update_predication(|node| {
+                    let mut data = node.into_data();
+                    if data.eventuality == Some(old_id) {
+                        data.eventuality = Some(new_id);
+                    }
+                    PredicationNode::from_data(data)
+                });
+            } else if object.as_formula().is_some() {
+                object.set_scoped_formula_eventuality(object.as_formula().and_then(|formula| {
+                    match formula.as_data() {
+                        data!(FormulaNode::Connective(node))
+                            if node.eventuality == Some(old_id) =>
+                        {
+                            Some(new_id)
+                        }
+                        data!(FormulaNode::Connective(node)) => node.eventuality,
+                        _ => None,
+                    }
+                }));
+            } else if object.as_eventuality().is_some() {
+                object.update_eventuality(|node| {
+                    let mut data = node.into_data();
+                    if let Some(time) = data.time.take() {
+                        data.time = Some(if time.anchor == old_id {
+                            time.with_data(data! { anchor: new_id })
+                        } else {
+                            time
+                        });
+                    }
+                    EventualityNode::from_data(data)
+                });
+            } else if object.as_displayed_content().is_some() {
+                object.update_displayed_content(|node| {
+                    if node.anchor == old_id {
+                        node.with_data(data! { anchor: new_id })
+                    } else {
+                        node
+                    }
+                });
             }
         }
         for event in &mut self.temporal_context_stack {
@@ -2917,10 +3105,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
         let object = self.objects.get(&formula)?;
-        let predication = object.predication?;
+        let predication = object.formula_predication()?;
         self.objects
             .get(&predication)
-            .and_then(|object| object.eventuality)
+            .and_then(SemanticObject::predication_eventuality)
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
@@ -3667,7 +3855,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             diagnostics,
         );
-        object.content = formula;
+        object.update_sequence(|node| node.with_data(data! { content: formula }));
         self.insert(sequence, object)?;
         Ok((sequence, formula))
     }
@@ -3901,8 +4089,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             diagnostics,
         );
-        object.content = content;
-        object.nonlogical_connection = nonlogical_connection;
+        object.update_sequence(|node| {
+            node.with_data(data! {
+                content: content,
+                nonlogical_connection: nonlogical_connection,
+            })
+        });
         self.insert(sequence, object)?;
         Ok(sequence)
     }
@@ -3911,8 +4103,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn mark_generated_discourse_item_subordinated(&mut self, item: SemanticObjectId) {
         let content = if let Some(object) = self.objects.get_mut(&item) {
-            object.force = Some(UtteranceForce::Subordinated);
-            object.content
+            if let Some(content) = object.as_utterance().and_then(|node| node.content) {
+                object.update_utterance(|node| {
+                    node.with_data(data! { force: UtteranceForce::Subordinated })
+                });
+                Some(content)
+            } else {
+                object.as_sequence().and_then(|node| node.content)
+            }
         } else {
             None
         };
@@ -3933,23 +4131,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(object) = self.objects.get(&formula).cloned() else {
             return;
         };
-        if let Some(predication) = object.predication
+        if let Some(predication) = object.formula_predication()
             && self
                 .objects
                 .get(&predication)
-                .and_then(|object| object.relation.as_deref())
+                .and_then(|object| object.as_predication())
+                .and_then(|node| match node.relation.as_data() {
+                    data!(PredicationRelation::Named { relation }) => Some(relation.as_str()),
+                    data!(PredicationRelation::Parameter { .. }) => None,
+                })
                 .is_some_and(generated_relation_is_pro_bridi_label)
             && let Some(object) = self.objects.get_mut(&predication)
         {
-            object.mode = Some(mode);
+            object.set_predication_mode(mode);
         }
-        for child in object.children {
+        for child in object.formula_children().to_vec() {
             self.set_generated_pro_bridi_formula_predication_mode(child, mode);
         }
-        if let Some(restriction) = object.restriction {
+        if let Some(restriction) = object.formula_restriction() {
             self.set_generated_pro_bridi_formula_predication_mode(restriction, mode);
         }
-        if let Some(body) = object.body {
+        if let Some(body) = object.formula_body() {
             self.set_generated_pro_bridi_formula_predication_mode(body, mode);
         }
     }
@@ -4094,7 +4296,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.source_for_node(connection, "statement-connection"),
             Vec::new(),
         );
-        object.content = Some(formula);
+        object.update_sequence(|node| node.with_data(data! { content: Some(formula) }));
         self.insert(sequence, object)?;
         Ok(sequence)
     }

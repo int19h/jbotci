@@ -654,13 +654,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .get(&formula)
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing generated formula {formula}")))?;
-        if let Some(predication) = object.predication {
+        if let Some(predication) = object.formula_predication() {
             self.attach_generated_modal_term_to_predication(predication, modal_term)?;
         }
-        for child in object.children {
+        for child in object.formula_children().to_vec() {
             self.attach_generated_modal_term_to_formula(child, modal_term)?;
         }
-        if let Some(body) = object.body {
+        if let Some(body) = object.formula_body() {
             self.attach_generated_modal_term_to_formula(body, modal_term)?;
         }
         Ok(())
@@ -677,7 +677,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let object = self.objects.get(&predication).ok_or_else(|| {
                 invalid_graph(format!("missing generated predication {predication}"))
             })?;
-            (object.mode, object.eventuality)
+            (object.predication_mode(), object.predication_eventuality())
         };
         if mode != Some(PredicationMode::Asserted) {
             return Ok(());
@@ -694,8 +694,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .objects
             .get_mut(&predication)
             .ok_or_else(|| invalid_graph(format!("missing generated predication {predication}")))?;
-        if !object.modal_arguments.contains(&modal_argument) {
-            object.modal_arguments.push(modal_argument);
+        if object
+            .predication_modal_arguments()
+            .is_some_and(|arguments| !arguments.contains(&modal_argument))
+        {
+            object.update_predication(|node| {
+                let mut data = node.into_data();
+                data.modal_arguments.push(modal_argument);
+                PredicationNode::from_data(data)
+            });
         }
         Ok(())
     }
@@ -760,12 +767,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .ok_or_else(|| invalid_graph(format!("missing generated discourse item {id}")))?;
         match object.object_kind() {
             crate::model::SemanticObjectKind::Utterance => {
-                if let Some(content) = object.content {
+                if let Some(content) = object.as_utterance().and_then(|node| node.content) {
                     self.attach_modal_argument_to_generated_content(content, modal_argument)?;
                 }
             }
             crate::model::SemanticObjectKind::Sequence => {
-                for item in object.items {
+                for item in object
+                    .as_sequence()
+                    .map(|node| node.items.clone())
+                    .unwrap_or_default()
+                {
                     self.attach_modal_argument_to_generated_discourse_item(item, modal_argument)?;
                 }
             }
@@ -808,13 +819,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .get(&id)
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing generated formula {id}")))?;
-        if let Some(predication) = object.predication {
+        if let Some(predication) = object.formula_predication() {
             self.attach_modal_argument_to_generated_predication(predication, modal_argument)?;
         }
-        for child in object.children {
+        for child in object.formula_children().to_vec() {
             self.attach_modal_argument_to_generated_formula(child, modal_argument)?;
         }
-        if let Some(body) = object.body {
+        if let Some(body) = object.formula_body() {
             self.attach_modal_argument_to_generated_formula(body, modal_argument)?;
         }
         Ok(())
@@ -832,13 +843,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .get(&id)
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing generated formula {id}")))?;
-        if let Some(predication) = object.predication {
+        if let Some(predication) = object.formula_predication() {
             self.prepend_modal_argument_to_generated_predication(predication, modal_argument)?;
         }
-        for child in object.children {
+        for child in object.formula_children().to_vec() {
             self.prepend_modal_argument_to_generated_formula(child, modal_argument)?;
         }
-        if let Some(body) = object.body {
+        if let Some(body) = object.formula_body() {
             self.prepend_modal_argument_to_generated_formula(body, modal_argument)?;
         }
         Ok(())
@@ -856,7 +867,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .objects
                 .get(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
-            (object.mode, object.eventuality)
+            (object.predication_mode(), object.predication_eventuality())
         };
         if mode == Some(PredicationMode::Asserted) {
             let mut modal_argument = modal_argument.clone();
@@ -867,8 +878,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .objects
                 .get_mut(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
-            if !object.modal_arguments.contains(&modal_argument) {
-                object.modal_arguments.push(modal_argument);
+            if object
+                .predication_modal_arguments()
+                .is_some_and(|arguments| !arguments.contains(&modal_argument))
+            {
+                object.update_predication(|node| {
+                    let mut data = node.into_data();
+                    data.modal_arguments.push(modal_argument);
+                    PredicationNode::from_data(data)
+                });
             }
         }
         Ok(())
@@ -886,7 +904,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .objects
                 .get(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
-            (object.mode, object.eventuality)
+            (object.predication_mode(), object.predication_eventuality())
         };
         if mode == Some(PredicationMode::Asserted) {
             let mut modal_argument = modal_argument.clone();
@@ -897,8 +915,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .objects
                 .get_mut(&id)
                 .ok_or_else(|| invalid_graph(format!("missing generated predication {id}")))?;
-            if !object.modal_arguments.contains(&modal_argument) {
-                object.modal_arguments.insert(0, modal_argument);
+            if object
+                .predication_modal_arguments()
+                .is_some_and(|arguments| !arguments.contains(&modal_argument))
+            {
+                object.update_predication(|node| {
+                    let mut data = node.into_data();
+                    data.modal_arguments.insert(0, modal_argument);
+                    PredicationNode::from_data(data)
+                });
             }
         }
         Ok(())
@@ -1840,26 +1865,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
             }
             if let Some(time_span) = time_span {
-                event.time_span = Some(time_span);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { time_span: Some(time_span) })
+                });
             }
             let scalar_negation = generated_modal_scalar_negation_for_tense_modal(tense_modal);
             if let Some(actuality) = generated_actuality_for_tense_modal(tense_modal) {
-                event.actuality = Some(actuality);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { actuality: Some(actuality) })
+                });
             }
             if let Some(parameter) =
                 self.build_generated_tense_question_parameter_for_tense_modal(tense_modal)?
             {
-                event.tense_modal = Some(parameter);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { tense_modal: Some(parameter) })
+                });
             }
             if let Some(time_interval) =
                 generated_time_interval_for_tense_modal(tense_modal, anchor)
             {
-                event.time_interval = Some(time_interval);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { time_interval: Some(time_interval) })
+                });
             }
             if let Some(space_interval) =
                 generated_space_interval_for_tense_modal(tense_modal, anchor)
             {
-                event.space_interval = Some(space_interval);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { space_interval: Some(space_interval) })
+                });
             }
             let recurrence_modifiers = self.build_generated_recurrence_event_modifiers(
                 tense_modal,
@@ -1872,18 +1907,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 recurrence_modifiers.temporal_aspects,
                 false,
             );
-            event
-                .recurrence
-                .extend(recurrence_modifiers.temporal_recurrences);
-            event
-                .interval_modifiers
-                .extend(recurrence_modifiers.temporal_interval_modifiers);
-            event
-                .spatial_recurrence
-                .extend(recurrence_modifiers.spatial_recurrences);
-            event
-                .spatial_interval_modifiers
-                .extend(recurrence_modifiers.spatial_interval_modifiers);
+            event.update_eventuality(|node| {
+                let mut data = node.into_data();
+                data.recurrence
+                    .extend(recurrence_modifiers.temporal_recurrences);
+                data.interval_modifiers
+                    .extend(recurrence_modifiers.temporal_interval_modifiers);
+                data.spatial_recurrence
+                    .extend(recurrence_modifiers.spatial_recurrences);
+                data.spatial_interval_modifiers
+                    .extend(recurrence_modifiers.spatial_interval_modifiers);
+                EventualityNode::from_data(data)
+            });
             apply_generated_aspects_to_event(
                 &mut event,
                 recurrence_modifiers.spatial_aspects,
@@ -1898,19 +1933,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 visible_place,
                 relation_place_count(self.dictionary, &relation),
             )?;
-            event
-                .modal_arguments
-                .push(self.generated_modal_argument_with_tense_modal_modifiers(
-                    tense_modal,
-                    relation,
-                    introduced_by,
-                    arguments,
-                    generated_modal_negation_for_tense_modal(tense_modal),
-                    generated_modal_scalar_negation_for_tense_modal(tense_modal),
-                    "modal-fragment",
-                ));
+            let modal_argument = self.generated_modal_argument_with_tense_modal_modifiers(
+                tense_modal,
+                relation,
+                introduced_by,
+                arguments,
+                generated_modal_negation_for_tense_modal(tense_modal),
+                generated_modal_scalar_negation_for_tense_modal(tense_modal),
+                "modal-fragment",
+            );
+            event.update_eventuality(|node| {
+                let mut data = node.into_data();
+                data.modal_arguments.push(modal_argument);
+                EventualityNode::from_data(data)
+            });
         } else {
-            event.diagnostics.push(diagnostic(
+            event.push_diagnostic(diagnostic(
                 "tense/modal fragment has no implemented semantic value",
             ));
         }
@@ -1961,7 +1999,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 invalid_graph(format!("missing generated eventuality {eventuality}"))
             })?;
             clear_generated_event_time_path(event);
-            event.time = Some(new!(AnchorRelation {
+            let time = new!(AnchorRelation {
                 relation: "at".to_owned(),
                 anchor: current_now,
                 sticky: false,
@@ -1970,10 +2008,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 magnitude: None,
                 scalar_negation: None,
                 motion: None,
-            }));
-            if let Some(actuality) = actuality {
-                event.actuality = Some(actuality);
-            }
+            });
+            event.update_eventuality(|node| {
+                let mut data = node.into_data();
+                data.time = Some(time);
+                if actuality.is_some() {
+                    data.actuality = actuality;
+                }
+                EventualityNode::from_data(data)
+            });
             return Ok(());
         }
         let anchor_was_explicit = anchor.is_some();
@@ -2032,10 +2075,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 invalid_graph(format!("missing generated eventuality {eventuality}"))
             })?;
             if let Some(actuality) = actuality {
-                event.actuality = Some(actuality);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { actuality: Some(actuality) })
+                });
             }
             if let Some(parameter) = tense_question_parameter {
-                event.tense_modal = Some(parameter);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { tense_modal: Some(parameter) })
+                });
             }
             for (domain, relation, introduced_by, explicit_anchor) in anchor_relations {
                 apply_generated_anchor_relation_to_event(
@@ -2047,27 +2094,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
             }
             if let Some(time_interval) = time_interval {
-                event.time_interval = Some(time_interval);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { time_interval: Some(time_interval) })
+                });
             }
             if let Some(time_span) = time_span {
-                event.time_span = Some(time_span);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { time_span: Some(time_span) })
+                });
             }
             if let Some(space_interval) = space_interval {
-                event.space_interval = Some(space_interval);
+                event.update_eventuality(|node| {
+                    node.with_data(data! { space_interval: Some(space_interval) })
+                });
             }
             apply_generated_aspects_to_event(event, recurrence_modifiers.temporal_aspects, false);
-            event
-                .recurrence
-                .extend(recurrence_modifiers.temporal_recurrences);
-            event
-                .interval_modifiers
-                .extend(recurrence_modifiers.temporal_interval_modifiers);
-            event
-                .spatial_recurrence
-                .extend(recurrence_modifiers.spatial_recurrences);
-            event
-                .spatial_interval_modifiers
-                .extend(recurrence_modifiers.spatial_interval_modifiers);
+            event.update_eventuality(|node| {
+                let mut data = node.into_data();
+                data.recurrence
+                    .extend(recurrence_modifiers.temporal_recurrences);
+                data.interval_modifiers
+                    .extend(recurrence_modifiers.temporal_interval_modifiers);
+                data.spatial_recurrence
+                    .extend(recurrence_modifiers.spatial_recurrences);
+                data.spatial_interval_modifiers
+                    .extend(recurrence_modifiers.spatial_interval_modifiers);
+                EventualityNode::from_data(data)
+            });
             apply_generated_aspects_to_event(event, recurrence_modifiers.spatial_aspects, true);
             let mut update = GeneratedStickyEventUpdate::default();
             if generated_tense_modal_makes_tense_sticky(tense_modal) {
@@ -2193,7 +2246,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         operand: SemanticObjectId,
     ) -> bool {
         self.objects.get(&referent).is_some_and(|object| {
-            object.descriptor.as_ref().is_some_and(|descriptor| {
+            object.descriptor().is_some_and(|descriptor| {
                 descriptor.kind == DescriptorKind::AbstractionAbout
                     && descriptor.word == word
                     && descriptor.operand == Some(operand)
@@ -2873,11 +2926,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(object) = self.objects.get(&formula).cloned() else {
             return Ok(None);
         };
-        match object.operator.as_ref().map(|operator| operator.as_data()) {
-            Some(SemanticOperatorData::Formula(FormulaOperator::Atom)) => {
-                let Some(predication) = object.predication else {
-                    return Ok(None);
-                };
+        match object.as_formula().map(FormulaNode::as_data) {
+            Some(data!(FormulaNode::Atom(atom))) => {
+                let predication = atom.predication;
                 let Some(cloned_predication) = self
                     .clone_generated_predication_with_argument_replacements(
                         predication,
@@ -2891,22 +2942,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     cloned_formula,
                     SemanticObject::atom_formula(
                         cloned_predication,
-                        object.source,
-                        object.diagnostics,
+                        object.source().cloned(),
+                        object.diagnostics().to_vec(),
                     ),
                 )?;
                 Ok(Some(cloned_formula))
             }
-            Some(SemanticOperatorData::Formula(
-                operator @ (FormulaOperator::And
-                | FormulaOperator::Or
-                | FormulaOperator::Iff
-                | FormulaOperator::WhetherOrNot),
-            )) => {
-                let mut children = Vec::with_capacity(object.children.len());
-                for child in object.children {
+            Some(data!(FormulaNode::Connective(connective)))
+                if matches!(
+                    connective.operator,
+                    FormulaOperator::And
+                        | FormulaOperator::Or
+                        | FormulaOperator::Iff
+                        | FormulaOperator::WhetherOrNot
+                ) =>
+            {
+                let mut children = Vec::with_capacity(connective.children.len());
+                for child in &connective.children {
                     let Some(cloned_child) = self
-                        .clone_generated_formula_with_argument_replacements(child, replacements)?
+                        .clone_generated_formula_with_argument_replacements(*child, replacements)?
                     else {
                         return Ok(None);
                     };
@@ -2916,11 +2970,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.insert(
                     cloned_formula,
                     SemanticObject::connective_formula(
-                        *operator,
+                        connective.operator,
                         children,
-                        object.connector,
-                        object.source,
-                        object.diagnostics,
+                        connective.connector.clone(),
+                        object.source().cloned(),
+                        object.diagnostics().to_vec(),
                     ),
                 )?;
                 Ok(Some(cloned_formula))
@@ -2940,15 +2994,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(object) = self.objects.get(&predication).cloned() else {
             return Ok(None);
         };
-        let Some(relation) = object.relation else {
+        let Some(node) = object.as_predication() else {
             return Ok(None);
         };
-        let source_eventuality = object.eventuality;
-        let mut arguments = object.arguments;
+        let relation = match node.relation.as_data() {
+            data!(PredicationRelation::Named { relation }) => relation.clone(),
+            data!(PredicationRelation::Parameter { .. }) => return Ok(None),
+        };
+        let source_eventuality = node.eventuality;
+        let mut arguments = node.arguments.clone();
         for argument in arguments.values_mut() {
             replace_generated_argument_value_object(argument, replacements);
         }
-        let mut modal_arguments = object.modal_arguments;
+        let mut modal_arguments = node.modal_arguments.clone();
         for modal_argument in &mut modal_arguments {
             let mut arguments = modal_argument.arguments.clone();
             for (place_key, argument) in &mut arguments {
@@ -2973,11 +3031,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             relation,
             None,
             arguments,
-            object.mode.unwrap_or(PredicationMode::Inert),
-            object.source,
-            object.diagnostics,
+            node.mode,
+            object.source().cloned(),
+            object.diagnostics().to_vec(),
         );
-        cloned.modal_arguments = modal_arguments;
+        cloned.set_predication_modal_arguments(modal_arguments);
         self.insert(id, cloned)?;
         Ok(Some(id))
     }
@@ -2996,90 +3054,139 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if let Some(id) = cloned.get(&formula) {
             return Ok(*id);
         }
-        let mut object = self
+        let object = self
             .objects
             .get(&formula)
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing formula to clone: {formula}")))?;
-        if object.object_type != crate::model::SemanticObjectKind::Formula {
+        if object.object_kind() != crate::model::SemanticObjectKind::Formula {
             return Err(invalid_graph(format!(
                 "cannot clone non-formula restriction object: {formula}"
             )));
         }
-        if let Some(predication) = object.predication {
-            object.predication = Some(self.clone_generated_predication_replacing_referent(
-                predication,
-                source_variable,
-                variable,
-                cloned,
-            )?);
-        }
-        let mut children = Vec::with_capacity(object.children.len());
-        for child in object.children {
-            children.push(self.clone_generated_formula_replacing_referent(
-                child,
-                source_variable,
-                variable,
-                cloned,
-            )?);
-        }
-        object.children = children;
-        if let Some(restriction) = object.restriction {
-            object.restriction = Some(self.clone_generated_formula_replacing_referent(
-                restriction,
-                source_variable,
-                variable,
-                cloned,
-            )?);
-        }
-        if let Some(body) = object.body {
-            object.body = Some(self.clone_generated_formula_replacing_referent(
-                body,
-                source_variable,
-                variable,
-                cloned,
-            )?);
-        }
-        if object.variable == Some(source_variable) {
-            object.variable = Some(variable);
-        }
-        if object.source_variable == Some(source_variable) {
-            object.source_variable = Some(variable);
-        }
-        if object
-            .selection_source
-            .as_ref()
-            .is_some_and(|source| source.variable == source_variable)
-        {
-            object.selection_source = Some(SelectionSource::witness_set(variable));
-        }
-        let mut bindings = Vec::with_capacity(object.bindings.len());
-        for binding in object.bindings {
-            let mut data = binding.into_data();
-            if data.variable == source_variable {
-                data.variable = variable;
-            }
-            if data.source_variable == Some(source_variable) {
-                data.source_variable = Some(variable);
-            }
-            if data
-                .selection_source
-                .as_ref()
-                .is_some_and(|source| source.variable == source_variable)
-            {
-                data.selection_source = Some(SelectionSource::witness_set(variable));
-            }
-            if let Some(restriction) = data.restriction {
-                data.restriction = Some(self.clone_generated_formula_replacing_referent(
-                    restriction,
+        let formula_node = match object.into_data() {
+            data!(SemanticObject::Formula(node)) => node,
+            _ => unreachable!("formula kind has formula variant"),
+        };
+        let formula_node = match formula_node.into_data() {
+            data!(FormulaNode::Atom(node)) => {
+                let predication = self.clone_generated_predication_replacing_referent(
+                    node.predication,
                     source_variable,
                     variable,
                     cloned,
-                )?);
+                )?;
+                new!(FormulaNode::Atom(
+                    node.with_data(data! { predication: predication })
+                ))
             }
-            bindings.push(QuantifierBinding::from_data(data));
-        }
-        object.bindings = bindings;
+            data!(FormulaNode::Connective(node)) => {
+                let mut children = Vec::with_capacity(node.children.len());
+                for child in &node.children {
+                    children.push(self.clone_generated_formula_replacing_referent(
+                        *child,
+                        source_variable,
+                        variable,
+                        cloned,
+                    )?);
+                }
+                new!(FormulaNode::Connective(
+                    node.with_data(data! { children: children })
+                ))
+            }
+            data!(FormulaNode::Quantified(node)) => {
+                let restriction = match node.restriction {
+                    Some(restriction) => Some(self.clone_generated_formula_replacing_referent(
+                        restriction,
+                        source_variable,
+                        variable,
+                        cloned,
+                    )?),
+                    None => None,
+                };
+                let body = self.clone_generated_formula_replacing_referent(
+                    node.body,
+                    source_variable,
+                    variable,
+                    cloned,
+                )?;
+                let selected_variable = if node.variable == source_variable {
+                    variable
+                } else {
+                    node.variable
+                };
+                let selected_source_variable = if node.source_variable == Some(source_variable) {
+                    Some(variable)
+                } else {
+                    node.source_variable
+                };
+                let selection_source = if node
+                    .selection_source
+                    .as_ref()
+                    .is_some_and(|source| source.variable == source_variable)
+                {
+                    Some(SelectionSource::witness_set(variable))
+                } else {
+                    node.selection_source.clone()
+                };
+                new!(FormulaNode::Quantified(node.with_data(data! {
+                    variable: selected_variable,
+                    source_variable: selected_source_variable,
+                    selection_source: selection_source,
+                    restriction: restriction,
+                    body: body,
+                })))
+            }
+            data!(FormulaNode::QuantifierBundle(node)) => {
+                let mut bindings = Vec::with_capacity(node.bindings.len());
+                for binding in &node.bindings {
+                    let mut data = binding.clone().into_data();
+                    if data.variable == source_variable {
+                        data.variable = variable;
+                    }
+                    if data.source_variable == Some(source_variable) {
+                        data.source_variable = Some(variable);
+                    }
+                    if data
+                        .selection_source
+                        .as_ref()
+                        .is_some_and(|source| source.variable == source_variable)
+                    {
+                        data.selection_source = Some(SelectionSource::witness_set(variable));
+                    }
+                    if let Some(restriction) = data.restriction {
+                        data.restriction = Some(self.clone_generated_formula_replacing_referent(
+                            restriction,
+                            source_variable,
+                            variable,
+                            cloned,
+                        )?);
+                    }
+                    bindings.push(QuantifierBinding::from_data(data));
+                }
+                let body = self.clone_generated_formula_replacing_referent(
+                    node.body,
+                    source_variable,
+                    variable,
+                    cloned,
+                )?;
+                new!(FormulaNode::QuantifierBundle(
+                    node.with_data(data! { bindings: bindings, body: body })
+                ))
+            }
+            data!(FormulaNode::RespectivelyDistribution(node)) => {
+                let body = self.clone_generated_formula_replacing_referent(
+                    node.body,
+                    source_variable,
+                    variable,
+                    cloned,
+                )?;
+                new!(FormulaNode::RespectivelyDistribution(
+                    node.with_data(data! { body: body })
+                ))
+            }
+        };
+        let object = new!(SemanticObject::Formula(formula_node));
 
         let cloned_formula = self.next_formula_id();
         cloned.insert(formula, cloned_formula);
@@ -3101,20 +3208,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if let Some(id) = cloned.get(&predication) {
             return Ok(*id);
         }
-        let mut object =
+        let object =
             self.objects.get(&predication).cloned().ok_or_else(|| {
                 invalid_graph(format!("missing predication to clone: {predication}"))
             })?;
-        if object.object_type != crate::model::SemanticObjectKind::Predication {
+        if object.object_kind() != crate::model::SemanticObjectKind::Predication {
             return Err(invalid_graph(format!(
                 "cannot clone non-predication restriction object: {predication}"
             )));
         }
-        if let Some(eventuality) = object.eventuality {
-            object.eventuality =
-                Some(self.clone_generated_eventuality_for_predication(eventuality)?);
+        let mut data = match object.into_data() {
+            data!(SemanticObject::Predication(node)) => node.into_data(),
+            _ => unreachable!("predication kind has predication variant"),
+        };
+        if let Some(eventuality) = data.eventuality {
+            data.eventuality = Some(self.clone_generated_eventuality_for_predication(eventuality)?);
         }
-        for argument in object.arguments.values_mut() {
+        for argument in data.arguments.values_mut() {
             *argument = self.clone_generated_argument_value_replacing_referent(
                 argument,
                 source_variable,
@@ -3124,7 +3234,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let cloned_predication = self.next_predication_id();
         cloned.insert(predication, cloned_predication);
-        self.insert(cloned_predication, object)?;
+        self.insert(
+            cloned_predication,
+            new!(SemanticObject::Predication(PredicationNode::from_data(
+                data
+            ))),
+        )?;
         Ok(cloned_predication)
     }
 
@@ -3138,16 +3253,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.objects.get(&eventuality).cloned().ok_or_else(|| {
                 invalid_graph(format!("missing eventuality to clone: {eventuality}"))
             })?;
-        if object.object_type != crate::model::SemanticObjectKind::Referent
-            || !object
-                .sort
-                .is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))
-        {
+        if object.as_eventuality().is_none() {
             return Err(invalid_graph(format!(
                 "cannot clone non-eventuality predication event: {eventuality}"
             )));
         }
-        let sort = object.sort.unwrap_or_else(SemanticSort::eventuality);
+        let sort = object.sort().unwrap_or_else(SemanticSort::eventuality);
         let cloned_eventuality = self.next_referent_with_sort_id(sort);
         self.insert(cloned_eventuality, object)?;
         if self.pending_after_eventuality_reservations > 0 {
@@ -3192,11 +3303,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn generated_referent_is_elided_constant(&self, referent: SemanticObjectId) -> bool {
         self.objects.get(&referent).is_some_and(|object| {
-            object.object_type == crate::model::SemanticObjectKind::Referent
-                && object.category == Some(ReferentCategory::Constant)
+            object.object_kind() == crate::model::SemanticObjectKind::Referent
+                && object.referent_category() == Some(ReferentCategory::Constant)
                 && object
-                    .descriptor
-                    .as_ref()
+                    .descriptor()
                     .is_some_and(|descriptor| descriptor.kind == DescriptorKind::Elided)
         })
     }
@@ -3212,12 +3322,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .get(&referent)
             .cloned()
             .ok_or_else(|| invalid_graph(format!("missing referent to clone: {referent}")))?;
-        if object.object_type != crate::model::SemanticObjectKind::Referent {
+        if object.object_kind() != crate::model::SemanticObjectKind::Referent {
             return Err(invalid_graph(format!(
                 "cannot clone non-referent restriction object: {referent}"
             )));
         }
-        let sort = object.sort.unwrap_or(SemanticSort::Entity);
+        let sort = object.sort().unwrap_or(SemanticSort::Entity);
         let cloned = self.next_referent_with_sort_id(sort);
         self.insert(cloned, object)?;
         Ok(cloned)
@@ -3484,7 +3594,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ))
         })?;
         if !object
-            .assigned_names
+            .assigned_names()
             .iter()
             .any(|existing| existing == &assigned_name)
         {
@@ -3662,7 +3772,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
             diagnostics,
         );
-        object.introduced_by = Some(introduced_by);
+        object.update_predication(|node| {
+            node.with_data(data! { introduced_by: Some(introduced_by) })
+        });
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -4225,8 +4337,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "missing generated text-group utterance {utterance}"
             ))
         })?;
-        object.content = Some(nested);
-        object.diagnostics.push(diagnostic(
+        object.update_utterance(|node| node.with_data(data! { content: Some(nested) }));
+        object.push_diagnostic(diagnostic(
             "tu'e text group is represented as a nested discourse sequence",
         ));
         Ok(utterance)
@@ -4333,7 +4445,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let sort = self
             .objects
             .get(&operand)
-            .and_then(|object| object.sort)
+            .and_then(SemanticObject::sort)
             .unwrap_or(SemanticSort::Entity);
         let scale = self.build_generated_scalar_negation_scale_referent(node, &word)?;
         let id = self.next_referent_with_sort_id(sort);
@@ -4512,7 +4624,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.source_for_node(number, "number-sumti"),
             Vec::new(),
         );
-        sign.denotes = Some(expression);
+        sign.update_sign(|node| node.with_data(data! { denotes: Some(expression) }));
         let id = self.next_sign_id();
         self.insert(id, sign)?;
         Ok(id)
@@ -4530,7 +4642,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .or_else(|| source.as_ref().and_then(|source| source.text.clone()))
             .unwrap_or_else(|| token_list_text(tokens.iter()));
         let mut sign = SemanticObject::text_sign(SignKind::Letteral, text, source, Vec::new());
-        sign.letterals = letterals;
+        sign.update_sign(|node| node.with_data(data! { letterals: letterals }));
         let id = self.next_sign_id();
         self.insert(id, sign)?;
         Ok(id)
@@ -6044,7 +6156,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         scalar_negation: ScalarNegation,
     ) {
         if let Some(object) = self.objects.get_mut(&math_expression) {
-            object.scalar_negation = Some(scalar_negation);
+            object.update_math_expression(|node| {
+                node.with_data(data! { scalar_negation: Some(scalar_negation) })
+            });
         };
     }
 
@@ -6057,7 +6171,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         denotation: SemanticObjectId,
     ) {
         if let Some(object) = self.objects.get_mut(&math_expression) {
-            object.operator_denotes = Some(denotation);
+            object.update_math_expression(|node| {
+                let data = node.into_data();
+                let kind = match data.kind.into_data() {
+                    data!(MathExpressionNodeKind::Operator {
+                        operator,
+                        operands,
+                        endpoint_inclusion,
+                        ..
+                    }) => new!(MathExpressionNodeKind::Operator {
+                        operator,
+                        operands,
+                        operator_denotes: Some(denotation),
+                        endpoint_inclusion,
+                    }),
+                    kind => MathExpressionNodeKind::from_data(kind),
+                };
+                MathExpressionNode::from_data(data!(MathExpressionNode { kind: kind, ..data }))
+            });
         }
     }
 
@@ -6196,12 +6327,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find no-gadri description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.take() else {
+        let Some(descriptor) = object.descriptor().cloned() else {
             return Err(invalid_graph(format!(
                 "semantic builder no-gadri description referent {id} has no descriptor"
             )));
         };
-        object.descriptor = Some(descriptor.with_data(data! {
+        object.set_descriptor(descriptor.with_data(data! {
             body: Some(body),
         }));
         Ok(id)
@@ -6766,10 +6897,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedIndirectQuestionFocus::from_data(data!(GeneratedIndirectQuestionFocus {
                     focus: parameter,
                     presupposed_answer: None,
-                    slots: vec![QuestionSlot {
+                    slots: vec![new!(QuestionSlot {
                         parameter,
                         role: QuestionSlotRole::Answer,
-                    }],
+                    })],
                     kind: QuestionKind::Argument,
                     domain: SemanticSort::Entity,
                     source: self.source_for_node(pro_sumti, "indirect-question"),
@@ -6856,10 +6987,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             data!(GeneratedIndirectQuestionFocus {
                 focus: parameter,
                 presupposed_answer: None,
-                slots: vec![QuestionSlot {
+                slots: vec![new!(QuestionSlot {
                     parameter,
                     role: QuestionSlotRole::Answer,
-                }],
+                })],
                 kind: QuestionKind::Argument,
                 domain: SemanticSort::Entity,
                 source: self.source_for_node(pro_sumti, "indirect-question"),
@@ -7018,7 +7149,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.source_for_node(pro_sumti, "sumti"),
             diagnostics,
         );
-        object.target = target;
+        object.set_referent_target(target);
         self.insert(id, object)?;
         Ok(id)
     }
@@ -7311,12 +7442,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.take() else {
+        let Some(descriptor) = object.descriptor().cloned() else {
             return Err(invalid_graph(format!(
                 "semantic builder description referent {id} has no descriptor"
             )));
         };
-        object.descriptor = Some(descriptor.with_data(data! {
+        object.set_descriptor(descriptor.with_data(data! {
             body: body,
             operand: descriptor_operand,
             quantity: quantity,
@@ -7396,12 +7527,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find aggregate description referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.take() else {
+        let Some(descriptor) = object.descriptor().cloned() else {
             return Err(invalid_graph(format!(
                 "semantic builder aggregate description referent {id} has no descriptor"
             )));
         };
-        object.descriptor = Some(descriptor.with_data(data! {
+        object.set_descriptor(descriptor.with_data(data! {
             body: Some(body),
             relative_clauses: lowered_relative_clauses,
         }));
@@ -7505,12 +7636,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find aggregate member referent {id}"
             ))
         })?;
-        let Some(descriptor) = object.descriptor.take() else {
+        let Some(descriptor) = object.descriptor().cloned() else {
             return Err(invalid_graph(format!(
                 "semantic builder aggregate member referent {id} has no descriptor"
             )));
         };
-        object.descriptor = Some(descriptor.with_data(data! {
+        object.set_descriptor(descriptor.with_data(data! {
             body: body,
             operand: descriptor_operand,
             quantity: quantity,
@@ -7588,7 +7719,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find abstraction description output {id}"
             ))
         })?;
-        object.descriptor = Some(new!(Descriptor {
+        object.set_descriptor(new!(Descriptor {
             kind,
             word,
             speaker: Some(speaker),
@@ -7603,7 +7734,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             definiteness: None,
             operand: None,
         }));
-        object.source = source;
+        object.replace_source(source);
         Ok(id)
     }
 
@@ -7655,8 +7786,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "semantic builder could not find connected abstraction description output {id}"
             ))
         })?;
-        if let Some(descriptor) = object.descriptor.take() {
-            object.descriptor = Some(descriptor.with_data(data! {
+        if let Some(descriptor) = object.descriptor().cloned() {
+            object.set_descriptor(descriptor.with_data(data! {
                 body: Some(body),
             }));
         }
@@ -7947,7 +8078,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             Vec::new(),
         );
-        object.denotes = Some(denotation);
+        object.set_sign_denotes(Some(denotation));
         self.insert(id, object)?;
         Ok(id)
     }
@@ -8251,8 +8382,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source,
             diagnostics,
         );
-        object.modal_arguments = modal_arguments;
-        object.relation_metadata = relation_metadata;
+        object.set_predication_attachments(modal_arguments, Vec::new());
+        object.set_predication_relation_metadata(relation_metadata);
         self.insert(predication, object)?;
         let formula = self.next_formula_id();
         self.insert(
@@ -8790,20 +8921,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 None => self.next_referent_with_sort_id(sort),
             };
-            object.class = Some(class);
-            object.sort = Some(sort);
-            object.content = Some(body);
-            object.abstraction_kind = Some(kind);
-            object.parameters = parameters;
-            object.embedded_questions = embedded_questions;
-            object.source = source;
+            object.configure_eventuality_abstraction(
+                class,
+                sort,
+                body,
+                kind,
+                parameters,
+                embedded_questions,
+                source,
+            );
             self.insert(id, object)?;
             return Ok(id);
         }
 
         let id = self.next_referent_with_sort_id(sort);
         let mut object = SemanticObject::abstraction(kind, body, parameters, source, Vec::new());
-        object.embedded_questions = embedded_questions;
+        object.set_abstraction_embedded_questions(embedded_questions);
         self.insert(id, object)?;
         Ok(id)
     }

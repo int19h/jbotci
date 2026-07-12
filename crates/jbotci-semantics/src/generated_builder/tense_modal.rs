@@ -689,22 +689,10 @@ pub(super) fn apply_generated_recurrence_negation(
 #[ensures(true)]
 pub(super) fn apply_generated_aspects_to_event(
     event: &mut SemanticObject,
-    mut aspects: Vec<Aspect>,
+    aspects: Vec<Aspect>,
     spatial: bool,
 ) {
-    if aspects.len() == 1 {
-        if spatial {
-            event.spatial_aspect = aspects.pop();
-        } else {
-            event.aspect = aspects.pop();
-        }
-    } else if !aspects.is_empty() {
-        if spatial {
-            event.spatial_aspects.extend(aspects);
-        } else {
-            event.aspects.extend(aspects);
-        }
-    }
+    event.apply_eventuality_aspects(aspects, spatial);
 }
 
 #[requires(true)]
@@ -719,30 +707,14 @@ pub(super) fn attach_generated_magnitude_to_event_modifier<N: TreeNode>(
         .iter()
         .any(|(domain, _, _)| *domain == GeneratedAnchorDomain::Space)
     {
-        if let Some(step) = event.space_path.pop() {
-            event
-                .space_path
-                .push(step.with_data(data! { magnitude: Some(magnitude) }));
-        } else if let Some(space) = event.space.as_mut() {
-            let updated = space
-                .clone()
-                .with_data(data! { magnitude: Some(magnitude) });
-            event.space = Some(updated);
-        }
+        event.attach_eventuality_magnitude(magnitude, true);
         return;
     }
     if relations
         .iter()
         .any(|(domain, _, _)| *domain == GeneratedAnchorDomain::Time)
     {
-        if let Some(step) = event.time_path.pop() {
-            event
-                .time_path
-                .push(step.with_data(data! { magnitude: Some(magnitude) }));
-        } else if let Some(time) = event.time.as_mut() {
-            let updated = time.clone().with_data(data! { magnitude: Some(magnitude) });
-            event.time = Some(updated);
-        }
+        event.attach_eventuality_magnitude(magnitude, false);
     }
 }
 
