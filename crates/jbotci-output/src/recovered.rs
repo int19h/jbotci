@@ -5,7 +5,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_morphology::{MorphologyError, RecoveredMorphologySegmentation};
 use jbotci_source::SourceSpan;
 use jbotci_syntax::{RecoveredSyntaxParse, SyntaxError};
-use jbotci_tree::{FieldRef, RecoveryItemState, TreeVisitor};
+use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 use serde_json::{Map, Value};
 
@@ -372,6 +372,7 @@ struct RecoveredBracketBuilder<'source, 'errors> {
     stack: Vec<Vec<sexpr::SExpr>>,
     root: Option<sexpr::SExpr>,
     render_error: Option<OutputError>,
+    recovery_projection: RecoveryProjection,
 }
 
 impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
@@ -391,6 +392,7 @@ impl<'source, 'errors> RecoveredBracketBuilder<'source, 'errors> {
             stack: Vec::new(),
             root: None,
             render_error: None,
+            recovery_projection: RecoveryProjection::default(),
         }
     }
 
@@ -472,12 +474,16 @@ impl<'tree> TreeVisitor<'tree> for RecoveredBracketBuilder<'_, '_> {
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         let jbotci_syntax::generated_model::recovered::AtomRef::Token(token) = atom;
+        self.recovery_projection.separate();
         self.push(brackets::word(token, &self.context));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_recovered_error<E: RecoveryItemState + Serialize>(&mut self, item: &'tree E) {
+        if !self.recovery_projection.include(item) {
+            return;
+        }
         match syntax_recovery_item(item, self.errors, self.source) {
             Ok(item) => self.push(recovery_error_sexpr(&item)),
             Err(error) => self.render_error = Some(error),
@@ -742,6 +748,22 @@ mod tests {
     }
 
     #[requires(true)]
+    #[ensures(true)]
+    fn count_error_source_fragments(fragments: &[crate::BracketSourceFragment]) -> usize {
+        fragments
+            .iter()
+            .map(|fragment| match fragment {
+                crate::BracketSourceFragment::Text { role, .. } => {
+                    usize::from(*role == crate::BracketSourceFragmentRole::Error)
+                }
+                crate::BracketSourceFragment::Span { children, .. } => {
+                    count_error_source_fragments(children)
+                }
+            })
+            .sum()
+    }
+
+    #[requires(true)]
     #[ensures(!ret.0.is_empty() && ret.1.0 <= ret.1.1)]
     fn syntax_error_code_and_span(error: &SyntaxError) -> (&'static str, (usize, usize)) {
         match error {
@@ -887,7 +909,15 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("brackets");
-        assert_eq!(brackets, "(mi [víska {lo ‼‼ ‼‼ ‼‼}])");
+        assert_eq!(brackets, "(mi [víska {lo ‼‼}])");
+
+        let source_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("bracket source fragments");
+        assert_eq!(count_error_source_fragments(&source_fragments), 1);
 
         let tree = pretty_recovered_syntax_tree_with_options(
             &recovered,
@@ -905,6 +935,7 @@ mod tests {
         let lo = tree.find("Cmavo @[9‥11) \"lo\"").expect("lo prefix");
         let marker = tree.find("Error @[11‥11) \"\"").expect("missing marker");
         assert!(mi < viska && viska < lo && lo < marker, "{tree}");
+        assert_eq!(tree.matches("Error @[11‥11) \"\"").count(), 1, "{tree}");
 
         let json = recovered_syntax_json(source, &recovered);
         assert_eq!(
@@ -918,7 +949,7 @@ mod tests {
         );
         let mut errors = Vec::new();
         collect_error_objects(&json, &mut errors);
-        assert_eq!(errors.len(), 3);
+        assert_eq!(errors.len(), 1);
         assert!(
             errors
                 .iter()

@@ -100,6 +100,74 @@ pub trait RecoveryItemState {
     }
 }
 
+/// Rendering state for collapsing redundant missing-field recovery markers.
+///
+/// Generated recovered models retain every recovery slot. Projections use this
+/// state to suppress only adjacent, zero-width missing markers that identify
+/// the same diagnostic at the same source position.
+#[invariant(true, "every optional marker position is valid projection state")]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecoveryProjection {
+    previous_missing_marker: Option<MissingRecoveryMarker>,
+}
+
+#[invariant(true, "all source positions and diagnostic indices are valid keys")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MissingRecoveryMarker {
+    byte_position: usize,
+    char_position: usize,
+    error_index: usize,
+}
+
+impl RecoveryProjection {
+    /// Starts a new run after projecting a non-recovery item.
+    #[requires(true)]
+    #[ensures(self.previous_missing_marker.is_none())]
+    pub fn separate(&mut self) {
+        self.previous_missing_marker = None;
+    }
+
+    /// Returns whether a recovery item should be included in the projection.
+    #[requires(true)]
+    #[ensures(zero_width_missing_marker(item).is_none() -> ret)]
+    #[ensures(!ret -> self.previous_missing_marker == zero_width_missing_marker(item))]
+    pub fn include(&mut self, item: &impl RecoveryItemState) -> bool {
+        let marker = zero_width_missing_marker(item);
+        let include = marker.is_none() || marker != self.previous_missing_marker;
+        self.previous_missing_marker = marker;
+        include
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_some() -> item.recovery_item_kind() == RecoveryItemKind::Missing)]
+fn zero_width_missing_marker(item: &impl RecoveryItemState) -> Option<MissingRecoveryMarker> {
+    if item.recovery_item_kind() != RecoveryItemKind::Missing {
+        return None;
+    }
+    let error_index = item.recovery_error_index()?;
+    let mut position = None;
+    let mut valid = true;
+    item.visit_source_spans(&mut |span| {
+        if !span.is_empty() {
+            valid = false;
+            return;
+        }
+        let current = (span.byte_start, span.char_start);
+        if position.is_some_and(|position| position != current) {
+            valid = false;
+        } else {
+            position = Some(current);
+        }
+    });
+    let (byte_position, char_position) = position.filter(|_| valid)?;
+    Some(MissingRecoveryMarker {
+        byte_position,
+        char_position,
+        error_index,
+    })
+}
+
 #[invariant(true)]
 #[invariant(::Valid(_) => true)]
 #[invariant(::Error(_) => true)]
@@ -763,9 +831,79 @@ mod tests {
 
     #[allow(unused_imports)]
     use bityzba::{ensures, invariant, requires};
+    use jbotci_source::SourceSpan;
     use serde_json::json;
     use smallvec::SmallVec;
     use vec1::Vec1;
+
+    #[invariant(
+        true,
+        "projection probes intentionally cover valid and invalid combinations"
+    )]
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+    struct ProjectionRecoveryItem {
+        kind: RecoveryItemKind,
+        error_index: Option<usize>,
+        span: SourceSpan,
+    }
+
+    #[contract_trait]
+    impl RecoveryItemState for ProjectionRecoveryItem {
+        #[requires(true)]
+        #[ensures(ret == self.kind)]
+        fn recovery_item_kind(&self) -> RecoveryItemKind {
+            self.kind
+        }
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_source_spans(&self, visitor: &mut dyn FnMut(&SourceSpan)) {
+            visitor(&self.span);
+        }
+
+        #[requires(true)]
+        #[ensures(ret == self.error_index)]
+        fn recovery_error_index(&self) -> Option<usize> {
+            self.error_index
+        }
+    }
+
+    #[requires(byte_start <= byte_end)]
+    #[ensures(ret.kind == kind && ret.error_index == Some(error_index))]
+    fn projection_item(
+        kind: RecoveryItemKind,
+        error_index: usize,
+        byte_start: usize,
+        byte_end: usize,
+    ) -> ProjectionRecoveryItem {
+        ProjectionRecoveryItem {
+            kind,
+            error_index: Some(error_index),
+            span: SourceSpan::new(None, byte_start, byte_end, byte_start, byte_end)
+                .expect("ordered test span"),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_projection_collapses_only_equal_adjacent_missing_markers() {
+        let missing_at_3 = projection_item(RecoveryItemKind::Missing, 0, 3, 3);
+        let missing_at_4 = projection_item(RecoveryItemKind::Missing, 0, 4, 4);
+        let other_error_at_4 = projection_item(RecoveryItemKind::Missing, 1, 4, 4);
+        let skipped_at_4 = projection_item(RecoveryItemKind::Invalid, 1, 4, 5);
+        let mut projection = RecoveryProjection::default();
+
+        assert!(projection.include(&missing_at_3));
+        assert!(!projection.include(&missing_at_3));
+        assert!(projection.include(&missing_at_4));
+        assert!(projection.include(&other_error_at_4));
+        assert!(projection.include(&skipped_at_4));
+        assert!(projection.include(&other_error_at_4));
+        assert!(!projection.include(&other_error_at_4));
+        projection.separate();
+        assert!(projection.include(&other_error_at_4));
+    }
 
     #[invariant(true)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
