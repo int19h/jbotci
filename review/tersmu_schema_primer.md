@@ -29,12 +29,12 @@ The claims ledger is a flat list grouped under exactly three headings:
   Every entry includes its graph id, predication mode, and a structural context
   path summarizing surrounding quantifiers, restrictions, connectives, and
   negation.
-- `presupposed/projected`: veridical descriptor bodies, incidental relative
-  clauses, denotation commitments for constant/indexical referents, and the
-  projective nonempty-domain commitment carried by restricted `forall` and
-  `pluralForall`. A domain-import line names both the bound variable and the
-  restriction formula id, so `domainImport` is visible without inventing an
-  at-issue conjunct.
+- `presupposed/projected`: veridical descriptor bodies, veridical restrictive
+  and incidental relative clauses, denotation commitments for
+  constant/indexical referents, and the projective nonempty-domain commitment
+  carried by restricted `forall` and `pluralForall`. A domain-import line names
+  both the bound variable and the restriction formula id, so `domainImport` is
+  visible without inventing an at-issue conjunct.
 - `displayed`: attitudinal, evidential, discursive, metalinguistic, emphasis,
   and question-prompt objects, including their experiencer, target, polarity,
   and assertion effect.
@@ -44,7 +44,19 @@ Predications use the formulaic template
 Lojban relation words are kept verbatim. Labels come from typed indexical,
 descriptor, sign, parameter, and sort fields; every label includes the object
 id, making shared referents explicit. No natural-language paraphrase inference
-is performed.
+is performed. A relation-sorted referent with a single-atom body includes that
+relation in its label (`relation mlatu[id]`, or `lo bajra[id]` when a descriptor
+word is present). A speaker-description label follows the typed `skicu` x4
+property edge to the same single-atom relation, so `le mlatu` is not mislabeled
+as `le skicu`.
+
+An intensional relation/abstraction body is structural content, not an extra
+asserted or projected claim. Its owning constant's existential line includes a
+`relation-body=` or `abstraction-body=` formula label while traversal of the
+body contributes no bare ledger entries. Likewise, a non-veridical restrictive
+clause (`veridical:false`, such as `voi`) is shown as
+`non-claim-restrictive-clause=` on the owning constant rather than promoted to
+a commitment.
 
 Ledger order is deterministic. Formula-backed entries follow semantic
 traversal order; numbered arguments use place order. Projective objects first
@@ -61,14 +73,18 @@ connectives, `restriction`, and `body` remain separate nodes. Atomic leaves use
 the same typed predication and referent templates as the ledger. A restricted
 universal is annotated `domain-import=projective` on its quantifier line, while
 the commitment itself remains visible as a ledger entry rather than a fabricated
-formula child. Descriptor bodies and incidental clauses retain their graph edge
-labels as nested formula branches; displayed asides are printed at their
-utterance attachment.
+formula child. Descriptor bodies, relation/abstraction bodies, and relative
+clauses retain their graph edge labels as nested formula branches. Restrictive,
+incidental, and non-veridical restrictive clauses have distinct branch labels;
+displayed asides are printed at their utterance attachment.
 
 The tree is deterministic in semantic child order: connective children keep
 their stored order, restrictions precede quantifier bodies, sequence connection
 claims precede items, and ties use object id. Repeated ids are intentionally
 shown; equality of ids, not repeated label text, expresses sharing.
+Referent expansion follows typed field order: descriptor content, an optional
+intensional body, then referent-level relative clauses. The traversal's active
+object/formula set stops cycles through body parameters and self-references.
 
 The CLI and REST request `format` values are `json`, `claims`, and `tree`. The
 MCP tool exposes the same values and deliberately continues to default to

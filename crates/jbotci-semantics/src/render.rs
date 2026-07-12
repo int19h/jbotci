@@ -11,12 +11,12 @@ use std::fmt::Write as _;
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 
 use crate::model::{
-    ArgumentValue, ArgumentValueKind, Descriptor, DisplayedContentAssertionEffect,
+    ArgumentValue, ArgumentValueKind, Descriptor, DescriptorKind, DisplayedContentAssertionEffect,
     DisplayedContentFamily, DisplayedContentNode, DisplayedContentPolarity, FormulaNode,
-    FormulaNodeData, FormulaOperator, IndexicalKind, PredicationMode, PredicationNode,
+    FormulaNodeData, FormulaOperator, IndexicalKind, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantifiedFormulaNode, ReferentCategory, RelativeClause,
     RelativeClauseKind, SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId,
-    SemanticObjectKind, SequenceNode, UtteranceForce, UtteranceNode,
+    SemanticObjectKind, SemanticSort, SequenceNode, UtteranceForce, UtteranceNode,
 };
 
 /// Render the graph as a flat, tiered claims ledger.
@@ -47,6 +47,13 @@ enum ClaimTier {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClaimStatus {
+    Commitment,
+    NonClaim,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum TraversalRole {
     Root,
     Content,
@@ -58,7 +65,11 @@ enum TraversalRole {
     Restriction,
     Body,
     DescriptorBody,
-    RelativeClause,
+    RelationBody,
+    AbstractionBody,
+    RestrictiveRelativeClause,
+    IncidentalRelativeClause,
+    NonveridicalRelativeClause,
     ModalBody,
     DetachedIncidental,
 }
@@ -67,6 +78,7 @@ enum TraversalRole {
 #[derive(Debug, Clone, Copy)]
 struct TraversalLocation {
     tier: ClaimTier,
+    claim_status: ClaimStatus,
     role: TraversalRole,
     depth: usize,
 }
@@ -201,6 +213,7 @@ impl<'graph> DerivedTraversal<'graph> {
             self.graph.root,
             TraversalLocation {
                 tier: ClaimTier::Asserted,
+                claim_status: ClaimStatus::Commitment,
                 role: TraversalRole::Root,
                 depth: 0,
             },
@@ -227,6 +240,7 @@ impl<'graph> DerivedTraversal<'graph> {
             }
             let location = TraversalLocation {
                 tier: ClaimTier::Projected,
+                claim_status: ClaimStatus::Commitment,
                 role: TraversalRole::DetachedIncidental,
                 depth: 0,
             };
@@ -243,6 +257,7 @@ impl<'graph> DerivedTraversal<'graph> {
                     id,
                     TraversalLocation {
                         tier: ClaimTier::Displayed,
+                        claim_status: ClaimStatus::Commitment,
                         role: TraversalRole::Aside,
                         depth: 0,
                     },
@@ -264,6 +279,13 @@ impl<'graph> DerivedTraversal<'graph> {
     ) {
         if id.object_kind() == SemanticObjectKind::Formula {
             self.walk_formula(id, location, state, visitor);
+            return;
+        }
+        if matches!(
+            id.object_kind(),
+            SemanticObjectKind::Referent | SemanticObjectKind::Parameter
+        ) {
+            self.visit_referent(id, location, state, visitor);
             return;
         }
         if !state.active.insert(id) {
@@ -306,6 +328,7 @@ impl<'graph> DerivedTraversal<'graph> {
                             },
                             role: TraversalRole::Aside,
                             depth: location.depth + 1,
+                            ..location
                         },
                         state,
                         visitor,
@@ -360,9 +383,6 @@ impl<'graph> DerivedTraversal<'graph> {
             data!(SemanticObject::DisplayedContent(_)) => {
                 self.walk_displayed(id, location, state, visitor)
             }
-            data!(SemanticObject::Eventuality(_))
-            | data!(SemanticObject::Referent(_))
-            | data!(SemanticObject::Sign(_)) => self.visit_referent(id, location, state, visitor),
             _ => {}
         }
         state.active.remove(&id);
@@ -584,7 +604,15 @@ impl<'graph> DerivedTraversal<'graph> {
             self.visit_referent(value, location, state, visitor);
         }
         for clause in &argument.relative_clauses {
-            self.walk_projective_clause(clause, location.depth + 1, state, visitor);
+            self.walk_relative_clause(
+                clause,
+                TraversalLocation {
+                    depth: location.depth + 1,
+                    ..location
+                },
+                state,
+                visitor,
+            );
         }
     }
 
@@ -599,21 +627,66 @@ impl<'graph> DerivedTraversal<'graph> {
     ) {
         let object = self.object(id);
         visitor.referent(id, object, location);
-        if id.object_kind() != SemanticObjectKind::Referent || !state.expanded_referents.insert(id)
-        {
+        if id.object_kind() != SemanticObjectKind::Referent {
             return;
         }
+        if state.active.contains(&id) {
+            return;
+        }
+        if !state.expanded_referents.insert(id) {
+            return;
+        }
+        let inserted = state.active.insert(id);
+        debug_assert!(inserted, "referent active-set check and insertion agree");
+        // Referent expansion is stable typed-field order: descriptor content,
+        // intensional body, then referent-level clauses. Formula children and
+        // predication arguments retain their own stored/BTreeMap order.
         if let Some(descriptor) = object.descriptor() {
-            self.walk_descriptor(descriptor, location.depth + 1, state, visitor);
+            self.walk_descriptor(
+                descriptor,
+                TraversalLocation {
+                    depth: location.depth + 1,
+                    ..location
+                },
+                state,
+                visitor,
+            );
         }
-        let clauses: &[RelativeClause] = match object.as_data() {
-            data!(SemanticObject::Eventuality(node)) => &node.relative_clauses,
-            data!(SemanticObject::Referent(node)) => &node.relative_clauses,
-            _ => &[],
+        let (body, clauses): (Option<SemanticObjectId>, &[RelativeClause]) = match object.as_data()
+        {
+            data!(SemanticObject::Eventuality(node)) => (node.body, &node.relative_clauses),
+            data!(SemanticObject::Referent(node)) => (node.body, &node.relative_clauses),
+            _ => (None, &[]),
         };
-        for clause in clauses {
-            self.walk_projective_clause(clause, location.depth + 1, state, visitor);
+        if let Some(body) = body {
+            self.walk_formula(
+                body,
+                TraversalLocation {
+                    claim_status: ClaimStatus::NonClaim,
+                    role: if object.sort() == Some(SemanticSort::Relation) {
+                        TraversalRole::RelationBody
+                    } else {
+                        TraversalRole::AbstractionBody
+                    },
+                    depth: location.depth + 1,
+                    ..location
+                },
+                state,
+                visitor,
+            );
         }
+        for clause in clauses {
+            self.walk_relative_clause(
+                clause,
+                TraversalLocation {
+                    depth: location.depth + 1,
+                    ..location
+                },
+                state,
+                visitor,
+            );
+        }
+        state.active.remove(&id);
     }
 
     #[requires(true)]
@@ -621,47 +694,72 @@ impl<'graph> DerivedTraversal<'graph> {
     fn walk_descriptor<V: DerivedVisitor<'graph>>(
         &self,
         descriptor: &'graph Descriptor,
-        depth: usize,
+        location: TraversalLocation,
         state: &mut TraversalState,
         visitor: &mut V,
     ) {
-        if descriptor.veridical != Some(false) {
-            if let Some(body) = descriptor.body {
-                self.walk_formula(
-                    body,
-                    TraversalLocation {
-                        tier: ClaimTier::Projected,
-                        role: TraversalRole::DescriptorBody,
-                        depth,
+        if let Some(body) = descriptor.body {
+            let claim_status = if location.claim_status == ClaimStatus::NonClaim
+                || descriptor.veridical == Some(false)
+            {
+                ClaimStatus::NonClaim
+            } else {
+                ClaimStatus::Commitment
+            };
+            self.walk_formula(
+                body,
+                TraversalLocation {
+                    tier: if claim_status == ClaimStatus::Commitment {
+                        ClaimTier::Projected
+                    } else {
+                        location.tier
                     },
-                    state,
-                    visitor,
-                );
-            }
+                    claim_status,
+                    role: TraversalRole::DescriptorBody,
+                    ..location
+                },
+                state,
+                visitor,
+            );
         }
         for clause in &descriptor.relative_clauses {
-            self.walk_projective_clause(clause, depth, state, visitor);
+            self.walk_relative_clause(clause, location, state, visitor);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_projective_clause<V: DerivedVisitor<'graph>>(
+    fn walk_relative_clause<V: DerivedVisitor<'graph>>(
         &self,
         clause: &'graph RelativeClause,
-        depth: usize,
+        location: TraversalLocation,
         state: &mut TraversalState,
         visitor: &mut V,
     ) {
-        if clause.kind != RelativeClauseKind::Incidental || clause.veridical == Some(false) {
-            return;
-        }
+        let claim_status =
+            if location.claim_status == ClaimStatus::NonClaim || clause.veridical == Some(false) {
+                ClaimStatus::NonClaim
+            } else {
+                ClaimStatus::Commitment
+            };
         self.walk_formula(
             clause.body,
             TraversalLocation {
-                tier: ClaimTier::Projected,
-                role: TraversalRole::RelativeClause,
-                depth,
+                tier: if claim_status == ClaimStatus::Commitment {
+                    ClaimTier::Projected
+                } else {
+                    location.tier
+                },
+                claim_status,
+                role: if clause.veridical == Some(false) {
+                    TraversalRole::NonveridicalRelativeClause
+                } else {
+                    match clause.kind {
+                        RelativeClauseKind::Restrictive => TraversalRole::RestrictiveRelativeClause,
+                        RelativeClauseKind::Incidental => TraversalRole::IncidentalRelativeClause,
+                    }
+                },
+                ..location
             },
             state,
             visitor,
@@ -858,6 +956,9 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         node: &'graph PredicationNode,
         location: TraversalLocation,
     ) {
+        if location.claim_status == ClaimStatus::NonClaim {
+            return;
+        }
         let tier = location.tier;
         if self.seen_predications.insert((tier.into(), id)) {
             let predication = format_predication(self.graph, id, node);
@@ -878,17 +979,22 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         &mut self,
         id: SemanticObjectId,
         object: &'graph SemanticObject,
-        _location: TraversalLocation,
+        location: TraversalLocation,
     ) {
+        if location.claim_status == ClaimStatus::NonClaim {
+            return;
+        }
         if (object.referent_category() == Some(ReferentCategory::Constant)
             || object.referent_category() == Some(ReferentCategory::Indexical))
             && self.seen_constants.insert(id)
         {
+            let nonclaim_context = referent_nonclaim_context(self.graph, object);
             self.push(
                 ClaimTier::Projected,
                 format!(
-                    "exists {} [constant; context={}]",
+                    "exists {} [constant;{} context={}]",
                     referent_label(self.graph, id),
+                    nonclaim_context,
                     self.context_label()
                 ),
             );
@@ -901,8 +1007,11 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
         &mut self,
         formula: SemanticObjectId,
         node: &'graph QuantifiedFormulaNode,
-        _location: TraversalLocation,
+        location: TraversalLocation,
     ) {
+        if location.claim_status == ClaimStatus::NonClaim {
+            return;
+        }
         if self.seen_imports.insert(formula) {
             let restriction = node
                 .restriction
@@ -934,6 +1043,9 @@ impl<'graph> DerivedVisitor<'graph> for ClaimsVisitor<'graph> {
     #[requires(true)]
     #[ensures(true)]
     fn cycle(&mut self, id: SemanticObjectId, location: TraversalLocation) {
+        if location.claim_status == ClaimStatus::NonClaim {
+            return;
+        }
         self.push(
             location.tier,
             format!(
@@ -1177,19 +1289,33 @@ fn referent_label(graph: &SemanticGraph, id: SemanticObjectId) -> String {
             .indexical
             .map(indexical_label)
             .map(str::to_owned)
-            .or_else(|| descriptor_label(graph, node.descriptor.as_ref()))
+            .or_else(|| descriptor_label(graph, node.descriptor.as_ref(), None))
             .unwrap_or_else(|| node.sort.label().to_owned()),
-        data!(SemanticObject::Referent(node)) => node
-            .indexical
-            .map(indexical_label)
-            .map(str::to_owned)
-            .or_else(|| descriptor_label(graph, node.descriptor.as_ref()))
-            .unwrap_or_else(|| node.sort.label().to_owned()),
+        data!(SemanticObject::Referent(node)) => {
+            let content_relation = node
+                .body
+                .and_then(|body| single_atom_relation(graph, body))
+                .or_else(|| {
+                    node.descriptor.as_ref().and_then(|descriptor| {
+                        speaker_description_content_relation(graph, descriptor)
+                    })
+                });
+            node.indexical
+                .map(indexical_label)
+                .map(str::to_owned)
+                .or_else(|| {
+                    descriptor_label(graph, node.descriptor.as_ref(), content_relation.as_deref())
+                })
+                .or_else(|| {
+                    content_relation.map(|relation| format!("{} {relation}", node.sort.label()))
+                })
+                .unwrap_or_else(|| node.sort.label().to_owned())
+        }
         data!(SemanticObject::Sign(node)) => node
             .text
             .as_ref()
             .map(|text| format!("sign {text:?}"))
-            .or_else(|| descriptor_label(graph, node.descriptor.as_ref()))
+            .or_else(|| descriptor_label(graph, node.descriptor.as_ref(), None))
             .unwrap_or_else(|| "sign".to_owned()),
         data!(SemanticObject::Parameter(node)) => {
             format!("{}?{}", node.sort.label(), node.introduced_by)
@@ -1202,18 +1328,114 @@ fn referent_label(graph: &SemanticGraph, id: SemanticObjectId) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-fn descriptor_label(graph: &SemanticGraph, descriptor: Option<&Descriptor>) -> Option<String> {
+fn descriptor_label(
+    graph: &SemanticGraph,
+    descriptor: Option<&Descriptor>,
+    preferred_relation: Option<&str>,
+) -> Option<String> {
     let descriptor = descriptor?;
     if descriptor.word.is_empty() {
-        return Some("description".to_owned());
+        return Some(match preferred_relation {
+            Some(relation) => format!("description {relation}"),
+            None => "description".to_owned(),
+        });
     }
-    let relation = descriptor
-        .body
-        .and_then(|body| single_atom_relation(graph, body));
+    let relation = preferred_relation.map(str::to_owned).or_else(|| {
+        descriptor
+            .body
+            .and_then(|body| single_atom_relation(graph, body))
+    });
     Some(match relation {
         Some(relation) => format!("{} {relation}", descriptor.word),
         None => descriptor.word.clone(),
     })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn speaker_description_content_relation(
+    graph: &SemanticGraph,
+    descriptor: &Descriptor,
+) -> Option<String> {
+    if descriptor.kind != DescriptorKind::SpeakerDescription {
+        return None;
+    }
+    let predication = graph
+        .objects
+        .get(&descriptor.body?)?
+        .formula_predication()?;
+    let property = graph
+        .objects
+        .get(&predication)?
+        .as_predication()?
+        .arguments
+        .get(&PlaceIndex::new(4))?
+        .value?;
+    if property.referent_sort() != Some(SemanticSort::Relation) {
+        return None;
+    }
+    referent_body(graph.objects.get(&property)?).and_then(|body| single_atom_relation(graph, body))
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|body| body.object_kind() == SemanticObjectKind::Formula))]
+fn referent_body(object: &SemanticObject) -> Option<SemanticObjectId> {
+    match object.as_data() {
+        data!(SemanticObject::Eventuality(node)) => node.body,
+        data!(SemanticObject::Referent(node)) => node.body,
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn referent_nonclaim_context(graph: &SemanticGraph, object: &SemanticObject) -> String {
+    let mut output = String::new();
+    if let Some(body) = referent_body(object) {
+        let label = if object.sort() == Some(SemanticSort::Relation) {
+            "relation-body"
+        } else {
+            "abstraction-body"
+        };
+        let _ = write!(output, " {label}={};", formula_reference_label(graph, body));
+    }
+    if let Some(descriptor) = object.descriptor() {
+        if descriptor.veridical == Some(false) {
+            if let Some(body) = descriptor.body {
+                let _ = write!(
+                    output,
+                    " non-claim-descriptor-body={};",
+                    formula_reference_label(graph, body)
+                );
+            }
+        }
+        append_nonclaim_relative_clause_context(graph, &descriptor.relative_clauses, &mut output);
+    }
+    let clauses: &[RelativeClause] = match object.as_data() {
+        data!(SemanticObject::Eventuality(node)) => &node.relative_clauses,
+        data!(SemanticObject::Referent(node)) => &node.relative_clauses,
+        _ => &[],
+    };
+    append_nonclaim_relative_clause_context(graph, clauses, &mut output);
+    output
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn append_nonclaim_relative_clause_context(
+    graph: &SemanticGraph,
+    clauses: &[RelativeClause],
+    output: &mut String,
+) {
+    for clause in clauses {
+        if clause.veridical == Some(false) {
+            let _ = write!(
+                output,
+                " non-claim-restrictive-clause={};",
+                formula_reference_label(graph, clause.body)
+            );
+        }
+    }
 }
 
 #[requires(true)]
@@ -1330,7 +1552,11 @@ fn tree_role_prefix(role: TraversalRole) -> &'static str {
         TraversalRole::Restriction => "restriction: ",
         TraversalRole::Body => "body: ",
         TraversalRole::DescriptorBody => "descriptor body: ",
-        TraversalRole::RelativeClause => "relative clause: ",
+        TraversalRole::RelationBody => "relation body: ",
+        TraversalRole::AbstractionBody => "abstraction body: ",
+        TraversalRole::RestrictiveRelativeClause => "restrictive relative clause: ",
+        TraversalRole::IncidentalRelativeClause => "incidental relative clause: ",
+        TraversalRole::NonveridicalRelativeClause => "non-claim restrictive relative clause: ",
         TraversalRole::ModalBody => "modal body: ",
         TraversalRole::DetachedIncidental => "incidental: ",
     }
@@ -1350,7 +1576,11 @@ fn traversal_role_label(role: TraversalRole) -> &'static str {
         TraversalRole::Restriction => "restriction",
         TraversalRole::Body => "body",
         TraversalRole::DescriptorBody => "descriptor-body",
-        TraversalRole::RelativeClause => "relative-clause",
+        TraversalRole::RelationBody => "relation-body",
+        TraversalRole::AbstractionBody => "abstraction-body",
+        TraversalRole::RestrictiveRelativeClause => "restrictive-relative-clause",
+        TraversalRole::IncidentalRelativeClause => "incidental-relative-clause",
+        TraversalRole::NonveridicalRelativeClause => "non-claim-restrictive-relative-clause",
         TraversalRole::ModalBody => "modal-body",
         TraversalRole::DetachedIncidental => "incidental",
     }
