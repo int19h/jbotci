@@ -6408,7 +6408,16 @@ mod tests {
             .iter()
             .find(|entry| entry.0 == "lo" && entry.1 == (9, 11))
             .expect("lo prefix leaf");
-        assert_eq!(markers.len(), 3, "{markers:#?}");
+        assert_eq!(markers.len(), 1, "{markers:#?}");
+        assert_eq!(success.brackets_text.matches("‼‼").count(), 1);
+        assert_eq!(
+            success
+                .tree_rows
+                .iter()
+                .filter(|row| row.label == "Error")
+                .count(),
+            1
+        );
         assert!(markers.iter().all(|marker| {
             web_block_byte_range(marker) == (11, 11)
                 && marker.raw_text.is_empty()

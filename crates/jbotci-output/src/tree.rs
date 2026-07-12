@@ -23,7 +23,7 @@ use jbotci_syntax::{
     RecoveredSyntaxParse, SyntaxError, Token, WithIndicators, WithIndicatorsData,
     elidable_terminator_for_absent_field_ref, tree::WithFreeModifiers,
 };
-use jbotci_tree::{FieldRef, RecoveryItemState, TreeVisitor};
+use jbotci_tree::{FieldRef, RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::Serialize;
 
 use crate::references::ReferenceDisplayModel;
@@ -2520,6 +2520,7 @@ struct SyntaxTreeBuilder<'source, 'index, 'tree, M: SyntaxRenderModel> {
     last_position: Option<RenderedPosition>,
     root: Option<TreeValue>,
     render_error: Option<OutputError>,
+    recovery_projection: RecoveryProjection,
     _model: std::marker::PhantomData<M>,
 }
 
@@ -2543,6 +2544,7 @@ where
             last_position: None,
             root: None,
             render_error: None,
+            recovery_projection: RecoveryProjection::default(),
             _model: std::marker::PhantomData,
         }
     }
@@ -2563,6 +2565,7 @@ where
             last_position: None,
             root: None,
             render_error: None,
+            recovery_projection: RecoveryProjection::default(),
             _model: std::marker::PhantomData,
         }
     }
@@ -2807,6 +2810,7 @@ where
     #[ensures(true)]
     fn visit_atom(&mut self, atom: Self::Atom) {
         self.last_position = M::atom_end_position(atom);
+        self.recovery_projection.separate();
         self.push_value(M::atom_tree_value(atom, self.source, self.options));
     }
 
@@ -2825,6 +2829,7 @@ where
         let Some(position) = self.last_position.clone() else {
             return;
         };
+        self.recovery_projection.separate();
         self.push_value(elided_cmavo_tree_value(cmavo, position, self.options));
     }
 
@@ -2834,6 +2839,9 @@ where
         let Some(errors) = self.recovery_errors else {
             return;
         };
+        if !self.recovery_projection.include(item) {
+            return;
+        }
         match crate::recovered::syntax_recovery_item(item, errors, self.source) {
             Ok(item) => self.push_value(TreeValue::Error {
                 error: new!(RecoveryTreeError {

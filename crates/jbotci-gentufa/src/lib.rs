@@ -35,7 +35,7 @@ use jbotci_syntax::generated_model::{
 };
 use jbotci_syntax::tree::Token;
 use jbotci_syntax::{WithIndicators, WithIndicatorsData, elidable_terminator_for_absent_field_ref};
-use jbotci_tree::{RecoveryItemState, TreeVisitor};
+use jbotci_tree::{RecoveryItemState, RecoveryProjection, TreeVisitor};
 use serde::{Deserialize, Serialize};
 
 pub use render::{
@@ -715,6 +715,7 @@ struct GeneratedBlockCollector<'source, 'options, 'index, 'tree, const RECOVERED
     root: Option<BlockTreeNode>,
     next_id: usize,
     last_token_end_range: Option<WebSourceRange>,
+    recovery_projection: RecoveryProjection,
 }
 
 impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
@@ -739,6 +740,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
                 .map(GeneratedSyntaxIndex::node_count)
                 .unwrap_or(0),
             last_token_end_range: None,
+            recovery_projection: RecoveryProjection::default(),
         }
     }
 
@@ -1005,6 +1007,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
         if raw_text.is_empty() {
             return;
         }
+        self.recovery_projection.separate();
         self.last_token_end_range = Some(end_range_from_span(&verbatim.span));
         let id = self.allocate_id();
         self.push_leaf_part(new!(BlockLeafPart {
@@ -1023,6 +1026,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
     fn push_word_in_context(&mut self, word: &Word, context: LeadingPauseContext) {
         let span = word.span();
         let range = range_from_span(span);
+        self.recovery_projection.separate();
         self.last_token_end_range = Some(end_range_from_span(span));
         let id = self.allocate_id();
         self.push_leaf_part(new!(BlockLeafPart {
@@ -1054,6 +1058,7 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
         let Some(range) = self.last_token_end_range else {
             return;
         };
+        self.recovery_projection.separate();
         let id = self.allocate_id();
         self.push_leaf_part(new!(BlockLeafPart {
             id,
@@ -1069,6 +1074,9 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
     #[requires(item.recovery_error_index().is_some())]
     #[ensures(true)]
     fn push_recovered_error<E: RecoveryItemState>(&mut self, item: &E) {
+        if !self.recovery_projection.include(item) {
+            return;
+        }
         let mut spans = Vec::new();
         item.visit_source_spans(&mut |span| spans.push(span.clone()));
         let Some(range) = range_from_spans(&spans) else {
@@ -2925,9 +2933,37 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_layout_attaches_missing_slot_markers_after_prefix() {
-        let (layout, errors) = recovered_test_blocks_layout("mi viska lo");
-        assert_eq!(errors.len(), 1);
+    fn recovered_model_slots_and_rendered_missing_marker_stay_distinct() {
+        let source = "mi viska lo";
+        let words = segment_words_with_modifiers(source).expect("test source has valid morphology");
+        let recovered = jbotci_syntax::parse_syntax_tree_recovered_with_source_and_options(
+            &words,
+            source,
+            &jbotci_syntax::ParseOptions::default(),
+        );
+        assert_eq!(recovered.errors.len(), 1);
+        assert_eq!(
+            jbotci_tree::RecoveredFieldState::recovery_error_slots(recovered.parse_tree.as_ref()),
+            3,
+            "the recovered model keeps one slot per abandoned construct"
+        );
+
+        let brackets = jbotci_output::pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            jbotci_output::BracketRenderOptions::default(),
+        )
+        .expect("recovered brackets");
+        assert_eq!(brackets, "(mi [víska {lo ‼‼}])");
+        assert_eq!(brackets.matches("‼‼").count(), 1);
+
+        let layout = recovered_generated_model_blocks_layout(
+            recovered.parse_tree.as_ref(),
+            source,
+            recovered.errors.len(),
+            &Vec::<GentufaBlockAnnotation<()>>::new(),
+            &GentufaBlockOptions::default(),
+        );
 
         let mi = normal_leaf_for_raw_text(&layout, "mi");
         let viska = normal_leaf_for_raw_text(&layout, "viska");
@@ -2937,23 +2973,18 @@ mod tests {
         assert_eq!(block_byte_range(mi), (0, 2));
         assert_eq!(block_byte_range(viska), (3, 8));
         assert_eq!(block_byte_range(lo), (9, 11));
-        assert_eq!(
-            markers.len(),
-            3,
-            "the recovered model carries three missing slots"
-        );
+        assert_eq!(markers.len(), 1, "the blocks projection collapses the run");
         assert_eq!(lo.col + lo.col_span, markers[0].col);
         assert!(viska.col < lo.col);
-        for (offset, marker) in markers.iter().enumerate() {
+        for marker in markers {
             assert_eq!(block_byte_range(marker), (11, 11));
             assert!(marker.raw_text.is_empty());
             assert!(marker.display_text.is_empty());
             assert_eq!(marker.error_index, Some(0));
             assert_eq!(marker.row, lo.row);
-            assert_eq!(marker.col, markers[0].col + offset);
             assert_eq!(marker.ancestors, lo.ancestors);
             assert_eq!(
-                syntax_error_byte_range(&errors[0]),
+                syntax_error_byte_range(&recovered.errors[0]),
                 block_byte_range(marker)
             );
         }
