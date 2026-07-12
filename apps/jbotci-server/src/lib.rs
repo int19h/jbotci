@@ -26,8 +26,9 @@ use bityzba::{ensures, invariant, new, requires};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
-    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
-    run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
+    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
+    run_tool_cukta, run_tool_cukta_with_context, run_tool_gimfihi, run_tool_tersmu,
+    run_tool_vlacku, run_tool_vlacku_with_context,
 };
 use jbotci_embeddings::{load_latest_pack, model_spec};
 use jbotci_web_core::{
@@ -449,10 +450,11 @@ pub fn router(config: ServerConfig) -> Router {
     let state = Arc::new(AppState::new(config));
     Router::<FullstackState>::new()
         .route("/api/health", get(health))
-        // Deliberately public: #204 keeps `/api/gentufa` for non-model clients
-        // and programmatic model use. Full REST tool parity belongs to #284.
+        // Deliberately public: REST tools have the same exposure posture as
+        // MCP. #284 tracks completing parity for the remaining CLI tools.
         .route("/api/gentufa", post(gentufa))
         .route("/api/gimfihi", post(gimfihi))
+        .route("/api/tersmu", post(tersmu))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .route("/discord", post(discord::discord_post))
         .fallback(static_or_spa)
@@ -515,6 +517,19 @@ async fn gimfihi(Json(request): Json<ToolGimfihiRequest>) -> Response<Body> {
         Err(error) => plain_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             &format!("gimfihi task failed: {error}"),
+        ),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+async fn tersmu(Json(request): Json<ToolTersmuRequest>) -> Response<Body> {
+    match tokio::task::spawn_blocking(move || run_tool_tersmu(request)).await {
+        Ok(Ok(output)) => rest_tool_output(output),
+        Ok(Err(error)) => plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
+        Err(error) => plain_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            &format!("tersmu task failed: {error}"),
         ),
     }
 }
@@ -1749,6 +1764,43 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn tersmu_rest_api_matches_typed_tool_surface() {
+        let app = router(test_config(test_static_dir()));
+        let request = ToolTersmuRequest {
+            text: "mi nitcu lo tanxe".to_owned(),
+            format: jbotci_cli::ToolTersmuFormat::Claims,
+            dialect: None,
+            story_time: false,
+            indent: None,
+        };
+        let expected = run_tool_tersmu(request.clone()).expect("direct tersmu output");
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/tersmu")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"text":"mi nitcu lo tanxe","format":"claims"}"#,
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE),
+            Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("body");
+        assert_eq!(bytes.as_ref(), expected.stdout.as_slice());
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn gimfihi_rest_rejects_unknown_salience_by_name() {
         let response = router(test_config(test_static_dir()))
             .oneshot(
@@ -2037,8 +2089,10 @@ mod tests {
 
         let tersmu_schema = tool_input_schema(tools_array, "tersmu");
         assert!(tersmu_schema["properties"]["text"].is_object());
-        // tersmu has a single output format, so it exposes no `format` field.
-        assert!(tersmu_schema["properties"]["format"].is_null());
+        assert_eq!(
+            tersmu_schema["properties"]["format"]["default"],
+            serde_json::json!("json")
+        );
     }
 
     #[tokio::test]
@@ -2355,6 +2409,32 @@ mod tests {
         assert_eq!(tersmu_parsed["version"], "lojban-semantics-json-1");
         assert_eq!(tersmu_parsed["root"], "utterance:5");
         assert_eq!(tersmu_parsed["objects"]["entity:1"]["indexical"], "speaker");
+
+        let tersmu_claims = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu-claims",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": {
+                        "text": "mi nitcu lo tanxe",
+                        "format": "claims"
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(tersmu_claims.status(), StatusCode::OK);
+        let tersmu_claims_json = response_json(tersmu_claims).await;
+        let claims_text = tersmu_claims_json["result"]["content"][0]["text"]
+            .as_str()
+            .expect("tersmu claims text");
+        assert!(claims_text.starts_with("asserted:\n"));
+        assert!(claims_text.contains("presupposed/projected:\n"));
+        assert!(claims_text.contains("exists lo tanxe["));
 
         let unknown = post_json(
             app.clone(),

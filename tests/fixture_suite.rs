@@ -1354,6 +1354,14 @@ fn available_facets_include_tree_expectations() {
                         text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
                         sha256: None,
                     }),
+                    claims: Some(TextExpectation {
+                        text: "asserted:\n  - klama(speaker)".into(),
+                        sha256: None,
+                    }),
+                    tree: Some(TextExpectation {
+                        text: "utterance utterance:1".into(),
+                        sha256: None,
+                    }),
                     ..TersmuOutputExpectation::default()
                 }),
                 ..OutputExpectations::default()
@@ -1364,6 +1372,8 @@ fn available_facets_include_tree_expectations() {
     let facets = case.available_facets();
     assert!(facets.contains(&Facet::GentufaTree));
     assert!(facets.contains(&Facet::TersmuJson));
+    assert!(facets.contains(&Facet::TersmuClaims));
+    assert!(facets.contains(&Facet::TersmuTree));
     assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
@@ -1372,6 +1382,14 @@ fn available_facets_include_tree_expectations() {
     assert_eq!(
         "tersmu-json".parse::<Facet>().expect("tersmu facet"),
         Facet::TersmuJson
+    );
+    assert_eq!(
+        "tersmu-claims".parse::<Facet>().expect("claims facet"),
+        Facet::TersmuClaims
+    );
+    assert_eq!(
+        "tersmu-tree".parse::<Facet>().expect("tersmu tree facet"),
+        Facet::TersmuTree
     );
 }
 

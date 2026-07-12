@@ -832,7 +832,7 @@ fn parses_gentufa_formats_and_flags() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn parses_tersmu_json_format() {
+fn parses_tersmu_formats_without_changing_json_default() {
     let Command::Tersmu(default_input) = Cli::try_parse_from(["jbotci", "tersmu", "coi"])
         .expect("default tersmu")
         .command
@@ -849,6 +849,20 @@ fn parses_tersmu_json_format() {
         panic!("expected tersmu command")
     };
     assert_eq!(json_input.format, TersmuFormat::Json);
+
+    for (name, expected) in [
+        ("claims", TersmuFormat::Claims),
+        ("tree", TersmuFormat::Tree),
+    ] {
+        let Command::Tersmu(input) =
+            Cli::try_parse_from(["jbotci", "tersmu", "--format", name, "coi"])
+                .expect("derived tersmu format")
+                .command
+        else {
+            panic!("expected tersmu command")
+        };
+        assert_eq!(input.format, expected);
+    }
 }
 
 #[test]

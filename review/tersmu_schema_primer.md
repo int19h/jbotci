@@ -1,4 +1,4 @@
-# `lojban-semantics-json-1` — tersmu JSON Reference
+# `tersmu` semantic graph and derived-rendering reference
 
 This is the authoritative reference for the JSON that `jbotci tersmu --format json` emits.
 It is generated from the Rust model in `crates/jbotci-semantics/src/model.rs` (the structural
@@ -6,11 +6,72 @@ source of truth) and the builder in `crates/jbotci-semantics/src/builder.rs` (wh
 syntax onto these objects). Use it to read a tersmu semantic graph and judge whether it correctly
 captures the meaning of a Lojban utterance.
 
+The flat `lojban-semantics-json-1` id-graph is the canonical model and the only
+interchange form. `jbotci tersmu --format claims` and `--format tree` are
+human-readable projections computed solely from that typed graph; neither is a
+canonical human syntax, and neither adds or repairs semantic information.
+
 All field names below are the **exact JSON keys** (the model serializes with serde
 `rename_all = "camelCase"` unless noted, so Rust `byte_start` → JSON `byteStart`, etc.). All enum
 values are given exactly as they serialize (almost all enums are `camelCase`; a few are
 `kebab-case` and are flagged). Optional fields are **omitted** when empty/`None` (serde
 `skip_serializing_if`); never assume a missing key means a different value than "absent."
+
+---
+
+## Derived human-readable formats
+
+### `--format claims`
+
+The claims ledger is a flat list grouped under exactly three headings:
+
+- `asserted`: predication atoms reached through utterance/sequence content.
+  Every entry includes its graph id, predication mode, and a structural context
+  path summarizing surrounding quantifiers, restrictions, connectives, and
+  negation.
+- `presupposed/projected`: veridical descriptor bodies, incidental relative
+  clauses, denotation commitments for constant/indexical referents, and the
+  projective nonempty-domain commitment carried by restricted `forall` and
+  `pluralForall`. A domain-import line names both the bound variable and the
+  restriction formula id, so `domainImport` is visible without inventing an
+  at-issue conjunct.
+- `displayed`: attitudinal, evidential, discursive, metalinguistic, emphasis,
+  and question-prompt objects, including their experiencer, target, polarity,
+  and assertion effect.
+
+Predications use the formulaic template
+`relation(x1=short-label[id], x2=short-label[id], ...) [predication-id]`.
+Lojban relation words are kept verbatim. Labels come from typed indexical,
+descriptor, sign, parameter, and sort fields; every label includes the object
+id, making shared referents explicit. No natural-language paraphrase inference
+is performed.
+
+Ledger order is deterministic. Formula-backed entries follow semantic
+traversal order; numbered arguments use place order. Projective objects first
+appear at the claim-bearing graph edge that exposes them; detached incidental
+or displayed objects use object-id order as a stable tie-break. Inert objects
+do not acquire commitments merely by existing in the object map. Entries of
+the same semantic identity and tier are emitted once.
+
+### `--format tree`
+
+The structural tree prints utterance and sequence nesting followed by formula
+nodes. Indentation is the graph's scope structure: `not`, quantifiers,
+connectives, `restriction`, and `body` remain separate nodes. Atomic leaves use
+the same typed predication and referent templates as the ledger. A restricted
+universal is annotated `domain-import=projective` on its quantifier line, while
+the commitment itself remains visible as a ledger entry rather than a fabricated
+formula child. Displayed asides are printed at their utterance attachment.
+
+The tree is deterministic in semantic child order: connective children keep
+their stored order, restrictions precede quantifier bodies, sequence connection
+claims precede items, and ties use object id. Repeated ids are intentionally
+shown; equality of ids, not repeated label text, expresses sharing.
+
+The CLI and REST request `format` values are `json`, `claims`, and `tree`. The
+MCP tool exposes the same values and deliberately continues to default to
+`json`; changing that default is an owner decision, not part of the renderer
+definition.
 
 ---
 

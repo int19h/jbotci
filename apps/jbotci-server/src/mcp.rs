@@ -269,9 +269,10 @@ fn mcp_tools() -> Vec<Value> {
         tool_definition(
             "tersmu",
             "Lojban semantics",
-            "Compute the deep semantic/logical meaning of Lojban text as a JSON graph (referents, \
-             predications, eventualities, formulas). This is the deepest analysis jbotci offers — \
-             for grammar use `gentufa`, for morphology use `vlasei`. Output is indented JSON.",
+            "Compute the deep semantic/logical meaning of Lojban text. The default `json` format is \
+             the canonical flat id-graph (referents, predications, eventualities, formulas). \
+             `claims` derives a tiered human-readable claims ledger; `tree` derives an indented \
+             scope tree. For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),
     ]

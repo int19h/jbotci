@@ -1401,18 +1401,69 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
     }
 }
 
-/// Build the semantic representation of Lojban text as a JSON graph
-/// (`lojban-semantics-json-1`): the utterances, eventualities, referents,
-/// predications, and formulas that make up its meaning, with full argument
-/// structure. This is the deepest analysis jbotci offers — reach for it when you
-/// need the actual logical meaning, beyond morphology (`vlasei`) or grammar
-/// (`gentufa`). The result is always this JSON graph.
+/// Output format for a `tersmu` semantic analysis. `json` is the canonical
+/// interchange graph; `claims` and `tree` are deterministic views derived from
+/// that graph.
+#[invariant(::Json => true)]
+#[invariant(::Claims => true)]
+#[invariant(::Tree => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolTersmuFormat {
+    /// Canonical `lojban-semantics-json-1` flat id-graph and the default.
+    Json,
+    /// Flat ledger grouped into asserted, presupposed/projected, and displayed
+    /// tiers. This makes descriptor existence and domain-import commitments
+    /// visible without changing the canonical graph.
+    Claims,
+    /// Indented utterance/formula structure showing quantifier, negation, and
+    /// connective nesting with referent ids inlined.
+    Tree,
+}
+
+impl Default for ToolTersmuFormat {
+    #[requires(true)]
+    #[ensures(ret == ToolTersmuFormat::Json)]
+    fn default() -> Self {
+        Self::Json
+    }
+}
+
+impl ToolTersmuFormat {
+    #[requires(true)]
+    #[ensures(true)]
+    fn command_format(self) -> TersmuFormat {
+        match self {
+            Self::Json => TersmuFormat::Json,
+            Self::Claims => TersmuFormat::Claims,
+            Self::Tree => TersmuFormat::Tree,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Json => APPLICATION_JSON_CONTENT_TYPE,
+            Self::Claims | Self::Tree => TEXT_PLAIN_CONTENT_TYPE,
+        }
+    }
+}
+
+/// Build the deep semantic representation of Lojban text. The canonical result
+/// is the `lojban-semantics-json-1` graph; optional human formats are pure
+/// renderings of that same graph. Reach for this when you need logical meaning,
+/// beyond morphology (`vlasei`) or grammar (`gentufa`).
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
+    /// How to render the graph. Defaults to canonical `json`; use `claims` for
+    /// a tiered validation ledger or `tree` for logical nesting.
+    #[serde(default)]
+    pub format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
     /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
@@ -1435,7 +1486,7 @@ impl From<ToolTersmuRequest> for Command {
     fn from(request: ToolTersmuRequest) -> Self {
         Self::Tersmu(TersmuInput {
             file: None,
-            format: TersmuFormat::Json,
+            format: request.format.command_format(),
             max_errors: DEFAULT_MAX_ERRORS,
             trace: None,
             dialect: request.dialect,
@@ -1581,7 +1632,8 @@ fn tool_gimfihi_source_to_input(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    run_tool_command(Command::from(request), Some(APPLICATION_JSON_CONTENT_TYPE))
+    let content_type = request.format.content_type();
+    run_tool_command(Command::from(request), Some(content_type))
 }
 
 #[requires(true)]

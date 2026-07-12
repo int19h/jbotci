@@ -197,7 +197,10 @@ fn push_expectations_toml(
             }
         }
         if let Some(tersmu) = &output_expectation.tersmu
-            && (tersmu.json.is_some() || tersmu.error.is_some())
+            && (tersmu.json.is_some()
+                || tersmu.claims.is_some()
+                || tersmu.tree.is_some()
+                || tersmu.error.is_some())
         {
             output.push_str("\n[expectations.output.tersmu]\n");
             if tersmu.status != super::ExpectationStatus::Success {
@@ -207,6 +210,8 @@ fn push_expectations_toml(
                 output.push_str("story-time = true\n");
             }
             push_optional_field(output, "json", &tersmu.json)?;
+            push_optional_field(output, "claims", &tersmu.claims)?;
+            push_optional_field(output, "tree", &tersmu.tree)?;
             push_optional_field(output, "error", &tersmu.error)?;
         }
     }
