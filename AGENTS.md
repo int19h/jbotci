@@ -338,6 +338,14 @@ BPFK morphology treats commas as syllable separators only; commas do not affect 
 
 The CgV (consonant-glide-vowel) ban applies across commas, so names that rely on a comma to block a glide are invalid (e.g., `.an,iis.`, `.melxi,or.`). We still allow this with a warning.
 
+Commas are ignored for word identity and morphology, but they legitimately guide pronunciation
+(owner adjudication, issue #339). The original CLL suggestion that a comma may be realized as an
+inserted consonant is rejected; the dieresis reading is valid instead: a comma indicates a
+syllable boundary, so the IPA renderer honors it («.mei,in.» → ˈmej.in vs «.meiin.» → ˈme.jin — the
+same word with two valid indicated pronunciations). Any comma-bearing word may also be pronounced
+as if the commas were absent; commas only steer pronunciation closer to the original (useful for
+borrowed names). Comma-sensitive IPA output is therefore intentional — do not "fix" it.
+
 BPFK morphology treats bare `y` as hesitation noise rather than an ordinary cmavo requiring written pause markers. A run such as `yyyyyyy` remains valid without periods; y-initial BY words such as `ybu` and `y'y` are ordinary lerfu words and follow the normal leading-pause rendering convention.
 
 The semantics of `le` and `lo` and default quantification rules are different. If you have read CLL regarding either of these as part of your research, you must also check https://mw.lojban.org/papri/How_to_use_xorlo for an important clarification before using the information from CLL for any decisions pertaining to Lojban semantics.
