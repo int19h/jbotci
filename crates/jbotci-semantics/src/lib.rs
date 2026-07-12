@@ -13,6 +13,7 @@ pub use generated_builder::{
     build_generated_semantic_graph_with_dictionary_and_options,
 };
 pub use model::{
-    SEMANTIC_JSON_VERSION, SemanticGraph, SemanticObject, SemanticObjectId, SemanticReferentId,
-    semantic_graph_object_ids_match_types, semantic_graph_references_are_defined,
+    DomainImport, SEMANTIC_JSON_VERSION, SemanticGraph, SemanticObject, SemanticObjectId,
+    SemanticReferentId, semantic_graph_object_ids_match_types,
+    semantic_graph_references_are_defined, semantic_object_domain_imports_are_valid,
 };

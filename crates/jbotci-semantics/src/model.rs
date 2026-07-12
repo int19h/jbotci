@@ -545,6 +545,7 @@ impl SemanticObjectKind {
 #[expensive_invariant(semantic_object_arguments_are_valid(objects))]
 #[expensive_invariant(semantic_object_compositions_are_valid(objects))]
 #[expensive_invariant(semantic_object_question_slots_are_valid(objects))]
+#[expensive_invariant(semantic_object_domain_imports_are_valid(objects))]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticGraph {
@@ -2559,6 +2560,13 @@ pub enum FormulaOperator {
     RespectivelyDistribution,
 }
 
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DomainImport {
+    Projective,
+}
+
 #[invariant(quantifier_formula_operator_is_allowed(*operator))]
 #[invariant(quantifier_variable_kind_is_allowed(variable.object_kind()))]
 #[invariant(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
@@ -3526,6 +3534,36 @@ fn quantifier_formula_operator_is_allowed(operator: FormulaOperator) -> bool {
             | FormulaOperator::PluralExists
             | FormulaOperator::PluralForall
     )
+}
+
+#[requires(quantifier_formula_operator_is_allowed(operator))]
+#[ensures(ret == ((matches!(operator, FormulaOperator::Forall | FormulaOperator::PluralForall) && restriction.is_some()).then_some(DomainImport::Projective)))]
+fn quantified_formula_domain_import(
+    operator: FormulaOperator,
+    restriction: Option<SemanticObjectId>,
+) -> Option<DomainImport> {
+    (matches!(
+        operator,
+        FormulaOperator::Forall | FormulaOperator::PluralForall
+    ) && restriction.is_some())
+    .then_some(DomainImport::Projective)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub fn semantic_object_domain_imports_are_valid(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> bool {
+    objects.values().all(|object| {
+        let Ok(serde_json::Value::Object(serialized)) = serde_json::to_value(object) else {
+            return false;
+        };
+        match object.formula_domain_import() {
+            Some(domain_import) => serde_json::to_value(domain_import)
+                .is_ok_and(|expected| serialized.get("domainImport") == Some(&expected)),
+            None => !serialized.contains_key("domainImport"),
+        }
+    })
 }
 
 #[requires(true)]

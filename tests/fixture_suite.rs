@@ -182,6 +182,70 @@ fn recovered_morphology_contracts_hold_for_fixture_corpus() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn domain_import_marker_iff_holds_for_fixture_corpus() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let fixtures = load_fixture_tree(&root).expect("fixtures should load");
+    let mut fixtures_checked = 0usize;
+    let mut formula_nodes_checked = 0usize;
+    let mut marked_nodes = 0usize;
+
+    for fixture in fixtures {
+        let Some(expectation) = fixture
+            .test_case
+            .expectations
+            .output
+            .as_ref()
+            .and_then(|output| output.tersmu.as_ref())
+            .filter(|expectation| expectation.status == ExpectationStatus::Success)
+            .and_then(|expectation| expectation.json.as_ref())
+        else {
+            continue;
+        };
+        let graph: serde_json::Value = serde_json::from_str(&expectation.text)
+            .unwrap_or_else(|error| panic!("{} tersmu JSON: {error}", fixture.test_case.id));
+        let objects = graph["objects"]
+            .as_object()
+            .unwrap_or_else(|| panic!("{} tersmu objects", fixture.test_case.id));
+        for (id, object) in objects {
+            let Some(object) = object.as_object() else {
+                panic!("{} object {id} is not a map", fixture.test_case.id);
+            };
+            let qualifies = object.get("type").and_then(serde_json::Value::as_str)
+                == Some("formula")
+                && matches!(
+                    object.get("operator").and_then(serde_json::Value::as_str),
+                    Some("forall" | "pluralForall")
+                )
+                && object.contains_key("restriction");
+            let expected = qualifies.then_some("projective");
+            assert_eq!(
+                object
+                    .get("domainImport")
+                    .and_then(serde_json::Value::as_str),
+                expected,
+                "{} object {id} violates the domainImport iff rule",
+                fixture.test_case.id,
+            );
+            if object.get("type").and_then(serde_json::Value::as_str) == Some("formula") {
+                formula_nodes_checked += 1;
+            }
+            marked_nodes += usize::from(qualifies);
+        }
+        fixtures_checked += 1;
+    }
+
+    println!(
+        "fixtures_checked={fixtures_checked} formula_nodes_checked={formula_nodes_checked} marked_nodes={marked_nodes}"
+    );
+    assert!(fixtures_checked > 0);
+    assert!(formula_nodes_checked > 0);
+    assert!(marked_nodes > 0);
+}
+
+#[cfg(feature = "expensive_contracts")]
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn recovered_syntax_contracts_hold_for_fixture_corpus() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let paths = fixture_paths(&root).expect("fixture paths should load");
