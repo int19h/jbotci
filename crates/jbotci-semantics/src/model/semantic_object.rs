@@ -58,8 +58,10 @@ pub struct UtteranceNode {
 #[invariant(items.iter().all(|item| sequence_item_kind_is_allowed(item.object_kind())))]
 #[invariant(content.is_none_or(|content| content.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(connection_claims.iter().all(|claim| claim.object_kind() == SemanticObjectKind::Formula))]
+#[invariant(force.is_none_or(|force| force == UtteranceForce::Subordinated))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SequenceNode {
+    pub force: Option<UtteranceForce>,
     pub items: Vec<SemanticObjectId>,
     pub content: Option<SemanticObjectId>,
     pub connection_claims: Vec<SemanticObjectId>,
@@ -284,10 +286,9 @@ pub struct FormulaTraversal {
     pub body: Option<SemanticObjectId>,
 }
 
-#[invariant(*category == ReferentCategory::Constant)]
+#[invariant(*category != ReferentCategory::Indexical, "sign referents have no indexical role field")]
 #[invariant(sign_kind.as_ref().is_some_and(|kind| *kind == SignKind::Quotation) == quotation.is_some())]
 #[invariant(text.as_ref().is_none_or(|text| !text.is_empty()))]
-#[invariant(denotes.is_none_or(|denotes| argument_object_kind_can_fill(denotes.object_kind())))]
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct SignNode {
@@ -866,6 +867,7 @@ impl SemanticObject {
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
         new!(SemanticObject::Sequence(new!(SequenceNode {
+            force: None,
             items,
             content: None,
             connection_claims: Vec::new(),
@@ -2367,6 +2369,7 @@ fn serialize_utterance<M: SerializeMap>(map: &mut M, node: &UtteranceNode) -> Re
 #[requires(true)]
 #[ensures(true)]
 fn serialize_sequence<M: SerializeMap>(map: &mut M, node: &SequenceNode) -> Result<(), M::Error> {
+    optional_entry!(map, "force", node.force.as_ref());
     optional_entry!(map, "content", node.content.as_ref());
     nonempty_entry!(map, "items", &node.items);
     nonempty_entry!(map, "connectionClaims", &node.connection_claims);

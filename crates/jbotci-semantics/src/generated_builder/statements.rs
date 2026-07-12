@@ -4109,7 +4109,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 });
                 Some(content)
             } else {
-                object.as_sequence().and_then(|node| node.content)
+                let content = object.as_sequence().and_then(|node| node.content);
+                if object.as_sequence().is_some() {
+                    object.update_sequence(|node| {
+                        node.with_data(data! { force: Some(UtteranceForce::Subordinated) })
+                    });
+                }
+                content
             }
         } else {
             None
