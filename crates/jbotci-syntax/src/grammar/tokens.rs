@@ -210,7 +210,14 @@ fn warn_experimental_cmavo(
     context: ExperimentalCmavoContext,
     word: &Token,
 ) {
-    if let Some(cmavo) = parser_word_cmavo(state, word)
+    if let data!(WordLike::SelmahoQuotedWord { mahoi, .. }) = word.core_word().as_data()
+        && let Some(construct) = experimental_construct_for_cmavo(
+            ExperimentalCmavoContext::Selmaho(Selmaho::Zo),
+            Cmavo::Mahoi,
+        )
+    {
+        state.warn_word(construct, word, mahoi);
+    } else if let Some(cmavo) = parser_word_cmavo(state, word)
         && let Some(construct) = experimental_construct_for_cmavo(context, cmavo)
     {
         state.warn(construct, word);
@@ -989,6 +996,9 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<Range<usize>> {
         data!(WordLike::QuotedWord { zo, word }) => {
             Some(zo.span().byte_start..word.span().byte_end)
         }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            Some(mahoi.span().byte_start..word.span().byte_end)
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             closing_delimiter,
@@ -1180,6 +1190,7 @@ fn syntax_error_kind_for_word_like(word_like: &WordLike) -> SyntaxErrorKind {
             WordKind::Cmevla => SyntaxErrorKind::UnexpectedCmevla,
         },
         data!(WordLike::QuotedWord { .. })
+        | data!(WordLike::SelmahoQuotedWord { .. })
         | data!(WordLike::DelimitedNonLojbanQuote { .. })
         | data!(WordLike::QuotedWords { .. })
         | data!(WordLike::DelimitedWordQuote { .. }) => SyntaxErrorKind::UnexpectedQuote,

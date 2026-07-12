@@ -58,6 +58,7 @@ tree_model! {
 
     #[invariant(::PlainWord(_) => true)]
     #[invariant(::QuotedWord => zo.is_cmavo(Cmavo::Zo))]
+    #[invariant(::SelmahoQuotedWord => mahoi.is_cmavo(Cmavo::Mahoi))]
     #[invariant(::DelimitedNonLojbanQuote => zoi.is_selmaho(Selmaho::Zoi)
         && crate::canonical_text_eq(
             opening_delimiter.phonemes().as_str(),
@@ -74,6 +75,11 @@ tree_model! {
         PlainWord(#[tree_child(primary)] Word),
         QuotedWord {
             zo: Box<Word>,
+            #[tree_child(primary)]
+            word: Box<Word>,
+        },
+        SelmahoQuotedWord {
+            mahoi: Box<Word>,
             #[tree_child(primary)]
             word: Box<Word>,
         },

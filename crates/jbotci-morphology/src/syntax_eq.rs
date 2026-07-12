@@ -23,6 +23,16 @@ pub fn word_like_syntax_eq(left: &WordLike, right: &WordLike) -> bool {
             }),
         ) => word_syntax_eq(left_zo, right_zo) && word_syntax_eq(left_word, right_word),
         (
+            data!(WordLike::SelmahoQuotedWord {
+                mahoi: left_mahoi,
+                word: left_word,
+            }),
+            data!(WordLike::SelmahoQuotedWord {
+                mahoi: right_mahoi,
+                word: right_word,
+            }),
+        ) => word_syntax_eq(left_mahoi, right_mahoi) && word_syntax_eq(left_word, right_word),
+        (
             data!(WordLike::DelimitedNonLojbanQuote {
                 zoi: left_zoi,
                 opening_delimiter: left_opening,

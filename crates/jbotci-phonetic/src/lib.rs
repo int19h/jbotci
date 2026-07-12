@@ -1521,6 +1521,9 @@ fn flatten_word_like_ipa_in_context(
         data!(WordLike::QuotedWord { zo, word }) => {
             vec![word_ipa_chunk(zo), word_ipa_chunk(word)]
         }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            vec![word_ipa_chunk(mahoi), word_ipa_chunk(word)]
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,

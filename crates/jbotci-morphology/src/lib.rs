@@ -983,6 +983,15 @@ impl WordLike {
         })
     }
 
+    #[requires(mahoi.is_cmavo(Cmavo::Mahoi))]
+    #[ensures(ret.is_quote_marker_cmavo(Cmavo::Mahoi))]
+    pub fn mahoi_quote(mahoi: Word, word: Word) -> Self {
+        new!(WordLike::SelmahoQuotedWord {
+            mahoi: Box::new(mahoi),
+            word: Box::new(word),
+        })
+    }
+
     #[requires(zoi.is_selmaho(Selmaho::Zoi))]
     #[requires(canonical_text_eq(
         opening_delimiter.phonemes().as_str(),
@@ -1054,10 +1063,11 @@ impl WordLike {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::QuotedWord { .. }) | data!(WordLike::DelimitedNonLojbanQuote { .. }) | data!(WordLike::QuotedWords { .. }) | data!(WordLike::DelimitedWordQuote { .. })))]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(WordLike::QuotedWord { .. }) | data!(WordLike::SelmahoQuotedWord { .. }) | data!(WordLike::DelimitedNonLojbanQuote { .. }) | data!(WordLike::QuotedWords { .. }) | data!(WordLike::DelimitedWordQuote { .. })))]
     pub fn quote_marker_cmavo(&self) -> Option<Cmavo> {
         match self.as_data() {
             data!(WordLike::QuotedWord { zo, .. }) => zo.cmavo(),
+            data!(WordLike::SelmahoQuotedWord { mahoi, .. }) => mahoi.cmavo(),
             data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.cmavo(),
             data!(WordLike::QuotedWords { lohu, .. }) => lohu.cmavo(),
             data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.cmavo(),
@@ -1137,6 +1147,10 @@ impl WordLike {
                 out.push(zo.span());
                 out.push(word.span());
             }
+            data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                out.push(mahoi.span());
+                out.push(word.span());
+            }
             data!(WordLike::DelimitedNonLojbanQuote {
                 zoi,
                 opening_delimiter,
@@ -1198,6 +1212,9 @@ impl fmt::Display for WordLike {
         match self.as_data() {
             data!(WordLike::PlainWord(word)) => write!(f, "{word}"),
             data!(WordLike::QuotedWord { zo, word }) => write!(f, "{zo}-<<{word}>>"),
+            data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+                write!(f, "{mahoi}-<<{word}>>")
+            }
             data!(WordLike::DelimitedNonLojbanQuote {
                 zoi,
                 opening_delimiter,
@@ -1244,6 +1261,10 @@ where
         data!(WordLike::PlainWord(word)) => WordLike::bare(map_word_spans(word, map_span)?),
         data!(WordLike::QuotedWord { zo, word }) => WordLike::zo_quote(
             map_word_spans(*zo, map_span)?,
+            map_word_spans(*word, map_span)?,
+        ),
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => WordLike::mahoi_quote(
+            map_word_spans(*mahoi, map_span)?,
             map_word_spans(*word, map_span)?,
         ),
         data!(WordLike::DelimitedNonLojbanQuote {
@@ -2089,6 +2110,12 @@ fn valsi_classification(word_like: &WordLike) -> ValsiClassification {
             marker: plain_word_classification(zo),
             quoted_word: plain_word_classification(word),
         }),
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            new!(ValsiClassification::QuotedWord {
+                marker: plain_word_classification(mahoi),
+                quoted_word: plain_word_classification(word),
+            })
+        }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
             opening_delimiter,
@@ -2403,6 +2430,10 @@ fn word_like_from_json(value: serde_json::Value) -> Result<WordLike, String> {
         "Bare" | "PlainWord" => Ok(WordLike::bare(word_payload(payload)?)),
         "QuotedWord" => Ok(WordLike::zo_quote(
             word_field(&mut payload, "zo")?,
+            word_field(&mut payload, "word")?,
+        )),
+        "SelmahoQuotedWord" => Ok(WordLike::mahoi_quote(
+            word_field(&mut payload, "mahoi")?,
             word_field(&mut payload, "word")?,
         )),
         "DelimitedNonLojbanQuote" => Ok(WordLike::zoi_quote(
@@ -2746,6 +2777,7 @@ pub(crate) fn erasure_selmaho(word_like: &WordLike) -> Option<&'static str> {
     match word_like.as_data() {
         data!(WordLike::PlainWord(word)) => word.selmaho(),
         data!(WordLike::QuotedWord { .. }) => Some("ZO"),
+        data!(WordLike::SelmahoQuotedWord { .. }) => Some("ZO"),
         data!(WordLike::DelimitedNonLojbanQuote { zoi, .. }) => zoi.selmaho(),
         data!(WordLike::QuotedWords { .. }) => Some("LOhU"),
         data!(WordLike::DelimitedWordQuote { marker, .. }) => marker.selmaho(),
@@ -2761,6 +2793,9 @@ fn word_like_byte_range(word_like: &WordLike) -> Option<std::ops::Range<usize>> 
         data!(WordLike::PlainWord(word)) => Some(word.span().byte_start..word.span().byte_end),
         data!(WordLike::QuotedWord { zo, word }) => {
             Some(zo.span().byte_start..word.span().byte_end)
+        }
+        data!(WordLike::SelmahoQuotedWord { mahoi, word }) => {
+            Some(mahoi.span().byte_start..word.span().byte_end)
         }
         data!(WordLike::DelimitedNonLojbanQuote {
             zoi,
@@ -4332,6 +4367,24 @@ mod tests {
         );
         assert_eq!(zei_lujvo.cmavo(), None);
         assert!(!zei_lujvo.is_cmavo(Cmavo::Zo));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn segments_mahoi_as_a_distinct_selmaho_quote() {
+        let words = segment_words_with_modifiers("ma'oi ba").expect("valid MAhOI quote");
+        let [word_like] = words.as_slice() else {
+            panic!("MAhOI and its target must form one morphology token: {words:?}");
+        };
+        let data!(WordLike::SelmahoQuotedWord { mahoi, word }) = word_like.as_data() else {
+            panic!("MAhOI must not be represented as a literal ZO quote: {word_like:?}");
+        };
+
+        assert_eq!(mahoi.cmavo(), Some(Cmavo::Mahoi));
+        assert_eq!(word.cmavo(), Some(Cmavo::Ba));
+        assert_eq!(word_like.quote_marker_cmavo(), Some(Cmavo::Mahoi));
+        assert_eq!(erasure_selmaho(word_like), Some("ZO"));
     }
 
     #[test]
