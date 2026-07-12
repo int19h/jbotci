@@ -7642,8 +7642,124 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::DomainImport;
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
+
+    #[requires(!source.is_empty())]
+    #[ensures(!ret.objects.is_empty())]
+    fn semantic_graph_for(source: &str) -> SemanticGraph {
+        let words = jbotci_morphology::segment_words_with_modifiers_with_options_and_source_id(
+            source,
+            &jbotci_morphology::MorphologyOptions::default(),
+            None,
+        )
+        .expect("source should segment");
+        let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &jbotci_syntax::ParseOptions::default(),
+        )
+        .expect("source should parse");
+        build_generated_semantic_graph_with_dictionary(
+            &syntax,
+            Some(source),
+            jbotci_dictionary_data::english(),
+        )
+        .expect("source should build semantics")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restricted_universal_emits_projective_domain_import() {
+        let graph = semantic_graph_for("ro mlatu cu jbena");
+        let quantified = graph
+            .objects
+            .values()
+            .find(|object| {
+                object.formula_operator() == Some(FormulaOperator::Forall)
+                    && object.formula_restriction().is_some()
+            })
+            .expect("restricted forall formula");
+
+        assert_eq!(
+            quantified.formula_domain_import(),
+            Some(DomainImport::Projective)
+        );
+        assert_eq!(
+            serde_json::to_value(quantified).expect("formula should serialize")["domainImport"],
+            serde_json::json!("projective")
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_universal_does_not_emit_domain_import() {
+        let graph = semantic_graph_for("ro da zo'u da go broda gi brode");
+        let quantified = graph
+            .objects
+            .values()
+            .find(|object| object.formula_operator() == Some(FormulaOperator::Forall))
+            .expect("bare forall formula");
+
+        assert_eq!(quantified.formula_restriction(), None);
+        assert_eq!(quantified.formula_domain_import(), None);
+        assert!(graph.objects.values().all(|object| {
+            serde_json::to_value(object)
+                .expect("object should serialize")
+                .get("domainImport")
+                .is_none()
+        }));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restricted_existential_does_not_emit_domain_import() {
+        let graph = semantic_graph_for("su'o da poi mlatu cu klama");
+        let quantified = graph
+            .objects
+            .values()
+            .find(|object| {
+                object.formula_operator() == Some(FormulaOperator::Cardinality)
+                    && object.formula_restriction().is_some()
+            })
+            .expect("restricted su'o cardinality formula");
+
+        assert_eq!(quantified.formula_domain_import(), None);
+        assert!(
+            serde_json::to_value(quantified)
+                .expect("formula should serialize")
+                .get("domainImport")
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn restricted_plural_universal_emits_projective_domain_import() {
+        let quantified = SemanticObject::quantified_formula(
+            FormulaOperator::PluralForall,
+            SemanticObjectId::referent(1),
+            Some(SemanticObjectId::formula(2)),
+            SemanticObjectId::formula(3),
+            None,
+            None,
+            Vec::new(),
+        );
+
+        assert_eq!(
+            quantified.formula_domain_import(),
+            Some(DomainImport::Projective)
+        );
+        assert_eq!(
+            serde_json::to_value(quantified).expect("formula should serialize")["domainImport"],
+            serde_json::json!("projective")
+        );
+    }
 
     #[test]
     #[requires(true)]

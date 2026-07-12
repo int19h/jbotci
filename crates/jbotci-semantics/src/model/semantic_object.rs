@@ -1226,6 +1226,7 @@ impl SemanticObject {
     #[requires(quantifier_formula_operator_is_allowed(operator))]
     #[requires(body.object_kind() == SemanticObjectKind::Formula)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Formula)]
+    #[ensures(ret.formula_domain_import() == quantified_formula_domain_import(operator, restriction))]
     pub fn quantified_formula(
         operator: FormulaOperator,
         variable: SemanticObjectId,
@@ -1675,6 +1676,17 @@ impl SemanticObject {
     pub fn formula_restriction(&self) -> Option<SemanticObjectId> {
         match self.as_formula()?.as_data() {
             data!(FormulaNode::Quantified(node)) => node.restriction,
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == (matches!(self.formula_operator(), Some(FormulaOperator::Forall | FormulaOperator::PluralForall)) && self.formula_restriction().is_some()))]
+    pub fn formula_domain_import(&self) -> Option<DomainImport> {
+        match self.as_formula()?.as_data() {
+            data!(FormulaNode::Quantified(node)) => {
+                quantified_formula_domain_import(node.operator, node.restriction)
+            }
             _ => None,
         }
     }
@@ -2509,6 +2521,11 @@ fn serialize_formula<M: SerializeMap>(map: &mut M, node: &FormulaNode) -> Result
             optional_entry!(map, "sourceVariable", node.source_variable.as_ref());
             optional_entry!(map, "selectionSource", node.selection_source.as_ref());
             optional_entry!(map, "restriction", node.restriction.as_ref());
+            optional_entry!(
+                map,
+                "domainImport",
+                quantified_formula_domain_import(node.operator, node.restriction).as_ref()
+            );
             map.serialize_entry("body", &node.body)?;
             optional_entry!(map, "quantity", node.quantity.as_ref());
         }
