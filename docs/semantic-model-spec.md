@@ -2136,6 +2136,46 @@ Quantifier:
 }
 ```
 
+A restricted universal carries its non-classical import explicitly:
+
+```json
+{
+  "type": "formula",
+  "operator": "forall",
+  "variable": "entity:1081",
+  "restriction": "formula:1082",
+  "domainImport": "projective",
+  "body": "formula:1083",
+  "quantity": "quantity:1084"
+}
+```
+
+The normative restriction/import semantics are operator-specific:
+
+- `exists` and `pluralExists`: `restriction` is conjoined with `body` inside
+  the existential claim. Any nonempty-domain consequence is at issue and
+  classically entailed; `domainImport` is absent.
+- `cardinality`: `restriction` limits the counted witnesses and its existence
+  consequences are exactly those classically entailed by the quantity; there
+  is no projective import and `domainImport` is absent.
+- `forall` and `pluralForall`: `restriction` is the restricted domain (the
+  implication antecedent for the at-issue universal). When it is present,
+  that domain is additionally required to be nonempty **projectively**: the
+  commitment survives `not`. Such a node must have
+  `domainImport = "projective"`. With no `restriction`, it has no marker and
+  makes no restricted-domain existence claim.
+- `none`: the reading is classical no-witness / negated existential over the
+  restriction and body. It does not import a witness; `domainImport` is
+  absent.
+
+`domainImport` is a closed enum whose only current value is `"projective"`.
+It appears if and only if the formula operator is `forall` or
+`pluralForall` **and** `restriction` is present. Consumers must interpret it
+as a projective commitment that some value satisfies `restriction`, not as a
+second child formula or an at-issue conjunct. The field is omitted everywhere
+else, including restricted existential/cardinality nodes, `none`, constants,
+and Skolem co-variation of `zo'e`.
+
 Quantificational pro-sumti (`da`, `de`, `di`) use formula-level quantifier
 wrappers when their quantifier has semantic scope over the bridi.  In
 `ro da poi prenu cu prami pa de poi finpe`, the root content is a `forall`
@@ -5262,11 +5302,15 @@ implementation gaps are listed separately in “Known Implementation Divergences
     addressee referent.  Use `ArgumentValue.commandTarget:
     {"introducedBy":"ko"}` on the filled argument occurrence.
 
-32. **Outer quantifier representation (#99) — doc correction, no model change.**
+32. **Outer quantifier representation (#99) — doc correction, later refined by
+    amendment 41.**
     Delete the abandoned `ArgumentValue.quantity` account for outer quantifiers.
-    Outer quantifiers are formula-level restricted-variable scopes, consistent
-    with design C-9/C-22; descriptor quantities remain for inner description
-    quantifiers.
+    Outer quantifiers are formula-level restricted-variable scopes; descriptor
+    quantities remain for inner description quantifiers. The earlier claim
+    that the import-free shape was fully "consistent with design C-9/C-22" was
+    false for restricted universals: the scope structure was correct, but CLL
+    16.8's projective domain import was still missing. Amendment 41 supplies
+    that required marker without changing the formula-level scope decision.
 
 33. **Quoted utterance use-status vs force (#100) — doc correction.** A parsed
     quotation preserves the quoted utterance's intrinsic force (`assert`, `ask`,
@@ -5321,6 +5365,20 @@ implementation gaps are listed separately in “Known Implementation Divergences
     preserves the name sign while allowing that sign to denote the lowered
     selbri relation body; `na'u` and `ni'e` point their math outputs at the
     typed lowered selbri output rather than opaque strings.
+
+41. **Projective domain import for restricted universals (#279) — implement.**
+    CLL 16.8 makes the restriction domain of `ro da poi ...` nonempty, but that
+    commitment cannot be encoded as the ordinary at-issue conjunct previously
+    prescribed by design 0.E. By CLL 16.9/16.11, moving `naku` across the
+    universal yields a restricted existential and still entails a witness;
+    negating `and(ALL(R -> B), EX(R))` instead introduces a catless-world
+    disjunct `not(EX(R))`. The domain commitment must therefore project.
+    Restricted `forall`/`pluralForall` formula nodes emit
+    `domainImport:"projective"`; the field is absent from every other node.
+    Restricted `exists`/`pluralExists`/`cardinality` retain their classical
+    restriction-as-conjunct import, and `none` remains non-importing. This is
+    the classical-divergence criterion: annotate only intended semantics that
+    a naive classical graph reading cannot derive and structure cannot encode.
 
 ## Known Implementation Divergences (2026-06-23)
 
