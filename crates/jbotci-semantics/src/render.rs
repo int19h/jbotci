@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, data, ensures, invariant, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 
 use crate::model::{
     ArgumentValue, ArgumentValueKind, Descriptor, DisplayedContentAssertionEffect,
@@ -160,7 +160,7 @@ trait DerivedVisitor<'graph> {
     fn cycle(&mut self, _id: SemanticObjectId, _location: TraversalLocation) {}
 }
 
-#[invariant(true)]
+#[invariant(graph.objects.contains_key(&graph.root))]
 struct DerivedTraversal<'graph> {
     graph: &'graph SemanticGraph,
 }
@@ -190,7 +190,7 @@ impl<'graph> DerivedTraversal<'graph> {
     #[requires(graph.objects.contains_key(&graph.root))]
     #[ensures(ret.graph.root == graph.root)]
     fn new(graph: &'graph SemanticGraph) -> Self {
-        Self { graph }
+        new!(DerivedTraversal { graph })
     }
 
     #[requires(true)]
@@ -706,7 +706,7 @@ impl<'graph> DerivedTraversal<'graph> {
     }
 }
 
-#[invariant(true)]
+#[invariant(!text.is_empty())]
 struct ClaimLine {
     text: String,
 }
@@ -776,7 +776,7 @@ impl<'graph> ClaimsVisitor<'graph> {
     #[requires(!text.is_empty())]
     #[ensures(true)]
     fn push(&mut self, tier: ClaimTier, text: String) {
-        let line = ClaimLine { text };
+        let line = new!(ClaimLine { text });
         match tier {
             ClaimTier::Asserted => self.asserted.push(line),
             ClaimTier::Projected => self.projected.push(line),
