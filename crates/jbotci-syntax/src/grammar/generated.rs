@@ -3095,6 +3095,7 @@ pub mod generated_model {
         pub trace: Option<TraceReport>,
         pub unconsumed_directives: usize,
         pub recovery_directives: Vec<RecoveryDirective>,
+        pub effective_fail_token_indices: Vec<usize>,
     }
 
     #[bityzba::requires(true)]
@@ -3205,6 +3206,7 @@ pub mod generated_model {
 
     #[bityzba::requires(true)]
     #[bityzba::ensures(true)]
+    #[bityzba::ensures(ret.effective_fail_token_indices.len() + ret.unconsumed_directives == ret.recovery_directives.len())]
     pub(crate) fn parse_recovered_text_attempt(
         words: &[Token],
         source: Option<&str>,
@@ -3263,6 +3265,7 @@ pub mod generated_model {
             trace: finish.trace,
             unconsumed_directives: finish.unconsumed_recovery_directives,
             recovery_directives: finish.recovery_directives,
+            effective_fail_token_indices: finish.effective_fail_token_indices,
         }
     }
 
