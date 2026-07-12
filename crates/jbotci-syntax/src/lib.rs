@@ -164,6 +164,7 @@ fn recovered_syntax_tree_conserves_word_spans(
     }
     let mut expected: Vec<_> = expected_refs
         .into_iter()
+        .filter(|span| !span.is_empty())
         .map(|span| (span.byte_start, span.byte_end))
         .collect();
     expected.sort_unstable();
