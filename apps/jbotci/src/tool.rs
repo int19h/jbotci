@@ -823,7 +823,9 @@ impl From<ToolJvozbaRequest> for Command {
 /// Output format for `gimfihi` candidate gismu.
 #[invariant(::Table => true)]
 #[invariant(::Json => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolGimfihiFormat {
     /// Compact ranked table (the default): one row per candidate with score and
@@ -832,6 +834,268 @@ pub enum ToolGimfihiFormat {
     /// Full structured JSON of all candidates and their scoring, for
     /// programmatic use.
     Json,
+}
+
+/// Gismu candidate scoring algorithm. See `docs/gismu-phonetic-medoid.md`.
+#[invariant(::Classic => true)]
+#[invariant(::Phonetic => true)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolGimfihiScorer {
+    /// CLL §4.14 letter-overlap scorer (default; preserves historical output).
+    #[default]
+    Classic,
+    /// Full-precision IPA semi-global ALINE medoid scorer.
+    Phonetic,
+}
+
+/// ALINE normalization denominator from `docs/gismu-phonetic-medoid.md`.
+#[invariant(::SourceSide => true)]
+#[invariant(::CandidateSide => true)]
+#[invariant(::Symmetric => true)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ToolAlineNormalizer {
+    /// Divide by source self-similarity (default coverage semantics).
+    #[default]
+    SourceSide,
+    /// Divide by candidate self-similarity.
+    CandidateSide,
+    /// Divide by the mean of candidate and source self-similarity.
+    Symmetric,
+}
+
+/// Per-feature ALINE saliences from `docs/gismu-phonetic-medoid.md`.
+#[invariant(
+    syllabic.is_finite() && *syllabic >= 0.0
+        && place.is_finite() && *place >= 0.0
+        && manner.is_finite() && *manner >= 0.0
+        && voice.is_finite() && *voice >= 0.0
+        && nasal.is_finite() && *nasal >= 0.0
+        && retroflex.is_finite() && *retroflex >= 0.0
+        && lateral.is_finite() && *lateral >= 0.0
+        && aspirated.is_finite() && *aspirated >= 0.0
+        && high.is_finite() && *high >= 0.0
+        && back.is_finite() && *back >= 0.0
+        && round.is_finite() && *round >= 0.0
+        && long.is_finite() && *long >= 0.0
+)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ToolAlineSaliences {
+    /// Syllabic salience (default 5).
+    #[serde(default = "tool_salience_syllabic_default")]
+    #[schemars(range(min = 0.0))]
+    pub syllabic: f64,
+    /// Place salience (default 40).
+    #[serde(default = "tool_salience_place_default")]
+    #[schemars(range(min = 0.0))]
+    pub place: f64,
+    /// Manner salience (default 50).
+    #[serde(default = "tool_salience_manner_default")]
+    #[schemars(range(min = 0.0))]
+    pub manner: f64,
+    /// Voice salience (default 10).
+    #[serde(default = "tool_salience_voice_default")]
+    #[schemars(range(min = 0.0))]
+    pub voice: f64,
+    /// Nasal salience (default 10).
+    #[serde(default = "tool_salience_nasal_default")]
+    #[schemars(range(min = 0.0))]
+    pub nasal: f64,
+    /// Retroflex salience (default 10).
+    #[serde(default = "tool_salience_retroflex_default")]
+    #[schemars(range(min = 0.0))]
+    pub retroflex: f64,
+    /// Lateral salience (default 10).
+    #[serde(default = "tool_salience_lateral_default")]
+    #[schemars(range(min = 0.0))]
+    pub lateral: f64,
+    /// Aspirated salience (default 5; aspiration segments are issue #271).
+    #[serde(default = "tool_salience_aspirated_default")]
+    #[schemars(range(min = 0.0))]
+    pub aspirated: f64,
+    /// Vowel height salience (default 5).
+    #[serde(default = "tool_salience_high_default")]
+    #[schemars(range(min = 0.0))]
+    pub high: f64,
+    /// Vowel backness salience (default 5).
+    #[serde(default = "tool_salience_back_default")]
+    #[schemars(range(min = 0.0))]
+    pub back: f64,
+    /// Roundedness salience (default 5).
+    #[serde(default = "tool_salience_round_default")]
+    #[schemars(range(min = 0.0))]
+    pub round: f64,
+    /// Length salience (default 1).
+    #[serde(default = "tool_salience_long_default")]
+    #[schemars(range(min = 0.0))]
+    pub long: f64,
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().syllabic)]
+fn tool_salience_syllabic_default() -> f64 {
+    AlineSaliences::default().syllabic
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().place)]
+fn tool_salience_place_default() -> f64 {
+    AlineSaliences::default().place
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().manner)]
+fn tool_salience_manner_default() -> f64 {
+    AlineSaliences::default().manner
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().voice)]
+fn tool_salience_voice_default() -> f64 {
+    AlineSaliences::default().voice
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().nasal)]
+fn tool_salience_nasal_default() -> f64 {
+    AlineSaliences::default().nasal
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().retroflex)]
+fn tool_salience_retroflex_default() -> f64 {
+    AlineSaliences::default().retroflex
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().lateral)]
+fn tool_salience_lateral_default() -> f64 {
+    AlineSaliences::default().lateral
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().aspirated)]
+fn tool_salience_aspirated_default() -> f64 {
+    AlineSaliences::default().aspirated
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().high)]
+fn tool_salience_high_default() -> f64 {
+    AlineSaliences::default().high
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().back)]
+fn tool_salience_back_default() -> f64 {
+    AlineSaliences::default().back
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().round)]
+fn tool_salience_round_default() -> f64 {
+    AlineSaliences::default().round
+}
+
+#[requires(true)]
+#[ensures(ret == AlineSaliences::default().long)]
+fn tool_salience_long_default() -> f64 {
+    AlineSaliences::default().long
+}
+
+impl Default for ToolAlineSaliences {
+    #[requires(true)]
+    #[ensures(ret.manner == AlineSaliences::default().manner)]
+    fn default() -> Self {
+        let defaults = AlineSaliences::default();
+        new!(ToolAlineSaliences {
+            syllabic: defaults.syllabic,
+            place: defaults.place,
+            manner: defaults.manner,
+            voice: defaults.voice,
+            nasal: defaults.nasal,
+            retroflex: defaults.retroflex,
+            lateral: defaults.lateral,
+            aspirated: defaults.aspirated,
+            high: defaults.high,
+            back: defaults.back,
+            round: defaults.round,
+            long: defaults.long,
+        })
+    }
+}
+
+impl ToolAlineSaliences {
+    #[requires(true)]
+    #[ensures(ret.is_finite() && ret >= 0.0)]
+    fn value(&self, feature: AlineFeature) -> f64 {
+        match feature {
+            AlineFeature::Syllabic => self.syllabic,
+            AlineFeature::Place => self.place,
+            AlineFeature::Manner => self.manner,
+            AlineFeature::Voice => self.voice,
+            AlineFeature::Nasal => self.nasal,
+            AlineFeature::Retroflex => self.retroflex,
+            AlineFeature::Lateral => self.lateral,
+            AlineFeature::Aspirated => self.aspirated,
+            AlineFeature::High => self.high,
+            AlineFeature::Back => self.back,
+            AlineFeature::Round => self.round,
+            AlineFeature::Long => self.long,
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret == AlineParameters::default().c_sub)]
+fn tool_c_sub_default() -> f64 {
+    AlineParameters::default().c_sub
+}
+
+#[requires(true)]
+#[ensures(ret == AlineParameters::default().c_exp)]
+fn tool_c_exp_default() -> f64 {
+    AlineParameters::default().c_exp
+}
+
+#[requires(true)]
+#[ensures(ret == AlineParameters::default().c_skip)]
+fn tool_c_skip_default() -> f64 {
+    AlineParameters::default().c_skip
+}
+
+#[requires(true)]
+#[ensures(ret == AlineParameters::default().c_vwl)]
+fn tool_c_vwl_default() -> f64 {
+    AlineParameters::default().c_vwl
+}
+
+#[requires(true)]
+#[ensures(ret == AlineParameters::default().c_flank)]
+fn tool_c_flank_default() -> f64 {
+    AlineParameters::default().c_flank
 }
 
 impl Default for ToolGimfihiFormat {
@@ -846,7 +1110,9 @@ impl Default for ToolGimfihiFormat {
 #[invariant(::All => true)]
 #[invariant(::Official => true)]
 #[invariant(::None => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum ToolCollisionScope {
     /// Check against every gismu, official and experimental (the default).
@@ -880,7 +1146,9 @@ impl From<ToolCollisionScope> for CliCollisionScope {
 /// One source word feeding the gismu-composition algorithm: the word from a
 /// natural language, optionally with a custom blending weight.
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiSource {
     /// A short language code for this source (e.g. `eng`, `cmn`, `spa`). Each
@@ -961,13 +1229,49 @@ impl ToolGimfihiSource {
 /// number of top languages picked from the list. Unless specifically directed
 /// otherwise by the user, use ilmen12.
 #[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub struct ToolGimfihiRequest {
     /// The source words, one per language. Provide weights here, or via
     /// `preset`.
     #[serde(default)]
     pub sources: Vec<ToolGimfihiSource>,
+    /// Scoring algorithm; defaults to `classic`. The `phonetic` formula is
+    /// specified by `docs/gismu-phonetic-medoid.md`.
+    #[serde(default)]
+    pub scorer: ToolGimfihiScorer,
+    /// ALINE substitution ceiling C_sub (default 35); see
+    /// `docs/gismu-phonetic-medoid.md`.
+    #[serde(default = "tool_c_sub_default")]
+    pub c_sub: f64,
+    /// ALINE expansion ceiling C_exp (default 45); see
+    /// `docs/gismu-phonetic-medoid.md`.
+    #[serde(default = "tool_c_exp_default")]
+    pub c_exp: f64,
+    /// ALINE unmatched-segment penalty C_skip (default -10, nonpositive); see
+    /// `docs/gismu-phonetic-medoid.md`.
+    #[serde(default = "tool_c_skip_default")]
+    #[schemars(range(max = 0.0))]
+    pub c_skip: f64,
+    /// ALINE vowel discount C_vwl (default 10, nonnegative); see
+    /// `docs/gismu-phonetic-medoid.md`.
+    #[serde(default = "tool_c_vwl_default")]
+    #[schemars(range(min = 0.0))]
+    pub c_vwl: f64,
+    /// Source flank skip rate C_flank (default 0; must lie between C_skip and
+    /// 0); see `docs/gismu-phonetic-medoid.md`.
+    #[serde(default = "tool_c_flank_default")]
+    #[schemars(range(max = 0.0))]
+    pub c_flank: f64,
+    /// Normalizer mode from `docs/gismu-phonetic-medoid.md`; defaults to
+    /// `source-side`.
+    #[serde(default)]
+    pub normalizer: ToolAlineNormalizer,
+    /// Complete feature-salience table from
+    /// `docs/gismu-phonetic-medoid.md`; omitted fields use the documented
+    /// Kondrak defaults.
+    #[serde(default)]
+    pub saliences: ToolAlineSaliences,
     /// Use a named weight preset instead of supplying per-source `weight`s. You
     /// must then provide exactly the languages that preset covers (ISO 639-3
     /// codes):
@@ -1014,6 +1318,33 @@ pub struct ToolGimfihiRequest {
     pub format: ToolGimfihiFormat,
 }
 
+impl Default for ToolGimfihiRequest {
+    #[requires(true)]
+    #[ensures(ret.scorer == ToolGimfihiScorer::Classic)]
+    fn default() -> Self {
+        Self {
+            sources: Vec::new(),
+            scorer: ToolGimfihiScorer::Classic,
+            c_sub: tool_c_sub_default(),
+            c_exp: tool_c_exp_default(),
+            c_skip: tool_c_skip_default(),
+            c_vwl: tool_c_vwl_default(),
+            c_flank: tool_c_flank_default(),
+            normalizer: ToolAlineNormalizer::SourceSide,
+            saliences: ToolAlineSaliences::default(),
+            preset: None,
+            shapes: Vec::new(),
+            check_collisions: ToolCollisionScope::default(),
+            all_letters: false,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            count: None,
+            highlight: None,
+            format: ToolGimfihiFormat::default(),
+        }
+    }
+}
+
 impl ToolGimfihiFormat {
     #[requires(true)]
     #[ensures(true)]
@@ -1052,8 +1383,35 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
             .into_iter()
             .map(|source| tool_gimfihi_source_to_input(source, input.word_kind))
             .collect::<Result<Vec<_>>>()?;
+        let scorer = match request.scorer {
+            ToolGimfihiScorer::Classic => GimfihiCliScorer::Classic,
+            ToolGimfihiScorer::Phonetic => GimfihiCliScorer::Phonetic,
+        };
+        let normalizer = match request.normalizer {
+            ToolAlineNormalizer::SourceSide => GimfihiCliNormalizer::SourceSide,
+            ToolAlineNormalizer::CandidateSide => GimfihiCliNormalizer::CandidateSide,
+            ToolAlineNormalizer::Symmetric => GimfihiCliNormalizer::Symmetric,
+        };
+        let saliences = AlineFeature::all()
+            .iter()
+            .copied()
+            .map(|feature| {
+                new!(GimfihiSalienceOverride {
+                    feature,
+                    value: request.saliences.value(feature),
+                })
+            })
+            .collect();
         Ok(Self::Gimfihi(GimfihiInput {
             sources,
+            scorer,
+            c_sub: request.c_sub,
+            c_exp: request.c_exp,
+            c_skip: request.c_skip,
+            c_vwl: request.c_vwl,
+            c_flank: request.c_flank,
+            normalizer,
+            saliences,
             preset: request.preset,
             shapes: request.shapes,
             check_collisions: request.check_collisions.into(),

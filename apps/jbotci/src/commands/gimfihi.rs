@@ -49,9 +49,30 @@ fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
             .map(|shape| parse_shape(shape).map_err(|error| anyhow!(error.to_string())))
             .collect::<Result<Vec<_>>>()?
     };
+    let mut saliences = AlineSaliences::default();
+    for override_value in &input.saliences {
+        saliences = saliences
+            .with_feature(override_value.feature, override_value.value)
+            .map_err(|error| anyhow!(error.to_string()))?;
+    }
+    let phonetic_parameters = AlineParameters::try_new(
+        saliences,
+        input.c_sub,
+        input.c_exp,
+        input.c_skip,
+        input.c_vwl,
+        input.c_flank,
+        input.normalizer.into(),
+    )
+    .map_err(|error| anyhow!(error.to_string()))?;
+    if input.scorer == GimfihiCliScorer::Classic
+        && phonetic_parameters != AlineParameters::default()
+    {
+        bail!("non-default phonetic parameters require `--scorer phonetic`");
+    }
     Ok(GimfihiRequest {
-        scorer: Default::default(),
-        phonetic_parameters: Default::default(),
+        scorer: input.scorer.into(),
+        phonetic_parameters,
         preset,
         sources,
         shapes,
@@ -71,6 +92,12 @@ fn render_gimfihi_table(output: &GimfihiOutput) -> String {
         return "No gismu candidates matched the selected filters.".to_owned();
     }
     let mut lines = Vec::new();
+    if output.scorer != GimfihiScorer::Classic {
+        lines.push(format!("scorer: {}", output.scorer.as_str()));
+    }
+    if let Some(parameters) = &output.phonetic_parameters {
+        lines.push(format_nondefault_phonetic_parameters(parameters));
+    }
     lines.push(format!(
         "winner: {}",
         output.winner.as_deref().unwrap_or("none")
@@ -86,6 +113,45 @@ fn render_gimfihi_table(output: &GimfihiOutput) -> String {
         lines.push(render_gimfihi_candidate_row(candidate));
     }
     lines.join("\n")
+}
+
+#[requires(parameters != &AlineParameters::default())]
+#[ensures(ret.starts_with("parameters:"))]
+fn format_nondefault_phonetic_parameters(parameters: &AlineParameters) -> String {
+    let defaults = AlineParameters::default();
+    let mut values = Vec::new();
+    for (name, value, default) in [
+        ("c-sub", parameters.c_sub, defaults.c_sub),
+        ("c-exp", parameters.c_exp, defaults.c_exp),
+        ("c-skip", parameters.c_skip, defaults.c_skip),
+        ("c-vwl", parameters.c_vwl, defaults.c_vwl),
+        ("c-flank", parameters.c_flank, defaults.c_flank),
+    ] {
+        if value != default {
+            values.push(format!("{name}={}", format_gimfihi_score(value)));
+        }
+    }
+    if parameters.normalizer != defaults.normalizer {
+        values.push(format!(
+            "normalizer={}",
+            match parameters.normalizer {
+                AlineNormalizer::SourceSide => "source-side",
+                AlineNormalizer::CandidateSide => "candidate-side",
+                AlineNormalizer::Symmetric => "symmetric",
+            }
+        ));
+    }
+    for feature in AlineFeature::all() {
+        let value = parameters.saliences.value(*feature);
+        if value != defaults.saliences.value(*feature) {
+            values.push(format!(
+                "{}={}",
+                feature.as_str(),
+                format_gimfihi_score(value)
+            ));
+        }
+    }
+    format!("parameters: {}", values.join(", "))
 }
 
 #[requires(!candidate.word.is_empty())]

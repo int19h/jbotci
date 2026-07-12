@@ -16,18 +16,22 @@ pub mod test_harness {
     pub use super::{
         Cli, CliCollisionScope, CliColorPolicy, CliGlideMark, CliStatus, CliStressMark,
         CliSumtiPlaces, CliTracePhase, CliUsePrecomputed, Command, CuktaCliFormat, CuktaInput,
-        GentufaFormat, GentufaImageOutputType, GentufaInput, GimfihiCliFormat, GimfihiInput,
-        JvozbaInput, SetupInput, TersmuFormat, TersmuInput, TextInput, ToolCuktaFormat,
-        ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext, ToolStatus, ToolVlackuMode,
-        ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat, VlataiInput,
-        run_tool_cukta_with_context, run_tool_vlacku, run_tool_vlacku_with_context,
+        GentufaFormat, GentufaImageOutputType, GentufaInput, GimfihiCliFormat,
+        GimfihiCliNormalizer, GimfihiCliScorer, GimfihiInput, GimfihiSourceWordKind, JvozbaInput,
+        SetupInput, TersmuFormat, TersmuInput, TextInput, ToolAlineNormalizer, ToolAlineSaliences,
+        ToolCollisionScope, ToolCuktaFormat, ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext,
+        ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiScorer, ToolGimfihiSource, ToolStatus,
+        ToolVlackuMode, ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat,
+        VlataiInput, run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku,
+        run_tool_vlacku_with_context,
     };
     pub use bityzba::{ensures, invariant, new, requires};
     pub use clap::{CommandFactory, Parser};
     pub use jbotci_diagnostics::{TraceLevel, TraceOptions, TracePhase};
-    pub use jbotci_gimfihi::GimfihiSourceInput;
+    pub use jbotci_gimfihi::{GimfihiOutput, GimfihiScorer, GimfihiSourceInput};
     pub use jbotci_jvozba::JvozbaInput as JvozbaSourceInput;
     pub use jbotci_output::{DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH, GlyphStyle};
+    pub use jbotci_phonetic::{AlineParameters, AlineSaliences};
     pub use jbotci_search::vlacku::{
         VlackuAuthor, VlackuCard, VlackuOutcome, VlackuRequest, VlackuSearchOutput,
     };
@@ -112,6 +116,7 @@ use std::io::{IsTerminal, Read, Write};
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::str::FromStr;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{
@@ -143,9 +148,9 @@ use jbotci_gentufa::{
 };
 use jbotci_gimfihi::{
     CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
-    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiSourceInput,
-    GismuCollision, RafsiAvailability, compose_gismu, default_shapes, parse_preset, parse_shape,
-    parse_source_spec,
+    GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiScorer,
+    GimfihiSourceInput, GismuCollision, RafsiAvailability, compose_gismu, default_shapes,
+    parse_preset, parse_shape, parse_source_spec,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -174,6 +179,7 @@ use jbotci_output::{
     pretty_recovered_syntax_tree_with_options, render_diagnostics, render_json_value_with_options,
     render_trace_report,
 };
+use jbotci_phonetic::{AlineFeature, AlineNormalizer, AlineParameters, AlineSaliences};
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
@@ -374,6 +380,88 @@ pub enum GimfihiCliFormat {
     Table,
     #[value(alias = "djeisone")]
     Json,
+}
+
+#[invariant(::Classic => true)]
+#[invariant(::Phonetic => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum GimfihiCliScorer {
+    Classic,
+    Phonetic,
+}
+
+impl From<GimfihiCliScorer> for GimfihiScorer {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: GimfihiCliScorer) -> Self {
+        match value {
+            GimfihiCliScorer::Classic => Self::Classic,
+            GimfihiCliScorer::Phonetic => Self::Phonetic,
+        }
+    }
+}
+
+#[invariant(::SourceSide => true)]
+#[invariant(::CandidateSide => true)]
+#[invariant(::Symmetric => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum GimfihiCliNormalizer {
+    SourceSide,
+    CandidateSide,
+    Symmetric,
+}
+
+impl From<GimfihiCliNormalizer> for AlineNormalizer {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from(value: GimfihiCliNormalizer) -> Self {
+        match value {
+            GimfihiCliNormalizer::SourceSide => Self::SourceSide,
+            GimfihiCliNormalizer::CandidateSide => Self::CandidateSide,
+            GimfihiCliNormalizer::Symmetric => Self::Symmetric,
+        }
+    }
+}
+
+#[invariant(value.is_finite() && *value >= 0.0)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct GimfihiSalienceOverride {
+    pub feature: AlineFeature,
+    pub value: f64,
+}
+
+impl FromStr for GimfihiSalienceOverride {
+    type Err = String;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|override_value| override_value.value.is_finite()) || ret.is_err())]
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let Some((feature_name, raw_value)) = value.split_once('=') else {
+            return Err("salience must use FEATURE=VALUE".to_owned());
+        };
+        let feature_name = feature_name.trim().to_ascii_lowercase();
+        let Some(feature) = AlineFeature::all()
+            .iter()
+            .copied()
+            .find(|feature| feature.as_str() == feature_name)
+        else {
+            return Err(format!("unknown salience feature `{feature_name}`"));
+        };
+        let parsed = raw_value
+            .trim()
+            .parse::<f64>()
+            .map_err(|_| format!("invalid salience `{feature_name}` value `{raw_value}`"))?;
+        if !parsed.is_finite() {
+            return Err(format!("salience `{feature_name}` must be finite"));
+        }
+        if parsed < 0.0 {
+            return Err(format!("salience `{feature_name}` must be nonnegative"));
+        }
+        Ok(new!(GimfihiSalienceOverride {
+            feature,
+            value: parsed,
+        }))
+    }
 }
 
 #[invariant(true)]
@@ -803,6 +891,42 @@ pub struct GimfihiInput {
         action = ArgAction::Append
     )]
     pub sources: Vec<GimfihiSourceInput>,
+    /// Candidate scorer. `classic` preserves CLL §4.14 behavior; `phonetic`
+    /// uses docs/gismu-phonetic-medoid.md. [default: classic]
+    #[arg(long = "scorer", value_enum, default_value_t = GimfihiCliScorer::Classic)]
+    pub scorer: GimfihiCliScorer,
+    /// ALINE substitution ceiling from docs/gismu-phonetic-medoid.md.
+    #[arg(long = "c-sub", default_value_t = AlineParameters::default().c_sub)]
+    pub c_sub: f64,
+    /// ALINE 1↔2 expansion ceiling from docs/gismu-phonetic-medoid.md.
+    #[arg(long = "c-exp", default_value_t = AlineParameters::default().c_exp)]
+    pub c_exp: f64,
+    /// ALINE unmatched-segment penalty from docs/gismu-phonetic-medoid.md.
+    #[arg(long = "c-skip", default_value_t = AlineParameters::default().c_skip)]
+    pub c_skip: f64,
+    /// ALINE vowel evidence discount from docs/gismu-phonetic-medoid.md.
+    #[arg(long = "c-vwl", default_value_t = AlineParameters::default().c_vwl)]
+    pub c_vwl: f64,
+    /// Source prefix/suffix skip rate from docs/gismu-phonetic-medoid.md.
+    #[arg(long = "c-flank", default_value_t = AlineParameters::default().c_flank)]
+    pub c_flank: f64,
+    /// ALINE normalizer from docs/gismu-phonetic-medoid.md. [default: source-side]
+    #[arg(
+        long = "normalizer",
+        value_enum,
+        default_value_t = GimfihiCliNormalizer::SourceSide
+    )]
+    pub normalizer: GimfihiCliNormalizer,
+    /// Override a feature salience as FEATURE=VALUE (repeatable). Defaults:
+    /// syllabic=5, place=40, manner=50, voice=10, nasal=10,
+    /// retroflex=10, lateral=10, aspirated=5, high=5, back=5, round=5,
+    /// long=1; see docs/gismu-phonetic-medoid.md.
+    #[arg(
+        long = "salience",
+        value_name = "FEATURE=VALUE",
+        action = ArgAction::Append
+    )]
+    pub saliences: Vec<GimfihiSalienceOverride>,
     #[arg(long = "preset", value_name = "PRESET")]
     pub preset: Option<String>,
     #[arg(long = "shape", value_name = "SHAPE", action = ArgAction::Append)]
